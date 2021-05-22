@@ -5,7 +5,9 @@ pub mod messages;
 pub mod structure;
 // pub mod discovery;
 
-pub trait PIM: structure::Types + behavior::Types + messages::Types + 'static{}
+pub trait PIM: structure::Types + behavior::Types + messages::Types + Sized + 'static {
+    type GapSubmessage: messages::submessages::Gap<Self>;
+}
 
 #[cfg(test)]
 #[macro_use]

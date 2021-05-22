@@ -1,9 +1,9 @@
 use crate::{
-    messages::{submessage_elements, Submessage},
-    PIM,
+    messages::{self, submessage_elements, Submessage},
+    structure,
 };
 
-pub trait Gap<PSM: PIM>: Submessage<PSM> {
+pub trait Gap<PSM: structure::Types + messages::Types>: Submessage<PSM> {
     fn new(
         endianness_flag: PSM::SubmessageFlag,
         reader_id: PSM::EntityId,

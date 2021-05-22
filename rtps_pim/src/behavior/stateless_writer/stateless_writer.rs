@@ -118,11 +118,11 @@ pub trait RTPSStatelessWriter<PSM: PIM>: RTPSWriter<PSM> {
 }
 
 impl<'a, PSM: PIM> RTPSReaderLocator<PSM> {
-    pub fn produce_messages<DataSubmessage: Data<PSM, &'a PSM::Data>, GapSubmessage: Gap<PSM>>(
+    pub fn produce_messages<DataSubmessage: Data<PSM, &'a PSM::Data>>(
         &'a mut self,
         writer_cache: &'a impl RTPSHistoryCache<PSM>,
         send_data_to: &mut impl FnMut(&Locator<PSM>, DataSubmessage),
-        send_gap_to: &mut impl FnMut(&Locator<PSM>, GapSubmessage),
+        send_gap_to: &mut impl FnMut(&Locator<PSM>, PSM::GapSubmessage),
     ) {
         while self
             .unsent_changes(writer_cache)
@@ -173,612 +173,614 @@ impl<'a, PSM: PIM> RTPSReaderLocator<PSM> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        behavior,
-        messages::{self, submessage_elements::Parameter},
-        structure::{
-            self,
-            types::{ChangeKind, ReliabilityKind, TopicKind, GUID},
-            RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
-        },
-    };
-    use std::vec::Vec;
-
-    #[derive(Clone)]
-    pub struct MockParameter;
-
-    impl Parameter for MockParameter {
-        type PSM = MockPsm;
-
-        fn parameter_id(&self) -> <Self::PSM as messages::Types>::ParameterId {
-            todo!()
-        }
-
-        fn length(&self) -> i16 {
-            todo!()
-        }
-
-        fn value(&self) -> &[u8] {
-            todo!()
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct MockPsm;
-
-    impl structure::Types for MockPsm {
-        type GuidPrefix = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
-
-        type EntityId = [u8; 4];
-        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityId = [0, 0, 0, 1];
-
-        type SequenceNumber = i64;
-        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = i64::MIN;
-
-        type LocatorKind = i32;
-        type LocatorPort = u32;
-        type LocatorAddress = [u8; 16];
-
-        const LOCATOR_KIND_INVALID: Self::LocatorKind = -1;
-        const LOCATOR_KIND_RESERVED: Self::LocatorKind = 0;
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: Self::LocatorKind = 1;
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: Self::LocatorKind = 2;
-        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
-        const LOCATOR_PORT_INVALID: Self::LocatorPort = 0;
-
-        type InstanceHandle = u32;
-
-        type ProtocolVersion = [u8; 2];
-
-        const PROTOCOLVERSION: Self::ProtocolVersion = [2, 4];
-        const PROTOCOLVERSION_1_0: Self::ProtocolVersion = [1, 0];
-        const PROTOCOLVERSION_1_1: Self::ProtocolVersion = [1, 1];
-        const PROTOCOLVERSION_2_0: Self::ProtocolVersion = [2, 0];
-        const PROTOCOLVERSION_2_1: Self::ProtocolVersion = [2, 1];
-        const PROTOCOLVERSION_2_2: Self::ProtocolVersion = [2, 2];
-        const PROTOCOLVERSION_2_3: Self::ProtocolVersion = [2, 3];
-        const PROTOCOLVERSION_2_4: Self::ProtocolVersion = [2, 4];
-
-        type VendorId = i8;
-        const VENDOR_ID_UNKNOWN: Self::VendorId = -1;
-
-        type Data = Vec<u8>;
-        type Locator = crate::structure::types::Locator<MockPsm>;
-        type LocatorVector = Vec<<Self as structure::Types>::Locator>;
-
-        type SequenceNumberVector = Vec<<Self as structure::Types>::SequenceNumber>;
-
-        type Parameter = MockParameter;
-        type ParameterVector = Vec<Self::Parameter>;
-    }
-
-    impl messages::Types for MockPsm {
-        type ProtocolId = [u8; 4];
-
-        const PROTOCOL_RTPS: Self::ProtocolId = [b'R', b'T', b'P', b'S'];
-
-        type SubmessageFlag = bool;
-
-        type SubmessageKind = u8;
-        const DATA: Self::SubmessageKind = 0;
-        const GAP: Self::SubmessageKind = 1;
-        const HEARTBEAT: Self::SubmessageKind = 2;
-        const ACKNACK: Self::SubmessageKind = 3;
-        const PAD: Self::SubmessageKind = 4;
-        const INFO_TS: Self::SubmessageKind = 5;
-        const INFO_REPLY: Self::SubmessageKind = 6;
-        const INFO_DST: Self::SubmessageKind = 7;
-        const INFO_SRC: Self::SubmessageKind = 8;
-        const DATA_FRAG: Self::SubmessageKind = 9;
-        const NACK_FRAG: Self::SubmessageKind = 10;
-        const HEARTBEAT_FRAG: Self::SubmessageKind = 11;
-
-        type Time = u64;
-        const TIME_ZERO: Self::Time = 0;
-        const TIME_INVALID: Self::Time = u64::MIN;
-        const TIME_INFINITE: Self::Time = u64::MAX;
-
-        type Count = u32;
-        type ParameterId = u8;
-        type FragmentNumber = i32;
-        type GroupDigest = i32;
-
-        type FragmentNumberVector = Vec<<Self as messages::Types>::FragmentNumber>;
-    }
-
-    impl behavior::Types for MockPsm {
-        type Duration = i64;
-
-        type ParticipantMessageData = u8;
-    }
-
-    impl PIM for MockPsm {}
-
-    struct MockHistoryCache {
-        changes: Vec<RTPSCacheChange<MockPsm>>,
-    }
-
-    impl RTPSHistoryCache<MockPsm> for MockHistoryCache {
-        fn new() -> Self {
-            MockHistoryCache {
-                changes: Vec::new(),
-            }
-        }
-
-        fn add_change(&mut self, change: structure::RTPSCacheChange<MockPsm>) {
-            self.changes.push(change)
-        }
-
-        fn remove_change(&mut self, _seq_num: &<MockPsm as structure::Types>::SequenceNumber) {
-            todo!()
-        }
-
-        fn get_change(
-            &self,
-            seq_num: &<MockPsm as structure::Types>::SequenceNumber,
-        ) -> Option<&structure::RTPSCacheChange<MockPsm>> {
-            self.changes.iter().find(|x| &x.sequence_number == seq_num)
-        }
-
-        fn get_seq_num_min(&self) -> Option<<MockPsm as structure::Types>::SequenceNumber> {
-            self.changes.iter().map(|x| x.sequence_number).min()
-        }
-
-        fn get_seq_num_max(&self) -> Option<<MockPsm as structure::Types>::SequenceNumber> {
-            self.changes.iter().map(|x| x.sequence_number).max()
-        }
-    }
-
-    pub struct MockWriter {
-        history_cache: MockHistoryCache,
-    }
-
-    impl MockWriter {
-        fn new() -> Self {
-            Self {
-                history_cache: MockHistoryCache::new(),
-            }
-        }
-    }
-
-    impl RTPSEntity<MockPsm> for MockWriter {
-        fn guid(&self) -> GUID<MockPsm> {
-            todo!()
-        }
-    }
-
-    impl RTPSEndpoint<MockPsm> for MockWriter {
-        fn topic_kind(&self) -> TopicKind {
-            todo!()
-        }
-
-        fn reliability_level(&self) -> ReliabilityKind {
-            todo!()
-        }
-
-        fn unicast_locator_list(&self) -> &[Locator<MockPsm>] {
-            todo!()
-        }
-
-        fn multicast_locator_list(&self) -> &[Locator<MockPsm>] {
-            todo!()
-        }
-    }
-
-    impl RTPSWriter<MockPsm> for MockWriter {
-        fn push_mode(&self) -> bool {
-            todo!()
-        }
-
-        fn heartbeat_period(&self) -> i64 {
-            todo!()
-        }
-
-        fn nack_response_delay(&self) -> i64 {
-            todo!()
-        }
-
-        fn nack_suppression_duration(&self) -> i64 {
-            todo!()
-        }
-
-        fn last_change_sequence_number(&self) -> i64 {
-            todo!()
-        }
-
-        fn data_max_size_serialized(&self) -> i32 {
-            todo!()
-        }
-
-        fn writer_cache(&self) -> &dyn RTPSHistoryCache<MockPsm> {
-            &self.history_cache
-        }
-
-        fn writer_cache_mut(&mut self) -> &mut dyn RTPSHistoryCache<MockPsm> {
-            &mut self.history_cache
-        }
-
-        fn new_change(
-            &mut self,
-            _kind: ChangeKind,
-            _data: <MockPsm as structure::Types>::Data,
-            _inline_qos: &[<MockPsm as structure::Types>::Parameter],
-            _handle: <MockPsm as structure::Types>::InstanceHandle,
-        ) -> RTPSCacheChange<MockPsm> {
-            todo!()
-        }
-    }
-
-    // fn create_rtps_writer() -> RTPSWriter<MockPsm, MockHistoryCache> {
-    //     let guid = GUID::new([1; 12], [1; 4]);
-    //     let topic_kind = TopicKind::WithKey;
-    //     let reliability_level = ReliabilityKind::BestEffort;
-    //     let unicast_locator_list = Vec::new();
-    //     let multicast_locator_list = Vec::new();
-    //     let push_mode = true;
-    //     let heartbeat_period = 0;
-    //     let nack_response_delay = 0;
-    //     let nack_suppression_duration = 0;
-    //     let data_max_size_serialized = 65535;
-    //     RTPSWriter::new(
-    //         guid,
-    //         topic_kind,
-    //         reliability_level,
-    //         unicast_locator_list,
-    //         multicast_locator_list,
-    //         push_mode,
-    //         heartbeat_period,
-    //         nack_response_delay,
-    //         nack_suppression_duration,
-    //         data_max_size_serialized,
-    //     )
-    // }
-
-    // #[test]
-    // fn stateless_writer_unsent_changes_reset() {
-    //     let writer = create_rtps_writer();
-    //     let reader_locator_1 = RTPSReaderLocator {
-    //         locator: MockLocator { id: 1 },
-    //         expects_inline_qos: false,
-    //         last_sent_sequence_number: 1.into(),
-    //         requested_changes: vec![],
-    //     };
-    //     let reader_locator_2 = RTPSReaderLocator {
-    //         locator: MockLocator { id: 2 },
-    //         expects_inline_qos: false,
-    //         last_sent_sequence_number: 9.into(),
-    //         requested_changes: vec![],
-    //     };
-
-    //     let mut stateless_writer: RTPSStatelessWriter<
-    //         MockPsm,
-    //         MockHistoryCache,
-    //         Vec<RTPSReaderLocator<MockPsm>>,
-    //     > = RTPSStatelessWriter {
-    //         writer,
-    //         reader_locators: vec![reader_locator_1, reader_locator_2],
-    //     };
-
-    //     stateless_writer.unsent_changes_reset();
-
-    //     for reader_locator in stateless_writer.reader_locators {
-    //         assert_eq!(reader_locator.last_sent_sequence_number, 0.into());
-    //     }
-    // }
-
-    #[test]
-    fn reader_locator_requested_changes_set() {
-        let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
-
-        let mut writer = MockWriter::new();
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 1,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 2,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 3,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(req_seq_num_set, writer.writer_cache());
-
-        let expected_requested_changes = vec![1, 2, 3];
-        assert_eq!(reader_locator.requested_changes, expected_requested_changes)
-    }
-
-    #[test]
-    fn reader_locator_requested_changes_set_changes_not_in_history_cache() {
-        let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
-
-        let mut writer = MockWriter::new();
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 1,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 3,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 5,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        let req_seq_num_set = vec![1, 2, 3, 4, 5];
-        reader_locator.requested_changes_set(req_seq_num_set, writer.writer_cache());
-
-        let expected_requested_changes = vec![1, 3, 5];
-        assert_eq!(reader_locator.requested_changes, expected_requested_changes);
-    }
-
-    #[test]
-    fn reader_locator_next_requested_change() {
-        let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
-
-        let mut writer = MockWriter::new();
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 1,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 2,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 3,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(req_seq_num_set, writer.writer_cache());
-
-        assert_eq!(reader_locator.next_requested_change(), Some(1));
-        assert_eq!(reader_locator.next_requested_change(), Some(2));
-        assert_eq!(reader_locator.next_requested_change(), Some(3));
-        assert_eq!(reader_locator.next_requested_change(), None);
-    }
-
-    #[test]
-    fn reader_locator_unsent_changes() {
-        let reader_locator: RTPSReaderLocator<MockPsm> =
-            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
-
-        let mut writer = MockWriter::new();
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 1,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 2,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 3,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        let unsent_changes = reader_locator.unsent_changes(writer.writer_cache());
-        let expected_unsent_changes = vec![1, 2, 3];
-        assert_eq!(unsent_changes, expected_unsent_changes);
-    }
-
-    #[test]
-    fn reader_locator_unsent_changes_with_non_consecutive_changes() {
-        let reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
-
-        let mut writer = MockWriter::new();
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 1,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 3,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 5,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        let unsent_changes = reader_locator.unsent_changes(writer.writer_cache());
-        let expected_unsent_changes = vec![1, 3, 5];
-        assert_eq!(unsent_changes, expected_unsent_changes);
-    }
-
-    #[test]
-    fn reader_locator_next_unsent_change() {
-        let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
-
-        let mut writer = MockWriter::new();
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 1,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 3,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        writer.writer_cache_mut().add_change(RTPSCacheChange {
-            kind: ChangeKind::Alive,
-            writer_guid: GUID::new([1; 12], [1; 4]),
-            instance_handle: 1,
-            sequence_number: 5,
-            data_value: vec![],
-            // inline_qos: vec![],
-        });
-
-        assert_eq!(
-            reader_locator.next_unsent_change(writer.writer_cache()),
-            Some(1)
-        );
-        assert_eq!(
-            reader_locator.next_unsent_change(writer.writer_cache()),
-            Some(3)
-        );
-        assert_eq!(
-            reader_locator.next_unsent_change(writer.writer_cache()),
-            Some(5)
-        );
-        assert_eq!(
-            reader_locator.next_unsent_change(writer.writer_cache()),
-            None
-        );
-    }
-
-    // #[test]
-    // fn stateless_writer_produce_messages() {
-    //     let mut writer = MockWriter::new();
-    //     let mut reader_locator_1 = RTPSReaderLocator::new(Locator::new(1, 0, [0; 16]), false);
-    //     let mut reader_locator_2 = RTPSReaderLocator::new(Locator::new(2, 0, [0; 16]), false);
-
-    //     writer.writer_cache_mut().add_change(RTPSCacheChange {
-    //         kind: ChangeKind::Alive,
-    //         writer_guid: GUID::new([1; 12], [1; 4]),
-    //         instance_handle: 1,
-    //         sequence_number: 1,
-    //         data_value: vec![],
-    //         inline_qos: vec![],
-    //     });
-
-    //     writer.writer_cache_mut().add_change(RTPSCacheChange {
-    //         kind: ChangeKind::Alive,
-    //         writer_guid: GUID::new([1; 12], [1; 4]),
-    //         instance_handle: 1,
-    //         sequence_number: 3,
-    //         data_value: vec![],
-    //         inline_qos: vec![],
-    //     });
-
-    //     {
-    //         let mut data: Vec<(Locator<MockPsm>, MockDataSubmessage)> = Vec::new();
-    //         let mut gap: Vec<(Locator<MockPsm>, MockGapSubmessage)> = Vec::new();
-    //         reader_locator_1
-    //             .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
-    //                 &writer,
-    //                 &mut |locator, message| data.push((locator.clone(), message)),
-    //                 &mut |locator, message| gap.push((locator.clone(), message)),
-    //             );
-    //         println!("Data: {:?}", data[0].1);
-    //     }
-
-    //     {
-    //         let mut data = Vec::new();
-    //         let mut gap = Vec::new();
-    //         reader_locator_2
-    //             .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
-    //                 &writer,
-    //                 &mut |locator, message| data.push((locator.clone(), message)),
-    //                 &mut |locator, message| gap.push((locator.clone(), message)),
-    //             );
-    //     }
-
-    //     {
-    //         let mut data = Vec::new();
-    //         let mut gap = Vec::new();
-    //         reader_locator_1
-    //             .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
-    //                 &writer,
-    //                 &mut |locator, message| data.push((locator.clone(), message)),
-    //                 &mut |locator, message| gap.push((locator.clone(), message)),
-    //             );
-    //     }
-    // }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::{
+//         behavior,
+//         messages::{self, submessage_elements::Parameter},
+//         structure::{
+//             self,
+//             types::{ChangeKind, ReliabilityKind, TopicKind, GUID},
+//             RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
+//         },
+//     };
+//     use std::vec::Vec;
+
+//     #[derive(Clone)]
+//     pub struct MockParameter;
+
+//     impl Parameter for MockParameter {
+//         type PSM = MockPsm;
+
+//         fn parameter_id(&self) -> <Self::PSM as messages::Types>::ParameterId {
+//             todo!()
+//         }
+
+//         fn length(&self) -> i16 {
+//             todo!()
+//         }
+
+//         fn value(&self) -> &[u8] {
+//             todo!()
+//         }
+//     }
+
+//     #[derive(Debug)]
+//     pub struct MockPsm;
+
+//     impl structure::Types for MockPsm {
+//         type GuidPrefix = [u8; 12];
+//         const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+
+//         type EntityId = [u8; 4];
+//         const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
+//         const ENTITYID_PARTICIPANT: Self::EntityId = [0, 0, 0, 1];
+
+//         type SequenceNumber = i64;
+//         const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = i64::MIN;
+
+//         type LocatorKind = i32;
+//         type LocatorPort = u32;
+//         type LocatorAddress = [u8; 16];
+
+//         const LOCATOR_KIND_INVALID: Self::LocatorKind = -1;
+//         const LOCATOR_KIND_RESERVED: Self::LocatorKind = 0;
+//         #[allow(non_upper_case_globals)]
+//         const LOCATOR_KIND_UDPv4: Self::LocatorKind = 1;
+//         #[allow(non_upper_case_globals)]
+//         const LOCATOR_KIND_UDPv6: Self::LocatorKind = 2;
+//         const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
+//         const LOCATOR_PORT_INVALID: Self::LocatorPort = 0;
+
+//         type InstanceHandle = u32;
+
+//         type ProtocolVersion = [u8; 2];
+
+//         const PROTOCOLVERSION: Self::ProtocolVersion = [2, 4];
+//         const PROTOCOLVERSION_1_0: Self::ProtocolVersion = [1, 0];
+//         const PROTOCOLVERSION_1_1: Self::ProtocolVersion = [1, 1];
+//         const PROTOCOLVERSION_2_0: Self::ProtocolVersion = [2, 0];
+//         const PROTOCOLVERSION_2_1: Self::ProtocolVersion = [2, 1];
+//         const PROTOCOLVERSION_2_2: Self::ProtocolVersion = [2, 2];
+//         const PROTOCOLVERSION_2_3: Self::ProtocolVersion = [2, 3];
+//         const PROTOCOLVERSION_2_4: Self::ProtocolVersion = [2, 4];
+
+//         type VendorId = i8;
+//         const VENDOR_ID_UNKNOWN: Self::VendorId = -1;
+
+//         type Data = Vec<u8>;
+//         type Locator = crate::structure::types::Locator<MockPsm>;
+//         type LocatorVector = Vec<<Self as structure::Types>::Locator>;
+
+//         type SequenceNumberVector = Vec<<Self as structure::Types>::SequenceNumber>;
+
+//         type Parameter = MockParameter;
+//         type ParameterVector = Vec<Self::Parameter>;
+//     }
+
+//     impl messages::Types for MockPsm {
+//         type ProtocolId = [u8; 4];
+
+//         const PROTOCOL_RTPS: Self::ProtocolId = [b'R', b'T', b'P', b'S'];
+
+//         type SubmessageFlag = bool;
+
+//         type SubmessageKind = u8;
+//         const DATA: Self::SubmessageKind = 0;
+//         const GAP: Self::SubmessageKind = 1;
+//         const HEARTBEAT: Self::SubmessageKind = 2;
+//         const ACKNACK: Self::SubmessageKind = 3;
+//         const PAD: Self::SubmessageKind = 4;
+//         const INFO_TS: Self::SubmessageKind = 5;
+//         const INFO_REPLY: Self::SubmessageKind = 6;
+//         const INFO_DST: Self::SubmessageKind = 7;
+//         const INFO_SRC: Self::SubmessageKind = 8;
+//         const DATA_FRAG: Self::SubmessageKind = 9;
+//         const NACK_FRAG: Self::SubmessageKind = 10;
+//         const HEARTBEAT_FRAG: Self::SubmessageKind = 11;
+
+//         type Time = u64;
+//         const TIME_ZERO: Self::Time = 0;
+//         const TIME_INVALID: Self::Time = u64::MIN;
+//         const TIME_INFINITE: Self::Time = u64::MAX;
+
+//         type Count = u32;
+//         type ParameterId = u8;
+//         type FragmentNumber = i32;
+//         type GroupDigest = i32;
+
+//         type FragmentNumberVector = Vec<<Self as messages::Types>::FragmentNumber>;
+//     }
+
+//     impl behavior::Types for MockPsm {
+//         type Duration = i64;
+
+//         type ParticipantMessageData = u8;
+//     }
+
+//     impl PIM for MockPsm {
+//         type GapSubmessage = u8;
+//     }
+
+//     struct MockHistoryCache {
+//         changes: Vec<RTPSCacheChange<MockPsm>>,
+//     }
+
+//     impl RTPSHistoryCache<MockPsm> for MockHistoryCache {
+//         fn new() -> Self {
+//             MockHistoryCache {
+//                 changes: Vec::new(),
+//             }
+//         }
+
+//         fn add_change(&mut self, change: structure::RTPSCacheChange<MockPsm>) {
+//             self.changes.push(change)
+//         }
+
+//         fn remove_change(&mut self, _seq_num: &<MockPsm as structure::Types>::SequenceNumber) {
+//             todo!()
+//         }
+
+//         fn get_change(
+//             &self,
+//             seq_num: &<MockPsm as structure::Types>::SequenceNumber,
+//         ) -> Option<&structure::RTPSCacheChange<MockPsm>> {
+//             self.changes.iter().find(|x| &x.sequence_number == seq_num)
+//         }
+
+//         fn get_seq_num_min(&self) -> Option<<MockPsm as structure::Types>::SequenceNumber> {
+//             self.changes.iter().map(|x| x.sequence_number).min()
+//         }
+
+//         fn get_seq_num_max(&self) -> Option<<MockPsm as structure::Types>::SequenceNumber> {
+//             self.changes.iter().map(|x| x.sequence_number).max()
+//         }
+//     }
+
+//     pub struct MockWriter {
+//         history_cache: MockHistoryCache,
+//     }
+
+//     impl MockWriter {
+//         fn new() -> Self {
+//             Self {
+//                 history_cache: MockHistoryCache::new(),
+//             }
+//         }
+//     }
+
+//     impl RTPSEntity<MockPsm> for MockWriter {
+//         fn guid(&self) -> GUID<MockPsm> {
+//             todo!()
+//         }
+//     }
+
+//     impl RTPSEndpoint<MockPsm> for MockWriter {
+//         fn topic_kind(&self) -> TopicKind {
+//             todo!()
+//         }
+
+//         fn reliability_level(&self) -> ReliabilityKind {
+//             todo!()
+//         }
+
+//         fn unicast_locator_list(&self) -> &[Locator<MockPsm>] {
+//             todo!()
+//         }
+
+//         fn multicast_locator_list(&self) -> &[Locator<MockPsm>] {
+//             todo!()
+//         }
+//     }
+
+//     impl RTPSWriter<MockPsm> for MockWriter {
+//         fn push_mode(&self) -> bool {
+//             todo!()
+//         }
+
+//         fn heartbeat_period(&self) -> i64 {
+//             todo!()
+//         }
+
+//         fn nack_response_delay(&self) -> i64 {
+//             todo!()
+//         }
+
+//         fn nack_suppression_duration(&self) -> i64 {
+//             todo!()
+//         }
+
+//         fn last_change_sequence_number(&self) -> i64 {
+//             todo!()
+//         }
+
+//         fn data_max_size_serialized(&self) -> i32 {
+//             todo!()
+//         }
+
+//         fn writer_cache(&self) -> &dyn RTPSHistoryCache<MockPsm> {
+//             &self.history_cache
+//         }
+
+//         fn writer_cache_mut(&mut self) -> &mut dyn RTPSHistoryCache<MockPsm> {
+//             &mut self.history_cache
+//         }
+
+//         fn new_change(
+//             &mut self,
+//             _kind: ChangeKind,
+//             _data: <MockPsm as structure::Types>::Data,
+//             _inline_qos: &[<MockPsm as structure::Types>::Parameter],
+//             _handle: <MockPsm as structure::Types>::InstanceHandle,
+//         ) -> RTPSCacheChange<MockPsm> {
+//             todo!()
+//         }
+//     }
+
+//     // fn create_rtps_writer() -> RTPSWriter<MockPsm, MockHistoryCache> {
+//     //     let guid = GUID::new([1; 12], [1; 4]);
+//     //     let topic_kind = TopicKind::WithKey;
+//     //     let reliability_level = ReliabilityKind::BestEffort;
+//     //     let unicast_locator_list = Vec::new();
+//     //     let multicast_locator_list = Vec::new();
+//     //     let push_mode = true;
+//     //     let heartbeat_period = 0;
+//     //     let nack_response_delay = 0;
+//     //     let nack_suppression_duration = 0;
+//     //     let data_max_size_serialized = 65535;
+//     //     RTPSWriter::new(
+//     //         guid,
+//     //         topic_kind,
+//     //         reliability_level,
+//     //         unicast_locator_list,
+//     //         multicast_locator_list,
+//     //         push_mode,
+//     //         heartbeat_period,
+//     //         nack_response_delay,
+//     //         nack_suppression_duration,
+//     //         data_max_size_serialized,
+//     //     )
+//     // }
+
+//     // #[test]
+//     // fn stateless_writer_unsent_changes_reset() {
+//     //     let writer = create_rtps_writer();
+//     //     let reader_locator_1 = RTPSReaderLocator {
+//     //         locator: MockLocator { id: 1 },
+//     //         expects_inline_qos: false,
+//     //         last_sent_sequence_number: 1.into(),
+//     //         requested_changes: vec![],
+//     //     };
+//     //     let reader_locator_2 = RTPSReaderLocator {
+//     //         locator: MockLocator { id: 2 },
+//     //         expects_inline_qos: false,
+//     //         last_sent_sequence_number: 9.into(),
+//     //         requested_changes: vec![],
+//     //     };
+
+//     //     let mut stateless_writer: RTPSStatelessWriter<
+//     //         MockPsm,
+//     //         MockHistoryCache,
+//     //         Vec<RTPSReaderLocator<MockPsm>>,
+//     //     > = RTPSStatelessWriter {
+//     //         writer,
+//     //         reader_locators: vec![reader_locator_1, reader_locator_2],
+//     //     };
+
+//     //     stateless_writer.unsent_changes_reset();
+
+//     //     for reader_locator in stateless_writer.reader_locators {
+//     //         assert_eq!(reader_locator.last_sent_sequence_number, 0.into());
+//     //     }
+//     // }
+
+//     #[test]
+//     fn reader_locator_requested_changes_set() {
+//         let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+
+//         let mut writer = MockWriter::new();
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 1,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 2,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 3,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         let req_seq_num_set = vec![1, 2, 3];
+//         reader_locator.requested_changes_set(req_seq_num_set, writer.writer_cache());
+
+//         let expected_requested_changes = vec![1, 2, 3];
+//         assert_eq!(reader_locator.requested_changes, expected_requested_changes)
+//     }
+
+//     #[test]
+//     fn reader_locator_requested_changes_set_changes_not_in_history_cache() {
+//         let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+
+//         let mut writer = MockWriter::new();
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 1,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 3,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 5,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         let req_seq_num_set = vec![1, 2, 3, 4, 5];
+//         reader_locator.requested_changes_set(req_seq_num_set, writer.writer_cache());
+
+//         let expected_requested_changes = vec![1, 3, 5];
+//         assert_eq!(reader_locator.requested_changes, expected_requested_changes);
+//     }
+
+//     #[test]
+//     fn reader_locator_next_requested_change() {
+//         let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+
+//         let mut writer = MockWriter::new();
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 1,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 2,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 3,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         let req_seq_num_set = vec![1, 2, 3];
+//         reader_locator.requested_changes_set(req_seq_num_set, writer.writer_cache());
+
+//         assert_eq!(reader_locator.next_requested_change(), Some(1));
+//         assert_eq!(reader_locator.next_requested_change(), Some(2));
+//         assert_eq!(reader_locator.next_requested_change(), Some(3));
+//         assert_eq!(reader_locator.next_requested_change(), None);
+//     }
+
+//     #[test]
+//     fn reader_locator_unsent_changes() {
+//         let reader_locator: RTPSReaderLocator<MockPsm> =
+//             RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+
+//         let mut writer = MockWriter::new();
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 1,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 2,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 3,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         let unsent_changes = reader_locator.unsent_changes(writer.writer_cache());
+//         let expected_unsent_changes = vec![1, 2, 3];
+//         assert_eq!(unsent_changes, expected_unsent_changes);
+//     }
+
+//     #[test]
+//     fn reader_locator_unsent_changes_with_non_consecutive_changes() {
+//         let reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+
+//         let mut writer = MockWriter::new();
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 1,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 3,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 5,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         let unsent_changes = reader_locator.unsent_changes(writer.writer_cache());
+//         let expected_unsent_changes = vec![1, 3, 5];
+//         assert_eq!(unsent_changes, expected_unsent_changes);
+//     }
+
+//     #[test]
+//     fn reader_locator_next_unsent_change() {
+//         let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+
+//         let mut writer = MockWriter::new();
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 1,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 3,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         writer.writer_cache_mut().add_change(RTPSCacheChange {
+//             kind: ChangeKind::Alive,
+//             writer_guid: GUID::new([1; 12], [1; 4]),
+//             instance_handle: 1,
+//             sequence_number: 5,
+//             data_value: vec![],
+//             // inline_qos: vec![],
+//         });
+
+//         assert_eq!(
+//             reader_locator.next_unsent_change(writer.writer_cache()),
+//             Some(1)
+//         );
+//         assert_eq!(
+//             reader_locator.next_unsent_change(writer.writer_cache()),
+//             Some(3)
+//         );
+//         assert_eq!(
+//             reader_locator.next_unsent_change(writer.writer_cache()),
+//             Some(5)
+//         );
+//         assert_eq!(
+//             reader_locator.next_unsent_change(writer.writer_cache()),
+//             None
+//         );
+//     }
+
+//     // #[test]
+//     // fn stateless_writer_produce_messages() {
+//     //     let mut writer = MockWriter::new();
+//     //     let mut reader_locator_1 = RTPSReaderLocator::new(Locator::new(1, 0, [0; 16]), false);
+//     //     let mut reader_locator_2 = RTPSReaderLocator::new(Locator::new(2, 0, [0; 16]), false);
+
+//     //     writer.writer_cache_mut().add_change(RTPSCacheChange {
+//     //         kind: ChangeKind::Alive,
+//     //         writer_guid: GUID::new([1; 12], [1; 4]),
+//     //         instance_handle: 1,
+//     //         sequence_number: 1,
+//     //         data_value: vec![],
+//     //         inline_qos: vec![],
+//     //     });
+
+//     //     writer.writer_cache_mut().add_change(RTPSCacheChange {
+//     //         kind: ChangeKind::Alive,
+//     //         writer_guid: GUID::new([1; 12], [1; 4]),
+//     //         instance_handle: 1,
+//     //         sequence_number: 3,
+//     //         data_value: vec![],
+//     //         inline_qos: vec![],
+//     //     });
+
+//     //     {
+//     //         let mut data: Vec<(Locator<MockPsm>, MockDataSubmessage)> = Vec::new();
+//     //         let mut gap: Vec<(Locator<MockPsm>, MockGapSubmessage)> = Vec::new();
+//     //         reader_locator_1
+//     //             .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
+//     //                 &writer,
+//     //                 &mut |locator, message| data.push((locator.clone(), message)),
+//     //                 &mut |locator, message| gap.push((locator.clone(), message)),
+//     //             );
+//     //         println!("Data: {:?}", data[0].1);
+//     //     }
+
+//     //     {
+//     //         let mut data = Vec::new();
+//     //         let mut gap = Vec::new();
+//     //         reader_locator_2
+//     //             .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
+//     //                 &writer,
+//     //                 &mut |locator, message| data.push((locator.clone(), message)),
+//     //                 &mut |locator, message| gap.push((locator.clone(), message)),
+//     //             );
+//     //     }
+
+//     //     {
+//     //         let mut data = Vec::new();
+//     //         let mut gap = Vec::new();
+//     //         reader_locator_1
+//     //             .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
+//     //                 &writer,
+//     //                 &mut |locator, message| data.push((locator.clone(), message)),
+//     //                 &mut |locator, message| gap.push((locator.clone(), message)),
+//     //             );
+//     //     }
+//     // }
+// }

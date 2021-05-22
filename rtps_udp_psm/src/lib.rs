@@ -5,10 +5,13 @@ use types::{
 };
 
 pub mod types;
+pub mod submessages;
 
 pub struct RtpsUdpPsm;
 
-impl rust_rtps_pim::PIM for RtpsUdpPsm {}
+impl rust_rtps_pim::PIM for RtpsUdpPsm {
+    type GapSubmessage = submessages::gap::Gap;
+}
 
 impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
     type GuidPrefix = GuidPrefix;
