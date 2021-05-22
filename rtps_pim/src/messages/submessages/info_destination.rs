@@ -1,6 +1,9 @@
-use crate::{messages::submessage_elements, PIM};
+use crate::{
+    messages::{self, submessage_elements, Submessage},
+    structure,
+};
 
-pub struct InfoDestination<PSM: PIM> {
-    pub endianness_flag: PSM::SubmessageFlag,
-    pub guid_prefix: submessage_elements::GuidPrefix<PSM>,
+pub trait InfoDestination<PSM: structure::Types + messages::Types>: Submessage<PSM> {
+    fn endianness_flag(&self) -> PSM::SubmessageFlag;
+    fn guid_prefix(&self) -> submessage_elements::GuidPrefix<PSM>;
 }

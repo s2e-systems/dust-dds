@@ -1,9 +1,9 @@
 use crate::{
-    messages::{submessage_elements, Submessage},
-    PIM,
+    messages::{self, submessage_elements, Submessage},
+    structure,
 };
 
-pub trait Data<PSM: PIM, SerializedData>: Submessage<PSM> {
+pub trait Data<PSM: structure::Types + messages::Types>: Submessage<PSM> {
     fn new(
         endianness_flag: PSM::SubmessageFlag,
         inline_qos_flag: PSM::SubmessageFlag,
@@ -13,7 +13,7 @@ pub trait Data<PSM: PIM, SerializedData>: Submessage<PSM> {
         reader_id: PSM::EntityId,
         writer_id: PSM::EntityId,
         writer_sn: PSM::SequenceNumber,
-        serialized_payload: SerializedData,
+        serialized_payload: &PSM::Data,
     ) -> Self;
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
     fn inline_qos_flag(&self) -> PSM::SubmessageFlag;
@@ -24,5 +24,5 @@ pub trait Data<PSM: PIM, SerializedData>: Submessage<PSM> {
     fn writer_id(&self) -> submessage_elements::EntityId<PSM>;
     fn writer_sn(&self) -> submessage_elements::SequenceNumber<PSM>;
     // pub inline_qos: <Self::PSM as structure::Types>::ParameterVector,
-    fn serialized_payload(&self) -> SerializedData;
+    fn serialized_payload(&self) -> &PSM::Data;
 }

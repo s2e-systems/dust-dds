@@ -1,5 +1,8 @@
-use crate::{messages::submessage_elements, PIM};
-pub trait Heartbeat<PSM: PIM> {
+use crate::{
+    messages::{self, submessage_elements, Submessage},
+    structure,
+};
+pub trait Heartbeat<PSM: structure::Types + messages::Types>: Submessage<PSM> {
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
     fn final_flag(&self) -> PSM::SubmessageFlag;
     fn liveliness_flag(&self) -> PSM::SubmessageFlag;

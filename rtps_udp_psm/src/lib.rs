@@ -10,6 +10,7 @@ pub mod submessages;
 pub struct RtpsUdpPsm;
 
 impl rust_rtps_pim::PIM for RtpsUdpPsm {
+    type DataSubmesage = submessages::data::Data;
     type GapSubmessage = submessages::gap::Gap;
 }
 

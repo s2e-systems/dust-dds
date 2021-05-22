@@ -1,6 +1,9 @@
-use crate::{messages::submessage_elements, PIM};
+use crate::{
+    messages::{self, submessage_elements, Submessage},
+    structure,
+};
 
-pub trait DataFrag<PSM: PIM, SerializedDataFragment: AsRef<[u8]>> {
+pub trait DataFrag<PSM: structure::Types + messages::Types>: Submessage<PSM> {
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
     fn inline_qos_flag(&self) -> PSM::SubmessageFlag;
     fn non_standard_payload_flag(&self) -> PSM::SubmessageFlag;
@@ -13,5 +16,5 @@ pub trait DataFrag<PSM: PIM, SerializedDataFragment: AsRef<[u8]>> {
     fn data_size(&self) -> submessage_elements::ULong;
     fn fragment_size(&self) -> submessage_elements::UShort;
     fn inline_qos(&self) -> submessage_elements::ParameterList<PSM>;
-    fn serialized_payload(&self) -> SerializedDataFragment;
+    fn serialized_payload(&self) -> &PSM::Data;
 }

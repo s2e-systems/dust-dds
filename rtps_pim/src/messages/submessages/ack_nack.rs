@@ -1,6 +1,9 @@
-use crate::{messages::submessage_elements, PIM};
+use crate::{
+    messages::{self, submessage_elements, Submessage},
+    structure,
+};
 
-pub trait AckNack<PSM: PIM> {
+pub trait AckNack<PSM: structure::Types + messages::Types>: Submessage<PSM> {
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
     fn final_flag(&self) -> PSM::SubmessageFlag;
     fn reader_id(&self) -> submessage_elements::EntityId<PSM>;
