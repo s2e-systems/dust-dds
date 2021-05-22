@@ -6,4 +6,5 @@ members = [
 	"dds_rtps_implementation",
 	"rtps_pim",
     "rtps_udp_psm",
+	"serde_cdr",
 ]
