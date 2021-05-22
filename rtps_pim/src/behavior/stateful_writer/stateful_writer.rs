@@ -1,6 +1,9 @@
-use crate::{behavior::RTPSWriter, structure::types::GUID, PIM};
+use crate::{
+    behavior::{self, RTPSWriter},
+    structure::{self, types::GUID},
+};
 
-pub struct RTPSReaderProxy<PSM: PIM> {
+pub struct RTPSReaderProxy<PSM: structure::Types> {
     remote_reader_guid: GUID<PSM>,
     remote_group_entity_id: PSM::EntityId,
     unicast_locator_list: PSM::LocatorVector,
@@ -9,7 +12,7 @@ pub struct RTPSReaderProxy<PSM: PIM> {
     is_active: bool,
 }
 
-impl<PSM: PIM> RTPSReaderProxy<PSM> {
+impl<PSM: structure::Types> RTPSReaderProxy<PSM> {
     pub fn new(
         remote_reader_guid: GUID<PSM>,
         remote_group_entity_id: PSM::EntityId,
@@ -72,7 +75,7 @@ impl<PSM: PIM> RTPSReaderProxy<PSM> {
     // fn changes_for_reader(&self, writer: &Self::Writer) -> Self::ChangeForReaderTypeList;
 }
 
-pub trait RTPSStatefulWriter<PSM: PIM>: RTPSWriter<PSM> {
+pub trait RTPSStatefulWriter<PSM: structure::Types + behavior::Types>: RTPSWriter<PSM> {
     fn matched_readers(&self) -> &[RTPSReaderProxy<PSM>];
     fn matched_reader_add(&mut self, guid: GUID<PSM>);
     fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID<PSM>);

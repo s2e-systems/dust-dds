@@ -1,6 +1,6 @@
 use core::iter::FromIterator;
 
-use crate::{messages, PIM};
+use crate::{messages, structure};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -64,26 +64,26 @@ pub trait Types {
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub struct GUID<PSM: PIM> {
+pub struct GUID<PSM: structure::Types> {
     prefix: PSM::GuidPrefix,
     entity_id: PSM::EntityId,
 }
 
-impl<PSM: PIM> Clone for GUID<PSM> {
+impl<PSM: structure::Types> Clone for GUID<PSM> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<PSM: PIM> Copy for GUID<PSM> {}
+impl<PSM: structure::Types> Copy for GUID<PSM> {}
 
-impl<PSM: PIM> PartialEq for GUID<PSM> {
+impl<PSM: structure::Types> PartialEq for GUID<PSM> {
     fn eq(&self, other: &Self) -> bool {
         self.prefix == other.prefix && self.entity_id == other.entity_id
     }
 }
 
-impl<PSM: PIM> GUID<PSM> {
+impl<PSM: structure::Types> GUID<PSM> {
     pub const GUID_UNKNOWN: Self = Self {
         prefix: PSM::GUIDPREFIX_UNKNOWN,
         entity_id: PSM::ENTITYID_UNKNOWN,

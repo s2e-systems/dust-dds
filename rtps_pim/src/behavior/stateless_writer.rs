@@ -1,18 +1,17 @@
 use crate::{
-    behavior::RTPSWriter,
+    behavior::{self, RTPSWriter},
     messages::submessages::{Data, Gap},
-    structure::{types::Locator, RTPSHistoryCache},
-    PIM,
+    structure::{self, types::Locator, RTPSHistoryCache},
 };
 
-pub struct RTPSReaderLocator<PSM: PIM> {
+pub struct RTPSReaderLocator<PSM: structure::Types> {
     locator: Locator<PSM>,
     expects_inline_qos: bool,
     last_sent_sequence_number: PSM::SequenceNumber,
     requested_changes: PSM::SequenceNumberVector,
 }
 
-impl<PSM: PIM> Clone for RTPSReaderLocator<PSM> {
+impl<PSM: structure::Types> Clone for RTPSReaderLocator<PSM> {
     fn clone(&self) -> Self {
         Self {
             locator: self.locator.clone(),
@@ -23,13 +22,13 @@ impl<PSM: PIM> Clone for RTPSReaderLocator<PSM> {
     }
 }
 
-impl<PSM: PIM> core::cmp::PartialEq for RTPSReaderLocator<PSM> {
+impl<PSM: structure::Types> core::cmp::PartialEq for RTPSReaderLocator<PSM> {
     fn eq(&self, other: &Self) -> bool {
         self.locator == other.locator
     }
 }
 
-impl<PSM: PIM> RTPSReaderLocator<PSM> {
+impl<PSM: structure::Types> RTPSReaderLocator<PSM> {
     pub fn new(locator: Locator<PSM>, expects_inline_qos: bool) -> Self {
         Self {
             locator,
@@ -103,7 +102,7 @@ impl<PSM: PIM> RTPSReaderLocator<PSM> {
     }
 }
 
-pub trait RTPSStatelessWriter<PSM: PIM>: RTPSWriter<PSM> {
+pub trait RTPSStatelessWriter<PSM: structure::Types + behavior::Types>: RTPSWriter<PSM> {
     fn reader_locator_add(&mut self, a_locator: Locator<PSM>);
 
     fn reader_locator_remove(&mut self, a_locator: &Locator<PSM>);
@@ -117,7 +116,7 @@ pub trait RTPSStatelessWriter<PSM: PIM>: RTPSWriter<PSM> {
     }
 }
 
-impl<'a, PSM: PIM> RTPSReaderLocator<PSM> {
+impl<'a, PSM: crate::PIM> RTPSReaderLocator<PSM> {
     pub fn produce_messages(
         &'a mut self,
         writer_cache: &'a impl RTPSHistoryCache<PSM>,
