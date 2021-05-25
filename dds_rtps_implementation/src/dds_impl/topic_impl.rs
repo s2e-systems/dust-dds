@@ -12,12 +12,12 @@ use rust_dds_api::{
 
 use super::domain_participant_impl::DomainParticipantImpl;
 
-pub struct TopicImpl<'t, T: 'static, PSM: rust_rtps_pim::PIM> {
+pub struct TopicImpl<'t, T: 'static, PSM: crate::rtps_impl::PIM> {
     participant: &'t DomainParticipantImpl<PSM>,
     phantom: PhantomData<&'t T>,
 }
 
-impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> rust_dds_api::topic::topic::Topic<T>
+impl<'t, T: 'static, PSM: crate::rtps_impl::PIM> rust_dds_api::topic::topic::Topic<T>
     for TopicImpl<'t, T, PSM>
 {
     fn get_inconsistent_topic_status(
@@ -28,7 +28,7 @@ impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> rust_dds_api::topic::topic::Topic<
     }
 }
 
-impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> TopicDescription<T> for TopicImpl<'t, T, PSM> {
+impl<'t, T: 'static, PSM: crate::rtps_impl::PIM> TopicDescription<T> for TopicImpl<'t, T, PSM> {
     fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
         self.participant
     }
@@ -56,7 +56,7 @@ impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> TopicDescription<T> for TopicImpl<
     }
 }
 
-impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> Entity for TopicImpl<'t, T, PSM> {
+impl<'t, T: 'static, PSM: crate::rtps_impl::PIM> Entity for TopicImpl<'t, T, PSM> {
     type Qos = TopicQos;
     type Listener = &'static dyn TopicListener<DataType = T>;
 

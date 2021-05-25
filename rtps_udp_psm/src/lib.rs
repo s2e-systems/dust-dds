@@ -9,20 +9,20 @@ pub mod types;
 
 pub struct RtpsUdpPsm;
 
-impl rust_rtps_pim::PIM for RtpsUdpPsm {
-    type AckNackSubmessage = submessages::ack_nack::AckNack;
-    type DataSubmesage = submessages::data::Data;
-    type DataFrag = submessages::data_frag::DataFrag;
-    type GapSubmessage = submessages::gap::Gap;
-    type HeartbeatSubmessage = submessages::heartbeat::Heartbeat;
-    type HeartbeatFragSubmessage = submessages::heartbeat_frag::HeartbeatFrag;
-    type InfoDestinationSubmessage = submessages::info_destination::InfoDestination;
-    type InfoReplySubmessage = submessages::info_reply::InfoReply;
-    type InfoSourceSubmessage = submessages::info_source::InfoSource;
-    type InfoTimestampSubmessage = submessages::info_timestamp::InfoTimestamp;
-    type NackFragSubmessage = submessages::nack_frag::NackFrag;
-    type PadSubmessage = submessages::pad::Pad;
-}
+// impl rust_rtps_pim::PIM for RtpsUdpPsm {
+//     type AckNackSubmessage = submessages::ack_nack::AckNack;
+//     type DataSubmesage = submessages::data::Data;
+//     type DataFrag = submessages::data_frag::DataFrag;
+//     type GapSubmessage = submessages::gap::Gap;
+//     type HeartbeatSubmessage = submessages::heartbeat::Heartbeat;
+//     type HeartbeatFragSubmessage = submessages::heartbeat_frag::HeartbeatFrag;
+//     type InfoDestinationSubmessage = submessages::info_destination::InfoDestination;
+//     type InfoReplySubmessage = submessages::info_reply::InfoReply;
+//     type InfoSourceSubmessage = submessages::info_source::InfoSource;
+//     type InfoTimestampSubmessage = submessages::info_timestamp::InfoTimestamp;
+//     type NackFragSubmessage = submessages::nack_frag::NackFrag;
+//     type PadSubmessage = submessages::pad::Pad;
+// }
 
 impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
     type GuidPrefix = GuidPrefix;

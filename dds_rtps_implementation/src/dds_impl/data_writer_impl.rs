@@ -21,14 +21,14 @@ pub struct DataWriterImpl<
     'p: 'dw,
     't: 'dw,
     T: DDSType<PSM> + 'static,
-    PSM: rust_rtps_pim::PIM,
+    PSM: crate::rtps_impl::PIM,
 > {
     publisher: &'dw PublisherImpl<'p, PSM>,
     topic: &'dw TopicImpl<'t, T, PSM>,
     rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: crate::rtps_impl::PIM>
     DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     pub fn new(
@@ -44,7 +44,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: crate::rtps_impl::PIM>
     rust_dds_api::publication::data_writer::DataWriterParent
     for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
@@ -55,7 +55,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: crate::rtps_impl::PIM>
     rust_dds_api::publication::data_writer::DataWriter<T>
     for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
@@ -179,7 +179,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: crate::rtps_impl::PIM>
     rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     type Qos = DataWriterQos;
@@ -222,7 +222,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: crate::rtps_impl::PIM>
     rust_dds_api::publication::data_writer::AnyDataWriter
     for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {

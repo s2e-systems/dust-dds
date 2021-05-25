@@ -1,6 +1,5 @@
 use crate::{
     behavior::{self, RTPSWriter},
-    messages::submessages::{Data, Gap},
     structure::{self, types::Locator, RTPSHistoryCache},
 };
 

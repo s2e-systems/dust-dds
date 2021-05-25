@@ -2,12 +2,12 @@ use rust_dds_api::{dcps_psm::StatusMask, infrastructure::qos::DataWriterQos, pub
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
-pub struct WriterFactory<PSM: rust_rtps_pim::PIM> {
+pub struct WriterFactory<PSM: crate::rtps_impl::PIM> {
     guid_prefix: PSM::GuidPrefix,
     datawriter_counter: u8,
 }
 
-impl<PSM: rust_rtps_pim::PIM> WriterFactory<PSM> {
+impl<PSM: crate::rtps_impl::PIM> WriterFactory<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
             guid_prefix,

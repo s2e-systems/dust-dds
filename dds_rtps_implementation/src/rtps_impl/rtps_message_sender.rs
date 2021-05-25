@@ -1,11 +1,9 @@
-use rust_rtps_pim::PIM;
-
 use super::rtps_participant_impl::RTPSParticipantImpl;
 
 struct UdpRtpsMessageSender;
 
 impl UdpRtpsMessageSender {
-    pub fn send_data<PSM:PIM>(participant: &RTPSParticipantImpl<PSM>) {
+    pub fn send_data<PSM:super::PIM>(participant: &RTPSParticipantImpl<PSM>) {
         for writer_group in participant.writer_groups() {
             if let Some(writer_group_lock) = writer_group.try_lock() {
                 for writer in writer_group_lock.writer_list() {

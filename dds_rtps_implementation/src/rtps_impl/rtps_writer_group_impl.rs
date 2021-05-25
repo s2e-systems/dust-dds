@@ -11,7 +11,7 @@ use rust_rtps_pim::structure::RTPSEntity;
 
 use super::rtps_writer_impl::RTPSWriterImpl;
 
-pub struct RTPSWriterGroupImpl<PSM: rust_rtps_pim::PIM> {
+pub struct RTPSWriterGroupImpl<PSM: super::PIM> {
     guid: GUID<PSM>,
     qos: PublisherQos,
     listener: Option<&'static dyn PublisherListener>,
@@ -19,7 +19,7 @@ pub struct RTPSWriterGroupImpl<PSM: rust_rtps_pim::PIM> {
     writer_list: Vec<RtpsShared<RTPSWriterImpl<PSM>>>,
 }
 
-impl<PSM: rust_rtps_pim::PIM> RTPSWriterGroupImpl<PSM> {
+impl<PSM: super::PIM> RTPSWriterGroupImpl<PSM> {
     pub fn new(
         guid: GUID<PSM>,
         qos: PublisherQos,
@@ -54,7 +54,7 @@ impl<PSM: rust_rtps_pim::PIM> RTPSWriterGroupImpl<PSM> {
     }
 }
 
-impl<PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
+impl<PSM: super::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
     for RTPSWriterGroupImpl<PSM>
 {
     fn guid(&self) -> GUID<PSM> {
