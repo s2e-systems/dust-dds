@@ -1,9 +1,9 @@
 use crate::{
-    messages::submessage_elements::ParameterListType,
+    messages::types::ParameterIdType,
     structure::{
         types::{
             DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
-            SequenceNumberType,
+            ParameterListType, SequenceNumberType,
         },
         RTPSEndpoint, RTPSHistoryCache,
     },
@@ -15,11 +15,12 @@ pub trait RTPSReader<
     PSM: InstanceHandleType
         + GuidPrefixType
         + DataType
-        + ParameterListType
         + EntityIdType
         + SequenceNumberType
         + LocatorType
-        + DurationType,
+        + DurationType
+        + ParameterIdType
+        + ParameterListType<PSM>,
     HistoryCache: RTPSHistoryCache<PSM>,
 >: RTPSEndpoint<PSM>
 {

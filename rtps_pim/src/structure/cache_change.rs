@@ -1,8 +1,8 @@
-use crate::messages::submessage_elements::ParameterListType;
+use crate::messages::types::ParameterIdType;
 
 use super::types::{
-    ChangeKind, DataType, EntityIdType, GuidPrefixType, InstanceHandleType, SequenceNumberType,
-    GUID,
+    ChangeKind, DataType, EntityIdType, GuidPrefixType, InstanceHandleType, ParameterListType,
+    SequenceNumberType, GUID,
 };
 
 pub struct RTPSCacheChange<
@@ -11,12 +11,13 @@ pub struct RTPSCacheChange<
         + InstanceHandleType
         + SequenceNumberType
         + DataType
-        + ParameterListType,
+        + ParameterIdType
+        + ParameterListType<PSM>,
 > {
     pub kind: ChangeKind,
     pub writer_guid: GUID<PSM>,
     pub instance_handle: PSM::InstanceHandle,
     pub sequence_number: PSM::SequenceNumber,
     pub data_value: PSM::Data,
-    pub inline_qos: PSM::ParameterVector,
+    pub inline_qos: PSM::ParameterList,
 }

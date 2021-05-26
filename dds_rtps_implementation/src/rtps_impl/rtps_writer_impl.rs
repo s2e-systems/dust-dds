@@ -6,7 +6,7 @@ use rust_rtps_pim::{
         RTPSWriter,
     },
     structure::{
-        types::{ChangeKind, Locator, ReliabilityKind, TopicKind, GUID},
+        types::{ChangeKind, ReliabilityKind, TopicKind, GUID},
         RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
 };

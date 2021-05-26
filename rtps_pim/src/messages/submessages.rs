@@ -6,9 +6,9 @@ use crate::{
     },
 };
 
-use super::{
-    submessage_elements::ParameterListType,
-    types::{CountType, FragmentNumberType, SubmessageFlagType, SubmessageKindType, TimeType},
+use super::types::{
+    CountType, FragmentNumberType, ParameterIdType, SubmessageFlagType, SubmessageKindType,
+    TimeType,
 };
 
 pub trait AckNack<
@@ -63,8 +63,8 @@ pub trait DataFrag<
         + EntityIdType
         + SequenceNumberType
         + FragmentNumberType
-        + ParameterListType
-        + DataType,
+        + DataType
+        + ParameterIdType,
 >: Submessage<PSM>
 {
     type EntityId: submessage_elements::EntityId<PSM>;
@@ -72,6 +72,7 @@ pub trait DataFrag<
     type FragmentNumber: submessage_elements::FragmentNumber<PSM>;
     type UShort: submessage_elements::UShort;
     type ULong: submessage_elements::ULong;
+    type ParameterList: submessage_elements::ParameterList<PSM>;
 
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
     fn inline_qos_flag(&self) -> PSM::SubmessageFlag;
@@ -84,7 +85,7 @@ pub trait DataFrag<
     fn fragments_in_submessage(&self) -> &Self::UShort;
     fn data_size(&self) -> &Self::ULong;
     fn fragment_size(&self) -> &Self::UShort;
-    fn inline_qos(&self) -> submessage_elements::ParameterList<PSM>;
+    fn inline_qos(&self) -> &Self::ParameterList;
     fn serialized_payload(&self) -> &PSM::Data;
 }
 

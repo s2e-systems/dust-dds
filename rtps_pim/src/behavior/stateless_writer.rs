@@ -1,111 +1,42 @@
 use crate::{
     behavior::RTPSWriter,
     messages::{
-        submessage_elements::ParameterListType,
         submessages::{Data, Gap},
-        types::{SubmessageFlagType, SubmessageKindType},
+        types::{ParameterIdType, SubmessageFlagType, SubmessageKindType},
     },
     structure::{
         types::{
             DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
-            SequenceNumberType, Set,
+            ParameterListType, SequenceNumberType,
         },
         RTPSHistoryCache,
     },
 };
 
 use super::types::DurationType;
+pub trait RTPSReaderLocator<PSM: LocatorType + SequenceNumberType> {
+    fn new(locator: PSM::Locator, expects_inline_qos: bool) -> Self;
 
-pub struct RTPSReaderLocator<PSM: LocatorType + SequenceNumberType> {
-    locator: PSM::Locator,
-    expects_inline_qos: bool,
-    last_sent_sequence_number: PSM::SequenceNumber,
-    // requested_changes: Set<PSM::SequenceNumber>,
-}
+    fn locator(&self) -> &PSM::Locator;
 
-impl<PSM: LocatorType + SequenceNumberType> core::cmp::PartialEq for RTPSReaderLocator<PSM> {
-    fn eq(&self, other: &Self) -> bool {
-        self.locator == other.locator
-    }
-}
+    fn expects_inline_qos(&self) -> bool;
 
-impl<PSM: LocatorType + SequenceNumberType> RTPSReaderLocator<PSM> {
-    pub fn new(locator: PSM::Locator, expects_inline_qos: bool) -> Self {
-        Self {
-            locator,
-            expects_inline_qos,
-            last_sent_sequence_number: 0.into(),
-            // requested_changes: core::iter::empty().collect(),
-        }
-    }
+    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumber>;
 
-    pub fn locator(&self) -> &PSM::Locator {
-        &self.locator
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
-    }
-
-    pub fn next_requested_change(&mut self) -> Option<PSM::SequenceNumber> {
-        todo!()
-        // let next_requested_change = self.requested_changes().clone().into_iter().min()?;
-        // self.requested_changes = self
-        //     .requested_changes()
-        //     .clone()
-        //     .into_iter()
-        //     .filter(|x| x != &next_requested_change)
-        //     .collect();
-        // Some(next_requested_change)
-    }
-
-    pub fn next_unsent_change(
+    fn next_unsent_change(
         &mut self,
-        writer_cache: &impl RTPSHistoryCache<PSM>,
-    ) -> Option<PSM::SequenceNumber> {
-        todo!()
-        // let unsent_changes = self.unsent_changes(writer_cache);
-        // let next_unsent_change = unsent_changes.into_iter().min()?;
-        // self.last_sent_sequence_number = next_unsent_change;
-        // Some(next_unsent_change)
-    }
-
-    pub fn requested_changes(&self) -> &Set<PSM::SequenceNumber> {
-        todo!()
-        // &self.requested_changes
-    }
-
-    pub fn requested_changes_set<'a>(
-        &'a mut self,
-        req_seq_num_set: Set<PSM::SequenceNumber>,
         writer_cache: &dyn RTPSHistoryCache<PSM>,
-    ) {
-        todo!()
-        // self.requested_changes = self
-        //     .requested_changes
-        //     .clone()
-        //     .into_iter()
-        //     .chain(
-        //         req_seq_num_set
-        //             .into_iter()
-        //             .filter(|seq_num| writer_cache.get_change(seq_num).is_some()),
-        //     )
-        //     .collect();
-    }
+    ) -> Option<PSM::SequenceNumber>;
 
-    pub fn unsent_changes(
-        &self,
+    fn requested_changes(&self) -> &[PSM::SequenceNumber];
+
+    fn requested_changes_set(
+        &mut self,
+        req_seq_num_set: &[PSM::SequenceNumber],
         writer_cache: &dyn RTPSHistoryCache<PSM>,
-    ) -> Set<PSM::SequenceNumber> {
-        todo!()
-        // let history_cache_max_seq_num: i64 =
-        //     writer_cache.get_seq_num_max().unwrap_or(0.into()).into();
+    );
 
-        // (self.last_sent_sequence_number.into() + 1..=history_cache_max_seq_num)
-        //     .map(|x| PSM::SequenceNumber::from(x))
-        //     .filter(|seq_num| writer_cache.get_change(seq_num).is_some())
-        //     .collect()
-    }
+    fn unsent_changes(&self, writer_cache: &dyn RTPSHistoryCache<PSM>) -> &[PSM::SequenceNumber];
 }
 
 pub trait RTPSStatelessWriter<
@@ -113,23 +44,18 @@ pub trait RTPSStatelessWriter<
         + EntityIdType
         + DurationType
         + DataType
-        + ParameterListType
         + InstanceHandleType
         + LocatorType
-        + SequenceNumberType,
+        + SequenceNumberType
+        + ParameterIdType
+        + ParameterListType<PSM>,
 >: RTPSWriter<PSM>
 {
     fn reader_locator_add(&mut self, a_locator: PSM::Locator);
 
     fn reader_locator_remove(&mut self, a_locator: &PSM::Locator);
 
-    fn reader_locators(&mut self) -> &mut [RTPSReaderLocator<PSM>];
-
-    fn unsent_changes_reset(&mut self) {
-        for reader_locator in self.reader_locators() {
-            reader_locator.last_sent_sequence_number = 0.into();
-        }
-    }
+    fn unsent_changes_reset(&mut self);
 }
 
 pub fn produce_messages<
@@ -140,23 +66,24 @@ pub fn produce_messages<
         + DataType
         + GuidPrefixType
         + InstanceHandleType
-        + ParameterListType
         + LocatorType
-        + SequenceNumberType,
+        + SequenceNumberType
+        + ParameterIdType
+        + ParameterListType<PSM>,
     DataSubmesage: Data<PSM>,
     GapSubmessage: Gap<PSM>,
 >(
-    reader_locator: &'a mut RTPSReaderLocator<PSM>,
+    reader_locator: &'a mut impl RTPSReaderLocator<PSM>,
     writer_cache: &'a impl RTPSHistoryCache<PSM>,
-    send_data_to: &mut impl FnMut(&PSM::Locator, DataSubmesage),
-    send_gap_to: &mut impl FnMut(&PSM::Locator, GapSubmessage),
+    mut send_data_to: impl FnMut(&PSM::Locator, DataSubmesage),
+    mut send_gap_to: impl FnMut(&PSM::Locator, GapSubmessage),
 ) {
-    // while reader_locator
-    //     .unsent_changes(writer_cache)
-    //     .into_iter()
-    //     .next()
-    //     .is_some()
-    // {
+    while reader_locator
+        .unsent_changes(writer_cache)
+        .into_iter()
+        .next()
+        .is_some()
+    {
         // Pushing state
         if let Some(seq_num) = reader_locator.next_unsent_change(writer_cache) {
             // Transition T4
@@ -191,12 +118,12 @@ pub fn produce_messages<
                 let reader_id = PSM::ENTITYID_UNKNOWN;
                 let writer_id = PSM::ENTITYID_UNKNOWN;
                 let gap_start = seq_num;
-                let gap_list = &[];//core::iter::empty().collect();
+                let gap_list = &[]; //core::iter::empty().collect();
                 let gap = Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
                 send_gap_to(reader_locator.locator(), gap)
             }
         }
-    // }
+    }
 }
 
 // #[cfg(test)]

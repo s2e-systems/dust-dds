@@ -71,12 +71,9 @@ pub trait Parameter<PSM: ParameterIdType> {
     fn value(&self) -> &[u8];
 }
 
-pub trait ParameterListType {
-    type ParameterVector;
-}
-
-pub struct ParameterList<PSM: ParameterListType> {
-    pub parameter: PSM::ParameterVector,
+pub trait ParameterList<PSM: ParameterIdType> {
+    type Parameter: Parameter<PSM>;
+    fn parameter(&self) -> &[Self::Parameter];
 }
 
 pub trait Count<PSM: CountType> {

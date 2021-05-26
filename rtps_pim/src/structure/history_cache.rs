@@ -1,7 +1,10 @@
-use crate::messages::submessage_elements::ParameterListType;
+use crate::messages::types::ParameterIdType;
 
 use super::{
-    types::{DataType, EntityIdType, GuidPrefixType, InstanceHandleType, SequenceNumberType},
+    types::{
+        DataType, EntityIdType, GuidPrefixType, InstanceHandleType, ParameterListType,
+        SequenceNumberType,
+    },
     RTPSCacheChange,
 };
 
@@ -10,7 +13,8 @@ pub trait RTPSHistoryCache<
         + EntityIdType
         + InstanceHandleType
         + DataType
-        + ParameterListType
+        + ParameterIdType
+        + ParameterListType<PSM>
         + SequenceNumberType,
 >
 {

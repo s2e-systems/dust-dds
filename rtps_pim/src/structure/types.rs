@@ -1,3 +1,5 @@
+use crate::messages::{submessage_elements::ParameterList, types::ParameterIdType};
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
@@ -21,6 +23,10 @@ pub trait SequenceNumberType {
 pub trait LocatorType {
     type Locator: LocatorSubTypes;
     const LOCATOR_INVALID: Self::Locator;
+}
+
+pub trait ParameterListType<PSM: ParameterIdType> {
+    type ParameterList: ParameterList<PSM>;
 }
 
 pub trait LocatorSubTypes: PartialEq + Copy + Send + Sync {
@@ -125,9 +131,4 @@ pub enum ChangeKind {
 pub enum ReliabilityKind {
     BestEffort,
     Reliable,
-}
-
-pub struct Set<T: Ord> {
-    pub base: T,
-    pub window: [u32; 8],
 }
