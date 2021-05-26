@@ -6,8 +6,6 @@ pub mod stateless_writer;
 pub mod types;
 mod writer;
 
-pub use types::Types;
-
 pub use reader::RTPSReader;
 pub use writer::RTPSWriter;
 

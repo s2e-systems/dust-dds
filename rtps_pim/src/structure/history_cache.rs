@@ -1,6 +1,19 @@
-use super::RTPSCacheChange;
+use crate::messages::submessage_elements::ParameterListType;
 
-pub trait RTPSHistoryCache<PSM: crate::structure::Types> {
+use super::{
+    types::{DataType, EntityIdType, GuidPrefixType, InstanceHandleType, SequenceNumberType},
+    RTPSCacheChange,
+};
+
+pub trait RTPSHistoryCache<
+    PSM: GuidPrefixType
+        + EntityIdType
+        + InstanceHandleType
+        + DataType
+        + ParameterListType
+        + SequenceNumberType,
+>
+{
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     fn new() -> Self
     where
@@ -17,10 +30,7 @@ pub trait RTPSHistoryCache<PSM: crate::structure::Types> {
     /// entity and on the acknowledgment status of the CacheChange. This is described in 8.4.1.
     fn remove_change(&mut self, seq_num: &PSM::SequenceNumber);
 
-    fn get_change(
-        &self,
-        seq_num: &PSM::SequenceNumber,
-    ) -> Option<&RTPSCacheChange<PSM>>;
+    fn get_change(&self, seq_num: &PSM::SequenceNumber) -> Option<&RTPSCacheChange<PSM>>;
 
     /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
     fn get_seq_num_min(&self) -> Option<PSM::SequenceNumber>;

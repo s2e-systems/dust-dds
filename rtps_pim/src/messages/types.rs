@@ -2,12 +2,16 @@
 /// Table 8.13 - Types used to define RTPS messages
 ///
 
-pub trait Types {
+pub trait ProtocolIdType {
     type ProtocolId: Copy;
     const PROTOCOL_RTPS: Self::ProtocolId;
+}
 
+pub trait SubmessageFlagType {
     type SubmessageFlag: Into<bool> + From<bool> + Copy;
+}
 
+pub trait SubmessageKindType {
     type SubmessageKind: Copy;
     const DATA: Self::SubmessageKind;
     const GAP: Self::SubmessageKind;
@@ -21,17 +25,28 @@ pub trait Types {
     const DATA_FRAG: Self::SubmessageKind;
     const NACK_FRAG: Self::SubmessageKind;
     const HEARTBEAT_FRAG: Self::SubmessageKind;
+}
 
+pub trait TimeType {
     type Time: Copy;
     const TIME_ZERO: Self::Time;
     const TIME_INVALID: Self::Time;
     const TIME_INFINITE: Self::Time;
+}
 
+pub trait CountType {
     type Count: Copy;
-    type ParameterId: Copy;
-    type FragmentNumber: Copy;
-    type GroupDigest: Copy;
+}
 
-    // Additions to represent lists which are used but not explicitly defined in the standard
-    type FragmentNumberVector: IntoIterator<Item = Self::FragmentNumber>;
+pub trait ParameterIdType {
+    type ParameterId: Copy;
+}
+
+pub trait FragmentNumberType {
+    type FragmentNumber: Copy;
+    type FragmentNumberVector;
+}
+
+pub trait GroupDigestType {
+    type GroupDigest: Copy;
 }

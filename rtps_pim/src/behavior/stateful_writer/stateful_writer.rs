@@ -1,23 +1,27 @@
 use crate::{
-    behavior::{self, RTPSWriter},
-    structure::{self, types::GUID},
+    behavior::{types::DurationType, RTPSWriter},
+    messages::submessage_elements::ParameterListType,
+    structure::types::{
+        DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
+        SequenceNumberType, GUID,
+    },
 };
 
-pub struct RTPSReaderProxy<PSM: structure::Types> {
+pub struct RTPSReaderProxy<PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType> {
     remote_reader_guid: GUID<PSM>,
     remote_group_entity_id: PSM::EntityId,
-    unicast_locator_list: PSM::LocatorVector,
-    multicast_locator_list: PSM::LocatorVector,
+    unicast_locator_list: [PSM::Locator; 4],
+    multicast_locator_list: [PSM::Locator; 4],
     expects_inline_qos: bool,
     is_active: bool,
 }
 
-impl<PSM: structure::Types> RTPSReaderProxy<PSM> {
+impl<PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType> RTPSReaderProxy<PSM> {
     pub fn new(
         remote_reader_guid: GUID<PSM>,
         remote_group_entity_id: PSM::EntityId,
-        unicast_locator_list: PSM::LocatorVector,
-        multicast_locator_list: PSM::LocatorVector,
+        unicast_locator_list: [PSM::Locator; 4],
+        multicast_locator_list: [PSM::Locator; 4],
         expects_inline_qos: bool,
         is_active: bool,
     ) -> Self {
@@ -39,11 +43,11 @@ impl<PSM: structure::Types> RTPSReaderProxy<PSM> {
         self.remote_group_entity_id
     }
 
-    pub fn unicast_locator_list(&self) -> &PSM::LocatorVector {
+    pub fn unicast_locator_list(&self) -> &[PSM::Locator] {
         &self.unicast_locator_list
     }
 
-    pub fn multicast_locator_list(&self) -> &PSM::LocatorVector {
+    pub fn multicast_locator_list(&self) -> &[PSM::Locator] {
         &self.multicast_locator_list
     }
 
@@ -75,7 +79,18 @@ impl<PSM: structure::Types> RTPSReaderProxy<PSM> {
     // fn changes_for_reader(&self, writer: &Self::Writer) -> Self::ChangeForReaderTypeList;
 }
 
-pub trait RTPSStatefulWriter<PSM: structure::Types + behavior::Types>: RTPSWriter<PSM> {
+pub trait RTPSStatefulWriter<
+    PSM: GuidPrefixType
+        + EntityIdType
+        + LocatorType
+        + EntityIdType
+        + DurationType
+        + SequenceNumberType
+        + DataType
+        + ParameterListType
+        + InstanceHandleType,
+>: RTPSWriter<PSM>
+{
     fn matched_readers(&self) -> &[RTPSReaderProxy<PSM>];
     fn matched_reader_add(&mut self, guid: GUID<PSM>);
     fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID<PSM>);

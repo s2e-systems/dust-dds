@@ -1,6 +1,27 @@
-use crate::{behavior, structure::{self, RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache, types::ChangeKind}};
+use crate::{
+    messages::submessage_elements::ParameterListType,
+    structure::{
+        types::{
+            ChangeKind, DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
+            SequenceNumberType,
+        },
+        RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache,
+    },
+};
 
-pub trait RTPSWriter<PSM: structure::Types + behavior::Types>: RTPSEndpoint<PSM> {
+use super::types::DurationType;
+
+pub trait RTPSWriter<
+    PSM: GuidPrefixType
+        + EntityIdType
+        + LocatorType
+        + DurationType
+        + SequenceNumberType
+        + DataType
+        + ParameterListType
+        + InstanceHandleType,
+>: RTPSEndpoint<PSM>
+{
     fn push_mode(&self) -> bool;
     fn heartbeat_period(&self) -> PSM::Duration;
     fn nack_response_delay(&self) -> PSM::Duration;
@@ -14,7 +35,7 @@ pub trait RTPSWriter<PSM: structure::Types + behavior::Types>: RTPSEndpoint<PSM>
         &mut self,
         kind: ChangeKind,
         data: PSM::Data,
-        inline_qos: &[PSM::Parameter],
+        inline_qos: PSM::ParameterVector,
         handle: PSM::InstanceHandle,
     ) -> RTPSCacheChange<PSM>;
 }

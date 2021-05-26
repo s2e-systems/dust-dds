@@ -15,4 +15,3 @@ pub use entity::RTPSEntity;
 pub use group::RTPSGroup;
 pub use history_cache::RTPSHistoryCache;
 pub use participant::RTPSParticipant;
-pub use types::Types;

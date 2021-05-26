@@ -1,10 +1,27 @@
 use crate::{
-    behavior,
-    structure::{self, RTPSEndpoint, RTPSHistoryCache},
+    messages::submessage_elements::ParameterListType,
+    structure::{
+        types::{
+            DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
+            SequenceNumberType,
+        },
+        RTPSEndpoint, RTPSHistoryCache,
+    },
 };
 
-pub trait RTPSReader<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>:
-    RTPSEndpoint<PSM>
+use super::types::DurationType;
+
+pub trait RTPSReader<
+    PSM: InstanceHandleType
+        + GuidPrefixType
+        + DataType
+        + ParameterListType
+        + EntityIdType
+        + SequenceNumberType
+        + LocatorType
+        + DurationType,
+    HistoryCache: RTPSHistoryCache<PSM>,
+>: RTPSEndpoint<PSM>
 {
     fn expects_inline_qos(&self) -> bool;
     fn heartbeat_response_delay(&self) -> PSM::Duration;

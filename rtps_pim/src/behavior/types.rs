@@ -2,12 +2,12 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.46 - Types definitions for the Behavior Module
 ///
-pub trait Types {
+
+pub trait DurationType {
     type Duration: Copy;
+}
 
-    // type InstanceHandle;
-    // This type has the same name as in structure Types so it is left out for now
-
+pub trait ParticipantMessageDataType {
     type ParticipantMessageData: Copy;
 }
 

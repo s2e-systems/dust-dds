@@ -1,5 +1,6 @@
-use crate::structure;
+use super::{
+    types::{EntityIdType, GuidPrefixType},
+    RTPSEntity,
+};
 
-use super::RTPSEntity;
-
-pub trait RTPSGroup<PSM: structure::Types>: RTPSEntity<PSM> {}
+pub trait RTPSGroup<PSM: GuidPrefixType + EntityIdType>: RTPSEntity<PSM> {}

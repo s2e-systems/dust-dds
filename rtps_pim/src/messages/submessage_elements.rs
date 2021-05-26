@@ -1,90 +1,100 @@
+use structure::types::{EntityIdType, GuidPrefixType};
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-use crate::{messages, structure};
+use crate::structure::{
+    self,
+    types::{LocatorType, ProtocolVersionType, SequenceNumberType, VendorIdType},
+};
 
-pub struct UShort {
-    pub value: u16,
+use super::types::{CountType, FragmentNumberType, GroupDigestType, ParameterIdType, TimeType};
+
+pub trait UShort {
+    fn value(&self) -> &u16;
 }
 
-pub struct Short {
-    pub value: i16,
+pub trait Short {
+    fn value(&self) -> &i16;
 }
 
-pub struct ULong {
-    pub value: u32,
+pub trait ULong {
+    fn value(&self) -> &u32;
 }
 
-pub struct Long {
-    pub value: i32,
+pub trait Long {
+    fn value(&self) -> &i32;
 }
 
-pub struct GuidPrefix<PSM: structure::Types> {
-    pub value: PSM::GuidPrefix,
+pub trait GuidPrefix<PSM: GuidPrefixType> {
+    fn value(&self) -> &PSM::GuidPrefix;
 }
 
-pub struct EntityId<PSM: structure::Types> {
-    pub value: PSM::EntityId,
+pub trait EntityId<PSM: EntityIdType> {
+    fn value(&self) -> &PSM::EntityId;
 }
 
-pub struct VendorId<PSM: structure::Types> {
-    pub value: PSM::VendorId,
+pub trait VendorId<PSM: VendorIdType> {
+    fn value(&self) -> &PSM::VendorId;
 }
 
-pub struct ProtocolVersion<PSM: structure::Types> {
-    pub value: PSM::ProtocolVersion,
+pub trait ProtocolVersion<PSM: ProtocolVersionType> {
+    fn value(&self) -> &PSM::ProtocolVersion;
 }
 
-pub struct SequenceNumber<PSM: structure::Types> {
-    pub value: PSM::SequenceNumber,
+pub trait SequenceNumber<PSM: SequenceNumberType> {
+    fn value(&self) -> &PSM::SequenceNumber;
 }
 
-pub struct SequenceNumberSet<PSM: structure::Types> {
-    pub base: PSM::SequenceNumber,
-    pub set: PSM::SequenceNumberVector,
+pub trait SequenceNumberSet<PSM: SequenceNumberType> {
+    fn base(&self) -> &PSM::SequenceNumber;
+    fn set(&self) -> &[PSM::SequenceNumber];
 }
 
-pub struct FragmentNumber<PSM: messages::Types> {
-    pub value: PSM::FragmentNumber,
+pub trait FragmentNumber<PSM: FragmentNumberType> {
+    fn value(&self) -> &PSM::FragmentNumber;
 }
 
-pub struct FragmentNumberSet<PSM: messages::Types> {
-    pub base: PSM::FragmentNumber,
-    pub set: PSM::FragmentNumberVector,
+pub trait FragmentNumberSet<PSM: FragmentNumberType> {
+    fn base(&self) -> &PSM::FragmentNumber;
+    fn set(&self) -> &[PSM::FragmentNumber];
 }
 
-pub struct Timestamp<PSM: messages::Types> {
-    pub value: PSM::Time,
+pub trait Timestamp<PSM: TimeType> {
+    fn value(&self) -> &PSM::Time;
 }
 
-pub trait Parameter {
-    type PSM: messages::Types;
-    fn parameter_id(&self) -> <Self::PSM as messages::Types>::ParameterId;
+pub trait Parameter<PSM: ParameterIdType> {
+    fn parameter_id(&self) -> PSM::ParameterId;
     fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }
 
-pub struct ParameterList<PSM: structure::Types> {
+pub trait ParameterListType {
+    type ParameterVector;
+}
+
+pub struct ParameterList<PSM: ParameterListType> {
     pub parameter: PSM::ParameterVector,
 }
 
-pub struct Count<PSM: messages::Types> {
-    pub value: PSM::Count,
+pub trait Count<PSM: CountType> {
+    fn value(&self) -> &PSM::Count;
 }
 
-pub struct LocatorList<PSM: structure::Types> {
-    pub value: PSM::LocatorVector,
+pub trait LocatorList<PSM: LocatorType> {
+    fn value(&self) -> &[PSM::Locator];
 }
 
-pub struct SerializedData<SerializedData: AsRef<[u8]>> {
-    pub value: SerializedData,
+pub trait SerializedData {
+    fn value(&self) -> &[u8];
 }
 
-pub struct SerializedDataFragment<SerializedDataFragment: AsRef<[u8]>> {
-    pub value: SerializedDataFragment,
+pub trait SerializedDataFragment {
+    fn value(&self) -> &[u8];
 }
 
-pub struct GroupDigest<PSM: messages::Types> {
-    pub value: PSM::GroupDigest,
+pub trait GroupDigest<PSM: GroupDigestType> {
+    fn value(&self) -> PSM::GroupDigest;
 }
