@@ -44,7 +44,6 @@ pub trait ParameterIdType {
 
 pub trait FragmentNumberType {
     type FragmentNumber: Copy;
-    type FragmentNumberVector;
 }
 
 pub trait GroupDigestType {

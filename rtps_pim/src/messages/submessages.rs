@@ -33,6 +33,7 @@ pub trait Data<
 {
     type EntityId: submessage_elements::EntityId<PSM>;
     type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
+    type SerializedData: submessage_elements::SerializedData;
 
     fn new(
         endianness_flag: PSM::SubmessageFlag,
@@ -43,7 +44,7 @@ pub trait Data<
         reader_id: PSM::EntityId,
         writer_id: PSM::EntityId,
         writer_sn: PSM::SequenceNumber,
-        serialized_payload: &PSM::Data,
+        serialized_payload: &[u8],
     ) -> Self;
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
     fn inline_qos_flag(&self) -> PSM::SubmessageFlag;
@@ -54,7 +55,7 @@ pub trait Data<
     fn writer_id(&self) -> &Self::EntityId;
     fn writer_sn(&self) -> &Self::SequenceNumber;
     // pub inline_qos: <Self::PSM as structure::Types>::ParameterVector,
-    fn serialized_payload(&self) -> &PSM::Data;
+    fn serialized_payload(&self) -> &Self::SerializedData;
 }
 
 pub trait DataFrag<
@@ -72,6 +73,7 @@ pub trait DataFrag<
     type FragmentNumber: submessage_elements::FragmentNumber<PSM>;
     type UShort: submessage_elements::UShort;
     type ULong: submessage_elements::ULong;
+    type SerializedData: submessage_elements::SerializedDataFragment;
     type ParameterList: submessage_elements::ParameterList<PSM>;
 
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
@@ -86,7 +88,7 @@ pub trait DataFrag<
     fn data_size(&self) -> &Self::ULong;
     fn fragment_size(&self) -> &Self::UShort;
     fn inline_qos(&self) -> &Self::ParameterList;
-    fn serialized_payload(&self) -> &PSM::Data;
+    fn serialized_payload(&self) -> &Self::SerializedData;
 }
 
 pub trait Gap<PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType>:
@@ -210,7 +212,7 @@ pub trait NackFrag<
 {
     type EntityId: submessage_elements::EntityId<PSM>;
     type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
-    type FragmentNumberSet: submessage_elements::SequenceNumberSet<PSM>;
+    type FragmentNumberSet: submessage_elements::FragmentNumberSet<PSM>;
     type Count: submessage_elements::Count<PSM>;
 
     fn endianness_flag(&self) -> PSM::SubmessageFlag;

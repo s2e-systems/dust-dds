@@ -1,70 +1,75 @@
-use crate::RtpsUdpPsm;
+use crate::{
+    EntityId, FragmentNumber, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData,
+    SubmessageFlag, ULong, UShort,
+};
 
-pub struct DataFrag;
+pub struct DataFrag<'a> {
+    pub serialized_data: SerializedData<'a>,
+}
 
-impl rust_rtps_pim::messages::submessages::DataFrag<RtpsUdpPsm> for DataFrag {
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+impl<'a> rust_rtps_pim::messages::submessages::DataFrag<RtpsUdpPsm> for DataFrag<'a> {
+    type EntityId = EntityId;
+    type SequenceNumber = SequenceNumber;
+    type FragmentNumber = FragmentNumber;
+    type UShort = UShort;
+    type ULong = ULong;
+    type SerializedData = SerializedData<'a>;
+    type ParameterList = ParameterList;
+
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn inline_qos_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn inline_qos_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn non_standard_payload_flag(
-        &self,
-    ) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn non_standard_payload_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn key_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn key_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn reader_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn reader_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn writer_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn writer_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn writer_sn(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::SequenceNumber<RtpsUdpPsm> {
+    fn writer_sn(&self) -> &Self::SequenceNumber {
         todo!()
     }
 
-    fn fragment_starting_num(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::FragmentNumber<RtpsUdpPsm> {
+    fn fragment_starting_num(&self) -> &Self::FragmentNumber {
         todo!()
     }
 
-    fn fragments_in_submessage(&self) -> rust_rtps_pim::messages::submessage_elements::UShort {
+    fn fragments_in_submessage(&self) -> &Self::UShort {
         todo!()
     }
 
-    fn data_size(&self) -> rust_rtps_pim::messages::submessage_elements::ULong {
+    fn data_size(&self) -> &Self::ULong {
         todo!()
     }
 
-    fn fragment_size(&self) -> rust_rtps_pim::messages::submessage_elements::UShort {
+    fn fragment_size(&self) -> &Self::UShort {
         todo!()
     }
 
-    fn inline_qos(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> {
+    fn inline_qos(&self) -> &Self::ParameterList {
         todo!()
     }
 
-    fn serialized_payload(&self) -> &<RtpsUdpPsm as rust_rtps_pim::structure::Types>::Data {
+    fn serialized_payload(&self) -> &Self::SerializedData {
         todo!()
     }
 }
 
-impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for DataFrag {
+impl<'a> rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for DataFrag<'a> {
     fn submessage_header(&self) -> rust_rtps_pim::messages::SubmessageHeader<RtpsUdpPsm> {
         todo!()
     }

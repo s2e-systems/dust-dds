@@ -1,23 +1,25 @@
-use crate::RtpsUdpPsm;
+use crate::{GuidPrefix, ProtocolVersion, RtpsUdpPsm, SubmessageFlag, VendorId};
 
 pub struct InfoSource;
 
 impl rust_rtps_pim::messages::submessages::InfoSource<RtpsUdpPsm> for InfoSource {
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    type GuidPrefix = GuidPrefix;
+    type ProtocolVersion = ProtocolVersion;
+    type VendorId = VendorId;
+
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn protocol_version(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> {
+    fn protocol_version(&self) -> Self::ProtocolVersion {
         todo!()
     }
 
-    fn vendor_id(&self) -> rust_rtps_pim::messages::submessage_elements::VendorId<RtpsUdpPsm> {
+    fn vendor_id(&self) -> &Self::VendorId {
         todo!()
     }
 
-    fn guid_prefix(&self) -> rust_rtps_pim::messages::submessage_elements::GuidPrefix<RtpsUdpPsm> {
+    fn guid_prefix(&self) -> &Self::GuidPrefix {
         todo!()
     }
 }

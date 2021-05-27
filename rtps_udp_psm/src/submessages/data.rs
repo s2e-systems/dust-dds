@@ -1,66 +1,68 @@
 use rust_rtps_pim::messages::Submessage;
 
-use crate::RtpsUdpPsm;
+use crate::{EntityId, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
 
-pub struct Data {}
+pub struct Data<'a> {
+    pub serialized_data: SerializedData<'a>,
+}
 
-impl rust_rtps_pim::messages::submessages::Data<RtpsUdpPsm> for Data {
+impl<'a> rust_rtps_pim::messages::submessages::Data<RtpsUdpPsm> for Data<'a> {
+    type EntityId = EntityId;
+    type SequenceNumber = SequenceNumber;
+    type SerializedData = SerializedData<'a>;
+
     fn new(
-        _endianness_flag: <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        _inline_qos_flag: <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        _data_flag: <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        _key_flag: <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        _non_standard_payload_flag: <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        _reader_id: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::EntityId,
-        _writer_id: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::EntityId,
-        _writer_sn: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::SequenceNumber,
-        _serialized_payload: &<RtpsUdpPsm as rust_rtps_pim::structure::Types>::Data,
+        _endianness_flag: SubmessageFlag,
+        _inline_qos_flag: SubmessageFlag,
+        _data_flag: SubmessageFlag,
+        _key_flag: SubmessageFlag,
+        _non_standard_payload_flag: SubmessageFlag,
+        _reader_id: EntityId,
+        _writer_id: EntityId,
+        _writer_sn: SequenceNumber,
+        _serialized_payload: &[u8],
     ) -> Self {
         todo!()
     }
 
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn inline_qos_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn inline_qos_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn data_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn data_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn key_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn key_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn non_standard_payload_flag(
-        &self,
-    ) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn non_standard_payload_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn reader_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn reader_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn writer_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn writer_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn writer_sn(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::SequenceNumber<RtpsUdpPsm> {
+    fn writer_sn(&self) -> &Self::SequenceNumber {
         todo!()
     }
 
-    fn serialized_payload(&self) -> &<RtpsUdpPsm as rust_rtps_pim::structure::Types>::Data {
+    fn serialized_payload(&self) -> &Self::SerializedData {
         todo!()
     }
 }
 
-impl Submessage<RtpsUdpPsm> for Data {
+impl<'a> Submessage<RtpsUdpPsm> for Data<'a> {
     fn submessage_header(&self) -> rust_rtps_pim::messages::SubmessageHeader<RtpsUdpPsm> {
         todo!()
     }

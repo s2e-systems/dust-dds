@@ -1,13 +1,15 @@
-use crate::RtpsUdpPsm;
+use crate::{GuidPrefix, RtpsUdpPsm, SubmessageFlag};
 
 pub struct InfoDestination;
 
 impl rust_rtps_pim::messages::submessages::InfoDestination<RtpsUdpPsm> for InfoDestination {
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    type GuidPrefix = GuidPrefix;
+
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn guid_prefix(&self) -> rust_rtps_pim::messages::submessage_elements::GuidPrefix<RtpsUdpPsm> {
+    fn guid_prefix(&self) -> &Self::GuidPrefix {
         todo!()
     }
 }

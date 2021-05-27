@@ -1,39 +1,39 @@
-use crate::RtpsUdpPsm;
+use crate::{EntityId, RtpsUdpPsm, SequenceNumber, SequenceNumberSet, SubmessageFlag};
 
 pub struct Gap;
 
 impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for Gap {
+    type EntityId = EntityId;
+    type SequenceNumber = SequenceNumber;
+    type SequenceNumberSet = SequenceNumberSet;
+
     fn new(
-        _endianness_flag: <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        _reader_id: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::EntityId,
-        _writer_id: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::EntityId,
-        _gap_start: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::SequenceNumber,
-        _gap_list: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::SequenceNumberVector,
+        _endianness_flag: SubmessageFlag,
+        _reader_id: EntityId,
+        _writer_id: EntityId,
+        _gap_start: SequenceNumber,
+        _gap_list: &[SequenceNumber],
     ) -> Self {
         todo!()
     }
 
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn reader_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn reader_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn writer_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn writer_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn gap_start(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::SequenceNumber<RtpsUdpPsm> {
+    fn gap_start(&self) -> &Self::SequenceNumber {
         todo!()
     }
 
-    fn gap_list(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm> {
+    fn gap_list(&self) -> &Self::SequenceNumberSet {
         todo!()
     }
 }

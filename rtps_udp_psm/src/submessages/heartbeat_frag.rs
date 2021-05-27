@@ -1,33 +1,34 @@
-use crate::RtpsUdpPsm;
+use crate::{Count, EntityId, FragmentNumber, RtpsUdpPsm, SequenceNumber, SubmessageFlag};
 
 pub struct HeartbeatFrag;
 
 impl rust_rtps_pim::messages::submessages::HeartbeatFrag<RtpsUdpPsm> for HeartbeatFrag {
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    type EntityId = EntityId;
+    type SequenceNumber = SequenceNumber;
+    type FragmentNumber = FragmentNumber;
+    type Count = Count;
+
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn reader_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn reader_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn writer_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn writer_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn writer_sn(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::SequenceNumber<RtpsUdpPsm> {
+    fn writer_sn(&self) -> &Self::SequenceNumber {
         todo!()
     }
 
-    fn last_fragment_num(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::FragmentNumber<RtpsUdpPsm> {
+    fn last_fragment_num(&self) -> &Self::FragmentNumber {
         todo!()
     }
 
-    fn count(&self) -> rust_rtps_pim::messages::submessage_elements::Count<RtpsUdpPsm> {
+    fn count(&self) -> &Self::Count {
         todo!()
     }
 }

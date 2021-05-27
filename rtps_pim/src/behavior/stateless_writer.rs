@@ -69,7 +69,7 @@ pub fn produce_messages<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdType
-        + DataType
+        + DataType<Data = [u8]>
         + GuidPrefixType
         + InstanceHandleType
         + LocatorType

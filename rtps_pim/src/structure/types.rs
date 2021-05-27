@@ -22,11 +22,6 @@ pub trait SequenceNumberType {
 
 pub trait LocatorType {
     type Locator: LocatorSubTypes;
-    const LOCATOR_INVALID: Self::Locator;
-}
-
-pub trait ParameterListType<PSM: ParameterIdType> {
-    type ParameterList: ParameterList<PSM>;
 }
 
 pub trait LocatorSubTypes: PartialEq + Copy + Send + Sync {
@@ -43,6 +38,8 @@ pub trait LocatorSubTypes: PartialEq + Copy + Send + Sync {
 
     type LocatorAddress: Into<[u8; 16]> + From<[u8; 16]> + PartialEq + Copy + Send + Sync;
     const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress;
+
+    const LOCATOR_INVALID: Self;
 
     fn kind(&self) -> &Self::LocatorKind;
     fn port(&self) -> &Self::LocatorPort;
@@ -72,6 +69,10 @@ pub trait VendorIdType {
 
 pub trait DataType {
     type Data;
+}
+
+pub trait ParameterListType<PSM: ParameterIdType> {
+    type ParameterList: ParameterList<PSM>;
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID

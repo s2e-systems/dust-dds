@@ -1,25 +1,23 @@
-use crate::RtpsUdpPsm;
+use crate::{LocatorList, RtpsUdpPsm, SubmessageFlag};
 
 pub struct InfoReply;
 
 impl rust_rtps_pim::messages::submessages::InfoReply<RtpsUdpPsm> for InfoReply {
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    type LocatorList = LocatorList;
+
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn multicast_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn multicast_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn unicast_locator_list(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> {
+    fn unicast_locator_list(&self) -> &Self::LocatorList {
         todo!()
     }
 
-    fn multicast_locator_list(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> {
+    fn multicast_locator_list(&self) -> &Self::LocatorList {
         todo!()
     }
 }

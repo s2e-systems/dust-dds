@@ -48,8 +48,10 @@ pub trait SequenceNumber<PSM: SequenceNumberType> {
 }
 
 pub trait SequenceNumberSet<PSM: SequenceNumberType> {
+    type SequenceNumberVector;
+
     fn base(&self) -> &PSM::SequenceNumber;
-    fn set(&self) -> &[PSM::SequenceNumber];
+    fn set(&self) -> &Self::SequenceNumberVector;
 }
 
 pub trait FragmentNumber<PSM: FragmentNumberType> {
@@ -57,8 +59,10 @@ pub trait FragmentNumber<PSM: FragmentNumberType> {
 }
 
 pub trait FragmentNumberSet<PSM: FragmentNumberType> {
+    type FragmentNumberVector;
+
     fn base(&self) -> &PSM::FragmentNumber;
-    fn set(&self) -> &[PSM::FragmentNumber];
+    fn set(&self) -> &Self::FragmentNumberVector;
 }
 
 pub trait Timestamp<PSM: TimeType> {

@@ -1,17 +1,19 @@
-use crate::RtpsUdpPsm;
+use crate::{RtpsUdpPsm, SubmessageFlag, Time};
 
 pub struct InfoTimestamp;
 
 impl rust_rtps_pim::messages::submessages::InfoTimestamp<RtpsUdpPsm> for InfoTimestamp {
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    type Timestamp = Time;
+
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn invalidate_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn invalidate_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn timestamp(&self) -> rust_rtps_pim::messages::submessage_elements::Timestamp<RtpsUdpPsm> {
+    fn timestamp(&self) -> &Self::Timestamp {
         todo!()
     }
 }

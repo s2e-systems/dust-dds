@@ -1,37 +1,41 @@
-use crate::RtpsUdpPsm;
+use crate::{Count, EntityId, RtpsUdpPsm, SequenceNumber, SubmessageFlag};
 
 pub struct Heartbeat;
 
 impl rust_rtps_pim::messages::submessages::Heartbeat<RtpsUdpPsm> for Heartbeat {
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    type EntityId = EntityId;
+    type SequenceNumber = SequenceNumber;
+    type Count = Count;
+
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn final_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn final_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn liveliness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn liveliness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn reader_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn reader_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn writer_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn writer_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn first_sn(&self) -> rust_rtps_pim::messages::submessage_elements::SequenceNumber<RtpsUdpPsm> {
+    fn first_sn(&self) -> &Self::SequenceNumber {
         todo!()
     }
 
-    fn last_sn(&self) -> rust_rtps_pim::messages::submessage_elements::SequenceNumber<RtpsUdpPsm> {
+    fn last_sn(&self) -> &Self::SequenceNumber {
         todo!()
     }
 
-    fn count(&self) -> rust_rtps_pim::messages::submessage_elements::Count<RtpsUdpPsm> {
+    fn count(&self) -> &Self::Count {
         todo!()
     }
 }

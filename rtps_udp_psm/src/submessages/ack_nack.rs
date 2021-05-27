@@ -1,33 +1,35 @@
 use rust_rtps_pim::messages::Submessage;
 
-use crate::RtpsUdpPsm;
+use crate::{Count, EntityId, RtpsUdpPsm, SequenceNumberSet, SubmessageFlag};
 
 pub struct AckNack {}
 
 impl rust_rtps_pim::messages::submessages::AckNack<RtpsUdpPsm> for AckNack {
-    fn endianness_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    type EntityId = EntityId;
+    type SequenceNumberSet = SequenceNumberSet;
+    type Count = Count;
+
+    fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn final_flag(&self) -> <RtpsUdpPsm as rust_rtps_pim::messages::Types>::SubmessageFlag {
+    fn final_flag(&self) -> SubmessageFlag {
         todo!()
     }
 
-    fn reader_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn reader_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn writer_id(&self) -> rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> {
+    fn writer_id(&self) -> &Self::EntityId {
         todo!()
     }
 
-    fn reader_sn_state(
-        &self,
-    ) -> rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm> {
+    fn reader_sn_state(&self) -> &Self::SequenceNumberSet {
         todo!()
     }
 
-    fn count(&self) -> rust_rtps_pim::messages::submessage_elements::Count<RtpsUdpPsm> {
+    fn count(&self) -> &Self::Count {
         todo!()
     }
 }
