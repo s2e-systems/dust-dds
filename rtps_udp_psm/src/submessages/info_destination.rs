@@ -1,5 +1,7 @@
 use crate::{GuidPrefix, RtpsUdpPsm, SubmessageFlag};
 
+use super::SubmessageHeader;
+
 pub struct InfoDestination;
 
 impl rust_rtps_pim::messages::submessages::InfoDestination<RtpsUdpPsm> for InfoDestination {
@@ -15,7 +17,9 @@ impl rust_rtps_pim::messages::submessages::InfoDestination<RtpsUdpPsm> for InfoD
 }
 
 impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for InfoDestination {
-    fn submessage_header(&self) -> rust_rtps_pim::messages::SubmessageHeader<RtpsUdpPsm> {
+    type SubmessageHeader = SubmessageHeader;
+
+    fn submessage_header(&self) -> Self::SubmessageHeader {
         todo!()
     }
 }

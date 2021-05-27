@@ -1,5 +1,7 @@
 use crate::{EntityId, RtpsUdpPsm, SequenceNumber, SequenceNumberSet, SubmessageFlag};
 
+use super::SubmessageHeader;
+
 pub struct Gap;
 
 impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for Gap {
@@ -39,7 +41,9 @@ impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for Gap {
 }
 
 impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for Gap {
-    fn submessage_header(&self) -> rust_rtps_pim::messages::SubmessageHeader<RtpsUdpPsm> {
+    type SubmessageHeader = SubmessageHeader;
+
+    fn submessage_header(&self) -> Self::SubmessageHeader {
         todo!()
     }
 }

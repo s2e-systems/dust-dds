@@ -2,6 +2,8 @@ use rust_rtps_pim::messages::Submessage;
 
 use crate::{Count, EntityId, RtpsUdpPsm, SequenceNumberSet, SubmessageFlag};
 
+use super::SubmessageHeader;
+
 pub struct AckNack {}
 
 impl rust_rtps_pim::messages::submessages::AckNack<RtpsUdpPsm> for AckNack {
@@ -35,7 +37,9 @@ impl rust_rtps_pim::messages::submessages::AckNack<RtpsUdpPsm> for AckNack {
 }
 
 impl Submessage<RtpsUdpPsm> for AckNack {
-    fn submessage_header(&self) -> rust_rtps_pim::messages::SubmessageHeader<RtpsUdpPsm> {
+    type SubmessageHeader = SubmessageHeader;
+
+    fn submessage_header(&self) -> Self::SubmessageHeader {
         todo!()
     }
 }

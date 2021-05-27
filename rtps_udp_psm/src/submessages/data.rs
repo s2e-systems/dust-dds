@@ -2,6 +2,8 @@ use rust_rtps_pim::messages::Submessage;
 
 use crate::{EntityId, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
 
+use super::SubmessageHeader;
+
 pub struct Data<'a> {
     pub serialized_data: SerializedData<'a>,
 }
@@ -63,7 +65,9 @@ impl<'a> rust_rtps_pim::messages::submessages::Data<RtpsUdpPsm> for Data<'a> {
 }
 
 impl<'a> Submessage<RtpsUdpPsm> for Data<'a> {
-    fn submessage_header(&self) -> rust_rtps_pim::messages::SubmessageHeader<RtpsUdpPsm> {
+    type SubmessageHeader = SubmessageHeader;
+
+    fn submessage_header(&self) -> Self::SubmessageHeader {
         todo!()
     }
 }

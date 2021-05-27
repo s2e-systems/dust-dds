@@ -1,5 +1,7 @@
 use crate::{Count, EntityId, RtpsUdpPsm, SequenceNumber, SubmessageFlag};
 
+use super::SubmessageHeader;
+
 pub struct Heartbeat;
 
 impl rust_rtps_pim::messages::submessages::Heartbeat<RtpsUdpPsm> for Heartbeat {
@@ -41,7 +43,9 @@ impl rust_rtps_pim::messages::submessages::Heartbeat<RtpsUdpPsm> for Heartbeat {
 }
 
 impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for Heartbeat {
-    fn submessage_header(&self) -> rust_rtps_pim::messages::SubmessageHeader<RtpsUdpPsm> {
+    type SubmessageHeader = SubmessageHeader;
+
+    fn submessage_header(&self) -> Self::SubmessageHeader {
         todo!()
     }
 }

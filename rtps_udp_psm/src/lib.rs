@@ -84,8 +84,10 @@ impl SubmessageFlagType for RtpsUdpPsm {
     type SubmessageFlag = SubmessageFlag;
 }
 
+type SubmessageKind = u8;
+
 impl SubmessageKindType for RtpsUdpPsm {
-    type SubmessageKind = u8;
+    type SubmessageKind = SubmessageKind;
     const DATA: Self::SubmessageKind = 0x15;
     const GAP: Self::SubmessageKind = 0x08;
     const HEARTBEAT: Self::SubmessageKind = 0x07;

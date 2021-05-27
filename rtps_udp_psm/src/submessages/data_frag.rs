@@ -3,6 +3,8 @@ use crate::{
     SubmessageFlag, ULong, UShort,
 };
 
+use super::SubmessageHeader;
+
 pub struct DataFrag<'a> {
     pub serialized_data: SerializedData<'a>,
 }
@@ -70,7 +72,9 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFrag<RtpsUdpPsm> for DataFrag
 }
 
 impl<'a> rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for DataFrag<'a> {
-    fn submessage_header(&self) -> rust_rtps_pim::messages::SubmessageHeader<RtpsUdpPsm> {
+    type SubmessageHeader = SubmessageHeader;
+
+    fn submessage_header(&self) -> Self::SubmessageHeader {
         todo!()
     }
 }
