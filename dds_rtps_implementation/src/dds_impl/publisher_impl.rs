@@ -14,7 +14,7 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::structure::RTPSEntity;
+use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 
 use crate::{
     dds_type::DDSType,

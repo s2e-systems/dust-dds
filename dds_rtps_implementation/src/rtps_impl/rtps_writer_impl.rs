@@ -8,8 +8,8 @@ use rust_rtps_pim::{
     messages::types::ParameterIdType,
     structure::{
         types::{
-            ChangeKind, DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
-            ParameterListType, ReliabilityKind, SequenceNumberType, TopicKind, GUID,
+            ChangeKind, DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
+            LocatorType, ParameterListType, ReliabilityKind, SequenceNumberType, TopicKind,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
@@ -28,6 +28,7 @@ pub trait RTPSWriterImplTrait:
     + LocatorType
     + InstanceHandleType
     + ParameterIdType
+    + GUIDType<Self>
     + ParameterListType<Self>
     + Sized
 {
@@ -42,6 +43,7 @@ impl<
             + LocatorType
             + InstanceHandleType
             + ParameterIdType
+            + GUIDType<Self>
             + ParameterListType<Self>
             + Sized,
     > RTPSWriterImplTrait for T
@@ -49,7 +51,7 @@ impl<
 }
 
 pub struct RTPSWriterImpl<PSM: RTPSWriterImplTrait> {
-    guid: GUID<PSM>,
+    guid: PSM::GUID,
     reader_locators: Vec<RTPSReaderLocatorImpl<PSM>>,
     reader_proxies: Vec<RTPSReaderProxy<PSM>>,
     last_change_sequence_number: PSM::SequenceNumber,
@@ -57,7 +59,7 @@ pub struct RTPSWriterImpl<PSM: RTPSWriterImplTrait> {
 }
 
 impl<PSM: RTPSWriterImplTrait> RTPSWriterImpl<PSM> {
-    pub fn new(_qos: DataWriterQos, guid: GUID<PSM>) -> Self {
+    pub fn new(_qos: DataWriterQos, guid: PSM::GUID) -> Self {
         // let guid = GUID::new(
         //     [1; 12],
         //     EntityId {
@@ -138,7 +140,7 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriterImpl<PSM> {
 }
 
 impl<PSM: RTPSWriterImplTrait> RTPSEntity<PSM> for RTPSWriterImpl<PSM> {
-    fn guid(&self) -> GUID<PSM> {
+    fn guid(&self) -> PSM::GUID {
         self.guid
     }
 }
@@ -212,15 +214,15 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM, RTPSHistoryCacheImpl<PSM>
         todo!()
     }
 
-    fn matched_reader_add(&mut self, _guid: GUID<PSM>) {
+    fn matched_reader_add(&mut self, _guid: PSM::GUID) {
         todo!()
     }
 
-    fn matched_reader_remove(&mut self, _reader_proxy_guid: &GUID<PSM>) {
+    fn matched_reader_remove(&mut self, _reader_proxy_guid: &PSM::GUID) {
         todo!()
     }
 
-    fn matched_reader_lookup(&self, _a_reader_guid: GUID<PSM>) -> Option<&RTPSReaderProxy<PSM>> {
+    fn matched_reader_lookup(&self, _a_reader_guid: PSM::GUID) -> Option<&RTPSReaderProxy<PSM>> {
         todo!()
     }
 

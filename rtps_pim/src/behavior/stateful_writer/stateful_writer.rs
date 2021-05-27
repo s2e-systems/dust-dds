@@ -3,15 +3,17 @@ use crate::{
     messages::types::ParameterIdType,
     structure::{
         types::{
-            DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
-            ParameterListType, SequenceNumberType, GUID,
+            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+            ParameterListType, SequenceNumberType,
         },
         RTPSHistoryCache,
     },
 };
 
-pub struct RTPSReaderProxy<PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType> {
-    remote_reader_guid: GUID<PSM>,
+pub struct RTPSReaderProxy<
+    PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType + GUIDType<PSM>,
+> {
+    remote_reader_guid: PSM::GUID,
     remote_group_entity_id: PSM::EntityId,
     unicast_locator_list: [PSM::Locator; 4],
     multicast_locator_list: [PSM::Locator; 4],
@@ -19,9 +21,11 @@ pub struct RTPSReaderProxy<PSM: GuidPrefixType + EntityIdType + LocatorType + En
     is_active: bool,
 }
 
-impl<PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType> RTPSReaderProxy<PSM> {
+impl<PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType + GUIDType<PSM>>
+    RTPSReaderProxy<PSM>
+{
     pub fn new(
-        remote_reader_guid: GUID<PSM>,
+        remote_reader_guid: PSM::GUID,
         remote_group_entity_id: PSM::EntityId,
         unicast_locator_list: [PSM::Locator; 4],
         multicast_locator_list: [PSM::Locator; 4],
@@ -38,8 +42,8 @@ impl<PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType> RTPSReader
         }
     }
 
-    pub fn remote_reader_guid(&self) -> GUID<PSM> {
-        self.remote_reader_guid
+    pub fn remote_reader_guid(&self) -> &PSM::GUID {
+        &self.remote_reader_guid
     }
 
     pub fn remote_group_entity_id(&self) -> PSM::EntityId {
@@ -91,14 +95,15 @@ pub trait RTPSStatefulWriter<
         + SequenceNumberType
         + DataType
         + ParameterListType<PSM>
+        + GUIDType<PSM>
         + InstanceHandleType
         + ParameterIdType,
     HistoryCache: RTPSHistoryCache<PSM>,
 >: RTPSWriter<PSM, HistoryCache>
 {
     fn matched_readers(&self) -> &[RTPSReaderProxy<PSM>];
-    fn matched_reader_add(&mut self, guid: GUID<PSM>);
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID<PSM>);
-    fn matched_reader_lookup(&self, a_reader_guid: GUID<PSM>) -> Option<&RTPSReaderProxy<PSM>>;
+    fn matched_reader_add(&mut self, guid: PSM::GUID);
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUID);
+    fn matched_reader_lookup(&self, a_reader_guid: PSM::GUID) -> Option<&RTPSReaderProxy<PSM>>;
     fn is_acked_by_all(&self) -> bool;
 }

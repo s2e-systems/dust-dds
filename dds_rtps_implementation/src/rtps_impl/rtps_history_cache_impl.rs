@@ -2,8 +2,8 @@ use rust_rtps_pim::{
     messages::types::ParameterIdType,
     structure::{
         types::{
-            DataType, EntityIdType, GuidPrefixType, InstanceHandleType, ParameterListType,
-            SequenceNumberType,
+            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
+            ParameterListType, SequenceNumberType,
         },
         RTPSHistoryCache,
     },
@@ -18,6 +18,7 @@ pub trait RTPSHistoryCacheImplTrait:
     + ParameterIdType
     + EntityIdType
     + GuidPrefixType
+    + GUIDType<Self>
     + ParameterListType<Self>
     + Sized
 {
@@ -29,6 +30,7 @@ impl<
             + ParameterIdType
             + EntityIdType
             + GuidPrefixType
+            + GUIDType<Self>
             + ParameterListType<Self>
             + Sized,
     > RTPSHistoryCacheImplTrait for T

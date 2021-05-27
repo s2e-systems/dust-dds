@@ -8,8 +8,8 @@ use rust_rtps_pim::{
     behavior::types::DurationType,
     messages::types::ParameterIdType,
     structure::types::{
-        DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType, ParameterListType,
-        SequenceNumberType, GUID,
+        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        ParameterListType, SequenceNumberType,
     },
 };
 
@@ -26,6 +26,7 @@ pub trait RTPSWriterGroupImplTrait:
     + InstanceHandleType
     + LocatorType
     + DataType
+    + GUIDType<Self>
     + ParameterIdType
     + ParameterListType<Self>
     + Sized
@@ -41,6 +42,7 @@ impl<
             + InstanceHandleType
             + LocatorType
             + DataType
+            + GUIDType<Self>
             + ParameterIdType
             + ParameterListType<Self>
             + Sized,
@@ -49,7 +51,7 @@ impl<
 }
 
 pub struct RTPSWriterGroupImpl<PSM: RTPSWriterGroupImplTrait> {
-    guid: GUID<PSM>,
+    guid: PSM::GUID,
     qos: PublisherQos,
     listener: Option<&'static dyn PublisherListener>,
     status_mask: StatusMask,
@@ -58,7 +60,7 @@ pub struct RTPSWriterGroupImpl<PSM: RTPSWriterGroupImplTrait> {
 
 impl<PSM: RTPSWriterGroupImplTrait> RTPSWriterGroupImpl<PSM> {
     pub fn new(
-        guid: GUID<PSM>,
+        guid: PSM::GUID,
         qos: PublisherQos,
         listener: Option<&'static dyn PublisherListener>,
         status_mask: StatusMask,
@@ -100,7 +102,7 @@ impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSGroup<PSM>
 impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSEntity<PSM>
     for RTPSWriterGroupImpl<PSM>
 {
-    fn guid(&self) -> GUID<PSM> {
+    fn guid(&self) -> PSM::GUID {
         self.guid
     }
 }

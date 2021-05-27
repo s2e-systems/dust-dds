@@ -7,8 +7,8 @@ use rust_rtps_pim::{
         SubmessageFlagType, SubmessageKindType, TimeType,
     },
     structure::types::{
-        DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType, ParameterListType,
-        ProtocolVersionType, SequenceNumberType, VendorIdType,
+        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType,
     },
 };
 
@@ -32,6 +32,34 @@ impl EntityIdType for RtpsUdpPsm {
         entity_key: [0, 0, 0x01],
         entity_kind: 0xc1,
     };
+}
+
+impl GUIDType<RtpsUdpPsm> for RtpsUdpPsm {
+    type GUID = GUID;
+    const GUID_UNKNOWN: Self::GUID = GUID {
+        prefix: RtpsUdpPsm::GUIDPREFIX_UNKNOWN,
+        entity_id: RtpsUdpPsm::ENTITYID_UNKNOWN,
+    };
+}
+
+#[derive(Clone, Copy)]
+pub struct GUID {
+    pub prefix: GuidPrefix,
+    pub entity_id: EntityId,
+}
+
+impl rust_rtps_pim::structure::types::GUID<RtpsUdpPsm> for GUID {
+    fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self {
+        Self { prefix, entity_id }
+    }
+
+    fn prefix(&self) -> &GuidPrefix {
+        todo!()
+    }
+
+    fn entity_id(&self) -> &EntityId {
+        todo!()
+    }
 }
 
 impl SequenceNumberType for RtpsUdpPsm {
@@ -416,7 +444,7 @@ pub struct ProtocolVersion {
     pub minor: u8,
 }
 
-impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm>  for ProtocolVersion {
+impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> for ProtocolVersion {
     fn value(&self) -> &ProtocolVersion {
         self
     }
@@ -485,7 +513,9 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumber<RtpsUdpPsm> fo
 
 pub struct FragmentNumberSet(Vec<FragmentNumber>);
 
-impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm> for FragmentNumberSet {
+impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
+    for FragmentNumberSet
+{
     type FragmentNumberVector = Self;
 
     fn base(&self) -> &FragmentNumber {

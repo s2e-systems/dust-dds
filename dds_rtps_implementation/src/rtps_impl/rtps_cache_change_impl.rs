@@ -1,8 +1,8 @@
 use rust_rtps_pim::{
     messages::types::ParameterIdType,
     structure::types::{
-        ChangeKind, DataType, EntityIdType, GuidPrefixType, InstanceHandleType, ParameterListType,
-        SequenceNumberType, GUID,
+        ChangeKind, DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
+        ParameterListType, SequenceNumberType,
     },
 };
 
@@ -13,6 +13,7 @@ pub trait RTPSCacheChangeImplTrait:
     + ParameterIdType
     + EntityIdType
     + GuidPrefixType
+    + GUIDType<Self>
     + ParameterListType<Self>
     + Sized
 {
@@ -24,6 +25,7 @@ impl<
             + ParameterIdType
             + EntityIdType
             + GuidPrefixType
+            + GUIDType<Self>
             + ParameterListType<Self>
             + Sized,
     > RTPSCacheChangeImplTrait for T
@@ -32,7 +34,7 @@ impl<
 
 pub struct RTPSCacheChangeImpl<PSM: RTPSCacheChangeImplTrait> {
     kind: ChangeKind,
-    writer_guid: GUID<PSM>,
+    writer_guid: PSM::GUID,
     instance_handle: PSM::InstanceHandle,
     sequence_number: PSM::SequenceNumber,
     data: PSM::Data,
@@ -46,7 +48,7 @@ impl<PSM: RTPSCacheChangeImplTrait> rust_rtps_pim::structure::RTPSCacheChange<PS
         &self.kind
     }
 
-    fn writer_guid(&self) -> &GUID<PSM> {
+    fn writer_guid(&self) -> &PSM::GUID {
         &self.writer_guid
     }
 

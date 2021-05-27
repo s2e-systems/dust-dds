@@ -75,44 +75,36 @@ pub trait ParameterListType<PSM: ParameterIdType> {
     type ParameterList: ParameterList<PSM> + Send + Sync;
 }
 
+pub trait GUIDType<PSM: GuidPrefixType + EntityIdType> {
+    type GUID: GUID<PSM> + Copy + Send + Sync;
+    const GUID_UNKNOWN: Self::GUID;
+}
+
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub struct GUID<PSM: GuidPrefixType + EntityIdType> {
-    prefix: PSM::GuidPrefix,
-    entity_id: PSM::EntityId,
+pub trait GUID<PSM: GuidPrefixType + EntityIdType> {
+    fn new(prefix: PSM::GuidPrefix, entity_id: PSM::EntityId) -> Self;
+    fn prefix(&self) -> &PSM::GuidPrefix;
+    fn entity_id(&self) -> &PSM::EntityId;
 }
 
-impl<PSM: GuidPrefixType + EntityIdType> Clone for GUID<PSM> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
+// impl<PSM: GuidPrefixType + EntityIdType> GUID<PSM> {
+//     pub const GUID_UNKNOWN: Self = Self {
+//         prefix: PSM::GUIDPREFIX_UNKNOWN,
+//         entity_id: PSM::ENTITYID_UNKNOWN,
+//     };
 
-impl<PSM: GuidPrefixType + EntityIdType> Copy for GUID<PSM> {}
+//     pub fn new(prefix: PSM::GuidPrefix, entity_id: PSM::EntityId) -> Self {
+//         Self { prefix, entity_id }
+//     }
 
-impl<PSM: GuidPrefixType + EntityIdType> PartialEq for GUID<PSM> {
-    fn eq(&self, other: &Self) -> bool {
-        self.prefix == other.prefix && self.entity_id == other.entity_id
-    }
-}
+//     pub fn prefix(&self) -> &PSM::GuidPrefix {
+//         &self.prefix
+//     }
 
-impl<PSM: GuidPrefixType + EntityIdType> GUID<PSM> {
-    pub const GUID_UNKNOWN: Self = Self {
-        prefix: PSM::GUIDPREFIX_UNKNOWN,
-        entity_id: PSM::ENTITYID_UNKNOWN,
-    };
-
-    pub fn new(prefix: PSM::GuidPrefix, entity_id: PSM::EntityId) -> Self {
-        Self { prefix, entity_id }
-    }
-
-    pub fn prefix(&self) -> &PSM::GuidPrefix {
-        &self.prefix
-    }
-
-    pub fn entity_id(&self) -> &PSM::EntityId {
-        &self.entity_id
-    }
-}
+//     pub fn entity_id(&self) -> &PSM::EntityId {
+//         &self.entity_id
+//     }
+// }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TopicKind {

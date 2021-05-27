@@ -6,8 +6,8 @@ use rust_rtps_pim::{
     behavior::types::DurationType,
     messages::types::ParameterIdType,
     structure::types::{
-        DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType, ParameterListType,
-        SequenceNumberType,
+        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        ParameterListType, SequenceNumberType,
     },
 };
 
@@ -22,6 +22,7 @@ pub trait WriterFactoryTrait:
     + LocatorType
     + InstanceHandleType
     + ParameterIdType
+    + GUIDType<Self>
     + ParameterListType<Self>
     + Sized
 {
@@ -36,6 +37,7 @@ impl<
             + LocatorType
             + InstanceHandleType
             + ParameterIdType
+            + GUIDType<Self>
             + ParameterListType<Self>
             + Sized,
     > WriterFactoryTrait for T

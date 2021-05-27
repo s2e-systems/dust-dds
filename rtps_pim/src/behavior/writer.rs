@@ -2,8 +2,8 @@ use crate::{
     messages::types::ParameterIdType,
     structure::{
         types::{
-            ChangeKind, DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
-            ParameterListType, SequenceNumberType,
+            ChangeKind, DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
+            LocatorType, ParameterListType, SequenceNumberType,
         },
         RTPSEndpoint, RTPSHistoryCache,
     },
@@ -19,6 +19,7 @@ pub trait RTPSWriter<
         + SequenceNumberType
         + DataType
         + ParameterIdType
+        + GUIDType<PSM>
         + ParameterListType<PSM>
         + InstanceHandleType,
     HistoryCache: RTPSHistoryCache<PSM>,

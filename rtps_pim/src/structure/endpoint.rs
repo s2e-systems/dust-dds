@@ -1,9 +1,11 @@
 use super::{
-    types::{EntityIdType, GuidPrefixType, LocatorType, ReliabilityKind, TopicKind},
+    types::{EntityIdType, GUIDType, GuidPrefixType, LocatorType, ReliabilityKind, TopicKind},
     RTPSEntity,
 };
 
-pub trait RTPSEndpoint<PSM: GuidPrefixType + EntityIdType + LocatorType>: RTPSEntity<PSM> {
+pub trait RTPSEndpoint<PSM: GuidPrefixType + EntityIdType + LocatorType + GUIDType<PSM>>:
+    RTPSEntity<PSM>
+{
     fn topic_kind(&self) -> TopicKind;
     fn reliability_level(&self) -> ReliabilityKind;
     fn unicast_locator_list(&self) -> &[PSM::Locator];

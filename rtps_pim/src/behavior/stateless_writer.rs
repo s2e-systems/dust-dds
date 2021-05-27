@@ -6,7 +6,7 @@ use crate::{
     },
     structure::{
         types::{
-            DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
+            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
             ParameterListType, SequenceNumberType,
         },
         RTPSCacheChange, RTPSHistoryCache,
@@ -52,6 +52,7 @@ pub trait RTPSStatelessWriter<
         + InstanceHandleType
         + LocatorType
         + SequenceNumberType
+        + GUIDType<PSM>
         + ParameterIdType
         + ParameterListType<PSM>,
     HistoryCache: RTPSHistoryCache<PSM>,
@@ -75,6 +76,7 @@ pub fn produce_messages<
         + LocatorType
         + SequenceNumberType
         + ParameterIdType
+        + GUIDType<PSM>
         + ParameterListType<PSM>,
     DataSubmesage: Data<PSM>,
     GapSubmessage: Gap<PSM>,

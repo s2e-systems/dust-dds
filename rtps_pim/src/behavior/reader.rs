@@ -2,7 +2,7 @@ use crate::{
     messages::types::ParameterIdType,
     structure::{
         types::{
-            DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
+            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
             ParameterListType, SequenceNumberType,
         },
         RTPSEndpoint, RTPSHistoryCache,
@@ -19,6 +19,7 @@ pub trait RTPSReader<
         + SequenceNumberType
         + LocatorType
         + DurationType
+        + GUIDType<PSM>
         + ParameterIdType
         + ParameterListType<PSM>,
     HistoryCache: RTPSHistoryCache<PSM>,

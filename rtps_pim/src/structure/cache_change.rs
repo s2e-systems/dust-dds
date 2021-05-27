@@ -1,8 +1,8 @@
 use crate::messages::types::ParameterIdType;
 
 use super::types::{
-    ChangeKind, DataType, EntityIdType, GuidPrefixType, InstanceHandleType, ParameterListType,
-    SequenceNumberType, GUID,
+    ChangeKind, DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
+    ParameterListType, SequenceNumberType,
 };
 
 pub trait RTPSCacheChange<
@@ -12,11 +12,12 @@ pub trait RTPSCacheChange<
         + SequenceNumberType
         + DataType
         + ParameterIdType
+        + GUIDType<PSM>
         + ParameterListType<PSM>,
 >
 {
     fn kind(&self) -> &ChangeKind;
-    fn writer_guid(&self) -> &GUID<PSM>;
+    fn writer_guid(&self) -> &PSM::GUID;
     fn instance_handle(&self) -> &PSM::InstanceHandle;
     fn sequence_number(&self) -> &PSM::SequenceNumber;
     fn data_value(&self) -> &PSM::Data;

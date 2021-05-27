@@ -2,8 +2,8 @@ use rust_rtps_pim::{
     behavior::types::DurationType,
     messages::types::ParameterIdType,
     structure::types::{
-        DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType, ParameterListType,
-        ProtocolVersionType, SequenceNumberType, VendorIdType,
+        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType,
     },
 };
 
@@ -27,6 +27,7 @@ pub trait PIM:
     + InstanceHandleType
     + LocatorType
     + DataType
+    + GUIDType<Self>
     + ParameterIdType
     + ParameterListType<Self>
     + Sized
@@ -44,6 +45,7 @@ impl<
             + InstanceHandleType
             + LocatorType
             + DataType
+            + GUIDType<Self>
             + ParameterIdType
             + ParameterListType<Self>
             + Sized

@@ -4,7 +4,7 @@ use rust_rtps_pim::{
     messages::types::ParameterIdType,
     structure::{
         types::{
-            DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
+            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
             ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType, GUID,
         },
         RTPSEntity,
@@ -26,6 +26,7 @@ pub trait RTPSParticipantImplTrait:
     + DataType
     + ProtocolVersionType
     + ParameterIdType
+    + GUIDType<Self>
     + ParameterListType<Self>
     + Sized
 {
@@ -42,6 +43,7 @@ impl<
             + DataType
             + ProtocolVersionType
             + ParameterIdType
+            + GUIDType<Self>
             + ParameterListType<Self>
             + Sized,
     > RTPSParticipantImplTrait for T
@@ -49,7 +51,7 @@ impl<
 }
 
 pub struct RTPSParticipantImpl<PSM: RTPSParticipantImplTrait> {
-    guid: GUID<PSM>,
+    guid: PSM::GUID,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
@@ -104,7 +106,7 @@ impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PS
 }
 
 impl<PSM: RTPSParticipantImplTrait> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
-    fn guid(&self) -> rust_rtps_pim::structure::types::GUID<PSM> {
+    fn guid(&self) -> PSM::GUID {
         self.guid
     }
 }
