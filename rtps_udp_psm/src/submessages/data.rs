@@ -22,7 +22,7 @@ impl<'a> rust_rtps_pim::messages::submessages::Data<RtpsUdpPsm> for Data<'a> {
         _reader_id: EntityId,
         _writer_id: EntityId,
         _writer_sn: SequenceNumber,
-        _serialized_payload: &[u8],
+        _serialized_payload: &crate::Data,
     ) -> Self {
         todo!()
     }

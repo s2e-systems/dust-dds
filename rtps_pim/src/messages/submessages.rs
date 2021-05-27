@@ -44,7 +44,7 @@ pub trait Data<
         reader_id: PSM::EntityId,
         writer_id: PSM::EntityId,
         writer_sn: PSM::SequenceNumber,
-        serialized_payload: &[u8],
+        serialized_payload: &PSM::Data,
     ) -> Self;
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
     fn inline_qos_flag(&self) -> PSM::SubmessageFlag;
