@@ -1,3 +1,6 @@
+use crate::{
+    dds_type::DDSType, rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::RtpsWeak,
+};
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -8,29 +11,16 @@ use rust_dds_api::{
     publication::data_writer_listener::DataWriterListener,
     return_type::DDSResult,
 };
-use rust_rtps_pim::{behavior::RTPSWriter, structure::types::ChangeKind};
 
-use crate::{
-    dds_type::DDSType, rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::RtpsWeak,
-};
+use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl, PIM};
 
-use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
-
-pub struct DataWriterImpl<
-    'dw,
-    'p: 'dw,
-    't: 'dw,
-    T: DDSType<PSM> + 'static,
-    PSM,
-> {
+pub struct DataWriterImpl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM> {
     publisher: &'dw PublisherImpl<'p, PSM>,
     topic: &'dw TopicImpl<'t, T, PSM>,
     rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM>
-    DataWriterImpl<'dw, 'p, 't, T, PSM>
-{
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: PIM> DataWriterImpl<'dw, 'p, 't, T, PSM> {
     pub fn new(
         publisher: &'dw PublisherImpl<'p, PSM>,
         topic: &'dw TopicImpl<'t, T, PSM>,
@@ -44,7 +34,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM>
     rust_dds_api::publication::data_writer::DataWriterParent
     for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
@@ -55,9 +45,8 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
-    rust_dds_api::publication::data_writer::DataWriter<T>
-    for DataWriterImpl<'dw, 'p, 't, T, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM>
+    rust_dds_api::publication::data_writer::DataWriter<T> for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -106,15 +95,16 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
 
     fn write_w_timestamp(
         &self,
-        data: T,
+        _data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
-        let writer = self.rtps_writer_impl.upgrade()?;
-        let mut writer_lock = writer.lock();
-        let change = writer_lock.new_change(ChangeKind::Alive, data.serialize(), &[], data.key());
-        writer_lock.writer_cache_mut().add_change(change);
-        Ok(())
+        todo!()
+        // let writer = self.rtps_writer_impl.upgrade()?;
+        // let mut writer_lock = writer.lock();
+        // let change = writer_lock.new_change(ChangeKind::Alive, data.serialize(), &[], data.key());
+        // writer_lock.writer_cache_mut().add_change(change);
+        // Ok(())
     }
 
     fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
@@ -179,7 +169,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM>
     rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     type Qos = DataWriterQos;
@@ -222,9 +212,8 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM>
-    rust_dds_api::publication::data_writer::AnyDataWriter
-    for DataWriterImpl<'dw, 'p, 't, T, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: PIM>
+    rust_dds_api::publication::data_writer::AnyDataWriter for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
 }
 

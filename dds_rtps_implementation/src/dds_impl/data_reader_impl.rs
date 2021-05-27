@@ -18,14 +18,14 @@ use rust_dds_api::{
     },
 };
 
-use super::{subscriber_impl::SubscriberImpl, topic_impl::TopicImpl};
+use super::{subscriber_impl::SubscriberImpl, topic_impl::TopicImpl, PIM};
 
-pub struct DataReaderImpl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM> {
+pub struct DataReaderImpl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM> {
     subscriber: &'dr SubscriberImpl<'s, PSM>,
     topic: &'dr TopicImpl<'t, T, PSM>,
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM>
+impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM>
     rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderImpl<'dr, 's, 't, T, PSM>
 {
     fn read(
@@ -273,9 +273,7 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM>
     }
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM> Entity
-    for DataReaderImpl<'dr, 's, 't, T, PSM>
-{
+impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM> Entity for DataReaderImpl<'dr, 's, 't, T, PSM> {
     type Qos = DataReaderQos;
     type Listener = &'static dyn DataReaderListener<DataType = T>;
 
@@ -316,7 +314,7 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM> Entity
     }
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, T: 'dr, PSM> AnyDataReader
+impl<'dr, 's: 'dr, 't: 'dr, T: 'dr, PSM: PIM> AnyDataReader
     for DataReaderImpl<'dr, 's, 't, T, PSM>
 {
 }

@@ -21,15 +21,15 @@ use crate::{
 
 use super::{
     data_reader_impl::DataReaderImpl, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl,
+    topic_impl::TopicImpl, PIM,
 };
 
-pub struct SubscriberImpl<'s, PSM> {
+pub struct SubscriberImpl<'s, PSM: PIM> {
     participant: &'s DomainParticipantImpl<PSM>,
     rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl<PSM>>,
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM>
+impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM>
     rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T>
     for SubscriberImpl<'s, PSM>
 {
@@ -58,9 +58,7 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM>
     }
 }
 
-impl<'s, PSM> rust_dds_api::subscription::subscriber::Subscriber
-    for SubscriberImpl<'s, PSM>
-{
+impl<'s, PSM: PIM> rust_dds_api::subscription::subscriber::Subscriber for SubscriberImpl<'s, PSM> {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
     }
@@ -113,7 +111,7 @@ impl<'s, PSM> rust_dds_api::subscription::subscriber::Subscriber
     }
 }
 
-impl<'s, PSM> Entity for SubscriberImpl<'s, PSM> {
+impl<'s, PSM: PIM> Entity for SubscriberImpl<'s, PSM> {
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 

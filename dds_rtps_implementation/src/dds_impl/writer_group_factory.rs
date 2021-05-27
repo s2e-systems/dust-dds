@@ -2,19 +2,55 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
-use rust_rtps_pim::structure::types::GUID;
+use rust_rtps_pim::{
+    behavior::types::DurationType,
+    messages::types::ParameterIdType,
+    structure::types::{
+        DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType, ParameterListType,
+        SequenceNumberType, GUID,
+    },
+};
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 
-pub struct WriterGroupFactory<PSM> {
+pub trait WriterGroupFactoryTrait:
+    GuidPrefixType
+    + EntityIdType
+    + SequenceNumberType
+    + DurationType
+    + InstanceHandleType
+    + LocatorType
+    + DataType
+    + ParameterIdType
+    + ParameterListType<Self>
+    + Sized
+{
+}
+
+impl<
+        T: GuidPrefixType
+            + EntityIdType
+            + SequenceNumberType
+            + DurationType
+            + InstanceHandleType
+            + LocatorType
+            + DataType
+            + ParameterIdType
+            + ParameterListType<Self>
+            + Sized,
+    > WriterGroupFactoryTrait for T
+{
+}
+
+pub struct WriterGroupFactory<PSM: WriterGroupFactoryTrait> {
     guid_prefix: PSM::GuidPrefix,
     publisher_counter: u8,
     default_publisher_qos: PublisherQos,
 }
 
-impl<PSM> WriterGroupFactory<PSM> {
+impl<PSM: WriterGroupFactoryTrait> WriterGroupFactory<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
             guid_prefix,

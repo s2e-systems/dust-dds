@@ -68,11 +68,11 @@ pub trait VendorIdType {
 }
 
 pub trait DataType {
-    type Data;
+    type Data: Send + Sync;
 }
 
 pub trait ParameterListType<PSM: ParameterIdType> {
-    type ParameterList: ParameterList<PSM>;
+    type ParameterList: ParameterList<PSM> + Send + Sync;
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID

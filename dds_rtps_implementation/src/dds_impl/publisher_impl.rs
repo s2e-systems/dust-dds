@@ -24,7 +24,7 @@ use crate::{
 
 use super::{
     data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl, writer_factory::WriterFactory,
+    topic_impl::TopicImpl, writer_factory::WriterFactory, PIM,
 };
 
 const ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
@@ -32,14 +32,14 @@ const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
 const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
 const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
-pub struct PublisherImpl<'p, PSM> {
+pub struct PublisherImpl<'p, PSM: PIM> {
     participant: &'p DomainParticipantImpl<PSM>,
     writer_factory: Mutex<WriterFactory<PSM>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
     rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<PSM>>,
 }
 
-impl<'p, PSM> PublisherImpl<'p, PSM> {
+impl<'p, PSM: PIM> PublisherImpl<'p, PSM> {
     pub fn new(
         participant: &'p DomainParticipantImpl<PSM>,
         rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
@@ -54,7 +54,7 @@ impl<'p, PSM> PublisherImpl<'p, PSM> {
     }
 }
 
-impl<'p, PSM> PublisherParent for PublisherImpl<'p, PSM> {
+impl<'p, PSM: PIM> PublisherParent for PublisherImpl<'p, PSM> {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
@@ -62,8 +62,8 @@ impl<'p, PSM> PublisherParent for PublisherImpl<'p, PSM> {
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
-    DataWriterFactory<'dw, 't, T> for PublisherImpl<'p, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM> DataWriterFactory<'dw, 't, T>
+    for PublisherImpl<'p, PSM>
 {
     type TopicType = TopicImpl<'t, T, PSM>;
     type DataWriterType = DataWriterImpl<'dw, 'p, 't, T, PSM>;
@@ -110,9 +110,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
     }
 }
 
-impl<'p, PSM> rust_dds_api::publication::publisher::Publisher
-    for PublisherImpl<'p, PSM>
-{
+impl<'p, PSM: PIM> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p, PSM> {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
@@ -162,9 +160,7 @@ impl<'p, PSM> rust_dds_api::publication::publisher::Publisher
     }
 }
 
-impl<'p, PSM> rust_dds_api::infrastructure::entity::Entity
-    for PublisherImpl<'p, PSM>
-{
+impl<'p, PSM: PIM> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p, PSM> {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 

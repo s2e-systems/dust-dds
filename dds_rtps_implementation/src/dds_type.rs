@@ -1,4 +1,6 @@
-pub trait DDSType<PSM> {
+use rust_rtps_pim::structure::types::{DataType, InstanceHandleType};
+
+pub trait DDSType<PSM: InstanceHandleType + DataType> {
     fn type_name() -> &'static str;
 
     fn has_key() -> bool;
