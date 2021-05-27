@@ -4,14 +4,51 @@ use rust_dds_api::{
     publication::publisher_listener::PublisherListener,
     return_type::DDSResult,
 };
-use rust_rtps_pim::structure::types::GUID;
+use rust_rtps_pim::{
+    behavior::types::DurationType,
+    messages::types::ParameterIdType,
+    structure::types::{
+        DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType, ParameterListType,
+        SequenceNumberType, GUID,
+    },
+};
 
 use crate::utils::shared_object::RtpsShared;
-use rust_rtps_pim::structure::RTPSEntity;
 
 use super::rtps_writer_impl::RTPSWriterImpl;
 
-pub struct RTPSWriterGroupImpl<PSM> {
+pub trait RTPSWriterGroupImplTrait:
+    EntityIdType
+    + GuidPrefixType
+    + EntityIdType
+    + SequenceNumberType
+    + DurationType
+    + InstanceHandleType
+    + LocatorType
+    + DataType
+    + ParameterIdType
+    + ParameterListType<Self>
+    + Sized
+{
+}
+
+impl<
+        T: EntityIdType
+            + GuidPrefixType
+            + EntityIdType
+            + SequenceNumberType
+            + DurationType
+            + InstanceHandleType
+            + LocatorType
+            + DataType
+            + ParameterIdType
+            + ParameterListType<Self>
+            + Sized,
+    > RTPSWriterGroupImplTrait for T
+{
+}
+
+pub struct RTPSWriterGroupImpl<PSM: RTPSWriterGroupImplTrait> {
     guid: GUID<PSM>,
     qos: PublisherQos,
     listener: Option<&'static dyn PublisherListener>,
@@ -19,7 +56,7 @@ pub struct RTPSWriterGroupImpl<PSM> {
     writer_list: Vec<RtpsShared<RTPSWriterImpl<PSM>>>,
 }
 
-impl<PSM> RTPSWriterGroupImpl<PSM> {
+impl<PSM: RTPSWriterGroupImplTrait> RTPSWriterGroupImpl<PSM> {
     pub fn new(
         guid: GUID<PSM>,
         qos: PublisherQos,
@@ -43,7 +80,7 @@ impl<PSM> RTPSWriterGroupImpl<PSM> {
         self.writer_list.push(writer)
     }
 
-    pub fn delete_writer(&mut self, writer: InstanceHandle) -> DDSResult<()> {
+    pub fn delete_writer(&mut self, _writer: InstanceHandle) -> DDSResult<()> {
         todo!()
         // let index = self
         //     .writer_list
@@ -55,7 +92,14 @@ impl<PSM> RTPSWriterGroupImpl<PSM> {
     }
 }
 
-impl<PSM> rust_rtps_pim::structure::RTPSEntity<PSM> for RTPSWriterGroupImpl<PSM> {
+impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSGroup<PSM>
+    for RTPSWriterGroupImpl<PSM>
+{
+}
+
+impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSEntity<PSM>
+    for RTPSWriterGroupImpl<PSM>
+{
     fn guid(&self) -> GUID<PSM> {
         self.guid
     }

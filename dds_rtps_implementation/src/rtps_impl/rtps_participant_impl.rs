@@ -1,16 +1,59 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
-use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
+use rust_rtps_pim::{
+    behavior::types::DurationType,
+    messages::types::ParameterIdType,
+    structure::{
+        types::{
+            DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
+            ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType, GUID,
+        },
+        RTPSEntity,
+    },
+};
 
 use crate::utils::shared_object::RtpsShared;
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
-pub struct RTPSParticipantImpl<PSM> {
+pub trait RTPSParticipantImplTrait:
+    GuidPrefixType
+    + EntityIdType
+    + SequenceNumberType
+    + LocatorType
+    + VendorIdType
+    + DurationType
+    + InstanceHandleType
+    + DataType
+    + ProtocolVersionType
+    + ParameterIdType
+    + ParameterListType<Self>
+    + Sized
+{
+}
+
+impl<
+        T: GuidPrefixType
+            + EntityIdType
+            + SequenceNumberType
+            + LocatorType
+            + VendorIdType
+            + DurationType
+            + InstanceHandleType
+            + DataType
+            + ProtocolVersionType
+            + ParameterIdType
+            + ParameterListType<Self>
+            + Sized,
+    > RTPSParticipantImplTrait for T
+{
+}
+
+pub struct RTPSParticipantImpl<PSM: RTPSParticipantImplTrait> {
     guid: GUID<PSM>,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
-impl<PSM> RTPSParticipantImpl<PSM> {
+impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         let guid = GUID::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
 
@@ -28,7 +71,7 @@ impl<PSM> RTPSParticipantImpl<PSM> {
         self.rtps_writer_groups.push(writer_group)
     }
 
-    pub fn delete_writer_group(&mut self, writer_group: InstanceHandle) -> DDSResult<()> {
+    pub fn delete_writer_group(&mut self, _writer_group: InstanceHandle) -> DDSResult<()> {
         todo!()
         // let index = self
         //     .rtps_writer_groups
@@ -40,7 +83,9 @@ impl<PSM> RTPSParticipantImpl<PSM> {
     }
 }
 
-impl<PSM> rust_rtps_pim::structure::RTPSParticipant<PSM> for RTPSParticipantImpl<PSM> {
+impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PSM>
+    for RTPSParticipantImpl<PSM>
+{
     fn protocol_version(&self) -> PSM::ProtocolVersion {
         todo!()
     }
@@ -58,7 +103,7 @@ impl<PSM> rust_rtps_pim::structure::RTPSParticipant<PSM> for RTPSParticipantImpl
     }
 }
 
-impl<PSM> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
+impl<PSM: RTPSParticipantImplTrait> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
     fn guid(&self) -> rust_rtps_pim::structure::types::GUID<PSM> {
         self.guid
     }
