@@ -1,9 +1,12 @@
 use crate::{
     behavior::{types::DurationType, RTPSWriter},
     messages::types::ParameterIdType,
-    structure::types::{
-        DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType, ParameterListType,
-        SequenceNumberType, GUID,
+    structure::{
+        types::{
+            DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
+            ParameterListType, SequenceNumberType, GUID,
+        },
+        RTPSHistoryCache,
     },
 };
 
@@ -90,7 +93,8 @@ pub trait RTPSStatefulWriter<
         + ParameterListType<PSM>
         + InstanceHandleType
         + ParameterIdType,
->: RTPSWriter<PSM>
+    HistoryCache: RTPSHistoryCache<PSM>,
+>: RTPSWriter<PSM, HistoryCache>
 {
     fn matched_readers(&self) -> &[RTPSReaderProxy<PSM>];
     fn matched_reader_add(&mut self, guid: GUID<PSM>);

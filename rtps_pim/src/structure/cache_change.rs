@@ -5,7 +5,7 @@ use super::types::{
     SequenceNumberType, GUID,
 };
 
-pub struct RTPSCacheChange<
+pub trait RTPSCacheChange<
     PSM: GuidPrefixType
         + EntityIdType
         + InstanceHandleType
@@ -13,11 +13,12 @@ pub struct RTPSCacheChange<
         + DataType
         + ParameterIdType
         + ParameterListType<PSM>,
-> {
-    pub kind: ChangeKind,
-    pub writer_guid: GUID<PSM>,
-    pub instance_handle: PSM::InstanceHandle,
-    pub sequence_number: PSM::SequenceNumber,
-    pub data_value: PSM::Data,
-    pub inline_qos: PSM::ParameterList,
+>
+{
+    fn kind(&self) -> &ChangeKind;
+    fn writer_guid(&self) -> &GUID<PSM>;
+    fn instance_handle(&self) -> &PSM::InstanceHandle;
+    fn sequence_number(&self) -> &PSM::SequenceNumber;
+    fn data_value(&self) -> &PSM::Data;
+    fn inline_qos(&self) -> &PSM::ParameterList;
 }

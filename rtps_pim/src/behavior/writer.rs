@@ -5,7 +5,7 @@ use crate::{
             ChangeKind, DataType, EntityIdType, GuidPrefixType, InstanceHandleType, LocatorType,
             ParameterListType, SequenceNumberType,
         },
-        RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache,
+        RTPSEndpoint, RTPSHistoryCache,
     },
 };
 
@@ -21,6 +21,7 @@ pub trait RTPSWriter<
         + ParameterIdType
         + ParameterListType<PSM>
         + InstanceHandleType,
+    HistoryCache: RTPSHistoryCache<PSM>,
 >: RTPSEndpoint<PSM>
 {
     fn push_mode(&self) -> bool;
@@ -29,8 +30,8 @@ pub trait RTPSWriter<
     fn nack_suppression_duration(&self) -> PSM::Duration;
     fn last_change_sequence_number(&self) -> PSM::SequenceNumber;
     fn data_max_size_serialized(&self) -> i32;
-    fn writer_cache(&self) -> &dyn RTPSHistoryCache<PSM>;
-    fn writer_cache_mut(&mut self) -> &mut dyn RTPSHistoryCache<PSM>;
+    fn writer_cache(&self) -> &HistoryCache;
+    fn writer_cache_mut(&mut self) -> &mut HistoryCache;
 
     fn new_change(
         &mut self,
@@ -38,5 +39,5 @@ pub trait RTPSWriter<
         data: PSM::Data,
         inline_qos: PSM::ParameterList,
         handle: PSM::InstanceHandle,
-    ) -> RTPSCacheChange<PSM>;
+    ) -> HistoryCache::CacheChange;
 }
