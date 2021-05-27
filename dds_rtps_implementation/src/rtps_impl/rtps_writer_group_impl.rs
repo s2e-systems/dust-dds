@@ -2,7 +2,7 @@ use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
     infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener,
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
 };
 use rust_rtps_pim::structure::types::GUID;
 
@@ -11,7 +11,7 @@ use rust_rtps_pim::structure::RTPSEntity;
 
 use super::rtps_writer_impl::RTPSWriterImpl;
 
-pub struct RTPSWriterGroupImpl<PSM: super::PIM> {
+pub struct RTPSWriterGroupImpl<PSM> {
     guid: GUID<PSM>,
     qos: PublisherQos,
     listener: Option<&'static dyn PublisherListener>,
@@ -19,7 +19,7 @@ pub struct RTPSWriterGroupImpl<PSM: super::PIM> {
     writer_list: Vec<RtpsShared<RTPSWriterImpl<PSM>>>,
 }
 
-impl<PSM: super::PIM> RTPSWriterGroupImpl<PSM> {
+impl<PSM> RTPSWriterGroupImpl<PSM> {
     pub fn new(
         guid: GUID<PSM>,
         qos: PublisherQos,
@@ -44,19 +44,18 @@ impl<PSM: super::PIM> RTPSWriterGroupImpl<PSM> {
     }
 
     pub fn delete_writer(&mut self, writer: InstanceHandle) -> DDSResult<()> {
-        let index = self
-            .writer_list
-            .iter()
-            .position(|x| crate::utils::instance_handle_from_guid(&x.lock().guid()) == writer)
-            .ok_or(DDSError::PreconditionNotMet("RTPS writer not found"))?;
-        self.writer_list.swap_remove(index);
-        Ok(())
+        todo!()
+        // let index = self
+        //     .writer_list
+        //     .iter()
+        //     .position(|x| crate::utils::instance_handle_from_guid(&x.lock().guid()) == writer)
+        //     .ok_or(DDSError::PreconditionNotMet("RTPS writer not found"))?;
+        // self.writer_list.swap_remove(index);
+        // Ok(())
     }
 }
 
-impl<PSM: super::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
-    for RTPSWriterGroupImpl<PSM>
-{
+impl<PSM> rust_rtps_pim::structure::RTPSEntity<PSM> for RTPSWriterGroupImpl<PSM> {
     fn guid(&self) -> GUID<PSM> {
         self.guid
     }

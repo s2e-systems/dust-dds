@@ -1,40 +1,35 @@
 use rust_rtps_pim::structure::{RTPSCacheChange, RTPSHistoryCache};
 
-pub struct RTPSHistoryCacheImpl<PSM: super::PIM> {
-    changes: Vec<RTPSCacheChange<PSM>>,
-}
+pub struct RTPSHistoryCacheImpl<PSM> {}
 
-impl<PSM: super::PIM> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM> {
-    fn new() -> Self {
-        Self {
-            changes: Vec::new(),
-        }
+impl<PSM> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM> {
+    type CacheChange;
+
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        todo!()
     }
 
-    fn add_change(&mut self, change: rust_rtps_pim::structure::RTPSCacheChange<PSM>) {
-        self.changes.push(change)
+    fn add_change(&mut self, change: Self::CacheChange) {
+        todo!()
     }
 
-    fn remove_change(
-        &mut self,
-        seq_num: &<PSM as rust_rtps_pim::structure::Types>::SequenceNumber,
-    ) {
-        self.changes.retain(|x| &x.sequence_number != seq_num)
+    fn remove_change(&mut self, seq_num: &PSM::SequenceNumber) {
+        todo!()
     }
 
-    fn get_change(
-        &self,
-        seq_num: &<PSM as rust_rtps_pim::structure::Types>::SequenceNumber,
-    ) -> Option<&rust_rtps_pim::structure::RTPSCacheChange<PSM>> {
-        self.changes.iter().find(|x| &x.sequence_number == seq_num)
+    fn get_change(&self, seq_num: &PSM::SequenceNumber) -> Option<&Self::CacheChange> {
+        todo!()
     }
 
-    fn get_seq_num_min(&self) -> Option<<PSM as rust_rtps_pim::structure::Types>::SequenceNumber> {
-        self.changes.iter().map(|x| x.sequence_number).min()
+    fn get_seq_num_min(&self) -> Option<PSM::SequenceNumber> {
+        todo!()
     }
 
-    fn get_seq_num_max(&self) -> Option<<PSM as rust_rtps_pim::structure::Types>::SequenceNumber> {
-        self.changes.iter().map(|x| x.sequence_number).max()
+    fn get_seq_num_max(&self) -> Option<PSM::SequenceNumber> {
+        todo!()
     }
 }
 

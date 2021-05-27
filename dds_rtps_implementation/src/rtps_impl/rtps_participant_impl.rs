@@ -1,19 +1,16 @@
-use rust_dds_api::{
-    dcps_psm::InstanceHandle,
-    return_type::{DDSError, DDSResult},
-};
+use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 
 use crate::utils::shared_object::RtpsShared;
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
-pub struct RTPSParticipantImpl<PSM: super::PIM> {
+pub struct RTPSParticipantImpl<PSM> {
     guid: GUID<PSM>,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
-impl<PSM: super::PIM> RTPSParticipantImpl<PSM> {
+impl<PSM> RTPSParticipantImpl<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         let guid = GUID::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
 
@@ -32,19 +29,18 @@ impl<PSM: super::PIM> RTPSParticipantImpl<PSM> {
     }
 
     pub fn delete_writer_group(&mut self, writer_group: InstanceHandle) -> DDSResult<()> {
-        let index = self
-            .rtps_writer_groups
-            .iter()
-            .position(|x| crate::utils::instance_handle_from_guid(&x.lock().guid()) == writer_group)
-            .ok_or(DDSError::PreconditionNotMet("RTPS writer group not found"))?;
-        self.rtps_writer_groups.swap_remove(index);
-        Ok(())
+        todo!()
+        // let index = self
+        //     .rtps_writer_groups
+        //     .iter()
+        //     .position(|x| crate::utils::instance_handle_from_guid(&x.lock().guid()) == writer_group)
+        //     .ok_or(DDSError::PreconditionNotMet("RTPS writer group not found"))?;
+        // self.rtps_writer_groups.swap_remove(index);
+        // Ok(())
     }
 }
 
-impl<PSM: super::PIM> rust_rtps_pim::structure::RTPSParticipant<PSM>
-    for RTPSParticipantImpl<PSM>
-{
+impl<PSM> rust_rtps_pim::structure::RTPSParticipant<PSM> for RTPSParticipantImpl<PSM> {
     fn protocol_version(&self) -> PSM::ProtocolVersion {
         todo!()
     }
@@ -62,7 +58,7 @@ impl<PSM: super::PIM> rust_rtps_pim::structure::RTPSParticipant<PSM>
     }
 }
 
-impl<PSM: super::PIM> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
+impl<PSM> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
     fn guid(&self) -> rust_rtps_pim::structure::types::GUID<PSM> {
         self.guid
     }

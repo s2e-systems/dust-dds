@@ -32,14 +32,14 @@ const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
 const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
 const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
-pub struct PublisherImpl<'p, PSM: crate::rtps_impl::PIM> {
+pub struct PublisherImpl<'p, PSM> {
     participant: &'p DomainParticipantImpl<PSM>,
     writer_factory: Mutex<WriterFactory<PSM>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
     rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<PSM>>,
 }
 
-impl<'p, PSM: crate::rtps_impl::PIM> PublisherImpl<'p, PSM> {
+impl<'p, PSM> PublisherImpl<'p, PSM> {
     pub fn new(
         participant: &'p DomainParticipantImpl<PSM>,
         rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
@@ -54,7 +54,7 @@ impl<'p, PSM: crate::rtps_impl::PIM> PublisherImpl<'p, PSM> {
     }
 }
 
-impl<'p, PSM: crate::rtps_impl::PIM> PublisherParent for PublisherImpl<'p, PSM> {
+impl<'p, PSM> PublisherParent for PublisherImpl<'p, PSM> {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
@@ -62,7 +62,7 @@ impl<'p, PSM: crate::rtps_impl::PIM> PublisherParent for PublisherImpl<'p, PSM> 
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: crate::rtps_impl::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM>
     DataWriterFactory<'dw, 't, T> for PublisherImpl<'p, PSM>
 {
     type TopicType = TopicImpl<'t, T, PSM>;
@@ -110,7 +110,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: crate::rtps_impl::PI
     }
 }
 
-impl<'p, PSM: crate::rtps_impl::PIM> rust_dds_api::publication::publisher::Publisher
+impl<'p, PSM> rust_dds_api::publication::publisher::Publisher
     for PublisherImpl<'p, PSM>
 {
     fn suspend_publications(&self) -> DDSResult<()> {
@@ -162,7 +162,7 @@ impl<'p, PSM: crate::rtps_impl::PIM> rust_dds_api::publication::publisher::Publi
     }
 }
 
-impl<'p, PSM: crate::rtps_impl::PIM> rust_dds_api::infrastructure::entity::Entity
+impl<'p, PSM> rust_dds_api::infrastructure::entity::Entity
     for PublisherImpl<'p, PSM>
 {
     type Qos = PublisherQos;
@@ -216,9 +216,10 @@ impl<'p, PSM: crate::rtps_impl::PIM> rust_dds_api::infrastructure::entity::Entit
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        Ok(crate::utils::instance_handle_from_guid(
-            &self.rtps_writer_group_impl.upgrade()?.lock().guid(),
-        ))
+        todo!()
+        // Ok(crate::utils::instance_handle_from_guid(
+        //     &self.rtps_writer_group_impl.upgrade()?.lock().guid(),
+        // ))
     }
 }
 

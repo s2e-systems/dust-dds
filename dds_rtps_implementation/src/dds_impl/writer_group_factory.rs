@@ -8,13 +8,13 @@ use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 
-pub struct WriterGroupFactory<PSM: crate::rtps_impl::PIM> {
+pub struct WriterGroupFactory<PSM> {
     guid_prefix: PSM::GuidPrefix,
     publisher_counter: u8,
     default_publisher_qos: PublisherQos,
 }
 
-impl<PSM: crate::rtps_impl::PIM> WriterGroupFactory<PSM> {
+impl<PSM> WriterGroupFactory<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
             guid_prefix,

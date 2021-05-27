@@ -13,7 +13,7 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::RTPSEntity;
+// use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
@@ -24,12 +24,12 @@ use super::{
     writer_group_factory::WriterGroupFactory,
 };
 
-pub struct DomainParticipantImpl<PSM: crate::rtps_impl::PIM> {
+pub struct DomainParticipantImpl<PSM> {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
 }
 
-impl<PSM: crate::rtps_impl::PIM> DomainParticipantImpl<PSM> {
+impl<PSM> DomainParticipantImpl<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
@@ -38,7 +38,7 @@ impl<PSM: crate::rtps_impl::PIM> DomainParticipantImpl<PSM> {
     }
 }
 
-impl<'p, PSM: crate::rtps_impl::PIM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
+impl<'p, PSM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
     for DomainParticipantImpl<PSM>
 {
     type PublisherType = PublisherImpl<'p, PSM>;
@@ -74,7 +74,7 @@ impl<'p, PSM: crate::rtps_impl::PIM> rust_dds_api::domain::domain_participant::P
     }
 }
 
-impl<'s, PSM: crate::rtps_impl::PIM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
+impl<'s, PSM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     for DomainParticipantImpl<PSM>
 {
     type SubscriberType = SubscriberImpl<'s, PSM>;
@@ -130,7 +130,7 @@ impl<'s, PSM: crate::rtps_impl::PIM> rust_dds_api::domain::domain_participant::S
     }
 }
 
-impl<'t, T: 'static, PSM: crate::rtps_impl::PIM>
+impl<'t, T: 'static, PSM>
     rust_dds_api::domain::domain_participant::TopicFactory<'t, T> for DomainParticipantImpl<PSM>
 {
     type TopicType = TopicImpl<'t, T, PSM>;
@@ -154,7 +154,7 @@ impl<'t, T: 'static, PSM: crate::rtps_impl::PIM>
     }
 }
 
-impl<PSM: crate::rtps_impl::PIM> rust_dds_api::domain::domain_participant::DomainParticipant
+impl<PSM> rust_dds_api::domain::domain_participant::DomainParticipant
     for DomainParticipantImpl<PSM>
 {
     fn lookup_topicdescription<'t, T>(
@@ -263,7 +263,7 @@ impl<PSM: crate::rtps_impl::PIM> rust_dds_api::domain::domain_participant::Domai
     }
 }
 
-impl<PSM: crate::rtps_impl::PIM> Entity for DomainParticipantImpl<PSM> {
+impl<PSM> Entity for DomainParticipantImpl<PSM> {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
@@ -313,9 +313,10 @@ impl<PSM: crate::rtps_impl::PIM> Entity for DomainParticipantImpl<PSM> {
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        Ok(crate::utils::instance_handle_from_guid(
-            &self.rtps_participant_impl.lock().guid(),
-        ))
+        todo!()
+        // Ok(crate::utils::instance_handle_from_guid(
+        //     &self.rtps_participant_impl.lock().guid(),
+        // ))
     }
 }
 

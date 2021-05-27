@@ -1,4 +1,4 @@
-pub trait DDSType<PSM: crate::rtps_impl::PIM> {
+pub trait DDSType<PSM> {
     fn type_name() -> &'static str;
 
     fn has_key() -> bool;

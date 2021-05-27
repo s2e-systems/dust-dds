@@ -13,7 +13,7 @@ use rust_rtps_pim::{
 
 use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
 
-pub struct RTPSWriterImpl<PSM: super::PIM> {
+pub struct RTPSWriterImpl<PSM> {
     guid: GUID<PSM>,
     reader_locators: Vec<RTPSReaderLocator<PSM>>,
     reader_proxies: Vec<RTPSReaderProxy<PSM>>,
@@ -21,7 +21,7 @@ pub struct RTPSWriterImpl<PSM: super::PIM> {
     writer_cache: RTPSHistoryCacheImpl<PSM>,
 }
 
-impl<PSM: super::PIM> RTPSWriterImpl<PSM> {
+impl<PSM> RTPSWriterImpl<PSM> {
     pub fn new(_qos: DataWriterQos, guid: GUID<PSM>) -> Self {
         // let guid = GUID::new(
         //     [1; 12],
@@ -102,13 +102,13 @@ impl<PSM: super::PIM> RTPSWriterImpl<PSM> {
     //     }
 }
 
-impl<PSM: super::PIM> RTPSEntity<PSM> for RTPSWriterImpl<PSM> {
+impl<PSM> RTPSEntity<PSM> for RTPSWriterImpl<PSM> {
     fn guid(&self) -> GUID<PSM> {
         self.guid
     }
 }
 
-impl<PSM: super::PIM> RTPSWriter<PSM> for RTPSWriterImpl<PSM> {
+impl<PSM> RTPSWriter<PSM> for RTPSWriterImpl<PSM> {
     fn push_mode(&self) -> bool {
         todo!()
     }
@@ -162,7 +162,7 @@ impl<PSM: super::PIM> RTPSWriter<PSM> for RTPSWriterImpl<PSM> {
     }
 }
 
-impl<PSM: super::PIM> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
+impl<PSM> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
     fn topic_kind(&self) -> TopicKind {
         todo!()
     }
@@ -180,7 +180,7 @@ impl<PSM: super::PIM> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
     }
 }
 
-impl<PSM: super::PIM> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> {
+impl<PSM> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> {
     fn reader_locator_add(&mut self, a_locator: Locator<PSM>) {
         let expects_inline_qos = false;
         self.reader_locators
@@ -191,14 +191,9 @@ impl<PSM: super::PIM> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> {
         self.reader_locators.retain(|x| x.locator() != a_locator)
     }
 
-    fn reader_locators(
-        &mut self,
-    ) -> &mut [rust_rtps_pim::behavior::stateless_writer::RTPSReaderLocator<PSM>] {
-        &mut self.reader_locators
-    }
 }
 
-impl<PSM: super::PIM> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
+impl<PSM> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
     fn matched_readers(&self) -> &[rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>] {
         todo!()
     }
