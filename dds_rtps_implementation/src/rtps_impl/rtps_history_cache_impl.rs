@@ -1,26 +1,65 @@
-use rust_rtps_pim::structure::{RTPSCacheChange, RTPSHistoryCache};
+use rust_rtps_pim::{
+    messages::types::ParameterIdType,
+    structure::{
+        types::{
+            DataType, EntityIdType, GuidPrefixType, InstanceHandleType, ParameterListType,
+            SequenceNumberType,
+        },
+        RTPSHistoryCache,
+    },
+};
 
-pub struct RTPSHistoryCacheImpl<PSM> {}
+use super::rtps_cache_change_impl::RTPSCacheChangeImpl;
 
-impl<PSM> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM> {
-    type CacheChange;
+pub trait RTPSHistoryCacheImplTrait:
+    InstanceHandleType
+    + SequenceNumberType
+    + DataType
+    + ParameterIdType
+    + EntityIdType
+    + GuidPrefixType
+    + ParameterListType<Self>
+    + Sized
+{
+}
+impl<
+        T: InstanceHandleType
+            + SequenceNumberType
+            + DataType
+            + ParameterIdType
+            + EntityIdType
+            + GuidPrefixType
+            + ParameterListType<Self>
+            + Sized,
+    > RTPSHistoryCacheImplTrait for T
+{
+}
+
+pub struct RTPSHistoryCacheImpl<PSM: RTPSHistoryCacheImplTrait> {
+    changes: Vec<RTPSCacheChangeImpl<PSM>>,
+}
+
+impl<PSM: RTPSHistoryCacheImplTrait> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM> {
+    type CacheChange = RTPSCacheChangeImpl<PSM>;
 
     fn new() -> Self
     where
         Self: Sized,
     {
-        todo!()
+        Self {
+            changes: Vec::new(),
+        }
     }
 
     fn add_change(&mut self, change: Self::CacheChange) {
+        self.changes.push(change)
+    }
+
+    fn remove_change(&mut self, _seq_num: &PSM::SequenceNumber) {
         todo!()
     }
 
-    fn remove_change(&mut self, seq_num: &PSM::SequenceNumber) {
-        todo!()
-    }
-
-    fn get_change(&self, seq_num: &PSM::SequenceNumber) -> Option<&Self::CacheChange> {
+    fn get_change(&self, _seq_num: &PSM::SequenceNumber) -> Option<&Self::CacheChange> {
         todo!()
     }
 
