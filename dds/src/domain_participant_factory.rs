@@ -42,7 +42,7 @@ impl DomainParticipantFactory {
         _qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) /*-> Option<DomainParticipantImpl<impl rust_dds_rtps_implementation::rtps_impl::PIM>>*/ {
+    ) -> Option<DomainParticipantImpl<RtpsUdpPsm>> {
         // let interface = "Wi-Fi";
         // let unicast_locator = Locator::new(0, 7400, [1; 16]);
         // let multicast_locator = Locator::new(0, 7400, [2; 16]);
@@ -62,21 +62,20 @@ impl DomainParticipantFactory {
         //     },
         //     spdp_locator_list: vec![Locator::new_udpv4(7400, [239, 255, 0, 0])],
         // };
-        // let guid_prefix = [1; 12];
+        let guid_prefix = [1; 12];
 
-        // let participant: DomainParticipantImpl<RtpsUdpPsm> =
-        // DomainParticipantImpl::new(guid_prefix);
-        todo!()
+        let participant: DomainParticipantImpl<RtpsUdpPsm> =
+        DomainParticipantImpl::new(guid_prefix.into());
 
         // let domain_participant_impl =
-        //     DomainParticipantImpl::new(domain_id, qos.clone(), a_listener, mask, configuration);
+            // DomainParticipantImpl::new(guid_prefix.into()); // domain_id, qos.clone(), a_listener, mask, configuration
         // let participant = DomainParticipant::new(domain_participant_impl);
 
-        // // if enabled {
-        // //     new_participant.enable().ok()?;
-        // // }
+        // if enabled {
+        //     new_participant.enable().ok()?;
+        // }
 
-        // Some(participant)
+        Some(participant)
     }
 
     // pub fn delete_participant(_a_participant: impl DomainParticipant) {}

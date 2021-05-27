@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    #"dds",
+    "dds",
 	"dds_api",
 	"dds_rtps_implementation",
 	"rtps_pim",
