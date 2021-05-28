@@ -170,6 +170,45 @@ impl ParticipantMessageDataType for RtpsUdpPsm {
     type ParticipantMessageData = ();
 }
 
+#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize)]
+pub struct Octet(u8);
+
+impl Octet {
+    pub fn is_bit_set(&self, index: usize) -> bool {
+        self.0 | (0b_0000_0001 << index) == 0
+    }
+}
+
+impl<const N: usize> From<[SubmessageFlag; N]> for Octet {
+    fn from(value: [SubmessageFlag; N]) -> Self {
+        let mut flags = 0b_0000_0000;
+        for (i, &item) in value.iter().enumerate() {
+            if item {
+                flags |= 0b_0000_0001 << i
+            }
+        };
+        Self(flags)
+    }
+}
+impl<const N: usize> From<Octet> for [SubmessageFlag; N] {
+    fn from(value: Octet) -> Self {
+        todo!()
+    }
+}
+impl From<Octet> for u8 {
+    fn from(value: Octet) -> Self {
+        value.0
+    }
+}
+impl From<u8> for Octet {
+    fn from(value: u8) -> Self {
+        Self(value)
+    }
+}
+
+
+
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UShort(u16);
 
@@ -242,7 +281,7 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefix<RtpsUdpPsm> for Gu
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, serde::Serialize)]
 pub struct EntityId {
     pub entity_key: [u8; 3],
     pub entity_kind: u8,
@@ -274,7 +313,7 @@ impl rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> for Enti
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct SequenceNumber {
     pub high: i32,
     pub low: u32,
@@ -450,8 +489,8 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> f
     }
 }
 
-pub struct Data(Vec<u8>);
-
+pub type Data = Vec<u8>;
+#[derive(serde::Serialize)]
 pub struct SerializedData<'a>(&'a [u8]);
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedData for SerializedData<'a> {
@@ -579,6 +618,23 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for L
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn octet_from_submessage_flags() {
+        let result: Octet = [true, false, true].into();
+        assert_eq!(result, Octet(0b_0000_0101));
+    }
+
+    #[test]
+    fn octet_from_submessage_flags_empty() {
+        let result: Octet = [].into();
+        assert_eq!(result, Octet(0b_0000_0000));
+    }
+    #[test]
+    #[should_panic]
+    fn octet_from_submessage_flags_overflow() {
+        let _: Octet = [true; 9].into();
+    }
 
     #[test]
     fn sequence_number_set_iterator() {
