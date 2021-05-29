@@ -41,6 +41,26 @@ pub struct RTPSCacheChangeImpl<PSM: RTPSCacheChangeImplTrait> {
     inline_qos: PSM::ParameterList,
 }
 
+impl<PSM: RTPSCacheChangeImplTrait> RTPSCacheChangeImpl<PSM> {
+    pub fn new(
+        kind: ChangeKind,
+        writer_guid: PSM::GUID,
+        instance_handle: PSM::InstanceHandle,
+        sequence_number: PSM::SequenceNumber,
+        data: PSM::Data,
+        inline_qos: PSM::ParameterList,
+    ) -> Self {
+        Self {
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data,
+            inline_qos,
+        }
+    }
+}
+
 impl<PSM: RTPSCacheChangeImplTrait> rust_rtps_pim::structure::RTPSCacheChange<PSM>
     for RTPSCacheChangeImpl<PSM>
 {

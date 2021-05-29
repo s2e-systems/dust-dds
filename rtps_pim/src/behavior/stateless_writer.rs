@@ -88,13 +88,13 @@ pub fn produce_messages<
 ) {
     if let Some(highest_sequence_number) = writer_cache.get_seq_num_max() {
         while reader_locator
-            .unsent_changes(highest_sequence_number)
+            .unsent_changes(*highest_sequence_number)
             .into_iter()
             .next()
             .is_some()
         {
             // Pushing state
-            if let Some(seq_num) = reader_locator.next_unsent_change(highest_sequence_number) {
+            if let Some(seq_num) = reader_locator.next_unsent_change(*highest_sequence_number) {
                 // Transition T4
                 if let Some(change) = writer_cache.get_change(&seq_num) {
                     // Send Data submessage
