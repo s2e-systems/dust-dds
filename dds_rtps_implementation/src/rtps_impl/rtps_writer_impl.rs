@@ -101,8 +101,8 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriterImpl<PSM> {
 }
 
 impl<PSM: RTPSWriterImplTrait> RTPSEntity<PSM> for RTPSWriterImpl<PSM> {
-    fn guid(&self) -> PSM::GUID {
-        self.guid
+    fn guid(&self) -> &PSM::GUID {
+        &self.guid
     }
 }
 
