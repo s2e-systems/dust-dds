@@ -101,7 +101,6 @@ pub trait RTPSStatefulWriter<
     HistoryCache: RTPSHistoryCache<PSM>,
 >: RTPSWriter<PSM, HistoryCache>
 {
-    fn matched_readers(&self) -> &[RTPSReaderProxy<PSM>];
     fn matched_reader_add(&mut self, guid: PSM::GUID);
     fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUID);
     fn matched_reader_lookup(&self, a_reader_guid: PSM::GUID) -> Option<&RTPSReaderProxy<PSM>>;

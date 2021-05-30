@@ -4,11 +4,11 @@
 ///
 
 pub trait DurationType {
-    type Duration: Copy;
+    type Duration: Copy + Send + Sync;
 }
 
 pub trait ParticipantMessageDataType {
-    type ParticipantMessageData: Copy;
+    type ParticipantMessageData: Copy + Send + Sync;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
