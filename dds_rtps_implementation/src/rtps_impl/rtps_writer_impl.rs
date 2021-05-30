@@ -16,7 +16,8 @@ use rust_rtps_pim::{
 };
 
 use super::{
-    rtps_history_cache_impl::RTPSHistoryCacheImpl, rtps_reader_locator_impl::RTPSReaderLocatorImpl,
+    rtps_cache_change_impl::RTPSCacheChangeImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl,
+    rtps_reader_locator_impl::RTPSReaderLocatorImpl,
 };
 
 pub trait RTPSWriterImplTrait:
@@ -180,12 +181,20 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriter<PSM, RTPSHistoryCacheImpl<PSM>> for RT
 
     fn new_change(
         &mut self,
-        _kind: ChangeKind,
-        _data: PSM::Data,
-        _inline_qos: PSM::ParameterList,
-        _handle: PSM::InstanceHandle,
+        kind: ChangeKind,
+        data: PSM::Data,
+        inline_qos: PSM::ParameterList,
+        handle: PSM::InstanceHandle,
     ) -> <RTPSHistoryCacheImpl<PSM> as RTPSHistoryCache<PSM>>::CacheChange {
-        todo!()
+        self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
+        RTPSCacheChangeImpl::new(
+            kind,
+            self.guid,
+            handle,
+            self.last_change_sequence_number,
+            data,
+            inline_qos,
+        )
     }
 }
 
@@ -233,9 +242,144 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM, RTPSHistoryCacheImpl<PSM>
 
 #[cfg(test)]
 mod tests {
-    // use rust_rtps_udp_psm::{types::EntityId, RtpsUdpPsm};
+    use rust_rtps_pim::structure::RTPSCacheChange;
 
-    // use super::*;
+    use super::*;
+
+    struct MockPSM;
+
+    impl rust_rtps_pim::structure::types::InstanceHandleType for MockPSM {
+        type InstanceHandle = ();
+    }
+
+    impl rust_rtps_pim::structure::types::SequenceNumberType for MockPSM {
+        type SequenceNumber = i64;
+        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = -1;
+    }
+
+    impl rust_rtps_pim::structure::types::DataType for MockPSM {
+        type Data = ();
+    }
+
+    impl rust_rtps_pim::structure::types::EntityIdType for MockPSM {
+        type EntityId = [u8; 4];
+
+        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
+        const ENTITYID_PARTICIPANT: Self::EntityId = [1; 4];
+    }
+
+    impl rust_rtps_pim::messages::types::ParameterIdType for MockPSM {
+        type ParameterId = u16;
+    }
+
+    impl rust_rtps_pim::structure::types::GuidPrefixType for MockPSM {
+        type GuidPrefix = [u8; 12];
+        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+    }
+
+    #[derive(Clone, Copy)]
+    struct MockGUID;
+
+    impl rust_rtps_pim::structure::types::GUID<MockPSM> for MockGUID {
+        fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
+            todo!()
+        }
+
+        fn prefix(&self) -> &[u8; 12] {
+            todo!()
+        }
+
+        fn entity_id(&self) -> &[u8; 4] {
+            todo!()
+        }
+    }
+
+    impl rust_rtps_pim::structure::types::GUIDType<MockPSM> for MockPSM {
+        type GUID = MockGUID;
+        const GUID_UNKNOWN: Self::GUID = MockGUID;
+    }
+
+    impl rust_rtps_pim::structure::types::ParameterListType<MockPSM> for MockPSM {
+        type ParameterList = MockParameterList;
+    }
+
+    pub struct MockParameterList;
+
+    impl rust_rtps_pim::messages::submessage_elements::ParameterList<MockPSM> for MockParameterList {
+        type Parameter = MockParameter;
+
+        fn parameter(&self) -> &[Self::Parameter] {
+            todo!()
+        }
+    }
+
+    pub struct MockParameter;
+    impl rust_rtps_pim::messages::submessage_elements::Parameter<MockPSM> for MockParameter {
+        fn parameter_id(&self) -> u16 {
+            todo!()
+        }
+
+        fn length(&self) -> i16 {
+            todo!()
+        }
+
+        fn value(&self) -> &[u8] {
+            todo!()
+        }
+    }
+
+    impl rust_rtps_pim::behavior::types::DurationType for MockPSM {
+        type Duration = i64;
+    }
+
+    #[derive(Clone, Copy, PartialEq)]
+    pub struct MockLocator;
+
+    impl rust_rtps_pim::structure::types::LocatorSubTypes for MockLocator {
+        type LocatorKind = [u8; 4];
+
+        const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
+        const LOCATOR_KIND_RESERVED: Self::LocatorKind = [1; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4: Self::LocatorKind = [2; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6: Self::LocatorKind = [3; 4];
+
+        type LocatorPort = [u8; 4];
+        const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
+
+        type LocatorAddress = [u8; 16];
+
+        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
+        const LOCATOR_INVALID: Self = MockLocator;
+
+        fn kind(&self) -> &Self::LocatorKind {
+            todo!()
+        }
+
+        fn port(&self) -> &Self::LocatorPort {
+            todo!()
+        }
+
+        fn address(&self) -> &Self::LocatorAddress {
+            todo!()
+        }
+    }
+
+    impl rust_rtps_pim::structure::types::LocatorType for MockPSM {
+        type Locator = MockLocator;
+    }
+
+    #[test]
+    fn new_change() {
+        let mut writer: RTPSWriterImpl<MockPSM> =
+            RTPSWriterImpl::new(DataWriterQos::default(), MockGUID);
+        let change1 = writer.new_change(ChangeKind::Alive, (), MockParameterList, ());
+        let change2 = writer.new_change(ChangeKind::Alive, (), MockParameterList, ());
+
+        assert_eq!(change1.sequence_number(), &1);
+        assert_eq!(change2.sequence_number(), &2);
+    }
 
     // #[test]
     // fn send_data() {
