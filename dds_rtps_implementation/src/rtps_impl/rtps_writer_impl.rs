@@ -106,7 +106,9 @@ impl<PSM: RTPSWriterImplTrait> RTPSEntity<PSM> for RTPSWriterImpl<PSM> {
     }
 }
 
-impl<PSM: RTPSWriterImplTrait> RTPSWriter<PSM, RTPSHistoryCacheImpl<PSM>> for RTPSWriterImpl<PSM> {
+impl<PSM: RTPSWriterImplTrait> RTPSWriter<PSM> for RTPSWriterImpl<PSM> {
+    type HistoryCacheType = RTPSHistoryCacheImpl<PSM>;
+
     fn push_mode(&self) -> bool {
         self.push_mode
     }
@@ -145,7 +147,7 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriter<PSM, RTPSHistoryCacheImpl<PSM>> for RT
         data: PSM::Data,
         inline_qos: PSM::ParameterList,
         handle: PSM::InstanceHandle,
-    ) -> <RTPSHistoryCacheImpl<PSM> as RTPSHistoryCache<PSM>>::CacheChange {
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
         RTPSCacheChangeImpl::new(
             kind,
@@ -176,9 +178,7 @@ impl<PSM: RTPSWriterImplTrait> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
     }
 }
 
-impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM, RTPSHistoryCacheImpl<PSM>>
-    for RTPSWriterImpl<PSM>
-{
+impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> {
     fn reader_locator_add(&mut self, a_locator: PSM::Locator) {
         todo!()
     }
@@ -192,9 +192,7 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM, RTPSHistoryCacheImpl<PSM
     }
 }
 
-impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM, RTPSHistoryCacheImpl<PSM>>
-    for RTPSWriterImpl<PSM>
-{
+impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
     fn matched_reader_add(&mut self, guid: PSM::GUID) {
         todo!()
     }

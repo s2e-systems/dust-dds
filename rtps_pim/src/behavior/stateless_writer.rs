@@ -53,8 +53,7 @@ pub trait RTPSStatelessWriter<
         + GUIDType<PSM>
         + ParameterIdType
         + ParameterListType<PSM>,
-    HistoryCache: RTPSHistoryCache<PSM>,
->: RTPSWriter<PSM, HistoryCache>
+>: RTPSWriter<PSM>
 {
     fn reader_locator_add(&mut self, a_locator: PSM::Locator);
 

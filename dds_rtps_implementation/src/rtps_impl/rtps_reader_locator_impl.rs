@@ -175,6 +175,23 @@ mod tests {
         )
     }
 
+    #[test]
+    fn reader_locator_requested_changes_set_above_last_change_sequence_number() {
+        let mut reader_locator: RTPSReaderLocatorImpl<MockPSM> =
+            RTPSReaderLocatorImpl::new(MockLocator(0), false);
+
+        let req_seq_num_set = vec![1, 2, 3];
+        reader_locator.requested_changes_set(req_seq_num_set, 1);
+
+        let expected_requested_changes = vec![1];
+        assert_eq!(
+            reader_locator.requested_changes(),
+            expected_requested_changes
+        )
+    }
+
+
+
     //     #[test]
     //     fn reader_locator_requested_changes_set_changes_not_in_history_cache() {
     //         let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
