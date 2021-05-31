@@ -17,7 +17,7 @@ use rust_rtps_pim::{
 
 use super::{
     rtps_cache_change_impl::RTPSCacheChangeImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl,
-    rtps_reader_locator_impl::RTPSReaderLocatorImpl,
+    rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_reader_proxy_impl::RTPSReaderProxyImpl,
 };
 
 pub trait RTPSWriterImplTrait:
@@ -64,7 +64,7 @@ pub struct RTPSWriterImpl<PSM: RTPSWriterImplTrait> {
     last_change_sequence_number: PSM::SequenceNumber,
     data_max_size_serialized: i32,
     reader_locators: Vec<RTPSReaderLocatorImpl<PSM>>,
-    reader_proxies: Vec<RTPSReaderProxy<PSM>>,
+    reader_proxies: Vec<RTPSReaderProxyImpl<PSM>>,
     writer_cache: RTPSHistoryCacheImpl<PSM>,
 }
 
@@ -193,6 +193,7 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> 
 }
 
 impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
+    type ReaderProxyType = RTPSReaderProxyImpl<PSM>;
     fn matched_reader_add(&mut self, guid: PSM::GUID) {
         todo!()
     }
@@ -201,7 +202,7 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
         todo!()
     }
 
-    fn matched_reader_lookup(&self, a_reader_guid: PSM::GUID) -> Option<&RTPSReaderProxy<PSM>> {
+    fn matched_reader_lookup(&self, a_reader_guid: PSM::GUID) -> Option<&Self::ReaderProxyType> {
         todo!()
     }
 
