@@ -106,8 +106,8 @@ impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PS
 }
 
 impl<PSM: RTPSParticipantImplTrait> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
-    fn guid(&self) -> PSM::GUID {
-        self.guid
+    fn guid(&self) -> &PSM::GUID {
+        &self.guid
     }
 }
 

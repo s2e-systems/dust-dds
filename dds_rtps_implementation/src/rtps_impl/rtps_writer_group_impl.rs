@@ -102,8 +102,8 @@ impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSGroup<PSM>
 impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSEntity<PSM>
     for RTPSWriterGroupImpl<PSM>
 {
-    fn guid(&self) -> PSM::GUID {
-        self.guid
+    fn guid(&self) -> &PSM::GUID {
+        &self.guid
     }
 }
 

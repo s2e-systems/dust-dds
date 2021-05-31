@@ -76,7 +76,7 @@ pub trait ParameterListType<PSM: ParameterIdType> {
 }
 
 pub trait GUIDType<PSM: GuidPrefixType + EntityIdType> {
-    type GUID: GUID<PSM> + Copy + Send + Sync;
+    type GUID: GUID<PSM> + Copy + PartialEq + Send + Sync;
     const GUID_UNKNOWN: Self::GUID;
 }
 

@@ -35,17 +35,6 @@ pub trait Data<
     type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
     type SerializedData: submessage_elements::SerializedData;
 
-    fn new(
-        endianness_flag: PSM::SubmessageFlag,
-        inline_qos_flag: PSM::SubmessageFlag,
-        data_flag: PSM::SubmessageFlag,
-        key_flag: PSM::SubmessageFlag,
-        non_standard_payload_flag: PSM::SubmessageFlag,
-        reader_id: PSM::EntityId,
-        writer_id: PSM::EntityId,
-        writer_sn: PSM::SequenceNumber,
-        serialized_payload: &PSM::Data,
-    ) -> Self;
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
     fn inline_qos_flag(&self) -> PSM::SubmessageFlag;
     fn data_flag(&self) -> PSM::SubmessageFlag;
@@ -98,13 +87,6 @@ pub trait Gap<PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + Sequ
     type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
     type SequenceNumberSet: submessage_elements::SequenceNumberSet<PSM>;
 
-    fn new(
-        endianness_flag: PSM::SubmessageFlag,
-        reader_id: PSM::EntityId,
-        writer_id: PSM::EntityId,
-        gap_start: PSM::SequenceNumber,
-        gap_list: &[PSM::SequenceNumber],
-    ) -> Self;
     fn endianness_flag(&self) -> PSM::SubmessageFlag;
     fn reader_id(&self) -> &Self::EntityId;
     fn writer_id(&self) -> &Self::EntityId;

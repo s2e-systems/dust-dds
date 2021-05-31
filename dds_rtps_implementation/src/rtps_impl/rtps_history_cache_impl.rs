@@ -1,13 +1,7 @@
-use rust_rtps_pim::{
-    messages::types::ParameterIdType,
-    structure::{
-        types::{
+use rust_rtps_pim::{messages::types::ParameterIdType, structure::{RTPSCacheChange, RTPSHistoryCache, types::{
             DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
             ParameterListType, SequenceNumberType,
-        },
-        RTPSHistoryCache,
-    },
-};
+        }}};
 
 use super::rtps_cache_change_impl::RTPSCacheChangeImpl;
 
@@ -57,29 +51,202 @@ impl<PSM: RTPSHistoryCacheImplTrait> RTPSHistoryCache<PSM> for RTPSHistoryCacheI
         self.changes.push(change)
     }
 
-    fn remove_change(&mut self, _seq_num: &PSM::SequenceNumber) {
-        todo!()
+    fn remove_change(&mut self, seq_num: &PSM::SequenceNumber) {
+        self.changes.retain(|cc| cc.sequence_number() != seq_num)
     }
 
-    fn get_change(&self, _seq_num: &PSM::SequenceNumber) -> Option<&Self::CacheChange> {
-        todo!()
+    fn get_change(&self, seq_num: &PSM::SequenceNumber) -> Option<&Self::CacheChange> {
+        self.changes.iter().find(|&cc| cc.sequence_number() == seq_num)
     }
 
-    fn get_seq_num_min(&self) -> Option<PSM::SequenceNumber> {
-        todo!()
+    fn get_seq_num_min(&self) -> Option<&PSM::SequenceNumber> {
+        self.changes.iter().map(|cc| cc.sequence_number()).min()
     }
 
-    fn get_seq_num_max(&self) -> Option<PSM::SequenceNumber> {
-        todo!()
+    fn get_seq_num_max(&self) -> Option<&PSM::SequenceNumber> {
+        self.changes.iter().map(|cc| cc.sequence_number()).max()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use rust_rtps_pim::structure::types::{ChangeKind, GUID};
-    // use rust_rtps_udp_psm::types::EntityId;
-    // use rust_rtps_udp_psm::RtpsUdpPsm;
+    use super::*;
+    struct MockPSM;
+
+    impl rust_rtps_pim::structure::types::InstanceHandleType for MockPSM {
+        type InstanceHandle = ();
+    }
+
+    impl rust_rtps_pim::structure::types::SequenceNumberType for MockPSM {
+        type SequenceNumber = i64;
+        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = -1;
+    }
+
+    impl rust_rtps_pim::structure::types::DataType for MockPSM {
+        type Data = ();
+    }
+
+    impl rust_rtps_pim::structure::types::EntityIdType for MockPSM {
+        type EntityId = [u8; 4];
+
+        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
+        const ENTITYID_PARTICIPANT: Self::EntityId = [1; 4];
+    }
+
+    impl rust_rtps_pim::messages::types::ParameterIdType for MockPSM {
+        type ParameterId = u16;
+    }
+
+    impl rust_rtps_pim::structure::types::GuidPrefixType for MockPSM {
+        type GuidPrefix = [u8; 12];
+        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+    }
+
+    #[derive(Clone, Copy, PartialEq)]
+    struct MockGUID;
+
+    impl rust_rtps_pim::structure::types::GUID<MockPSM> for MockGUID {
+        fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
+            todo!()
+        }
+
+        fn prefix(&self) -> &[u8; 12] {
+            todo!()
+        }
+
+        fn entity_id(&self) -> &[u8; 4] {
+            todo!()
+        }
+    }
+
+    impl rust_rtps_pim::structure::types::GUIDType<MockPSM> for MockPSM {
+        type GUID = MockGUID;
+        const GUID_UNKNOWN: Self::GUID = MockGUID;
+    }
+
+    impl rust_rtps_pim::structure::types::ParameterListType<MockPSM> for MockPSM {
+        type ParameterList = MockParameterList;
+    }
+
+    pub struct MockParameterList;
+
+    impl rust_rtps_pim::messages::submessage_elements::ParameterList<MockPSM> for MockParameterList {
+        type Parameter = MockParameter;
+
+        fn parameter(&self) -> &[Self::Parameter] {
+            todo!()
+        }
+    }
+
+    pub struct MockParameter;
+    impl rust_rtps_pim::messages::submessage_elements::Parameter<MockPSM> for MockParameter {
+        fn parameter_id(&self) -> u16 {
+            todo!()
+        }
+
+        fn length(&self) -> i16 {
+            todo!()
+        }
+
+        fn value(&self) -> &[u8] {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn add_change() {
+        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let change = RTPSCacheChangeImpl::new(
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            MockGUID,
+            (),
+            1,
+            (),
+            MockParameterList,
+        );
+        hc.add_change(change);
+        assert!(hc.get_change(&1).is_some());
+    }
+
+    #[test]
+    fn remove_change() {
+        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let change = RTPSCacheChangeImpl::new(
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            MockGUID,
+            (),
+            1,
+            (),
+            MockParameterList,
+        );
+        hc.add_change(change);
+        hc.remove_change(&1);
+        assert!(hc.get_change(&1).is_none());
+    }
+
+    #[test]
+    fn get_change() {
+        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let change = RTPSCacheChangeImpl::new(
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            MockGUID,
+            (),
+            1,
+            (),
+            MockParameterList,
+        );
+        hc.add_change(change);
+        assert!(hc.get_change(&1).is_some());
+        assert!(hc.get_change(&2).is_none());
+    }
+
+    #[test]
+    fn get_seq_num_min() {
+        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let change1 = RTPSCacheChangeImpl::new(
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            MockGUID,
+            (),
+            1,
+            (),
+            MockParameterList,
+        );
+        let change2 = RTPSCacheChangeImpl::new(
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            MockGUID,
+            (),
+            2,
+            (),
+            MockParameterList,
+        );
+        hc.add_change(change1);
+        hc.add_change(change2);
+        assert_eq!(hc.get_seq_num_min(), Some(&1));
+    }
+
+    #[test]
+    fn get_seq_num_max() {
+        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let change1 = RTPSCacheChangeImpl::new(
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            MockGUID,
+            (),
+            1,
+            (),
+            MockParameterList,
+        );
+        let change2 = RTPSCacheChangeImpl::new(
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            MockGUID,
+            (),
+            2,
+            (),
+            MockParameterList,
+        );
+        hc.add_change(change1);
+        hc.add_change(change2);
+        assert_eq!(hc.get_seq_num_max(), Some(&2));
+    }
 
     // #[test]
     // fn get_seq_num_max() {
