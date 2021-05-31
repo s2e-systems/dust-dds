@@ -134,3 +134,77 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
         state.end()
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use rust_serde_cdr::serializer::RtpsMessageSerializer;
+    use rust_rtps_pim::messages::submessages::Data;
+
+    use super::*;
+
+    fn get_serializer() -> RtpsMessageSerializer<Vec<u8>> {
+        RtpsMessageSerializer {
+            writer: Vec::<u8>::new(),
+        }
+    }
+
+    #[test]
+    fn serialize_no_inline_qos_no_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = [1, 2, 3, 4].into();
+        let writer_id = [6, 7, 8, 9].into();
+        let writer_sn = 5.into();
+        let inline_qos = None;
+        let serialized_payload = &vec![];
+        let submessage = Data::new(endianness_flag, inline_qos_flag, data_flag, key_flag, non_standard_payload_flag, reader_id, writer_id, writer_sn, /*inline_qos, */serialized_payload);
+
+        let mut serializer = get_serializer();
+        submessage.serialize(&mut serializer).unwrap();
+        assert_eq!(serializer.writer, vec![
+            0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
+            0, 0, 12, 0,               // extraFlags, octetsToInlineQos
+            1, 2, 3, 4,               // readerId: value[4]
+            6, 7, 8, 9,               // writerId: value[4]
+            0, 0, 0, 0,               // writerSN: high
+            5, 0, 0, 0,               // writerSN: low
+        ]);
+        assert_eq!(serializer.writer.len() as u16 - 4, submessage.header.submessage_length)
+    }
+
+    #[test]
+    fn serialize_with_inline_qos_no_serialized_payload() {
+        let endianness_flag = true.into();
+        let data_flag = false.into();
+        let key_flag = false.into();
+        let non_standard_payload_flag = false.into();
+        let reader_id = [1, 2, 3, 4].into();
+        let writer_id = [6, 7, 8, 9].into();
+        let writer_sn = 5.into();
+        let param1 = crate::Parameter{parameter_id: 6, length: 4, value: vec![10, 11, 12, 13].into()};
+        let param2 = crate::Parameter{parameter_id: 7, length: 4, value: vec![20, 21, 22, 23].into()};
+        let inline_qos = Some(vec![param1, param2]);
+        let serialized_payload = &vec![];
+        let submessage = Data::new(endianness_flag, data_flag, key_flag, non_standard_payload_flag, reader_id, writer_id, writer_sn, inline_qos, serialized_payload);
+
+        let mut serializer = get_serializer();
+        submessage.serialize(&mut serializer).unwrap();
+        assert_eq!(serializer.writer, vec![
+            0x15, 0b_0000_0011, 36, 0, // Submessage header
+            0, 0, 12, 0,               // extraFlags, octetsToInlineQos
+            1, 2, 3, 4,                // readerId: value[4]
+            6, 7, 8, 9,                // writerId: value[4]
+            0, 0, 0, 0,                // writerSN: high
+            5, 0, 0, 0,                // writerSN: low
+            6, 0, 4, 0,                // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13,            // inlineQos: value_1[length_1]
+            7, 0, 4, 0,                // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23,            // inlineQos: value_2[length_2]
+        ]);
+        assert_eq!(serializer.writer.len() as u16 - 4, submessage.header.submessage_length)
+    }
+}
