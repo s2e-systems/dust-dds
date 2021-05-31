@@ -1,9 +1,9 @@
 use crate::error::Error;
 use serde::{Serialize, ser::{SerializeMap, SerializeSeq, SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant}};
 
-pub struct Compound {}
+pub struct UnimplementedCompound {}
 
-impl SerializeSeq for Compound {
+impl SerializeSeq for UnimplementedCompound {
     type Ok = ();
     type Error = Error;
 
@@ -21,7 +21,7 @@ impl SerializeSeq for Compound {
 
 
 
-impl SerializeTupleStruct for Compound {
+impl SerializeTupleStruct for UnimplementedCompound {
     type Ok = ();
     type Error = Error;
 
@@ -37,7 +37,7 @@ impl SerializeTupleStruct for Compound {
     }
 }
 
-impl SerializeTupleVariant for Compound {
+impl SerializeTupleVariant for UnimplementedCompound {
     type Ok = ();
     type Error = Error;
 
@@ -53,7 +53,7 @@ impl SerializeTupleVariant for Compound {
     }
 }
 
-impl SerializeMap for Compound {
+impl SerializeMap for UnimplementedCompound {
     type Ok = ();
     type Error = Error;
 
@@ -77,7 +77,7 @@ impl SerializeMap for Compound {
 }
 
 
-impl SerializeStructVariant for Compound {
+impl SerializeStructVariant for UnimplementedCompound {
     type Ok = ();
     type Error = Error;
 
