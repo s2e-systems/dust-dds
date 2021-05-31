@@ -4,11 +4,7 @@ use super::SubmessageHeader;
 
 pub struct Gap;
 
-impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for Gap {
-    type EntityId = EntityId;
-    type SequenceNumber = SequenceNumber;
-    type SequenceNumberSet = SequenceNumberSet;
-
+impl Gap {
     fn new(
         _endianness_flag: SubmessageFlag,
         _reader_id: EntityId,
@@ -18,6 +14,14 @@ impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for Gap {
     ) -> Self {
         todo!()
     }
+}
+
+impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for Gap {
+    type EntityId = EntityId;
+    type SequenceNumber = SequenceNumber;
+    type SequenceNumberSet = SequenceNumberSet;
+
+
 
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
