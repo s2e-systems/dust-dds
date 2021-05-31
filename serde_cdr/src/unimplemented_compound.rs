@@ -3,23 +3,6 @@ use serde::{Serialize, ser::{SerializeMap, SerializeSeq, SerializeStructVariant,
 
 pub struct UnimplementedCompound {}
 
-impl SerializeSeq for UnimplementedCompound {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_element<T: ?Sized>(&mut self, _value: &T) -> Result<(), Self::Error>
-    where
-        T: Serialize,
-    {
-        todo!()
-    }
-
-    fn end(self) -> Result<Self::Ok, Self::Error> {
-        todo!()
-    }
-}
-
-
 
 impl SerializeTupleStruct for UnimplementedCompound {
     type Ok = ();
