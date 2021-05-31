@@ -15,7 +15,7 @@ pub struct RTPSReaderLocatorImpl<PSM: RTPSReaderLocatorImplTrait> {
 }
 
 impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocatorImpl<PSM> {
-    fn new(locator: PSM::Locator, expects_inline_qos: bool) -> Self {
+    pub fn new(locator: PSM::Locator, expects_inline_qos: bool) -> Self {
         Self {
             locator,
             expects_inline_qos,

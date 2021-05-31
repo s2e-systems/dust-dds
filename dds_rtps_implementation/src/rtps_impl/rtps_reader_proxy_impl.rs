@@ -14,8 +14,16 @@ impl<
 }
 
 pub struct RTPSReaderProxyImpl<PSM: RTPSReaderProxyImplTrait> {
+    remote_reader_guid: PSM::GUID,
+    remote_group_entity_id: PSM::EntityId,
+    unicast_locator_list: Vec<PSM::Locator>,
+    multicast_locator_list: Vec<PSM::Locator>,
+    expects_inline_qos: bool,
+    is_active: bool,
     last_sent_sequence_number: PSM::SequenceNumber,
 }
+
+impl<PSM: RTPSReaderProxyImplTrait> RTPSReaderProxyImpl<PSM> {}
 
 impl<PSM: RTPSReaderProxyImplTrait> rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>
     for RTPSReaderProxyImpl<PSM>
@@ -23,30 +31,30 @@ impl<PSM: RTPSReaderProxyImplTrait> rust_rtps_pim::behavior::stateful_writer::RT
     type SequenceNumberVector = Vec<PSM::SequenceNumber>;
 
     fn remote_reader_guid(&self) -> &PSM::GUID {
-        todo!()
+        &self.remote_reader_guid
     }
 
     fn remote_group_entity_id(&self) -> &PSM::EntityId {
-        todo!()
+        &self.remote_group_entity_id
     }
 
     fn unicast_locator_list(&self) -> &[PSM::Locator] {
-        todo!()
+        &self.unicast_locator_list
     }
 
     fn multicast_locator_list(&self) -> &[PSM::Locator] {
-        todo!()
+        &self.multicast_locator_list
     }
 
     fn expects_inline_qos(&self) -> bool {
-        todo!()
+        self.expects_inline_qos
     }
 
     fn is_active(&self) -> bool {
-        todo!()
+        self.is_active
     }
 
-    fn acked_changes_set(&mut self, committed_seq_num: PSM::SequenceNumber) {
+    fn acked_changes_set(&mut self, _committed_seq_num: PSM::SequenceNumber) {
         todo!()
     }
 
@@ -66,7 +74,7 @@ impl<PSM: RTPSReaderProxyImplTrait> rust_rtps_pim::behavior::stateful_writer::RT
         todo!()
     }
 
-    fn requested_changes_set(&mut self, req_seq_num_set: Self::SequenceNumberVector) {
+    fn requested_changes_set(&mut self, _req_seq_num_set: Self::SequenceNumberVector) {
         todo!()
     }
 

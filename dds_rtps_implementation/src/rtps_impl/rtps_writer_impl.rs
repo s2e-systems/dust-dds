@@ -1,7 +1,7 @@
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
-        stateless_writer::RTPSStatelessWriter,
+        stateful_writer::RTPSStatefulWriter,
+        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
         types::DurationType,
         RTPSWriter,
     },
@@ -64,7 +64,7 @@ pub struct RTPSWriterImpl<PSM: RTPSWriterImplTrait> {
     last_change_sequence_number: PSM::SequenceNumber,
     data_max_size_serialized: i32,
     reader_locators: Vec<RTPSReaderLocatorImpl<PSM>>,
-    reader_proxies: Vec<RTPSReaderProxyImpl<PSM>>,
+    matched_readers: Vec<RTPSReaderProxyImpl<PSM>>,
     writer_cache: RTPSHistoryCacheImpl<PSM>,
 }
 
@@ -94,7 +94,7 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriterImpl<PSM> {
             data_max_size_serialized,
             last_change_sequence_number: 0.into(),
             reader_locators: Vec::new(),
-            reader_proxies: Vec::new(),
+            matched_readers: Vec::new(),
             writer_cache: RTPSHistoryCacheImpl::new(),
         }
     }
@@ -179,12 +179,19 @@ impl<PSM: RTPSWriterImplTrait> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
 }
 
 impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> {
-    fn reader_locator_add(&mut self, a_locator: PSM::Locator) {
-        todo!()
+    type ReaderLocatorType = RTPSReaderLocatorImpl<PSM>;
+
+    fn reader_locators(&self) -> &[Self::ReaderLocatorType] {
+        &self.reader_locators
+    }
+
+    fn reader_locator_add(&mut self, a_locator: PSM::Locator, expects_inline_qos: bool) {
+        self.reader_locators
+            .push(RTPSReaderLocatorImpl::new(a_locator, expects_inline_qos))
     }
 
     fn reader_locator_remove(&mut self, a_locator: &PSM::Locator) {
-        todo!()
+        self.reader_locators.retain(|x| x.locator() != a_locator)
     }
 
     fn unsent_changes_reset(&mut self) {
@@ -194,6 +201,11 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> 
 
 impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
     type ReaderProxyType = RTPSReaderProxyImpl<PSM>;
+
+    fn matched_readers(&self) -> &[Self::ReaderProxyType] {
+        &self.matched_readers
+    }
+
     fn matched_reader_add(&mut self, guid: PSM::GUID) {
         todo!()
     }
@@ -304,7 +316,7 @@ mod tests {
     }
 
     #[derive(Clone, Copy, PartialEq)]
-    pub struct MockLocator;
+    pub struct MockLocator(u8);
 
     impl rust_rtps_pim::structure::types::LocatorSubTypes for MockLocator {
         type LocatorKind = [u8; 4];
@@ -322,7 +334,7 @@ mod tests {
         type LocatorAddress = [u8; 16];
 
         const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
-        const LOCATOR_INVALID: Self = MockLocator;
+        const LOCATOR_INVALID: Self = MockLocator(0);
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -369,6 +381,67 @@ mod tests {
 
         assert_eq!(change1.sequence_number(), &1);
         assert_eq!(change2.sequence_number(), &2);
+    }
+
+    #[test]
+    fn reader_locator_add() {
+        let push_mode = true;
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = i32::MAX;
+        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+            MockGUID,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            unicast_locator_list,
+            multicast_locator_list,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+
+        writer.reader_locator_add(MockLocator(1), false);
+        writer.reader_locator_add(MockLocator(2), false);
+
+        assert_eq!(writer.reader_locators().len(), 2)
+    }
+
+    #[test]
+    fn reader_locator_remove() {
+        let push_mode = true;
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = i32::MAX;
+        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+            MockGUID,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            unicast_locator_list,
+            multicast_locator_list,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+
+        writer.reader_locator_add(MockLocator(1), false);
+        writer.reader_locator_add(MockLocator(2), false);
+        writer.reader_locator_remove(&MockLocator(1));
+
+        assert_eq!(writer.reader_locators().len(), 1)
     }
 
     // #[test]

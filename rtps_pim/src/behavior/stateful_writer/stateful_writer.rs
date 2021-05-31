@@ -44,6 +44,7 @@ pub trait RTPSStatefulWriter<
 >: RTPSWriter<PSM>
 {
     type ReaderProxyType: RTPSReaderProxy<PSM>;
+    fn matched_readers(&self) -> &[Self::ReaderProxyType];
     fn matched_reader_add(&mut self, guid: PSM::GUID);
     fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUID);
     fn matched_reader_lookup(&self, a_reader_guid: PSM::GUID) -> Option<&Self::ReaderProxyType>;
