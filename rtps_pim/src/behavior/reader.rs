@@ -22,12 +22,13 @@ pub trait RTPSReader<
         + GUIDType<PSM>
         + ParameterIdType
         + ParameterListType<PSM>,
-    HistoryCache: RTPSHistoryCache<PSM>,
 >: RTPSEndpoint<PSM>
 {
+    type HistoryCacheType: RTPSHistoryCache<PSM>;
+
     fn expects_inline_qos(&self) -> bool;
-    fn heartbeat_response_delay(&self) -> PSM::Duration;
-    fn heartbeat_supression_duration(&self) -> PSM::Duration;
-    fn reader_cache(&self) -> &HistoryCache;
-    fn reader_cache_mut(&mut self) -> &mut HistoryCache;
+    fn heartbeat_response_delay(&self) -> &PSM::Duration;
+    fn heartbeat_supression_duration(&self) -> &PSM::Duration;
+    fn reader_cache(&self) -> &Self::HistoryCacheType;
+    fn reader_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
 }

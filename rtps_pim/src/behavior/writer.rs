@@ -25,6 +25,7 @@ pub trait RTPSWriter<
 >: RTPSEndpoint<PSM>
 {
     type HistoryCacheType: RTPSHistoryCache<PSM>;
+
     fn push_mode(&self) -> bool;
     fn heartbeat_period(&self) -> &PSM::Duration;
     fn nack_response_delay(&self) -> &PSM::Duration;
