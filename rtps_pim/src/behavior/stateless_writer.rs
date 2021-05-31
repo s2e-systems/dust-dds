@@ -1,9 +1,6 @@
 use crate::{
     behavior::RTPSWriter,
-    messages::{
-        submessages::{Data, Gap},
-        types::{ParameterIdType, SubmessageFlagType, SubmessageKindType},
-    },
+    messages::types::ParameterIdType,
     structure::{
         types::{
             DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
@@ -68,9 +65,7 @@ pub trait RTPSStatelessWriter<
 
 pub fn produce_messages<
     'a,
-    PSM: SubmessageKindType
-        + SubmessageFlagType
-        + EntityIdType
+    PSM: EntityIdType
         + DataType
         + GuidPrefixType
         + InstanceHandleType
@@ -79,13 +74,12 @@ pub fn produce_messages<
         + ParameterIdType
         + GUIDType<PSM>
         + ParameterListType<PSM>,
-    DataSubmesage: Data<PSM>,
-    GapSubmessage: Gap<PSM>,
+    CacheChange: RTPSCacheChange<PSM> + 'a,
 >(
     reader_locator: &'a mut impl RTPSReaderLocator<PSM>,
-    writer_cache: &'a impl RTPSHistoryCache<PSM>,
-    mut send_data_to: impl FnMut(&PSM::Locator, DataSubmesage),
-    mut send_gap_to: impl FnMut(&PSM::Locator, GapSubmessage),
+    writer_cache: &'a impl RTPSHistoryCache<PSM, CacheChange = CacheChange>,
+    mut send_data_to: impl FnMut(&'a CacheChange),
+    mut send_gap_to: impl FnMut(&PSM::SequenceNumber),
 ) {
     if let Some(highest_sequence_number) = writer_cache.get_seq_num_max() {
         while reader_locator
@@ -98,39 +92,9 @@ pub fn produce_messages<
             if let Some(seq_num) = reader_locator.next_unsent_change(*highest_sequence_number) {
                 // Transition T4
                 if let Some(change) = writer_cache.get_change(&seq_num) {
-                    // Send Data submessage
-                    let endianness_flag = true.into();
-                    let inline_qos_flag = false.into();
-                    let data_flag = true.into();
-                    let key_flag = false.into();
-                    let non_standard_payload_flag = false.into();
-                    let reader_id = PSM::ENTITYID_UNKNOWN;
-                    let writer_id = PSM::ENTITYID_UNKNOWN;
-                    let writer_sn = *change.sequence_number();
-                    // let inline_qos = change.inline_qos.clone();
-                    let serialized_payload = change.data_value();
-                    let data = Data::new(
-                        endianness_flag,
-                        inline_qos_flag,
-                        data_flag,
-                        key_flag,
-                        non_standard_payload_flag,
-                        reader_id,
-                        writer_id,
-                        writer_sn,
-                        // inline_qos,
-                        serialized_payload,
-                    );
-                    send_data_to(reader_locator.locator(), data)
+                    send_data_to(change)
                 } else {
-                    // Send Gap submessage
-                    let endianness_flag = true.into();
-                    let reader_id = PSM::ENTITYID_UNKNOWN;
-                    let writer_id = PSM::ENTITYID_UNKNOWN;
-                    let gap_start = seq_num;
-                    let gap_list = &[]; //core::iter::empty().collect();
-                    let gap = Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
-                    send_gap_to(reader_locator.locator(), gap)
+                    send_gap_to(&seq_num)
                 }
             }
         }
