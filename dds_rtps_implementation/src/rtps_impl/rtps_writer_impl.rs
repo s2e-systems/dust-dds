@@ -206,15 +206,15 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
         &self.matched_readers
     }
 
-    fn matched_reader_add(&mut self, guid: PSM::GUID) {
+    fn matched_reader_add(&mut self, _guid: PSM::GUID) {
         todo!()
     }
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUID) {
+    fn matched_reader_remove(&mut self, _reader_proxy_guid: &PSM::GUID) {
         todo!()
     }
 
-    fn matched_reader_lookup(&self, a_reader_guid: PSM::GUID) -> Option<&Self::ReaderProxyType> {
+    fn matched_reader_lookup(&self, _a_reader_guid: &PSM::GUID) -> Option<&Self::ReaderProxyType> {
         todo!()
     }
 
@@ -261,7 +261,7 @@ mod tests {
     }
 
     #[derive(Clone, Copy)]
-    struct MockGUID;
+    struct MockGUID(u8);
 
     impl rust_rtps_pim::structure::types::GUID<MockPSM> for MockGUID {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
@@ -279,7 +279,7 @@ mod tests {
 
     impl rust_rtps_pim::structure::types::GUIDType<MockPSM> for MockPSM {
         type GUID = MockGUID;
-        const GUID_UNKNOWN: Self::GUID = MockGUID;
+        const GUID_UNKNOWN: Self::GUID = MockGUID(0);
     }
 
     impl rust_rtps_pim::structure::types::ParameterListType<MockPSM> for MockPSM {
@@ -365,7 +365,7 @@ mod tests {
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
-            MockGUID,
+            MockGUID(1),
             topic_kind,
             reliability_level,
             push_mode,
@@ -395,7 +395,7 @@ mod tests {
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
-            MockGUID,
+            MockGUID(1),
             topic_kind,
             reliability_level,
             push_mode,
@@ -425,7 +425,7 @@ mod tests {
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
-            MockGUID,
+            MockGUID(1),
             topic_kind,
             reliability_level,
             push_mode,
@@ -444,47 +444,94 @@ mod tests {
         assert_eq!(writer.reader_locators().len(), 1)
     }
 
-    // #[test]
-    // fn send_data() {
-    //     let mut rtps_writer_impl: RTPSWriterImpl<RtpsUdpPsm> = RTPSWriterImpl::new(
-    //         DataWriterQos::default(),
-    //         GUID::new(
-    //             [1; 12],
-    //             EntityId {
-    //                 entity_key: [1; 3],
-    //                 entity_kind: 1,
-    //             },
-    //         ),
-    //     );
+    #[test]
+    fn matched_reader_add() {
+        let push_mode = true;
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = i32::MAX;
+        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+            MockGUID(1),
+            topic_kind,
+            reliability_level,
+            push_mode,
+            unicast_locator_list,
+            multicast_locator_list,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
 
-    //     let cc = rtps_writer_impl.new_change(ChangeKind::Alive, vec![0, 1, 2, 3], &[], 0);
-    //     rtps_writer_impl.writer_cache_mut().add_change(cc);
-    //     rtps_writer_impl.reader_locator_add(Locator::new(1, 2, [0; 16]));
-    //     {
-    //         println!("First");
-    //         // let mut data_vec = Vec::new();
-    //         // rtps_writer_impl.produce_messages(
-    //         //     &mut |x, y| {
-    //         //         println!("Locator: {:?}, Data: {}", x.address(), y.endianness_flag);
-    //         //         data_vec.push(y);
-    //         //     },
-    //         //     &mut |_, _| (),
-    //         // );
-    //         // for data in &data_vec {
-    //         //     println!("{}", data.endianness_flag);
-    //         // }
-    //     }
-    //     println!("Second");
-    //     // rtps_writer_impl.reader_locator_add(Locator::new(1, 3, [1; 16]));
-    //     // rtps_writer_impl.produce_messages(
-    //     //     &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y.endianness_flag),
-    //     //     &mut |_, _| (),
-    //     // );
-    //     // println!("After reset");
-    //     // rtps_writer_impl.unsent_changes_reset();
-    //     // rtps_writer_impl.produce_messages(
-    //     //     &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y.endianness_flag),
-    //     //     &mut |_, _| (),
-    //     // );
-    // }
+        writer.matched_reader_add(MockGUID(2));
+        writer.matched_reader_add(MockGUID(3));
+        assert_eq!(writer.matched_readers().len(), 2)
+    }
+
+    #[test]
+    fn matched_reader_remove() {
+        let push_mode = true;
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = i32::MAX;
+        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+            MockGUID(1),
+            topic_kind,
+            reliability_level,
+            push_mode,
+            unicast_locator_list,
+            multicast_locator_list,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+
+        writer.matched_reader_add(MockGUID(2));
+        writer.matched_reader_add(MockGUID(3));
+        writer.matched_reader_remove(&MockGUID(1));
+
+        assert_eq!(writer.matched_readers().len(), 2)
+    }
+
+    #[test]
+    fn matched_reader_lookup() {
+        let push_mode = true;
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = i32::MAX;
+        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+            MockGUID(1),
+            topic_kind,
+            reliability_level,
+            push_mode,
+            unicast_locator_list,
+            multicast_locator_list,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+
+        writer.matched_reader_add(MockGUID(2));
+        writer.matched_reader_add(MockGUID(3));
+
+        assert!(writer.matched_reader_lookup(&MockGUID(3)).is_some());
+        assert!(writer.matched_reader_lookup(&MockGUID(4)).is_none());
+    }
 }
