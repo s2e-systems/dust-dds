@@ -157,12 +157,12 @@ impl<'a,  W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
     fn serialize_newtype_struct<T: ?Sized>(
         self,
         _name: &'static str,
-        _value: &T,
+        value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
         T: Serialize,
     {
-        todo!()
+        value.serialize(self)
     }
 
     fn serialize_newtype_variant<T: ?Sized>(
@@ -306,5 +306,17 @@ mod tests {
             4, 0, 0, 0,               // Timestamp: seconds
             2, 0, 0, 0,               // Timestamp: fraction
         ]);
+    }
+
+
+    #[derive(Serialize)]
+    struct NewType(u8);
+
+    #[test]
+    fn serialize_newtype() {
+        let data = NewType(1);
+        let mut serializer = RtpsMessageSerializer::default();
+        data.serialize(&mut serializer).unwrap();
+        assert_eq!(serializer.writer, vec![1]);
     }
 }
