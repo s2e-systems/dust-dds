@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn stateless_writer_produce_messages() {
+    fn stateless_writer_produce_messages_only_data() {
         let mut sent_data_seq_num = [0, 0];
         let mut total_data = 0;
         let mut sent_gap_seq_num = [];
@@ -343,6 +343,80 @@ mod tests {
                 MockCacheChange { sequence_number: 1 },
                 MockCacheChange { sequence_number: 2 },
             ],
+        };
+        produce_messages(
+            &mut reader_locator,
+            &writer_cache,
+            &2,
+            |cc| {
+                sent_data_seq_num[total_data] = cc.sequence_number;
+                total_data += 1;
+            },
+            |gap_seq_num| {
+                sent_gap_seq_num[total_gap] = *gap_seq_num;
+                total_gap += 1;
+            },
+        );
+
+        assert_eq!(total_data, expected_total_data);
+        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+        assert_eq!(total_gap, expected_total_gap);
+        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    }
+
+    #[test]
+    fn stateless_writer_produce_messages_only_gap() {
+        let mut sent_data_seq_num = [];
+        let mut total_data = 0;
+        let mut sent_gap_seq_num = [0, 0];
+        let mut total_gap = 0;
+
+        let expected_total_data = 0;
+        let expected_sent_data_seq_num = [];
+        let expected_total_gap = 2;
+        let expected_sent_gap_seq_num = [1, 2];
+
+        let mut reader_locator = MockReaderLocator {
+            last_sent_sequence_number: 0,
+        };
+        let writer_cache = MockHistoryCache::<0> { changes: [] };
+        produce_messages(
+            &mut reader_locator,
+            &writer_cache,
+            &2,
+            |cc| {
+                sent_data_seq_num[total_data] = cc.sequence_number;
+                total_data += 1;
+            },
+            |gap_seq_num| {
+                sent_gap_seq_num[total_gap] = *gap_seq_num;
+                total_gap += 1;
+            },
+        );
+
+        assert_eq!(total_data, expected_total_data);
+        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+        assert_eq!(total_gap, expected_total_gap);
+        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    }
+
+    #[test]
+    fn stateless_writer_produce_messages_data_and_gap() {
+        let mut sent_data_seq_num = [0];
+        let mut total_data = 0;
+        let mut sent_gap_seq_num = [0];
+        let mut total_gap = 0;
+
+        let expected_total_data = 1;
+        let expected_sent_data_seq_num = [2];
+        let expected_total_gap = 1;
+        let expected_sent_gap_seq_num = [1];
+
+        let mut reader_locator = MockReaderLocator {
+            last_sent_sequence_number: 0,
+        };
+        let writer_cache = MockHistoryCache::<1> {
+            changes: [MockCacheChange { sequence_number: 2 }],
         };
         produce_messages(
             &mut reader_locator,

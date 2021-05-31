@@ -55,3 +55,11 @@ pub trait RTPSStatefulWriter<
 
     fn is_acked_by_all(&self) -> bool;
 }
+
+pub struct ReliableBehavior;
+
+impl ReliableBehavior {
+    pub fn produce_messages() {
+        todo!()
+    }
+}
