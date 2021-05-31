@@ -4,6 +4,13 @@ use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData,
 
 use super::SubmessageHeader;
 
+enum SerializedDataOption<'a>{
+    None,
+    SerializedData(SerializedData<'a>),
+    SerializedKey(SerializedData<'a>),
+    Invalid,
+}
+
 pub struct DataSubmesage<'a> {
     header: SubmessageHeader,
     extra_flags: u16,
@@ -12,22 +19,26 @@ pub struct DataSubmesage<'a> {
     writer_id: EntityId,
     writer_sn: SequenceNumber,
     inline_qos: Option<ParameterList>,
-    serialized_payload: SerializedData<'a>,
+    serialized_payload: SerializedDataOption<'a>,
 }
 
 impl<'a> DataSubmesage<'a> {
     fn new(
         endianness_flag: SubmessageFlag,
-        data_flag: SubmessageFlag,
-        key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
         inline_qos: Option<ParameterList>,
-        serialized_payload: SerializedData<'a>,
+        serialized_payload: SerializedDataOption<'a>,
     ) -> Self {
         let inline_qos_flag = inline_qos.is_some();
+        let (data_flag, key_flag) = match serialized_payload {
+            SerializedDataOption::None => (false, false),
+            SerializedDataOption::SerializedData(_) =>  (true, false),
+            SerializedDataOption::SerializedKey(_) =>  (false, true),
+            SerializedDataOption::Invalid =>  (true, true),
+        };
         let flags = [endianness_flag, inline_qos_flag, data_flag, key_flag, non_standard_payload_flag].into();
 
         let mut submessage_length = 20;
@@ -35,8 +46,11 @@ impl<'a> DataSubmesage<'a> {
             let parameter_list_length: u16 = inline_qos.parameter.iter().map(|parameter|4 + parameter.length as u16).sum();
             submessage_length += parameter_list_length;
         }
-        if data_flag || key_flag {
-            submessage_length += serialized_payload.len() as u16;
+        match &serialized_payload {
+            SerializedDataOption::SerializedData(s) | SerializedDataOption::SerializedKey(s) => {
+                submessage_length += s.len() as u16;
+            }
+            _ => {}
         }
         let header = SubmessageHeader{
             submessage_id: <RtpsUdpPsm as SubmessageKindType>::DATA.into(),
@@ -51,7 +65,7 @@ impl<'a> DataSubmesage<'a> {
             writer_id,
             writer_sn,
             inline_qos,
-            serialized_payload, //TODO!!!!!!!!!!!!!!!!
+            serialized_payload,
         }
     }
 }
@@ -94,7 +108,10 @@ impl<'a> rust_rtps_pim::messages::submessages::Data<RtpsUdpPsm> for DataSubmesag
     }
 
     fn serialized_payload(&self) -> &Self::SerializedData {
-        &self.serialized_payload
+        match &self.serialized_payload {
+            SerializedDataOption::SerializedData(s) | SerializedDataOption::SerializedKey(s) => &s,
+            _ => &SerializedData(&[]),
+        }
     }
 }
 
@@ -130,9 +147,12 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
         if let Some(inline_qos) = &self.inline_qos {
             state.serialize_field("inline_qos", inline_qos)?;
         }
-        if self.data_flag() || self.key_flag() {
-            state.serialize_field("serialized_payload", &self.serialized_payload)?;
-        };
+        match &self.serialized_payload {
+            SerializedDataOption::SerializedData(s) | SerializedDataOption::SerializedKey(s) => {
+                state.serialize_field("serialized_payload", &s)?;
+            }
+            _ => {}
+        }
         state.end()
     }
 }
@@ -152,17 +172,14 @@ mod tests {
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
-        let data = &vec![];
         let endianness_flag = true;
-        let data_flag = false;
-        let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = [1, 2, 3, 4].into();
         let writer_id = [6, 7, 8, 9].into();
         let writer_sn = 5.into();
         let inline_qos = None;
-        let serialized_payload = SerializedData(data);
-        let submessage = DataSubmesage::new(endianness_flag, data_flag, key_flag, non_standard_payload_flag, reader_id, writer_id, writer_sn, inline_qos, serialized_payload);
+        let serialized_payload = SerializedDataOption::None;
+        let submessage = DataSubmesage::new(endianness_flag, non_standard_payload_flag, reader_id, writer_id, writer_sn, inline_qos, serialized_payload);
 
         let mut serializer = get_serializer();
         submessage.serialize(&mut serializer).unwrap();
@@ -179,10 +196,7 @@ mod tests {
 
     #[test]
     fn serialize_with_inline_qos_no_serialized_payload() {
-        let data = &vec![];
         let endianness_flag = true.into();
-        let data_flag = false.into();
-        let key_flag = false.into();
         let non_standard_payload_flag = false.into();
         let reader_id = [1, 2, 3, 4].into();
         let writer_id = [6, 7, 8, 9].into();
@@ -190,8 +204,8 @@ mod tests {
         let param1 = crate::Parameter{parameter_id: 6, length: 4, value: vec![10, 11, 12, 13].into()};
         let param2 = crate::Parameter{parameter_id: 7, length: 4, value: vec![20, 21, 22, 23].into()};
         let inline_qos = Some(crate::ParameterList{parameter: vec![param1, param2]});
-        let serialized_payload = SerializedData(data);
-        let submessage = DataSubmesage::new(endianness_flag, data_flag, key_flag, non_standard_payload_flag, reader_id, writer_id, writer_sn, inline_qos, serialized_payload);
+        let serialized_payload = SerializedDataOption::None;
+        let submessage = DataSubmesage::new(endianness_flag, non_standard_payload_flag, reader_id, writer_id, writer_sn, inline_qos, serialized_payload);
 
         let mut serializer = get_serializer();
         submessage.serialize(&mut serializer).unwrap();
