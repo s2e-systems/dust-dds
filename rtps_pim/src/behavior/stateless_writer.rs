@@ -59,7 +59,7 @@ pub trait RTPSStatelessWriter<
 
     fn reader_locators(&self) -> &[Self::ReaderLocatorType];
 
-    fn reader_locator_add(&mut self, a_locator: PSM::Locator, expects_inline_qos: bool);
+    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType);
 
     fn reader_locator_remove(&mut self, a_locator: &PSM::Locator);
 

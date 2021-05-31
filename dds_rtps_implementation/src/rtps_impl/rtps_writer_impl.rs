@@ -1,6 +1,6 @@
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer::RTPSStatefulWriter,
+        stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
         types::DurationType,
         RTPSWriter,
@@ -185,9 +185,8 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> 
         &self.reader_locators
     }
 
-    fn reader_locator_add(&mut self, a_locator: PSM::Locator, expects_inline_qos: bool) {
-        self.reader_locators
-            .push(RTPSReaderLocatorImpl::new(a_locator, expects_inline_qos))
+    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
+        self.reader_locators.push(a_locator)
     }
 
     fn reader_locator_remove(&mut self, a_locator: &PSM::Locator) {
@@ -206,16 +205,19 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
         &self.matched_readers
     }
 
-    fn matched_reader_add(&mut self, _guid: PSM::GUID) {
-        todo!()
+    fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType) {
+        self.matched_readers.push(a_reader_proxy)
     }
 
-    fn matched_reader_remove(&mut self, _reader_proxy_guid: &PSM::GUID) {
-        todo!()
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUID) {
+        self.matched_readers
+            .retain(|x| x.remote_reader_guid() != reader_proxy_guid)
     }
 
-    fn matched_reader_lookup(&self, _a_reader_guid: &PSM::GUID) -> Option<&Self::ReaderProxyType> {
-        todo!()
+    fn matched_reader_lookup(&self, a_reader_guid: &PSM::GUID) -> Option<&Self::ReaderProxyType> {
+        self.matched_readers
+            .iter()
+            .find(|&x| x.remote_reader_guid() == a_reader_guid)
     }
 
     fn is_acked_by_all(&self) -> bool {
@@ -260,7 +262,7 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, PartialEq)]
     struct MockGUID(u8);
 
     impl rust_rtps_pim::structure::types::GUID<MockPSM> for MockGUID {
@@ -406,9 +408,10 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-
-        writer.reader_locator_add(MockLocator(1), false);
-        writer.reader_locator_add(MockLocator(2), false);
+        let reader_locator1 = RTPSReaderLocatorImpl::new(MockLocator(1), false);
+        let reader_locator2 = RTPSReaderLocatorImpl::new(MockLocator(2), false);
+        writer.reader_locator_add(reader_locator1);
+        writer.reader_locator_add(reader_locator2);
 
         assert_eq!(writer.reader_locators().len(), 2)
     }
@@ -437,8 +440,10 @@ mod tests {
             data_max_size_serialized,
         );
 
-        writer.reader_locator_add(MockLocator(1), false);
-        writer.reader_locator_add(MockLocator(2), false);
+        let reader_locator1 = RTPSReaderLocatorImpl::new(MockLocator(1), false);
+        let reader_locator2 = RTPSReaderLocatorImpl::new(MockLocator(2), false);
+        writer.reader_locator_add(reader_locator1);
+        writer.reader_locator_add(reader_locator2);
         writer.reader_locator_remove(&MockLocator(1));
 
         assert_eq!(writer.reader_locators().len(), 1)
@@ -467,9 +472,12 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-
-        writer.matched_reader_add(MockGUID(2));
-        writer.matched_reader_add(MockGUID(3));
+        let reader_proxy1 =
+            RTPSReaderProxyImpl::new(MockGUID(2), [0; 4], vec![], vec![], false, true);
+        let reader_proxy2 =
+            RTPSReaderProxyImpl::new(MockGUID(3), [0; 4], vec![], vec![], false, true);
+        writer.matched_reader_add(reader_proxy1);
+        writer.matched_reader_add(reader_proxy2);
         assert_eq!(writer.matched_readers().len(), 2)
     }
 
@@ -497,8 +505,12 @@ mod tests {
             data_max_size_serialized,
         );
 
-        writer.matched_reader_add(MockGUID(2));
-        writer.matched_reader_add(MockGUID(3));
+        let reader_proxy1 =
+            RTPSReaderProxyImpl::new(MockGUID(2), [0; 4], vec![], vec![], false, true);
+        let reader_proxy2 =
+            RTPSReaderProxyImpl::new(MockGUID(3), [0; 4], vec![], vec![], false, true);
+        writer.matched_reader_add(reader_proxy1);
+        writer.matched_reader_add(reader_proxy2);
         writer.matched_reader_remove(&MockGUID(1));
 
         assert_eq!(writer.matched_readers().len(), 2)
@@ -528,8 +540,12 @@ mod tests {
             data_max_size_serialized,
         );
 
-        writer.matched_reader_add(MockGUID(2));
-        writer.matched_reader_add(MockGUID(3));
+        let reader_proxy1 =
+            RTPSReaderProxyImpl::new(MockGUID(2), [0; 4], vec![], vec![], false, true);
+        let reader_proxy2 =
+            RTPSReaderProxyImpl::new(MockGUID(3), [0; 4], vec![], vec![], false, true);
+        writer.matched_reader_add(reader_proxy1);
+        writer.matched_reader_add(reader_proxy2);
 
         assert!(writer.matched_reader_lookup(&MockGUID(3)).is_some());
         assert!(writer.matched_reader_lookup(&MockGUID(4)).is_none());

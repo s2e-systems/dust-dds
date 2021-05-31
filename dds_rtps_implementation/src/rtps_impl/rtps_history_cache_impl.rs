@@ -102,7 +102,7 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
     impl rust_rtps_pim::structure::types::GUID<MockPSM> for MockGUID {

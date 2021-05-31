@@ -23,7 +23,26 @@ pub struct RTPSReaderProxyImpl<PSM: RTPSReaderProxyImplTrait> {
     last_sent_sequence_number: PSM::SequenceNumber,
 }
 
-impl<PSM: RTPSReaderProxyImplTrait> RTPSReaderProxyImpl<PSM> {}
+impl<PSM: RTPSReaderProxyImplTrait> RTPSReaderProxyImpl<PSM> {
+    pub fn new(
+        remote_reader_guid: PSM::GUID,
+        remote_group_entity_id: PSM::EntityId,
+        unicast_locator_list: Vec<PSM::Locator>,
+        multicast_locator_list: Vec<PSM::Locator>,
+        expects_inline_qos: bool,
+        is_active: bool,
+    ) -> Self {
+        Self {
+            remote_reader_guid,
+            remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            expects_inline_qos,
+            is_active,
+            last_sent_sequence_number: 0.into(),
+        }
+    }
+}
 
 impl<PSM: RTPSReaderProxyImplTrait> rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>
     for RTPSReaderProxyImpl<PSM>

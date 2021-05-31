@@ -42,7 +42,7 @@ impl GUIDType<RtpsUdpPsm> for RtpsUdpPsm {
     };
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct GUID {
     pub prefix: GuidPrefix,
     pub entity_id: EntityId,
