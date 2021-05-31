@@ -60,7 +60,7 @@ impl<'a,  W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
     type Error = crate::error::Error;
 
     type SerializeSeq = SubmessageSerializeStruct<'a, W>;
-    type SerializeTuple = Compound;
+    type SerializeTuple = SubmessageSerializeStruct<'a, W>;
     type SerializeTupleStruct = Compound;
     type SerializeTupleVariant = Compound;
     type SerializeMap = Compound;
@@ -185,7 +185,7 @@ impl<'a,  W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
     }
 
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Self::Error> {
-        todo!()
+        Ok(SubmessageSerializeStruct{ser: self})
     }
 
     fn serialize_tuple_struct(
@@ -318,5 +318,40 @@ mod tests {
         let mut serializer = RtpsMessageSerializer::default();
         data.serialize(&mut serializer).unwrap();
         assert_eq!(serializer.writer, vec![1]);
+    }
+
+    #[derive(Serialize)]
+    struct Vector(Vec<u8>);
+
+    #[test]
+    fn serialize_vector() {
+        let data = Vector(vec![1,2]);
+        let mut serializer = RtpsMessageSerializer::default();
+        data.serialize(&mut serializer).unwrap();
+        assert_eq!(serializer.writer, vec![
+            2, 0, 0, 0, // Length
+            1, 2 // Data
+        ]);
+    }
+
+    #[derive(Serialize)]
+    struct TupleArray([u8; 2]);
+    #[derive(Serialize)]
+    struct TupleTuple((u8, u8));
+
+    #[test]
+    fn serialize_tuple_array() {
+        let array = TupleArray([1,2]);
+        let mut serializer = RtpsMessageSerializer::default();
+        array.serialize(&mut serializer).unwrap();
+        assert_eq!(serializer.writer, vec![1, 2]);
+    }
+
+    #[test]
+    fn serialize_tuple_tuple() {
+        let tuple = TupleTuple((1,2));
+        let mut serializer = RtpsMessageSerializer::default();
+        tuple.serialize(&mut serializer).unwrap();
+        assert_eq!(serializer.writer, vec![1, 2]);
     }
 }

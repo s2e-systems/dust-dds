@@ -19,21 +19,7 @@ impl SerializeSeq for Compound {
     }
 }
 
-impl SerializeTuple for Compound {
-    type Ok = ();
-    type Error = Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, _value: &T) -> Result<(), Self::Error>
-    where
-        T: Serialize,
-    {
-        todo!()
-    }
-
-    fn end(self) -> Result<Self::Ok, Self::Error> {
-        todo!()
-    }
-}
 
 impl SerializeTupleStruct for Compound {
     type Ok = ();
