@@ -43,8 +43,7 @@ impl<'a> DataSubmesage<'a> {
 
         let mut submessage_length = 20;
         if let Some(ref inline_qos) = inline_qos {
-            let parameter_list_length: u16 = inline_qos.parameter.iter().map(|parameter|4 + parameter.length as u16).sum();
-            submessage_length += parameter_list_length;
+            submessage_length += inline_qos.len() as u16;
         }
         match &serialized_payload {
             SerializedDataOption::SerializedData(s) | SerializedDataOption::SerializedKey(s) => {

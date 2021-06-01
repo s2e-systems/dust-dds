@@ -588,6 +588,12 @@ pub struct Parameter {
     pub value: Vec<u8>,
 }
 
+impl Parameter {
+    pub fn len(&self) -> usize {
+        4 + self.value.len()
+    }
+}
+
 impl rust_rtps_pim::messages::submessage_elements::Parameter<RtpsUdpPsm> for Parameter {
     fn parameter_id(&self) -> ParameterId {
         self.parameter_id
@@ -615,6 +621,12 @@ impl serde::Serialize for Parameter {
 
 pub struct ParameterList {
     pub parameter: Vec<Parameter>,
+}
+
+impl ParameterList {
+    pub fn len(&self) -> usize {
+        self.parameter.iter().map(|p|p.len()).sum()
+    }
 }
 
 impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for ParameterList {
