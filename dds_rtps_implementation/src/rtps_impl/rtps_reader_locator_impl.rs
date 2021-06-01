@@ -47,9 +47,9 @@ impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocator<PSM> for RTPSReaderLocat
 
     fn next_unsent_change(
         &mut self,
-        last_change_sequence_number: PSM::SequenceNumber,
+        last_change_sequence_number: &PSM::SequenceNumber,
     ) -> Option<PSM::SequenceNumber> {
-        if self.last_sent_sequence_number < last_change_sequence_number {
+        if &self.last_sent_sequence_number < last_change_sequence_number {
             self.last_sent_sequence_number = (self.last_sent_sequence_number.into() + 1).into();
             Some(self.last_sent_sequence_number)
         } else {
@@ -142,9 +142,9 @@ mod tests {
         let mut reader_locator: RTPSReaderLocatorImpl<MockPSM> =
             RTPSReaderLocatorImpl::new(MockLocator(0), false);
 
-        assert_eq!(reader_locator.next_unsent_change(2), Some(1));
-        assert_eq!(reader_locator.next_unsent_change(2), Some(2));
-        assert_eq!(reader_locator.next_unsent_change(2), None);
+        assert_eq!(reader_locator.next_unsent_change(&2), Some(1));
+        assert_eq!(reader_locator.next_unsent_change(&2), Some(2));
+        assert_eq!(reader_locator.next_unsent_change(&2), None);
     }
 
     #[test]
@@ -152,12 +152,12 @@ mod tests {
         let mut reader_locator: RTPSReaderLocatorImpl<MockPSM> =
             RTPSReaderLocatorImpl::new(MockLocator(0), false);
 
-        assert_eq!(reader_locator.next_unsent_change(2), Some(1));
-        assert_eq!(reader_locator.next_unsent_change(2), Some(2));
-        assert_eq!(reader_locator.next_unsent_change(2), None);
-        assert_eq!(reader_locator.next_unsent_change(0), None);
-        assert_eq!(reader_locator.next_unsent_change(-10), None);
-        assert_eq!(reader_locator.next_unsent_change(3), Some(3));
+        assert_eq!(reader_locator.next_unsent_change(&2), Some(1));
+        assert_eq!(reader_locator.next_unsent_change(&2), Some(2));
+        assert_eq!(reader_locator.next_unsent_change(&2), None);
+        assert_eq!(reader_locator.next_unsent_change(&0), None);
+        assert_eq!(reader_locator.next_unsent_change(&-10), None);
+        assert_eq!(reader_locator.next_unsent_change(&3), Some(3));
     }
 
     #[test]
@@ -207,7 +207,7 @@ mod tests {
             RTPSReaderLocatorImpl::new(MockLocator(0), false);
 
         let last_change_sequence_number = 3;
-        reader_locator.next_unsent_change(last_change_sequence_number);
+        reader_locator.next_unsent_change(&last_change_sequence_number);
         let unsent_changes = reader_locator.unsent_changes(last_change_sequence_number);
 
         let expected_unsent_changes = vec![2, 3];

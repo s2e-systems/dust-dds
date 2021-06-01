@@ -13,20 +13,6 @@ impl<'a> rust_rtps_pim::messages::submessages::Data<RtpsUdpPsm> for Data<'a> {
     type SequenceNumber = SequenceNumber;
     type SerializedData = SerializedData<'a>;
 
-    fn new(
-        _endianness_flag: SubmessageFlag,
-        _inline_qos_flag: SubmessageFlag,
-        _data_flag: SubmessageFlag,
-        _key_flag: SubmessageFlag,
-        _non_standard_payload_flag: SubmessageFlag,
-        _reader_id: EntityId,
-        _writer_id: EntityId,
-        _writer_sn: SequenceNumber,
-        _serialized_payload: &crate::Data,
-    ) -> Self {
-        todo!()
-    }
-
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }

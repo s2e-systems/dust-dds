@@ -22,7 +22,7 @@ pub trait RTPSReaderLocator<PSM: LocatorType + SequenceNumberType> {
 
     fn next_unsent_change(
         &mut self,
-        last_change_sequence_number: PSM::SequenceNumber,
+        last_change_sequence_number: &PSM::SequenceNumber,
     ) -> Option<PSM::SequenceNumber>;
 
     fn requested_changes(&self) -> Self::SequenceNumberVector;
@@ -82,7 +82,7 @@ pub fn produce_messages<
     mut send_gap_to: impl FnMut(&PSM::SequenceNumber),
 ) {
     // Pushing state
-    while let Some(seq_num) = reader_locator.next_unsent_change(*last_change_sequence_number) {
+    while let Some(seq_num) = reader_locator.next_unsent_change(last_change_sequence_number) {
         // Transition T4
         if let Some(change) = writer_cache.get_change(&seq_num) {
             send_data_to(change)
@@ -233,8 +233,8 @@ mod tests {
             todo!()
         }
 
-        fn next_unsent_change(&mut self, last_change_sequence_number: i64) -> Option<i64> {
-            if self.last_sent_sequence_number < last_change_sequence_number {
+        fn next_unsent_change(&mut self, last_change_sequence_number: &i64) -> Option<i64> {
+            if &self.last_sent_sequence_number < last_change_sequence_number {
                 self.last_sent_sequence_number += 1;
                 Some(self.last_sent_sequence_number)
             } else {

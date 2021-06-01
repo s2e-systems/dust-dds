@@ -9,16 +9,6 @@ impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for Gap {
     type SequenceNumber = SequenceNumber;
     type SequenceNumberSet = SequenceNumberSet;
 
-    fn new(
-        _endianness_flag: SubmessageFlag,
-        _reader_id: EntityId,
-        _writer_id: EntityId,
-        _gap_start: SequenceNumber,
-        _gap_list: &[SequenceNumber],
-    ) -> Self {
-        todo!()
-    }
-
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
