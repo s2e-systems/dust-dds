@@ -34,20 +34,43 @@ pub trait AckNackSubmessage<
 }
 
 pub trait DataSubmessagePIM<
-    PSM: SubmessageKindPIM + SubmessageFlagPIM + EntityIdPIM + SequenceNumberPIM + DataPIM,
+    PSM: SubmessageKindPIM
+        + SubmessageFlagPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + ParameterIdPIM
+        + DataPIM,
 >
 {
     type DataSubmessageType: DataSubmessage<PSM>;
 }
 
 pub trait DataSubmessage<
-    PSM: SubmessageKindPIM + SubmessageFlagPIM + EntityIdPIM + SequenceNumberPIM + DataPIM,
+    PSM: SubmessageKindPIM
+        + SubmessageFlagPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + ParameterIdPIM
+        + DataPIM,
 >: Submessage<PSM>
 {
     type EntityId: submessage_elements::EntityId<PSM>;
     type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
+    type ParameterList: submessage_elements::ParameterList<PSM>;
     type SerializedData: submessage_elements::SerializedData;
 
+    fn new(
+        endianness_flag: PSM::SubmessageFlagType,
+        inline_qos_flag: PSM::SubmessageFlagType,
+        data_flag: PSM::SubmessageFlagType,
+        key_flag: PSM::SubmessageFlagType,
+        non_standard_payload_flag: PSM::SubmessageFlagType,
+        reader_id: Self::EntityId,
+        writer_id: Self::EntityId,
+        writer_sn: Self::SequenceNumber,
+        inline_qos: Self::ParameterList,
+        serialized_payload: Self::SerializedData,
+    ) -> Self;
     fn endianness_flag(&self) -> PSM::SubmessageFlagType;
     fn inline_qos_flag(&self) -> PSM::SubmessageFlagType;
     fn data_flag(&self) -> PSM::SubmessageFlagType;
@@ -56,7 +79,7 @@ pub trait DataSubmessage<
     fn reader_id(&self) -> &Self::EntityId;
     fn writer_id(&self) -> &Self::EntityId;
     fn writer_sn(&self) -> &Self::SequenceNumber;
-    // pub inline_qos: <Self::PSM as structure::Types>::ParameterVector,
+    fn inline_qos(&self) -> &Self::ParameterList;
     fn serialized_payload(&self) -> &Self::SerializedData;
 }
 
@@ -121,6 +144,13 @@ pub trait GapSubmessage<
     type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
     type SequenceNumberSet: submessage_elements::SequenceNumberSet<PSM>;
 
+    fn new(
+        endianness_flag: PSM::SubmessageFlagType,
+        reader_id: Self::EntityId,
+        writer_id: Self::EntityId,
+        gap_start: Self::SequenceNumber,
+        gap_list: Self::SequenceNumberSet,
+    ) -> Self;
     fn endianness_flag(&self) -> PSM::SubmessageFlagType;
     fn reader_id(&self) -> &Self::EntityId;
     fn writer_id(&self) -> &Self::EntityId;

@@ -13,13 +13,17 @@ pub struct GapSubmessage {
     gap_list: SequenceNumberSet,
 }
 
-impl GapSubmessage {
+impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for GapSubmessage {
+    type EntityId = EntityId;
+    type SequenceNumber = SequenceNumber;
+    type SequenceNumberSet = SequenceNumberSet;
+
     fn new(
         endianness_flag: SubmessageFlag,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        gap_start: SequenceNumber,
-        gap_list: SequenceNumberSet,
+        reader_id: Self::EntityId,
+        writer_id: Self::EntityId,
+        gap_start: Self::SequenceNumber,
+        gap_list: Self::SequenceNumberSet,
     ) -> Self {
         let flags = [endianness_flag].into();
 
@@ -38,12 +42,6 @@ impl GapSubmessage {
             gap_list,
         }
     }
-}
-
-impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for GapSubmessage {
-    type EntityId = EntityId;
-    type SequenceNumber = SequenceNumber;
-    type SequenceNumberSet = SequenceNumberSet;
 
     fn endianness_flag(&self) -> SubmessageFlag {
         self.header.flags.is_bit_set(0)
@@ -77,8 +75,8 @@ impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for GapSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::Serialize;
     use rust_serde_cdr::serializer::RtpsMessageSerializer;
+    use serde::Serialize;
 
     fn get_serializer() -> RtpsMessageSerializer<Vec<u8>> {
         RtpsMessageSerializer {
@@ -93,21 +91,56 @@ mod tests {
         let writer_id = [6, 7, 8, 9].into();
         let gap_start = 5.into();
         let gap_list = SequenceNumberSet::new(10.into(), vec![]);
-        let submessage = GapSubmessage::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+        let submessage: GapSubmessage = rust_rtps_pim::messages::submessages::GapSubmessage::new(
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        );
 
         let mut serializer = get_serializer();
         submessage.serialize(&mut serializer).unwrap();
-        assert_eq!(serializer.writer, vec![
-            0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
-             1, 2, 3, 4,               // readerId: value[4]
-             6, 7, 8, 9,               // writerId: value[4]
-             0, 0, 0, 0,               // gapStart: SequenceNumber: high
-             5, 0, 0, 0,               // gapStart: SequenceNumber: low
-             0, 0, 0, 0,               // gapList: SequenceNumberSet: bitmapBase: high
-            10, 0, 0, 0,               // gapList: SequenceNumberSet: bitmapBase: low
-             0, 0, 0, 0,               // gapList: SequenceNumberSet: numBits (ULong)
-
-        ]);
-        assert_eq!(serializer.writer.len() as u16 - 4, submessage.header.submessage_length)
+        assert_eq!(
+            serializer.writer,
+            vec![
+                0x08_u8,
+                0b_0000_0001,
+                28,
+                0, // Submessage header
+                1,
+                2,
+                3,
+                4, // readerId: value[4]
+                6,
+                7,
+                8,
+                9, // writerId: value[4]
+                0,
+                0,
+                0,
+                0, // gapStart: SequenceNumber: high
+                5,
+                0,
+                0,
+                0, // gapStart: SequenceNumber: low
+                0,
+                0,
+                0,
+                0, // gapList: SequenceNumberSet: bitmapBase: high
+                10,
+                0,
+                0,
+                0, // gapList: SequenceNumberSet: bitmapBase: low
+                0,
+                0,
+                0,
+                0, // gapList: SequenceNumberSet: numBits (ULong)
+            ]
+        );
+        assert_eq!(
+            serializer.writer.len() as u16 - 4,
+            submessage.header.submessage_length
+        )
     }
 }

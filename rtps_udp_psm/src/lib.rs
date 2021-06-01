@@ -1,4 +1,3 @@
-use std::{collections::BTreeSet, iter::FromIterator, ops::{Add, Sub}};
 use serde::ser::SerializeStruct;
 
 use rust_rtps_pim::{
@@ -187,12 +186,12 @@ impl<const N: usize> From<[SubmessageFlag; N]> for Octet {
             if item {
                 flags |= 0b_0000_0001 << i
             }
-        };
+        }
         Self(flags)
     }
 }
 impl<const N: usize> From<Octet> for [SubmessageFlag; N] {
-    fn from(value: Octet) -> Self {
+    fn from(_value: Octet) -> Self {
         todo!()
     }
 }
@@ -206,9 +205,6 @@ impl From<u8> for Octet {
         Self(value)
     }
 }
-
-
-
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UShort(u16);
@@ -409,7 +405,7 @@ impl SequenceNumberSet {
         let max = set.iter().max();
         let num_bits = match max {
             Some(max) => Into::<i64>::into(*max) as i32 - base,
-            None => 0
+            None => 0,
         };
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
         let mut bitmap = vec![0; number_of_bitmap_elements];
@@ -419,7 +415,11 @@ impl SequenceNumberSet {
             let bit_position = delta_n - bitmap_num * 32;
             bitmap[bitmap_num as usize] |= 1 << bit_position;
         }
-        Self { bitmap_base, num_bits: ULong(num_bits as u32), bitmap }
+        Self {
+            bitmap_base,
+            num_bits: ULong(num_bits as u32),
+            bitmap,
+        }
     }
 
     pub fn len(&self) -> u16 {
@@ -434,8 +434,14 @@ impl serde::Serialize for SequenceNumberSet {
         state.serialize_field("bitmapBase", &self.bitmap_base)?;
         state.serialize_field("numBits", &self.num_bits)?;
         const BITMAP_NAMES: [&str; 8] = [
-            "bitmap[0]", "bitmap[1]", "bitmap[2]", "bitmap[3]",
-            "bitmap[4]", "bitmap[5]", "bitmap[6]", "bitmap[7]"
+            "bitmap[0]",
+            "bitmap[1]",
+            "bitmap[2]",
+            "bitmap[3]",
+            "bitmap[4]",
+            "bitmap[5]",
+            "bitmap[6]",
+            "bitmap[7]",
         ];
         for e in self.bitmap.iter().enumerate() {
             state.serialize_field(BITMAP_NAMES[e.0], e.1)?;
@@ -458,7 +464,6 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
         todo!()
     }
 }
-
 
 pub type InstanceHandle = i32;
 
@@ -592,7 +597,7 @@ impl rust_rtps_pim::messages::submessage_elements::Parameter<RtpsUdpPsm> for Par
     }
 }
 impl serde::Serialize for Parameter {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>{
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ParameterList", 1)?;
         state.serialize_field("parameter_id", &self.parameter_id)?;
         state.serialize_field("length", &self.length)?;
@@ -609,7 +614,7 @@ pub struct ParameterList {
 
 impl ParameterList {
     pub fn len(&self) -> u16 {
-        self.parameter.iter().map(|p|p.len()).sum()
+        self.parameter.iter().map(|p| p.len()).sum()
     }
 }
 
@@ -621,7 +626,7 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for
     }
 }
 impl serde::Serialize for ParameterList {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>{
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ParameterList", 1)?;
         for parameter in &self.parameter {
             state.serialize_field("parameter", parameter)?;

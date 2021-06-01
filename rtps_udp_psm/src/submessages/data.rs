@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::{Submessage, types::SubmessageKindPIM, submessages::DataSubmessage};
+use rust_rtps_pim::messages::{submessages::DataSubmessage, types::SubmessageKindPIM, Submessage};
 
 use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
 
@@ -15,7 +15,12 @@ pub struct DataSubmesage<'a> {
     serialized_payload: SerializedData<'a>,
 }
 
-impl<'a> DataSubmesage<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<RtpsUdpPsm> for DataSubmesage<'a> {
+    type EntityId = EntityId;
+    type SequenceNumber = SequenceNumber;
+    type ParameterList = ParameterList;
+    type SerializedData = SerializedData<'a>;
+
     fn new(
         endianness_flag: SubmessageFlag,
         inline_qos_flag: SubmessageFlag,
@@ -28,7 +33,14 @@ impl<'a> DataSubmesage<'a> {
         inline_qos: ParameterList,
         serialized_payload: SerializedData<'a>,
     ) -> Self {
-        let flags = [endianness_flag, inline_qos_flag, data_flag, key_flag, non_standard_payload_flag].into();
+        let flags = [
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+        ]
+        .into();
         let submessage_length = 20 + inline_qos.len() + serialized_payload.len();
         let header = SubmessageHeader {
             submessage_id: <RtpsUdpPsm as SubmessageKindPIM>::DATA.into(),
@@ -46,12 +58,6 @@ impl<'a> DataSubmesage<'a> {
             serialized_payload,
         }
     }
-}
-
-impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<RtpsUdpPsm> for DataSubmesage<'a> {
-    type EntityId = EntityId;
-    type SequenceNumber = SequenceNumber;
-    type SerializedData = SerializedData<'a>;
 
     fn endianness_flag(&self) -> SubmessageFlag {
         self.header.flags.is_bit_set(0)
@@ -85,6 +91,10 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<RtpsUdpPsm> for Da
         &self.writer_sn
     }
 
+    fn inline_qos(&self) -> &Self::ParameterList {
+        todo!()
+    }
+
     fn serialized_payload(&self) -> &Self::SerializedData {
         &self.serialized_payload
     }
@@ -98,10 +108,8 @@ impl<'a> Submessage<RtpsUdpPsm> for DataSubmesage<'a> {
     }
 }
 
-
 impl<'a> serde::Serialize for DataSubmesage<'a> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-
         use serde::ser::SerializeStruct;
 
         let mut len = 6;
@@ -128,12 +136,11 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::Serialize;
     use rust_serde_cdr::serializer::RtpsMessageSerializer;
+    use serde::Serialize;
 
     fn get_serializer() -> RtpsMessageSerializer<Vec<u8>> {
         RtpsMessageSerializer {
@@ -151,22 +158,57 @@ mod tests {
         let reader_id = [1, 2, 3, 4].into();
         let writer_id = [6, 7, 8, 9].into();
         let writer_sn = 5.into();
-        let inline_qos = ParameterList{parameter: vec![]};
+        let inline_qos = ParameterList { parameter: vec![] };
         let data = [];
         let serialized_payload = SerializedData(&data);
-        let submessage = DataSubmesage::new(endianness_flag, inline_qos_flag, data_flag, key_flag, non_standard_payload_flag, reader_id, writer_id, writer_sn, inline_qos, serialized_payload);
+        let submessage = DataSubmesage::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        );
 
         let mut serializer = get_serializer();
         submessage.serialize(&mut serializer).unwrap();
-        assert_eq!(serializer.writer, vec![
-            0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
-            0, 0, 12, 0,               // extraFlags, octetsToInlineQos
-            1, 2, 3, 4,               // readerId: value[4]
-            6, 7, 8, 9,               // writerId: value[4]
-            0, 0, 0, 0,               // writerSN: high
-            5, 0, 0, 0,               // writerSN: low
-        ]);
-        assert_eq!(serializer.writer.len() as u16 - 4, submessage.header.submessage_length)
+        assert_eq!(
+            serializer.writer,
+            vec![
+                0x15_u8,
+                0b_0000_0001,
+                20,
+                0, // Submessage header
+                0,
+                0,
+                12,
+                0, // extraFlags, octetsToInlineQos
+                1,
+                2,
+                3,
+                4, // readerId: value[4]
+                6,
+                7,
+                8,
+                9, // writerId: value[4]
+                0,
+                0,
+                0,
+                0, // writerSN: high
+                5,
+                0,
+                0,
+                0, // writerSN: low
+            ]
+        );
+        assert_eq!(
+            serializer.writer.len() as u16 - 4,
+            submessage.header.submessage_length
+        )
     }
 
     #[test]
@@ -179,27 +221,84 @@ mod tests {
         let reader_id = [1, 2, 3, 4].into();
         let writer_id = [6, 7, 8, 9].into();
         let writer_sn = 5.into();
-        let param1 = crate::Parameter{parameter_id: 6, length: 4, value: vec![10, 11, 12, 13].into()};
-        let param2 = crate::Parameter{parameter_id: 7, length: 4, value: vec![20, 21, 22, 23].into()};
-        let inline_qos = ParameterList{parameter: vec![param1, param2]};
+        let param1 = crate::Parameter {
+            parameter_id: 6,
+            length: 4,
+            value: vec![10, 11, 12, 13].into(),
+        };
+        let param2 = crate::Parameter {
+            parameter_id: 7,
+            length: 4,
+            value: vec![20, 21, 22, 23].into(),
+        };
+        let inline_qos = ParameterList {
+            parameter: vec![param1, param2],
+        };
         let data = [];
-        let serialized_payload =  SerializedData(&data);
-        let submessage = DataSubmesage::new(endianness_flag, inline_qos_flag, data_flag, key_flag, non_standard_payload_flag, reader_id, writer_id, writer_sn, inline_qos, serialized_payload);
+        let serialized_payload = SerializedData(&data);
+        let submessage = DataSubmesage::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        );
 
         let mut serializer = get_serializer();
         submessage.serialize(&mut serializer).unwrap();
-        assert_eq!(serializer.writer, vec![
-            0x15, 0b_0000_0011, 36, 0, // Submessage header
-            0, 0, 12, 0,               // extraFlags, octetsToInlineQos
-            1, 2, 3, 4,                // readerId: value[4]
-            6, 7, 8, 9,                // writerId: value[4]
-            0, 0, 0, 0,                // writerSN: high
-            5, 0, 0, 0,                // writerSN: low
-            6, 0, 4, 0,                // inlineQos: parameterId_1, length_1
-            10, 11, 12, 13,            // inlineQos: value_1[length_1]
-            7, 0, 4, 0,                // inlineQos: parameterId_2, length_2
-            20, 21, 22, 23,            // inlineQos: value_2[length_2]
-        ]);
-        assert_eq!(serializer.writer.len() as u16 - 4, submessage.header.submessage_length)
+        assert_eq!(
+            serializer.writer,
+            vec![
+                0x15,
+                0b_0000_0011,
+                36,
+                0, // Submessage header
+                0,
+                0,
+                12,
+                0, // extraFlags, octetsToInlineQos
+                1,
+                2,
+                3,
+                4, // readerId: value[4]
+                6,
+                7,
+                8,
+                9, // writerId: value[4]
+                0,
+                0,
+                0,
+                0, // writerSN: high
+                5,
+                0,
+                0,
+                0, // writerSN: low
+                6,
+                0,
+                4,
+                0, // inlineQos: parameterId_1, length_1
+                10,
+                11,
+                12,
+                13, // inlineQos: value_1[length_1]
+                7,
+                0,
+                4,
+                0, // inlineQos: parameterId_2, length_2
+                20,
+                21,
+                22,
+                23, // inlineQos: value_2[length_2]
+            ]
+        );
+        assert_eq!(
+            serializer.writer.len() as u16 - 4,
+            submessage.header.submessage_length
+        )
     }
 }
