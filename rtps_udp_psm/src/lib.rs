@@ -1,4 +1,4 @@
-use std::iter::FromIterator;
+use std::{collections::BTreeSet, iter::FromIterator, ops::{Add, Sub}};
 use serde::ser::SerializeStruct;
 
 use rust_rtps_pim::{
@@ -330,9 +330,9 @@ impl Ord for SequenceNumber {
     }
 }
 
-impl Into<i64> for SequenceNumber {
-    fn into(self) -> i64 {
-        ((self.high as i64) << 32) + self.low as i64
+impl From<SequenceNumber> for i64 {
+    fn from(value: SequenceNumber) -> Self {
+        ((value.high as i64) << 32) + value.low as i64
     }
 }
 
@@ -395,10 +395,33 @@ impl rust_rtps_pim::structure::types::LocatorSubTypes for Locator {
 pub struct SequenceNumberSet {
     bitmap_base: SequenceNumber,
     num_bits: ULong,
-    bitmap: Vec<Long>,
+    bitmap: Vec<i32>,
 }
-
+#[test]
+fn integer_division() {
+    let m = (0_i32 + 31) / 32;
+    assert_eq!(0_i32, m);
+    assert_eq!(0, vec![0; m as usize].len());
+}
 impl SequenceNumberSet {
+    pub fn new(bitmap_base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
+        let base = Into::<i64>::into(bitmap_base) as i32;
+        let max = set.iter().max();
+        let num_bits = match max {
+            Some(max) => Into::<i64>::into(*max) as i32 - base,
+            None => 0
+        };
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
+        let mut bitmap = vec![0; number_of_bitmap_elements];
+        for sequence_number in set.iter() {
+            let delta_n = Into::<i64>::into(*sequence_number) as i32 - base;
+            let bitmap_num = delta_n / 32;
+            let bit_position = delta_n - bitmap_num * 32;
+            bitmap[bitmap_num as usize] |= 1 << bit_position;
+        }
+        Self { bitmap_base, num_bits: ULong(num_bits as u32), bitmap }
+    }
+
     pub fn len(&self) -> u16 {
         12 + 4 * self.bitmap.len() as u16
     }
@@ -424,14 +447,15 @@ impl serde::Serialize for SequenceNumberSet {
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
     for SequenceNumberSet
 {
-    type SequenceNumberVector = Self;
+    type SequenceNumberVector = ();
 
     fn base(&self) -> &SequenceNumber {
         &self.bitmap_base
     }
 
     fn set(&self) -> &Self::SequenceNumberVector {
-        self
+        // &self.bitmap
+        todo!()
     }
 }
 
