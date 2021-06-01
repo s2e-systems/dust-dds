@@ -1,14 +1,14 @@
 use std::iter::FromIterator;
 
 use rust_rtps_pim::{
-    behavior::types::{DurationType, ParticipantMessageDataPIM},
+    behavior::types::{DurationPIM, ParticipantMessageDataPIM},
     messages::types::{
-        CountType, FragmentNumberType, GroupDigestType, ParameterIdPIM, ProtocolIdType,
-        SubmessageFlagType, SubmessageKindType, TimeType,
+        CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
+        SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
     },
     structure::types::{
-        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-        ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+        ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
     },
 };
 
@@ -35,8 +35,8 @@ impl EntityIdPIM for RtpsUdpPsm {
 }
 
 impl GUIDPIM<RtpsUdpPsm> for RtpsUdpPsm {
-    type GUID = GUID;
-    const GUID_UNKNOWN: Self::GUID = GUID {
+    type GUIDType = GUID;
+    const GUID_UNKNOWN: Self::GUIDType = GUID {
         prefix: RtpsUdpPsm::GUIDPREFIX_UNKNOWN,
         entity_id: RtpsUdpPsm::ENTITYID_UNKNOWN,
     };
@@ -91,83 +91,83 @@ impl ProtocolVersionPIM for RtpsUdpPsm {
 }
 
 impl VendorIdPIM for RtpsUdpPsm {
-    type VendorId = VendorId;
-    const VENDOR_ID_UNKNOWN: Self::VendorId = VendorId([0; 2]);
+    type VendorIdType = VendorId;
+    const VENDOR_ID_UNKNOWN: Self::VendorIdType = VendorId([0; 2]);
 }
 
 impl DataPIM for RtpsUdpPsm {
     type DataType = Data;
 }
 
-impl ProtocolIdType for RtpsUdpPsm {
-    type ProtocolId = ProtocolId;
-    const PROTOCOL_RTPS: Self::ProtocolId = [b'R', b'T', b'P', b'S'];
+impl ProtocolIdPIM for RtpsUdpPsm {
+    type ProtocolIdType = ProtocolId;
+    const PROTOCOL_RTPS: Self::ProtocolIdType = [b'R', b'T', b'P', b'S'];
 }
 
 impl ParameterListPIM<RtpsUdpPsm> for RtpsUdpPsm {
-    type ParameterList = ParameterList;
+    type ParameterListType = ParameterList;
 }
 
-impl SubmessageFlagType for RtpsUdpPsm {
-    type SubmessageFlag = SubmessageFlag;
+impl SubmessageFlagPIM for RtpsUdpPsm {
+    type SubmessageFlagType = SubmessageFlag;
 }
 
 type SubmessageKind = u8;
 
-impl SubmessageKindType for RtpsUdpPsm {
-    type SubmessageKind = SubmessageKind;
-    const DATA: Self::SubmessageKind = 0x15;
-    const GAP: Self::SubmessageKind = 0x08;
-    const HEARTBEAT: Self::SubmessageKind = 0x07;
-    const ACKNACK: Self::SubmessageKind = 0x06;
-    const PAD: Self::SubmessageKind = 0x01;
-    const INFO_TS: Self::SubmessageKind = 0x09;
-    const INFO_REPLY: Self::SubmessageKind = 0x0f;
-    const INFO_DST: Self::SubmessageKind = 0x0e;
-    const INFO_SRC: Self::SubmessageKind = 0x0c;
-    const DATA_FRAG: Self::SubmessageKind = 0x16;
-    const NACK_FRAG: Self::SubmessageKind = 0x12;
-    const HEARTBEAT_FRAG: Self::SubmessageKind = 0x13;
+impl SubmessageKindPIM for RtpsUdpPsm {
+    type SubmessageKindType = SubmessageKind;
+    const DATA: Self::SubmessageKindType = 0x15;
+    const GAP: Self::SubmessageKindType = 0x08;
+    const HEARTBEAT: Self::SubmessageKindType = 0x07;
+    const ACKNACK: Self::SubmessageKindType = 0x06;
+    const PAD: Self::SubmessageKindType = 0x01;
+    const INFO_TS: Self::SubmessageKindType = 0x09;
+    const INFO_REPLY: Self::SubmessageKindType = 0x0f;
+    const INFO_DST: Self::SubmessageKindType = 0x0e;
+    const INFO_SRC: Self::SubmessageKindType = 0x0c;
+    const DATA_FRAG: Self::SubmessageKindType = 0x16;
+    const NACK_FRAG: Self::SubmessageKindType = 0x12;
+    const HEARTBEAT_FRAG: Self::SubmessageKindType = 0x13;
 }
 
-impl TimeType for RtpsUdpPsm {
-    type Time = Time;
-    const TIME_ZERO: Self::Time = Time {
+impl TimePIM for RtpsUdpPsm {
+    type TimeType = Time;
+    const TIME_ZERO: Self::TimeType = Time {
         seconds: 0,
         fraction: 0,
     };
-    const TIME_INVALID: Self::Time = Time {
+    const TIME_INVALID: Self::TimeType = Time {
         seconds: 0xffffffff,
         fraction: 0xffffffff,
     };
-    const TIME_INFINITE: Self::Time = Time {
+    const TIME_INFINITE: Self::TimeType = Time {
         seconds: 0xffffffff,
         fraction: 0xfffffffe,
     };
 }
 
-impl CountType for RtpsUdpPsm {
-    type Count = Count;
+impl CountPIM for RtpsUdpPsm {
+    type CountType = Count;
 }
 
 impl ParameterIdPIM for RtpsUdpPsm {
-    type ParameterId = ParameterId;
+    type ParameterIdType = ParameterId;
 }
 
-impl FragmentNumberType for RtpsUdpPsm {
-    type FragmentNumber = FragmentNumber;
+impl FragmentNumberPIM for RtpsUdpPsm {
+    type FragmentNumberType = FragmentNumber;
 }
 
-impl GroupDigestType for RtpsUdpPsm {
-    type GroupDigest = GroupDigest;
+impl GroupDigestPIM for RtpsUdpPsm {
+    type GroupDigestType = GroupDigest;
 }
 
-impl DurationType for RtpsUdpPsm {
-    type Duration = Duration;
+impl DurationPIM for RtpsUdpPsm {
+    type DurationType = Duration;
 }
 
 impl ParticipantMessageDataPIM for RtpsUdpPsm {
-    type ParticipantMessageData = ();
+    type ParticipantMessageDataType = ();
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

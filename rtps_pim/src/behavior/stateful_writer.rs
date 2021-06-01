@@ -1,10 +1,10 @@
 use crate::{
-    behavior::{types::DurationType, RTPSWriter},
+    behavior::{types::DurationPIM, RTPSWriter},
     messages::types::ParameterIdPIM,
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            ParameterListPIM, SequenceNumberPIM,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+            SequenceNumberPIM, GUIDPIM,
         },
         RTPSHistoryCache,
     },
@@ -37,7 +37,7 @@ pub trait RTPSStatefulWriter<
         + EntityIdPIM
         + LocatorPIM
         + EntityIdPIM
-        + DurationType
+        + DurationPIM
         + SequenceNumberPIM
         + DataPIM
         + ParameterListPIM<PSM>
@@ -54,7 +54,10 @@ pub trait RTPSStatefulWriter<
 
     fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUIDType);
 
-    fn matched_reader_lookup(&self, a_reader_guid: &PSM::GUIDType) -> Option<&Self::ReaderProxyType>;
+    fn matched_reader_lookup(
+        &self,
+        a_reader_guid: &PSM::GUIDType,
+    ) -> Option<&Self::ReaderProxyType>;
 
     fn is_acked_by_all(&self) -> bool;
 }
@@ -69,7 +72,7 @@ pub fn can_send<
         + EntityIdPIM
         + LocatorPIM
         + EntityIdPIM
-        + DurationType
+        + DurationPIM
         + SequenceNumberPIM
         + DataPIM
         + ParameterListPIM<PSM>
@@ -127,8 +130,8 @@ mod tests {
         type LocatorType = MockLocator;
     }
 
-    impl DurationType for MockPSM {
-        type Duration = i64;
+    impl DurationPIM for MockPSM {
+        type DurationType = i64;
     }
 
     impl DataPIM for MockPSM {
@@ -136,7 +139,7 @@ mod tests {
     }
 
     impl ParameterIdPIM for MockPSM {
-        type ParameterId = ();
+        type ParameterIdType = ();
     }
 
     impl ParameterListPIM<Self> for MockPSM {

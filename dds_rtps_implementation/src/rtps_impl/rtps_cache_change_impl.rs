@@ -1,8 +1,8 @@
 use rust_rtps_pim::{
     messages::types::ParameterIdPIM,
     structure::types::{
-        ChangeKind, DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM,
-        ParameterListPIM, SequenceNumberPIM,
+        ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
+        SequenceNumberPIM, GUIDPIM,
     },
 };
 

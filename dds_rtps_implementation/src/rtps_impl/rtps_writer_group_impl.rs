@@ -5,11 +5,11 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::types::DurationType,
+    behavior::types::DurationPIM,
     messages::types::ParameterIdPIM,
     structure::types::{
-        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-        ParameterListPIM, SequenceNumberPIM,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+        SequenceNumberPIM, GUIDPIM,
     },
 };
 
@@ -22,7 +22,7 @@ pub trait RTPSWriterGroupImplTrait:
     + GuidPrefixPIM
     + EntityIdPIM
     + SequenceNumberPIM
-    + DurationType
+    + DurationPIM
     + InstanceHandlePIM
     + LocatorPIM
     + DataPIM
@@ -38,7 +38,7 @@ impl<
             + GuidPrefixPIM
             + EntityIdPIM
             + SequenceNumberPIM
-            + DurationType
+            + DurationPIM
             + InstanceHandlePIM
             + LocatorPIM
             + DataPIM

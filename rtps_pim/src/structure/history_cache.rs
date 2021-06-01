@@ -2,8 +2,8 @@ use crate::messages::types::ParameterIdPIM;
 
 use super::{
     types::{
-        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
-        SequenceNumberPIM,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
+        SequenceNumberPIM, GUIDPIM,
     },
     RTPSCacheChange,
 };

@@ -1,7 +1,5 @@
 use super::{
-    types::{
-        EntityIdPIM, GUIDPIM, GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM,
-    },
+    types::{EntityIdPIM, GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM, GUIDPIM},
     RTPSEntity,
 };
 
@@ -10,7 +8,7 @@ pub trait RTPSParticipant<
 >: RTPSEntity<PSM>
 {
     fn protocol_version(&self) -> PSM::ProtocolVersionType;
-    fn vendor_id(&self) -> PSM::VendorId;
+    fn vendor_id(&self) -> PSM::VendorIdType;
     fn default_unicast_locator_list(&self) -> &[PSM::LocatorType];
     fn default_multicast_locator_list(&self) -> &[PSM::LocatorType];
 }

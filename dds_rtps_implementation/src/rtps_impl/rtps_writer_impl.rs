@@ -2,14 +2,14 @@ use rust_rtps_pim::{
     behavior::{
         stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
-        types::DurationType,
+        types::DurationPIM,
         RTPSWriter,
     },
     messages::types::ParameterIdPIM,
     structure::{
         types::{
-            ChangeKind, DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM,
-            LocatorPIM, ParameterListPIM, ReliabilityKind, SequenceNumberPIM, TopicKind,
+            ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            ParameterListPIM, ReliabilityKind, SequenceNumberPIM, TopicKind, GUIDPIM,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
@@ -24,7 +24,7 @@ pub trait RTPSWriterImplTrait:
     SequenceNumberPIM
     + GuidPrefixPIM
     + EntityIdPIM
-    + DurationType
+    + DurationPIM
     + DataPIM
     + LocatorPIM
     + InstanceHandlePIM
@@ -39,7 +39,7 @@ impl<
         T: SequenceNumberPIM
             + GuidPrefixPIM
             + EntityIdPIM
-            + DurationType
+            + DurationPIM
             + DataPIM
             + LocatorPIM
             + InstanceHandlePIM
@@ -58,9 +58,9 @@ pub struct RTPSWriterImpl<PSM: RTPSWriterImplTrait> {
     push_mode: bool,
     unicast_locator_list: Vec<PSM::LocatorType>,
     multicast_locator_list: Vec<PSM::LocatorType>,
-    heartbeat_period: PSM::Duration,
-    nack_response_delay: PSM::Duration,
-    nack_suppression_duration: PSM::Duration,
+    heartbeat_period: PSM::DurationType,
+    nack_response_delay: PSM::DurationType,
+    nack_suppression_duration: PSM::DurationType,
     last_change_sequence_number: PSM::SequenceNumberType,
     data_max_size_serialized: i32,
     reader_locators: Vec<RTPSReaderLocatorImpl<PSM>>,
@@ -76,9 +76,9 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriterImpl<PSM> {
         push_mode: bool,
         unicast_locator_list: Vec<PSM::LocatorType>,
         multicast_locator_list: Vec<PSM::LocatorType>,
-        heartbeat_period: PSM::Duration,
-        nack_response_delay: PSM::Duration,
-        nack_suppression_duration: PSM::Duration,
+        heartbeat_period: PSM::DurationType,
+        nack_response_delay: PSM::DurationType,
+        nack_suppression_duration: PSM::DurationType,
         data_max_size_serialized: i32,
     ) -> Self {
         Self {
@@ -113,15 +113,15 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriter<PSM> for RTPSWriterImpl<PSM> {
         self.push_mode
     }
 
-    fn heartbeat_period(&self) -> &PSM::Duration {
+    fn heartbeat_period(&self) -> &PSM::DurationType {
         &self.heartbeat_period
     }
 
-    fn nack_response_delay(&self) -> &PSM::Duration {
+    fn nack_response_delay(&self) -> &PSM::DurationType {
         &self.nack_response_delay
     }
 
-    fn nack_suppression_duration(&self) -> &PSM::Duration {
+    fn nack_suppression_duration(&self) -> &PSM::DurationType {
         &self.nack_suppression_duration
     }
 
@@ -214,7 +214,10 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
             .retain(|x| x.remote_reader_guid() != reader_proxy_guid)
     }
 
-    fn matched_reader_lookup(&self, a_reader_guid: &PSM::GUIDType) -> Option<&Self::ReaderProxyType> {
+    fn matched_reader_lookup(
+        &self,
+        a_reader_guid: &PSM::GUIDType,
+    ) -> Option<&Self::ReaderProxyType> {
         self.matched_readers
             .iter()
             .find(|&x| x.remote_reader_guid() == a_reader_guid)
@@ -254,7 +257,7 @@ mod tests {
     }
 
     impl rust_rtps_pim::messages::types::ParameterIdPIM for MockPSM {
-        type ParameterId = u16;
+        type ParameterIdType = u16;
     }
 
     impl rust_rtps_pim::structure::types::GuidPrefixPIM for MockPSM {
@@ -313,8 +316,8 @@ mod tests {
         }
     }
 
-    impl rust_rtps_pim::behavior::types::DurationType for MockPSM {
-        type Duration = i64;
+    impl rust_rtps_pim::behavior::types::DurationPIM for MockPSM {
+        type DurationType = i64;
     }
 
     #[derive(Clone, Copy, PartialEq)]

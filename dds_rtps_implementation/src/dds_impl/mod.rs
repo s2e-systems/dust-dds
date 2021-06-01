@@ -1,9 +1,9 @@
 use rust_rtps_pim::{
-    behavior::types::DurationType,
-    messages::types::{ParameterIdPIM, SubmessageFlagType, SubmessageKindType},
+    behavior::types::DurationPIM,
+    messages::types::{ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
     structure::types::{
-        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-        ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+        ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
     },
 };
 
@@ -23,15 +23,15 @@ pub trait PIM:
     + EntityIdPIM
     + SequenceNumberPIM
     + ProtocolVersionPIM
-    + DurationType
+    + DurationPIM
     + InstanceHandlePIM
     + LocatorPIM
     + DataPIM
     + GUIDPIM<Self>
     + ParameterIdPIM
     + ParameterListPIM<Self>
-    + SubmessageKindType
-    + SubmessageFlagType
+    + SubmessageKindPIM
+    + SubmessageFlagPIM
     + Sized
     + 'static
 {
@@ -43,15 +43,15 @@ impl<
             + EntityIdPIM
             + SequenceNumberPIM
             + ProtocolVersionPIM
-            + DurationType
+            + DurationPIM
             + InstanceHandlePIM
             + LocatorPIM
             + DataPIM
             + GUIDPIM<Self>
             + ParameterIdPIM
             + ParameterListPIM<Self>
-            + SubmessageKindType
-            + SubmessageFlagType
+            + SubmessageKindPIM
+            + SubmessageFlagPIM
             + Sized
             + 'static,
     > PIM for T

@@ -63,8 +63,8 @@ pub trait ProtocolVersionPIM {
 }
 
 pub trait VendorIdPIM {
-    type VendorId: Copy + Send + Sync;
-    const VENDOR_ID_UNKNOWN: Self::VendorId;
+    type VendorIdType: Copy + Send + Sync;
+    const VENDOR_ID_UNKNOWN: Self::VendorIdType;
 }
 
 pub trait DataPIM {

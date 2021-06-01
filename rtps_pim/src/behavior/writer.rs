@@ -2,20 +2,20 @@ use crate::{
     messages::types::ParameterIdPIM,
     structure::{
         types::{
-            ChangeKind, DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM,
-            LocatorPIM, ParameterListPIM, SequenceNumberPIM,
+            ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            ParameterListPIM, SequenceNumberPIM, GUIDPIM,
         },
         RTPSEndpoint, RTPSHistoryCache,
     },
 };
 
-use super::types::DurationType;
+use super::types::DurationPIM;
 
 pub trait RTPSWriter<
     PSM: GuidPrefixPIM
         + EntityIdPIM
         + LocatorPIM
-        + DurationType
+        + DurationPIM
         + SequenceNumberPIM
         + DataPIM
         + ParameterIdPIM
@@ -27,9 +27,9 @@ pub trait RTPSWriter<
     type HistoryCacheType: RTPSHistoryCache<PSM>;
 
     fn push_mode(&self) -> bool;
-    fn heartbeat_period(&self) -> &PSM::Duration;
-    fn nack_response_delay(&self) -> &PSM::Duration;
-    fn nack_suppression_duration(&self) -> &PSM::Duration;
+    fn heartbeat_period(&self) -> &PSM::DurationType;
+    fn nack_response_delay(&self) -> &PSM::DurationType;
+    fn nack_suppression_duration(&self) -> &PSM::DurationType;
     fn last_change_sequence_number(&self) -> &PSM::SequenceNumberType;
     fn data_max_size_serialized(&self) -> i32;
     fn writer_cache(&self) -> &Self::HistoryCacheType;

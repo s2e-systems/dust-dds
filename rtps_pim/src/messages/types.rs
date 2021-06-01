@@ -2,50 +2,50 @@
 /// Table 8.13 - Types used to define RTPS messages
 ///
 
-pub trait ProtocolIdType {
-    type ProtocolId: Copy;
-    const PROTOCOL_RTPS: Self::ProtocolId;
+pub trait ProtocolIdPIM {
+    type ProtocolIdType: Copy;
+    const PROTOCOL_RTPS: Self::ProtocolIdType;
 }
 
-pub trait SubmessageFlagType {
-    type SubmessageFlag: Into<bool> + From<bool> + Copy;
+pub trait SubmessageFlagPIM {
+    type SubmessageFlagType: Into<bool> + From<bool> + Copy;
 }
 
-pub trait SubmessageKindType {
-    type SubmessageKind: Copy;
-    const DATA: Self::SubmessageKind;
-    const GAP: Self::SubmessageKind;
-    const HEARTBEAT: Self::SubmessageKind;
-    const ACKNACK: Self::SubmessageKind;
-    const PAD: Self::SubmessageKind;
-    const INFO_TS: Self::SubmessageKind;
-    const INFO_REPLY: Self::SubmessageKind;
-    const INFO_DST: Self::SubmessageKind;
-    const INFO_SRC: Self::SubmessageKind;
-    const DATA_FRAG: Self::SubmessageKind;
-    const NACK_FRAG: Self::SubmessageKind;
-    const HEARTBEAT_FRAG: Self::SubmessageKind;
+pub trait SubmessageKindPIM {
+    type SubmessageKindType: Copy;
+    const DATA: Self::SubmessageKindType;
+    const GAP: Self::SubmessageKindType;
+    const HEARTBEAT: Self::SubmessageKindType;
+    const ACKNACK: Self::SubmessageKindType;
+    const PAD: Self::SubmessageKindType;
+    const INFO_TS: Self::SubmessageKindType;
+    const INFO_REPLY: Self::SubmessageKindType;
+    const INFO_DST: Self::SubmessageKindType;
+    const INFO_SRC: Self::SubmessageKindType;
+    const DATA_FRAG: Self::SubmessageKindType;
+    const NACK_FRAG: Self::SubmessageKindType;
+    const HEARTBEAT_FRAG: Self::SubmessageKindType;
 }
 
-pub trait TimeType {
-    type Time: Copy;
-    const TIME_ZERO: Self::Time;
-    const TIME_INVALID: Self::Time;
-    const TIME_INFINITE: Self::Time;
+pub trait TimePIM {
+    type TimeType: Copy;
+    const TIME_ZERO: Self::TimeType;
+    const TIME_INVALID: Self::TimeType;
+    const TIME_INFINITE: Self::TimeType;
 }
 
-pub trait CountType {
-    type Count: Copy;
+pub trait CountPIM {
+    type CountType: Copy;
 }
 
 pub trait ParameterIdPIM {
-    type ParameterId: Copy;
+    type ParameterIdType: Copy;
 }
 
-pub trait FragmentNumberType {
-    type FragmentNumber: Copy;
+pub trait FragmentNumberPIM {
+    type FragmentNumberType: Copy;
 }
 
-pub trait GroupDigestType {
-    type GroupDigest: Copy;
+pub trait GroupDigestPIM {
+    type GroupDigestType: Copy;
 }

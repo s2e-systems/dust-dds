@@ -2,8 +2,8 @@ use rust_rtps_pim::{
     messages::types::ParameterIdPIM,
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
-            SequenceNumberPIM,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
+            SequenceNumberPIM, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
@@ -102,7 +102,7 @@ mod tests {
     }
 
     impl rust_rtps_pim::messages::types::ParameterIdPIM for MockPSM {
-        type ParameterId = u16;
+        type ParameterIdType = u16;
     }
 
     impl rust_rtps_pim::structure::types::GuidPrefixPIM for MockPSM {

@@ -3,12 +3,12 @@
 /// Table 8.46 - Types definitions for the Behavior Module
 ///
 
-pub trait DurationType {
-    type Duration: Copy + Send + Sync;
+pub trait DurationPIM {
+    type DurationType: Copy + Send + Sync;
 }
 
 pub trait ParticipantMessageDataPIM {
-    type ParticipantMessageData: Copy + Send + Sync;
+    type ParticipantMessageDataType: Copy + Send + Sync;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

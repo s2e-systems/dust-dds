@@ -1,5 +1,11 @@
 use crate::error::Error;
-use serde::{Serialize, ser::{SerializeMap, SerializeSeq, SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant}};
+use serde::{
+    ser::{
+        SerializeMap, SerializeSeq, SerializeStructVariant, SerializeTuple, SerializeTupleStruct,
+        SerializeTupleVariant,
+    },
+    Serialize,
+};
 
 pub struct Compound {}
 
@@ -89,7 +95,6 @@ impl SerializeMap for Compound {
         todo!()
     }
 }
-
 
 impl SerializeStructVariant for Compound {
     type Ok = ();

@@ -1,5 +1,5 @@
 use rust_rtps_pim::structure::types::{
-    EntityIdPIM, GUIDPIM, GuidPrefixPIM, LocatorPIM, SequenceNumberPIM,
+    EntityIdPIM, GuidPrefixPIM, LocatorPIM, SequenceNumberPIM, GUIDPIM,
 };
 
 pub trait RTPSReaderProxyImplTrait:
@@ -7,9 +7,8 @@ pub trait RTPSReaderProxyImplTrait:
 {
 }
 
-impl<
-        T: SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM<Self> + LocatorPIM + Sized,
-    > RTPSReaderProxyImplTrait for T
+impl<T: SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM<Self> + LocatorPIM + Sized>
+    RTPSReaderProxyImplTrait for T
 {
 }
 

@@ -1,8 +1,8 @@
 use crate::messages::types::ParameterIdPIM;
 
 use super::types::{
-    ChangeKind, DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM,
-    ParameterListPIM, SequenceNumberPIM,
+    ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
+    SequenceNumberPIM, GUIDPIM,
 };
 
 pub trait RTPSCacheChange<

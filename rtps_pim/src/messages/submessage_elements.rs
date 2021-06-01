@@ -9,7 +9,7 @@ use crate::structure::{
     types::{LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM},
 };
 
-use super::types::{CountType, FragmentNumberType, GroupDigestType, ParameterIdPIM, TimeType};
+use super::types::{CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, TimePIM};
 
 pub trait UShort {
     fn value(&self) -> &u16;
@@ -36,7 +36,7 @@ pub trait EntityId<PSM: EntityIdPIM> {
 }
 
 pub trait VendorId<PSM: VendorIdPIM> {
-    fn value(&self) -> &PSM::VendorId;
+    fn value(&self) -> &PSM::VendorIdType;
 }
 
 pub trait ProtocolVersion<PSM: ProtocolVersionPIM> {
@@ -54,23 +54,23 @@ pub trait SequenceNumberSet<PSM: SequenceNumberPIM> {
     fn set(&self) -> &Self::SequenceNumberVector;
 }
 
-pub trait FragmentNumber<PSM: FragmentNumberType> {
-    fn value(&self) -> &PSM::FragmentNumber;
+pub trait FragmentNumber<PSM: FragmentNumberPIM> {
+    fn value(&self) -> &PSM::FragmentNumberType;
 }
 
-pub trait FragmentNumberSet<PSM: FragmentNumberType> {
+pub trait FragmentNumberSet<PSM: FragmentNumberPIM> {
     type FragmentNumberVector;
 
-    fn base(&self) -> &PSM::FragmentNumber;
+    fn base(&self) -> &PSM::FragmentNumberType;
     fn set(&self) -> &Self::FragmentNumberVector;
 }
 
-pub trait Timestamp<PSM: TimeType> {
-    fn value(&self) -> &PSM::Time;
+pub trait Timestamp<PSM: TimePIM> {
+    fn value(&self) -> &PSM::TimeType;
 }
 
 pub trait Parameter<PSM: ParameterIdPIM> {
-    fn parameter_id(&self) -> PSM::ParameterId;
+    fn parameter_id(&self) -> PSM::ParameterIdType;
     fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }
@@ -80,8 +80,8 @@ pub trait ParameterList<PSM: ParameterIdPIM> {
     fn parameter(&self) -> &[Self::Parameter];
 }
 
-pub trait Count<PSM: CountType> {
-    fn value(&self) -> &PSM::Count;
+pub trait Count<PSM: CountPIM> {
+    fn value(&self) -> &PSM::CountType;
 }
 
 pub trait LocatorList<PSM: LocatorPIM> {
@@ -96,6 +96,6 @@ pub trait SerializedDataFragment {
     fn value(&self) -> &[u8];
 }
 
-pub trait GroupDigest<PSM: GroupDigestType> {
-    fn value(&self) -> PSM::GroupDigest;
+pub trait GroupDigest<PSM: GroupDigestPIM> {
+    fn value(&self) -> PSM::GroupDigestType;
 }

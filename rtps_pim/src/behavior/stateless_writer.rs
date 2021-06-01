@@ -3,14 +3,14 @@ use crate::{
     messages::types::ParameterIdPIM,
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            ParameterListPIM, SequenceNumberPIM,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+            SequenceNumberPIM, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
 
-use super::types::DurationType;
+use super::types::DurationPIM;
 pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
     type SequenceNumberVector; //: IntoIterator<Item = PSM::SequenceNumber>;
 
@@ -42,7 +42,7 @@ pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
 pub trait RTPSStatelessWriter<
     PSM: GuidPrefixPIM
         + EntityIdPIM
-        + DurationType
+        + DurationPIM
         + DataPIM
         + InstanceHandlePIM
         + LocatorPIM
@@ -174,7 +174,7 @@ mod tests {
     struct MockPSM;
 
     impl ParameterIdPIM for MockPSM {
-        type ParameterId = ();
+        type ParameterIdType = ();
     }
 
     impl ParameterListPIM<MockPSM> for MockPSM {

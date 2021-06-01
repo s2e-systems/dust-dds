@@ -1,5 +1,5 @@
 use super::{
-    types::{EntityIdPIM, GUIDPIM, GuidPrefixPIM, LocatorPIM, ReliabilityKind, TopicKind},
+    types::{EntityIdPIM, GuidPrefixPIM, LocatorPIM, ReliabilityKind, TopicKind, GUIDPIM},
     RTPSEntity,
 };
 

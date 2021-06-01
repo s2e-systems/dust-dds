@@ -55,5 +55,4 @@ impl<T> RtpsWeak<T> {
             self.0.upgrade().ok_or(DDSError::AlreadyDeleted)?,
         ))
     }
-
 }

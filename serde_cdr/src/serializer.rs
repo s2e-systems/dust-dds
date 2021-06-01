@@ -1,7 +1,10 @@
-use serde::{Serialize, Serializer, ser::{SerializeSeq, SerializeStruct, SerializeTuple}};
-use std::io::Write;
-use byteorder::{LittleEndian,  WriteBytesExt};
 use crate::compound::Compound;
+use byteorder::{LittleEndian, WriteBytesExt};
+use serde::{
+    ser::{SerializeSeq, SerializeStruct, SerializeTuple},
+    Serialize, Serializer,
+};
+use std::io::Write;
 
 pub struct RtpsMessageSerializer<W> {
     pub writer: W,
@@ -10,7 +13,6 @@ pub struct RtpsMessageSerializer<W> {
 pub struct SubmessageSerializeStruct<'a, W: 'a> {
     ser: &'a mut RtpsMessageSerializer<W>,
 }
-
 
 impl<'a, W: Write> SerializeStruct for SubmessageSerializeStruct<'a, W> {
     type Ok = ();
@@ -42,11 +44,14 @@ impl<'a, W: Write> SerializeSeq for SubmessageSerializeStruct<'a, W> {
     }
 }
 
-impl<'a, W: Write> SerializeTuple for SubmessageSerializeStruct<'a, W>{
+impl<'a, W: Write> SerializeTuple for SubmessageSerializeStruct<'a, W> {
     type Ok = ();
     type Error = crate::error::Error;
 
-    fn serialize_element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<Self::Ok, Self::Error> {
+    fn serialize_element<T: Serialize + ?Sized>(
+        &mut self,
+        value: &T,
+    ) -> Result<Self::Ok, Self::Error> {
         value.serialize(&mut *self.ser)
     }
 
@@ -55,7 +60,7 @@ impl<'a, W: Write> SerializeTuple for SubmessageSerializeStruct<'a, W>{
     }
 }
 
-impl<'a,  W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
+impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
     type Ok = ();
     type Error = crate::error::Error;
 
@@ -181,7 +186,7 @@ impl<'a,  W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
         let len = len.ok_or(Self::Error::SequenceMustHaveLength)?;
         self.writer.write_u32::<LittleEndian>(len as u32)?;
-        Ok(SubmessageSerializeStruct{ser: self})
+        Ok(SubmessageSerializeStruct { ser: self })
     }
 
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Self::Error> {
@@ -215,7 +220,7 @@ impl<'a,  W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
         _name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
-        Ok(SubmessageSerializeStruct { ser: self})
+        Ok(SubmessageSerializeStruct { ser: self })
     }
 
     fn serialize_struct_variant(
@@ -291,20 +296,32 @@ mod tests {
             header: SubmessageHeader {
                 submessage_id: 0x09,
                 flags: 0b_0000_0001,
-                octets_to_next_header: 8
+                octets_to_next_header: 8,
             },
             timestamp: Timestamp {
                 seconds: 4,
                 fraction: 2,
-            }
+            },
         };
 
         let mut serializer = RtpsMessageSerializer::default();
         submessage.serialize(&mut serializer).unwrap();
-        assert_eq!(serializer.writer, vec![
-            0x09, 0b_0000_0001, 8, 0, // Submessage header
-            4, 0, 0, 0,               // Timestamp: seconds
-            2, 0, 0, 0,               // Timestamp: fraction
-        ]);
+        assert_eq!(
+            serializer.writer,
+            vec![
+                0x09,
+                0b_0000_0001,
+                8,
+                0, // Submessage header
+                4,
+                0,
+                0,
+                0, // Timestamp: seconds
+                2,
+                0,
+                0,
+                0, // Timestamp: fraction
+            ]
+        );
     }
 }

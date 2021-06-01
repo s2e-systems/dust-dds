@@ -1,11 +1,11 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
-    behavior::types::DurationType,
+    behavior::types::DurationPIM,
     messages::types::ParameterIdPIM,
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUID,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+            ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUID, GUIDPIM,
         },
         RTPSEntity,
     },
@@ -21,7 +21,7 @@ pub trait RTPSParticipantImplTrait:
     + SequenceNumberPIM
     + LocatorPIM
     + VendorIdPIM
-    + DurationType
+    + DurationPIM
     + InstanceHandlePIM
     + DataPIM
     + ProtocolVersionPIM
@@ -38,7 +38,7 @@ impl<
             + SequenceNumberPIM
             + LocatorPIM
             + VendorIdPIM
-            + DurationType
+            + DurationPIM
             + InstanceHandlePIM
             + DataPIM
             + ProtocolVersionPIM
@@ -92,7 +92,7 @@ impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PS
         todo!()
     }
 
-    fn vendor_id(&self) -> PSM::VendorId {
+    fn vendor_id(&self) -> PSM::VendorIdType {
         todo!()
     }
 

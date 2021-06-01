@@ -2,12 +2,12 @@ use crate::{
     behavior::RTPSReader,
     messages::types::ParameterIdPIM,
     structure::types::{
-        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-        ParameterListPIM, SequenceNumberPIM,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+        SequenceNumberPIM, GUIDPIM,
     },
 };
 
-use super::types::DurationType;
+use super::types::DurationPIM;
 
 pub trait RTPSWriterProxy<
     PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM<PSM> + SequenceNumberPIM,
@@ -36,7 +36,7 @@ pub trait RTPSStatefulReader<
         + EntityIdPIM
         + SequenceNumberPIM
         + LocatorPIM
-        + DurationType
+        + DurationPIM
         + GUIDPIM<PSM>
         + ParameterIdPIM
         + ParameterListPIM<PSM>,
@@ -47,5 +47,6 @@ pub trait RTPSStatefulReader<
     fn matched_writers(&self) -> &[Self::WriterProxyType];
     fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType);
     fn matched_writer_remove(&mut self, writer_proxy_guid: &PSM::GUIDType);
-    fn matched_writer_lookup(&self, a_writer_guid: PSM::GUIDType) -> Option<&Self::WriterProxyType>;
+    fn matched_writer_lookup(&self, a_writer_guid: PSM::GUIDType)
+        -> Option<&Self::WriterProxyType>;
 }
