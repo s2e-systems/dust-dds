@@ -176,7 +176,7 @@ pub struct Octet(u8);
 
 impl Octet {
     pub fn is_bit_set(&self, index: usize) -> bool {
-        self.0 | (0b_0000_0001 << index) == 0
+        self.0 & (0b_0000_0001 << index) != 0
     }
 }
 
@@ -657,6 +657,21 @@ mod tests {
     #[should_panic]
     fn octet_from_submessage_flags_overflow() {
         let _: Octet = [true; 9].into();
+    }
+
+    #[test]
+    fn octet_is_set_bit() {
+        let flags = Octet(0b_0000_0001);
+        assert_eq!(flags.is_bit_set(0), true);
+
+        let flags = Octet(0b_0000_0000);
+        assert_eq!(flags.is_bit_set(0), false);
+
+        let flags = Octet(0b_0000_0010);
+        assert_eq!(flags.is_bit_set(1), true);
+
+        let flags = Octet(0b_1000_0011);
+        assert_eq!(flags.is_bit_set(7), true);
     }
 }
 
