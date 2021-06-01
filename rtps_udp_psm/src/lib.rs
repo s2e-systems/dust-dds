@@ -522,7 +522,7 @@ impl rust_rtps_pim::messages::submessage_elements::Timestamp<RtpsUdpPsm> for Tim
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, serde::Serialize)]
 pub struct Count(i32);
 
 impl rust_rtps_pim::messages::submessage_elements::Count<RtpsUdpPsm> for Count {
