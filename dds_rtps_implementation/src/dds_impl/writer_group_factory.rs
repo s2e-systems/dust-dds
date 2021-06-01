@@ -3,11 +3,11 @@ use rust_dds_api::{
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::types::DurationType,
-    messages::types::ParameterIdType,
+    behavior::types::DurationPIM,
+    messages::types::ParameterIdPIM,
     structure::types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
-        ParameterListType, SequenceNumberType, GUID,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+        SequenceNumberPIM, GUID, GUIDPIM,
     },
 };
 
@@ -16,44 +16,44 @@ use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 
 pub trait WriterGroupFactoryTrait:
-    GuidPrefixType
-    + EntityIdType
-    + SequenceNumberType
-    + DurationType
-    + InstanceHandleType
-    + LocatorType
-    + DataType
-    + ParameterIdType
-    + GUIDType<Self>
-    + ParameterListType<Self>
+    GuidPrefixPIM
+    + EntityIdPIM
+    + SequenceNumberPIM
+    + DurationPIM
+    + InstanceHandlePIM
+    + LocatorPIM
+    + DataPIM
+    + ParameterIdPIM
+    + GUIDPIM<Self>
+    + ParameterListPIM<Self>
     + Sized
 {
 }
 
 impl<
-        T: GuidPrefixType
-            + EntityIdType
-            + SequenceNumberType
-            + DurationType
-            + InstanceHandleType
-            + LocatorType
-            + DataType
-            + ParameterIdType
-            + GUIDType<Self>
-            + ParameterListType<Self>
+        T: GuidPrefixPIM
+            + EntityIdPIM
+            + SequenceNumberPIM
+            + DurationPIM
+            + InstanceHandlePIM
+            + LocatorPIM
+            + DataPIM
+            + ParameterIdPIM
+            + GUIDPIM<Self>
+            + ParameterListPIM<Self>
             + Sized,
     > WriterGroupFactoryTrait for T
 {
 }
 
 pub struct WriterGroupFactory<PSM: WriterGroupFactoryTrait> {
-    guid_prefix: PSM::GuidPrefix,
+    guid_prefix: PSM::GuidPrefixType,
     publisher_counter: u8,
     default_publisher_qos: PublisherQos,
 }
 
 impl<PSM: WriterGroupFactoryTrait> WriterGroupFactory<PSM> {
-    pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {
             guid_prefix,
             publisher_counter: 0,

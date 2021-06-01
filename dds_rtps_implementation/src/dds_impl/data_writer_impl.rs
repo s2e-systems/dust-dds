@@ -173,7 +173,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM>
     rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     type Qos = DataWriterQos;
-    type Listener = &'static dyn DataWriterListener<DataType = T>;
+    type Listener = &'static dyn DataWriterListener<DataPIM = T>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

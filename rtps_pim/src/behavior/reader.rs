@@ -1,34 +1,34 @@
 use crate::{
-    messages::types::ParameterIdType,
+    messages::types::ParameterIdPIM,
     structure::{
         types::{
-            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
-            ParameterListType, SequenceNumberType,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+            SequenceNumberPIM, GUIDPIM,
         },
         RTPSEndpoint, RTPSHistoryCache,
     },
 };
 
-use super::types::DurationType;
+use super::types::DurationPIM;
 
 pub trait RTPSReader<
-    PSM: InstanceHandleType
-        + GuidPrefixType
-        + DataType
-        + EntityIdType
-        + SequenceNumberType
-        + LocatorType
-        + DurationType
-        + GUIDType<PSM>
-        + ParameterIdType
-        + ParameterListType<PSM>,
+    PSM: InstanceHandlePIM
+        + GuidPrefixPIM
+        + DataPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + LocatorPIM
+        + DurationPIM
+        + GUIDPIM<PSM>
+        + ParameterIdPIM
+        + ParameterListPIM<PSM>,
 >: RTPSEndpoint<PSM>
 {
     type HistoryCacheType: RTPSHistoryCache<PSM>;
 
     fn expects_inline_qos(&self) -> bool;
-    fn heartbeat_response_delay(&self) -> &PSM::Duration;
-    fn heartbeat_supression_duration(&self) -> &PSM::Duration;
+    fn heartbeat_response_delay(&self) -> &PSM::DurationType;
+    fn heartbeat_supression_duration(&self) -> &PSM::DurationType;
     fn reader_cache(&self) -> &Self::HistoryCacheType;
     fn reader_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
 }

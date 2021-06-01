@@ -9,7 +9,7 @@ pub struct DataFrag<'a> {
     pub serialized_data: SerializedData<'a>,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::DataFrag<RtpsUdpPsm> for DataFrag<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<RtpsUdpPsm> for DataFrag<'a> {
     type EntityId = EntityId;
     type SequenceNumber = SequenceNumber;
     type FragmentNumber = FragmentNumber;

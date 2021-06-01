@@ -186,7 +186,7 @@ impl DataReaderQos {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct TopicQos{
+pub struct TopicQos {
     pub topic_data: TopicDataQosPolicy,
     pub durability: DurabilityQosPolicy,
     pub durability_service: DurabilityServiceQosPolicy,

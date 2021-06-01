@@ -4,7 +4,7 @@ use super::SubmessageHeader;
 
 pub struct InfoSource;
 
-impl rust_rtps_pim::messages::submessages::InfoSource<RtpsUdpPsm> for InfoSource {
+impl rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm> for InfoSource {
     type GuidPrefix = GuidPrefix;
     type ProtocolVersion = ProtocolVersion;
     type VendorId = VendorId;

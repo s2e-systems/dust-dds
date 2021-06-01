@@ -56,7 +56,7 @@ impl<'t, T: 'static, PSM: PIM> TopicDescription<T> for TopicImpl<'t, T, PSM> {
 
 impl<'t, T: 'static, PSM: PIM> Entity for TopicImpl<'t, T, PSM> {
     type Qos = TopicQos;
-    type Listener = &'static dyn TopicListener<DataType = T>;
+    type Listener = &'static dyn TopicListener<DataPIM = T>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.impl_ref

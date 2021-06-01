@@ -1,31 +1,37 @@
-use rust_rtps_pim::{messages::types::ParameterIdType, structure::{RTPSCacheChange, RTPSHistoryCache, types::{
-            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
-            ParameterListType, SequenceNumberType,
-        }}};
+use rust_rtps_pim::{
+    messages::types::ParameterIdPIM,
+    structure::{
+        types::{
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
+            SequenceNumberPIM, GUIDPIM,
+        },
+        RTPSCacheChange, RTPSHistoryCache,
+    },
+};
 
 use super::rtps_cache_change_impl::RTPSCacheChangeImpl;
 
 pub trait RTPSHistoryCacheImplTrait:
-    InstanceHandleType
-    + SequenceNumberType
-    + DataType
-    + ParameterIdType
-    + EntityIdType
-    + GuidPrefixType
-    + GUIDType<Self>
-    + ParameterListType<Self>
+    InstanceHandlePIM
+    + SequenceNumberPIM
+    + DataPIM
+    + ParameterIdPIM
+    + EntityIdPIM
+    + GuidPrefixPIM
+    + GUIDPIM<Self>
+    + ParameterListPIM<Self>
     + Sized
 {
 }
 impl<
-        T: InstanceHandleType
-            + SequenceNumberType
-            + DataType
-            + ParameterIdType
-            + EntityIdType
-            + GuidPrefixType
-            + GUIDType<Self>
-            + ParameterListType<Self>
+        T: InstanceHandlePIM
+            + SequenceNumberPIM
+            + DataPIM
+            + ParameterIdPIM
+            + EntityIdPIM
+            + GuidPrefixPIM
+            + GUIDPIM<Self>
+            + ParameterListPIM<Self>
             + Sized,
     > RTPSHistoryCacheImplTrait for T
 {
@@ -51,19 +57,21 @@ impl<PSM: RTPSHistoryCacheImplTrait> RTPSHistoryCache<PSM> for RTPSHistoryCacheI
         self.changes.push(change)
     }
 
-    fn remove_change(&mut self, seq_num: &PSM::SequenceNumber) {
+    fn remove_change(&mut self, seq_num: &PSM::SequenceNumberType) {
         self.changes.retain(|cc| cc.sequence_number() != seq_num)
     }
 
-    fn get_change(&self, seq_num: &PSM::SequenceNumber) -> Option<&Self::CacheChange> {
-        self.changes.iter().find(|&cc| cc.sequence_number() == seq_num)
+    fn get_change(&self, seq_num: &PSM::SequenceNumberType) -> Option<&Self::CacheChange> {
+        self.changes
+            .iter()
+            .find(|&cc| cc.sequence_number() == seq_num)
     }
 
-    fn get_seq_num_min(&self) -> Option<&PSM::SequenceNumber> {
+    fn get_seq_num_min(&self) -> Option<&PSM::SequenceNumberType> {
         self.changes.iter().map(|cc| cc.sequence_number()).min()
     }
 
-    fn get_seq_num_max(&self) -> Option<&PSM::SequenceNumber> {
+    fn get_seq_num_max(&self) -> Option<&PSM::SequenceNumberType> {
         self.changes.iter().map(|cc| cc.sequence_number()).max()
     }
 }
@@ -73,33 +81,33 @@ mod tests {
     use super::*;
     struct MockPSM;
 
-    impl rust_rtps_pim::structure::types::InstanceHandleType for MockPSM {
-        type InstanceHandle = ();
+    impl rust_rtps_pim::structure::types::InstanceHandlePIM for MockPSM {
+        type InstanceHandleType = ();
     }
 
-    impl rust_rtps_pim::structure::types::SequenceNumberType for MockPSM {
-        type SequenceNumber = i64;
-        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = -1;
+    impl rust_rtps_pim::structure::types::SequenceNumberPIM for MockPSM {
+        type SequenceNumberType = i64;
+        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = -1;
     }
 
-    impl rust_rtps_pim::structure::types::DataType for MockPSM {
-        type Data = ();
+    impl rust_rtps_pim::structure::types::DataPIM for MockPSM {
+        type DataType = ();
     }
 
-    impl rust_rtps_pim::structure::types::EntityIdType for MockPSM {
-        type EntityId = [u8; 4];
+    impl rust_rtps_pim::structure::types::EntityIdPIM for MockPSM {
+        type EntityIdType = [u8; 4];
 
-        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityId = [1; 4];
+        const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
+        const ENTITYID_PARTICIPANT: Self::EntityIdType = [1; 4];
     }
 
-    impl rust_rtps_pim::messages::types::ParameterIdType for MockPSM {
-        type ParameterId = u16;
+    impl rust_rtps_pim::messages::types::ParameterIdPIM for MockPSM {
+        type ParameterIdType = u16;
     }
 
-    impl rust_rtps_pim::structure::types::GuidPrefixType for MockPSM {
-        type GuidPrefix = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+    impl rust_rtps_pim::structure::types::GuidPrefixPIM for MockPSM {
+        type GuidPrefixType = [u8; 12];
+        const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
     #[derive(Clone, Copy, PartialEq)]
@@ -119,13 +127,13 @@ mod tests {
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDType<MockPSM> for MockPSM {
-        type GUID = MockGUID;
-        const GUID_UNKNOWN: Self::GUID = MockGUID;
+    impl rust_rtps_pim::structure::types::GUIDPIM<MockPSM> for MockPSM {
+        type GUIDType = MockGUID;
+        const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
 
-    impl rust_rtps_pim::structure::types::ParameterListType<MockPSM> for MockPSM {
-        type ParameterList = MockParameterList;
+    impl rust_rtps_pim::structure::types::ParameterListPIM<MockPSM> for MockPSM {
+        type ParameterListType = MockParameterList;
     }
 
     pub struct MockParameterList;

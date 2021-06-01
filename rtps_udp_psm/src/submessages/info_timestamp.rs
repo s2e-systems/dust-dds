@@ -4,7 +4,7 @@ use super::SubmessageHeader;
 
 pub struct InfoTimestamp;
 
-impl rust_rtps_pim::messages::submessages::InfoTimestamp<RtpsUdpPsm> for InfoTimestamp {
+impl rust_rtps_pim::messages::submessages::InfoTimestampSubmessage<RtpsUdpPsm> for InfoTimestamp {
     type Timestamp = Time;
 
     fn endianness_flag(&self) -> SubmessageFlag {

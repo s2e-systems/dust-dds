@@ -72,7 +72,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM> DataWriterFacto
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
+        a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.lock().unwrap().clone());
