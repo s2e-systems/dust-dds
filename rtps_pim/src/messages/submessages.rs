@@ -11,7 +11,14 @@ use super::types::{
     TimeType,
 };
 
-pub trait AckNack<
+pub trait AckNackSubmessagePIM<
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType + CountType,
+>
+{
+    type AckNackSubmessageType: AckNackSubmessage<PSM>;
+}
+
+pub trait AckNackSubmessage<
     PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType + CountType,
 >: Submessage<PSM>
 {
@@ -27,7 +34,14 @@ pub trait AckNack<
     fn count(&self) -> &Self::Count;
 }
 
-pub trait Data<
+pub trait DataSubmessagePIM<
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType + DataType,
+>
+{
+    type DataSubmessageType: DataSubmessage<PSM>;
+}
+
+pub trait DataSubmessage<
     PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType + DataType,
 >: Submessage<PSM>
 {
@@ -47,7 +61,20 @@ pub trait Data<
     fn serialized_payload(&self) -> &Self::SerializedData;
 }
 
-pub trait DataFrag<
+pub trait DataFragSubmessagePIM<
+    PSM: SubmessageKindType
+        + SubmessageFlagType
+        + EntityIdType
+        + SequenceNumberType
+        + FragmentNumberType
+        + DataType
+        + ParameterIdType,
+>
+{
+    type DataFragSubmessageType: DataFragSubmessage<PSM>;
+}
+
+pub trait DataFragSubmessage<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdType
@@ -80,8 +107,16 @@ pub trait DataFrag<
     fn serialized_payload(&self) -> &Self::SerializedData;
 }
 
-pub trait Gap<PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType>:
-    Submessage<PSM>
+pub trait GapSubmessagePIM<
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType,
+>
+{
+    type GapSubmessageType: GapSubmessage<PSM>;
+}
+
+pub trait GapSubmessage<
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType,
+>: Submessage<PSM>
 {
     type EntityId: submessage_elements::EntityId<PSM>;
     type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
@@ -95,7 +130,15 @@ pub trait Gap<PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + Sequ
     // gap_start_gsn: submessage_elements::SequenceNumber,
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
-pub trait Heartbeat<
+
+pub trait HeartbeatSubmessagePIM<
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType + CountType,
+>
+{
+    type HeartbeatSubmessageType: HeartbeatSubmessage<PSM>;
+}
+
+pub trait HeartbeatSubmessage<
     PSM: SubmessageKindType + SubmessageFlagType + EntityIdType + SequenceNumberType + CountType,
 >: Submessage<PSM>
 {
@@ -118,7 +161,19 @@ pub trait Heartbeat<
     // secure_writer_set: submessage_elements::GroupDigest,
 }
 
-pub trait HeartbeatFrag<
+pub trait HeartbeatFragSubmessagePIM<
+    PSM: SubmessageKindType
+        + SubmessageFlagType
+        + EntityIdType
+        + SequenceNumberType
+        + FragmentNumberType
+        + CountType,
+>
+{
+    type HeartbeatFragSubmessageType: HeartbeatFragSubmessage<PSM>;
+}
+
+pub trait HeartbeatFragSubmessage<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdType
@@ -140,7 +195,14 @@ pub trait HeartbeatFrag<
     fn count(&self) -> &Self::Count;
 }
 
-pub trait InfoDestination<PSM: SubmessageKindType + SubmessageFlagType + GuidPrefixType>:
+pub trait InfoDestinationSubmessagePIM<
+    PSM: SubmessageKindType + SubmessageFlagType + GuidPrefixType,
+>
+{
+    type InfoDestinationSubmessageType: InfoDestinationSubmessage<PSM>;
+}
+
+pub trait InfoDestinationSubmessage<PSM: SubmessageKindType + SubmessageFlagType + GuidPrefixType>:
     Submessage<PSM>
 {
     type GuidPrefix: submessage_elements::GuidPrefix<PSM>;
@@ -149,7 +211,11 @@ pub trait InfoDestination<PSM: SubmessageKindType + SubmessageFlagType + GuidPre
     fn guid_prefix(&self) -> &Self::GuidPrefix;
 }
 
-pub trait InfoReply<PSM: SubmessageKindType + SubmessageFlagType + LocatorType>:
+pub trait InfoReplySubmessagePIM<PSM: SubmessageKindType + SubmessageFlagType + LocatorType> {
+    type InfoReplySubmessageType: InfoReplySubmessage<PSM>;
+}
+
+pub trait InfoReplySubmessage<PSM: SubmessageKindType + SubmessageFlagType + LocatorType>:
     Submessage<PSM>
 {
     type LocatorList: submessage_elements::LocatorList<PSM>;
@@ -160,7 +226,14 @@ pub trait InfoReply<PSM: SubmessageKindType + SubmessageFlagType + LocatorType>:
     fn multicast_locator_list(&self) -> &Self::LocatorList;
 }
 
-pub trait InfoSource<
+pub trait InfoSourceSubmessagePIM<
+    PSM: SubmessageKindType + SubmessageFlagType + ProtocolVersionType + VendorIdType + GuidPrefixType,
+>
+{
+    type InfoSourceSubmessageType: InfoSourceSubmessage<PSM>;
+}
+
+pub trait InfoSourceSubmessage<
     PSM: SubmessageKindType + SubmessageFlagType + ProtocolVersionType + VendorIdType + GuidPrefixType,
 >: Submessage<PSM>
 {
@@ -173,7 +246,12 @@ pub trait InfoSource<
     fn vendor_id(&self) -> &Self::VendorId;
     fn guid_prefix(&self) -> &Self::GuidPrefix;
 }
-pub trait InfoTimestamp<PSM: SubmessageKindType + SubmessageFlagType + TimeType>:
+
+pub trait InfoTimestampSubmessagePIM<PSM: SubmessageKindType + SubmessageFlagType + TimeType> {
+    type InfoTimestampSubmessageType: InfoTimestampSubmessage<PSM>;
+}
+
+pub trait InfoTimestampSubmessage<PSM: SubmessageKindType + SubmessageFlagType + TimeType>:
     Submessage<PSM>
 {
     type Timestamp: submessage_elements::Timestamp<PSM>;
@@ -183,7 +261,19 @@ pub trait InfoTimestamp<PSM: SubmessageKindType + SubmessageFlagType + TimeType>
     fn timestamp(&self) -> &Self::Timestamp;
 }
 
-pub trait NackFrag<
+pub trait NackFragSubmessagePIM<
+    PSM: SubmessageKindType
+        + SubmessageFlagType
+        + EntityIdType
+        + SequenceNumberType
+        + FragmentNumberType
+        + CountType,
+>
+{
+    type NackFragSubmessageType: NackFragSubmessage<PSM>;
+}
+
+pub trait NackFragSubmessage<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdType
@@ -205,4 +295,8 @@ pub trait NackFrag<
     fn count(&self) -> &Self::Count;
 }
 
-pub trait Pad<PSM: SubmessageKindType + SubmessageFlagType>: Submessage<PSM> {}
+pub trait PadSubmessagePIM<PSM: SubmessageKindType + SubmessageFlagType> {
+    type PadSubmessageType: PadSubmessage<PSM>;
+}
+
+pub trait PadSubmessage<PSM: SubmessageKindType + SubmessageFlagType>: Submessage<PSM> {}

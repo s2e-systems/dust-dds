@@ -1,11 +1,7 @@
-use crate::{
-    behavior::{types::DurationType, RTPSWriter},
-    messages::types::ParameterIdType,
-    structure::types::{
+use crate::{behavior::{types::DurationType, RTPSWriter}, messages::types::ParameterIdType, structure::{RTPSHistoryCache, types::{
         DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
         ParameterListType, SequenceNumberType,
-    },
-};
+    }}};
 
 pub trait RTPSReaderProxy<
     PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType + GUIDType<PSM> + SequenceNumberType,
@@ -56,35 +52,44 @@ pub trait RTPSStatefulWriter<
     fn is_acked_by_all(&self) -> bool;
 }
 
-pub struct ReliableBehavior;
+pub enum DataOrGap {
+    Data(),
+    Gap(),
+}
 
-impl ReliableBehavior {
-    pub fn produce_messages<
-        PSM: GuidPrefixType
-            + EntityIdType
-            + LocatorType
-            + EntityIdType
-            + DurationType
-            + SequenceNumberType
-            + DataType
-            + ParameterListType<PSM>
-            + GUIDType<PSM>
-            + InstanceHandleType
-            + ParameterIdType,
-    >(
-        _reader_proxy: &mut impl RTPSReaderProxy<PSM>,
-    ) {
-        // if reader_proxy.unacked_changes() {
-        todo!()
-        // } else {
-        //Idle state
-        // }
+pub fn can_send<
+    PSM: GuidPrefixType
+        + EntityIdType
+        + LocatorType
+        + EntityIdType
+        + DurationType
+        + SequenceNumberType
+        + DataType
+        + ParameterListType<PSM>
+        + GUIDType<PSM>
+        + InstanceHandleType
+        + ParameterIdType,
+>(
+    reader_proxy: &mut impl RTPSReaderProxy<PSM>,
+    writer_cache: &impl RTPSHistoryCache<PSM>,
+) -> Option<DataOrGap> {
+    if let Some(seq_num) = reader_proxy.next_unsent_change() {
+        if let Some(change) = writer_cache.get_change(&seq_num) {
+            todo!()
+        } else {
+            todo!()
+        }
+    } else {
+        None
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{messages::submessage_elements::{Parameter, ParameterList}, structure::types::{LocatorSubTypes, GUID}};
+    use crate::{
+        messages::submessage_elements::{Parameter, ParameterList},
+        structure::types::{LocatorSubTypes, GUID},
+    };
 
     use super::*;
 
@@ -134,7 +139,6 @@ mod tests {
     impl InstanceHandleType for MockPSM {
         type InstanceHandle = ();
     }
-
 
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
@@ -265,11 +269,5 @@ mod tests {
         fn unacked_changes(&self) -> Self::SequenceNumberVector {
             todo!()
         }
-    }
-
-    #[test]
-    fn produce_messages_reliable() {
-        let mut reader_proxy = MockReaderProxy;
-        ReliableBehavior::produce_messages(&mut reader_proxy)
     }
 }
