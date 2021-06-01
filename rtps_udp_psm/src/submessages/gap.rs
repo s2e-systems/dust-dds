@@ -1,50 +1,71 @@
+use rust_rtps_pim::messages::types::SubmessageKindType;
+
 use crate::{EntityId, RtpsUdpPsm, SequenceNumber, SequenceNumberSet, SubmessageFlag};
 
 use super::SubmessageHeader;
 
-pub struct Gap;
+pub struct GapSubmessage {
+    header: SubmessageHeader,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    gap_start: SequenceNumber,
+    gap_list: SequenceNumberSet,
+}
 
-impl Gap {
+impl GapSubmessage {
     fn new(
-        _endianness_flag: SubmessageFlag,
-        _reader_id: EntityId,
-        _writer_id: EntityId,
-        _gap_start: SequenceNumber,
-        _gap_list: &[SequenceNumber],
+        endianness_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        gap_start: SequenceNumber,
+        gap_list: SequenceNumberSet,
     ) -> Self {
-        todo!()
+        let flags = [endianness_flag].into();
+
+        let submessage_length = 4 + gap_list.len();
+
+        let header = SubmessageHeader {
+            submessage_id: <RtpsUdpPsm as SubmessageKindType>::GAP.into(),
+            flags,
+            submessage_length,
+        };
+        Self {
+            header,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        }
     }
 }
 
-impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for Gap {
+impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for GapSubmessage {
     type EntityId = EntityId;
     type SequenceNumber = SequenceNumber;
     type SequenceNumberSet = SequenceNumberSet;
 
-
-
     fn endianness_flag(&self) -> SubmessageFlag {
-        todo!()
+        self.header.flags.is_bit_set(0)
     }
 
     fn reader_id(&self) -> &Self::EntityId {
-        todo!()
+        &self.reader_id
     }
 
     fn writer_id(&self) -> &Self::EntityId {
-        todo!()
+        &self.writer_id
     }
 
     fn gap_start(&self) -> &Self::SequenceNumber {
-        todo!()
+        &self.gap_start
     }
 
     fn gap_list(&self) -> &Self::SequenceNumberSet {
-        todo!()
+        &self.gap_list
     }
 }
 
-impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for Gap {
+impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for GapSubmessage {
     type SubmessageHeader = SubmessageHeader;
 
     fn submessage_header(&self) -> Self::SubmessageHeader {
