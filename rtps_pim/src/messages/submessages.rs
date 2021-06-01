@@ -42,6 +42,7 @@ pub trait AckNackSubmessage<
 }
 
 pub trait DataSubmessagePIM<
+    'a,
     PSM: SubmessageKindPIM
         + SubmessageFlagPIM
         + EntityIdPIM
@@ -50,10 +51,11 @@ pub trait DataSubmessagePIM<
         + DataPIM,
 >
 {
-    type DataSubmessageType: DataSubmessage<PSM>;
+    type DataSubmessageType: DataSubmessage<'a, PSM>;
 }
 
 pub trait DataSubmessage<
+    'a,
     PSM: SubmessageKindPIM
         + SubmessageFlagPIM
         + EntityIdPIM
@@ -65,7 +67,7 @@ pub trait DataSubmessage<
     type EntityId: submessage_elements::EntityId<PSM>;
     type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
     type ParameterList: submessage_elements::ParameterList<PSM>;
-    type SerializedData: submessage_elements::SerializedData;
+    type SerializedData: submessage_elements::SerializedData<'a>;
 
     fn new(
         endianness_flag: PSM::SubmessageFlagType,
@@ -92,6 +94,7 @@ pub trait DataSubmessage<
 }
 
 pub trait DataFragSubmessagePIM<
+    'a,
     PSM: SubmessageKindPIM
         + SubmessageFlagPIM
         + EntityIdPIM
@@ -101,10 +104,11 @@ pub trait DataFragSubmessagePIM<
         + ParameterIdPIM,
 >
 {
-    type DataFragSubmessageType: DataFragSubmessage<PSM>;
+    type DataFragSubmessageType: DataFragSubmessage<'a, PSM>;
 }
 
 pub trait DataFragSubmessage<
+    'a,
     PSM: SubmessageKindPIM
         + SubmessageFlagPIM
         + EntityIdPIM
@@ -119,7 +123,7 @@ pub trait DataFragSubmessage<
     type FragmentNumber: submessage_elements::FragmentNumber<PSM>;
     type UShort: submessage_elements::UShort;
     type ULong: submessage_elements::ULong;
-    type SerializedData: submessage_elements::SerializedDataFragment;
+    type SerializedData: submessage_elements::SerializedDataFragment<'a>;
     type ParameterList: submessage_elements::ParameterList<PSM>;
 
     fn new(
