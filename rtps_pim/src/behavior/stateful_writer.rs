@@ -11,7 +11,7 @@ pub trait RTPSReaderProxy<
     PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType + GUIDType<PSM> + SequenceNumberType,
 >
 {
-    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumber>;
+    type SequenceNumberVector; //: IntoIterator<Item = PSM::SequenceNumber>;
 
     fn remote_reader_guid(&self) -> &PSM::GUID;
     fn remote_group_entity_id(&self) -> &PSM::EntityId;
@@ -59,7 +59,217 @@ pub trait RTPSStatefulWriter<
 pub struct ReliableBehavior;
 
 impl ReliableBehavior {
-    pub fn produce_messages() {
+    pub fn produce_messages<
+        PSM: GuidPrefixType
+            + EntityIdType
+            + LocatorType
+            + EntityIdType
+            + DurationType
+            + SequenceNumberType
+            + DataType
+            + ParameterListType<PSM>
+            + GUIDType<PSM>
+            + InstanceHandleType
+            + ParameterIdType,
+    >(
+        _reader_proxy: &mut impl RTPSReaderProxy<PSM>,
+    ) {
+        // if reader_proxy.unacked_changes() {
         todo!()
+        // } else {
+        //Idle state
+        // }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{messages::submessage_elements::{Parameter, ParameterList}, structure::types::{LocatorSubTypes, GUID}};
+
+    use super::*;
+
+    struct MockPSM;
+
+    impl SequenceNumberType for MockPSM {
+        type SequenceNumber = i64;
+        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = -1;
+    }
+
+    impl EntityIdType for MockPSM {
+        type EntityId = [u8; 4];
+        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
+        const ENTITYID_PARTICIPANT: Self::EntityId = [0; 4];
+    }
+
+    impl GuidPrefixType for MockPSM {
+        type GuidPrefix = [u8; 12];
+        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+    }
+
+    impl GUIDType<Self> for MockPSM {
+        type GUID = MockGUID;
+        const GUID_UNKNOWN: Self::GUID = MockGUID;
+    }
+
+    impl LocatorType for MockPSM {
+        type Locator = MockLocator;
+    }
+
+    impl DurationType for MockPSM {
+        type Duration = i64;
+    }
+
+    impl DataType for MockPSM {
+        type Data = ();
+    }
+
+    impl ParameterIdType for MockPSM {
+        type ParameterId = ();
+    }
+
+    impl ParameterListType<Self> for MockPSM {
+        type ParameterList = MockParameterList;
+    }
+
+    impl InstanceHandleType for MockPSM {
+        type InstanceHandle = ();
+    }
+
+
+    #[derive(Clone, Copy, PartialEq)]
+    struct MockGUID;
+
+    impl GUID<MockPSM> for MockGUID {
+        fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
+            todo!()
+        }
+
+        fn prefix(&self) -> &[u8; 12] {
+            todo!()
+        }
+
+        fn entity_id(&self) -> &[u8; 4] {
+            todo!()
+        }
+    }
+
+    #[derive(Clone, Copy, PartialEq)]
+    struct MockLocator;
+
+    impl LocatorSubTypes for MockLocator {
+        type LocatorKind = [u8; 4];
+        const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
+        const LOCATOR_KIND_RESERVED: Self::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4: Self::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6: Self::LocatorKind = [0; 4];
+        type LocatorPort = [u8; 4];
+        const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
+        type LocatorAddress = [u8; 16];
+        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
+        const LOCATOR_INVALID: Self = MockLocator;
+
+        fn kind(&self) -> &Self::LocatorKind {
+            todo!()
+        }
+
+        fn port(&self) -> &Self::LocatorPort {
+            todo!()
+        }
+
+        fn address(&self) -> &Self::LocatorAddress {
+            todo!()
+        }
+    }
+
+    struct MockParameterList;
+
+    impl ParameterList<MockPSM> for MockParameterList {
+        type Parameter = MockParameter;
+
+        fn parameter(&self) -> &[Self::Parameter] {
+            todo!()
+        }
+    }
+
+    struct MockParameter;
+
+    impl Parameter<MockPSM> for MockParameter {
+        fn parameter_id(&self) -> () {
+            todo!()
+        }
+
+        fn length(&self) -> i16 {
+            todo!()
+        }
+
+        fn value(&self) -> &[u8] {
+            todo!()
+        }
+    }
+
+    struct MockReaderProxy;
+
+    impl RTPSReaderProxy<MockPSM> for MockReaderProxy {
+        type SequenceNumberVector = [i64; 2];
+
+        fn remote_reader_guid(&self) -> &MockGUID {
+            todo!()
+        }
+
+        fn remote_group_entity_id(&self) -> &[u8; 4] {
+            todo!()
+        }
+
+        fn unicast_locator_list(&self) -> &[MockLocator] {
+            todo!()
+        }
+
+        fn multicast_locator_list(&self) -> &[MockLocator] {
+            todo!()
+        }
+
+        fn expects_inline_qos(&self) -> bool {
+            todo!()
+        }
+
+        fn is_active(&self) -> bool {
+            todo!()
+        }
+
+        fn acked_changes_set(&mut self, _committed_seq_num: i64) {
+            todo!()
+        }
+
+        fn next_requested_change(&mut self) -> Option<i64> {
+            todo!()
+        }
+
+        fn next_unsent_change(&mut self) -> Option<i64> {
+            todo!()
+        }
+
+        fn unsent_changes(&self) -> Self::SequenceNumberVector {
+            todo!()
+        }
+
+        fn requested_changes(&self) -> Self::SequenceNumberVector {
+            todo!()
+        }
+
+        fn requested_changes_set(&mut self, _req_seq_num_set: Self::SequenceNumberVector) {
+            todo!()
+        }
+
+        fn unacked_changes(&self) -> Self::SequenceNumberVector {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn produce_messages_reliable() {
+        let mut reader_proxy = MockReaderProxy;
+        ReliableBehavior::produce_messages(&mut reader_proxy)
     }
 }
