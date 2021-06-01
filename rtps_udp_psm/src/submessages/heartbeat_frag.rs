@@ -10,6 +10,17 @@ impl rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPsm> f
     type FragmentNumber = FragmentNumber;
     type Count = Count;
 
+    fn new(
+        _endianness_flag: SubmessageFlag,
+        _reader_id: Self::EntityId,
+        _writer_id: Self::EntityId,
+        _writer_sn: Self::SequenceNumber,
+        _last_fragment_num: Self::FragmentNumber,
+        _count: Self::Count,
+    ) -> Self {
+        todo!()
+    }
+
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }

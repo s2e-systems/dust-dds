@@ -18,6 +18,24 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<RtpsUdpPsm> fo
     type SerializedData = SerializedData<'a>;
     type ParameterList = ParameterList;
 
+    fn new(
+        _endianness_flag: SubmessageFlag,
+        _inline_qos_flag: SubmessageFlag,
+        _non_standard_payload_flag: SubmessageFlag,
+        _key_flag: SubmessageFlag,
+        _reader_id: Self::EntityId,
+        _writer_id: Self::EntityId,
+        _writer_sn: Self::SequenceNumber,
+        _fragment_starting_num: Self::FragmentNumber,
+        _fragments_in_submessage: Self::UShort,
+        _data_size: Self::ULong,
+        _fragment_size: Self::UShort,
+        _inline_qos: Self::ParameterList,
+        _serialized_payload: Self::SerializedData,
+    ) -> Self {
+        todo!()
+    }
+
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
@@ -69,6 +87,8 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<RtpsUdpPsm> fo
     fn serialized_payload(&self) -> &Self::SerializedData {
         todo!()
     }
+
+
 }
 
 impl<'a> rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for DataFrag<'a> {

@@ -7,6 +7,15 @@ pub struct InfoReply;
 impl rust_rtps_pim::messages::submessages::InfoReplySubmessage<RtpsUdpPsm> for InfoReply {
     type LocatorList = LocatorList;
 
+    fn new(
+        _endianness_flag: SubmessageFlag,
+        _multicast_flag: SubmessageFlag,
+        _unicast_locator_list: Self::LocatorList,
+        _multicast_locator_list: Self::LocatorList,
+    ) -> Self {
+        todo!()
+    }
+
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }

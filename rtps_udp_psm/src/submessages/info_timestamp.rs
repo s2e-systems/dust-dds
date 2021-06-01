@@ -7,6 +7,14 @@ pub struct InfoTimestamp;
 impl rust_rtps_pim::messages::submessages::InfoTimestampSubmessage<RtpsUdpPsm> for InfoTimestamp {
     type Timestamp = Time;
 
+    fn new(
+        _endianness_flag: SubmessageFlag,
+        _invalidate_flag: SubmessageFlag,
+        _timestamp: Self::Timestamp,
+    ) -> Self {
+        todo!()
+    }
+
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }

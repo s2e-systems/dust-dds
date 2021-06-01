@@ -10,6 +10,17 @@ impl rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm> for Na
     type FragmentNumberSet = FragmentNumberSet;
     type Count = Count;
 
+    fn new(
+        _endianness_flag: SubmessageFlag,
+        _reader_id: Self::EntityId,
+        _writer_id: Self::EntityId,
+        _writer_sn: Self::SequenceNumber,
+        _fragment_number_state: Self::FragmentNumberSet,
+        _count: Self::Count,
+    ) -> Self {
+        todo!()
+    }
+
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }
