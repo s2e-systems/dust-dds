@@ -40,7 +40,7 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM>
         &'dr self,
         _a_topic: &'dr Self::TopicType,
         _qos: Option<DataReaderQos>,
-        _a_listener: Option<&'static dyn DataReaderListener<DataType = T>>,
+        _a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
         _mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         todo!()

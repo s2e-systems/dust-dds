@@ -1,51 +1,51 @@
 use crate::{
     behavior::RTPSReader,
-    messages::types::ParameterIdType,
+    messages::types::ParameterIdPIM,
     structure::types::{
-        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
-        ParameterListType, SequenceNumberType,
+        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+        ParameterListPIM, SequenceNumberPIM,
     },
 };
 
 use super::types::DurationType;
 
 pub trait RTPSWriterProxy<
-    PSM: GuidPrefixPIM + EntityIdPIM + LocatorType + EntityIdPIM + GUIDType<PSM> + SequenceNumberType,
+    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM<PSM> + SequenceNumberPIM,
 >
 {
-    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumber>;
+    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>;
 
-    fn remote_writer_guid(&self) -> &PSM::GUID;
+    fn remote_writer_guid(&self) -> &PSM::GUIDType;
     fn remote_group_entity_id(&self) -> &PSM::EntityIdType;
-    fn unicast_locator_list(&self) -> &[PSM::Locator];
-    fn multicast_locator_list(&self) -> &[PSM::Locator];
+    fn unicast_locator_list(&self) -> &[PSM::LocatorType];
+    fn multicast_locator_list(&self) -> &[PSM::LocatorType];
     fn data_max_size_serialized(&self) -> i32;
 
-    fn available_changes_max(&self) -> &PSM::SequenceNumber;
-    fn irrelevant_change_set(&mut self, a_seq_num: &PSM::SequenceNumber);
-    fn lost_changes_update(&mut self, first_available_seq_num: &PSM::SequenceNumber);
+    fn available_changes_max(&self) -> &PSM::SequenceNumberType;
+    fn irrelevant_change_set(&mut self, a_seq_num: &PSM::SequenceNumberType);
+    fn lost_changes_update(&mut self, first_available_seq_num: &PSM::SequenceNumberType);
     fn missing_changes(&self) -> Self::SequenceNumberVector;
-    fn missing_changes_update(&mut self, last_available_seq_num: PSM::SequenceNumber);
-    fn received_change_set(&mut self, a_seq_num: PSM::SequenceNumber);
+    fn missing_changes_update(&mut self, last_available_seq_num: PSM::SequenceNumberType);
+    fn received_change_set(&mut self, a_seq_num: PSM::SequenceNumberType);
 }
 
 pub trait RTPSStatefulReader<
-    PSM: InstanceHandleType
+    PSM: InstanceHandlePIM
         + GuidPrefixPIM
-        + DataType
+        + DataPIM
         + EntityIdPIM
-        + SequenceNumberType
-        + LocatorType
+        + SequenceNumberPIM
+        + LocatorPIM
         + DurationType
-        + GUIDType<PSM>
-        + ParameterIdType
-        + ParameterListType<PSM>,
+        + GUIDPIM<PSM>
+        + ParameterIdPIM
+        + ParameterListPIM<PSM>,
 >: RTPSReader<PSM>
 {
     type WriterProxyType;
 
     fn matched_writers(&self) -> &[Self::WriterProxyType];
     fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType);
-    fn matched_writer_remove(&mut self, writer_proxy_guid: &PSM::GUID);
-    fn matched_writer_lookup(&self, a_writer_guid: PSM::GUID) -> Option<&Self::WriterProxyType>;
+    fn matched_writer_remove(&mut self, writer_proxy_guid: &PSM::GUIDType);
+    fn matched_writer_lookup(&self, a_writer_guid: PSM::GUIDType) -> Option<&Self::WriterProxyType>;
 }

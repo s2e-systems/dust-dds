@@ -1,32 +1,32 @@
 use rust_rtps_pim::{
-    messages::types::ParameterIdType,
+    messages::types::ParameterIdPIM,
     structure::types::{
-        ChangeKind, DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType,
-        ParameterListType, SequenceNumberType,
+        ChangeKind, DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM,
+        ParameterListPIM, SequenceNumberPIM,
     },
 };
 
 pub trait RTPSCacheChangeImplTrait:
-    InstanceHandleType
-    + SequenceNumberType
-    + DataType
-    + ParameterIdType
+    InstanceHandlePIM
+    + SequenceNumberPIM
+    + DataPIM
+    + ParameterIdPIM
     + EntityIdPIM
     + GuidPrefixPIM
-    + GUIDType<Self>
-    + ParameterListType<Self>
+    + GUIDPIM<Self>
+    + ParameterListPIM<Self>
     + Sized
 {
 }
 impl<
-        T: InstanceHandleType
-            + SequenceNumberType
-            + DataType
-            + ParameterIdType
+        T: InstanceHandlePIM
+            + SequenceNumberPIM
+            + DataPIM
+            + ParameterIdPIM
             + EntityIdPIM
             + GuidPrefixPIM
-            + GUIDType<Self>
-            + ParameterListType<Self>
+            + GUIDPIM<Self>
+            + ParameterListPIM<Self>
             + Sized,
     > RTPSCacheChangeImplTrait for T
 {
@@ -34,21 +34,21 @@ impl<
 
 pub struct RTPSCacheChangeImpl<PSM: RTPSCacheChangeImplTrait> {
     kind: ChangeKind,
-    writer_guid: PSM::GUID,
-    instance_handle: PSM::InstanceHandle,
-    sequence_number: PSM::SequenceNumber,
-    data: PSM::Data,
-    inline_qos: PSM::ParameterList,
+    writer_guid: PSM::GUIDType,
+    instance_handle: PSM::InstanceHandleType,
+    sequence_number: PSM::SequenceNumberType,
+    data: PSM::DataType,
+    inline_qos: PSM::ParameterListType,
 }
 
 impl<PSM: RTPSCacheChangeImplTrait> RTPSCacheChangeImpl<PSM> {
     pub fn new(
         kind: ChangeKind,
-        writer_guid: PSM::GUID,
-        instance_handle: PSM::InstanceHandle,
-        sequence_number: PSM::SequenceNumber,
-        data: PSM::Data,
-        inline_qos: PSM::ParameterList,
+        writer_guid: PSM::GUIDType,
+        instance_handle: PSM::InstanceHandleType,
+        sequence_number: PSM::SequenceNumberType,
+        data: PSM::DataType,
+        inline_qos: PSM::ParameterListType,
     ) -> Self {
         Self {
             kind,
@@ -68,23 +68,23 @@ impl<PSM: RTPSCacheChangeImplTrait> rust_rtps_pim::structure::RTPSCacheChange<PS
         &self.kind
     }
 
-    fn writer_guid(&self) -> &PSM::GUID {
+    fn writer_guid(&self) -> &PSM::GUIDType {
         &self.writer_guid
     }
 
-    fn instance_handle(&self) -> &PSM::InstanceHandle {
+    fn instance_handle(&self) -> &PSM::InstanceHandleType {
         &self.instance_handle
     }
 
-    fn sequence_number(&self) -> &PSM::SequenceNumber {
+    fn sequence_number(&self) -> &PSM::SequenceNumberType {
         &self.sequence_number
     }
 
-    fn data_value(&self) -> &PSM::Data {
+    fn data_value(&self) -> &PSM::DataType {
         &self.data
     }
 
-    fn inline_qos(&self) -> &PSM::ParameterList {
+    fn inline_qos(&self) -> &PSM::ParameterListType {
         &self.inline_qos
     }
 }

@@ -38,7 +38,7 @@ pub trait CountType {
     type Count: Copy;
 }
 
-pub trait ParameterIdType {
+pub trait ParameterIdPIM {
     type ParameterId: Copy;
 }
 

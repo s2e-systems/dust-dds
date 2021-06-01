@@ -1,9 +1,9 @@
-use crate::messages::types::ParameterIdType;
+use crate::messages::types::ParameterIdPIM;
 
 use super::{
     types::{
-        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, ParameterListType,
-        SequenceNumberType,
+        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
+        SequenceNumberPIM,
     },
     RTPSCacheChange,
 };
@@ -11,12 +11,12 @@ use super::{
 pub trait RTPSHistoryCache<
     PSM: GuidPrefixPIM
         + EntityIdPIM
-        + InstanceHandleType
-        + DataType
-        + ParameterIdType
-        + ParameterListType<PSM>
-        + GUIDType<PSM>
-        + SequenceNumberType,
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterIdPIM
+        + ParameterListPIM<PSM>
+        + GUIDPIM<PSM>
+        + SequenceNumberPIM,
 >
 {
     type CacheChange: RTPSCacheChange<PSM>;
@@ -35,13 +35,13 @@ pub trait RTPSHistoryCache<
     /// This operation indicates that a previously-added CacheChange has become irrelevant and the details regarding the CacheChange need
     /// not be maintained in the HistoryCache. The determination of irrelevance is made based on the QoS associated with the related DDS
     /// entity and on the acknowledgment status of the CacheChange. This is described in 8.4.1.
-    fn remove_change(&mut self, seq_num: &PSM::SequenceNumber);
+    fn remove_change(&mut self, seq_num: &PSM::SequenceNumberType);
 
-    fn get_change(&self, seq_num: &PSM::SequenceNumber) -> Option<&Self::CacheChange>;
+    fn get_change(&self, seq_num: &PSM::SequenceNumberType) -> Option<&Self::CacheChange>;
 
     /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
-    fn get_seq_num_min(&self) -> Option<&PSM::SequenceNumber>;
+    fn get_seq_num_min(&self) -> Option<&PSM::SequenceNumberType>;
 
     /// This operation retrieves the largest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
-    fn get_seq_num_max(&self) -> Option<&PSM::SequenceNumber>;
+    fn get_seq_num_max(&self) -> Option<&PSM::SequenceNumberType>;
 }

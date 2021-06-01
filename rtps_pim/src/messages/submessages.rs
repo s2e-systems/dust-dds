@@ -1,25 +1,25 @@
 use crate::{
     messages::{submessage_elements, Submessage},
     structure::types::{
-        DataType, EntityIdPIM, GuidPrefixPIM, LocatorType, ProtocolVersionType,
-        SequenceNumberType, VendorIdType,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM,
+        SequenceNumberPIM, VendorIdPIM,
     },
 };
 
 use super::types::{
-    CountType, FragmentNumberType, ParameterIdType, SubmessageFlagType, SubmessageKindType,
+    CountType, FragmentNumberType, ParameterIdPIM, SubmessageFlagType, SubmessageKindType,
     TimeType,
 };
 
 pub trait AckNackSubmessagePIM<
-    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberType + CountType,
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberPIM + CountType,
 >
 {
     type AckNackSubmessageType: AckNackSubmessage<PSM>;
 }
 
 pub trait AckNackSubmessage<
-    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberType + CountType,
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberPIM + CountType,
 >: Submessage<PSM>
 {
     type EntityId: submessage_elements::EntityId<PSM>;
@@ -35,14 +35,14 @@ pub trait AckNackSubmessage<
 }
 
 pub trait DataSubmessagePIM<
-    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberType + DataType,
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberPIM + DataPIM,
 >
 {
     type DataSubmessageType: DataSubmessage<PSM>;
 }
 
 pub trait DataSubmessage<
-    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberType + DataType,
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberPIM + DataPIM,
 >: Submessage<PSM>
 {
     type EntityId: submessage_elements::EntityId<PSM>;
@@ -65,10 +65,10 @@ pub trait DataFragSubmessagePIM<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdPIM
-        + SequenceNumberType
+        + SequenceNumberPIM
         + FragmentNumberType
-        + DataType
-        + ParameterIdType,
+        + DataPIM
+        + ParameterIdPIM,
 >
 {
     type DataFragSubmessageType: DataFragSubmessage<PSM>;
@@ -78,10 +78,10 @@ pub trait DataFragSubmessage<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdPIM
-        + SequenceNumberType
+        + SequenceNumberPIM
         + FragmentNumberType
-        + DataType
-        + ParameterIdType,
+        + DataPIM
+        + ParameterIdPIM,
 >: Submessage<PSM>
 {
     type EntityId: submessage_elements::EntityId<PSM>;
@@ -108,14 +108,14 @@ pub trait DataFragSubmessage<
 }
 
 pub trait GapSubmessagePIM<
-    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberType,
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberPIM,
 >
 {
     type GapSubmessageType: GapSubmessage<PSM>;
 }
 
 pub trait GapSubmessage<
-    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberType,
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberPIM,
 >: Submessage<PSM>
 {
     type EntityId: submessage_elements::EntityId<PSM>;
@@ -132,14 +132,14 @@ pub trait GapSubmessage<
 }
 
 pub trait HeartbeatSubmessagePIM<
-    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberType + CountType,
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberPIM + CountType,
 >
 {
     type HeartbeatSubmessageType: HeartbeatSubmessage<PSM>;
 }
 
 pub trait HeartbeatSubmessage<
-    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberType + CountType,
+    PSM: SubmessageKindType + SubmessageFlagType + EntityIdPIM + SequenceNumberPIM + CountType,
 >: Submessage<PSM>
 {
     type EntityId: submessage_elements::EntityId<PSM>;
@@ -165,7 +165,7 @@ pub trait HeartbeatFragSubmessagePIM<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdPIM
-        + SequenceNumberType
+        + SequenceNumberPIM
         + FragmentNumberType
         + CountType,
 >
@@ -177,7 +177,7 @@ pub trait HeartbeatFragSubmessage<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdPIM
-        + SequenceNumberType
+        + SequenceNumberPIM
         + FragmentNumberType
         + CountType,
 >: Submessage<PSM>
@@ -211,11 +211,11 @@ pub trait InfoDestinationSubmessage<PSM: SubmessageKindType + SubmessageFlagType
     fn guid_prefix(&self) -> &Self::GuidPrefix;
 }
 
-pub trait InfoReplySubmessagePIM<PSM: SubmessageKindType + SubmessageFlagType + LocatorType> {
+pub trait InfoReplySubmessagePIM<PSM: SubmessageKindType + SubmessageFlagType + LocatorPIM> {
     type InfoReplySubmessageType: InfoReplySubmessage<PSM>;
 }
 
-pub trait InfoReplySubmessage<PSM: SubmessageKindType + SubmessageFlagType + LocatorType>:
+pub trait InfoReplySubmessage<PSM: SubmessageKindType + SubmessageFlagType + LocatorPIM>:
     Submessage<PSM>
 {
     type LocatorList: submessage_elements::LocatorList<PSM>;
@@ -227,14 +227,14 @@ pub trait InfoReplySubmessage<PSM: SubmessageKindType + SubmessageFlagType + Loc
 }
 
 pub trait InfoSourceSubmessagePIM<
-    PSM: SubmessageKindType + SubmessageFlagType + ProtocolVersionType + VendorIdType + GuidPrefixPIM,
+    PSM: SubmessageKindType + SubmessageFlagType + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM,
 >
 {
     type InfoSourceSubmessageType: InfoSourceSubmessage<PSM>;
 }
 
 pub trait InfoSourceSubmessage<
-    PSM: SubmessageKindType + SubmessageFlagType + ProtocolVersionType + VendorIdType + GuidPrefixPIM,
+    PSM: SubmessageKindType + SubmessageFlagType + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM,
 >: Submessage<PSM>
 {
     type GuidPrefix: submessage_elements::GuidPrefix<PSM>;
@@ -265,7 +265,7 @@ pub trait NackFragSubmessagePIM<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdPIM
-        + SequenceNumberType
+        + SequenceNumberPIM
         + FragmentNumberType
         + CountType,
 >
@@ -277,7 +277,7 @@ pub trait NackFragSubmessage<
     PSM: SubmessageKindType
         + SubmessageFlagType
         + EntityIdPIM
-        + SequenceNumberType
+        + SequenceNumberPIM
         + FragmentNumberType
         + CountType,
 >: Submessage<PSM>

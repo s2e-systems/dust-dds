@@ -24,7 +24,7 @@ pub trait DataWriterTopic<T: 'static> {
 }
 
 pub trait DataWriter<T: 'static>:
-    Entity<Qos = DataWriterQos, Listener = &'static dyn DataWriterListener<DataType = T>>
+    Entity<Qos = DataWriterQos, Listener = &'static dyn DataWriterListener<DataPIM = T>>
 {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.

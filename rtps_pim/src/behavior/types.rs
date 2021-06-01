@@ -7,7 +7,7 @@ pub trait DurationType {
     type Duration: Copy + Send + Sync;
 }
 
-pub trait ParticipantMessageDataType {
+pub trait ParticipantMessageDataPIM {
     type ParticipantMessageData: Copy + Send + Sync;
 }
 

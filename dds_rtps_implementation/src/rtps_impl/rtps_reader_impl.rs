@@ -8,7 +8,7 @@ use rust_rtps::structure::{RTPSEndpoint, RTPSEntity};
 
 use super::{mask_listener::MaskListener, topic_impl::TopicImpl};
 
-struct RtpsDataReaderListener<T: DDSType>(Box<dyn DataReaderListener<DataType = T>>);
+struct RtpsDataReaderListener<T: DDSType>(Box<dyn DataReaderListener<DataPIM = T>>);
 trait AnyDataReaderListener: Send + Sync {}
 
 impl<T: DDSType> AnyDataReaderListener for RtpsDataReaderListener<T> {}
@@ -23,7 +23,7 @@ impl ReaderImpl {
     pub fn new<T: DDSType>(
         topic: Arc<Mutex<TopicImpl>>,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataPIM = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let listener: Option<Box<dyn AnyDataReaderListener>> = match listener {

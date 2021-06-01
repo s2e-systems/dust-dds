@@ -1,14 +1,14 @@
 use std::iter::FromIterator;
 
 use rust_rtps_pim::{
-    behavior::types::{DurationType, ParticipantMessageDataType},
+    behavior::types::{DurationType, ParticipantMessageDataPIM},
     messages::types::{
-        CountType, FragmentNumberType, GroupDigestType, ParameterIdType, ProtocolIdType,
+        CountType, FragmentNumberType, GroupDigestType, ParameterIdPIM, ProtocolIdType,
         SubmessageFlagType, SubmessageKindType, TimeType,
     },
     structure::types::{
-        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
-        ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType,
+        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+        ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM,
     },
 };
 
@@ -34,7 +34,7 @@ impl EntityIdPIM for RtpsUdpPsm {
     };
 }
 
-impl GUIDType<RtpsUdpPsm> for RtpsUdpPsm {
+impl GUIDPIM<RtpsUdpPsm> for RtpsUdpPsm {
     type GUID = GUID;
     const GUID_UNKNOWN: Self::GUID = GUID {
         prefix: RtpsUdpPsm::GUIDPREFIX_UNKNOWN,
@@ -62,41 +62,41 @@ impl rust_rtps_pim::structure::types::GUID<RtpsUdpPsm> for GUID {
     }
 }
 
-impl SequenceNumberType for RtpsUdpPsm {
-    type SequenceNumber = SequenceNumber;
-    const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = SequenceNumber {
+impl SequenceNumberPIM for RtpsUdpPsm {
+    type SequenceNumberType = SequenceNumber;
+    const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = SequenceNumber {
         high: core::i32::MIN,
         low: core::u32::MAX,
     };
 }
 
-impl LocatorType for RtpsUdpPsm {
-    type Locator = Locator;
+impl LocatorPIM for RtpsUdpPsm {
+    type LocatorType = Locator;
 }
 
-impl InstanceHandleType for RtpsUdpPsm {
-    type InstanceHandle = InstanceHandle;
+impl InstanceHandlePIM for RtpsUdpPsm {
+    type InstanceHandleType = InstanceHandle;
 }
 
-impl ProtocolVersionType for RtpsUdpPsm {
-    type ProtocolVersion = ProtocolVersion;
-    const PROTOCOLVERSION: Self::ProtocolVersion = Self::PROTOCOLVERSION_2_4;
-    const PROTOCOLVERSION_1_0: Self::ProtocolVersion = ProtocolVersion { major: 1, minor: 0 };
-    const PROTOCOLVERSION_1_1: Self::ProtocolVersion = ProtocolVersion { major: 1, minor: 1 };
-    const PROTOCOLVERSION_2_0: Self::ProtocolVersion = ProtocolVersion { major: 2, minor: 0 };
-    const PROTOCOLVERSION_2_1: Self::ProtocolVersion = ProtocolVersion { major: 2, minor: 1 };
-    const PROTOCOLVERSION_2_2: Self::ProtocolVersion = ProtocolVersion { major: 2, minor: 2 };
-    const PROTOCOLVERSION_2_3: Self::ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
-    const PROTOCOLVERSION_2_4: Self::ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
+impl ProtocolVersionPIM for RtpsUdpPsm {
+    type ProtocolVersionType = ProtocolVersion;
+    const PROTOCOLVERSION: Self::ProtocolVersionType = Self::PROTOCOLVERSION_2_4;
+    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType = ProtocolVersion { major: 1, minor: 0 };
+    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType = ProtocolVersion { major: 1, minor: 1 };
+    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 0 };
+    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 1 };
+    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 2 };
+    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 3 };
+    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 4 };
 }
 
-impl VendorIdType for RtpsUdpPsm {
+impl VendorIdPIM for RtpsUdpPsm {
     type VendorId = VendorId;
     const VENDOR_ID_UNKNOWN: Self::VendorId = VendorId([0; 2]);
 }
 
-impl DataType for RtpsUdpPsm {
-    type Data = Data;
+impl DataPIM for RtpsUdpPsm {
+    type DataType = Data;
 }
 
 impl ProtocolIdType for RtpsUdpPsm {
@@ -104,7 +104,7 @@ impl ProtocolIdType for RtpsUdpPsm {
     const PROTOCOL_RTPS: Self::ProtocolId = [b'R', b'T', b'P', b'S'];
 }
 
-impl ParameterListType<RtpsUdpPsm> for RtpsUdpPsm {
+impl ParameterListPIM<RtpsUdpPsm> for RtpsUdpPsm {
     type ParameterList = ParameterList;
 }
 
@@ -150,7 +150,7 @@ impl CountType for RtpsUdpPsm {
     type Count = Count;
 }
 
-impl ParameterIdType for RtpsUdpPsm {
+impl ParameterIdPIM for RtpsUdpPsm {
     type ParameterId = ParameterId;
 }
 
@@ -166,7 +166,7 @@ impl DurationType for RtpsUdpPsm {
     type Duration = Duration;
 }
 
-impl ParticipantMessageDataType for RtpsUdpPsm {
+impl ParticipantMessageDataPIM for RtpsUdpPsm {
     type ParticipantMessageData = ();
 }
 
@@ -318,7 +318,7 @@ pub struct Locator {
     pub address: [u8; 16],
 }
 
-impl rust_rtps_pim::structure::types::LocatorSubTypes for Locator {
+impl rust_rtps_pim::structure::types::Locator for Locator {
     type LocatorKind = Long;
     type LocatorPort = ULong;
     type LocatorAddress = [u8; 16];

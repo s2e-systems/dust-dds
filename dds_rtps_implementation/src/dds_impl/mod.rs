@@ -1,9 +1,9 @@
 use rust_rtps_pim::{
     behavior::types::DurationType,
-    messages::types::{ParameterIdType, SubmessageFlagType, SubmessageKindType},
+    messages::types::{ParameterIdPIM, SubmessageFlagType, SubmessageKindType},
     structure::types::{
-        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
-        ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType,
+        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+        ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM,
     },
 };
 
@@ -19,17 +19,17 @@ pub mod writer_group_factory;
 
 pub trait PIM:
     GuidPrefixPIM
-    + VendorIdType
+    + VendorIdPIM
     + EntityIdPIM
-    + SequenceNumberType
-    + ProtocolVersionType
+    + SequenceNumberPIM
+    + ProtocolVersionPIM
     + DurationType
-    + InstanceHandleType
-    + LocatorType
-    + DataType
-    + GUIDType<Self>
-    + ParameterIdType
-    + ParameterListType<Self>
+    + InstanceHandlePIM
+    + LocatorPIM
+    + DataPIM
+    + GUIDPIM<Self>
+    + ParameterIdPIM
+    + ParameterListPIM<Self>
     + SubmessageKindType
     + SubmessageFlagType
     + Sized
@@ -39,17 +39,17 @@ pub trait PIM:
 
 impl<
         T: GuidPrefixPIM
-            + VendorIdType
+            + VendorIdPIM
             + EntityIdPIM
-            + SequenceNumberType
-            + ProtocolVersionType
+            + SequenceNumberPIM
+            + ProtocolVersionPIM
             + DurationType
-            + InstanceHandleType
-            + LocatorType
-            + DataType
-            + GUIDType<Self>
-            + ParameterIdType
-            + ParameterListType<Self>
+            + InstanceHandlePIM
+            + LocatorPIM
+            + DataPIM
+            + GUIDPIM<Self>
+            + ParameterIdPIM
+            + ParameterListPIM<Self>
             + SubmessageKindType
             + SubmessageFlagType
             + Sized

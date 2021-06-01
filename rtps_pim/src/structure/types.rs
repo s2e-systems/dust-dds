@@ -1,4 +1,4 @@
-use crate::messages::{submessage_elements::ParameterList, types::ParameterIdType};
+use crate::messages::{submessage_elements::ParameterList, types::ParameterIdPIM};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -15,16 +15,16 @@ pub trait EntityIdPIM {
     const ENTITYID_PARTICIPANT: Self::EntityIdType;
 }
 
-pub trait SequenceNumberType {
-    type SequenceNumber: Into<i64> + From<i64> + Ord + Copy + Send + Sync;
-    const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber;
+pub trait SequenceNumberPIM {
+    type SequenceNumberType: Into<i64> + From<i64> + Ord + Copy + Send + Sync;
+    const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType;
 }
 
-pub trait LocatorType {
-    type Locator: LocatorSubTypes;
+pub trait LocatorPIM {
+    type LocatorType: Locator;
 }
 
-pub trait LocatorSubTypes: PartialEq + Copy + Send + Sync {
+pub trait Locator: PartialEq + Copy + Send + Sync {
     type LocatorKind: Into<[u8; 4]> + From<[u8; 4]> + PartialEq + Copy + Send + Sync;
     const LOCATOR_KIND_INVALID: Self::LocatorKind;
     const LOCATOR_KIND_RESERVED: Self::LocatorKind;
@@ -46,38 +46,38 @@ pub trait LocatorSubTypes: PartialEq + Copy + Send + Sync {
     fn address(&self) -> &Self::LocatorAddress;
 }
 
-pub trait InstanceHandleType {
-    type InstanceHandle: Copy + Send + Sync;
+pub trait InstanceHandlePIM {
+    type InstanceHandleType: Copy + Send + Sync;
 }
 
-pub trait ProtocolVersionType {
-    type ProtocolVersion: Copy + Send + Sync;
-    const PROTOCOLVERSION: Self::ProtocolVersion;
-    const PROTOCOLVERSION_1_0: Self::ProtocolVersion;
-    const PROTOCOLVERSION_1_1: Self::ProtocolVersion;
-    const PROTOCOLVERSION_2_0: Self::ProtocolVersion;
-    const PROTOCOLVERSION_2_1: Self::ProtocolVersion;
-    const PROTOCOLVERSION_2_2: Self::ProtocolVersion;
-    const PROTOCOLVERSION_2_3: Self::ProtocolVersion;
-    const PROTOCOLVERSION_2_4: Self::ProtocolVersion;
+pub trait ProtocolVersionPIM {
+    type ProtocolVersionType: Copy + Send + Sync;
+    const PROTOCOLVERSION: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType;
 }
 
-pub trait VendorIdType {
+pub trait VendorIdPIM {
     type VendorId: Copy + Send + Sync;
     const VENDOR_ID_UNKNOWN: Self::VendorId;
 }
 
-pub trait DataType {
-    type Data: Send + Sync;
+pub trait DataPIM {
+    type DataType: Send + Sync;
 }
 
-pub trait ParameterListType<PSM: ParameterIdType> {
-    type ParameterList: ParameterList<PSM> + Send + Sync;
+pub trait ParameterListPIM<PSM: ParameterIdPIM> {
+    type ParameterListType: ParameterList<PSM> + Send + Sync;
 }
 
-pub trait GUIDType<PSM: GuidPrefixPIM + EntityIdPIM> {
-    type GUID: GUID<PSM> + Copy + PartialEq + Send + Sync;
-    const GUID_UNKNOWN: Self::GUID;
+pub trait GUIDPIM<PSM: GuidPrefixPIM + EntityIdPIM> {
+    type GUIDType: GUID<PSM> + Copy + PartialEq + Send + Sync;
+    const GUID_UNKNOWN: Self::GUIDType;
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
@@ -86,25 +86,6 @@ pub trait GUID<PSM: GuidPrefixPIM + EntityIdPIM> {
     fn prefix(&self) -> &PSM::GuidPrefixType;
     fn entity_id(&self) -> &PSM::EntityIdType;
 }
-
-// impl<PSM: GuidPrefixPIM + EntityIdPIM> GUID<PSM> {
-//     pub const GUID_UNKNOWN: Self = Self {
-//         prefix: PSM::GUIDPREFIX_UNKNOWN,
-//         entity_id: PSM::ENTITYID_UNKNOWN,
-//     };
-
-//     pub fn new(prefix: PSM::GuidPrefix, entity_id: PSM::EntityId) -> Self {
-//         Self { prefix, entity_id }
-//     }
-
-//     pub fn prefix(&self) -> &PSM::GuidPrefix {
-//         &self.prefix
-//     }
-
-//     pub fn entity_id(&self) -> &PSM::EntityId {
-//         &self.entity_id
-//     }
-// }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TopicKind {

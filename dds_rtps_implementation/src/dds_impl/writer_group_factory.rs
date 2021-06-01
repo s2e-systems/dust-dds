@@ -4,10 +4,10 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::types::DurationType,
-    messages::types::ParameterIdType,
+    messages::types::ParameterIdPIM,
     structure::types::{
-        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
-        ParameterListType, SequenceNumberType, GUID,
+        DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+        ParameterListPIM, SequenceNumberPIM, GUID,
     },
 };
 
@@ -18,14 +18,14 @@ const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 pub trait WriterGroupFactoryTrait:
     GuidPrefixPIM
     + EntityIdPIM
-    + SequenceNumberType
+    + SequenceNumberPIM
     + DurationType
-    + InstanceHandleType
-    + LocatorType
-    + DataType
-    + ParameterIdType
-    + GUIDType<Self>
-    + ParameterListType<Self>
+    + InstanceHandlePIM
+    + LocatorPIM
+    + DataPIM
+    + ParameterIdPIM
+    + GUIDPIM<Self>
+    + ParameterListPIM<Self>
     + Sized
 {
 }
@@ -33,14 +33,14 @@ pub trait WriterGroupFactoryTrait:
 impl<
         T: GuidPrefixPIM
             + EntityIdPIM
-            + SequenceNumberType
+            + SequenceNumberPIM
             + DurationType
-            + InstanceHandleType
-            + LocatorType
-            + DataType
-            + ParameterIdType
-            + GUIDType<Self>
-            + ParameterListType<Self>
+            + InstanceHandlePIM
+            + LocatorPIM
+            + DataPIM
+            + ParameterIdPIM
+            + GUIDPIM<Self>
+            + ParameterListPIM<Self>
             + Sized,
     > WriterGroupFactoryTrait for T
 {

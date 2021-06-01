@@ -1,11 +1,11 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
     behavior::types::DurationType,
-    messages::types::ParameterIdType,
+    messages::types::ParameterIdPIM,
     structure::{
         types::{
-            DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
-            ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType, GUID,
+            DataPIM, EntityIdPIM, GUIDPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUID,
         },
         RTPSEntity,
     },
@@ -18,16 +18,16 @@ use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 pub trait RTPSParticipantImplTrait:
     GuidPrefixPIM
     + EntityIdPIM
-    + SequenceNumberType
-    + LocatorType
-    + VendorIdType
+    + SequenceNumberPIM
+    + LocatorPIM
+    + VendorIdPIM
     + DurationType
-    + InstanceHandleType
-    + DataType
-    + ProtocolVersionType
-    + ParameterIdType
-    + GUIDType<Self>
-    + ParameterListType<Self>
+    + InstanceHandlePIM
+    + DataPIM
+    + ProtocolVersionPIM
+    + ParameterIdPIM
+    + GUIDPIM<Self>
+    + ParameterListPIM<Self>
     + Sized
 {
 }
@@ -35,23 +35,23 @@ pub trait RTPSParticipantImplTrait:
 impl<
         T: GuidPrefixPIM
             + EntityIdPIM
-            + SequenceNumberType
-            + LocatorType
-            + VendorIdType
+            + SequenceNumberPIM
+            + LocatorPIM
+            + VendorIdPIM
             + DurationType
-            + InstanceHandleType
-            + DataType
-            + ProtocolVersionType
-            + ParameterIdType
-            + GUIDType<Self>
-            + ParameterListType<Self>
+            + InstanceHandlePIM
+            + DataPIM
+            + ProtocolVersionPIM
+            + ParameterIdPIM
+            + GUIDPIM<Self>
+            + ParameterListPIM<Self>
             + Sized,
     > RTPSParticipantImplTrait for T
 {
 }
 
 pub struct RTPSParticipantImpl<PSM: RTPSParticipantImplTrait> {
-    guid: PSM::GUID,
+    guid: PSM::GUIDType,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
@@ -88,7 +88,7 @@ impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
 impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PSM>
     for RTPSParticipantImpl<PSM>
 {
-    fn protocol_version(&self) -> PSM::ProtocolVersion {
+    fn protocol_version(&self) -> PSM::ProtocolVersionType {
         todo!()
     }
 
@@ -96,17 +96,17 @@ impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PS
         todo!()
     }
 
-    fn default_unicast_locator_list(&self) -> &[PSM::Locator] {
+    fn default_unicast_locator_list(&self) -> &[PSM::LocatorType] {
         todo!()
     }
 
-    fn default_multicast_locator_list(&self) -> &[PSM::Locator] {
+    fn default_multicast_locator_list(&self) -> &[PSM::LocatorType] {
         todo!()
     }
 }
 
 impl<PSM: RTPSParticipantImplTrait> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
-    fn guid(&self) -> &PSM::GUID {
+    fn guid(&self) -> &PSM::GUIDType {
         &self.guid
     }
 }

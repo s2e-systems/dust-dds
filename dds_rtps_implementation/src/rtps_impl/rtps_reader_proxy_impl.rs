@@ -1,34 +1,34 @@
 use rust_rtps_pim::structure::types::{
-    EntityIdPIM, GUIDType, GuidPrefixPIM, LocatorType, SequenceNumberType,
+    EntityIdPIM, GUIDPIM, GuidPrefixPIM, LocatorPIM, SequenceNumberPIM,
 };
 
 pub trait RTPSReaderProxyImplTrait:
-    SequenceNumberType + GuidPrefixPIM + EntityIdPIM + GUIDType<Self> + LocatorType + Sized
+    SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM<Self> + LocatorPIM + Sized
 {
 }
 
 impl<
-        T: SequenceNumberType + GuidPrefixPIM + EntityIdPIM + GUIDType<Self> + LocatorType + Sized,
+        T: SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM<Self> + LocatorPIM + Sized,
     > RTPSReaderProxyImplTrait for T
 {
 }
 
 pub struct RTPSReaderProxyImpl<PSM: RTPSReaderProxyImplTrait> {
-    remote_reader_guid: PSM::GUID,
+    remote_reader_guid: PSM::GUIDType,
     remote_group_entity_id: PSM::EntityIdType,
-    unicast_locator_list: Vec<PSM::Locator>,
-    multicast_locator_list: Vec<PSM::Locator>,
+    unicast_locator_list: Vec<PSM::LocatorType>,
+    multicast_locator_list: Vec<PSM::LocatorType>,
     expects_inline_qos: bool,
     is_active: bool,
-    last_sent_sequence_number: PSM::SequenceNumber,
+    last_sent_sequence_number: PSM::SequenceNumberType,
 }
 
 impl<PSM: RTPSReaderProxyImplTrait> RTPSReaderProxyImpl<PSM> {
     pub fn new(
-        remote_reader_guid: PSM::GUID,
+        remote_reader_guid: PSM::GUIDType,
         remote_group_entity_id: PSM::EntityIdType,
-        unicast_locator_list: Vec<PSM::Locator>,
-        multicast_locator_list: Vec<PSM::Locator>,
+        unicast_locator_list: Vec<PSM::LocatorType>,
+        multicast_locator_list: Vec<PSM::LocatorType>,
         expects_inline_qos: bool,
         is_active: bool,
     ) -> Self {
@@ -47,9 +47,9 @@ impl<PSM: RTPSReaderProxyImplTrait> RTPSReaderProxyImpl<PSM> {
 impl<PSM: RTPSReaderProxyImplTrait> rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>
     for RTPSReaderProxyImpl<PSM>
 {
-    type SequenceNumberVector = Vec<PSM::SequenceNumber>;
+    type SequenceNumberVector = Vec<PSM::SequenceNumberType>;
 
-    fn remote_reader_guid(&self) -> &PSM::GUID {
+    fn remote_reader_guid(&self) -> &PSM::GUIDType {
         &self.remote_reader_guid
     }
 
@@ -57,11 +57,11 @@ impl<PSM: RTPSReaderProxyImplTrait> rust_rtps_pim::behavior::stateful_writer::RT
         &self.remote_group_entity_id
     }
 
-    fn unicast_locator_list(&self) -> &[PSM::Locator] {
+    fn unicast_locator_list(&self) -> &[PSM::LocatorType] {
         &self.unicast_locator_list
     }
 
-    fn multicast_locator_list(&self) -> &[PSM::Locator] {
+    fn multicast_locator_list(&self) -> &[PSM::LocatorType] {
         &self.multicast_locator_list
     }
 
@@ -73,15 +73,15 @@ impl<PSM: RTPSReaderProxyImplTrait> rust_rtps_pim::behavior::stateful_writer::RT
         self.is_active
     }
 
-    fn acked_changes_set(&mut self, _committed_seq_num: PSM::SequenceNumber) {
+    fn acked_changes_set(&mut self, _committed_seq_num: PSM::SequenceNumberType) {
         todo!()
     }
 
-    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumber> {
+    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType> {
         todo!()
     }
 
-    fn next_unsent_change(&mut self) -> Option<PSM::SequenceNumber> {
+    fn next_unsent_change(&mut self) -> Option<PSM::SequenceNumberType> {
         todo!()
     }
 

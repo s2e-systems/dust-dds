@@ -140,7 +140,7 @@ impl<'t, T: 'static, PSM: PIM> rust_dds_api::domain::domain_participant::TopicFa
         &'t self,
         _topic_name: &str,
         _qos: Option<TopicQos>,
-        _a_listener: Option<&'static dyn TopicListener<DataType = T>>,
+        _a_listener: Option<&'static dyn TopicListener<DataPIM = T>>,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         todo!()

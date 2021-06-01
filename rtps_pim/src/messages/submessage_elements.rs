@@ -6,10 +6,10 @@ use structure::types::{EntityIdPIM, GuidPrefixPIM};
 ///
 use crate::structure::{
     self,
-    types::{LocatorType, ProtocolVersionType, SequenceNumberType, VendorIdType},
+    types::{LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM},
 };
 
-use super::types::{CountType, FragmentNumberType, GroupDigestType, ParameterIdType, TimeType};
+use super::types::{CountType, FragmentNumberType, GroupDigestType, ParameterIdPIM, TimeType};
 
 pub trait UShort {
     fn value(&self) -> &u16;
@@ -35,22 +35,22 @@ pub trait EntityId<PSM: EntityIdPIM> {
     fn value(&self) -> &PSM::EntityIdType;
 }
 
-pub trait VendorId<PSM: VendorIdType> {
+pub trait VendorId<PSM: VendorIdPIM> {
     fn value(&self) -> &PSM::VendorId;
 }
 
-pub trait ProtocolVersion<PSM: ProtocolVersionType> {
-    fn value(&self) -> &PSM::ProtocolVersion;
+pub trait ProtocolVersion<PSM: ProtocolVersionPIM> {
+    fn value(&self) -> &PSM::ProtocolVersionType;
 }
 
-pub trait SequenceNumber<PSM: SequenceNumberType> {
-    fn value(&self) -> &PSM::SequenceNumber;
+pub trait SequenceNumber<PSM: SequenceNumberPIM> {
+    fn value(&self) -> &PSM::SequenceNumberType;
 }
 
-pub trait SequenceNumberSet<PSM: SequenceNumberType> {
+pub trait SequenceNumberSet<PSM: SequenceNumberPIM> {
     type SequenceNumberVector;
 
-    fn base(&self) -> &PSM::SequenceNumber;
+    fn base(&self) -> &PSM::SequenceNumberType;
     fn set(&self) -> &Self::SequenceNumberVector;
 }
 
@@ -69,13 +69,13 @@ pub trait Timestamp<PSM: TimeType> {
     fn value(&self) -> &PSM::Time;
 }
 
-pub trait Parameter<PSM: ParameterIdType> {
+pub trait Parameter<PSM: ParameterIdPIM> {
     fn parameter_id(&self) -> PSM::ParameterId;
     fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }
 
-pub trait ParameterList<PSM: ParameterIdType> {
+pub trait ParameterList<PSM: ParameterIdPIM> {
     type Parameter: Parameter<PSM>;
     fn parameter(&self) -> &[Self::Parameter];
 }
@@ -84,8 +84,8 @@ pub trait Count<PSM: CountType> {
     fn value(&self) -> &PSM::Count;
 }
 
-pub trait LocatorList<PSM: LocatorType> {
-    fn value(&self) -> &[PSM::Locator];
+pub trait LocatorList<PSM: LocatorPIM> {
+    fn value(&self) -> &[PSM::LocatorType];
 }
 
 pub trait SerializedData {
