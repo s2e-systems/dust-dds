@@ -2,7 +2,7 @@ use crate::{
     behavior::RTPSReader,
     messages::types::ParameterIdType,
     structure::types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
         ParameterListType, SequenceNumberType,
     },
 };
@@ -10,13 +10,13 @@ use crate::{
 use super::types::DurationType;
 
 pub trait RTPSWriterProxy<
-    PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType + GUIDType<PSM> + SequenceNumberType,
+    PSM: GuidPrefixPIM + EntityIdPIM + LocatorType + EntityIdPIM + GUIDType<PSM> + SequenceNumberType,
 >
 {
     type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumber>;
 
     fn remote_writer_guid(&self) -> &PSM::GUID;
-    fn remote_group_entity_id(&self) -> &PSM::EntityId;
+    fn remote_group_entity_id(&self) -> &PSM::EntityIdType;
     fn unicast_locator_list(&self) -> &[PSM::Locator];
     fn multicast_locator_list(&self) -> &[PSM::Locator];
     fn data_max_size_serialized(&self) -> i32;
@@ -31,9 +31,9 @@ pub trait RTPSWriterProxy<
 
 pub trait RTPSStatefulReader<
     PSM: InstanceHandleType
-        + GuidPrefixType
+        + GuidPrefixPIM
         + DataType
-        + EntityIdType
+        + EntityIdPIM
         + SequenceNumberType
         + LocatorType
         + DurationType

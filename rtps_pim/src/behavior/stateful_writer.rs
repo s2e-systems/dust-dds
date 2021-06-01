@@ -1,16 +1,16 @@
 use crate::{behavior::{types::DurationType, RTPSWriter}, messages::types::ParameterIdType, structure::{RTPSHistoryCache, types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
         ParameterListType, SequenceNumberType,
     }}};
 
 pub trait RTPSReaderProxy<
-    PSM: GuidPrefixType + EntityIdType + LocatorType + EntityIdType + GUIDType<PSM> + SequenceNumberType,
+    PSM: GuidPrefixPIM + EntityIdPIM + LocatorType + EntityIdPIM + GUIDType<PSM> + SequenceNumberType,
 >
 {
     type SequenceNumberVector; //: IntoIterator<Item = PSM::SequenceNumber>;
 
     fn remote_reader_guid(&self) -> &PSM::GUID;
-    fn remote_group_entity_id(&self) -> &PSM::EntityId;
+    fn remote_group_entity_id(&self) -> &PSM::EntityIdType;
     fn unicast_locator_list(&self) -> &[PSM::Locator];
     fn multicast_locator_list(&self) -> &[PSM::Locator];
     fn expects_inline_qos(&self) -> bool;
@@ -26,10 +26,10 @@ pub trait RTPSReaderProxy<
 }
 
 pub trait RTPSStatefulWriter<
-    PSM: GuidPrefixType
-        + EntityIdType
+    PSM: GuidPrefixPIM
+        + EntityIdPIM
         + LocatorType
-        + EntityIdType
+        + EntityIdPIM
         + DurationType
         + SequenceNumberType
         + DataType
@@ -58,10 +58,10 @@ pub enum DataOrGap {
 }
 
 pub fn can_send<
-    PSM: GuidPrefixType
-        + EntityIdType
+    PSM: GuidPrefixPIM
+        + EntityIdPIM
         + LocatorType
-        + EntityIdType
+        + EntityIdPIM
         + DurationType
         + SequenceNumberType
         + DataType
@@ -74,7 +74,7 @@ pub fn can_send<
     writer_cache: &impl RTPSHistoryCache<PSM>,
 ) -> Option<DataOrGap> {
     if let Some(seq_num) = reader_proxy.next_unsent_change() {
-        if let Some(change) = writer_cache.get_change(&seq_num) {
+        if let Some(_change) = writer_cache.get_change(&seq_num) {
             todo!()
         } else {
             todo!()
@@ -100,15 +100,15 @@ mod tests {
         const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = -1;
     }
 
-    impl EntityIdType for MockPSM {
-        type EntityId = [u8; 4];
-        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityId = [0; 4];
+    impl EntityIdPIM for MockPSM {
+        type EntityIdType = [u8; 4];
+        const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
+        const ENTITYID_PARTICIPANT: Self::EntityIdType = [0; 4];
     }
 
-    impl GuidPrefixType for MockPSM {
-        type GuidPrefix = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+    impl GuidPrefixPIM for MockPSM {
+        type GuidPrefixType = [u8; 12];
+        const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
     impl GUIDType<Self> for MockPSM {

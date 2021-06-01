@@ -8,7 +8,7 @@ pub struct Data<'a> {
     pub serialized_data: SerializedData<'a>,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::Data<RtpsUdpPsm> for Data<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<RtpsUdpPsm> for Data<'a> {
     type EntityId = EntityId;
     type SequenceNumber = SequenceNumber;
     type SerializedData = SerializedData<'a>;

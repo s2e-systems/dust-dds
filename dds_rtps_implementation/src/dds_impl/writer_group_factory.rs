@@ -6,7 +6,7 @@ use rust_rtps_pim::{
     behavior::types::DurationType,
     messages::types::ParameterIdType,
     structure::types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
         ParameterListType, SequenceNumberType, GUID,
     },
 };
@@ -16,8 +16,8 @@ use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 
 pub trait WriterGroupFactoryTrait:
-    GuidPrefixType
-    + EntityIdType
+    GuidPrefixPIM
+    + EntityIdPIM
     + SequenceNumberType
     + DurationType
     + InstanceHandleType
@@ -31,8 +31,8 @@ pub trait WriterGroupFactoryTrait:
 }
 
 impl<
-        T: GuidPrefixType
-            + EntityIdType
+        T: GuidPrefixPIM
+            + EntityIdPIM
             + SequenceNumberType
             + DurationType
             + InstanceHandleType
@@ -47,13 +47,13 @@ impl<
 }
 
 pub struct WriterGroupFactory<PSM: WriterGroupFactoryTrait> {
-    guid_prefix: PSM::GuidPrefix,
+    guid_prefix: PSM::GuidPrefixType,
     publisher_counter: u8,
     default_publisher_qos: PublisherQos,
 }
 
 impl<PSM: WriterGroupFactoryTrait> WriterGroupFactory<PSM> {
-    pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {
             guid_prefix,
             publisher_counter: 0,

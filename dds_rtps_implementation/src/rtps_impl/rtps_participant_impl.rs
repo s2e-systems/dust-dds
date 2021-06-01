@@ -4,7 +4,7 @@ use rust_rtps_pim::{
     messages::types::ParameterIdType,
     structure::{
         types::{
-            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+            DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
             ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType, GUID,
         },
         RTPSEntity,
@@ -16,8 +16,8 @@ use crate::utils::shared_object::RtpsShared;
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 pub trait RTPSParticipantImplTrait:
-    GuidPrefixType
-    + EntityIdType
+    GuidPrefixPIM
+    + EntityIdPIM
     + SequenceNumberType
     + LocatorType
     + VendorIdType
@@ -33,8 +33,8 @@ pub trait RTPSParticipantImplTrait:
 }
 
 impl<
-        T: GuidPrefixType
-            + EntityIdType
+        T: GuidPrefixPIM
+            + EntityIdPIM
             + SequenceNumberType
             + LocatorType
             + VendorIdType
@@ -56,7 +56,7 @@ pub struct RTPSParticipantImpl<PSM: RTPSParticipantImplTrait> {
 }
 
 impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
-    pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         let guid = GUID::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
 
         Self {

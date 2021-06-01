@@ -4,7 +4,7 @@ use super::SubmessageHeader;
 
 pub struct Heartbeat;
 
-impl rust_rtps_pim::messages::submessages::Heartbeat<RtpsUdpPsm> for Heartbeat {
+impl rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm> for Heartbeat {
     type EntityId = EntityId;
     type SequenceNumber = SequenceNumber;
     type Count = Count;

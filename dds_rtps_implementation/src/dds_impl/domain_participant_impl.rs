@@ -31,7 +31,7 @@ pub struct DomainParticipantImpl<PSM: PIM> {
 }
 
 impl<PSM: PIM> DomainParticipantImpl<PSM> {
-    pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
             rtps_participant_impl: RtpsShared::new(RTPSParticipantImpl::new(guid_prefix)),

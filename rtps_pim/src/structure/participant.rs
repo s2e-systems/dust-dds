@@ -1,12 +1,12 @@
 use super::{
     types::{
-        EntityIdType, GUIDType, GuidPrefixType, LocatorType, ProtocolVersionType, VendorIdType,
+        EntityIdPIM, GUIDType, GuidPrefixPIM, LocatorType, ProtocolVersionType, VendorIdType,
     },
     RTPSEntity,
 };
 
 pub trait RTPSParticipant<
-    PSM: GuidPrefixType + EntityIdType + ProtocolVersionType + VendorIdType + LocatorType + GUIDType<PSM>,
+    PSM: GuidPrefixPIM + EntityIdPIM + ProtocolVersionType + VendorIdType + LocatorType + GUIDType<PSM>,
 >: RTPSEntity<PSM>
 {
     fn protocol_version(&self) -> PSM::ProtocolVersion;

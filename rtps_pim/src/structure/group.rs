@@ -1,6 +1,6 @@
 use super::{
-    types::{EntityIdType, GUIDType, GuidPrefixType},
+    types::{EntityIdPIM, GUIDType, GuidPrefixPIM},
     RTPSEntity,
 };
 
-pub trait RTPSGroup<PSM: GuidPrefixType + EntityIdType + GUIDType<PSM>>: RTPSEntity<PSM> {}
+pub trait RTPSGroup<PSM: GuidPrefixPIM + EntityIdPIM + GUIDType<PSM>>: RTPSEntity<PSM> {}

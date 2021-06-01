@@ -4,7 +4,7 @@ use super::SubmessageHeader;
 
 pub struct Gap;
 
-impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for Gap {
+impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for Gap {
     type EntityId = EntityId;
     type SequenceNumber = SequenceNumber;
     type SequenceNumberSet = SequenceNumberSet;

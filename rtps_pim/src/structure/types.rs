@@ -4,15 +4,15 @@ use crate::messages::{submessage_elements::ParameterList, types::ParameterIdType
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
-pub trait GuidPrefixType {
-    type GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy + PartialEq + Send + Sync;
-    const GUIDPREFIX_UNKNOWN: Self::GuidPrefix;
+pub trait GuidPrefixPIM {
+    type GuidPrefixType: Into<[u8; 12]> + From<[u8; 12]> + Copy + PartialEq + Send + Sync;
+    const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType;
 }
 
-pub trait EntityIdType {
-    type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy + PartialEq + Send + Sync;
-    const ENTITYID_UNKNOWN: Self::EntityId;
-    const ENTITYID_PARTICIPANT: Self::EntityId;
+pub trait EntityIdPIM {
+    type EntityIdType: Into<[u8; 4]> + From<[u8; 4]> + Copy + PartialEq + Send + Sync;
+    const ENTITYID_UNKNOWN: Self::EntityIdType;
+    const ENTITYID_PARTICIPANT: Self::EntityIdType;
 }
 
 pub trait SequenceNumberType {
@@ -75,19 +75,19 @@ pub trait ParameterListType<PSM: ParameterIdType> {
     type ParameterList: ParameterList<PSM> + Send + Sync;
 }
 
-pub trait GUIDType<PSM: GuidPrefixType + EntityIdType> {
+pub trait GUIDType<PSM: GuidPrefixPIM + EntityIdPIM> {
     type GUID: GUID<PSM> + Copy + PartialEq + Send + Sync;
     const GUID_UNKNOWN: Self::GUID;
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub trait GUID<PSM: GuidPrefixType + EntityIdType> {
-    fn new(prefix: PSM::GuidPrefix, entity_id: PSM::EntityId) -> Self;
-    fn prefix(&self) -> &PSM::GuidPrefix;
-    fn entity_id(&self) -> &PSM::EntityId;
+pub trait GUID<PSM: GuidPrefixPIM + EntityIdPIM> {
+    fn new(prefix: PSM::GuidPrefixType, entity_id: PSM::EntityIdType) -> Self;
+    fn prefix(&self) -> &PSM::GuidPrefixType;
+    fn entity_id(&self) -> &PSM::EntityIdType;
 }
 
-// impl<PSM: GuidPrefixType + EntityIdType> GUID<PSM> {
+// impl<PSM: GuidPrefixPIM + EntityIdPIM> GUID<PSM> {
 //     pub const GUID_UNKNOWN: Self = Self {
 //         prefix: PSM::GUIDPREFIX_UNKNOWN,
 //         entity_id: PSM::ENTITYID_UNKNOWN,

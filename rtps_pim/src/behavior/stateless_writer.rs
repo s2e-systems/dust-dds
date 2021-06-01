@@ -3,7 +3,7 @@ use crate::{
     messages::types::ParameterIdType,
     structure::{
         types::{
-            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+            DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
             ParameterListType, SequenceNumberType,
         },
         RTPSCacheChange, RTPSHistoryCache,
@@ -40,8 +40,8 @@ pub trait RTPSReaderLocator<PSM: LocatorType + SequenceNumberType> {
 }
 
 pub trait RTPSStatelessWriter<
-    PSM: GuidPrefixType
-        + EntityIdType
+    PSM: GuidPrefixPIM
+        + EntityIdPIM
         + DurationType
         + DataType
         + InstanceHandleType
@@ -64,9 +64,9 @@ pub trait RTPSStatelessWriter<
 }
 
 pub fn produce_messages<
-    PSM: EntityIdType
+    PSM: EntityIdPIM
         + DataType
-        + GuidPrefixType
+        + GuidPrefixPIM
         + InstanceHandleType
         + LocatorType
         + SequenceNumberType
@@ -189,15 +189,15 @@ mod tests {
         type InstanceHandle = ();
     }
 
-    impl EntityIdType for MockPSM {
-        type EntityId = [u8; 4];
-        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityId = [0; 4];
+    impl EntityIdPIM for MockPSM {
+        type EntityIdType = [u8; 4];
+        const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
+        const ENTITYID_PARTICIPANT: Self::EntityIdType = [0; 4];
     }
 
-    impl GuidPrefixType for MockPSM {
-        type GuidPrefix = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+    impl GuidPrefixPIM for MockPSM {
+        type GuidPrefixType = [u8; 12];
+        const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
     impl GUIDType<MockPSM> for MockPSM {

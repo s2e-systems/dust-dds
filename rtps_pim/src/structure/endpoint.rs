@@ -1,9 +1,9 @@
 use super::{
-    types::{EntityIdType, GUIDType, GuidPrefixType, LocatorType, ReliabilityKind, TopicKind},
+    types::{EntityIdPIM, GUIDType, GuidPrefixPIM, LocatorType, ReliabilityKind, TopicKind},
     RTPSEntity,
 };
 
-pub trait RTPSEndpoint<PSM: GuidPrefixType + EntityIdType + LocatorType + GUIDType<PSM>>:
+pub trait RTPSEndpoint<PSM: GuidPrefixPIM + EntityIdPIM + LocatorType + GUIDType<PSM>>:
     RTPSEntity<PSM>
 {
     fn topic_kind(&self) -> TopicKind;

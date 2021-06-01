@@ -5,7 +5,7 @@ use rust_rtps_pim::{
         types::{ParameterIdType, SubmessageFlagType, SubmessageKindType},
     },
     structure::types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
         ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType,
     },
 };
@@ -21,9 +21,9 @@ pub mod writer_factory;
 pub mod writer_group_factory;
 
 pub trait PIM:
-    GuidPrefixType
+    GuidPrefixPIM
     + VendorIdType
-    + EntityIdType
+    + EntityIdPIM
     + SequenceNumberType
     + ProtocolVersionType
     + DurationType
@@ -42,9 +42,9 @@ pub trait PIM:
 }
 
 impl<
-        T: GuidPrefixType
+        T: GuidPrefixPIM
             + VendorIdType
-            + EntityIdType
+            + EntityIdPIM
             + SequenceNumberType
             + ProtocolVersionType
             + DurationType

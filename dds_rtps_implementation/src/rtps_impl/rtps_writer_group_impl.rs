@@ -8,7 +8,7 @@ use rust_rtps_pim::{
     behavior::types::DurationType,
     messages::types::ParameterIdType,
     structure::types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
         ParameterListType, SequenceNumberType,
     },
 };
@@ -18,9 +18,9 @@ use crate::utils::shared_object::RtpsShared;
 use super::rtps_writer_impl::RTPSWriterImpl;
 
 pub trait RTPSWriterGroupImplTrait:
-    EntityIdType
-    + GuidPrefixType
-    + EntityIdType
+    EntityIdPIM
+    + GuidPrefixPIM
+    + EntityIdPIM
     + SequenceNumberType
     + DurationType
     + InstanceHandleType
@@ -34,9 +34,9 @@ pub trait RTPSWriterGroupImplTrait:
 }
 
 impl<
-        T: EntityIdType
-            + GuidPrefixType
-            + EntityIdType
+        T: EntityIdPIM
+            + GuidPrefixPIM
+            + EntityIdPIM
             + SequenceNumberType
             + DurationType
             + InstanceHandleType

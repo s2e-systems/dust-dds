@@ -1,4 +1,4 @@
-use structure::types::{EntityIdType, GuidPrefixType};
+use structure::types::{EntityIdPIM, GuidPrefixPIM};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -27,12 +27,12 @@ pub trait Long {
     fn value(&self) -> &i32;
 }
 
-pub trait GuidPrefix<PSM: GuidPrefixType> {
-    fn value(&self) -> &PSM::GuidPrefix;
+pub trait GuidPrefix<PSM: GuidPrefixPIM> {
+    fn value(&self) -> &PSM::GuidPrefixType;
 }
 
-pub trait EntityId<PSM: EntityIdType> {
-    fn value(&self) -> &PSM::EntityId;
+pub trait EntityId<PSM: EntityIdPIM> {
+    fn value(&self) -> &PSM::EntityIdType;
 }
 
 pub trait VendorId<PSM: VendorIdType> {

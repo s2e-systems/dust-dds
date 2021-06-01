@@ -1,7 +1,7 @@
 use rust_rtps_pim::{
     messages::types::ParameterIdType,
     structure::types::{
-        ChangeKind, DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
+        ChangeKind, DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType,
         ParameterListType, SequenceNumberType,
     },
 };
@@ -11,8 +11,8 @@ pub trait RTPSCacheChangeImplTrait:
     + SequenceNumberType
     + DataType
     + ParameterIdType
-    + EntityIdType
-    + GuidPrefixType
+    + EntityIdPIM
+    + GuidPrefixPIM
     + GUIDType<Self>
     + ParameterListType<Self>
     + Sized
@@ -23,8 +23,8 @@ impl<
             + SequenceNumberType
             + DataType
             + ParameterIdType
-            + EntityIdType
-            + GuidPrefixType
+            + EntityIdPIM
+            + GuidPrefixPIM
             + GUIDType<Self>
             + ParameterListType<Self>
             + Sized,

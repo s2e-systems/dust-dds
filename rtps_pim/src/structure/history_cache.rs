@@ -2,15 +2,15 @@ use crate::messages::types::ParameterIdType;
 
 use super::{
     types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, ParameterListType,
+        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, ParameterListType,
         SequenceNumberType,
     },
     RTPSCacheChange,
 };
 
 pub trait RTPSHistoryCache<
-    PSM: GuidPrefixType
-        + EntityIdType
+    PSM: GuidPrefixPIM
+        + EntityIdPIM
         + InstanceHandleType
         + DataType
         + ParameterIdType

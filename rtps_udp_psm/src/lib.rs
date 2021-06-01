@@ -7,7 +7,7 @@ use rust_rtps_pim::{
         SubmessageFlagType, SubmessageKindType, TimeType,
     },
     structure::types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
+        DataType, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandleType, LocatorType,
         ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType,
     },
 };
@@ -16,19 +16,19 @@ pub mod submessages;
 
 pub struct RtpsUdpPsm;
 
-impl GuidPrefixType for RtpsUdpPsm {
-    type GuidPrefix = GuidPrefix;
-    const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = GuidPrefix([0; 12]);
+impl GuidPrefixPIM for RtpsUdpPsm {
+    type GuidPrefixType = GuidPrefix;
+    const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = GuidPrefix([0; 12]);
 }
 
-impl EntityIdType for RtpsUdpPsm {
-    type EntityId = EntityId;
-    const ENTITYID_UNKNOWN: Self::EntityId = EntityId {
+impl EntityIdPIM for RtpsUdpPsm {
+    type EntityIdType = EntityId;
+    const ENTITYID_UNKNOWN: Self::EntityIdType = EntityId {
         entity_key: [0; 3],
         entity_kind: 0,
     };
 
-    const ENTITYID_PARTICIPANT: Self::EntityId = EntityId {
+    const ENTITYID_PARTICIPANT: Self::EntityIdType = EntityId {
         entity_key: [0, 0, 0x01],
         entity_kind: 0xc1,
     };

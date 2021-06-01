@@ -6,7 +6,7 @@ use super::SubmessageHeader;
 
 pub struct AckNack {}
 
-impl rust_rtps_pim::messages::submessages::AckNack<RtpsUdpPsm> for AckNack {
+impl rust_rtps_pim::messages::submessages::AckNackSubmessage<RtpsUdpPsm> for AckNack {
     type EntityId = EntityId;
     type SequenceNumberSet = SequenceNumberSet;
     type Count = Count;
