@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::types::SubmessageKindType;
+use rust_rtps_pim::messages::types::SubmessageKindPIM;
 
 use crate::{EntityId, RtpsUdpPsm, SequenceNumber, SequenceNumberSet, SubmessageFlag};
 
@@ -26,7 +26,7 @@ impl GapSubmessage {
         let submessage_length = 16 + gap_list.len();
 
         let header = SubmessageHeader {
-            submessage_id: <RtpsUdpPsm as SubmessageKindType>::GAP.into(),
+            submessage_id: <RtpsUdpPsm as SubmessageKindPIM>::GAP.into(),
             flags,
             submessage_length,
         };
@@ -40,7 +40,7 @@ impl GapSubmessage {
     }
 }
 
-impl rust_rtps_pim::messages::submessages::Gap<RtpsUdpPsm> for GapSubmessage {
+impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for GapSubmessage {
     type EntityId = EntityId;
     type SequenceNumber = SequenceNumber;
     type SequenceNumberSet = SequenceNumberSet;

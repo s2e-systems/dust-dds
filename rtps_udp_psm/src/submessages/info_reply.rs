@@ -4,7 +4,7 @@ use super::SubmessageHeader;
 
 pub struct InfoReply;
 
-impl rust_rtps_pim::messages::submessages::InfoReply<RtpsUdpPsm> for InfoReply {
+impl rust_rtps_pim::messages::submessages::InfoReplySubmessage<RtpsUdpPsm> for InfoReply {
     type LocatorList = LocatorList;
 
     fn endianness_flag(&self) -> SubmessageFlag {

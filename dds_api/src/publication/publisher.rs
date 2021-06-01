@@ -23,7 +23,7 @@ pub trait DataWriterFactory<'dw, 't: 'dw, T: 'static>: Publisher {
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
+        a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>;
 
@@ -70,7 +70,7 @@ pub trait Publisher: Entity<Qos = PublisherQos, Listener = &'static dyn Publishe
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
+        a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>
     where

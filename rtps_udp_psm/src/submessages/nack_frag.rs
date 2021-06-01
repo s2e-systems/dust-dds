@@ -4,7 +4,7 @@ use super::SubmessageHeader;
 
 pub struct NackFrag;
 
-impl rust_rtps_pim::messages::submessages::NackFrag<RtpsUdpPsm> for NackFrag {
+impl rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm> for NackFrag {
     type EntityId = EntityId;
     type SequenceNumber = SequenceNumber;
     type FragmentNumberSet = FragmentNumberSet;

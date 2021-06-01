@@ -1,88 +1,88 @@
 use crate::{
     behavior::RTPSWriter,
-    messages::types::ParameterIdType,
+    messages::types::ParameterIdPIM,
     structure::{
         types::{
-            DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
-            ParameterListType, SequenceNumberType,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+            SequenceNumberPIM, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
 
-use super::types::DurationType;
-pub trait RTPSReaderLocator<PSM: LocatorType + SequenceNumberType> {
+use super::types::DurationPIM;
+pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
     type SequenceNumberVector; //: IntoIterator<Item = PSM::SequenceNumber>;
 
-    fn locator(&self) -> &PSM::Locator;
+    fn locator(&self) -> &PSM::LocatorType;
 
     fn expects_inline_qos(&self) -> bool;
 
-    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumber>;
+    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType>;
 
     fn next_unsent_change(
         &mut self,
-        last_change_sequence_number: PSM::SequenceNumber,
-    ) -> Option<PSM::SequenceNumber>;
+        last_change_sequence_number: &PSM::SequenceNumberType,
+    ) -> Option<PSM::SequenceNumberType>;
 
     fn requested_changes(&self) -> Self::SequenceNumberVector;
 
     fn requested_changes_set(
         &mut self,
         req_seq_num_set: Self::SequenceNumberVector,
-        last_change_sequence_number: PSM::SequenceNumber,
+        last_change_sequence_number: PSM::SequenceNumberType,
     );
 
     fn unsent_changes(
         &self,
-        last_change_sequence_number: PSM::SequenceNumber,
+        last_change_sequence_number: PSM::SequenceNumberType,
     ) -> Self::SequenceNumberVector;
 }
 
 pub trait RTPSStatelessWriter<
-    PSM: GuidPrefixType
-        + EntityIdType
-        + DurationType
-        + DataType
-        + InstanceHandleType
-        + LocatorType
-        + SequenceNumberType
-        + GUIDType<PSM>
-        + ParameterIdType
-        + ParameterListType<PSM>,
+    PSM: GuidPrefixPIM
+        + EntityIdPIM
+        + DurationPIM
+        + DataPIM
+        + InstanceHandlePIM
+        + LocatorPIM
+        + SequenceNumberPIM
+        + GUIDPIM<PSM>
+        + ParameterIdPIM
+        + ParameterListPIM<PSM>,
 >: RTPSWriter<PSM>
 {
-    type ReaderLocatorType: RTPSReaderLocator<PSM>;
+    type ReaderLocatorPIM: RTPSReaderLocator<PSM>;
 
-    fn reader_locators(&self) -> &[Self::ReaderLocatorType];
+    fn reader_locators(&self) -> &[Self::ReaderLocatorPIM];
 
-    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType);
+    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM);
 
-    fn reader_locator_remove(&mut self, a_locator: &PSM::Locator);
+    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType);
 
     fn unsent_changes_reset(&mut self);
 }
 
 pub fn produce_messages<
-    PSM: EntityIdType
-        + DataType
-        + GuidPrefixType
-        + InstanceHandleType
-        + LocatorType
-        + SequenceNumberType
-        + ParameterIdType
-        + GUIDType<PSM>
-        + ParameterListType<PSM>,
+    PSM: EntityIdPIM
+        + DataPIM
+        + GuidPrefixPIM
+        + InstanceHandlePIM
+        + LocatorPIM
+        + SequenceNumberPIM
+        + ParameterIdPIM
+        + GUIDPIM<PSM>
+        + ParameterListPIM<PSM>,
     CacheChange: RTPSCacheChange<PSM>,
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
     writer_cache: &impl RTPSHistoryCache<PSM, CacheChange = CacheChange>,
-    last_change_sequence_number: &PSM::SequenceNumber,
+    last_change_sequence_number: &PSM::SequenceNumberType,
     mut send_data_to: impl FnMut(&CacheChange),
-    mut send_gap_to: impl FnMut(&PSM::SequenceNumber),
+    mut send_gap_to: impl FnMut(&PSM::SequenceNumberType),
 ) {
     // Pushing state
-    while let Some(seq_num) = reader_locator.next_unsent_change(*last_change_sequence_number) {
+    while let Some(seq_num) = reader_locator.next_unsent_change(last_change_sequence_number) {
         // Transition T4
         if let Some(change) = writer_cache.get_change(&seq_num) {
             send_data_to(change)
@@ -96,7 +96,7 @@ pub fn produce_messages<
 mod tests {
     use crate::{
         messages::submessage_elements::{Parameter, ParameterList},
-        structure::types::{LocatorSubTypes, GUID},
+        structure::types::{Locator, GUID},
     };
 
     use super::*;
@@ -120,7 +120,7 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockLocator;
 
-    impl LocatorSubTypes for MockLocator {
+    impl Locator for MockLocator {
         type LocatorKind = [u8; 4];
         const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
         const LOCATOR_KIND_RESERVED: Self::LocatorKind = [0; 4];
@@ -173,45 +173,45 @@ mod tests {
 
     struct MockPSM;
 
-    impl ParameterIdType for MockPSM {
-        type ParameterId = ();
+    impl ParameterIdPIM for MockPSM {
+        type ParameterIdType = ();
     }
 
-    impl ParameterListType<MockPSM> for MockPSM {
-        type ParameterList = MockParameterList;
+    impl ParameterListPIM<MockPSM> for MockPSM {
+        type ParameterListType = MockParameterList;
     }
 
-    impl DataType for MockPSM {
-        type Data = ();
+    impl DataPIM for MockPSM {
+        type DataType = ();
     }
 
-    impl InstanceHandleType for MockPSM {
-        type InstanceHandle = ();
+    impl InstanceHandlePIM for MockPSM {
+        type InstanceHandleType = ();
     }
 
-    impl EntityIdType for MockPSM {
-        type EntityId = [u8; 4];
-        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityId = [0; 4];
+    impl EntityIdPIM for MockPSM {
+        type EntityIdType = [u8; 4];
+        const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
+        const ENTITYID_PARTICIPANT: Self::EntityIdType = [0; 4];
     }
 
-    impl GuidPrefixType for MockPSM {
-        type GuidPrefix = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+    impl GuidPrefixPIM for MockPSM {
+        type GuidPrefixType = [u8; 12];
+        const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDType<MockPSM> for MockPSM {
-        type GUID = MockGUID;
-        const GUID_UNKNOWN: Self::GUID = MockGUID;
+    impl GUIDPIM<MockPSM> for MockPSM {
+        type GUIDType = MockGUID;
+        const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
 
-    impl SequenceNumberType for MockPSM {
-        type SequenceNumber = i64;
-        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = -1;
+    impl SequenceNumberPIM for MockPSM {
+        type SequenceNumberType = i64;
+        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = -1;
     }
 
-    impl LocatorType for MockPSM {
-        type Locator = MockLocator;
+    impl LocatorPIM for MockPSM {
+        type LocatorType = MockLocator;
     }
 
     struct MockReaderLocator {
@@ -233,8 +233,8 @@ mod tests {
             todo!()
         }
 
-        fn next_unsent_change(&mut self, last_change_sequence_number: i64) -> Option<i64> {
-            if self.last_sent_sequence_number < last_change_sequence_number {
+        fn next_unsent_change(&mut self, last_change_sequence_number: &i64) -> Option<i64> {
+            if &self.last_sent_sequence_number < last_change_sequence_number {
                 self.last_sent_sequence_number += 1;
                 Some(self.last_sent_sequence_number)
             } else {
@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn stateless_writer_produce_messages() {
+    fn stateless_writer_produce_messages_only_data() {
         let mut sent_data_seq_num = [0, 0];
         let mut total_data = 0;
         let mut sent_gap_seq_num = [];
@@ -343,6 +343,80 @@ mod tests {
                 MockCacheChange { sequence_number: 1 },
                 MockCacheChange { sequence_number: 2 },
             ],
+        };
+        produce_messages(
+            &mut reader_locator,
+            &writer_cache,
+            &2,
+            |cc| {
+                sent_data_seq_num[total_data] = cc.sequence_number;
+                total_data += 1;
+            },
+            |gap_seq_num| {
+                sent_gap_seq_num[total_gap] = *gap_seq_num;
+                total_gap += 1;
+            },
+        );
+
+        assert_eq!(total_data, expected_total_data);
+        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+        assert_eq!(total_gap, expected_total_gap);
+        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    }
+
+    #[test]
+    fn stateless_writer_produce_messages_only_gap() {
+        let mut sent_data_seq_num = [];
+        let mut total_data = 0;
+        let mut sent_gap_seq_num = [0, 0];
+        let mut total_gap = 0;
+
+        let expected_total_data = 0;
+        let expected_sent_data_seq_num = [];
+        let expected_total_gap = 2;
+        let expected_sent_gap_seq_num = [1, 2];
+
+        let mut reader_locator = MockReaderLocator {
+            last_sent_sequence_number: 0,
+        };
+        let writer_cache = MockHistoryCache::<0> { changes: [] };
+        produce_messages(
+            &mut reader_locator,
+            &writer_cache,
+            &2,
+            |cc| {
+                sent_data_seq_num[total_data] = cc.sequence_number;
+                total_data += 1;
+            },
+            |gap_seq_num| {
+                sent_gap_seq_num[total_gap] = *gap_seq_num;
+                total_gap += 1;
+            },
+        );
+
+        assert_eq!(total_data, expected_total_data);
+        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+        assert_eq!(total_gap, expected_total_gap);
+        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    }
+
+    #[test]
+    fn stateless_writer_produce_messages_data_and_gap() {
+        let mut sent_data_seq_num = [0];
+        let mut total_data = 0;
+        let mut sent_gap_seq_num = [0];
+        let mut total_gap = 0;
+
+        let expected_total_data = 1;
+        let expected_sent_data_seq_num = [2];
+        let expected_total_gap = 1;
+        let expected_sent_gap_seq_num = [1];
+
+        let mut reader_locator = MockReaderLocator {
+            last_sent_sequence_number: 0,
+        };
+        let writer_cache = MockHistoryCache::<1> {
+            changes: [MockCacheChange { sequence_number: 2 }],
         };
         produce_messages(
             &mut reader_locator,

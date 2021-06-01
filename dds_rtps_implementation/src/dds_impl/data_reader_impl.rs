@@ -275,7 +275,7 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM>
 
 impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM> Entity for DataReaderImpl<'dr, 's, 't, T, PSM> {
     type Qos = DataReaderQos;
-    type Listener = &'static dyn DataReaderListener<DataType = T>;
+    type Listener = &'static dyn DataReaderListener<DataPIM = T>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

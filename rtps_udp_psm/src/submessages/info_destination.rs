@@ -4,7 +4,9 @@ use super::SubmessageHeader;
 
 pub struct InfoDestination;
 
-impl rust_rtps_pim::messages::submessages::InfoDestination<RtpsUdpPsm> for InfoDestination {
+impl rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdpPsm>
+    for InfoDestination
+{
     type GuidPrefix = GuidPrefix;
 
     fn endianness_flag(&self) -> SubmessageFlag {

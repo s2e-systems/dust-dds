@@ -5,11 +5,11 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::types::DurationType,
-    messages::types::ParameterIdType,
+    behavior::types::DurationPIM,
+    messages::types::ParameterIdPIM,
     structure::types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
-        ParameterListType, SequenceNumberType,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+        SequenceNumberPIM, GUIDPIM,
     },
 };
 
@@ -18,40 +18,40 @@ use crate::utils::shared_object::RtpsShared;
 use super::rtps_writer_impl::RTPSWriterImpl;
 
 pub trait RTPSWriterGroupImplTrait:
-    EntityIdType
-    + GuidPrefixType
-    + EntityIdType
-    + SequenceNumberType
-    + DurationType
-    + InstanceHandleType
-    + LocatorType
-    + DataType
-    + GUIDType<Self>
-    + ParameterIdType
-    + ParameterListType<Self>
+    EntityIdPIM
+    + GuidPrefixPIM
+    + EntityIdPIM
+    + SequenceNumberPIM
+    + DurationPIM
+    + InstanceHandlePIM
+    + LocatorPIM
+    + DataPIM
+    + GUIDPIM<Self>
+    + ParameterIdPIM
+    + ParameterListPIM<Self>
     + Sized
 {
 }
 
 impl<
-        T: EntityIdType
-            + GuidPrefixType
-            + EntityIdType
-            + SequenceNumberType
-            + DurationType
-            + InstanceHandleType
-            + LocatorType
-            + DataType
-            + GUIDType<Self>
-            + ParameterIdType
-            + ParameterListType<Self>
+        T: EntityIdPIM
+            + GuidPrefixPIM
+            + EntityIdPIM
+            + SequenceNumberPIM
+            + DurationPIM
+            + InstanceHandlePIM
+            + LocatorPIM
+            + DataPIM
+            + GUIDPIM<Self>
+            + ParameterIdPIM
+            + ParameterListPIM<Self>
             + Sized,
     > RTPSWriterGroupImplTrait for T
 {
 }
 
 pub struct RTPSWriterGroupImpl<PSM: RTPSWriterGroupImplTrait> {
-    guid: PSM::GUID,
+    guid: PSM::GUIDType,
     qos: PublisherQos,
     listener: Option<&'static dyn PublisherListener>,
     status_mask: StatusMask,
@@ -60,7 +60,7 @@ pub struct RTPSWriterGroupImpl<PSM: RTPSWriterGroupImplTrait> {
 
 impl<PSM: RTPSWriterGroupImplTrait> RTPSWriterGroupImpl<PSM> {
     pub fn new(
-        guid: PSM::GUID,
+        guid: PSM::GUIDType,
         qos: PublisherQos,
         listener: Option<&'static dyn PublisherListener>,
         status_mask: StatusMask,
@@ -102,7 +102,7 @@ impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSGroup<PSM>
 impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSEntity<PSM>
     for RTPSWriterGroupImpl<PSM>
 {
-    fn guid(&self) -> &PSM::GUID {
+    fn guid(&self) -> &PSM::GUIDType {
         &self.guid
     }
 }

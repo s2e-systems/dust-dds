@@ -3,54 +3,54 @@ use rust_dds_api::{
     publication::data_writer_listener::DataWriterListener,
 };
 use rust_rtps_pim::{
-    behavior::types::DurationType,
-    messages::types::ParameterIdType,
+    behavior::types::DurationPIM,
+    messages::types::ParameterIdPIM,
     structure::types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
-        ParameterListType, SequenceNumberType,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+        SequenceNumberPIM, GUIDPIM,
     },
 };
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
 pub trait WriterFactoryTrait:
-    GuidPrefixType
-    + SequenceNumberType
-    + EntityIdType
-    + DurationType
-    + DataType
-    + LocatorType
-    + InstanceHandleType
-    + ParameterIdType
-    + GUIDType<Self>
-    + ParameterListType<Self>
+    GuidPrefixPIM
+    + SequenceNumberPIM
+    + EntityIdPIM
+    + DurationPIM
+    + DataPIM
+    + LocatorPIM
+    + InstanceHandlePIM
+    + ParameterIdPIM
+    + GUIDPIM<Self>
+    + ParameterListPIM<Self>
     + Sized
 {
 }
 
 impl<
-        T: GuidPrefixType
-            + SequenceNumberType
-            + EntityIdType
-            + DurationType
-            + DataType
-            + LocatorType
-            + InstanceHandleType
-            + ParameterIdType
-            + GUIDType<Self>
-            + ParameterListType<Self>
+        T: GuidPrefixPIM
+            + SequenceNumberPIM
+            + EntityIdPIM
+            + DurationPIM
+            + DataPIM
+            + LocatorPIM
+            + InstanceHandlePIM
+            + ParameterIdPIM
+            + GUIDPIM<Self>
+            + ParameterListPIM<Self>
             + Sized,
     > WriterFactoryTrait for T
 {
 }
 
 pub struct WriterFactory<PSM: WriterFactoryTrait> {
-    guid_prefix: PSM::GuidPrefix,
+    guid_prefix: PSM::GuidPrefixType,
     datawriter_counter: u8,
 }
 
 impl<PSM: WriterFactoryTrait> WriterFactory<PSM> {
-    pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {
             guid_prefix,
             datawriter_counter: 0,
@@ -60,7 +60,7 @@ impl<PSM: WriterFactoryTrait> WriterFactory<PSM> {
     pub fn create_datawriter<'a, T>(
         &mut self,
         _qos: DataWriterQos,
-        _a_listener: Option<&'a (dyn DataWriterListener<DataType = T> + 'a)>,
+        _a_listener: Option<&'a (dyn DataWriterListener<DataPIM = T> + 'a)>,
         _mask: StatusMask,
     ) -> RTPSWriterImpl<PSM> {
         todo!()

@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::{Submessage, types::SubmessageKindType, submessages::Data};
+use rust_rtps_pim::messages::{Submessage, types::SubmessageKindPIM, submessages::DataSubmessage};
 
 use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
 
@@ -31,7 +31,7 @@ impl<'a> DataSubmesage<'a> {
         let flags = [endianness_flag, inline_qos_flag, data_flag, key_flag, non_standard_payload_flag].into();
         let submessage_length = 20 + inline_qos.len() + serialized_payload.len();
         let header = SubmessageHeader {
-            submessage_id: <RtpsUdpPsm as SubmessageKindType>::DATA.into(),
+            submessage_id: <RtpsUdpPsm as SubmessageKindPIM>::DATA.into(),
             flags,
             submessage_length,
         };
@@ -48,7 +48,7 @@ impl<'a> DataSubmesage<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::Data<RtpsUdpPsm> for DataSubmesage<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<RtpsUdpPsm> for DataSubmesage<'a> {
     type EntityId = EntityId;
     type SequenceNumber = SequenceNumber;
     type SerializedData = SerializedData<'a>;

@@ -1,9 +1,9 @@
 use rust_rtps_pim::{
-    behavior::types::DurationType,
-    messages::types::ParameterIdType,
+    behavior::types::DurationPIM,
+    messages::types::{ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
     structure::types::{
-        DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType, LocatorType,
-        ParameterListType, ProtocolVersionType, SequenceNumberType, VendorIdType,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+        ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
     },
 };
 
@@ -18,36 +18,40 @@ pub mod writer_factory;
 pub mod writer_group_factory;
 
 pub trait PIM:
-    GuidPrefixType
-    + VendorIdType
-    + EntityIdType
-    + SequenceNumberType
-    + ProtocolVersionType
-    + DurationType
-    + InstanceHandleType
-    + LocatorType
-    + DataType
-    + GUIDType<Self>
-    + ParameterIdType
-    + ParameterListType<Self>
+    GuidPrefixPIM
+    + VendorIdPIM
+    + EntityIdPIM
+    + SequenceNumberPIM
+    + ProtocolVersionPIM
+    + DurationPIM
+    + InstanceHandlePIM
+    + LocatorPIM
+    + DataPIM
+    + GUIDPIM<Self>
+    + ParameterIdPIM
+    + ParameterListPIM<Self>
+    + SubmessageKindPIM
+    + SubmessageFlagPIM
     + Sized
     + 'static
 {
 }
 
 impl<
-        T: GuidPrefixType
-            + VendorIdType
-            + EntityIdType
-            + SequenceNumberType
-            + ProtocolVersionType
-            + DurationType
-            + InstanceHandleType
-            + LocatorType
-            + DataType
-            + GUIDType<Self>
-            + ParameterIdType
-            + ParameterListType<Self>
+        T: GuidPrefixPIM
+            + VendorIdPIM
+            + EntityIdPIM
+            + SequenceNumberPIM
+            + ProtocolVersionPIM
+            + DurationPIM
+            + InstanceHandlePIM
+            + LocatorPIM
+            + DataPIM
+            + GUIDPIM<Self>
+            + ParameterIdPIM
+            + ParameterListPIM<Self>
+            + SubmessageKindPIM
+            + SubmessageFlagPIM
             + Sized
             + 'static,
     > PIM for T

@@ -31,7 +31,7 @@ pub struct DomainParticipantImpl<PSM: PIM> {
 }
 
 impl<PSM: PIM> DomainParticipantImpl<PSM> {
-    pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
             rtps_participant_impl: RtpsShared::new(RTPSParticipantImpl::new(guid_prefix)),
@@ -140,7 +140,7 @@ impl<'t, T: 'static, PSM: PIM> rust_dds_api::domain::domain_participant::TopicFa
         &'t self,
         _topic_name: &str,
         _qos: Option<TopicQos>,
-        _a_listener: Option<&'static dyn TopicListener<DataType = T>>,
+        _a_listener: Option<&'static dyn TopicListener<DataPIM = T>>,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         todo!()
@@ -303,9 +303,9 @@ impl<PSM: PIM> Entity for DomainParticipantImpl<PSM> {
         std::thread::spawn(move || {
             loop {
                 if let Some(_rtps_participant) = rtps_participant.try_lock() {
-                    // rtps_participant.send_data();
+                    // rtps_participant.send_data::<UDPHeartbeatMessage>();
                     // rtps_participant.receive_data();
-                    // rtps_participant.run_callbacks();
+                    // rtps_participant.run_listeners();
                 }
             }
         });

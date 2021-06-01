@@ -2,14 +2,14 @@ use rust_rtps_pim::{
     behavior::{
         stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
-        types::DurationType,
+        types::DurationPIM,
         RTPSWriter,
     },
-    messages::types::ParameterIdType,
+    messages::types::ParameterIdPIM,
     structure::{
         types::{
-            ChangeKind, DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
-            LocatorType, ParameterListType, ReliabilityKind, SequenceNumberType, TopicKind,
+            ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            ParameterListPIM, ReliabilityKind, SequenceNumberPIM, TopicKind, GUIDPIM,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
@@ -21,47 +21,47 @@ use super::{
 };
 
 pub trait RTPSWriterImplTrait:
-    SequenceNumberType
-    + GuidPrefixType
-    + EntityIdType
-    + DurationType
-    + DataType
-    + LocatorType
-    + InstanceHandleType
-    + ParameterIdType
-    + GUIDType<Self>
-    + ParameterListType<Self>
+    SequenceNumberPIM
+    + GuidPrefixPIM
+    + EntityIdPIM
+    + DurationPIM
+    + DataPIM
+    + LocatorPIM
+    + InstanceHandlePIM
+    + ParameterIdPIM
+    + GUIDPIM<Self>
+    + ParameterListPIM<Self>
     + Sized
 {
 }
 
 impl<
-        T: SequenceNumberType
-            + GuidPrefixType
-            + EntityIdType
-            + DurationType
-            + DataType
-            + LocatorType
-            + InstanceHandleType
-            + ParameterIdType
-            + GUIDType<Self>
-            + ParameterListType<Self>
+        T: SequenceNumberPIM
+            + GuidPrefixPIM
+            + EntityIdPIM
+            + DurationPIM
+            + DataPIM
+            + LocatorPIM
+            + InstanceHandlePIM
+            + ParameterIdPIM
+            + GUIDPIM<Self>
+            + ParameterListPIM<Self>
             + Sized,
     > RTPSWriterImplTrait for T
 {
 }
 
 pub struct RTPSWriterImpl<PSM: RTPSWriterImplTrait> {
-    guid: PSM::GUID,
+    guid: PSM::GUIDType,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
     push_mode: bool,
-    unicast_locator_list: Vec<PSM::Locator>,
-    multicast_locator_list: Vec<PSM::Locator>,
-    heartbeat_period: PSM::Duration,
-    nack_response_delay: PSM::Duration,
-    nack_suppression_duration: PSM::Duration,
-    last_change_sequence_number: PSM::SequenceNumber,
+    unicast_locator_list: Vec<PSM::LocatorType>,
+    multicast_locator_list: Vec<PSM::LocatorType>,
+    heartbeat_period: PSM::DurationType,
+    nack_response_delay: PSM::DurationType,
+    nack_suppression_duration: PSM::DurationType,
+    last_change_sequence_number: PSM::SequenceNumberType,
     data_max_size_serialized: i32,
     reader_locators: Vec<RTPSReaderLocatorImpl<PSM>>,
     matched_readers: Vec<RTPSReaderProxyImpl<PSM>>,
@@ -70,15 +70,15 @@ pub struct RTPSWriterImpl<PSM: RTPSWriterImplTrait> {
 
 impl<PSM: RTPSWriterImplTrait> RTPSWriterImpl<PSM> {
     pub fn new(
-        guid: PSM::GUID,
+        guid: PSM::GUIDType,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         push_mode: bool,
-        unicast_locator_list: Vec<PSM::Locator>,
-        multicast_locator_list: Vec<PSM::Locator>,
-        heartbeat_period: PSM::Duration,
-        nack_response_delay: PSM::Duration,
-        nack_suppression_duration: PSM::Duration,
+        unicast_locator_list: Vec<PSM::LocatorType>,
+        multicast_locator_list: Vec<PSM::LocatorType>,
+        heartbeat_period: PSM::DurationType,
+        nack_response_delay: PSM::DurationType,
+        nack_suppression_duration: PSM::DurationType,
         data_max_size_serialized: i32,
     ) -> Self {
         Self {
@@ -101,7 +101,7 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriterImpl<PSM> {
 }
 
 impl<PSM: RTPSWriterImplTrait> RTPSEntity<PSM> for RTPSWriterImpl<PSM> {
-    fn guid(&self) -> &PSM::GUID {
+    fn guid(&self) -> &PSM::GUIDType {
         &self.guid
     }
 }
@@ -113,19 +113,19 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriter<PSM> for RTPSWriterImpl<PSM> {
         self.push_mode
     }
 
-    fn heartbeat_period(&self) -> &PSM::Duration {
+    fn heartbeat_period(&self) -> &PSM::DurationType {
         &self.heartbeat_period
     }
 
-    fn nack_response_delay(&self) -> &PSM::Duration {
+    fn nack_response_delay(&self) -> &PSM::DurationType {
         &self.nack_response_delay
     }
 
-    fn nack_suppression_duration(&self) -> &PSM::Duration {
+    fn nack_suppression_duration(&self) -> &PSM::DurationType {
         &self.nack_suppression_duration
     }
 
-    fn last_change_sequence_number(&self) -> &PSM::SequenceNumber {
+    fn last_change_sequence_number(&self) -> &PSM::SequenceNumberType {
         &self.last_change_sequence_number
     }
 
@@ -144,9 +144,9 @@ impl<PSM: RTPSWriterImplTrait> RTPSWriter<PSM> for RTPSWriterImpl<PSM> {
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: PSM::Data,
-        inline_qos: PSM::ParameterList,
-        handle: PSM::InstanceHandle,
+        data: PSM::DataType,
+        inline_qos: PSM::ParameterListType,
+        handle: PSM::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
         RTPSCacheChangeImpl::new(
@@ -169,27 +169,27 @@ impl<PSM: RTPSWriterImplTrait> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
         self.reliability_level
     }
 
-    fn unicast_locator_list(&self) -> &[PSM::Locator] {
+    fn unicast_locator_list(&self) -> &[PSM::LocatorType] {
         &self.unicast_locator_list
     }
 
-    fn multicast_locator_list(&self) -> &[PSM::Locator] {
+    fn multicast_locator_list(&self) -> &[PSM::LocatorType] {
         &self.multicast_locator_list
     }
 }
 
 impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> {
-    type ReaderLocatorType = RTPSReaderLocatorImpl<PSM>;
+    type ReaderLocatorPIM = RTPSReaderLocatorImpl<PSM>;
 
-    fn reader_locators(&self) -> &[Self::ReaderLocatorType] {
+    fn reader_locators(&self) -> &[Self::ReaderLocatorPIM] {
         &self.reader_locators
     }
 
-    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
+    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM) {
         self.reader_locators.push(a_locator)
     }
 
-    fn reader_locator_remove(&mut self, a_locator: &PSM::Locator) {
+    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType) {
         self.reader_locators.retain(|x| x.locator() != a_locator)
     }
 
@@ -209,12 +209,15 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
         self.matched_readers.push(a_reader_proxy)
     }
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUID) {
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUIDType) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != reader_proxy_guid)
     }
 
-    fn matched_reader_lookup(&self, a_reader_guid: &PSM::GUID) -> Option<&Self::ReaderProxyType> {
+    fn matched_reader_lookup(
+        &self,
+        a_reader_guid: &PSM::GUIDType,
+    ) -> Option<&Self::ReaderProxyType> {
         self.matched_readers
             .iter()
             .find(|&x| x.remote_reader_guid() == a_reader_guid)
@@ -233,33 +236,33 @@ mod tests {
 
     struct MockPSM;
 
-    impl rust_rtps_pim::structure::types::InstanceHandleType for MockPSM {
-        type InstanceHandle = ();
+    impl rust_rtps_pim::structure::types::InstanceHandlePIM for MockPSM {
+        type InstanceHandleType = ();
     }
 
-    impl rust_rtps_pim::structure::types::SequenceNumberType for MockPSM {
-        type SequenceNumber = i64;
-        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = -1;
+    impl rust_rtps_pim::structure::types::SequenceNumberPIM for MockPSM {
+        type SequenceNumberType = i64;
+        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = -1;
     }
 
-    impl rust_rtps_pim::structure::types::DataType for MockPSM {
-        type Data = ();
+    impl rust_rtps_pim::structure::types::DataPIM for MockPSM {
+        type DataType = ();
     }
 
-    impl rust_rtps_pim::structure::types::EntityIdType for MockPSM {
-        type EntityId = [u8; 4];
+    impl rust_rtps_pim::structure::types::EntityIdPIM for MockPSM {
+        type EntityIdType = [u8; 4];
 
-        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityId = [1; 4];
+        const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
+        const ENTITYID_PARTICIPANT: Self::EntityIdType = [1; 4];
     }
 
-    impl rust_rtps_pim::messages::types::ParameterIdType for MockPSM {
-        type ParameterId = u16;
+    impl rust_rtps_pim::messages::types::ParameterIdPIM for MockPSM {
+        type ParameterIdType = u16;
     }
 
-    impl rust_rtps_pim::structure::types::GuidPrefixType for MockPSM {
-        type GuidPrefix = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+    impl rust_rtps_pim::structure::types::GuidPrefixPIM for MockPSM {
+        type GuidPrefixType = [u8; 12];
+        const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
     #[derive(Clone, Copy, PartialEq)]
@@ -279,13 +282,13 @@ mod tests {
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDType<MockPSM> for MockPSM {
-        type GUID = MockGUID;
-        const GUID_UNKNOWN: Self::GUID = MockGUID(0);
+    impl rust_rtps_pim::structure::types::GUIDPIM<MockPSM> for MockPSM {
+        type GUIDType = MockGUID;
+        const GUID_UNKNOWN: Self::GUIDType = MockGUID(0);
     }
 
-    impl rust_rtps_pim::structure::types::ParameterListType<MockPSM> for MockPSM {
-        type ParameterList = MockParameterList;
+    impl rust_rtps_pim::structure::types::ParameterListPIM<MockPSM> for MockPSM {
+        type ParameterListType = MockParameterList;
     }
 
     pub struct MockParameterList;
@@ -313,14 +316,14 @@ mod tests {
         }
     }
 
-    impl rust_rtps_pim::behavior::types::DurationType for MockPSM {
-        type Duration = i64;
+    impl rust_rtps_pim::behavior::types::DurationPIM for MockPSM {
+        type DurationType = i64;
     }
 
     #[derive(Clone, Copy, PartialEq)]
     pub struct MockLocator(u8);
 
-    impl rust_rtps_pim::structure::types::LocatorSubTypes for MockLocator {
+    impl rust_rtps_pim::structure::types::Locator for MockLocator {
         type LocatorKind = [u8; 4];
 
         const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
@@ -351,8 +354,8 @@ mod tests {
         }
     }
 
-    impl rust_rtps_pim::structure::types::LocatorType for MockPSM {
-        type Locator = MockLocator;
+    impl rust_rtps_pim::structure::types::LocatorPIM for MockPSM {
+        type LocatorType = MockLocator;
     }
 
     #[test]

@@ -65,10 +65,10 @@ impl DomainParticipantFactory {
         let guid_prefix = [1; 12];
 
         let participant: DomainParticipantImpl<RtpsUdpPsm> =
-        DomainParticipantImpl::new(guid_prefix.into());
+            DomainParticipantImpl::new(guid_prefix.into());
 
         // let domain_participant_impl =
-            // DomainParticipantImpl::new(guid_prefix.into()); // domain_id, qos.clone(), a_listener, mask, configuration
+        // DomainParticipantImpl::new(guid_prefix.into()); // domain_id, qos.clone(), a_listener, mask, configuration
         // let participant = DomainParticipant::new(domain_participant_impl);
 
         // if enabled {

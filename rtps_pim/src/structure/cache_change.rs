@@ -1,25 +1,25 @@
-use crate::messages::types::ParameterIdType;
+use crate::messages::types::ParameterIdPIM;
 
 use super::types::{
-    ChangeKind, DataType, EntityIdType, GUIDType, GuidPrefixType, InstanceHandleType,
-    ParameterListType, SequenceNumberType,
+    ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
+    SequenceNumberPIM, GUIDPIM,
 };
 
 pub trait RTPSCacheChange<
-    PSM: GuidPrefixType
-        + EntityIdType
-        + InstanceHandleType
-        + SequenceNumberType
-        + DataType
-        + ParameterIdType
-        + GUIDType<PSM>
-        + ParameterListType<PSM>,
+    PSM: GuidPrefixPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + SequenceNumberPIM
+        + DataPIM
+        + ParameterIdPIM
+        + GUIDPIM<PSM>
+        + ParameterListPIM<PSM>,
 >
 {
     fn kind(&self) -> &ChangeKind;
-    fn writer_guid(&self) -> &PSM::GUID;
-    fn instance_handle(&self) -> &PSM::InstanceHandle;
-    fn sequence_number(&self) -> &PSM::SequenceNumber;
-    fn data_value(&self) -> &PSM::Data;
-    fn inline_qos(&self) -> &PSM::ParameterList;
+    fn writer_guid(&self) -> &PSM::GUIDType;
+    fn instance_handle(&self) -> &PSM::InstanceHandleType;
+    fn sequence_number(&self) -> &PSM::SequenceNumberType;
+    fn data_value(&self) -> &PSM::DataType;
+    fn inline_qos(&self) -> &PSM::ParameterListType;
 }
