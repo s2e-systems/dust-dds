@@ -1,4 +1,3 @@
-use std::{collections::BTreeSet, iter::FromIterator, ops::{Add, Sub}};
 use serde::ser::SerializeStruct;
 
 use rust_rtps_pim::{
@@ -187,12 +186,12 @@ impl<const N: usize> From<[SubmessageFlag; N]> for Octet {
             if item {
                 flags |= 0b_0000_0001 << i
             }
-        };
+        }
         Self(flags)
     }
 }
 impl<const N: usize> From<Octet> for [SubmessageFlag; N] {
-    fn from(value: Octet) -> Self {
+    fn from(_value: Octet) -> Self {
         todo!()
     }
 }
@@ -207,13 +206,14 @@ impl From<u8> for Octet {
     }
 }
 
-
-
-
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UShort(u16);
 
 impl rust_rtps_pim::messages::submessage_elements::UShort for UShort {
+    fn new(value: u16) -> Self {
+        Self(value)
+    }
+
     fn value(&self) -> &u16 {
         &self.0
     }
@@ -223,6 +223,10 @@ impl rust_rtps_pim::messages::submessage_elements::UShort for UShort {
 pub struct Long(i32);
 
 impl rust_rtps_pim::messages::submessage_elements::Long for Long {
+    fn new(value: i32) -> Self {
+        Self(value)
+    }
+
     fn value(&self) -> &i32 {
         &self.0
     }
@@ -244,6 +248,10 @@ impl Into<[u8; 4]> for Long {
 pub struct ULong(u32);
 
 impl rust_rtps_pim::messages::submessage_elements::ULong for ULong {
+    fn new(value: u32) -> Self {
+        Self(value)
+    }
+
     fn value(&self) -> &u32 {
         &self.0
     }
@@ -277,6 +285,10 @@ impl Into<[u8; 12]> for GuidPrefix {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::GuidPrefix<RtpsUdpPsm> for GuidPrefix {
+    fn new(value: GuidPrefix) -> Self {
+        value
+    }
+
     fn value(&self) -> &GuidPrefix {
         self
     }
@@ -309,6 +321,10 @@ impl From<[u8; 4]> for EntityId {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> for EntityId {
+    fn new(value: EntityId) -> Self {
+        value
+    }
+
     fn value(&self) -> &EntityId {
         self
     }
@@ -346,6 +362,10 @@ impl From<i64> for SequenceNumber {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumber<RtpsUdpPsm> for SequenceNumber {
+    fn new(value: SequenceNumber) -> Self {
+        value
+    }
+
     fn value(&self) -> &SequenceNumber {
         self
     }
@@ -409,7 +429,7 @@ impl SequenceNumberSet {
         let max = set.iter().max();
         let num_bits = match max {
             Some(max) => Into::<i64>::into(*max) as i32 - base,
-            None => 0
+            None => 0,
         };
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
         let mut bitmap = vec![0; number_of_bitmap_elements];
@@ -419,7 +439,11 @@ impl SequenceNumberSet {
             let bit_position = delta_n - bitmap_num * 32;
             bitmap[bitmap_num as usize] |= 1 << bit_position;
         }
-        Self { bitmap_base, num_bits: ULong(num_bits as u32), bitmap }
+        Self {
+            bitmap_base,
+            num_bits: ULong(num_bits as u32),
+            bitmap,
+        }
     }
 
     pub fn len(&self) -> u16 {
@@ -434,8 +458,14 @@ impl serde::Serialize for SequenceNumberSet {
         state.serialize_field("bitmapBase", &self.bitmap_base)?;
         state.serialize_field("numBits", &self.num_bits)?;
         const BITMAP_NAMES: [&str; 8] = [
-            "bitmap[0]", "bitmap[1]", "bitmap[2]", "bitmap[3]",
-            "bitmap[4]", "bitmap[5]", "bitmap[6]", "bitmap[7]"
+            "bitmap[0]",
+            "bitmap[1]",
+            "bitmap[2]",
+            "bitmap[3]",
+            "bitmap[4]",
+            "bitmap[5]",
+            "bitmap[6]",
+            "bitmap[7]",
         ];
         for e in self.bitmap.iter().enumerate() {
             state.serialize_field(BITMAP_NAMES[e.0], e.1)?;
@@ -449,6 +479,10 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
 {
     type SequenceNumberVector = ();
 
+    fn new(_base: SequenceNumber, _set: Self::SequenceNumberVector) -> Self {
+        todo!()
+    }
+
     fn base(&self) -> &SequenceNumber {
         &self.bitmap_base
     }
@@ -459,7 +493,6 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
     }
 }
 
-
 pub type InstanceHandle = i32;
 
 #[derive(Clone, Copy)]
@@ -469,6 +502,10 @@ pub struct ProtocolVersion {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> for ProtocolVersion {
+    fn new(value: ProtocolVersion) -> Self {
+        value
+    }
+
     fn value(&self) -> &ProtocolVersion {
         self
     }
@@ -484,15 +521,23 @@ impl<'a> SerializedData<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedData for SerializedData<'a> {
+impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedData<'a> for SerializedData<'a> {
+    fn new(value: &'a [u8]) -> Self {
+        Self(value)
+    }
+
     fn value(&self) -> &[u8] {
         self.0
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment
+impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment<'a>
     for SerializedData<'a>
 {
+    fn new(value: &'a [u8]) -> Self {
+        Self(value)
+    }
+
     fn value(&self) -> &[u8] {
         self.0
     }
@@ -502,6 +547,10 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment
 pub struct VendorId([u8; 2]);
 
 impl rust_rtps_pim::messages::submessage_elements::VendorId<RtpsUdpPsm> for VendorId {
+    fn new(value: VendorId) -> Self {
+        value
+    }
+
     fn value(&self) -> &VendorId {
         self
     }
@@ -517,6 +566,10 @@ pub struct Time {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::Timestamp<RtpsUdpPsm> for Time {
+    fn new(value: Time) -> Self {
+        value
+    }
+
     fn value(&self) -> &Time {
         self
     }
@@ -526,6 +579,10 @@ impl rust_rtps_pim::messages::submessage_elements::Timestamp<RtpsUdpPsm> for Tim
 pub struct Count(i32);
 
 impl rust_rtps_pim::messages::submessage_elements::Count<RtpsUdpPsm> for Count {
+    fn new(value: Count) -> Self {
+        value
+    }
+
     fn value(&self) -> &Count {
         self
     }
@@ -536,6 +593,10 @@ pub type ParameterId = i16;
 pub struct FragmentNumber(u32);
 
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumber<RtpsUdpPsm> for FragmentNumber {
+    fn new(value: FragmentNumber) -> Self {
+        value
+    }
+
     fn value(&self) -> &FragmentNumber {
         self
     }
@@ -547,6 +608,10 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
     for FragmentNumberSet
 {
     type FragmentNumberVector = Self;
+
+    fn new(_base: FragmentNumber, _set: Self::FragmentNumberVector) -> Self {
+        todo!()
+    }
 
     fn base(&self) -> &FragmentNumber {
         &FragmentNumber(0)
@@ -592,7 +657,7 @@ impl rust_rtps_pim::messages::submessage_elements::Parameter<RtpsUdpPsm> for Par
     }
 }
 impl serde::Serialize for Parameter {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>{
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ParameterList", 1)?;
         state.serialize_field("parameter_id", &self.parameter_id)?;
         state.serialize_field("length", &self.length)?;
@@ -609,19 +674,24 @@ pub struct ParameterList {
 
 impl ParameterList {
     pub fn len(&self) -> u16 {
-        self.parameter.iter().map(|p|p.len()).sum()
+        self.parameter.iter().map(|p| p.len()).sum()
     }
 }
 
 impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for ParameterList {
     type Parameter = Parameter;
+    type ParameterList = Vec<Self::Parameter>;
 
-    fn parameter(&self) -> &[Self::Parameter] {
+    fn new(parameter: Self::ParameterList) -> Self {
+        Self { parameter }
+    }
+
+    fn parameter(&self) -> &Self::ParameterList {
         &self.parameter
     }
 }
 impl serde::Serialize for ParameterList {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>{
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ParameterList", 1)?;
         for parameter in &self.parameter {
             state.serialize_field("parameter", parameter)?;
@@ -633,7 +703,13 @@ impl serde::Serialize for ParameterList {
 pub struct LocatorList(Vec<Locator>);
 
 impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for LocatorList {
-    fn value(&self) -> &[Locator] {
+    type LocatorList = Vec<Locator>;
+
+    fn new(value: Self::LocatorList) -> Self {
+        Self(value)
+    }
+
+    fn value(&self) -> &Self::LocatorList {
         &self.0
     }
 }

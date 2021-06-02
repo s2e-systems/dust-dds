@@ -11,6 +11,17 @@ impl rust_rtps_pim::messages::submessages::AckNackSubmessage<RtpsUdpPsm> for Ack
     type SequenceNumberSet = SequenceNumberSet;
     type Count = Count;
 
+    fn new(
+        _endianness_flag: SubmessageFlag,
+        _final_flag: SubmessageFlag,
+        _reader_id: Self::EntityId,
+        _writer_id: Self::EntityId,
+        _reader_sn_state: Self::SequenceNumberSet,
+        _count: Self::Count,
+    ) -> Self {
+        todo!()
+    }
+
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }

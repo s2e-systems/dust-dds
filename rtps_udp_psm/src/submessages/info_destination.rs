@@ -9,6 +9,10 @@ impl rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdpPsm>
 {
     type GuidPrefix = GuidPrefix;
 
+    fn new(_endianness_flag: SubmessageFlag, _guid_prefix: Self::GuidPrefix) -> Self {
+        todo!()
+    }
+
     fn endianness_flag(&self) -> SubmessageFlag {
         todo!()
     }

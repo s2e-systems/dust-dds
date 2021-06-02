@@ -140,8 +140,13 @@ mod tests {
 
     impl rust_rtps_pim::messages::submessage_elements::ParameterList<MockPSM> for MockParameterList {
         type Parameter = MockParameter;
+        type ParameterList = MockParameterList;
 
-        fn parameter(&self) -> &[Self::Parameter] {
+        fn new(_parameter: Self::ParameterList) -> Self {
+            todo!()
+        }
+
+        fn parameter(&self) -> &Self::ParameterList {
             todo!()
         }
     }
