@@ -1,3 +1,5 @@
+use core::marker::PhantomData;
+
 use crate::{
     behavior::RTPSWriter,
     messages::{
@@ -70,129 +72,196 @@ pub trait RTPSStatelessWriter<
     fn unsent_changes_reset(&mut self);
 }
 
-pub fn produce_heartbeat_submessage<
-    PSM: EntityIdPIM
-        + DataPIM
-        + GuidPrefixPIM
-        + InstanceHandlePIM
-        + LocatorPIM
-        + SequenceNumberPIM
-        + ParameterIdPIM
-        + GUIDPIM<PSM>
-        + ParameterListPIM<PSM>
-        + DurationPIM
-        + SubmessageKindPIM
-        + SubmessageFlagPIM
-        + CountPIM
-        + HeartbeatSubmessagePIM<PSM>
-        + submessage_elements::EntityId<PSM>
-        + submessage_elements::SequenceNumber<PSM>
-        + submessage_elements::Count<PSM>,
->(
-    stateless_writer: &impl RTPSStatelessWriter<PSM>,
-    count: PSM::CountType,
-) -> PSM::HeartbeatSubmessageType {
-    let endianness_flag = true.into();
-    let final_flag = true.into();
-    let liveliness_flag = false.into();
-    let reader_id = PSM::ENTITYID_UNKNOWN;
-    let writer_id = *stateless_writer.guid().entity_id();
-    let first_sn = *stateless_writer
-        .writer_cache()
-        .get_seq_num_min()
-        .unwrap_or(&PSM::SEQUENCE_NUMBER_UNKNOWN);
-    let last_sn = *stateless_writer
-        .writer_cache()
-        .get_seq_num_max()
-        .unwrap_or(&PSM::SEQUENCE_NUMBER_UNKNOWN);
-
-    PSM::HeartbeatSubmessageType::new(
-        endianness_flag,
-        final_flag,
-        liveliness_flag,
-        submessage_elements::EntityId::new(reader_id),
-        submessage_elements::EntityId::new(writer_id),
-        submessage_elements::SequenceNumber::new(first_sn),
-        submessage_elements::SequenceNumber::new(last_sn),
-        submessage_elements::Count::new(count),
-    )
-}
-
-pub fn produce_data_submessage<
+pub struct BestEffortStatelessWriterBehavior<
     'a,
-    PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
-        + SequenceNumberPIM
+    PSM: GuidPrefixPIM
         + EntityIdPIM
-        + GuidPrefixPIM
-        + GUIDPIM<PSM>
-        + InstanceHandlePIM
-        + ParameterListPIM<PSM>
-        + ParameterIdPIM
-        + DataPIM
-        + DataSubmessagePIM<'a, PSM>,
->(
-    cache_change: &'a impl RTPSCacheChange<PSM>,
-) -> PSM::DataSubmessageType
-where
-    PSM::DataType: 'a,
-    PSM::ParameterListType: 'a,
-{
-    let endianness_flag = true.into();
-    let inline_qos_flag = false.into();
-    let non_standard_payload_flag = false.into();
-
-    let data_flag = true.into();
-    let key_flag = false.into();
-    let reader_id = PSM::ENTITYID_UNKNOWN;
-    let writer_id = *cache_change.writer_guid().entity_id();
-    let writer_sn = *cache_change.sequence_number();
-    let inline_qos = cache_change.inline_qos();
-    let serialized_payload = cache_change.data_value();
-    PSM::DataSubmessageType::new(
-        endianness_flag,
-        inline_qos_flag,
-        data_flag,
-        key_flag,
-        non_standard_payload_flag,
-        submessage_elements::EntityId::new(reader_id),
-        submessage_elements::EntityId::new(writer_id),
-        submessage_elements::SequenceNumber::new(writer_sn),
-        inline_qos,
-        submessage_elements::SerializedData::new(serialized_payload.as_ref()),
-    )
-}
-
-pub fn produce_gap_submessage<
-    PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
-        + EntityIdPIM
-        + GuidPrefixPIM
-        + GUIDPIM<PSM>
-        + SequenceNumberPIM
         + DurationPIM
         + DataPIM
         + InstanceHandlePIM
         + LocatorPIM
+        + SequenceNumberPIM
+        + GUIDPIM<PSM>
         + ParameterIdPIM
-        + ParameterListPIM<PSM>
-        + GapSubmessagePIM<PSM>,
->(
-    stateless_writer: &impl RTPSStatelessWriter<PSM>,
-    gap_start: PSM::SequenceNumberType,
-    gap_list_base: PSM::SequenceNumberType,
-    gap_list_set: <<PSM::GapSubmessageType as GapSubmessage<PSM>>::SequenceNumberSet as submessage_elements::SequenceNumberSet<PSM>>::SequenceNumberVector,
-) -> PSM::GapSubmessageType {
-    let endianness_flag: PSM::SubmessageFlagType = true.into();
-    let reader_id = PSM::ENTITYID_UNKNOWN;
-    let writer_id = *stateless_writer.guid().entity_id();
-    PSM::GapSubmessageType::new(
-        endianness_flag,
-        submessage_elements::EntityId::new(reader_id),
-        submessage_elements::EntityId::new(writer_id),
-        submessage_elements::SequenceNumber::new(gap_start),
-        submessage_elements::SequenceNumberSet::new(gap_list_base, gap_list_set),
-    )
+        + ParameterListPIM<PSM>,
+    StatelessWriter: RTPSStatelessWriter<PSM>,
+> {
+    stateless_writer: &'a mut StatelessWriter,
+    phantom: PhantomData<PSM>,
+}
+
+impl<
+        'a,
+        PSM: GuidPrefixPIM
+            + EntityIdPIM
+            + DurationPIM
+            + DataPIM
+            + InstanceHandlePIM
+            + LocatorPIM
+            + SequenceNumberPIM
+            + GUIDPIM<PSM>
+            + ParameterIdPIM
+            + ParameterListPIM<PSM>
+            + SubmessageKindPIM
+            + SubmessageFlagPIM
+            + DataSubmessagePIM<'a, PSM>,
+        StatelessWriter: RTPSStatelessWriter<PSM>,
+    > BestEffortStatelessWriterBehavior<'a, PSM, StatelessWriter>
+{
+    pub fn new(stateless_writer: &'a mut StatelessWriter) -> Self {
+        Self {
+            stateless_writer,
+            phantom: PhantomData,
+        }
+    }
+    pub fn send_unsent_data(&'a mut self) {
+        let last_change_sequence_number = *self.stateless_writer.last_change_sequence_number();
+        let (reader_locators, writer_cache) = self.stateless_writer.reader_locators();
+        for reader_locator in reader_locators {
+            while let Some(seq_num) =
+                reader_locator.next_unsent_change(&last_change_sequence_number)
+            {
+                if let Some(cache_change) = writer_cache.get_change(&seq_num) {
+                    let endianness_flag = true.into();
+                    let inline_qos_flag = false.into();
+                    let non_standard_payload_flag = false.into();
+
+                    let data_flag = true.into();
+                    let key_flag = false.into();
+                    let reader_id = PSM::ENTITYID_UNKNOWN;
+                    let writer_id = *cache_change.writer_guid().entity_id();
+                    let writer_sn = *cache_change.sequence_number();
+                    let inline_qos = cache_change.inline_qos();
+                    let serialized_payload = cache_change.data_value();
+                    PSM::DataSubmessageType::new(
+                        endianness_flag,
+                        inline_qos_flag,
+                        data_flag,
+                        key_flag,
+                        non_standard_payload_flag,
+                        submessage_elements::EntityId::new(reader_id),
+                        submessage_elements::EntityId::new(writer_id),
+                        submessage_elements::SequenceNumber::new(writer_sn),
+                        inline_qos,
+                        submessage_elements::SerializedData::new(serialized_payload.as_ref()),
+                    );
+                    todo!()
+                    // let data_submessage =
+                    // rust_rtps_pim::behavior::stateless_writer::produce_data_submessage(
+                    // cache_change,
+                    // );
+                } else {
+                    todo!()
+                }
+            }
+        }
+    }
+    // fn produce_heartbeat_submessage(
+    //     &self
+    //     count: PSM::CountType,
+    // ) -> PSM::HeartbeatSubmessageType {
+    //     let endianness_flag = true.into();
+    //     let final_flag = true.into();
+    //     let liveliness_flag = false.into();
+    //     let reader_id = PSM::ENTITYID_UNKNOWN;
+    //     let writer_id = *stateless_writer.guid().entity_id();
+    //     let first_sn = *stateless_writer
+    //         .writer_cache()
+    //         .get_seq_num_min()
+    //         .unwrap_or(&PSM::SEQUENCE_NUMBER_UNKNOWN);
+    //     let last_sn = *stateless_writer
+    //         .writer_cache()
+    //         .get_seq_num_max()
+    //         .unwrap_or(&PSM::SEQUENCE_NUMBER_UNKNOWN);
+
+    //     PSM::HeartbeatSubmessageType::new(
+    //         endianness_flag,
+    //         final_flag,
+    //         liveliness_flag,
+    //         submessage_elements::EntityId::new(reader_id),
+    //         submessage_elements::EntityId::new(writer_id),
+    //         submessage_elements::SequenceNumber::new(first_sn),
+    //         submessage_elements::SequenceNumber::new(last_sn),
+    //         submessage_elements::Count::new(count),
+    //     )
+    // }
+
+    // pub fn produce_data_submessage<
+    //     'a,
+    //     PSM: SubmessageKindPIM
+    //         + SubmessageFlagPIM
+    //         + SequenceNumberPIM
+    //         + EntityIdPIM
+    //         + GuidPrefixPIM
+    //         + GUIDPIM<PSM>
+    //         + InstanceHandlePIM
+    //         + ParameterListPIM<PSM>
+    //         + ParameterIdPIM
+    //         + DataPIM
+    //         + DataSubmessagePIM<'a, PSM>,
+    // >(
+    //     cache_change: &'a impl RTPSCacheChange<PSM>,
+    // ) -> PSM::DataSubmessageType
+    // where
+    //     PSM::DataType: 'a,
+    //     PSM::ParameterListType: 'a,
+    // {
+    //     let endianness_flag = true.into();
+    //     let inline_qos_flag = false.into();
+    //     let non_standard_payload_flag = false.into();
+
+    //     let data_flag = true.into();
+    //     let key_flag = false.into();
+    //     let reader_id = PSM::ENTITYID_UNKNOWN;
+    //     let writer_id = *cache_change.writer_guid().entity_id();
+    //     let writer_sn = *cache_change.sequence_number();
+    //     let inline_qos = cache_change.inline_qos();
+    //     let serialized_payload = cache_change.data_value();
+    //     PSM::DataSubmessageType::new(
+    //         endianness_flag,
+    //         inline_qos_flag,
+    //         data_flag,
+    //         key_flag,
+    //         non_standard_payload_flag,
+    //         submessage_elements::EntityId::new(reader_id),
+    //         submessage_elements::EntityId::new(writer_id),
+    //         submessage_elements::SequenceNumber::new(writer_sn),
+    //         inline_qos,
+    //         submessage_elements::SerializedData::new(serialized_payload.as_ref()),
+    //     )
+    // }
+
+    // pub fn produce_gap_submessage<
+    //     PSM: SubmessageKindPIM
+    //         + SubmessageFlagPIM
+    //         + EntityIdPIM
+    //         + GuidPrefixPIM
+    //         + GUIDPIM<PSM>
+    //         + SequenceNumberPIM
+    //         + DurationPIM
+    //         + DataPIM
+    //         + InstanceHandlePIM
+    //         + LocatorPIM
+    //         + ParameterIdPIM
+    //         + ParameterListPIM<PSM>
+    //         + GapSubmessagePIM<PSM>,
+    // >(
+    //     stateless_writer: &impl RTPSStatelessWriter<PSM>,
+    //     gap_start: PSM::SequenceNumberType,
+    //     gap_list_base: PSM::SequenceNumberType,
+    //     gap_list_set: <<PSM::GapSubmessageType as GapSubmessage<PSM>>::SequenceNumberSet as submessage_elements::SequenceNumberSet<PSM>>::SequenceNumberVector,
+    // ) -> PSM::GapSubmessageType {
+    //     let endianness_flag: PSM::SubmessageFlagType = true.into();
+    //     let reader_id = PSM::ENTITYID_UNKNOWN;
+    //     let writer_id = *stateless_writer.guid().entity_id();
+    //     PSM::GapSubmessageType::new(
+    //         endianness_flag,
+    //         submessage_elements::EntityId::new(reader_id),
+    //         submessage_elements::EntityId::new(writer_id),
+    //         submessage_elements::SequenceNumber::new(gap_start),
+    //         submessage_elements::SequenceNumberSet::new(gap_list_base, gap_list_set),
+    //     )
+    // }
 }
 
 #[cfg(test)]

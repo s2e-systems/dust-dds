@@ -1,7 +1,9 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
     behavior::{
-        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
+        stateless_writer::{
+            BestEffortStatelessWriterBehavior, RTPSReaderLocator, RTPSStatelessWriter,
+        },
         types::DurationPIM,
         RTPSWriter,
     },
@@ -38,6 +40,7 @@ pub trait RTPSParticipantImplTrait:
     + SubmessageKindPIM
     + SubmessageFlagPIM
     + ParameterListPIM<Self>
+    + for<'a> DataSubmessagePIM<'a, Self>
     + Sized
 {
 }
@@ -57,6 +60,7 @@ impl<
             + ParameterListPIM<Self>
             + SubmessageKindPIM
             + SubmessageFlagPIM
+            + for<'a> DataSubmessagePIM<'a, T>
             + Sized,
     > RTPSParticipantImplTrait for T
 {
@@ -95,11 +99,23 @@ impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
         // self.rtps_writer_groups.swap_remove(index);
         // Ok(())
     }
+
+    // pub fn send_data(&self) {
+    //     for writer_group in &self.rtps_writer_groups {
+    //         let writer_group_lock = writer_group.lock();
+    //         let writer_list = writer_group_lock.writer_list();
+    //         for writer in writer_list {
+    //             if let Some(mut writer_lock) = writer.try_lock() {
+    //                 let writer_ref = writer_lock.as_mut();
+    //                 let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
+    //                 behavior.send_unsent_data();
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 pub fn send_data<
-    'a,
-    'b:'a,
     PSM: GuidPrefixPIM
         + EntityIdPIM
         + SequenceNumberPIM
@@ -114,35 +130,20 @@ pub fn send_data<
         + SubmessageKindPIM
         + SubmessageFlagPIM
         + ParameterListPIM<PSM>
-        + DataSubmessagePIM<'a, PSM>
-        + Sized,
+        + for<'a> DataSubmessagePIM<'a, PSM>
+        + Sized
+        + 'static,
 >(
-    rtps_participant_impl: &'b RTPSParticipantImpl<PSM>,
-) where
-    PSM::DataType: 'a,
-    PSM::ParameterListType: 'a,
-{
+    rtps_participant_impl: &RTPSParticipantImpl<PSM>,
+) {
     for writer_group in &rtps_participant_impl.rtps_writer_groups {
         let writer_group_lock = writer_group.lock();
         let writer_list = writer_group_lock.writer_list();
         for writer in writer_list {
             if let Some(mut writer_lock) = writer.try_lock() {
-                let last_change_sequence_number = *writer_lock.last_change_sequence_number();
-                let (reader_locators, writer_cache) = writer_lock.reader_locators();
-                for reader_locator in reader_locators {
-                    while let Some(seq_num) =
-                        reader_locator.next_unsent_change(&last_change_sequence_number)
-                    {
-                        if let Some(cache_change) = writer_cache.get_change(&seq_num) {
-                            let data_submessage =
-                            rust_rtps_pim::behavior::stateless_writer::produce_data_submessage(
-                                cache_change,
-                            );
-                        } else {
-                            todo!()
-                        }
-                    }
-                }
+                let writer_ref = writer_lock.as_mut();
+                let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
+                behavior.send_unsent_data();
             }
         }
     }
