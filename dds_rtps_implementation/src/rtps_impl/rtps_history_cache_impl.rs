@@ -91,7 +91,7 @@ mod tests {
     }
 
     impl rust_rtps_pim::structure::types::DataPIM for MockPSM {
-        type DataType = ();
+        type DataType = [u8;0];
     }
 
     impl rust_rtps_pim::structure::types::EntityIdPIM for MockPSM {
@@ -174,7 +174,7 @@ mod tests {
             MockGUID,
             (),
             1,
-            (),
+            [],
             MockParameterList,
         );
         hc.add_change(change);
@@ -189,7 +189,7 @@ mod tests {
             MockGUID,
             (),
             1,
-            (),
+            [],
             MockParameterList,
         );
         hc.add_change(change);
@@ -205,7 +205,7 @@ mod tests {
             MockGUID,
             (),
             1,
-            (),
+            [],
             MockParameterList,
         );
         hc.add_change(change);
@@ -221,7 +221,7 @@ mod tests {
             MockGUID,
             (),
             1,
-            (),
+            [],
             MockParameterList,
         );
         let change2 = RTPSCacheChangeImpl::new(
@@ -229,7 +229,7 @@ mod tests {
             MockGUID,
             (),
             2,
-            (),
+            [],
             MockParameterList,
         );
         hc.add_change(change1);
@@ -245,7 +245,7 @@ mod tests {
             MockGUID,
             (),
             1,
-            (),
+            [],
             MockParameterList,
         );
         let change2 = RTPSCacheChangeImpl::new(
@@ -253,7 +253,7 @@ mod tests {
             MockGUID,
             (),
             2,
-            (),
+            [],
             MockParameterList,
         );
         hc.add_change(change1);

@@ -1,10 +1,4 @@
-use crate::{
-    messages::{submessage_elements, Submessage},
-    structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM,
-        VendorIdPIM,
-    },
-};
+use crate::{messages::{submessage_elements, Submessage}, structure::types::{DataPIM, EntityIdPIM, GuidPrefixPIM, LocatorPIM, ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM}};
 
 use super::types::{
     CountPIM, FragmentNumberPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
@@ -48,6 +42,7 @@ pub trait DataSubmessagePIM<
         + EntityIdPIM
         + SequenceNumberPIM
         + ParameterIdPIM
+        + ParameterListPIM<PSM>
         + DataPIM,
 >
 {
@@ -61,12 +56,12 @@ pub trait DataSubmessage<
         + EntityIdPIM
         + SequenceNumberPIM
         + ParameterIdPIM
+        + ParameterListPIM<PSM>
         + DataPIM,
 >: Submessage<PSM>
 {
     type EntityId: submessage_elements::EntityId<PSM>;
     type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
-    type ParameterList: submessage_elements::ParameterList<PSM>;
     type SerializedData: submessage_elements::SerializedData<'a>;
 
     fn new(
@@ -78,7 +73,7 @@ pub trait DataSubmessage<
         reader_id: Self::EntityId,
         writer_id: Self::EntityId,
         writer_sn: Self::SequenceNumber,
-        inline_qos: Self::ParameterList,
+        inline_qos: &'a PSM::ParameterListType,
         serialized_payload: Self::SerializedData,
     ) -> Self;
     fn endianness_flag(&self) -> PSM::SubmessageFlagType;
@@ -89,7 +84,7 @@ pub trait DataSubmessage<
     fn reader_id(&self) -> &Self::EntityId;
     fn writer_id(&self) -> &Self::EntityId;
     fn writer_sn(&self) -> &Self::SequenceNumber;
-    fn inline_qos(&self) -> &Self::ParameterList;
+    fn inline_qos(&self) -> &PSM::ParameterListType;
     fn serialized_payload(&self) -> &Self::SerializedData;
 }
 

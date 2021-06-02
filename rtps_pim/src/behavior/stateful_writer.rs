@@ -135,7 +135,7 @@ mod tests {
     }
 
     impl DataPIM for MockPSM {
-        type DataType = ();
+        type DataType = [u8;0];
     }
 
     impl ParameterIdPIM for MockPSM {

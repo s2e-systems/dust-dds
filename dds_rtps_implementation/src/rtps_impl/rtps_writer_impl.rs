@@ -246,7 +246,7 @@ mod tests {
     }
 
     impl rust_rtps_pim::structure::types::DataPIM for MockPSM {
-        type DataType = ();
+        type DataType = [u8;0];
     }
 
     impl rust_rtps_pim::structure::types::EntityIdPIM for MockPSM {
@@ -386,8 +386,8 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        let change1 = writer.new_change(ChangeKind::Alive, (), MockParameterList, ());
-        let change2 = writer.new_change(ChangeKind::Alive, (), MockParameterList, ());
+        let change1 = writer.new_change(ChangeKind::Alive, [], MockParameterList, ());
+        let change2 = writer.new_change(ChangeKind::Alive, [], MockParameterList, ());
 
         assert_eq!(change1.sequence_number(), &1);
         assert_eq!(change2.sequence_number(), &2);

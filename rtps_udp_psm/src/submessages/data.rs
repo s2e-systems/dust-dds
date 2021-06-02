@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::{submessages::DataSubmessage, types::SubmessageKindPIM, Submessage};
+use rust_rtps_pim::{messages::{submessages::DataSubmessage, types::SubmessageKindPIM, Submessage}, structure::types::ParameterListPIM};
 
 use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
 
@@ -11,14 +11,15 @@ pub struct DataSubmesage<'a> {
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
-    inline_qos: ParameterList,
+    inline_qos: &'a ParameterList,
     serialized_payload: SerializedData<'a>,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm> for DataSubmesage<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
+    for DataSubmesage<'a>
+{
     type EntityId = EntityId;
     type SequenceNumber = SequenceNumber;
-    type ParameterList = ParameterList;
     type SerializedData = SerializedData<'a>;
 
     fn new(
@@ -30,7 +31,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm> fo
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
-        inline_qos: ParameterList,
+        inline_qos: &'a <RtpsUdpPsm as ParameterListPIM<RtpsUdpPsm>>::ParameterListType,
         serialized_payload: SerializedData<'a>,
     ) -> Self {
         let flags = [
@@ -91,7 +92,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm> fo
         &self.writer_sn
     }
 
-    fn inline_qos(&self) -> &Self::ParameterList {
+    fn inline_qos(&self) -> &<RtpsUdpPsm as ParameterListPIM<RtpsUdpPsm>>::ParameterListType {
         todo!()
     }
 
@@ -170,7 +171,7 @@ mod tests {
             reader_id,
             writer_id,
             writer_sn,
-            inline_qos,
+            &inline_qos,
             serialized_payload,
         );
 
@@ -226,7 +227,7 @@ mod tests {
             reader_id,
             writer_id,
             writer_sn,
-            inline_qos,
+            &inline_qos,
             serialized_payload,
         );
 

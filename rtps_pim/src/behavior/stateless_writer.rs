@@ -1,10 +1,16 @@
 use crate::{
     behavior::RTPSWriter,
-    messages::types::ParameterIdPIM,
+    messages::{
+        submessage_elements,
+        submessages::{
+            DataSubmessage, DataSubmessagePIM, HeartbeatSubmessage, HeartbeatSubmessagePIM,
+        },
+        types::{CountPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+    },
     structure::{
         types::{
             DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-            SequenceNumberPIM, GUIDPIM,
+            SequenceNumberPIM, GUID, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
@@ -90,6 +96,99 @@ pub fn produce_messages<
             send_gap_to(&seq_num)
         }
     }
+}
+
+pub fn produce_heartbeat_submessage<
+    PSM: EntityIdPIM
+        + DataPIM
+        + GuidPrefixPIM
+        + InstanceHandlePIM
+        + LocatorPIM
+        + SequenceNumberPIM
+        + ParameterIdPIM
+        + GUIDPIM<PSM>
+        + ParameterListPIM<PSM>
+        + DurationPIM
+        + SubmessageKindPIM
+        + SubmessageFlagPIM
+        + CountPIM
+        + HeartbeatSubmessagePIM<PSM>
+        + submessage_elements::EntityId<PSM>
+        + submessage_elements::SequenceNumber<PSM>
+        + submessage_elements::Count<PSM>,
+>(
+    stateless_writer: &impl RTPSStatelessWriter<PSM>,
+    count: PSM::CountType,
+) -> PSM::HeartbeatSubmessageType {
+    let endianness_flag = true.into();
+    let final_flag = true.into();
+    let liveliness_flag = false.into();
+    let reader_id = PSM::ENTITYID_UNKNOWN;
+    let writer_id = *stateless_writer.guid().entity_id();
+    let first_sn = *stateless_writer
+        .writer_cache()
+        .get_seq_num_min()
+        .unwrap_or(&PSM::SEQUENCE_NUMBER_UNKNOWN);
+    let last_sn = *stateless_writer
+        .writer_cache()
+        .get_seq_num_max()
+        .unwrap_or(&PSM::SEQUENCE_NUMBER_UNKNOWN);
+
+    PSM::HeartbeatSubmessageType::new(
+        endianness_flag,
+        final_flag,
+        liveliness_flag,
+        submessage_elements::EntityId::new(reader_id),
+        submessage_elements::EntityId::new(writer_id),
+        submessage_elements::SequenceNumber::new(first_sn),
+        submessage_elements::SequenceNumber::new(last_sn),
+        submessage_elements::Count::new(count),
+    )
+}
+
+pub fn produce_data_submessage<
+    'a,
+    PSM: SequenceNumberPIM
+        + SubmessageKindPIM
+        + SubmessageFlagPIM
+        + EntityIdPIM
+        + GuidPrefixPIM
+        + GUIDPIM<PSM>
+        + InstanceHandlePIM
+        + ParameterListPIM<PSM>
+        + ParameterIdPIM
+        + DataPIM
+        + DataSubmessagePIM<'a, PSM>,
+>(
+    cache_change: &'a impl RTPSCacheChange<PSM>,
+) -> PSM::DataSubmessageType
+where
+    PSM::DataType: 'a,
+    PSM::ParameterListType: 'a,
+{
+    let endianness_flag = true.into();
+    let inline_qos_flag = false.into();
+    let non_standard_payload_flag = false.into();
+
+    let data_flag = true.into();
+    let key_flag = false.into();
+    let reader_id = PSM::ENTITYID_UNKNOWN;
+    let writer_id = *cache_change.writer_guid().entity_id();
+    let writer_sn = *cache_change.sequence_number();
+    let inline_qos = cache_change.inline_qos();
+    let serialized_payload = cache_change.data_value();
+    PSM::DataSubmessageType::new(
+        endianness_flag,
+        inline_qos_flag,
+        data_flag,
+        key_flag,
+        non_standard_payload_flag,
+        submessage_elements::EntityId::new(reader_id),
+        submessage_elements::EntityId::new(writer_id),
+        submessage_elements::SequenceNumber::new(writer_sn),
+        inline_qos,
+        submessage_elements::SerializedData::new(serialized_payload.as_ref()),
+    )
 }
 
 #[cfg(test)]
@@ -188,7 +287,7 @@ mod tests {
     }
 
     impl DataPIM for MockPSM {
-        type DataType = ();
+        type DataType = [u8; 0];
     }
 
     impl InstanceHandlePIM for MockPSM {
@@ -286,7 +385,7 @@ mod tests {
             todo!()
         }
 
-        fn data_value(&self) -> &() {
+        fn data_value(&self) -> &[u8; 0] {
             todo!()
         }
 

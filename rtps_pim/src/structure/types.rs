@@ -1,4 +1,4 @@
-use crate::messages::{submessage_elements::ParameterList, types::ParameterIdPIM};
+use crate::messages::{submessage_elements, types::ParameterIdPIM};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -68,11 +68,11 @@ pub trait VendorIdPIM {
 }
 
 pub trait DataPIM {
-    type DataType: Send + Sync;
+    type DataType: AsRef<[u8]> + Send + Sync;
 }
 
 pub trait ParameterListPIM<PSM: ParameterIdPIM> {
-    type ParameterListType: ParameterList<PSM> + Send + Sync;
+    type ParameterListType: submessage_elements::ParameterList<PSM> + Send + Sync;
 }
 
 pub trait GUIDPIM<PSM: GuidPrefixPIM + EntityIdPIM> {
