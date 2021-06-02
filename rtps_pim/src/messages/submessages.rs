@@ -1,4 +1,10 @@
-use crate::{messages::{submessage_elements, Submessage}, structure::types::{DataPIM, EntityIdPIM, GuidPrefixPIM, LocatorPIM, ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM}};
+use crate::{
+    messages::{submessage_elements, Submessage},
+    structure::types::{
+        DataPIM, EntityIdPIM, GuidPrefixPIM, LocatorPIM, ParameterListPIM, ProtocolVersionPIM,
+        SequenceNumberPIM, VendorIdPIM,
+    },
+};
 
 use super::types::{
     CountPIM, FragmentNumberPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
@@ -36,7 +42,6 @@ pub trait AckNackSubmessage<
 }
 
 pub trait DataSubmessagePIM<
-    'a,
     PSM: SubmessageKindPIM
         + SubmessageFlagPIM
         + EntityIdPIM
@@ -46,7 +51,7 @@ pub trait DataSubmessagePIM<
         + DataPIM,
 >
 {
-    type DataSubmessageType: DataSubmessage<'a, PSM>;
+    type DataSubmessageType: for<'a> DataSubmessage<'a, PSM>;
 }
 
 pub trait DataSubmessage<

@@ -1,7 +1,14 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
-    behavior::types::DurationPIM,
-    messages::types::ParameterIdPIM,
+    behavior::{
+        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
+        types::DurationPIM,
+        RTPSWriter,
+    },
+    messages::{
+        submessages::DataSubmessagePIM,
+        types::{ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+    },
     structure::{
         types::{
             DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
@@ -27,6 +34,9 @@ pub trait RTPSParticipantImplTrait:
     + ProtocolVersionPIM
     + ParameterIdPIM
     + GUIDPIM<Self>
+    + SubmessageKindPIM
+    + SubmessageFlagPIM
+    + DataSubmessagePIM<Self>
     + ParameterListPIM<Self>
     + Sized
 {
@@ -45,6 +55,9 @@ impl<
             + ParameterIdPIM
             + GUIDPIM<Self>
             + ParameterListPIM<Self>
+            + SubmessageKindPIM
+            + SubmessageFlagPIM
+            + DataSubmessagePIM<Self>
             + Sized,
     > RTPSParticipantImplTrait for T
 {
@@ -82,6 +95,32 @@ impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
         //     .ok_or(DDSError::PreconditionNotMet("RTPS writer group not found"))?;
         // self.rtps_writer_groups.swap_remove(index);
         // Ok(())
+    }
+
+    pub fn send_data(&self) {
+        for writer_group in &self.rtps_writer_groups {
+            let writer_group_lock = writer_group.lock();
+            for writer in writer_group_lock.writer_list() {
+                if let Some(mut writer_lock) = writer.try_lock() {
+                    let last_change_sequence_number = *writer_lock.last_change_sequence_number();
+                    for reader_locator in writer_lock.reader_locators() {
+                        while let Some(_seq_num) =
+                            reader_locator.next_unsent_change(&last_change_sequence_number)
+                        {
+                            // if let Some(cache_change) =
+                            // writer_lock.writer_cache().get_change(&seq_num)
+                            // {
+                            // let data_submessage = rust_rtps_pim::behavior::stateless_writer::produce_data_submessage(
+                            //     cache_change,
+                            // );
+                            // } else {
+                            todo!()
+                            // }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

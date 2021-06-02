@@ -181,8 +181,8 @@ impl<PSM: RTPSWriterImplTrait> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
 impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> {
     type ReaderLocatorPIM = RTPSReaderLocatorImpl<PSM>;
 
-    fn reader_locators(&self) -> &[Self::ReaderLocatorPIM] {
-        &self.reader_locators
+    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorPIM] {
+        &mut self.reader_locators
     }
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM) {
