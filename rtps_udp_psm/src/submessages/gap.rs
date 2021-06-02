@@ -101,41 +101,16 @@ mod tests {
 
         let mut serializer = get_serializer();
         submessage.serialize(&mut serializer).unwrap();
-        assert_eq!(
-            serializer.writer,
-            vec![
-                0x08_u8,
-                0b_0000_0001,
-                28,
-                0, // Submessage header
-                1,
-                2,
-                3,
-                4, // readerId: value[4]
-                6,
-                7,
-                8,
-                9, // writerId: value[4]
-                0,
-                0,
-                0,
-                0, // gapStart: SequenceNumber: high
-                5,
-                0,
-                0,
-                0, // gapStart: SequenceNumber: low
-                0,
-                0,
-                0,
-                0, // gapList: SequenceNumberSet: bitmapBase: high
-                10,
-                0,
-                0,
-                0, // gapList: SequenceNumberSet: bitmapBase: low
-                0,
-                0,
-                0,
-                0, // gapList: SequenceNumberSet: numBits (ULong)
+        #[rustfmt::skip]
+        assert_eq!(serializer.writer, vec![
+                0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // gapStart: SequenceNumber: high
+                5, 0, 0, 0, // gapStart: SequenceNumber: low
+                0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
+               10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
+                0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
             ]
         );
         assert_eq!(

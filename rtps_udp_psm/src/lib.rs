@@ -661,9 +661,7 @@ impl serde::Serialize for Parameter {
         let mut state = serializer.serialize_struct("ParameterList", 1)?;
         state.serialize_field("parameter_id", &self.parameter_id)?;
         state.serialize_field("length", &self.length)?;
-        for i in &self.value {
-            state.serialize_field("value", i)?;
-        }
+        state.serialize_field("value", &self.value)?;
         state.end()
     }
 }

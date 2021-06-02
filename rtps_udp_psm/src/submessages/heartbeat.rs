@@ -27,7 +27,7 @@ impl rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm> for H
         last_sn: SequenceNumber,
         count: Count,
     ) -> Self {
-        let flags = [endianness_flag].into();
+        let flags = [endianness_flag, final_flag, liveliness_flag].into();
         let submessage_length = 28;
         let header = SubmessageHeader {
             submessage_id: <RtpsUdpPsm as SubmessageKindPIM>::HEARTBEAT.into(),
@@ -121,41 +121,17 @@ mod tests {
 
         let mut serializer = create_serializer();
         submessage.serialize(&mut serializer).unwrap();
+        #[rustfmt::skip]
         assert_eq!(
-            serializer.writer,
-            vec![
-                0x07_u8,
-                0b_0000_0001,
-                28,
-                0, // Submessage header
-                1,
-                2,
-                3,
-                4, // readerId: value[4]
-                6,
-                7,
-                8,
-                9, // writerId: value[4]
-                0,
-                0,
-                0,
-                0, // firstSN: SequenceNumber: high
-                1,
-                0,
-                0,
-                0, // firstSN: SequenceNumber: low
-                0,
-                0,
-                0,
-                0, // lastSN: SequenceNumber: high
-                3,
-                0,
-                0,
-                0, // lastSN: SequenceNumber: low
-                5,
-                0,
-                0,
-                0, // count: Count: value (long)
+            serializer.writer, vec![
+                0x07_u8, 0b_0000_0001, 28, 0, // Submessage header
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // firstSN: SequenceNumber: high
+                1, 0, 0, 0, // firstSN: SequenceNumber: low
+                0, 0, 0, 0, // lastSN: SequenceNumber: high
+                3, 0, 0, 0, // lastSN: SequenceNumber: low
+                5, 0, 0, 0, // count: Count: value (long)
             ]
         );
         assert_eq!(

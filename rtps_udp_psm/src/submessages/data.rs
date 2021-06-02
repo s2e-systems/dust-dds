@@ -176,33 +176,14 @@ mod tests {
 
         let mut serializer = get_serializer();
         submessage.serialize(&mut serializer).unwrap();
-        assert_eq!(
-            serializer.writer,
-            vec![
-                0x15_u8,
-                0b_0000_0001,
-                20,
-                0, // Submessage header
-                0,
-                0,
-                12,
-                0, // extraFlags, octetsToInlineQos
-                1,
-                2,
-                3,
-                4, // readerId: value[4]
-                6,
-                7,
-                8,
-                9, // writerId: value[4]
-                0,
-                0,
-                0,
-                0, // writerSN: high
-                5,
-                0,
-                0,
-                0, // writerSN: low
+        #[rustfmt::skip]
+        assert_eq!(serializer.writer, vec![
+                0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
+                0, 0, 12, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
             ]
         );
         assert_eq!(
@@ -251,49 +232,18 @@ mod tests {
 
         let mut serializer = get_serializer();
         submessage.serialize(&mut serializer).unwrap();
-        assert_eq!(
-            serializer.writer,
-            vec![
-                0x15,
-                0b_0000_0011,
-                36,
-                0, // Submessage header
-                0,
-                0,
-                12,
-                0, // extraFlags, octetsToInlineQos
-                1,
-                2,
-                3,
-                4, // readerId: value[4]
-                6,
-                7,
-                8,
-                9, // writerId: value[4]
-                0,
-                0,
-                0,
-                0, // writerSN: high
-                5,
-                0,
-                0,
-                0, // writerSN: low
-                6,
-                0,
-                4,
-                0, // inlineQos: parameterId_1, length_1
-                10,
-                11,
-                12,
-                13, // inlineQos: value_1[length_1]
-                7,
-                0,
-                4,
-                0, // inlineQos: parameterId_2, length_2
-                20,
-                21,
-                22,
-                23, // inlineQos: value_2[length_2]
+        #[rustfmt::skip]
+        assert_eq!(serializer.writer, vec![
+                0x15, 0b_0000_0011, 36, 0, // Submessage header
+                0, 0, 12, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+                10, 11, 12, 13, // inlineQos: value_1[length_1]
+                7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+                20, 21, 22, 23, // inlineQos: value_2[length_2]
             ]
         );
         assert_eq!(
