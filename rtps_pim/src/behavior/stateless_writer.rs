@@ -3,7 +3,8 @@ use crate::{
     messages::{
         submessage_elements,
         submessages::{
-            DataSubmessage, DataSubmessagePIM, HeartbeatSubmessage, HeartbeatSubmessagePIM,
+            DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM,
+            HeartbeatSubmessage, HeartbeatSubmessagePIM,
         },
         types::{CountPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
     },
@@ -69,35 +70,6 @@ pub trait RTPSStatelessWriter<
     fn unsent_changes_reset(&mut self);
 }
 
-pub fn produce_messages<
-    PSM: EntityIdPIM
-        + DataPIM
-        + GuidPrefixPIM
-        + InstanceHandlePIM
-        + LocatorPIM
-        + SequenceNumberPIM
-        + ParameterIdPIM
-        + GUIDPIM<PSM>
-        + ParameterListPIM<PSM>,
-    CacheChange: RTPSCacheChange<PSM>,
->(
-    reader_locator: &mut impl RTPSReaderLocator<PSM>,
-    writer_cache: &impl RTPSHistoryCache<PSM, CacheChange = CacheChange>,
-    last_change_sequence_number: &PSM::SequenceNumberType,
-    mut send_data_to: impl FnMut(&CacheChange),
-    mut send_gap_to: impl FnMut(&PSM::SequenceNumberType),
-) {
-    // Pushing state
-    while let Some(seq_num) = reader_locator.next_unsent_change(last_change_sequence_number) {
-        // Transition T4
-        if let Some(change) = writer_cache.get_change(&seq_num) {
-            send_data_to(change)
-        } else {
-            send_gap_to(&seq_num)
-        }
-    }
-}
-
 pub fn produce_heartbeat_submessage<
     PSM: EntityIdPIM
         + DataPIM
@@ -148,9 +120,9 @@ pub fn produce_heartbeat_submessage<
 
 pub fn produce_data_submessage<
     'a,
-    PSM: SequenceNumberPIM
-        + SubmessageKindPIM
+    PSM: SubmessageKindPIM
         + SubmessageFlagPIM
+        + SequenceNumberPIM
         + EntityIdPIM
         + GuidPrefixPIM
         + GUIDPIM<PSM>
@@ -188,6 +160,38 @@ where
         submessage_elements::SequenceNumber::new(writer_sn),
         inline_qos,
         submessage_elements::SerializedData::new(serialized_payload.as_ref()),
+    )
+}
+
+pub fn produce_gap_submessage<
+    PSM: SubmessageKindPIM
+        + SubmessageFlagPIM
+        + EntityIdPIM
+        + GuidPrefixPIM
+        + GUIDPIM<PSM>
+        + SequenceNumberPIM
+        + DurationPIM
+        + DataPIM
+        + InstanceHandlePIM
+        + LocatorPIM
+        + ParameterIdPIM
+        + ParameterListPIM<PSM>
+        + GapSubmessagePIM<PSM>,
+>(
+    stateless_writer: &impl RTPSStatelessWriter<PSM>,
+    gap_start: PSM::SequenceNumberType,
+    gap_list_base: PSM::SequenceNumberType,
+    gap_list_set: <<PSM::GapSubmessageType as GapSubmessage<PSM>>::SequenceNumberSet as submessage_elements::SequenceNumberSet<PSM>>::SequenceNumberVector,
+) -> PSM::GapSubmessageType {
+    let endianness_flag: PSM::SubmessageFlagType = true.into();
+    let reader_id = PSM::ENTITYID_UNKNOWN;
+    let writer_id = *stateless_writer.guid().entity_id();
+    PSM::GapSubmessageType::new(
+        endianness_flag,
+        submessage_elements::EntityId::new(reader_id),
+        submessage_elements::EntityId::new(writer_id),
+        submessage_elements::SequenceNumber::new(gap_start),
+        submessage_elements::SequenceNumberSet::new(gap_list_base, gap_list_set),
     )
 }
 
@@ -428,118 +432,118 @@ mod tests {
         }
     }
 
-    #[test]
-    fn stateless_writer_produce_messages_only_data() {
-        let mut sent_data_seq_num = [0, 0];
-        let mut total_data = 0;
-        let mut sent_gap_seq_num = [];
-        let mut total_gap = 0;
+    // #[test]
+    // fn stateless_writer_produce_messages_only_data() {
+    //     let mut sent_data_seq_num = [0, 0];
+    //     let mut total_data = 0;
+    //     let mut sent_gap_seq_num = [];
+    //     let mut total_gap = 0;
 
-        let expected_total_data = 2;
-        let expected_sent_data_seq_num = [1, 2];
-        let expected_total_gap = 0;
-        let expected_sent_gap_seq_num = [];
+    //     let expected_total_data = 2;
+    //     let expected_sent_data_seq_num = [1, 2];
+    //     let expected_total_gap = 0;
+    //     let expected_sent_gap_seq_num = [];
 
-        let mut reader_locator = MockReaderLocator {
-            last_sent_sequence_number: 0,
-        };
-        let writer_cache = MockHistoryCache::<2> {
-            changes: [
-                MockCacheChange { sequence_number: 1 },
-                MockCacheChange { sequence_number: 2 },
-            ],
-        };
-        produce_messages(
-            &mut reader_locator,
-            &writer_cache,
-            &2,
-            |cc| {
-                sent_data_seq_num[total_data] = cc.sequence_number;
-                total_data += 1;
-            },
-            |gap_seq_num| {
-                sent_gap_seq_num[total_gap] = *gap_seq_num;
-                total_gap += 1;
-            },
-        );
+    //     let mut reader_locator = MockReaderLocator {
+    //         last_sent_sequence_number: 0,
+    //     };
+    //     let writer_cache = MockHistoryCache::<2> {
+    //         changes: [
+    //             MockCacheChange { sequence_number: 1 },
+    //             MockCacheChange { sequence_number: 2 },
+    //         ],
+    //     };
+    //     produce_messages(
+    //         &mut reader_locator,
+    //         &writer_cache,
+    //         &2,
+    //         |cc| {
+    //             sent_data_seq_num[total_data] = cc.sequence_number;
+    //             total_data += 1;
+    //         },
+    //         |gap_seq_num| {
+    //             sent_gap_seq_num[total_gap] = *gap_seq_num;
+    //             total_gap += 1;
+    //         },
+    //     );
 
-        assert_eq!(total_data, expected_total_data);
-        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
-        assert_eq!(total_gap, expected_total_gap);
-        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
-    }
+    //     assert_eq!(total_data, expected_total_data);
+    //     assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+    //     assert_eq!(total_gap, expected_total_gap);
+    //     assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    // }
 
-    #[test]
-    fn stateless_writer_produce_messages_only_gap() {
-        let mut sent_data_seq_num = [];
-        let mut total_data = 0;
-        let mut sent_gap_seq_num = [0, 0];
-        let mut total_gap = 0;
+    // #[test]
+    // fn stateless_writer_produce_messages_only_gap() {
+    //     let mut sent_data_seq_num = [];
+    //     let mut total_data = 0;
+    //     let mut sent_gap_seq_num = [0, 0];
+    //     let mut total_gap = 0;
 
-        let expected_total_data = 0;
-        let expected_sent_data_seq_num = [];
-        let expected_total_gap = 2;
-        let expected_sent_gap_seq_num = [1, 2];
+    //     let expected_total_data = 0;
+    //     let expected_sent_data_seq_num = [];
+    //     let expected_total_gap = 2;
+    //     let expected_sent_gap_seq_num = [1, 2];
 
-        let mut reader_locator = MockReaderLocator {
-            last_sent_sequence_number: 0,
-        };
-        let writer_cache = MockHistoryCache::<0> { changes: [] };
-        produce_messages(
-            &mut reader_locator,
-            &writer_cache,
-            &2,
-            |cc| {
-                sent_data_seq_num[total_data] = cc.sequence_number;
-                total_data += 1;
-            },
-            |gap_seq_num| {
-                sent_gap_seq_num[total_gap] = *gap_seq_num;
-                total_gap += 1;
-            },
-        );
+    //     let mut reader_locator = MockReaderLocator {
+    //         last_sent_sequence_number: 0,
+    //     };
+    //     let writer_cache = MockHistoryCache::<0> { changes: [] };
+    //     produce_messages(
+    //         &mut reader_locator,
+    //         &writer_cache,
+    //         &2,
+    //         |cc| {
+    //             sent_data_seq_num[total_data] = cc.sequence_number;
+    //             total_data += 1;
+    //         },
+    //         |gap_seq_num| {
+    //             sent_gap_seq_num[total_gap] = *gap_seq_num;
+    //             total_gap += 1;
+    //         },
+    //     );
 
-        assert_eq!(total_data, expected_total_data);
-        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
-        assert_eq!(total_gap, expected_total_gap);
-        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
-    }
+    //     assert_eq!(total_data, expected_total_data);
+    //     assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+    //     assert_eq!(total_gap, expected_total_gap);
+    //     assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    // }
 
-    #[test]
-    fn stateless_writer_produce_messages_data_and_gap() {
-        let mut sent_data_seq_num = [0];
-        let mut total_data = 0;
-        let mut sent_gap_seq_num = [0];
-        let mut total_gap = 0;
+    // #[test]
+    // fn stateless_writer_produce_messages_data_and_gap() {
+    //     let mut sent_data_seq_num = [0];
+    //     let mut total_data = 0;
+    //     let mut sent_gap_seq_num = [0];
+    //     let mut total_gap = 0;
 
-        let expected_total_data = 1;
-        let expected_sent_data_seq_num = [2];
-        let expected_total_gap = 1;
-        let expected_sent_gap_seq_num = [1];
+    //     let expected_total_data = 1;
+    //     let expected_sent_data_seq_num = [2];
+    //     let expected_total_gap = 1;
+    //     let expected_sent_gap_seq_num = [1];
 
-        let mut reader_locator = MockReaderLocator {
-            last_sent_sequence_number: 0,
-        };
-        let writer_cache = MockHistoryCache::<1> {
-            changes: [MockCacheChange { sequence_number: 2 }],
-        };
-        produce_messages(
-            &mut reader_locator,
-            &writer_cache,
-            &2,
-            |cc| {
-                sent_data_seq_num[total_data] = cc.sequence_number;
-                total_data += 1;
-            },
-            |gap_seq_num| {
-                sent_gap_seq_num[total_gap] = *gap_seq_num;
-                total_gap += 1;
-            },
-        );
+    //     let mut reader_locator = MockReaderLocator {
+    //         last_sent_sequence_number: 0,
+    //     };
+    //     let writer_cache = MockHistoryCache::<1> {
+    //         changes: [MockCacheChange { sequence_number: 2 }],
+    //     };
+    //     produce_messages(
+    //         &mut reader_locator,
+    //         &writer_cache,
+    //         &2,
+    //         |cc| {
+    //             sent_data_seq_num[total_data] = cc.sequence_number;
+    //             total_data += 1;
+    //         },
+    //         |gap_seq_num| {
+    //             sent_gap_seq_num[total_gap] = *gap_seq_num;
+    //             total_gap += 1;
+    //         },
+    //     );
 
-        assert_eq!(total_data, expected_total_data);
-        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
-        assert_eq!(total_gap, expected_total_gap);
-        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
-    }
+    //     assert_eq!(total_data, expected_total_data);
+    //     assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+    //     assert_eq!(total_gap, expected_total_gap);
+    //     assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    // }
 }
