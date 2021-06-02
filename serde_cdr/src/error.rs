@@ -19,6 +19,14 @@ impl serde::ser::Error for Error {
     }
 }
 
+impl serde::de::Error for Error {
+    fn custom<T>(_msg:T)-> Self
+        where T:std::fmt::Display
+    {
+        todo!()
+    }
+}
+
 impl std::error::Error for Error {}
 
 impl std::fmt::Display for Error {
