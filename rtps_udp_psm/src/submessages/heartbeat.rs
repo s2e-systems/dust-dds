@@ -30,7 +30,7 @@ impl rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm> for H
         let flags = [endianness_flag, final_flag, liveliness_flag].into();
         let submessage_length = 28;
         let header = SubmessageHeader {
-            submessage_id: <RtpsUdpPsm as SubmessageKindPIM>::HEARTBEAT.into(),
+            submessage_id: RtpsUdpPsm::HEARTBEAT.into(),
             flags,
             submessage_length,
         };

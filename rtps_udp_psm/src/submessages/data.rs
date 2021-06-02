@@ -43,7 +43,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm> fo
         .into();
         let submessage_length = 20 + inline_qos.len() + serialized_payload.len();
         let header = SubmessageHeader {
-            submessage_id: <RtpsUdpPsm as SubmessageKindPIM>::DATA.into(),
+            submessage_id: RtpsUdpPsm::DATA.into(),
             flags,
             submessage_length,
         };

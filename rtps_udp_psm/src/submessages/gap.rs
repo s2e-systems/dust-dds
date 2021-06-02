@@ -30,7 +30,7 @@ impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for GapSubm
         let submessage_length = 16 + gap_list.len();
 
         let header = SubmessageHeader {
-            submessage_id: <RtpsUdpPsm as SubmessageKindPIM>::GAP.into(),
+            submessage_id: RtpsUdpPsm::GAP.into(),
             flags,
             submessage_length,
         };
