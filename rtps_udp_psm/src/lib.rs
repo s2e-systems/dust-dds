@@ -1,16 +1,12 @@
 use serde::ser::SerializeStruct;
 
-use rust_rtps_pim::{
-    behavior::types::{DurationPIM, ParticipantMessageDataPIM},
-    messages::types::{
+use rust_rtps_pim::{behavior::types::{DurationPIM, ParticipantMessageDataPIM}, messages::{submessages::{DataSubmessage, DataSubmessagePIM}, types::{
         CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
         SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
-    },
-    structure::types::{
+    }}, structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
         ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-    },
-};
+    }};
 
 pub mod submessages;
 
@@ -168,6 +164,10 @@ impl DurationPIM for RtpsUdpPsm {
 
 impl ParticipantMessageDataPIM for RtpsUdpPsm {
     type ParticipantMessageDataType = ();
+}
+
+impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
+    type DataSubmessageType = submessages::data::DataSubmesage<'a>;
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, serde::Serialize)]

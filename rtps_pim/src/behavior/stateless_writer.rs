@@ -61,7 +61,7 @@ pub trait RTPSStatelessWriter<
 {
     type ReaderLocatorPIM: RTPSReaderLocator<PSM>;
 
-    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorPIM];
+    fn reader_locators(&mut self) -> (&mut [Self::ReaderLocatorPIM], &Self::HistoryCacheType);
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM);
 
@@ -130,7 +130,7 @@ pub fn produce_data_submessage<
         + ParameterListPIM<PSM>
         + ParameterIdPIM
         + DataPIM
-        + DataSubmessagePIM<PSM>,
+        + DataSubmessagePIM<'a, PSM>,
 >(
     cache_change: &'a impl RTPSCacheChange<PSM>,
 ) -> PSM::DataSubmessageType

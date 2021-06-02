@@ -42,6 +42,7 @@ pub trait AckNackSubmessage<
 }
 
 pub trait DataSubmessagePIM<
+    'a,
     PSM: SubmessageKindPIM
         + SubmessageFlagPIM
         + EntityIdPIM
@@ -51,7 +52,7 @@ pub trait DataSubmessagePIM<
         + DataPIM,
 >
 {
-    type DataSubmessageType: for<'a> DataSubmessage<'a, PSM>;
+    type DataSubmessageType: DataSubmessage<'a, PSM>;
 }
 
 pub trait DataSubmessage<

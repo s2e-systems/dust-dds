@@ -6,7 +6,8 @@ use rust_rtps_pim::{
         RTPSWriter,
     },
     messages::{
-        submessages::DataSubmessagePIM,
+        submessage_elements,
+        submessages::{DataSubmessage, DataSubmessagePIM},
         types::{ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
     },
     structure::{
@@ -14,7 +15,7 @@ use rust_rtps_pim::{
             DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
             ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUID, GUIDPIM,
         },
-        RTPSEntity,
+        RTPSCacheChange, RTPSEntity, RTPSHistoryCache,
     },
 };
 
@@ -36,7 +37,6 @@ pub trait RTPSParticipantImplTrait:
     + GUIDPIM<Self>
     + SubmessageKindPIM
     + SubmessageFlagPIM
-    + DataSubmessagePIM<Self>
     + ParameterListPIM<Self>
     + Sized
 {
@@ -57,7 +57,6 @@ impl<
             + ParameterListPIM<Self>
             + SubmessageKindPIM
             + SubmessageFlagPIM
-            + DataSubmessagePIM<Self>
             + Sized,
     > RTPSParticipantImplTrait for T
 {
@@ -96,26 +95,51 @@ impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
         // self.rtps_writer_groups.swap_remove(index);
         // Ok(())
     }
+}
 
-    pub fn send_data(&self) {
-        for writer_group in &self.rtps_writer_groups {
-            let writer_group_lock = writer_group.lock();
-            for writer in writer_group_lock.writer_list() {
-                if let Some(mut writer_lock) = writer.try_lock() {
-                    let last_change_sequence_number = *writer_lock.last_change_sequence_number();
-                    for reader_locator in writer_lock.reader_locators() {
-                        while let Some(_seq_num) =
-                            reader_locator.next_unsent_change(&last_change_sequence_number)
-                        {
-                            // if let Some(cache_change) =
-                            // writer_lock.writer_cache().get_change(&seq_num)
-                            // {
-                            // let data_submessage = rust_rtps_pim::behavior::stateless_writer::produce_data_submessage(
-                            //     cache_change,
-                            // );
-                            // } else {
+pub fn send_data<
+    'a,
+    'b:'a,
+    PSM: GuidPrefixPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + LocatorPIM
+        + VendorIdPIM
+        + DurationPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ProtocolVersionPIM
+        + ParameterIdPIM
+        + GUIDPIM<PSM>
+        + SubmessageKindPIM
+        + SubmessageFlagPIM
+        + ParameterListPIM<PSM>
+        + DataSubmessagePIM<'a, PSM>
+        + Sized,
+>(
+    rtps_participant_impl: &'b RTPSParticipantImpl<PSM>,
+) where
+    PSM::DataType: 'a,
+    PSM::ParameterListType: 'a,
+{
+    for writer_group in &rtps_participant_impl.rtps_writer_groups {
+        let writer_group_lock = writer_group.lock();
+        let writer_list = writer_group_lock.writer_list();
+        for writer in writer_list {
+            if let Some(mut writer_lock) = writer.try_lock() {
+                let last_change_sequence_number = *writer_lock.last_change_sequence_number();
+                let (reader_locators, writer_cache) = writer_lock.reader_locators();
+                for reader_locator in reader_locators {
+                    while let Some(seq_num) =
+                        reader_locator.next_unsent_change(&last_change_sequence_number)
+                    {
+                        if let Some(cache_change) = writer_cache.get_change(&seq_num) {
+                            let data_submessage =
+                            rust_rtps_pim::behavior::stateless_writer::produce_data_submessage(
+                                cache_change,
+                            );
+                        } else {
                             todo!()
-                            // }
                         }
                     }
                 }
