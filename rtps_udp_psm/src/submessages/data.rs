@@ -205,12 +205,10 @@ mod tests {
         let writer_sn = 5.into();
         let param1 = crate::Parameter {
             parameter_id: 6,
-            length: 4,
             value: vec![10, 11, 12, 13].into(),
         };
         let param2 = crate::Parameter {
             parameter_id: 7,
-            length: 4,
             value: vec![20, 21, 22, 23].into(),
         };
         let inline_qos = ParameterList {

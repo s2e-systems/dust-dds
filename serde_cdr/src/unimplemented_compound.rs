@@ -1,5 +1,5 @@
 use crate::error::Error;
-use serde::{Serialize, ser::{SerializeMap, SerializeSeq, SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant}};
+use serde::{Serialize, ser::{SerializeMap, SerializeStructVariant, SerializeTupleStruct, SerializeTupleVariant}};
 
 pub struct UnimplementedCompound {}
 

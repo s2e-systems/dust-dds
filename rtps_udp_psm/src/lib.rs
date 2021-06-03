@@ -630,10 +630,9 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-#[derive(Clone)]
+//#[derive(Clone)]
 pub struct Parameter {
     pub parameter_id: ParameterId,
-    pub length: i16,
     pub value: Vec<u8>,
 }
 
@@ -649,7 +648,7 @@ impl rust_rtps_pim::messages::submessage_elements::Parameter<RtpsUdpPsm> for Par
     }
 
     fn length(&self) -> i16 {
-        self.length
+        self.value.len() as i16
     }
 
     fn value(&self) -> &[u8] {
@@ -660,7 +659,6 @@ impl serde::Serialize for Parameter {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ParameterList", 1)?;
         state.serialize_field("parameter_id", &self.parameter_id)?;
-        state.serialize_field("length", &self.length)?;
         state.serialize_field("value", &self.value)?;
         state.end()
     }

@@ -1,5 +1,7 @@
 #[derive(Debug)]
 pub enum Error {
+    Message(String),
+    
     IoError(std::io::Error),
     SequenceMustHaveLength,
     InvalidBoolEncoding(u8),
@@ -21,10 +23,10 @@ impl serde::ser::Error for Error {
 }
 
 impl serde::de::Error for Error {
-    fn custom<T>(_msg:T)-> Self
+    fn custom<T>(msg:T)-> Self
         where T:std::fmt::Display
     {
-        todo!()
+        Error::Message(msg.to_string())
     }
 }
 

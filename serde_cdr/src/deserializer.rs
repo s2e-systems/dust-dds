@@ -171,8 +171,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
     where
         V: serde::de::Visitor<'de>,
     {
-        let len = 2;
-        //let len: u32 = serde::de::Deserialize::deserialize(&mut *self)?;
+        let len: u16 = serde::de::Deserialize::deserialize(&mut *self)?;
         self.deserialize_tuple(len as usize, visitor)
     }
 
@@ -332,8 +331,8 @@ mod tests {
 
     #[test]
     fn deserialze_sequence() {
-        let result: Vec<u8> = deserialize([1, 2]);
-        assert_eq!(result, vec![1, 2]);
+        let result: Vec<u8> = deserialize([0x02, 0x00, 1, 2, 3]);
+        assert_eq!(result, vec![1, 2, 3]);
     }
 
     #[derive(PartialEq, Debug, serde::Deserialize)]
@@ -361,9 +360,7 @@ mod tests {
     }
 
 
-    struct CustomStructVisitor {
-
-    }
+    struct CustomStructVisitor;
     impl<'de> serde::de::Visitor<'de> for CustomStructVisitor {
         type Value = CustomStruct;
 
@@ -374,9 +371,12 @@ mod tests {
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where A: serde::de::SeqAccess<'de>,
         {
-            let data_length = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-            let data = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-            // let data = vec![data[0], data[1]];
+            let data_length: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+            let mut data = Vec::new();
+            for i in 1..data_length {
+                let data_i: u8 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(i as usize, &self))?;
+                data.push(data_i);
+            }
             Ok(CustomStruct{data_length, data})
         }
     }
@@ -397,7 +397,7 @@ mod tests {
 
     #[test]
     fn deserialze_custom_struct() {
-        let result: CustomStruct = deserialize([2, 0, 4, 5]);
+        let result: CustomStruct = deserialize([0x02, 0x00, 4, 5]);
         assert_eq!(result, CustomStruct{data_length: 2, data: vec![4, 5]});
     }
 }

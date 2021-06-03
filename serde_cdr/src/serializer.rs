@@ -183,8 +183,10 @@ impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
         todo!()
     }
 
-    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-        // Do NOT serialize the length (that is not fully CDR compliant)
+    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
+        // Do serialize the length as u16 (that is not CDR compliant, it would be as long)
+        let len = len.ok_or(Self::Error::SequenceMustHaveLength)?;
+        self.writer.write_u16::<LittleEndian>(len as u16)?;
         Ok(SerializeCompound { ser: self })
     }
 
