@@ -477,7 +477,7 @@ impl serde::Serialize for SequenceNumberSet {
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
     for SequenceNumberSet
 {
-    type SequenceNumberVector = ();
+    type SequenceNumberVector = Vec<SequenceNumber>;
 
     fn new(_base: SequenceNumber, _set: Self::SequenceNumberVector) -> Self {
         todo!()
@@ -487,7 +487,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
         &self.bitmap_base
     }
 
-    fn set(&self) -> &Self::SequenceNumberVector {
+    fn set(&self) -> Self::SequenceNumberVector {
         // &self.bitmap
         todo!()
     }
@@ -617,8 +617,9 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
         &FragmentNumber(0)
     }
 
-    fn set(&self) -> &Self::FragmentNumberVector {
-        self
+    fn set(&self) -> Self::FragmentNumberVector {
+        todo!()
+        // self
     }
 }
 

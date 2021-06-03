@@ -61,9 +61,9 @@ impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocator<PSM> for RTPSReaderLocat
         self.requested_changes.clone()
     }
 
-    fn requested_changes_set(
+    fn requested_changes_set<T: IntoIterator<Item = PSM::SequenceNumberType>>(
         &mut self,
-        req_seq_num_set: Self::SequenceNumberVector,
+        req_seq_num_set: T,
         last_change_sequence_number: PSM::SequenceNumberType,
     ) {
         for requested_change in req_seq_num_set {

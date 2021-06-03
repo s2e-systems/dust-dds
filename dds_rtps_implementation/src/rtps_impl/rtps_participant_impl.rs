@@ -1,9 +1,7 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
     behavior::{
-        stateless_writer::{
-            BestEffortStatelessWriterBehavior, RTPSReaderLocator, RTPSStatelessWriter,
-        },
+        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
     },
@@ -142,8 +140,9 @@ pub fn send_data<
         for writer in writer_list {
             if let Some(mut writer_lock) = writer.try_lock() {
                 let writer_ref = writer_lock.as_mut();
-                let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
-                behavior.send_unsent_data();
+                todo!()
+                // let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
+                // behavior.send_unsent_data();
             }
         }
     }

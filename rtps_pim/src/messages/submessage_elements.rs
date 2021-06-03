@@ -57,11 +57,11 @@ pub trait SequenceNumber<PSM: SequenceNumberPIM> {
 }
 
 pub trait SequenceNumberSet<PSM: SequenceNumberPIM> {
-    type SequenceNumberVector;
+    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>;
 
     fn new(base: PSM::SequenceNumberType, set: Self::SequenceNumberVector) -> Self;
     fn base(&self) -> &PSM::SequenceNumberType;
-    fn set(&self) -> &Self::SequenceNumberVector;
+    fn set(&self) -> Self::SequenceNumberVector;
 }
 
 pub trait FragmentNumber<PSM: FragmentNumberPIM> {
@@ -74,7 +74,7 @@ pub trait FragmentNumberSet<PSM: FragmentNumberPIM> {
 
     fn new(base: PSM::FragmentNumberType, set: Self::FragmentNumberVector) -> Self;
     fn base(&self) -> &PSM::FragmentNumberType;
-    fn set(&self) -> &Self::FragmentNumberVector;
+    fn set(&self) -> Self::FragmentNumberVector;
 }
 
 pub trait Timestamp<PSM: TimePIM> {
