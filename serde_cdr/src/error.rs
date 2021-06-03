@@ -2,6 +2,7 @@
 pub enum Error {
     IoError(std::io::Error),
     SequenceMustHaveLength,
+    InvalidBoolEncoding(u8),
 }
 
 impl From<std::io::Error> for Error {
