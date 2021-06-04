@@ -1,6 +1,6 @@
 use rust_dds::{
     domain::domain_participant::DomainParticipant,
-    domain_participant_factory::DomainParticipantFactory,
+    domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
 };
 
 // struct TestType;
@@ -51,7 +51,10 @@ use rust_dds::{
 
 #[test]
 fn create_delete_publisher() {
-    // let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
+    let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
+    participant.enable().unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(2));
     // let publisher = participant.create_publisher(None, None, 0).unwrap();
 
     // assert_eq!(participant.delete_publisher(&publisher), Ok(()));

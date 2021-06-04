@@ -23,3 +23,19 @@ pub trait Submessage<PSM: SubmessageFlagPIM + SubmessageKindPIM> {
     type SubmessageHeader: SubmessageHeader<PSM>;
     fn submessage_header(&self) -> Self::SubmessageHeader;
 }
+
+pub trait RTPSMessagePIM<PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM> {
+    type RTPSMessageType: RTPSMessage<PSM>;
+}
+
+pub trait RTPSMessage<PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM> {
+    type RTPSMessageHeaderType: Header<PSM>;
+    fn new(
+        protocol: PSM::ProtocolIdType,
+        version: PSM::ProtocolVersionType,
+        vendor_id: PSM::VendorIdType,
+        guid_prefix: PSM::GuidPrefixType,
+    ) -> Self;
+
+    fn header(&self) -> Self::RTPSMessageHeaderType;
+}

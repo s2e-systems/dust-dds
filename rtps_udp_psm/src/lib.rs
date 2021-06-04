@@ -1,12 +1,20 @@
 use serde::ser::SerializeStruct;
 
-use rust_rtps_pim::{behavior::types::{DurationPIM, ParticipantMessageDataPIM}, messages::{submessages::{DataSubmessage, DataSubmessagePIM}, types::{
-        CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
-        SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
-    }}, structure::types::{
+use rust_rtps_pim::{
+    behavior::types::{DurationPIM, ParticipantMessageDataPIM},
+    messages::{
+        submessages::{DataSubmessagePIM, GapSubmessagePIM},
+        types::{
+            CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
+            SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
+        },
+        RTPSMessagePIM,
+    },
+    structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
         ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-    }};
+    },
+};
 
 pub mod submessages;
 
@@ -166,8 +174,16 @@ impl ParticipantMessageDataPIM for RtpsUdpPsm {
     type ParticipantMessageDataType = ();
 }
 
+impl RTPSMessagePIM<Self> for RtpsUdpPsm {
+    type RTPSMessageType = RTPSMessage;
+}
+
 impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
     type DataSubmessageType = submessages::data::DataSubmesage<'a>;
+}
+
+impl GapSubmessagePIM<Self> for RtpsUdpPsm {
+    type GapSubmessageType = submessages::gap::GapSubmessage;
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, serde::Serialize)]
@@ -662,7 +678,7 @@ impl serde::Serialize for Parameter {
         let mut state = serializer.serialize_struct("ParameterList", 1)?;
         state.serialize_field("parameter_id", &self.parameter_id)?;
         state.serialize_field("length", &self.length)?;
-        state.serialize_field("value", &self.value)?;
+        state.serialize_field("value", self.value.as_slice())?;
         state.end()
     }
 }
@@ -710,6 +726,45 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for L
 
     fn value(&self) -> &Self::LocatorList {
         &self.0
+    }
+}
+
+pub struct RTPSMessageHeader;
+
+impl rust_rtps_pim::messages::Header<RtpsUdpPsm> for RTPSMessageHeader {
+    fn protocol(&self) -> ProtocolId {
+        todo!()
+    }
+
+    fn version(&self) -> ProtocolVersion {
+        todo!()
+    }
+
+    fn vendor_id(&self) -> VendorId {
+        todo!()
+    }
+
+    fn guid_prefix(&self) -> GuidPrefix {
+        todo!()
+    }
+}
+
+pub struct RTPSMessage;
+
+impl rust_rtps_pim::messages::RTPSMessage<RtpsUdpPsm> for RTPSMessage {
+    type RTPSMessageHeaderType = RTPSMessageHeader;
+
+    fn new(
+        protocol: ProtocolId,
+        version: ProtocolVersion,
+        vendor_id: VendorId,
+        guid_prefix: GuidPrefix,
+    ) -> Self {
+        todo!()
+    }
+
+    fn header(&self) -> Self::RTPSMessageHeaderType {
+        todo!()
     }
 }
 

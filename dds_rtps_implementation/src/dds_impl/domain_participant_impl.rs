@@ -16,9 +16,7 @@ use rust_dds_api::{
 
 // use rust_rtps_pim::structure::RTPSEntity;
 
-use crate::{
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
-};
+use crate::{rtps_impl::rtps_participant_impl::{RTPSParticipantImpl, send_data}, utils::shared_object::RtpsShared};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -302,7 +300,8 @@ impl<PSM: PIM> Entity for DomainParticipantImpl<PSM> {
         let rtps_participant = self.rtps_participant_impl.clone();
         std::thread::spawn(move || {
             loop {
-                if let Some(_rtps_participant) = rtps_participant.try_lock() {
+                if let Some(rtps_participant) = rtps_participant.try_lock() {
+                    send_data(rtps_participant.as_ref());
                     // rtps_participant.send_data::<UDPHeartbeatMessage>();
                     // rtps_participant.receive_data();
                     // rtps_participant.run_listeners();
