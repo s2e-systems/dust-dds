@@ -1,15 +1,24 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
-use rust_rtps_pim::{behavior::{
+use rust_rtps_pim::{
+    behavior::{
         stateless_writer::{best_effort_send_unsent_data, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
-    }, messages::{RTPSMessagePIM, submessage_elements::SerializedData, submessages::{DataSubmessage, DataSubmessagePIM, GapSubmessagePIM}, types::{ParameterIdPIM, ProtocolIdPIM, SubmessageFlagPIM, SubmessageKindPIM}}, structure::{
+    },
+    messages::{
+        submessage_elements::SerializedData,
+        submessages::{DataSubmessage, DataSubmessagePIM, GapSubmessagePIM},
+        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+        RTPSMessage, RTPSMessagePIM,
+    },
+    structure::{
         types::{
             DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
             ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUID, GUIDPIM,
         },
-        RTPSEntity,
-    }};
+        RTPSEntity, RTPSParticipant,
+    },
+};
 
 use crate::utils::shared_object::RtpsShared;
 
@@ -147,6 +156,11 @@ pub fn send_data<
                         |_locator, _gap_submessage| {},
                     );
                 }
+                let protocol = PSM::PROTOCOL_RTPS;
+                let version = rtps_participant_impl.protocol_version();
+                let vendor_id = rtps_participant_impl.vendor_id();
+                let guid_prefix = rtps_participant_impl.guid().prefix().clone();
+                let message = PSM::RTPSMessageType::new(protocol, version, vendor_id, guid_prefix);
 
                 // let rtps_message = PSM::RTPSMessageType::new();
 

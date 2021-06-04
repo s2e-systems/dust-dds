@@ -724,27 +724,35 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for L
     }
 }
 
-pub struct RTPSMessageHeader;
+#[derive(Clone, Copy)]
+pub struct RTPSMessageHeader {
+    protocol: ProtocolId,
+    version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
+}
 
 impl rust_rtps_pim::messages::Header<RtpsUdpPsm> for RTPSMessageHeader {
     fn protocol(&self) -> ProtocolId {
-        todo!()
+        self.protocol
     }
 
     fn version(&self) -> ProtocolVersion {
-        todo!()
+        self.version
     }
 
     fn vendor_id(&self) -> VendorId {
-        todo!()
+        self.vendor_id
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
-        todo!()
+        self.guid_prefix
     }
 }
 
-pub struct RTPSMessage;
+pub struct RTPSMessage {
+    header: RTPSMessageHeader,
+}
 
 impl rust_rtps_pim::messages::RTPSMessage<RtpsUdpPsm> for RTPSMessage {
     type RTPSMessageHeaderType = RTPSMessageHeader;
@@ -755,11 +763,18 @@ impl rust_rtps_pim::messages::RTPSMessage<RtpsUdpPsm> for RTPSMessage {
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
     ) -> Self {
-        todo!()
+        Self {
+            header: RTPSMessageHeader {
+                protocol,
+                version,
+                vendor_id,
+                guid_prefix,
+            },
+        }
     }
 
     fn header(&self) -> Self::RTPSMessageHeaderType {
-        todo!()
+        self.header
     }
 }
 
