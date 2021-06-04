@@ -1,20 +1,12 @@
 use serde::ser::SerializeStruct;
 
-use rust_rtps_pim::{
-    behavior::types::{DurationPIM, ParticipantMessageDataPIM},
-    messages::{
-        submessages::{DataSubmessagePIM, GapSubmessagePIM},
-        types::{
+use rust_rtps_pim::{behavior::types::{DurationPIM, ParticipantMessageDataPIM}, messages::{RTPSMessagePIM, SubmessageHeaderPIM, submessages::{DataSubmessagePIM, GapSubmessagePIM}, types::{
             CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
             SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
-        },
-        RTPSMessagePIM,
-    },
-    structure::types::{
+        }}, structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
         ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-    },
-};
+    }};
 
 pub mod submessages;
 
@@ -174,8 +166,12 @@ impl ParticipantMessageDataPIM for RtpsUdpPsm {
     type ParticipantMessageDataType = ();
 }
 
-impl RTPSMessagePIM<Self> for RtpsUdpPsm {
-    type RTPSMessageType = RTPSMessage;
+impl<'a> RTPSMessagePIM<'a, Self> for RtpsUdpPsm {
+    type RTPSMessageType = RTPSMessage<'a>;
+}
+
+impl SubmessageHeaderPIM<Self> for RtpsUdpPsm {
+    type SubmessageHeaderType = submessages::SubmessageHeader;
 }
 
 impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
@@ -750,18 +746,21 @@ impl rust_rtps_pim::messages::Header<RtpsUdpPsm> for RTPSMessageHeader {
     }
 }
 
-pub struct RTPSMessage {
+pub struct RTPSMessage<'a> {
     header: RTPSMessageHeader,
+    submessages: Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>,
 }
 
-impl rust_rtps_pim::messages::RTPSMessage<RtpsUdpPsm> for RTPSMessage {
+impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a> {
     type RTPSMessageHeaderType = RTPSMessageHeader;
+    type RTPSSubmessageVectorType = Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>;
 
     fn new(
         protocol: ProtocolId,
         version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
+        submessages: Self::RTPSSubmessageVectorType,
     ) -> Self {
         Self {
             header: RTPSMessageHeader {
@@ -770,6 +769,7 @@ impl rust_rtps_pim::messages::RTPSMessage<RtpsUdpPsm> for RTPSMessage {
                 vendor_id,
                 guid_prefix,
             },
+            submessages,
         }
     }
 

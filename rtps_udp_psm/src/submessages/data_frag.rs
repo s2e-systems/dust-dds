@@ -87,14 +87,10 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<'a, RtpsUdpPsm
     fn serialized_payload(&self) -> &Self::SerializedData {
         todo!()
     }
-
-
 }
 
 impl<'a> rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for DataFrag<'a> {
-    type SubmessageHeader = SubmessageHeader;
-
-    fn submessage_header(&self) -> Self::SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
 }

@@ -6,6 +6,7 @@ use crate::{
             AckNackSubmessage, DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM,
         },
         types::{CountPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+        SubmessageHeaderPIM,
     },
     structure::{
         types::{
@@ -82,6 +83,7 @@ pub fn best_effort_send_unsent_data<
         + GUIDPIM<PSM>
         + SubmessageKindPIM
         + SubmessageFlagPIM
+        + SubmessageHeaderPIM<PSM>
         + DataSubmessagePIM<'a, PSM>
         + GapSubmessagePIM<PSM>,
     HistoryCache: RTPSHistoryCache<PSM>,
@@ -162,7 +164,13 @@ pub fn reliable_send_unsent_data<PSM: LocatorPIM + SequenceNumberPIM>(
 }
 
 pub fn reliable_receive_acknack<
-    PSM: LocatorPIM + SequenceNumberPIM + SubmessageKindPIM + SubmessageFlagPIM + EntityIdPIM + CountPIM,
+    PSM: LocatorPIM
+        + SequenceNumberPIM
+        + SubmessageKindPIM
+        + SubmessageFlagPIM
+        + EntityIdPIM
+        + CountPIM
+        + SubmessageHeaderPIM<PSM>,
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
     acknack: &impl AckNackSubmessage<PSM>,
@@ -344,6 +352,10 @@ mod tests {
         type DataSubmessageType = MockDataSubmessage;
     }
 
+    impl SubmessageHeaderPIM<Self> for MockPSM {
+        type SubmessageHeaderType = MockSubmessageHeader;
+    }
+
     struct MockSubmessageHeader;
 
     impl SubmessageHeader<MockPSM> for MockSubmessageHeader {
@@ -363,9 +375,7 @@ mod tests {
     struct MockDataSubmessage(i64);
 
     impl Submessage<MockPSM> for MockDataSubmessage {
-        type SubmessageHeader = MockSubmessageHeader;
-
-        fn submessage_header(&self) -> Self::SubmessageHeader {
+        fn submessage_header(&self) -> MockSubmessageHeader {
             todo!()
         }
     }
@@ -511,9 +521,7 @@ mod tests {
     struct MockGapSubmessage(i64);
 
     impl Submessage<MockPSM> for MockGapSubmessage {
-        type SubmessageHeader = MockSubmessageHeader;
-
-        fn submessage_header(&self) -> Self::SubmessageHeader {
+        fn submessage_header(&self) -> MockSubmessageHeader {
             todo!()
         }
     }

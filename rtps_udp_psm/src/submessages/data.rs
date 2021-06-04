@@ -1,4 +1,7 @@
-use rust_rtps_pim::{messages::{submessages::DataSubmessage, types::SubmessageKindPIM, Submessage}, structure::types::ParameterListPIM};
+use rust_rtps_pim::{
+    messages::{submessages::DataSubmessage, types::SubmessageKindPIM, Submessage},
+    structure::types::ParameterListPIM,
+};
 
 use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
 
@@ -102,9 +105,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
 }
 
 impl<'a> Submessage<RtpsUdpPsm> for DataSubmesage<'a> {
-    type SubmessageHeader = SubmessageHeader;
-
-    fn submessage_header(&self) -> Self::SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
 }
