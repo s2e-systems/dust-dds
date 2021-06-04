@@ -1,15 +1,23 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
-use rust_rtps_pim::{behavior::{
+use rust_rtps_pim::{
+    behavior::{
         stateless_writer::{best_effort_send_unsent_data, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
-    }, messages::{RTPSMessage, RTPSMessagePIM, SubmessageHeaderPIM, submessage_elements::SerializedData, submessages::{DataSubmessage, DataSubmessagePIM, GapSubmessagePIM}, types::{ParameterIdPIM, ProtocolIdPIM, SubmessageFlagPIM, SubmessageKindPIM}}, structure::{
+    },
+    messages::{
+        submessages::{DataSubmessagePIM, GapSubmessagePIM},
+        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+        RTPSMessage, RTPSMessagePIM, SubmessageHeaderPIM,
+    },
+    structure::{
         types::{
             DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
             ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUID, GUIDPIM,
         },
         RTPSEntity, RTPSParticipant,
-    }};
+    },
+};
 
 use crate::utils::shared_object::RtpsShared;
 
@@ -155,7 +163,13 @@ pub fn send_data<
                 let vendor_id = rtps_participant_impl.vendor_id();
                 let guid_prefix = rtps_participant_impl.guid().prefix().clone();
                 let submessages = vec![];
-                let message = PSM::RTPSMessageType::new(protocol, version, vendor_id, guid_prefix, submessages);
+                let message = PSM::RTPSMessageType::new(
+                    protocol,
+                    version,
+                    vendor_id,
+                    guid_prefix,
+                    submessages,
+                );
 
                 // let rtps_message = PSM::RTPSMessageType::new();
 

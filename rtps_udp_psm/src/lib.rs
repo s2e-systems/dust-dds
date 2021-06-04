@@ -1,12 +1,20 @@
 use serde::ser::SerializeStruct;
 
-use rust_rtps_pim::{behavior::types::{DurationPIM, ParticipantMessageDataPIM}, messages::{RTPSMessagePIM, SubmessageHeaderPIM, submessages::{DataSubmessagePIM, GapSubmessagePIM}, types::{
+use rust_rtps_pim::{
+    behavior::types::{DurationPIM, ParticipantMessageDataPIM},
+    messages::{
+        submessages::{DataSubmessagePIM, GapSubmessagePIM},
+        types::{
             CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
             SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
-        }}, structure::types::{
+        },
+        RTPSMessagePIM, SubmessageHeaderPIM,
+    },
+    structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
         ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-    }};
+    },
+};
 
 pub mod submessages;
 
@@ -755,12 +763,12 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a
     type RTPSMessageHeaderType = RTPSMessageHeader;
     type RTPSSubmessageVectorType = Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>;
 
-    fn new(
+    fn new<T: IntoIterator<Item = &'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>>(
         protocol: ProtocolId,
         version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
-        submessages: Self::RTPSSubmessageVectorType,
+        submessages: T,
     ) -> Self {
         Self {
             header: RTPSMessageHeader {
@@ -769,7 +777,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a
                 vendor_id,
                 guid_prefix,
             },
-            submessages,
+            submessages: submessages.into_iter().collect(),
         }
     }
 

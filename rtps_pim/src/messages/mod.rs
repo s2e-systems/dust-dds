@@ -53,16 +53,14 @@ pub trait RTPSMessage<
 >
 {
     type RTPSMessageHeaderType: Header<PSM>;
-    type RTPSSubmessageVectorType: IntoIterator<
-        Item = &'a dyn Submessage<PSM>,
-    >;
+    type RTPSSubmessageVectorType: IntoIterator<Item = &'a dyn Submessage<PSM>>;
 
-    fn new(
+    fn new<T: IntoIterator<Item = &'a dyn Submessage<PSM>>>(
         protocol: PSM::ProtocolIdType,
         version: PSM::ProtocolVersionType,
         vendor_id: PSM::VendorIdType,
         guid_prefix: PSM::GuidPrefixType,
-        submessages: Self::RTPSSubmessageVectorType,
+        submessages: T,
     ) -> Self;
 
     fn header(&self) -> Self::RTPSMessageHeaderType;
