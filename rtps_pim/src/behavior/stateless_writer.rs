@@ -1,8 +1,10 @@
 use crate::{
     behavior::RTPSWriter,
     messages::{
-        submessage_elements::{self, ParameterList, SequenceNumberSet},
-        submessages::{AckNackSubmessage, DataSubmessage, DataSubmessagePIM},
+        submessage_elements::{self, SequenceNumberSet},
+        submessages::{
+            AckNackSubmessage, DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM,
+        },
         types::{CountPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
     },
     structure::{
@@ -80,8 +82,9 @@ pub fn best_effort_send_unsent_data<
         + GUIDPIM<PSM>
         + SubmessageKindPIM
         + SubmessageFlagPIM
-        + DataSubmessagePIM<'a, PSM>,
-        HistoryCache: RTPSHistoryCache<PSM>
+        + DataSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>,
+    HistoryCache: RTPSHistoryCache<PSM>,
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
     last_change_sequence_number: PSM::SequenceNumberType,
@@ -90,7 +93,7 @@ pub fn best_effort_send_unsent_data<
         &PSM::LocatorType,
         <PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType,
     ),
-    mut send_gap: impl FnMut(&PSM::LocatorType),
+    mut send_gap: impl FnMut(&PSM::LocatorType, PSM::GapSubmessageType),
 ) where
     <PSM as DataPIM>::DataType: 'a,
     <PSM as ParameterListPIM<PSM>>::ParameterListType: 'a,
@@ -130,7 +133,20 @@ pub fn best_effort_send_unsent_data<
             );
             send_data(reader_locator.locator(), data_submessage)
         } else {
-            todo!()
+            let endianness_flag = true.into();
+            let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
+            let writer_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
+            let gap_start = submessage_elements::SequenceNumber::new(seq_num);
+            let set = core::iter::empty().collect();
+            let gap_list = submessage_elements::SequenceNumberSet::new(seq_num, set);
+            let gap_submessage = PSM::GapSubmessageType::new(
+                endianness_flag,
+                reader_id,
+                writer_id,
+                gap_start,
+                gap_list,
+            );
+            send_gap(reader_locator.locator(), gap_submessage)
         }
     }
 }

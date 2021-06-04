@@ -6,8 +6,8 @@ use rust_rtps_pim::{
         RTPSWriter,
     },
     messages::{
-        submessages::{DataSubmessage, DataSubmessagePIM},
         submessage_elements::SerializedData,
+        submessages::{DataSubmessage, DataSubmessagePIM, GapSubmessagePIM},
         types::{ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
     },
     structure::{
@@ -129,6 +129,7 @@ pub fn send_data<
         + SubmessageFlagPIM
         + ParameterListPIM<PSM>
         + for<'a> DataSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>
         + Sized
         + 'static,
 >(
@@ -148,8 +149,8 @@ pub fn send_data<
                         reader_locator,
                         last_change_sequence_number,
                         writer_cache,
-                        |_, data_submessage| data_submessage_list.push(data_submessage),
-                        |_| {},
+                        |_locator, data_submessage| data_submessage_list.push(data_submessage),
+                        |_locator, _gap_submessage| {},
                     );
                 }
                 // let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);

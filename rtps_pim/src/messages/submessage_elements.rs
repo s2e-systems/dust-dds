@@ -1,3 +1,5 @@
+use core::iter::FromIterator;
+
 use structure::types::{EntityIdPIM, GuidPrefixPIM};
 
 ///
@@ -57,7 +59,8 @@ pub trait SequenceNumber<PSM: SequenceNumberPIM> {
 }
 
 pub trait SequenceNumberSet<PSM: SequenceNumberPIM> {
-    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>;
+    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>
+        + FromIterator<PSM::SequenceNumberType>;
 
     fn new(base: PSM::SequenceNumberType, set: Self::SequenceNumberVector) -> Self;
     fn base(&self) -> &PSM::SequenceNumberType;
