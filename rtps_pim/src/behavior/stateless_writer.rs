@@ -185,8 +185,13 @@ pub fn reliable_after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(
 
 #[cfg(test)]
 mod tests {
+    use core::iter::FromIterator;
+
     use crate::{
-        messages::submessage_elements::{Parameter, ParameterList},
+        messages::{
+            submessage_elements::{Parameter, ParameterList},
+            Submessage, SubmessageHeader,
+        },
         structure::{
             types::{Locator, GUID},
             RTPSCacheChange, RTPSHistoryCache,
@@ -208,7 +213,7 @@ mod tests {
         }
 
         fn entity_id(&self) -> &[u8; 4] {
-            todo!()
+            &MockPSM::ENTITYID_UNKNOWN
         }
     }
     #[derive(Clone, Copy, PartialEq)]
@@ -314,6 +319,241 @@ mod tests {
         type LocatorType = MockLocator;
     }
 
+    impl SubmessageKindPIM for MockPSM {
+        type SubmessageKindType = u8;
+
+        const DATA: Self::SubmessageKindType = 0;
+        const GAP: Self::SubmessageKindType = 0;
+        const HEARTBEAT: Self::SubmessageKindType = 0;
+        const ACKNACK: Self::SubmessageKindType = 0;
+        const PAD: Self::SubmessageKindType = 0;
+        const INFO_TS: Self::SubmessageKindType = 0;
+        const INFO_REPLY: Self::SubmessageKindType = 0;
+        const INFO_DST: Self::SubmessageKindType = 0;
+        const INFO_SRC: Self::SubmessageKindType = 0;
+        const DATA_FRAG: Self::SubmessageKindType = 0;
+        const NACK_FRAG: Self::SubmessageKindType = 0;
+        const HEARTBEAT_FRAG: Self::SubmessageKindType = 0;
+    }
+
+    impl SubmessageFlagPIM for MockPSM {
+        type SubmessageFlagType = bool;
+    }
+
+    impl<'a> DataSubmessagePIM<'a, Self> for MockPSM {
+        type DataSubmessageType = MockDataSubmessage;
+    }
+
+    struct MockSubmessageHeader;
+
+    impl SubmessageHeader<MockPSM> for MockSubmessageHeader {
+        fn submessage_id(&self) -> u8 {
+            todo!()
+        }
+
+        fn flags(&self) -> [bool; 8] {
+            todo!()
+        }
+
+        fn submessage_length(&self) -> u16 {
+            todo!()
+        }
+    }
+
+    struct MockDataSubmessage(i64);
+
+    impl Submessage<MockPSM> for MockDataSubmessage {
+        type SubmessageHeader = MockSubmessageHeader;
+
+        fn submessage_header(&self) -> Self::SubmessageHeader {
+            todo!()
+        }
+    }
+
+    impl submessage_elements::EntityId<MockPSM> for [u8; 4] {
+        fn new(value: [u8; 4]) -> Self {
+            value
+        }
+
+        fn value(&self) -> &[u8; 4] {
+            self
+        }
+    }
+
+    impl submessage_elements::SequenceNumber<MockPSM> for i64 {
+        fn new(value: i64) -> Self {
+            value
+        }
+
+        fn value(&self) -> &i64 {
+            self
+        }
+    }
+
+    impl<'a> submessage_elements::SerializedData<'a> for &'a [u8] {
+        fn new(value: &'a [u8]) -> Self {
+            value
+        }
+
+        fn value(&self) -> &[u8] {
+            self
+        }
+    }
+
+    impl<'a> DataSubmessage<'a, MockPSM> for MockDataSubmessage {
+        type EntityId = [u8; 4];
+        type SequenceNumber = i64;
+        type SerializedData = &'a [u8];
+
+        fn new(
+            _endianness_flag: bool,
+            _inline_qos_flag: bool,
+            _data_flag: bool,
+            _key_flag: bool,
+            _non_standard_payload_flag: bool,
+            _reader_id: Self::EntityId,
+            _writer_id: Self::EntityId,
+            writer_sn: Self::SequenceNumber,
+            _inline_qos: &'a MockParameterList,
+            _serialized_payload: Self::SerializedData,
+        ) -> Self {
+            Self(writer_sn)
+        }
+
+        fn endianness_flag(&self) -> bool {
+            todo!()
+        }
+
+        fn inline_qos_flag(&self) -> bool {
+            todo!()
+        }
+
+        fn data_flag(&self) -> bool {
+            todo!()
+        }
+
+        fn key_flag(&self) -> bool {
+            todo!()
+        }
+
+        fn non_standard_payload_flag(&self) -> bool {
+            todo!()
+        }
+
+        fn reader_id(&self) -> &Self::EntityId {
+            todo!()
+        }
+
+        fn writer_id(&self) -> &Self::EntityId {
+            todo!()
+        }
+
+        fn writer_sn(&self) -> &Self::SequenceNumber {
+            &self.0
+        }
+
+        fn inline_qos(&self) -> &MockParameterList {
+            todo!()
+        }
+
+        fn serialized_payload(&self) -> &Self::SerializedData {
+            todo!()
+        }
+    }
+
+    struct MockSequenceNumberVectorIter;
+    impl Iterator for MockSequenceNumberVectorIter {
+        type Item = i64;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            todo!()
+        }
+    }
+    struct MockSequenceNumberVector;
+
+    impl FromIterator<i64> for MockSequenceNumberVector {
+        fn from_iter<T: IntoIterator<Item = i64>>(_iter: T) -> Self {
+            MockSequenceNumberVector
+        }
+    }
+
+    impl IntoIterator for MockSequenceNumberVector {
+        type Item = i64;
+        type IntoIter = MockSequenceNumberVectorIter;
+
+        fn into_iter(self) -> Self::IntoIter {
+            todo!()
+        }
+    }
+
+    impl GapSubmessagePIM<MockPSM> for MockPSM {
+        type GapSubmessageType = MockGapSubmessage;
+    }
+
+    struct MockSequenceNumberSet;
+
+    impl submessage_elements::SequenceNumberSet<MockPSM> for MockSequenceNumberSet {
+        type SequenceNumberVector = MockSequenceNumberVector;
+
+        fn new(_base: i64, _set: Self::SequenceNumberVector) -> Self {
+            MockSequenceNumberSet
+        }
+
+        fn base(&self) -> &i64 {
+            todo!()
+        }
+
+        fn set(&self) -> Self::SequenceNumberVector {
+            todo!()
+        }
+    }
+
+    struct MockGapSubmessage(i64);
+
+    impl Submessage<MockPSM> for MockGapSubmessage {
+        type SubmessageHeader = MockSubmessageHeader;
+
+        fn submessage_header(&self) -> Self::SubmessageHeader {
+            todo!()
+        }
+    }
+
+    impl GapSubmessage<MockPSM> for MockGapSubmessage {
+        type EntityId = [u8; 4];
+        type SequenceNumber = i64;
+        type SequenceNumberSet = MockSequenceNumberSet;
+
+        fn new(
+            _endianness_flag: bool,
+            _reader_id: Self::EntityId,
+            _writer_id: Self::EntityId,
+            gap_start: Self::SequenceNumber,
+            _gap_list: Self::SequenceNumberSet,
+        ) -> Self {
+            MockGapSubmessage(gap_start)
+        }
+
+        fn endianness_flag(&self) -> bool {
+            todo!()
+        }
+
+        fn reader_id(&self) -> &Self::EntityId {
+            todo!()
+        }
+
+        fn writer_id(&self) -> &Self::EntityId {
+            todo!()
+        }
+
+        fn gap_start(&self) -> &Self::SequenceNumber {
+            &self.0
+        }
+
+        fn gap_list(&self) -> &Self::SequenceNumberSet {
+            todo!()
+        }
+    }
+
     struct MockReaderLocator {
         last_sent_sequence_number: i64,
     }
@@ -322,7 +562,7 @@ mod tests {
         type SequenceNumberVector = Option<i64>;
 
         fn locator(&self) -> &MockLocator {
-            todo!()
+            &MockLocator
         }
 
         fn expects_inline_qos(&self) -> bool {
@@ -360,16 +600,17 @@ mod tests {
     }
 
     struct MockCacheChange {
+        kind: ChangeKind,
         sequence_number: i64,
     }
 
     impl RTPSCacheChange<MockPSM> for MockCacheChange {
         fn kind(&self) -> crate::structure::types::ChangeKind {
-            todo!()
+            self.kind
         }
 
         fn writer_guid(&self) -> &MockGUID {
-            todo!()
+            &MockPSM::GUID_UNKNOWN
         }
 
         fn instance_handle(&self) -> &() {
@@ -377,15 +618,15 @@ mod tests {
         }
 
         fn sequence_number(&self) -> &i64 {
-            todo!()
+            &self.sequence_number
         }
 
         fn data_value(&self) -> &[u8; 0] {
-            todo!()
+            &[]
         }
 
         fn inline_qos(&self) -> &MockParameterList {
-            todo!()
+            &MockParameterList
         }
     }
     struct MockHistoryCache<const N: usize> {
@@ -423,118 +664,127 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn stateless_writer_produce_messages_only_data() {
-    //     let mut sent_data_seq_num = [0, 0];
-    //     let mut total_data = 0;
-    //     let mut sent_gap_seq_num = [];
-    //     let mut total_gap = 0;
+    #[test]
+    fn stateless_writer_best_effort_send_unsent_data_only_data() {
+        let mut sent_data_seq_num = [0, 0];
+        let mut total_data = 0;
+        let mut sent_gap_seq_num = [];
+        let mut total_gap = 0;
 
-    //     let expected_total_data = 2;
-    //     let expected_sent_data_seq_num = [1, 2];
-    //     let expected_total_gap = 0;
-    //     let expected_sent_gap_seq_num = [];
+        let expected_total_data = 2;
+        let expected_sent_data_seq_num = [1, 2];
+        let expected_total_gap = 0;
+        let expected_sent_gap_seq_num = [];
 
-    //     let mut reader_locator = MockReaderLocator {
-    //         last_sent_sequence_number: 0,
-    //     };
-    //     let writer_cache = MockHistoryCache::<2> {
-    //         changes: [
-    //             MockCacheChange { sequence_number: 1 },
-    //             MockCacheChange { sequence_number: 2 },
-    //         ],
-    //     };
-    //     produce_messages(
-    //         &mut reader_locator,
-    //         &writer_cache,
-    //         &2,
-    //         |cc| {
-    //             sent_data_seq_num[total_data] = cc.sequence_number;
-    //             total_data += 1;
-    //         },
-    //         |gap_seq_num| {
-    //             sent_gap_seq_num[total_gap] = *gap_seq_num;
-    //             total_gap += 1;
-    //         },
-    //     );
+        let mut reader_locator = MockReaderLocator {
+            last_sent_sequence_number: 0,
+        };
+        let writer_cache = MockHistoryCache::<2> {
+            changes: [
+                MockCacheChange {
+                    kind: ChangeKind::Alive,
+                    sequence_number: 1,
+                },
+                MockCacheChange {
+                    kind: ChangeKind::Alive,
+                    sequence_number: 2,
+                },
+            ],
+        };
+        best_effort_send_unsent_data(
+            &mut reader_locator,
+            2,
+            &writer_cache,
+            |_, data_submessage| {
+                sent_data_seq_num[total_data] = data_submessage.writer_sn().clone();
+                total_data += 1;
+            },
+            |_, gap_submessage| {
+                sent_gap_seq_num[total_gap] = gap_submessage.gap_start().clone();
+                total_gap += 1;
+            },
+        );
 
-    //     assert_eq!(total_data, expected_total_data);
-    //     assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
-    //     assert_eq!(total_gap, expected_total_gap);
-    //     assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
-    // }
+        assert_eq!(total_data, expected_total_data);
+        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+        assert_eq!(total_gap, expected_total_gap);
+        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    }
 
-    // #[test]
-    // fn stateless_writer_produce_messages_only_gap() {
-    //     let mut sent_data_seq_num = [];
-    //     let mut total_data = 0;
-    //     let mut sent_gap_seq_num = [0, 0];
-    //     let mut total_gap = 0;
+    #[test]
+    fn stateless_writer_best_effort_send_unsent_data_only_gap() {
+        let mut sent_data_seq_num = [];
+        let mut total_data = 0;
+        let mut sent_gap_seq_num = [0, 0];
+        let mut total_gap = 0;
 
-    //     let expected_total_data = 0;
-    //     let expected_sent_data_seq_num = [];
-    //     let expected_total_gap = 2;
-    //     let expected_sent_gap_seq_num = [1, 2];
+        let expected_total_data = 0;
+        let expected_sent_data_seq_num = [];
+        let expected_total_gap = 2;
+        let expected_sent_gap_seq_num = [1, 2];
 
-    //     let mut reader_locator = MockReaderLocator {
-    //         last_sent_sequence_number: 0,
-    //     };
-    //     let writer_cache = MockHistoryCache::<0> { changes: [] };
-    //     produce_messages(
-    //         &mut reader_locator,
-    //         &writer_cache,
-    //         &2,
-    //         |cc| {
-    //             sent_data_seq_num[total_data] = cc.sequence_number;
-    //             total_data += 1;
-    //         },
-    //         |gap_seq_num| {
-    //             sent_gap_seq_num[total_gap] = *gap_seq_num;
-    //             total_gap += 1;
-    //         },
-    //     );
+        let mut reader_locator = MockReaderLocator {
+            last_sent_sequence_number: 0,
+        };
+        let writer_cache = MockHistoryCache::<0> { changes: [] };
+        best_effort_send_unsent_data(
+            &mut reader_locator,
+            2,
+            &writer_cache,
+            |_, data_submessage| {
+                sent_data_seq_num[total_data] = data_submessage.writer_sn().clone();
+                total_data += 1;
+            },
+            |_, gap_submessage| {
+                sent_gap_seq_num[total_gap] = gap_submessage.gap_start().clone();
+                total_gap += 1;
+            },
+        );
 
-    //     assert_eq!(total_data, expected_total_data);
-    //     assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
-    //     assert_eq!(total_gap, expected_total_gap);
-    //     assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
-    // }
+        assert_eq!(total_data, expected_total_data);
+        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+        assert_eq!(total_gap, expected_total_gap);
+        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    }
 
-    // #[test]
-    // fn stateless_writer_produce_messages_data_and_gap() {
-    //     let mut sent_data_seq_num = [0];
-    //     let mut total_data = 0;
-    //     let mut sent_gap_seq_num = [0];
-    //     let mut total_gap = 0;
+    #[test]
+    fn stateless_writer_best_effort_send_unsent_data_data_and_gap() {
+        let mut sent_data_seq_num = [0];
+        let mut total_data = 0;
+        let mut sent_gap_seq_num = [0];
+        let mut total_gap = 0;
 
-    //     let expected_total_data = 1;
-    //     let expected_sent_data_seq_num = [2];
-    //     let expected_total_gap = 1;
-    //     let expected_sent_gap_seq_num = [1];
+        let expected_total_data = 1;
+        let expected_sent_data_seq_num = [2];
+        let expected_total_gap = 1;
+        let expected_sent_gap_seq_num = [1];
 
-    //     let mut reader_locator = MockReaderLocator {
-    //         last_sent_sequence_number: 0,
-    //     };
-    //     let writer_cache = MockHistoryCache::<1> {
-    //         changes: [MockCacheChange { sequence_number: 2 }],
-    //     };
-    //     produce_messages(
-    //         &mut reader_locator,
-    //         &writer_cache,
-    //         &2,
-    //         |cc| {
-    //             sent_data_seq_num[total_data] = cc.sequence_number;
-    //             total_data += 1;
-    //         },
-    //         |gap_seq_num| {
-    //             sent_gap_seq_num[total_gap] = *gap_seq_num;
-    //             total_gap += 1;
-    //         },
-    //     );
+        let mut reader_locator = MockReaderLocator {
+            last_sent_sequence_number: 0,
+        };
+        let writer_cache = MockHistoryCache::<1> {
+            changes: [MockCacheChange {
+                kind: ChangeKind::Alive,
+                sequence_number: 2,
+            }],
+        };
+        best_effort_send_unsent_data(
+            &mut reader_locator,
+            2,
+            &writer_cache,
+            |_, data_submessage| {
+                sent_data_seq_num[total_data] = data_submessage.writer_sn().clone();
+                total_data += 1;
+            },
+            |_, gap_submessage| {
+                sent_gap_seq_num[total_gap] = gap_submessage.gap_start().clone();
+                total_gap += 1;
+            },
+        );
 
-    //     assert_eq!(total_data, expected_total_data);
-    //     assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
-    //     assert_eq!(total_gap, expected_total_gap);
-    //     assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
-    // }
+        assert_eq!(total_data, expected_total_data);
+        assert_eq!(sent_data_seq_num, expected_sent_data_seq_num);
+        assert_eq!(total_gap, expected_total_gap);
+        assert_eq!(sent_gap_seq_num, expected_sent_gap_seq_num);
+    }
 }
