@@ -1,13 +1,12 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
     behavior::{
-        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
+        stateless_writer::{best_effort_stateless_writer::send_unsent_data, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
     },
     messages::{
-        submessage_elements,
-        submessages::{DataSubmessage, DataSubmessagePIM},
+        submessages::DataSubmessagePIM,
         types::{ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
     },
     structure::{
@@ -15,7 +14,7 @@ use rust_rtps_pim::{
             DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
             ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUID, GUIDPIM,
         },
-        RTPSCacheChange, RTPSEntity, RTPSHistoryCache,
+        RTPSEntity,
     },
 };
 
@@ -139,8 +138,17 @@ pub fn send_data<
         let writer_list = writer_group_lock.writer_list();
         for writer in writer_list {
             if let Some(mut writer_lock) = writer.try_lock() {
-                let writer_ref = writer_lock.as_mut();
-                todo!()
+                let last_change_sequence_number = *writer_lock.last_change_sequence_number();
+                let (reader_locators, writer_cache) = writer_lock.reader_locators();
+                for reader_locator in reader_locators {
+                    send_unsent_data(
+                        reader_locator,
+                        last_change_sequence_number,
+                        writer_cache,
+                        |_, _| {},
+                        |_| {},
+                    );
+                }
                 // let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
                 // behavior.send_unsent_data();
             }

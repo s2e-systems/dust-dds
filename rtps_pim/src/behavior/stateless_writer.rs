@@ -1,27 +1,15 @@
-use core::marker::PhantomData;
-
 use crate::{
     behavior::RTPSWriter,
-    messages::{
-        submessage_elements,
-        submessages::{
-            DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM,
-            HeartbeatSubmessage, HeartbeatSubmessagePIM,
-        },
-        types::{CountPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
-    },
-    structure::{
-        types::{
-            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-            SequenceNumberPIM, GUID, GUIDPIM,
-        },
-        RTPSCacheChange, RTPSHistoryCache,
+    messages::types::ParameterIdPIM,
+    structure::types::{
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+        SequenceNumberPIM, GUIDPIM,
     },
 };
 
 use super::types::DurationPIM;
 pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
-    type SequenceNumberVector; //: IntoIterator<Item = PSM::SequenceNumber>;
+    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>;
 
     fn locator(&self) -> &PSM::LocatorType;
 
@@ -75,6 +63,45 @@ pub trait RTPSStatelessWriter<
 pub mod best_effort_stateless_writer {
     use super::RTPSReaderLocator;
     use crate::{
+        messages::types::ParameterIdPIM,
+        structure::{
+            types::{
+                DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+                ParameterListPIM, SequenceNumberPIM, GUIDPIM,
+            },
+            RTPSHistoryCache,
+        },
+    };
+
+    pub fn send_unsent_data<
+        PSM: LocatorPIM
+            + SequenceNumberPIM
+            + GuidPrefixPIM
+            + EntityIdPIM
+            + InstanceHandlePIM
+            + DataPIM
+            + ParameterIdPIM
+            + ParameterListPIM<PSM>
+            + GUIDPIM<PSM>,
+    >(
+        reader_locator: &mut impl RTPSReaderLocator<PSM>,
+        last_change_sequence_number: PSM::SequenceNumberType,
+        writer_cache: &impl RTPSHistoryCache<PSM>,
+        mut send_data: impl FnMut(&PSM::LocatorType, PSM::SequenceNumberType),
+        mut send_gap: impl FnMut(&PSM::LocatorType),
+    ) {
+        while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
+            if let Some(change) = writer_cache.get_change(&seq_num) {
+                todo!()
+            } else {
+                todo!()
+            }
+        }
+    }
+}
+
+pub mod reliable_stateless_writer {
+    use crate::{
         messages::{
             submessage_elements::SequenceNumberSet,
             submessages::AckNackSubmessage,
@@ -82,6 +109,8 @@ pub mod best_effort_stateless_writer {
         },
         structure::types::{EntityIdPIM, LocatorPIM, SequenceNumberPIM},
     };
+
+    use super::RTPSReaderLocator;
 
     pub fn send_unsent_data<PSM: LocatorPIM + SequenceNumberPIM>(
         reader_locator: &mut impl RTPSReaderLocator<PSM>,
@@ -102,27 +131,20 @@ pub mod best_effort_stateless_writer {
             + CountPIM,
     >(
         reader_locator: &mut impl RTPSReaderLocator<PSM>,
-        acknack_submessage: &impl AckNackSubmessage<PSM>,
+        acknack: &impl AckNackSubmessage<PSM>,
         last_change_sequence_number: PSM::SequenceNumberType,
     ) {
         reader_locator.requested_changes_set(
-            acknack_submessage.reader_sn_state().set().into_iter(),
+            acknack.reader_sn_state().set().into_iter(),
             last_change_sequence_number,
         );
     }
-}
 
-pub mod reliable_stateless_writer {
-    use crate::structure::types::{LocatorPIM, SequenceNumberPIM};
-
-    use super::RTPSReaderLocator;
-
-    pub fn send_unsent_data<PSM: LocatorPIM + SequenceNumberPIM>(
+    pub fn after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(
         reader_locator: &mut impl RTPSReaderLocator<PSM>,
-        last_change_sequence_number: PSM::SequenceNumberType,
         mut send: impl FnMut(PSM::SequenceNumberType),
     ) {
-        while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
+        while let Some(seq_num) = reader_locator.next_requested_change() {
             send(seq_num)
         }
     }
@@ -132,7 +154,10 @@ pub mod reliable_stateless_writer {
 mod tests {
     use crate::{
         messages::submessage_elements::{Parameter, ParameterList},
-        structure::types::{Locator, GUID},
+        structure::{
+            types::{Locator, GUID},
+            RTPSCacheChange, RTPSHistoryCache,
+        },
     };
 
     use super::*;
@@ -261,7 +286,7 @@ mod tests {
     }
 
     impl<'a> RTPSReaderLocator<MockPSM> for MockReaderLocator {
-        type SequenceNumberVector = ();
+        type SequenceNumberVector = Option<i64>;
 
         fn locator(&self) -> &MockLocator {
             todo!()
