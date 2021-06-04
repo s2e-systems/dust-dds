@@ -147,6 +147,7 @@ pub fn send_data<
             if let Some(mut writer_lock) = writer.try_lock() {
                 let last_change_sequence_number = *writer_lock.last_change_sequence_number();
                 let mut data_submessage_list = vec![];
+                let mut gap_submessage_list = vec![];
                 let (reader_locators, writer_cache) = writer_lock.reader_locators();
 
                 for reader_locator in reader_locators {
@@ -155,15 +156,23 @@ pub fn send_data<
                         last_change_sequence_number,
                         writer_cache,
                         |_locator, data_submessage| data_submessage_list.push(data_submessage),
-                        |_locator, _gap_submessage| {},
+                        |_locator, gap_submessage| gap_submessage_list.push(gap_submessage),
                     );
                 }
                 let protocol = PSM::PROTOCOL_RTPS;
                 let version = rtps_participant_impl.protocol_version();
                 let vendor_id = rtps_participant_impl.vendor_id();
                 let guid_prefix = rtps_participant_impl.guid().prefix().clone();
-                let submessages = vec![];
-                let message = PSM::RTPSMessageType::new(
+
+                let mut submessages: Vec<&dyn rust_rtps_pim::messages::Submessage<PSM>> = vec![];
+                for data_submessage in &data_submessage_list {
+                    submessages.push(data_submessage)
+                }
+                for gap_submessage in &gap_submessage_list {
+                    submessages.push(gap_submessage);
+                }
+
+                let _message = PSM::RTPSMessageType::new(
                     protocol,
                     version,
                     vendor_id,
