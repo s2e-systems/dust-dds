@@ -433,12 +433,7 @@ pub struct SequenceNumberSet {
     num_bits: ULong,
     bitmap: Vec<i32>,
 }
-#[test]
-fn integer_division() {
-    let m = (0_i32 + 31) / 32;
-    assert_eq!(0_i32, m);
-    assert_eq!(0, vec![0; m as usize].len());
-}
+
 impl SequenceNumberSet {
     pub fn new(bitmap_base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
         let base = Into::<i64>::into(bitmap_base) as i32;
