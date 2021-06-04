@@ -1,12 +1,13 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
     behavior::{
-        stateless_writer::{best_effort_stateless_writer::send_unsent_data, RTPSStatelessWriter},
+        stateless_writer::{best_effort_send_unsent_data, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
     },
     messages::{
-        submessages::DataSubmessagePIM,
+        submessages::{DataSubmessage, DataSubmessagePIM},
+        submessage_elements::SerializedData,
         types::{ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
     },
     structure::{
@@ -139,18 +140,22 @@ pub fn send_data<
         for writer in writer_list {
             if let Some(mut writer_lock) = writer.try_lock() {
                 let last_change_sequence_number = *writer_lock.last_change_sequence_number();
+                let mut data_submessage_list = vec![];
                 let (reader_locators, writer_cache) = writer_lock.reader_locators();
+
                 for reader_locator in reader_locators {
-                    send_unsent_data(
+                    best_effort_send_unsent_data(
                         reader_locator,
                         last_change_sequence_number,
                         writer_cache,
-                        |_, _| {},
+                        |_, data_submessage| data_submessage_list.push(data_submessage),
                         |_| {},
                     );
                 }
                 // let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
                 // behavior.send_unsent_data();
+                let data = data_submessage_list[0].serialized_payload();
+                println!("{:?}", data.value())
             }
         }
     }

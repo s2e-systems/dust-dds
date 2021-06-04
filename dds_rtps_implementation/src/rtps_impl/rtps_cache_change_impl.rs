@@ -64,8 +64,8 @@ impl<PSM: RTPSCacheChangeImplTrait> RTPSCacheChangeImpl<PSM> {
 impl<PSM: RTPSCacheChangeImplTrait> rust_rtps_pim::structure::RTPSCacheChange<PSM>
     for RTPSCacheChangeImpl<PSM>
 {
-    fn kind(&self) -> &ChangeKind {
-        &self.kind
+    fn kind(&self) -> ChangeKind {
+        self.kind
     }
 
     fn writer_guid(&self) -> &PSM::GUIDType {

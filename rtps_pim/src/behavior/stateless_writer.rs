@@ -1,9 +1,16 @@
 use crate::{
     behavior::RTPSWriter,
-    messages::types::ParameterIdPIM,
-    structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-        SequenceNumberPIM, GUIDPIM,
+    messages::{
+        submessage_elements::{self, ParameterList, SequenceNumberSet},
+        submessages::{AckNackSubmessage, DataSubmessage, DataSubmessagePIM},
+        types::{CountPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+    },
+    structure::{
+        types::{
+            ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            ParameterListPIM, SequenceNumberPIM, GUID, GUIDPIM,
+        },
+        RTPSCacheChange, RTPSHistoryCache,
     },
 };
 
@@ -60,93 +67,103 @@ pub trait RTPSStatelessWriter<
     fn unsent_changes_reset(&mut self);
 }
 
-pub mod best_effort_stateless_writer {
-    use super::RTPSReaderLocator;
-    use crate::{
-        messages::types::ParameterIdPIM,
-        structure::{
-            types::{
-                DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-                ParameterListPIM, SequenceNumberPIM, GUIDPIM,
-            },
-            RTPSHistoryCache,
-        },
-    };
-
-    pub fn send_unsent_data<
-        PSM: LocatorPIM
-            + SequenceNumberPIM
-            + GuidPrefixPIM
-            + EntityIdPIM
-            + InstanceHandlePIM
-            + DataPIM
-            + ParameterIdPIM
-            + ParameterListPIM<PSM>
-            + GUIDPIM<PSM>,
-    >(
-        reader_locator: &mut impl RTPSReaderLocator<PSM>,
-        last_change_sequence_number: PSM::SequenceNumberType,
-        writer_cache: &impl RTPSHistoryCache<PSM>,
-        mut send_data: impl FnMut(&PSM::LocatorType, PSM::SequenceNumberType),
-        mut send_gap: impl FnMut(&PSM::LocatorType),
-    ) {
-        while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
-            if let Some(change) = writer_cache.get_change(&seq_num) {
-                todo!()
-            } else {
-                todo!()
-            }
+pub fn best_effort_send_unsent_data<
+    'a,
+    PSM: LocatorPIM
+        + SequenceNumberPIM
+        + GuidPrefixPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterIdPIM
+        + ParameterListPIM<PSM>
+        + GUIDPIM<PSM>
+        + SubmessageKindPIM
+        + SubmessageFlagPIM
+        + DataSubmessagePIM<'a, PSM>,
+        HistoryCache: RTPSHistoryCache<PSM>
+>(
+    reader_locator: &mut impl RTPSReaderLocator<PSM>,
+    last_change_sequence_number: PSM::SequenceNumberType,
+    writer_cache: &'a HistoryCache,
+    mut send_data: impl FnMut(
+        &PSM::LocatorType,
+        <PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType,
+    ),
+    mut send_gap: impl FnMut(&PSM::LocatorType),
+) where
+    <PSM as DataPIM>::DataType: 'a,
+    <PSM as ParameterListPIM<PSM>>::ParameterListType: 'a,
+    HistoryCache::CacheChange: 'a,
+{
+    while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
+        if let Some(change) = writer_cache.get_change(&seq_num) {
+            let endianness_flag = true.into();
+            let inline_qos_flag = true.into();
+            let (data_flag, key_flag) = match change.kind() {
+                ChangeKind::Alive => (true.into(), false.into()),
+                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
+                    (false.into(), true.into())
+                }
+                _ => todo!(),
+            };
+            let non_standard_payload_flag = false.into();
+            let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
+            let writer_id =
+                submessage_elements::EntityId::new(change.writer_guid().entity_id().clone());
+            let writer_sn =
+                submessage_elements::SequenceNumber::new(change.sequence_number().clone());
+            let inline_qos = change.inline_qos();
+            let serialized_payload =
+                submessage_elements::SerializedData::new(change.data_value().as_ref());
+            let data_submessage = PSM::DataSubmessageType::new(
+                endianness_flag,
+                inline_qos_flag,
+                data_flag,
+                key_flag,
+                non_standard_payload_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                inline_qos,
+                serialized_payload,
+            );
+            send_data(reader_locator.locator(), data_submessage)
+        } else {
+            todo!()
         }
     }
 }
 
-pub mod reliable_stateless_writer {
-    use crate::{
-        messages::{
-            submessage_elements::SequenceNumberSet,
-            submessages::AckNackSubmessage,
-            types::{CountPIM, SubmessageFlagPIM, SubmessageKindPIM},
-        },
-        structure::types::{EntityIdPIM, LocatorPIM, SequenceNumberPIM},
-    };
-
-    use super::RTPSReaderLocator;
-
-    pub fn send_unsent_data<PSM: LocatorPIM + SequenceNumberPIM>(
-        reader_locator: &mut impl RTPSReaderLocator<PSM>,
-        last_change_sequence_number: PSM::SequenceNumberType,
-        mut send: impl FnMut(PSM::SequenceNumberType),
-    ) {
-        while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
-            send(seq_num)
-        }
+pub fn reliable_send_unsent_data<PSM: LocatorPIM + SequenceNumberPIM>(
+    reader_locator: &mut impl RTPSReaderLocator<PSM>,
+    last_change_sequence_number: PSM::SequenceNumberType,
+    mut send: impl FnMut(PSM::SequenceNumberType),
+) {
+    while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
+        send(seq_num)
     }
+}
 
-    pub fn receive_acknack<
-        PSM: LocatorPIM
-            + SequenceNumberPIM
-            + SubmessageKindPIM
-            + SubmessageFlagPIM
-            + EntityIdPIM
-            + CountPIM,
-    >(
-        reader_locator: &mut impl RTPSReaderLocator<PSM>,
-        acknack: &impl AckNackSubmessage<PSM>,
-        last_change_sequence_number: PSM::SequenceNumberType,
-    ) {
-        reader_locator.requested_changes_set(
-            acknack.reader_sn_state().set().into_iter(),
-            last_change_sequence_number,
-        );
-    }
+pub fn reliable_receive_acknack<
+    PSM: LocatorPIM + SequenceNumberPIM + SubmessageKindPIM + SubmessageFlagPIM + EntityIdPIM + CountPIM,
+>(
+    reader_locator: &mut impl RTPSReaderLocator<PSM>,
+    acknack: &impl AckNackSubmessage<PSM>,
+    last_change_sequence_number: PSM::SequenceNumberType,
+) {
+    reader_locator.requested_changes_set(
+        acknack.reader_sn_state().set().into_iter(),
+        last_change_sequence_number,
+    );
+}
 
-    pub fn after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(
-        reader_locator: &mut impl RTPSReaderLocator<PSM>,
-        mut send: impl FnMut(PSM::SequenceNumberType),
-    ) {
-        while let Some(seq_num) = reader_locator.next_requested_change() {
-            send(seq_num)
-        }
+pub fn reliable_after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(
+    reader_locator: &mut impl RTPSReaderLocator<PSM>,
+    mut send: impl FnMut(PSM::SequenceNumberType),
+) {
+    while let Some(seq_num) = reader_locator.next_requested_change() {
+        send(seq_num)
     }
 }
 
@@ -331,7 +348,7 @@ mod tests {
     }
 
     impl RTPSCacheChange<MockPSM> for MockCacheChange {
-        fn kind(&self) -> &crate::structure::types::ChangeKind {
+        fn kind(&self) -> crate::structure::types::ChangeKind {
             todo!()
         }
 
