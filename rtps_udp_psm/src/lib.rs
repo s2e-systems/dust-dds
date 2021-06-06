@@ -190,7 +190,7 @@ impl GapSubmessagePIM<Self> for RtpsUdpPsm {
     type GapSubmessageType = submessages::gap::GapSubmessage;
 }
 
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Octet(u8);
 
 impl Octet {
@@ -822,7 +822,29 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a
 
 #[cfg(test)]
 mod tests {
+    use serde::Serialize;
+    use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer};
+
     use super::*;
+
+    fn create_serializer() -> RtpsMessageSerializer<Vec<u8>> {
+        RtpsMessageSerializer {
+            writer: Vec::<u8>::new(),
+        }
+    }
+
+    fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
+        let mut serializer = RtpsMessageSerializer {writer: Vec::<u8>::new()};
+        value.serialize(&mut serializer).unwrap();
+        serializer.writer
+    }
+
+    fn deserialize<'de, T: serde::Deserialize<'de>, const N: usize>(buffer: [u8; N]) -> T {
+        let mut de = RtpsMessageDeserializer {
+            reader: buffer.as_ref(),
+        };
+        serde::de::Deserialize::deserialize(&mut de).unwrap()
+    }
 
     #[test]
     fn octet_from_submessage_flags() {
@@ -854,6 +876,27 @@ mod tests {
 
         let flags = Octet(0b_1000_0011);
         assert_eq!(flags.is_bit_set(7), true);
+    }
+
+    #[test]
+    fn serialize_parameter() {
+        let parameter = Parameter::new(0x01, vec![5, 6, 7, 8].into());
+        let mut serializer = create_serializer();
+        parameter.serialize(&mut serializer).unwrap();
+        #[rustfmt::skip]
+        assert_eq!(serializer.writer, vec![
+            0x01, 0x00, 4, 0, // Parameter | length
+            5, 6, 7, 8        // value
+        ]);
+    }
+    #[test]
+    fn serialize_octet() {
+        assert_eq!(serialize(Octet(5)), vec![5]);
+    }
+    #[test]
+    fn deserialize_octet() {
+        let result: Octet = deserialize([5]);
+        assert_eq!(result, Octet(5));
     }
 }
 

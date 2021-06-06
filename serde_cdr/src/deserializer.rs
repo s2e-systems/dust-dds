@@ -2,11 +2,11 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::Read;
 
 
-pub struct Deserializer<R> {
-    reader: R,
+pub struct RtpsMessageDeserializer<R> {
+    pub reader: R,
 }
 
-impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> {
+impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializer<R> {
     type Error = crate::error::Error;
 
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -161,12 +161,12 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
     fn deserialize_newtype_struct<V>(
         self,
         _name: &'static str,
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
+        visitor.visit_newtype_struct(self)
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -176,7 +176,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
         let len: u32 = serde::de::Deserialize::deserialize(&mut *self)?;
 
         struct Access<'a, R: Read + 'a> {
-            deserializer: &'a mut Deserializer<R>,
+            deserializer: &'a mut RtpsMessageDeserializer<R>,
             remaining_items: usize,
             len: usize
         }
@@ -208,7 +208,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
         V: serde::de::Visitor<'de>,
     {
         struct Access<'a, R: Read + 'a> {
-            deserializer: &'a mut Deserializer<R>,
+            deserializer: &'a mut RtpsMessageDeserializer<R>,
             remaining_items: usize,
             len: usize
         }
@@ -264,7 +264,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
         V: serde::de::Visitor<'de>,
     {
         struct Access<'a, R: Read + 'a> {
-            deserializer: &'a mut Deserializer<R>,
+            deserializer: &'a mut RtpsMessageDeserializer<R>,
             len: usize,
         }
 
@@ -324,7 +324,7 @@ mod tests {
     use super::*;
 
     fn deserialize<'de, T: serde::Deserialize<'de>, const N: usize>(buffer: [u8; N]) -> T {
-        let mut de = Deserializer {
+        let mut de = RtpsMessageDeserializer {
             reader: buffer.as_ref(),
         };
         serde::de::Deserialize::deserialize(&mut de).unwrap()
@@ -338,7 +338,7 @@ mod tests {
     #[test]
     fn deserialize_multiple_u8() {
         let buffer = [1, 2];
-        let mut de = Deserializer {
+        let mut de = RtpsMessageDeserializer {
             reader: buffer.as_ref(),
         };
         let result: u8 = serde::de::Deserialize::deserialize(&mut de).unwrap();
