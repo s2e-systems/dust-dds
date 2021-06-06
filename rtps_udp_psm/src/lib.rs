@@ -513,21 +513,21 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> f
 
 pub type Data = Vec<u8>;
 #[derive(serde::Serialize)]
-pub struct SerializedData<'a>(&'a [u8]);
+pub struct SerializedData<'a>(Slice<'a, u8>);
 
 impl<'a> SerializedData<'a> {
     pub fn len(&self) -> u16 {
-        self.0.len() as u16
+        self.0.0.len() as u16
     }
 }
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedData<'a> for SerializedData<'a> {
     fn new(value: &'a [u8]) -> Self {
-        Self(value)
+        Self(value.into())
     }
 
     fn value(&self) -> &[u8] {
-        self.0
+        self.0.0
     }
 }
 
@@ -535,11 +535,11 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment<'a
     for SerializedData<'a>
 {
     fn new(value: &'a [u8]) -> Self {
-        Self(value)
+        Self(value.into())
     }
 
     fn value(&self) -> &[u8] {
-        self.0
+        self.0.0
     }
 }
 
@@ -630,6 +630,26 @@ pub struct Duration {
     pub fraction: u32,
 }
 
+pub struct Slice<'a, T: serde::Serialize>(&'a [T]);
+impl<'a, T: serde::Serialize> serde::Serialize for Slice<'a, T> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(SliceIter(self.0.iter()))
+    }
+}
+impl<'a, T: serde::Serialize> From<&'a [T]> for Slice<'a, T> {
+    fn from(value: &'a [T]) -> Self {
+        Self(value)
+    }
+}
+pub struct SliceIter<'a, T: serde::Serialize>(std::slice::Iter<'a, T>);
+impl<'a, T: serde::Serialize> Iterator for SliceIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
 pub struct Vector<T: serde::Serialize>(Vec<T>);
 impl<T: serde::Serialize> serde::Serialize for Vector<T> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -641,6 +661,11 @@ impl<T: serde::Serialize> From<Vec<T>> for Vector<T> {
         Self(value)
     }
 }
+
+/// Note: size_hint() is not implemented since the default returns (0, None) which
+/// in turn istructs the collect_seq of the serializer to put a None to the len argument
+/// of the serialize_seq() function. And this in turn should cause the serilization of a
+/// sequence without serializing its length as prefix
 pub struct VectorIter<'a, T: serde::Serialize>(std::slice::Iter<'a, T>);
 impl<'a, T: serde::Serialize> Iterator for VectorIter<'a, T> {
     type Item = &'a T;
@@ -682,15 +707,6 @@ impl rust_rtps_pim::messages::submessage_elements::Parameter<RtpsUdpPsm> for Par
         &self.value.0
     }
 }
-// impl serde::Serialize for Parameter {
-//     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-//         let mut state = serializer.serialize_struct("ParameterPSM", 1)?;
-//         state.serialize_field("parameter_id", &self.parameter_id)?;
-//         state.serialize_field("length", &self.length)?;
-//         state.serialize_field("value", &self.value)?;
-//         state.end()
-//     }
-// }
 
 #[derive(serde::Serialize)]
 pub struct ParameterList {

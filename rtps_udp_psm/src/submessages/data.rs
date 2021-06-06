@@ -161,7 +161,7 @@ mod tests {
         let writer_sn = 5.into();
         let inline_qos = ParameterList { parameter: vec![].into() };
         let data = [];
-        let serialized_payload = SerializedData(&data);
+        let serialized_payload = SerializedData(data[..].into());
         let submessage = DataSubmesage::new(
             endianness_flag,
             inline_qos_flag,
@@ -209,7 +209,7 @@ mod tests {
             parameter: vec![param1, param2].into(),
         };
         let data = [];
-        let serialized_payload = SerializedData(&data);
+        let serialized_payload = SerializedData(data[..].into());
         let submessage = DataSubmesage::new(
             endianness_flag,
             inline_qos_flag,
@@ -237,6 +237,51 @@ mod tests {
                 10, 11, 12, 13, // inlineQos: value_1[length_1]
                 7, 0, 4, 0, // inlineQos: parameterId_2, length_2
                 20, 21, 22, 23, // inlineQos: value_2[length_2]
+            ]
+        );
+        assert_eq!(
+            serializer.writer.len() as u16 - 4,
+            submessage.header.submessage_length
+        )
+    }
+
+    #[test]
+    fn serialize_no_inline_qos_with_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = [1, 2, 3, 4].into();
+        let writer_id = [6, 7, 8, 9].into();
+        let writer_sn = 5.into();
+        let inline_qos = ParameterList {parameter: vec![].into()};
+        let data = [1_u8,2,3,4];
+        let serialized_payload = SerializedData(data[..].into());
+        let submessage = DataSubmesage::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            &inline_qos,
+            serialized_payload,
+        );
+
+        let mut serializer = get_serializer();
+        submessage.serialize(&mut serializer).unwrap();
+        #[rustfmt::skip]
+        assert_eq!(serializer.writer, vec![
+                0x15, 0b_0000_0011, 24, 0, // Submessage header
+                0, 0, 12, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                1, 2, 3, 4, // serialized payload
             ]
         );
         assert_eq!(
