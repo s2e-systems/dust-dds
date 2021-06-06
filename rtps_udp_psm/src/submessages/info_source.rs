@@ -33,14 +33,10 @@ impl rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm> for 
     fn guid_prefix(&self) -> &Self::GuidPrefix {
         todo!()
     }
-
-
 }
 
 impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for InfoSource {
-    type SubmessageHeader = SubmessageHeader;
-
-    fn submessage_header(&self) -> Self::SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
 }

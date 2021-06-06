@@ -47,9 +47,7 @@ impl rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPsm> f
 }
 
 impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for HeartbeatFrag {
-    type SubmessageHeader = SubmessageHeader;
-
-    fn submessage_header(&self) -> Self::SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
 }

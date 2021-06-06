@@ -181,8 +181,8 @@ impl<PSM: RTPSWriterImplTrait> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
 impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> {
     type ReaderLocatorPIM = RTPSReaderLocatorImpl<PSM>;
 
-    fn reader_locators(&self) -> &[Self::ReaderLocatorPIM] {
-        &self.reader_locators
+    fn reader_locators(&mut self) -> (&mut [Self::ReaderLocatorPIM], &Self::HistoryCacheType) {
+        (&mut self.reader_locators, &self.writer_cache)
     }
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM) {
@@ -421,7 +421,7 @@ mod tests {
         writer.reader_locator_add(reader_locator1);
         writer.reader_locator_add(reader_locator2);
 
-        assert_eq!(writer.reader_locators().len(), 2)
+        assert_eq!(writer.reader_locators().0.len(), 2)
     }
 
     #[test]
@@ -454,7 +454,7 @@ mod tests {
         writer.reader_locator_add(reader_locator2);
         writer.reader_locator_remove(&MockLocator(1));
 
-        assert_eq!(writer.reader_locators().len(), 1)
+        assert_eq!(writer.reader_locators().0.len(), 1)
     }
 
     #[test]

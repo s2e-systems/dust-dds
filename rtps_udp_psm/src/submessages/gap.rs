@@ -65,9 +65,7 @@ impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for GapSubm
 }
 
 impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for GapSubmessage {
-    type SubmessageHeader = SubmessageHeader;
-
-    fn submessage_header(&self) -> Self::SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
 }

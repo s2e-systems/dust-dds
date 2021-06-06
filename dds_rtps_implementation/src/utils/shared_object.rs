@@ -47,6 +47,18 @@ impl<'a, T> DerefMut for RtpsLock<'a, T> {
     }
 }
 
+impl<'a,T> AsRef<T> for RtpsLock<'a, T> {
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<'a,T> AsMut<T> for RtpsLock<'a, T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.0
+    }
+}
+
 pub struct RtpsWeak<T>(Weak<Mutex<T>>);
 
 impl<T> RtpsWeak<T> {

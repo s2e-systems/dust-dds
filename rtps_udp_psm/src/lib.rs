@@ -2,9 +2,13 @@ use serde::ser::SerializeStruct;
 
 use rust_rtps_pim::{
     behavior::types::{DurationPIM, ParticipantMessageDataPIM},
-    messages::types::{
-        CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
-        SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
+    messages::{
+        submessages::{DataSubmessagePIM, GapSubmessagePIM},
+        types::{
+            CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
+            SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
+        },
+        RTPSMessagePIM, SubmessageHeaderPIM,
     },
     structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
@@ -168,6 +172,22 @@ impl DurationPIM for RtpsUdpPsm {
 
 impl ParticipantMessageDataPIM for RtpsUdpPsm {
     type ParticipantMessageDataType = ();
+}
+
+impl<'a> RTPSMessagePIM<'a, Self> for RtpsUdpPsm {
+    type RTPSMessageType = RTPSMessage<'a>;
+}
+
+impl SubmessageHeaderPIM<Self> for RtpsUdpPsm {
+    type SubmessageHeaderType = submessages::SubmessageHeader;
+}
+
+impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
+    type DataSubmessageType = submessages::data::DataSubmesage<'a>;
+}
+
+impl GapSubmessagePIM<Self> for RtpsUdpPsm {
+    type GapSubmessageType = submessages::gap::GapSubmessage;
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, serde::Serialize)]
@@ -417,12 +437,7 @@ pub struct SequenceNumberSet {
     num_bits: ULong,
     bitmap: Vec<i32>,
 }
-#[test]
-fn integer_division() {
-    let m = (0_i32 + 31) / 32;
-    assert_eq!(0_i32, m);
-    assert_eq!(0, vec![0; m as usize].len());
-}
+
 impl SequenceNumberSet {
     pub fn new(bitmap_base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
         let base = Into::<i64>::into(bitmap_base) as i32;
@@ -477,7 +492,7 @@ impl serde::Serialize for SequenceNumberSet {
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
     for SequenceNumberSet
 {
-    type SequenceNumberVector = ();
+    type SequenceNumberVector = Vec<SequenceNumber>;
 
     fn new(_base: SequenceNumber, _set: Self::SequenceNumberVector) -> Self {
         todo!()
@@ -487,7 +502,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
         &self.bitmap_base
     }
 
-    fn set(&self) -> &Self::SequenceNumberVector {
+    fn set(&self) -> Self::SequenceNumberVector {
         // &self.bitmap
         todo!()
     }
@@ -617,8 +632,9 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
         &FragmentNumber(0)
     }
 
-    fn set(&self) -> &Self::FragmentNumberVector {
-        self
+    fn set(&self) -> Self::FragmentNumberVector {
+        todo!()
+        // self
     }
 }
 
@@ -743,6 +759,64 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for L
 
     fn value(&self) -> &Self::LocatorList {
         &self.0
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct RTPSMessageHeader {
+    protocol: ProtocolId,
+    version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
+}
+
+impl rust_rtps_pim::messages::Header<RtpsUdpPsm> for RTPSMessageHeader {
+    fn protocol(&self) -> ProtocolId {
+        self.protocol
+    }
+
+    fn version(&self) -> ProtocolVersion {
+        self.version
+    }
+
+    fn vendor_id(&self) -> VendorId {
+        self.vendor_id
+    }
+
+    fn guid_prefix(&self) -> GuidPrefix {
+        self.guid_prefix
+    }
+}
+
+pub struct RTPSMessage<'a> {
+    header: RTPSMessageHeader,
+    submessages: Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>,
+}
+
+impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a> {
+    type RTPSMessageHeaderType = RTPSMessageHeader;
+    type RTPSSubmessageVectorType = Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>;
+
+    fn new<T: IntoIterator<Item = &'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>>(
+        protocol: ProtocolId,
+        version: ProtocolVersion,
+        vendor_id: VendorId,
+        guid_prefix: GuidPrefix,
+        submessages: T,
+    ) -> Self {
+        Self {
+            header: RTPSMessageHeader {
+                protocol,
+                version,
+                vendor_id,
+                guid_prefix,
+            },
+            submessages: submessages.into_iter().collect(),
+        }
+    }
+
+    fn header(&self) -> Self::RTPSMessageHeaderType {
+        self.header
     }
 }
 

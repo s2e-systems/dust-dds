@@ -16,7 +16,7 @@ pub trait RTPSCacheChange<
         + ParameterListPIM<PSM>,
 >
 {
-    fn kind(&self) -> &ChangeKind;
+    fn kind(&self) -> ChangeKind;
     fn writer_guid(&self) -> &PSM::GUIDType;
     fn instance_handle(&self) -> &PSM::InstanceHandleType;
     fn sequence_number(&self) -> &PSM::SequenceNumberType;

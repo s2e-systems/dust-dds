@@ -1,13 +1,21 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
-    behavior::types::DurationPIM,
-    messages::types::ParameterIdPIM,
+    behavior::{
+        stateless_writer::{best_effort_send_unsent_data, RTPSStatelessWriter},
+        types::DurationPIM,
+        RTPSWriter,
+    },
+    messages::{
+        submessages::{DataSubmessagePIM, GapSubmessagePIM},
+        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+        RTPSMessage, RTPSMessagePIM, SubmessageHeaderPIM,
+    },
     structure::{
         types::{
             DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
             ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUID, GUIDPIM,
         },
-        RTPSEntity,
+        RTPSEntity, RTPSParticipant,
     },
 };
 
@@ -27,7 +35,11 @@ pub trait RTPSParticipantImplTrait:
     + ProtocolVersionPIM
     + ParameterIdPIM
     + GUIDPIM<Self>
+    + SubmessageKindPIM
+    + SubmessageFlagPIM
+    + SubmessageHeaderPIM<Self>
     + ParameterListPIM<Self>
+    + for<'a> DataSubmessagePIM<'a, Self>
     + Sized
 {
 }
@@ -45,6 +57,10 @@ impl<
             + ParameterIdPIM
             + GUIDPIM<Self>
             + ParameterListPIM<Self>
+            + SubmessageKindPIM
+            + SubmessageFlagPIM
+            + SubmessageHeaderPIM<Self>
+            + for<'a> DataSubmessagePIM<'a, T>
             + Sized,
     > RTPSParticipantImplTrait for T
 {
@@ -82,6 +98,96 @@ impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
         //     .ok_or(DDSError::PreconditionNotMet("RTPS writer group not found"))?;
         // self.rtps_writer_groups.swap_remove(index);
         // Ok(())
+    }
+
+    // pub fn send_data(&self) {
+    //     for writer_group in &self.rtps_writer_groups {
+    //         let writer_group_lock = writer_group.lock();
+    //         let writer_list = writer_group_lock.writer_list();
+    //         for writer in writer_list {
+    //             if let Some(mut writer_lock) = writer.try_lock() {
+    //                 let writer_ref = writer_lock.as_mut();
+    //                 let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
+    //                 behavior.send_unsent_data();
+    //             }
+    //         }
+    //     }
+    // }
+}
+
+pub fn send_data<
+    PSM: GuidPrefixPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + LocatorPIM
+        + VendorIdPIM
+        + DurationPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ProtocolVersionPIM
+        + ParameterIdPIM
+        + GUIDPIM<PSM>
+        + SubmessageKindPIM
+        + SubmessageFlagPIM
+        + ProtocolIdPIM
+        + ParameterListPIM<PSM>
+        + SubmessageHeaderPIM<PSM>
+        + for<'a> DataSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>
+        + for<'a> RTPSMessagePIM<'a, PSM>
+        + Sized
+        + 'static,
+>(
+    rtps_participant_impl: &RTPSParticipantImpl<PSM>,
+) {
+    for writer_group in &rtps_participant_impl.rtps_writer_groups {
+        let writer_group_lock = writer_group.lock();
+        let writer_list = writer_group_lock.writer_list();
+        for writer in writer_list {
+            if let Some(mut writer_lock) = writer.try_lock() {
+                let last_change_sequence_number = *writer_lock.last_change_sequence_number();
+                let mut data_submessage_list = vec![];
+                let mut gap_submessage_list = vec![];
+                let (reader_locators, writer_cache) = writer_lock.reader_locators();
+
+                for reader_locator in reader_locators {
+                    best_effort_send_unsent_data(
+                        reader_locator,
+                        last_change_sequence_number,
+                        writer_cache,
+                        |_locator, data_submessage| data_submessage_list.push(data_submessage),
+                        |_locator, gap_submessage| gap_submessage_list.push(gap_submessage),
+                    );
+                }
+                let protocol = PSM::PROTOCOL_RTPS;
+                let version = rtps_participant_impl.protocol_version();
+                let vendor_id = rtps_participant_impl.vendor_id();
+                let guid_prefix = rtps_participant_impl.guid().prefix().clone();
+
+                let mut submessages: Vec<&dyn rust_rtps_pim::messages::Submessage<PSM>> = vec![];
+                for data_submessage in &data_submessage_list {
+                    submessages.push(data_submessage)
+                }
+                for gap_submessage in &gap_submessage_list {
+                    submessages.push(gap_submessage);
+                }
+
+                let _message = PSM::RTPSMessageType::new(
+                    protocol,
+                    version,
+                    vendor_id,
+                    guid_prefix,
+                    submessages,
+                );
+
+                // let rtps_message = PSM::RTPSMessageType::new();
+
+                // let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
+                // behavior.send_unsent_data();
+                // let data = data_submessage_list[0].serialized_payload();
+                // println!("{:?}", data.value())
+            }
+        }
     }
 }
 
