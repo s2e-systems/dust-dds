@@ -174,7 +174,33 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
         V: serde::de::Visitor<'de>,
     {
         let len: u32 = serde::de::Deserialize::deserialize(&mut *self)?;
-        self.deserialize_tuple(len as usize, visitor)
+
+        struct Access<'a, R: Read + 'a> {
+            deserializer: &'a mut Deserializer<R>,
+            remaining_items: usize,
+            len: usize
+        }
+
+        impl<'de, 'a, R: Read + 'a> serde::de::SeqAccess<'de> for Access<'a, R>{
+            type Error = crate::error::Error;
+
+            fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+                where T: serde::de::DeserializeSeed<'de>,
+            {
+                if self.remaining_items > 0 {
+                    self.remaining_items -= 1;
+                    let value = serde::de::DeserializeSeed::deserialize(seed, &mut *self.deserializer)?;
+                    Ok(Some(value))
+                } else {
+                    Ok(None)
+                }
+            }
+
+            fn size_hint(&self) -> Option<usize> {
+                Some(self.len)
+            }
+        }
+        visitor.visit_seq(Access{deserializer: self, remaining_items: len as usize, len: len as usize})
     }
 
     fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
@@ -384,84 +410,39 @@ mod tests {
         type Value = CustomStruct;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("a CustomStruct struct")
+            formatter.write_str("2 byte length + length bytes")
         }
 
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where A: serde::de::SeqAccess<'de>,
         {
+            let error_message_len = seq.size_hint().unwrap_or(0);
             let data_length: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-            let mut data: [u8; 32] = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-            // let data = [1; N];
-            //Ok(CustomStruct{data_length, data})
-            todo!()
+            let mut data = vec![];
+            for _ in 0..data_length {
+                data.push(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(error_message_len, &self))?);
+            }
+            Ok(CustomStruct{data_length, data})
         }
     }
 
-    fn deserialize_vecu8<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-        &'de D: serde::de::Deserializer<'de> + 'de
-    {
-        struct MaxVisitor;
-
-        impl<'de> serde::de::Visitor<'de> for MaxVisitor
-        {
-            /// Return type of this visitor. This visitor computes the max of a
-            /// sequence of values of type T, so the type of the maximum is T.
-            type Value = Vec<u8>;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a nonempty sequence of numbers")
-            }
-
-            fn visit_seq<S>(self, mut seq: S) -> Result<Vec<u8>, S::Error>
-            where
-                S: serde::de::SeqAccess<'de>,
-            {
-                // Start with max equal to the first value in the seq.
-                let mut max = seq.next_element()?.ok_or_else(||
-                    // Cannot take the maximum of an empty seq.
-                    serde::de::Error::custom("no values in seq when looking for maximum")
-                )?;
-
-                // Update the max while there are additional values.
-                while let Some(value) = seq.next_element()? {
-                    max = std::cmp::max(max, value);
-                }
-
-                Ok(max)
-            }
-        }
-
-        // Create the visitor and ask the deserializer to drive it. The
-        // deserializer will call visitor.visit_seq() if a seq is present in
-        // the input data.
-        let visitor = MaxVisitor;
-
-        let len: u16 = serde::de::Deserialize::deserialize(&deserializer).unwrap();
-        deserializer.deserialize_seq(visitor)
-    }
-
-    #[derive(PartialEq, Debug, serde::Deserialize)]
+    #[derive(PartialEq, Debug)]
     struct CustomStruct {
         data_length: u16,
-        //#[serde(deserialize_with = "deserialize_vecu8")]
         data: Vec<u8>,
     }
-    // impl<'de> serde::Deserialize<'de> for CustomStruct {
-    //     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    //     where
-    //         D: serde::Deserializer<'de> {
-    //             const FIELDS: &'static [&'static str] = &["data_length", "data"];
-    //             deserializer.deserialize_struct("CustomStruct", FIELDS, CustomStructVisitor {})
-    //     }
-    // }
+    impl<'de> serde::Deserialize<'de> for CustomStruct {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de> {
+                const MAX_BYTES: usize = 2^16;
+                deserializer.deserialize_tuple(MAX_BYTES, CustomStructVisitor {})
+        }
+    }
 
     #[test]
     fn deserialze_custom_struct() {
-        let result: CustomStruct = deserialize([0x02, 0x00, 0x00, 0x00, 4, 5, 2]);
-        let mut expected_data = vec![5];
-        assert_eq!(result, CustomStruct{data_length: 2, data: expected_data});
+        let result: CustomStruct = deserialize([0x02, 0x00, 4, 5]);
+        assert_eq!(result, CustomStruct{data_length: 2, data: vec![4, 5]});
     }
 }

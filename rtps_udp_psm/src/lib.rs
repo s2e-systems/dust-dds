@@ -630,15 +630,42 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-//#[derive(Clone)]
+pub struct Vector<T: serde::Serialize>(Vec<T>);
+impl<T: serde::Serialize> serde::Serialize for Vector<T> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(VectorIter(self.0.iter()))
+    }
+}
+impl<T: serde::Serialize> From<Vec<T>> for Vector<T> {
+    fn from(value: Vec<T>) -> Self {
+        Self(value)
+    }
+}
+pub struct VectorIter<'a, T: serde::Serialize>(std::slice::Iter<'a, T>);
+impl<'a, T: serde::Serialize> Iterator for VectorIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+#[derive(serde::Serialize)]
 pub struct Parameter {
     pub parameter_id: ParameterId,
-    pub value: Vec<u8>,
+    pub length: i16,
+    pub value: Vector<u8>,
 }
 
 impl Parameter {
+    pub fn new(parameter_id: ParameterId, value: Vector<u8>) -> Self {
+        Self {
+            parameter_id, length: value.0.len() as i16, value
+        }
+    }
+
     pub fn len(&self) -> u16 {
-        4 + self.value.len() as u16
+        4 + self.value.0.len() as u16
     }
 }
 
@@ -648,29 +675,31 @@ impl rust_rtps_pim::messages::submessage_elements::Parameter<RtpsUdpPsm> for Par
     }
 
     fn length(&self) -> i16 {
-        self.value.len() as i16
+        self.length
     }
 
     fn value(&self) -> &[u8] {
-        &self.value
+        &self.value.0
     }
 }
-impl serde::Serialize for Parameter {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("ParameterList", 1)?;
-        state.serialize_field("parameter_id", &self.parameter_id)?;
-        state.serialize_field("value", &self.value)?;
-        state.end()
-    }
-}
+// impl serde::Serialize for Parameter {
+//     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+//         let mut state = serializer.serialize_struct("ParameterPSM", 1)?;
+//         state.serialize_field("parameter_id", &self.parameter_id)?;
+//         state.serialize_field("length", &self.length)?;
+//         state.serialize_field("value", &self.value)?;
+//         state.end()
+//     }
+// }
 
+#[derive(serde::Serialize)]
 pub struct ParameterList {
-    pub parameter: Vec<Parameter>,
+    pub parameter: Vector<Parameter>,
 }
 
 impl ParameterList {
     pub fn len(&self) -> u16 {
-        self.parameter.iter().map(|p| p.len()).sum()
+        self.parameter.0.iter().map(|p| p.len()).sum()
     }
 }
 
@@ -679,20 +708,11 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for
     type ParameterList = Vec<Self::Parameter>;
 
     fn new(parameter: Self::ParameterList) -> Self {
-        Self { parameter }
+        Self { parameter: parameter.into() }
     }
 
     fn parameter(&self) -> &Self::ParameterList {
-        &self.parameter
-    }
-}
-impl serde::Serialize for ParameterList {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("ParameterList", 1)?;
-        for parameter in &self.parameter {
-            state.serialize_field("parameter", parameter)?;
-        }
-        state.end()
+        &self.parameter.0
     }
 }
 

@@ -184,9 +184,16 @@ impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
     }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-        // Do serialize the length as u16 (that is not CDR compliant, it would be as long)
-        let len = len.ok_or(Self::Error::SequenceMustHaveLength)?;
-        self.writer.write_u16::<LittleEndian>(len as u16)?;
+
+        match len {
+            Some(len) => {
+                if len > std::u32::MAX as usize {
+                    return Err(Self::Error::NumberOutOfRange);
+                }
+                self.serialize_u32(len as u32)?
+            },
+            None => (),
+        };
         Ok(SerializeCompound { ser: self })
     }
 

@@ -159,7 +159,7 @@ mod tests {
         let reader_id = [1, 2, 3, 4].into();
         let writer_id = [6, 7, 8, 9].into();
         let writer_sn = 5.into();
-        let inline_qos = ParameterList { parameter: vec![] };
+        let inline_qos = ParameterList { parameter: vec![].into() };
         let data = [];
         let serialized_payload = SerializedData(&data);
         let submessage = DataSubmesage::new(
@@ -203,16 +203,10 @@ mod tests {
         let reader_id = [1, 2, 3, 4].into();
         let writer_id = [6, 7, 8, 9].into();
         let writer_sn = 5.into();
-        let param1 = crate::Parameter {
-            parameter_id: 6,
-            value: vec![10, 11, 12, 13].into(),
-        };
-        let param2 = crate::Parameter {
-            parameter_id: 7,
-            value: vec![20, 21, 22, 23].into(),
-        };
+        let param1 = crate::Parameter::new(6, vec![10, 11, 12, 13].into());
+        let param2 = crate::Parameter::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = ParameterList {
-            parameter: vec![param1, param2],
+            parameter: vec![param1, param2].into(),
         };
         let data = [];
         let serialized_payload = SerializedData(&data);

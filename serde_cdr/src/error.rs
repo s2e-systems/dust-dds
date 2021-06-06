@@ -1,10 +1,11 @@
 #[derive(Debug)]
 pub enum Error {
     Message(String),
-    
+
     IoError(std::io::Error),
     SequenceMustHaveLength,
     InvalidBoolEncoding(u8),
+    NumberOutOfRange,
 }
 
 impl From<std::io::Error> for Error {
