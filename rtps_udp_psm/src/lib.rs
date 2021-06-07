@@ -666,10 +666,19 @@ impl<'a, T: serde::Serialize> Iterator for SliceIter<'a, T> {
     }
 }
 
-pub struct Vector<T: serde::Serialize>(Vec<T>);
+#[derive(Debug, PartialEq)]
+pub struct Vector<T>(Vec<T>);
 impl<T: serde::Serialize> serde::Serialize for Vector<T> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_seq(VectorIter(self.0.iter()))
+    }
+}
+impl<'de, T: serde::Deserialize<'de>> serde::Deserialize<'de> for Vector<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+            const MAX_BYTES: usize = 2^16;
+            deserializer.deserialize_tuple(MAX_BYTES, VectorVisitor(std::marker::PhantomData))
     }
 }
 impl<T: serde::Serialize> From<Vec<T>> for Vector<T> {
@@ -677,7 +686,28 @@ impl<T: serde::Serialize> From<Vec<T>> for Vector<T> {
         Self(value)
     }
 }
+struct VectorVisitor<T>(std::marker::PhantomData<T>);
 
+impl<'de, T: serde::Deserialize<'de>> serde::de::Visitor<'de> for VectorVisitor<T> {
+    type Value = Vector<T>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("2 byte length + length bytes")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where A: serde::de::SeqAccess<'de>,
+    {
+        let error_message_len = seq.size_hint().unwrap_or(0);
+        let data_length: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        let mut data = vec![];
+        for _ in 0..data_length {
+            data.push(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(error_message_len, &self))?);
+        }
+        // Ok(Vector())
+        todo!()
+    }
+}
 /// Note: size_hint() is not implemented since the default returns (0, None) which
 /// in turn istructs the collect_seq of the serializer to put a None to the len argument
 /// of the serialize_seq() function. And this in turn should cause the serilization of a
@@ -691,7 +721,7 @@ impl<'a, T: serde::Serialize> Iterator for VectorIter<'a, T> {
     }
 }
 
-#[derive(serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize)]
 pub struct Parameter {
     pub parameter_id: ParameterId,
     pub length: i16,
@@ -721,6 +751,37 @@ impl rust_rtps_pim::messages::submessage_elements::Parameter<RtpsUdpPsm> for Par
 
     fn value(&self) -> &[u8] {
         &self.value.0
+    }
+}
+
+struct ParameterVisitor;
+
+impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
+    type Value = Parameter;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("Parameter Submessage Element")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where A: serde::de::SeqAccess<'de>,
+    {
+        let paramter_id: ParameterId = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        let data_length: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+        let mut data = vec![];
+        for _ in 0..data_length {
+            data.push(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?);
+        }
+        Ok(Parameter::new(paramter_id, data.into()))
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Parameter {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+            const MAX_BYTES: usize = 2^16;
+            deserializer.deserialize_tuple( MAX_BYTES, ParameterVisitor {})
     }
 }
 
@@ -822,16 +883,8 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a
 
 #[cfg(test)]
 mod tests {
-    use serde::Serialize;
-    use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer};
-
     use super::*;
-
-    fn create_serializer() -> RtpsMessageSerializer<Vec<u8>> {
-        RtpsMessageSerializer {
-            writer: Vec::<u8>::new(),
-        }
-    }
+    use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer};
 
     fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
         let mut serializer = RtpsMessageSerializer {writer: Vec::<u8>::new()};
@@ -877,18 +930,6 @@ mod tests {
         let flags = Octet(0b_1000_0011);
         assert_eq!(flags.is_bit_set(7), true);
     }
-
-    #[test]
-    fn serialize_parameter() {
-        let parameter = Parameter::new(0x01, vec![5, 6, 7, 8].into());
-        let mut serializer = create_serializer();
-        parameter.serialize(&mut serializer).unwrap();
-        #[rustfmt::skip]
-        assert_eq!(serializer.writer, vec![
-            0x01, 0x00, 4, 0, // Parameter | length
-            5, 6, 7, 8        // value
-        ]);
-    }
     #[test]
     fn serialize_octet() {
         assert_eq!(serialize(Octet(5)), vec![5]);
@@ -897,6 +938,27 @@ mod tests {
     fn deserialize_octet() {
         let result: Octet = deserialize([5]);
         assert_eq!(result, Octet(5));
+    }
+
+    #[test]
+    fn serialize_parameter() {
+        let parameter = Parameter::new(1, vec![5, 6, 7, 8].into());
+        #[rustfmt::skip]
+        assert_eq!(serialize(parameter), vec![
+            0x01, 0x00, 4, 0, // Parameter | length
+            5, 6, 7, 8        // value
+        ]);
+    }
+
+    #[test]
+    fn deserialize_parameter() {
+        let expected = Parameter::new(0x01, vec![5, 6, 7, 8].into());
+        #[rustfmt::skip]
+        let result = deserialize([
+            0x01, 0x00, 4, 0, // Parameter | length
+            5, 6, 7, 8        // value
+        ]);
+        assert_eq!(expected, result);
     }
 }
 

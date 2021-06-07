@@ -141,13 +141,18 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_serde_cdr::serializer::RtpsMessageSerializer;
-    use serde::Serialize;
+    use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer};
 
-    fn get_serializer() -> RtpsMessageSerializer<Vec<u8>> {
-        RtpsMessageSerializer {
-            writer: Vec::<u8>::new(),
-        }
+    fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
+        let mut serializer = RtpsMessageSerializer {writer: Vec::<u8>::new()};
+        value.serialize(&mut serializer).unwrap();
+        serializer.writer
+    }
+    fn deserialize<'de, T: serde::Deserialize<'de>, const N: usize>(buffer: [u8; N]) -> T {
+        let mut de = RtpsMessageDeserializer {
+            reader: buffer.as_ref(),
+        };
+        serde::de::Deserialize::deserialize(&mut de).unwrap()
     }
 
     #[test]
@@ -175,11 +180,8 @@ mod tests {
             &inline_qos,
             serialized_payload,
         );
-
-        let mut serializer = get_serializer();
-        submessage.serialize(&mut serializer).unwrap();
         #[rustfmt::skip]
-        assert_eq!(serializer.writer, vec![
+        assert_eq!(serialize(submessage), vec![
                 0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
                 0, 0, 12, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -188,10 +190,6 @@ mod tests {
                 5, 0, 0, 0, // writerSN: low
             ]
         );
-        assert_eq!(
-            serializer.writer.len() as u16 - 4,
-            submessage.header.submessage_length
-        )
     }
 
     #[test]
@@ -223,11 +221,8 @@ mod tests {
             &inline_qos,
             serialized_payload,
         );
-
-        let mut serializer = get_serializer();
-        submessage.serialize(&mut serializer).unwrap();
         #[rustfmt::skip]
-        assert_eq!(serializer.writer, vec![
+        assert_eq!(serialize(submessage), vec![
                 0x15, 0b_0000_0011, 36, 0, // Submessage header
                 0, 0, 12, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -240,10 +235,6 @@ mod tests {
                 20, 21, 22, 23, // inlineQos: value_2[length_2]
             ]
         );
-        assert_eq!(
-            serializer.writer.len() as u16 - 4,
-            submessage.header.submessage_length
-        )
     }
 
     #[test]
@@ -271,12 +262,9 @@ mod tests {
             &inline_qos,
             serialized_payload,
         );
-
-        let mut serializer = get_serializer();
-        submessage.serialize(&mut serializer).unwrap();
         #[rustfmt::skip]
-        assert_eq!(serializer.writer, vec![
-                0x15, 0b_0000_0011, 24, 0, // Submessage header
+        assert_eq!(serialize(submessage), vec![
+                0x15, 0b_0000_0101, 24, 0, // Submessage header
                 0, 0, 12, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
@@ -285,9 +273,5 @@ mod tests {
                 1, 2, 3, 4, // serialized payload
             ]
         );
-        assert_eq!(
-            serializer.writer.len() as u16 - 4,
-            submessage.header.submessage_length
-        )
     }
 }

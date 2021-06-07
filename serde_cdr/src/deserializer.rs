@@ -35,11 +35,11 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeser
         todo!()
     }
 
-    fn deserialize_i16<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
+        visitor.visit_i16(self.reader.read_i16::<LittleEndian>()?)
     }
 
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -221,7 +221,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeser
             {
                 if self.remaining_items > 0 {
                     self.remaining_items -= 1;
-                    let value = serde::de::DeserializeSeed::deserialize(seed, &mut *self.deserializer)?;
+                    let value = seed.deserialize(&mut *self.deserializer)?;
                     Ok(Some(value))
                 } else {
                     Ok(None)
