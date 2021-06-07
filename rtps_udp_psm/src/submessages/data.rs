@@ -7,6 +7,7 @@ use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData,
 
 use super::SubmessageHeader;
 
+#[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct DataSubmesage<'a> {
     header: SubmessageHeader,
     extra_flags: u16,
@@ -273,5 +274,42 @@ mod tests {
                 1, 2, 3, 4, // serialized payload
             ]
         );
+    }
+
+    #[test]
+    fn deserialize_no_inline_qos_no_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = [1, 2, 3, 4].into();
+        let writer_id = [6, 7, 8, 9].into();
+        let writer_sn = 5.into();
+        let inline_qos = ParameterList { parameter: vec![].into() };
+        let data = [];
+        let serialized_payload = SerializedData(data[..].into());
+        let expected = DataSubmesage::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            &inline_qos,
+            serialized_payload,
+        );
+        #[rustfmt::skip]
+        let result = deserialize([
+            0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
+            0, 0, 12, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+        ]);
+        assert_eq!(expected, result);
     }
 }

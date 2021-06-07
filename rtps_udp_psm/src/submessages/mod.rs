@@ -13,7 +13,8 @@ pub mod info_timestamp;
 pub mod nack_frag;
 pub mod pad;
 
-#[derive(serde::Serialize)]
+
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SubmessageHeader {
     submessage_id: Octet,
     flags: Octet,

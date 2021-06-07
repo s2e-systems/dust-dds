@@ -314,7 +314,7 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefix<RtpsUdpPsm> for Gu
     }
 }
 
-#[derive(Clone, Copy, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EntityId {
     pub entity_key: [u8; 3],
     pub entity_kind: u8,
@@ -350,7 +350,7 @@ impl rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> for Enti
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SequenceNumber {
     pub high: i32,
     pub low: u32,
@@ -527,7 +527,8 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> f
 }
 
 pub type Data = Vec<u8>;
-#[derive(serde::Serialize)]
+
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SerializedData<'a>(Slice<'a, u8>);
 
 impl<'a> SerializedData<'a> {
@@ -646,10 +647,18 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-pub struct Slice<'a, T: serde::Serialize>(&'a [T]);
+#[derive(Debug, PartialEq)]
+pub struct Slice<'a, T>(&'a [T]);
 impl<'a, T: serde::Serialize> serde::Serialize for Slice<'a, T> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_seq(SliceIter(self.0.iter()))
+    }
+}
+impl<'de, 'a, T: serde::Deserialize<'de>> serde::Deserialize<'de> for Slice<'a, T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        todo!()
     }
 }
 impl<'a, T: serde::Serialize> From<&'a [T]> for Slice<'a, T> {
@@ -785,9 +794,38 @@ impl<'de> serde::Deserialize<'de> for Parameter {
     }
 }
 
-#[derive(serde::Serialize)]
+
+#[derive(Debug, PartialEq)]
 pub struct ParameterList {
     pub parameter: Vector<Parameter>,
+}
+impl serde::Serialize for ParameterList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        const PID_SENTINEL: u16 = 1;
+        const PID_PAD: u16 = 0;
+        let mut state = serializer.serialize_struct("ParameterList", 2)?;
+        state.serialize_field("parameter", &self.parameter)?;
+        state.serialize_field("sentinel", &PID_SENTINEL)?;
+        state.serialize_field("pad", &PID_PAD)?;
+        state.end()
+    }
+}
+impl<'de, 'a> serde::Deserialize<'de> for ParameterList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        todo!()
+        //deserializer.deserialize_struct("ParameterList", fields, visitor)
+    }
+}
+impl<'de, 'a> serde::Deserialize<'de> for &'a ParameterList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        todo!()
+    }
 }
 
 impl ParameterList {
@@ -942,21 +980,54 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(1, vec![5, 6, 7, 8].into());
+        let parameter = Parameter::new(2, vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
         assert_eq!(serialize(parameter), vec![
-            0x01, 0x00, 4, 0, // Parameter | length
-            5, 6, 7, 8        // value
+            0x02, 0x00, 4, 0, // Parameter | length
+            5, 6, 7, 8,       // value
+        ]);
+    }
+
+    #[test]
+    fn serialize_parameter_list() {
+        let parameter = ParameterList{
+            parameter: vec![
+                Parameter::new(2, vec![51, 61, 71, 81].into()),
+                Parameter::new(3, vec![52, 62, 72, 82].into())
+            ].into()
+        };
+        #[rustfmt::skip]
+        assert_eq!(serialize(parameter), vec![
+            0x02, 0x00, 4, 0, // Parameter ID | length
+            51, 61, 71, 81,   // value
+            0x03, 0x00, 4, 0, // Parameter ID | length
+            52, 62, 72, 82,   // value
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
         ]);
     }
 
     #[test]
     fn deserialize_parameter() {
-        let expected = Parameter::new(0x01, vec![5, 6, 7, 8].into());
+        let expected = Parameter::new(0x02, vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
         let result = deserialize([
-            0x01, 0x00, 4, 0, // Parameter | length
-            5, 6, 7, 8        // value
+            0x02, 0x00, 4, 0, // Parameter | length
+            5, 6, 7, 8,       // value
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_parameter_list() {
+        let expected = ParameterList{parameter: vec![
+            Parameter::new(0x02, vec![15, 16, 17, 18].into()),
+            Parameter::new(0x03, vec![25, 26, 27, 28].into())
+        ].into()};
+        #[rustfmt::skip]
+        let result = deserialize([
+            0x02, 0x00, 4, 0, // Parameter ID | length
+            5, 6, 7, 8,        // value
+            0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
         ]);
         assert_eq!(expected, result);
     }
