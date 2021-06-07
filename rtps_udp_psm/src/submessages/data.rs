@@ -3,11 +3,11 @@ use rust_rtps_pim::{
     structure::types::ParameterListPIM,
 };
 
-use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
+use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, Slice, SubmessageFlag, Vector};
 
 use super::SubmessageHeader;
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct DataSubmesage<'a> {
     header: SubmessageHeader,
     extra_flags: u16,
@@ -136,6 +136,55 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
             state.serialize_field("serialized_payload", &self.serialized_payload)?;
         }
         state.end()
+    }
+}
+
+static EMPTY_PARAMETER_LIST: ParameterList = ParameterList{parameter: Vector(vec![])};
+struct DataSubmesageVisitor<'a>(std::marker::PhantomData<&'a ()>);
+
+impl<'a, 'de> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
+    type Value = DataSubmesage<'a>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("DataSubmesage")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where A: serde::de::SeqAccess<'de>,
+    {
+        let header: SubmessageHeader = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        let inline_qos_flag = header.flags.is_bit_set(1);
+        let data_flag = header.flags.is_bit_set(2);
+        let key_flag = header.flags.is_bit_set(3);
+        let non_standard_payload_flag = header.flags.is_bit_set(4);
+        let inline_qos = if inline_qos_flag {
+            todo!()
+        } else{
+            &EMPTY_PARAMETER_LIST
+        };
+        let serialized_payload = if data_flag || key_flag {
+            todo!()
+        } else {
+            SerializedData(Slice(&[]))
+        };
+        if non_standard_payload_flag {
+            todo!()
+        }
+        let extra_flags: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+        let octets_to_inline_qos: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+        let reader_id: EntityId = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+        let writer_id: EntityId = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
+        let writer_sn: SequenceNumber = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
+        Ok(DataSubmesage{ header, extra_flags, octets_to_inline_qos, reader_id, writer_id, writer_sn, inline_qos, serialized_payload})
+    }
+}
+
+impl<'a, 'de> serde::Deserialize<'de> for DataSubmesage<'a> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+            const FIELDS: &'static[&'static str] = &["header", "extra_flags", "octets_to_inline_qos", "reader_id", "writer_id", "writer_sn", "inline_qos", "serialized_payload"];
+            deserializer.deserialize_struct("DataSubmesage", FIELDS, DataSubmesageVisitor(std::marker::PhantomData))
     }
 }
 

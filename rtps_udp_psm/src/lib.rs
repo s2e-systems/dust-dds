@@ -655,10 +655,10 @@ impl<'a, T: serde::Serialize> serde::Serialize for Slice<'a, T> {
     }
 }
 impl<'de, 'a, T: serde::Deserialize<'de>> serde::Deserialize<'de> for Slice<'a, T> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {
-        todo!()
+            Err(serde::de::Error::missing_field("Vector"))
     }
 }
 impl<'a, T: serde::Serialize> From<&'a [T]> for Slice<'a, T> {
@@ -769,7 +769,7 @@ impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
     type Value = Parameter;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("Parameter Submessage Element")
+        formatter.write_str("Parameter of the ParameterList Submessage Element")
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -793,7 +793,8 @@ impl<'de> serde::Deserialize<'de> for Parameter {
             deserializer.deserialize_tuple( MAX_BYTES, ParameterVisitor {})
     }
 }
-
+const PID_SENTINEL: ParameterId = 1;
+static SENTINEL: Parameter = Parameter{parameter_id: PID_SENTINEL, length: 0, value: Vector(vec![])};
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterList {
@@ -803,28 +804,53 @@ impl serde::Serialize for ParameterList {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer {
-        const PID_SENTINEL: u16 = 1;
-        const PID_PAD: u16 = 0;
         let mut state = serializer.serialize_struct("ParameterList", 2)?;
         state.serialize_field("parameter", &self.parameter)?;
-        state.serialize_field("sentinel", &PID_SENTINEL)?;
-        state.serialize_field("pad", &PID_PAD)?;
+        state.serialize_field("sentinel", &SENTINEL)?;
         state.end()
     }
 }
+
+struct ParameterListVisitor;
+
+impl<'de> serde::de::Visitor<'de> for ParameterListVisitor {
+    type Value = ParameterList;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("ParameterList Submessage Element")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where A: serde::de::SeqAccess<'de>,
+    {
+        let mut parameters = vec![];
+        for _ in 0..seq.size_hint().unwrap() {
+            let parameter: Parameter = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+            if parameter == SENTINEL {
+                return Ok(ParameterList{parameter: parameters.into()});
+            }
+            else {
+                parameters.push(parameter);
+            }
+        }
+        todo!()
+    }
+}
+
 impl<'de, 'a> serde::Deserialize<'de> for ParameterList {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {
-        todo!()
-        //deserializer.deserialize_struct("ParameterList", fields, visitor)
+        const MAX_PARAMETERS: usize = 2^16;
+        deserializer.deserialize_tuple(MAX_PARAMETERS, ParameterListVisitor{})
     }
 }
+static EMPTY_PARAMETER: ParameterList = ParameterList{parameter: Vector(vec![])};
 impl<'de, 'a> serde::Deserialize<'de> for &'a ParameterList {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {
-        todo!()
+            Ok(&EMPTY_PARAMETER)
     }
 }
 
@@ -1026,7 +1052,9 @@ mod tests {
         #[rustfmt::skip]
         let result = deserialize([
             0x02, 0x00, 4, 0, // Parameter ID | length
-            5, 6, 7, 8,        // value
+            15, 16, 17, 18,        // value
+            0x03, 0x00, 4, 0, // Parameter ID | length
+            25, 26, 27, 28,        // value
             0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
         ]);
         assert_eq!(expected, result);
