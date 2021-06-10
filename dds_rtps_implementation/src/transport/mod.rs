@@ -1,6 +1,6 @@
 use rust_rtps_pim::{
     messages::{
-        types::{ProtocolIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+        types::{ProtocolIdPIM, SubmessageKindPIM},
         RTPSMessagePIM,
     },
     structure::types::{GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM},
@@ -12,13 +12,16 @@ pub trait Transport<
         + ProtocolVersionPIM
         + VendorIdPIM
         + GuidPrefixPIM
-        + SubmessageFlagPIM
-        + SubmessageKindPIM
+        + SubmessageKindPIM,
 >: Send + Sync
 {
-    fn write<'a>(&mut self, message: &PSM::RTPSMessageType, destination_locator: &PSM::LocatorType) where PSM: RTPSMessagePIM<'a, PSM>;
+    fn write<'a>(&mut self, message: &PSM::RTPSMessageType, destination_locator: &PSM::LocatorType)
+    where
+        PSM: RTPSMessagePIM<'a, PSM>;
 
-    fn read<'a>(&'a self) -> Option<(PSM::RTPSMessageType, PSM::LocatorType)> where PSM: RTPSMessagePIM<'a, PSM>;
+    fn read<'a>(&'a self) -> Option<(PSM::RTPSMessageType, PSM::LocatorType)>
+    where
+        PSM: RTPSMessagePIM<'a, PSM>;
 
     fn unicast_locator_list(&self) -> &[PSM::LocatorType];
 

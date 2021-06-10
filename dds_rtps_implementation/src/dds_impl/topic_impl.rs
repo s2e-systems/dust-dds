@@ -9,7 +9,7 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::types::{GUID, GUIDPIM};
+use rust_rtps_pim::structure::types::GUID;
 
 use super::{domain_participant_impl::DomainParticipantImpl, PIM};
 
@@ -24,7 +24,6 @@ where
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::DataType: AsRef<[u8]> + Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
@@ -45,7 +44,6 @@ where
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::DataType: AsRef<[u8]> + Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,

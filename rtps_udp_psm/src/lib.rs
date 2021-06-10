@@ -6,7 +6,7 @@ use rust_rtps_pim::{
         submessages::{DataSubmessagePIM, GapSubmessagePIM},
         types::{
             CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
-            SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
+            SubmessageKindPIM, TimePIM,
         },
         RTPSMessagePIM, SubmessageHeaderPIM,
     },
@@ -117,10 +117,6 @@ impl ProtocolIdPIM for RtpsUdpPsm {
 
 impl ParameterListPIM<RtpsUdpPsm> for RtpsUdpPsm {
     type ParameterListType = ParameterList;
-}
-
-impl SubmessageFlagPIM for RtpsUdpPsm {
-    type SubmessageFlagType = SubmessageFlag;
 }
 
 type SubmessageKind = u8;

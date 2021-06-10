@@ -1,7 +1,15 @@
-use rust_rtps_pim::{behavior::types::DurationPIM, messages::{RTPSMessagePIM, SubmessageHeaderPIM, submessages::{DataSubmessagePIM, GapSubmessagePIM}, types::{ParameterIdPIM, ProtocolIdPIM, SubmessageFlagPIM, SubmessageKindPIM}}, structure::types::{
+use rust_rtps_pim::{
+    behavior::types::DurationPIM,
+    messages::{
+        submessages::{DataSubmessagePIM, GapSubmessagePIM},
+        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM},
+        RTPSMessagePIM, SubmessageHeaderPIM,
+    },
+    structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
         ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-    }};
+    },
+};
 
 pub mod data_reader_impl;
 pub mod data_writer_impl;
@@ -27,7 +35,6 @@ pub trait PIM:
     + ParameterIdPIM
     + ParameterListPIM<Self>
     + SubmessageKindPIM
-    + SubmessageFlagPIM
     + ProtocolIdPIM
     + SubmessageHeaderPIM<Self>
     + for<'a> RTPSMessagePIM<'a, Self>
@@ -52,7 +59,6 @@ impl<
             + ParameterIdPIM
             + ParameterListPIM<Self>
             + SubmessageKindPIM
-            + SubmessageFlagPIM
             + ProtocolIdPIM
             + SubmessageHeaderPIM<Self>
             + for<'a> RTPSMessagePIM<'a, Self>

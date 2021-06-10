@@ -14,10 +14,7 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::structure::{
-    types::{GUID, GUIDPIM},
-    RTPSEntity,
-};
+use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 
 use crate::{
     dds_type::DDSType,
@@ -67,7 +64,6 @@ where
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::DataType: AsRef<[u8]> + Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
@@ -88,7 +84,6 @@ where
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::DataType: AsRef<[u8]> + Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,

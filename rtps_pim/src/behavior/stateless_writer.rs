@@ -5,7 +5,7 @@ use crate::{
         submessages::{
             AckNackSubmessage, DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM,
         },
-        types::{CountPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+        types::{CountPIM, ParameterIdPIM, SubmessageKindPIM},
         SubmessageHeaderPIM,
     },
     structure::{
@@ -82,7 +82,6 @@ pub fn best_effort_send_unsent_data<
         + ParameterListPIM<PSM>
         + GUIDPIM
         + SubmessageKindPIM
-        + SubmessageFlagPIM
         + SubmessageHeaderPIM<PSM>
         + DataSubmessagePIM<'a, PSM>
         + GapSubmessagePIM<PSM>,
@@ -99,7 +98,6 @@ pub fn best_effort_send_unsent_data<
 ) where
     <PSM as DataPIM>::DataType: 'a,
     <PSM as ParameterListPIM<PSM>>::ParameterListType: 'a,
-    <PSM as SubmessageFlagPIM>::SubmessageFlagType: From<bool>,
     <PSM as GUIDPIM>::GUIDType: GUID<PSM>,
     <PSM as DataPIM>::DataType: AsRef<[u8]>,
     <PSM as SequenceNumberPIM>::SequenceNumberType: Copy,
@@ -170,7 +168,6 @@ pub fn reliable_receive_acknack<
     PSM: LocatorPIM
         + SequenceNumberPIM
         + SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + CountPIM
         + SubmessageHeaderPIM<PSM>,
@@ -345,10 +342,6 @@ mod tests {
         const DATA_FRAG: Self::SubmessageKindType = 0;
         const NACK_FRAG: Self::SubmessageKindType = 0;
         const HEARTBEAT_FRAG: Self::SubmessageKindType = 0;
-    }
-
-    impl SubmessageFlagPIM for MockPSM {
-        type SubmessageFlagType = bool;
     }
 
     impl<'a> DataSubmessagePIM<'a, Self> for MockPSM {

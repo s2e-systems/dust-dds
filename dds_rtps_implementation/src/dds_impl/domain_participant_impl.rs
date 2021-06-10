@@ -16,7 +16,7 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::types::{GUID, GUIDPIM};
+use rust_rtps_pim::structure::types::GUID;
 
 // use rust_rtps_pim::structure::RTPSEntity;
 
@@ -57,7 +57,6 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone + Copy,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::GUIDType: GUID<PSM> + Send + Copy,
     PSM::DataType: AsRef<[u8]>,
     PSM::DurationType: Send,
@@ -105,7 +104,6 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::GUIDType: GUID<PSM> + Send + Copy,
     PSM::DataType: AsRef<[u8]>,
     PSM::DurationType: Send,
@@ -173,7 +171,6 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::GUIDType: GUID<PSM> + Send + Copy,
     PSM::DataType: AsRef<[u8]>,
     PSM::DurationType: Send,
@@ -209,7 +206,6 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::GUIDType: GUID<PSM> + Send + Copy,
     PSM::DataType: AsRef<[u8]>,
     PSM::DurationType: Send,
@@ -329,7 +325,6 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::GUIDType: GUID<PSM> + Send + Copy,
     PSM::DataType: AsRef<[u8]>,
     PSM::DurationType: Send,

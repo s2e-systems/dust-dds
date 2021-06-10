@@ -7,9 +7,7 @@ pub trait ProtocolIdPIM {
     const PROTOCOL_RTPS: Self::ProtocolIdType;
 }
 
-pub trait SubmessageFlagPIM {
-    type SubmessageFlagType;
-}
+pub type SubmessageFlag = bool;
 
 pub trait SubmessageKindPIM {
     type SubmessageKindType;

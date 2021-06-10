@@ -7,7 +7,7 @@ use rust_rtps_pim::{
     },
     messages::{
         submessages::{DataSubmessagePIM, GapSubmessagePIM},
-        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM},
         RTPSMessage, RTPSMessagePIM, SubmessageHeaderPIM,
     },
     structure::{
@@ -36,7 +36,6 @@ pub trait RTPSParticipantImplTrait:
     + ParameterIdPIM
     + GUIDPIM
     + SubmessageKindPIM
-    + SubmessageFlagPIM
     + SubmessageHeaderPIM<Self>
     + ParameterListPIM<Self>
     + for<'a> DataSubmessagePIM<'a, Self>
@@ -58,7 +57,6 @@ impl<
             + GUIDPIM
             + ParameterListPIM<Self>
             + SubmessageKindPIM
-            + SubmessageFlagPIM
             + SubmessageHeaderPIM<Self>
             + for<'a> DataSubmessagePIM<'a, T>
             + Sized,
@@ -131,7 +129,6 @@ pub fn send_data<
         + ParameterIdPIM
         + GUIDPIM
         + SubmessageKindPIM
-        + SubmessageFlagPIM
         + ProtocolIdPIM
         + ParameterListPIM<PSM>
         + SubmessageHeaderPIM<PSM>
@@ -147,7 +144,6 @@ pub fn send_data<
     PSM::SequenceNumberType: Clone + Copy + Ord,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq,
-    PSM::SubmessageFlagType: From<bool>,
     PSM::GUIDType: GUID<PSM> + Copy,
     PSM::DataType: AsRef<[u8]>,
 {
