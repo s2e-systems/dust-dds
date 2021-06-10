@@ -17,7 +17,7 @@ impl UdpTransport {
 
 impl Transport<RtpsUdpPsm> for UdpTransport {
     fn write<'a>(
-        &self,
+        &mut self,
         _message: &<RtpsUdpPsm as RTPSMessagePIM<'a, RtpsUdpPsm>>::RTPSMessageType,
         _destination_locator: &<RtpsUdpPsm as LocatorPIM>::LocatorType,
     ) where

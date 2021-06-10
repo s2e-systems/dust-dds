@@ -138,7 +138,7 @@ pub fn send_data<
         + Sized
         + 'static,
 >(
-    rtps_participant_impl: &RTPSParticipantImpl<PSM>, transport: &dyn Transport<PSM>,
+    rtps_participant_impl: &RTPSParticipantImpl<PSM>, transport: &mut dyn Transport<PSM>,
 ) {
     for writer_group in &rtps_participant_impl.rtps_writer_groups {
         let writer_group_lock = writer_group.lock();

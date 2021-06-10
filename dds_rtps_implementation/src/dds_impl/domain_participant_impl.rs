@@ -30,7 +30,7 @@ use super::{
 pub struct DomainParticipantImpl<PSM: PIM> {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
-    transport: Arc<dyn Transport<PSM>>,
+    transport: Arc<Mutex<dyn Transport<PSM>>>,
 }
 
 impl<PSM: PIM> DomainParticipantImpl<PSM> {
@@ -38,7 +38,7 @@ impl<PSM: PIM> DomainParticipantImpl<PSM> {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
             rtps_participant_impl: RtpsShared::new(RTPSParticipantImpl::new(guid_prefix)),
-            transport: Arc::new(transport),
+            transport: Arc::new(Mutex::new(transport)),
         }
     }
 }
@@ -308,7 +308,7 @@ impl<PSM: PIM> Entity for DomainParticipantImpl<PSM> {
         std::thread::spawn(move || {
             loop {
                 if let Some(rtps_participant) = rtps_participant.try_lock() {
-                    send_data(rtps_participant.as_ref(), transport.as_ref());
+                    send_data(rtps_participant.as_ref(), &mut *transport.lock().unwrap());
                     // rtps_participant.send_data::<UDPHeartbeatMessage>();
                     // rtps_participant.receive_data();
                     // rtps_participant.run_listeners();
