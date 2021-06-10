@@ -88,30 +88,25 @@ pub fn best_effort_send_unsent_data<
     HistoryCache: RTPSHistoryCache<PSM>,
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
-    last_change_sequence_number: PSM::SequenceNumberType,
+    last_change_sequence_number: &PSM::SequenceNumberType,
     writer_cache: &'a HistoryCache,
-    mut send_data: impl FnMut(
-        &PSM::LocatorType,
-        <PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType,
-    ),
-    mut send_gap: impl FnMut(&PSM::LocatorType, PSM::GapSubmessageType),
+    mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
+    mut send_gap: impl FnMut(PSM::GapSubmessageType),
 ) where
-    <PSM as DataPIM>::DataType: 'a,
-    <PSM as ParameterListPIM<PSM>>::ParameterListType: 'a,
+    PSM::DataType: 'a,
+    PSM::ParameterListType: 'a,
     HistoryCache::CacheChange: 'a,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
-            let endianness_flag = true.into();
-            let inline_qos_flag = true.into();
+            let endianness_flag = true;
+            let inline_qos_flag = true;
             let (data_flag, key_flag) = match change.kind() {
-                ChangeKind::Alive => (true.into(), false.into()),
-                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                    (false.into(), true.into())
-                }
+                ChangeKind::Alive => (true, false),
+                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
                 _ => todo!(),
             };
-            let non_standard_payload_flag = false.into();
+            let non_standard_payload_flag = false;
             let reader_id = submessage_elements::EntityId::new(&PSM::ENTITYID_UNKNOWN);
             let writer_id = submessage_elements::EntityId::new(change.writer_guid().entity_id());
             let writer_sn = submessage_elements::SequenceNumber::new(change.sequence_number());
@@ -130,9 +125,9 @@ pub fn best_effort_send_unsent_data<
                 inline_qos,
                 serialized_payload,
             );
-            send_data(reader_locator.locator(), data_submessage)
+            send_data(data_submessage)
         } else {
-            let endianness_flag = true.into();
+            let endianness_flag = true;
             let reader_id = submessage_elements::EntityId::new(&PSM::ENTITYID_UNKNOWN);
             let writer_id = submessage_elements::EntityId::new(&PSM::ENTITYID_UNKNOWN);
             let gap_start = submessage_elements::SequenceNumber::new(&seq_num);
@@ -145,7 +140,7 @@ pub fn best_effort_send_unsent_data<
                 gap_start,
                 gap_list,
             );
-            send_gap(reader_locator.locator(), gap_submessage)
+            send_gap(gap_submessage)
         }
     }
 }
@@ -172,10 +167,8 @@ pub fn reliable_receive_acknack<
     acknack: &impl AckNackSubmessage<PSM>,
     last_change_sequence_number: &PSM::SequenceNumberType,
 ) {
-    reader_locator.requested_changes_set(
-        acknack.reader_sn_state().set(),
-        last_change_sequence_number,
-    );
+    reader_locator
+        .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
 }
 
 pub fn reliable_after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(
@@ -695,13 +688,13 @@ mod tests {
         };
         best_effort_send_unsent_data(
             &mut reader_locator,
-            2,
+            &2,
             &writer_cache,
-            |_, data_submessage| {
+            |data_submessage| {
                 sent_data_seq_num[total_data] = data_submessage.writer_sn().clone();
                 total_data += 1;
             },
-            |_, gap_submessage| {
+            |gap_submessage| {
                 sent_gap_seq_num[total_gap] = gap_submessage.gap_start().clone();
                 total_gap += 1;
             },
@@ -731,13 +724,13 @@ mod tests {
         let writer_cache = MockHistoryCache::<0> { changes: [] };
         best_effort_send_unsent_data(
             &mut reader_locator,
-            2,
+            &2,
             &writer_cache,
-            |_, data_submessage| {
+            |data_submessage| {
                 sent_data_seq_num[total_data] = data_submessage.writer_sn().clone();
                 total_data += 1;
             },
-            |_, gap_submessage| {
+            |gap_submessage| {
                 sent_gap_seq_num[total_gap] = gap_submessage.gap_start().clone();
                 total_gap += 1;
             },
@@ -772,13 +765,13 @@ mod tests {
         };
         best_effort_send_unsent_data(
             &mut reader_locator,
-            2,
+            &2,
             &writer_cache,
-            |_, data_submessage| {
+            |data_submessage| {
                 sent_data_seq_num[total_data] = data_submessage.writer_sn().clone();
                 total_data += 1;
             },
-            |_, gap_submessage| {
+            |gap_submessage| {
                 sent_gap_seq_num[total_gap] = gap_submessage.gap_start().clone();
                 total_gap += 1;
             },

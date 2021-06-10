@@ -1,15 +1,23 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
-use rust_rtps_pim::{behavior::{
-        stateless_writer::{best_effort_send_unsent_data, RTPSStatelessWriter},
+use rust_rtps_pim::{
+    behavior::{
+        stateless_writer::{best_effort_send_unsent_data, RTPSReaderLocator, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
-    }, messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM, submessages::{DataSubmessagePIM, GapSubmessagePIM}, types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM}}, structure::{
+    },
+    messages::{
+        submessages::{DataSubmessagePIM, GapSubmessagePIM},
+        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM},
+        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
+    },
+    structure::{
         types::{
             DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
             ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
         },
         RTPSEntity, RTPSParticipant,
-    }};
+    },
+};
 
 use crate::{transport::Transport, utils::shared_object::RtpsShared};
 
@@ -145,40 +153,38 @@ pub fn send_data<
                 let mut data_submessage_list = vec![];
                 let mut gap_submessage_list = vec![];
                 let (reader_locators, writer_cache) = writer_lock.reader_locators();
-                let mut destination_locator = <PSM as LocatorPIM>::LOCATOR_INVALID;
                 for reader_locator in reader_locators {
                     best_effort_send_unsent_data(
                         reader_locator,
-                        last_change_sequence_number,
+                        &last_change_sequence_number,
                         writer_cache,
-                        |locator, data_submessage| {
-                            data_submessage_list.push(data_submessage);
-                            destination_locator = locator.clone();
-                        },
-                        |_locator, gap_submessage| gap_submessage_list.push(gap_submessage),
+                        |data_submessage| data_submessage_list.push(data_submessage),
+                        |gap_submessage| gap_submessage_list.push(gap_submessage),
                     );
-                }
-                let protocol = &PSM::PROTOCOL_RTPS;
-                let version = rtps_participant_impl.protocol_version();
-                let vendor_id = rtps_participant_impl.vendor_id();
-                let guid_prefix = rtps_participant_impl.guid().prefix();
 
-                let mut submessages: Vec<&dyn rust_rtps_pim::messages::Submessage<PSM>> = vec![];
-                for data_submessage in &data_submessage_list {
-                    submessages.push(data_submessage)
-                }
-                for gap_submessage in &gap_submessage_list {
-                    submessages.push(gap_submessage);
-                }
+                    let protocol = &PSM::PROTOCOL_RTPS;
+                    let version = rtps_participant_impl.protocol_version();
+                    let vendor_id = rtps_participant_impl.vendor_id();
+                    let guid_prefix = rtps_participant_impl.guid().prefix();
 
-                let message = PSM::RTPSMessageType::new(
-                    protocol,
-                    version,
-                    vendor_id,
-                    guid_prefix,
-                    submessages,
-                );
-                transport.write(&message, &destination_locator);
+                    let mut submessages: Vec<&dyn rust_rtps_pim::messages::Submessage<PSM>> =
+                        vec![];
+                    for data_submessage in &data_submessage_list {
+                        submessages.push(data_submessage)
+                    }
+                    for gap_submessage in &gap_submessage_list {
+                        submessages.push(gap_submessage);
+                    }
+
+                    let message = PSM::RTPSMessageType::new(
+                        protocol,
+                        version,
+                        vendor_id,
+                        guid_prefix,
+                        submessages,
+                    );
+                    transport.write(&message, reader_locator.locator());
+                }
             }
         }
     }
