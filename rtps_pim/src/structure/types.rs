@@ -21,26 +21,26 @@ pub trait SequenceNumberPIM {
 }
 
 pub trait LocatorPIM {
-    type LocatorType;
+    type LocatorType: LocatorType;
 
     const LOCATOR_INVALID: Self::LocatorType;
+
+    const LOCATOR_KIND_INVALID: <Self::LocatorType as LocatorType>::LocatorKind;
+    const LOCATOR_KIND_RESERVED: <Self::LocatorType as LocatorType>::LocatorKind;
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv4: <Self::LocatorType as LocatorType>::LocatorKind;
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv6: <Self::LocatorType as LocatorType>::LocatorKind;
+
+    const LOCATOR_PORT_INVALID: <Self::LocatorType as LocatorType>::LocatorPort;
+
+    const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as LocatorType>::LocatorAddress;
 }
 
-pub trait Locator {
+pub trait LocatorType {
     type LocatorKind: Into<[u8; 4]> + From<[u8; 4]>;
-
-    const LOCATOR_KIND_INVALID: Self::LocatorKind;
-    const LOCATOR_KIND_RESERVED: Self::LocatorKind;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4: Self::LocatorKind;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6: Self::LocatorKind;
-
     type LocatorPort: Into<[u8; 4]> + From<[u8; 4]>;
-    const LOCATOR_PORT_INVALID: Self::LocatorPort;
-
     type LocatorAddress: Into<[u8; 16]> + From<[u8; 16]>;
-    const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress;
 
     fn kind(&self) -> &Self::LocatorKind;
     fn port(&self) -> &Self::LocatorPort;
@@ -69,7 +69,7 @@ pub trait VendorIdPIM {
 }
 
 pub trait DataPIM {
-    type DataType;
+    type DataType: AsRef<[u8]>;
 }
 
 pub trait ParameterListPIM<PSM: ParameterIdPIM> {
@@ -82,10 +82,10 @@ pub trait GUIDPIM<PSM: GuidPrefixPIM + EntityIdPIM> {
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub trait GUIDType<PSM: GuidPrefixPIM + EntityIdPIM> {
+pub trait GUIDType<PSM: GuidPrefixPIM + EntityIdPIM>: From<[u8; 16]> + Into<[u8; 16]> {
     fn new(prefix: PSM::GuidPrefixType, entity_id: PSM::EntityIdType) -> Self;
-    fn prefix(&self) -> PSM::GuidPrefixType;
-    fn entity_id(&self) -> PSM::EntityIdType;
+    fn prefix(&self) -> &PSM::GuidPrefixType;
+    fn entity_id(&self) -> &PSM::EntityIdType;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

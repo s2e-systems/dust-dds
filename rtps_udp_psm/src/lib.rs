@@ -57,11 +57,23 @@ impl rust_rtps_pim::structure::types::GUIDType<RtpsUdpPsm> for GUID {
         Self { prefix, entity_id }
     }
 
-    fn prefix(&self) -> GuidPrefix {
+    fn prefix(&self) -> &GuidPrefix {
         todo!()
     }
 
-    fn entity_id(&self) -> EntityId {
+    fn entity_id(&self) -> &EntityId {
+        todo!()
+    }
+}
+
+impl From<[u8; 16]> for GUID {
+    fn from(_: [u8; 16]) -> Self {
+        todo!()
+    }
+}
+
+impl Into<[u8; 16]> for GUID {
+    fn into(self) -> [u8; 16] {
         todo!()
     }
 }
@@ -78,11 +90,19 @@ impl LocatorPIM for RtpsUdpPsm {
     type LocatorType = Locator;
 
     const LOCATOR_INVALID: Self::LocatorType = Locator {
-        kind: <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_KIND_INVALID,
-        port: <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_PORT_INVALID,
-        address:
-            <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_ADDRESS_INVALID,
+        kind: Self::LOCATOR_KIND_INVALID,
+        port: Self::LOCATOR_PORT_INVALID,
+        address: Self::LOCATOR_ADDRESS_INVALID,
     };
+    const LOCATOR_KIND_INVALID:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(-1);
+    const LOCATOR_KIND_RESERVED: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(0);
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv4: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(1);
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv6: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(2);
+    const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress = [0; 16];
+    const LOCATOR_PORT_INVALID: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort = ULong(0);
 }
 
 impl InstanceHandlePIM for RtpsUdpPsm {
@@ -401,19 +421,10 @@ pub struct Locator {
     pub address: [u8; 16],
 }
 
-impl rust_rtps_pim::structure::types::Locator for Locator {
+impl rust_rtps_pim::structure::types::LocatorType for Locator {
     type LocatorKind = Long;
     type LocatorPort = ULong;
     type LocatorAddress = [u8; 16];
-
-    const LOCATOR_KIND_INVALID: Self::LocatorKind = Long(-1);
-    const LOCATOR_KIND_RESERVED: Self::LocatorKind = Long(0);
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4: Self::LocatorKind = Long(1);
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6: Self::LocatorKind = Long(2);
-    const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
-    const LOCATOR_PORT_INVALID: Self::LocatorPort = ULong(0);
 
     fn kind(&self) -> &Self::LocatorKind {
         &self.kind

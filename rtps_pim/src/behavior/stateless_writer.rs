@@ -10,8 +10,8 @@ use crate::{
     },
     structure::{
         types::{
-            ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            ParameterListPIM, SequenceNumberPIM, GUIDType, GUIDPIM,
+            ChangeKind, DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM,
+            LocatorPIM, ParameterListPIM, SequenceNumberPIM, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
@@ -98,41 +98,41 @@ pub fn best_effort_send_unsent_data<
 ) where
     <PSM as DataPIM>::DataType: 'a,
     <PSM as ParameterListPIM<PSM>>::ParameterListType: 'a,
-    <PSM as DataPIM>::DataType: AsRef<[u8]>,
     <PSM as SequenceNumberPIM>::SequenceNumberType: Copy,
     HistoryCache::CacheChange: 'a,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
-            let endianness_flag = true.into();
-            let inline_qos_flag = true.into();
-            let (data_flag, key_flag) = match change.kind() {
-                ChangeKind::Alive => (true.into(), false.into()),
-                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                    (false.into(), true.into())
-                }
-                _ => todo!(),
-            };
-            let non_standard_payload_flag = false.into();
-            let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            let writer_id = submessage_elements::EntityId::new(change.writer_guid().entity_id());
-            let writer_sn = submessage_elements::SequenceNumber::new(*change.sequence_number());
-            let inline_qos = change.inline_qos();
-            let data = change.data_value();
-            let serialized_payload = submessage_elements::SerializedData::new(data.as_ref());
-            let data_submessage = PSM::DataSubmessageType::new(
-                endianness_flag,
-                inline_qos_flag,
-                data_flag,
-                key_flag,
-                non_standard_payload_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                inline_qos,
-                serialized_payload,
-            );
-            send_data(reader_locator.locator(), data_submessage)
+            todo!()
+            // let endianness_flag = true.into();
+            // let inline_qos_flag = true.into();
+            // let (data_flag, key_flag) = match change.kind() {
+            //     ChangeKind::Alive => (true.into(), false.into()),
+            //     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
+            //         (false.into(), true.into())
+            //     }
+            //     _ => todo!(),
+            // };
+            // let non_standard_payload_flag = false.into();
+            // let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
+            // let writer_id = submessage_elements::EntityId::new(change.writer_guid().entity_id());
+            // let writer_sn = submessage_elements::SequenceNumber::new(*change.sequence_number());
+            // let inline_qos = change.inline_qos();
+            // let data = change.data_value();
+            // let serialized_payload = submessage_elements::SerializedData::new(data.as_ref());
+            // let data_submessage = PSM::DataSubmessageType::new(
+            //     endianness_flag,
+            //     inline_qos_flag,
+            //     data_flag,
+            //     key_flag,
+            //     non_standard_payload_flag,
+            //     reader_id,
+            //     writer_id,
+            //     writer_sn,
+            //     inline_qos,
+            //     serialized_payload,
+            // );
+            // send_data(reader_locator.locator(), data_submessage)
         } else {
             todo!()
             // let endianness_flag = true.into();
@@ -200,7 +200,7 @@ mod tests {
             Submessage, SubmessageHeader,
         },
         structure::{
-            types::{Locator, GUIDType},
+            types::{GUIDType, LocatorType},
             RTPSCacheChange, RTPSHistoryCache,
         },
     };
@@ -210,34 +210,28 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
-    impl GUIDType<MockPSM> for MockGUID {
+    impl GUIDType<MockPSM> for [u8; 16] {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }
 
-        fn prefix(&self) -> [u8; 12] {
+        fn prefix(&self) -> &[u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> [u8; 4] {
-            MockPSM::ENTITYID_UNKNOWN
+        fn entity_id(&self) -> &[u8; 4] {
+            &MockPSM::ENTITYID_UNKNOWN
         }
     }
     #[derive(Clone, Copy, PartialEq)]
     struct MockLocator;
 
-    impl Locator for MockLocator {
+    impl LocatorType for MockLocator {
         type LocatorKind = [u8; 4];
-        const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
-        const LOCATOR_KIND_RESERVED: Self::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: Self::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: Self::LocatorKind = [0; 4];
+
         type LocatorPort = [u8; 4];
-        const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
+
         type LocatorAddress = [u8; 16];
-        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -311,8 +305,8 @@ mod tests {
     }
 
     impl GUIDPIM<Self> for MockPSM {
-        type GUIDType = MockGUID;
-        const GUID_UNKNOWN: Self::GUIDType = MockGUID;
+        type GUIDType = [u8; 16];
+        const GUID_UNKNOWN: Self::GUIDType = [0; 16];
     }
 
     impl SequenceNumberPIM for MockPSM {
@@ -324,6 +318,16 @@ mod tests {
         type LocatorType = MockLocator;
 
         const LOCATOR_INVALID: Self::LocatorType = MockLocator;
+        const LOCATOR_KIND_INVALID: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        const LOCATOR_KIND_RESERVED: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+
+        const LOCATOR_PORT_INVALID: <Self::LocatorType as LocatorType>::LocatorPort = [0; 4];
+
+        const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as LocatorType>::LocatorAddress = [0; 16];
     }
 
     impl SubmessageKindPIM for MockPSM {
@@ -610,8 +614,8 @@ mod tests {
             self.kind
         }
 
-        fn writer_guid(&self) -> &MockGUID {
-            &MockPSM::GUID_UNKNOWN
+        fn writer_guid(&self) -> &[u8; 16] {
+            &[0; 16]
         }
 
         fn instance_handle(&self) -> &() {

@@ -143,7 +143,6 @@ pub fn send_data<
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq,
     PSM::GUIDType: Copy,
-    PSM::DataType: AsRef<[u8]>,
 {
     for writer_group in &rtps_participant_impl.rtps_writer_groups {
         let writer_group_lock = writer_group.lock();

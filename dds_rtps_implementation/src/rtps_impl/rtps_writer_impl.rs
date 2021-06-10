@@ -290,11 +290,23 @@ mod tests {
             todo!()
         }
 
-        fn prefix(&self) -> [u8; 12] {
+        fn prefix(&self) -> &[u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> [u8; 4] {
+        fn entity_id(&self) -> &[u8; 4] {
+            todo!()
+        }
+    }
+
+    impl From<[u8; 16]> for MockGUID {
+        fn from(_: [u8; 16]) -> Self {
+            todo!()
+        }
+    }
+
+    impl Into<[u8; 16]> for MockGUID {
+        fn into(self) -> [u8; 16] {
             todo!()
         }
     }
@@ -344,22 +356,12 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     pub struct MockLocator(u8);
 
-    impl rust_rtps_pim::structure::types::Locator for MockLocator {
+    impl rust_rtps_pim::structure::types::LocatorType for MockLocator {
         type LocatorKind = [u8; 4];
 
-        const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
-        const LOCATOR_KIND_RESERVED: Self::LocatorKind = [1; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: Self::LocatorKind = [2; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: Self::LocatorKind = [3; 4];
-
         type LocatorPort = [u8; 4];
-        const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
 
         type LocatorAddress = [u8; 16];
-
-        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -378,6 +380,26 @@ mod tests {
         type LocatorType = MockLocator;
 
         const LOCATOR_INVALID: Self::LocatorType = MockLocator(0);
+        const LOCATOR_KIND_INVALID:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [0; 4];
+        const LOCATOR_KIND_RESERVED:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [1; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [2; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [3; 4];
+        const LOCATOR_PORT_INVALID:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort =
+            [0; 4];
+        const LOCATOR_ADDRESS_INVALID:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress =
+            [0; 16];
     }
 
     #[test]

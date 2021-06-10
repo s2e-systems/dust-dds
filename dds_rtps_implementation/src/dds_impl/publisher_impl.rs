@@ -48,7 +48,7 @@ where
         participant: &'p DomainParticipantImpl<PSM>,
         rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
     ) -> Self {
-        let writer_factory = WriterFactory::new(rtps_writer_group_impl.lock().guid().prefix());
+        let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
             participant,
             default_datawriter_qos: Mutex::new(DataWriterQos::default()),
@@ -64,7 +64,7 @@ where
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::DataType: AsRef<[u8]> + Send,
+    PSM::DataType: Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
@@ -84,7 +84,7 @@ where
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::DataType: AsRef<[u8]> + Send,
+    PSM::DataType: Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,

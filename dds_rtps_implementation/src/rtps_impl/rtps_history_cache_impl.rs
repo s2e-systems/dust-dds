@@ -121,11 +121,23 @@ mod tests {
             todo!()
         }
 
-        fn prefix(&self) -> [u8; 12] {
+        fn prefix(&self) -> &[u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> [u8; 4] {
+        fn entity_id(&self) -> &[u8; 4] {
+            todo!()
+        }
+    }
+
+    impl From<[u8; 16]> for MockGUID {
+        fn from(_: [u8; 16]) -> Self {
+            todo!()
+        }
+    }
+
+    impl Into<[u8; 16]> for MockGUID {
+        fn into(self) -> [u8; 16] {
             todo!()
         }
     }

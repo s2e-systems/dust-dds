@@ -98,7 +98,7 @@ pub fn can_send<
 mod tests {
     use crate::{
         messages::submessage_elements::{Parameter, ParameterList},
-        structure::types::{Locator, GUIDType},
+        structure::types::{GUIDType, LocatorType},
     };
 
     use super::*;
@@ -122,14 +122,22 @@ mod tests {
     }
 
     impl GUIDPIM<Self> for MockPSM {
-        type GUIDType = MockGUID;
-        const GUID_UNKNOWN: Self::GUIDType = MockGUID;
+        type GUIDType = [u8; 16];
+        const GUID_UNKNOWN: Self::GUIDType = [0; 16];
     }
 
     impl LocatorPIM for MockPSM {
         type LocatorType = MockLocator;
 
         const LOCATOR_INVALID: Self::LocatorType = MockLocator;
+        const LOCATOR_KIND_INVALID: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        const LOCATOR_KIND_RESERVED: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        const LOCATOR_PORT_INVALID: <Self::LocatorType as LocatorType>::LocatorPort = [0; 4];
+        const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as LocatorType>::LocatorAddress = [0; 16];
     }
 
     impl DurationPIM for MockPSM {
@@ -155,16 +163,16 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
-    impl GUIDType<MockPSM> for MockGUID {
+    impl GUIDType<MockPSM> for [u8; 16] {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }
 
-        fn prefix(&self) -> [u8; 12] {
+        fn prefix(&self) -> &[u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> [u8; 4] {
+        fn entity_id(&self) -> &[u8; 4] {
             todo!()
         }
     }
@@ -172,18 +180,12 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockLocator;
 
-    impl Locator for MockLocator {
+    impl LocatorType for MockLocator {
         type LocatorKind = [u8; 4];
-        const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
-        const LOCATOR_KIND_RESERVED: Self::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: Self::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: Self::LocatorKind = [0; 4];
+
         type LocatorPort = [u8; 4];
-        const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
+
         type LocatorAddress = [u8; 16];
-        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -233,7 +235,7 @@ mod tests {
     impl RTPSReaderProxy<MockPSM> for MockReaderProxy {
         type SequenceNumberVector = [i64; 2];
 
-        fn remote_reader_guid(&self) -> &MockGUID {
+        fn remote_reader_guid(&self) -> &[u8; 16] {
             todo!()
         }
 
