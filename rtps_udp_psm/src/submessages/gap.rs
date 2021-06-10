@@ -14,16 +14,12 @@ pub struct GapSubmessage {
 }
 
 impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for GapSubmessage {
-    type EntityId = EntityId;
-    type SequenceNumber = SequenceNumber;
-    type SequenceNumberSet = SequenceNumberSet;
-
     fn new(
         endianness_flag: SubmessageFlag,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        gap_start: Self::SequenceNumber,
-        gap_list: Self::SequenceNumberSet,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        gap_start: SequenceNumber,
+        gap_list: SequenceNumberSet,
     ) -> Self {
         let flags = [endianness_flag].into();
 
@@ -47,19 +43,19 @@ impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for GapSubm
         self.header.flags.is_bit_set(0)
     }
 
-    fn reader_id(&self) -> &Self::EntityId {
+    fn reader_id(&self) -> &EntityId {
         &self.reader_id
     }
 
-    fn writer_id(&self) -> &Self::EntityId {
+    fn writer_id(&self) -> &EntityId {
         &self.writer_id
     }
 
-    fn gap_start(&self) -> &Self::SequenceNumber {
+    fn gap_start(&self) -> &SequenceNumber {
         &self.gap_start
     }
 
-    fn gap_list(&self) -> &Self::SequenceNumberSet {
+    fn gap_list(&self) -> &SequenceNumberSet {
         &self.gap_list
     }
 }
@@ -73,7 +69,7 @@ impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for GapSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSet;
+    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_serde_cdr::serializer::RtpsMessageSerializer;
     use serde::Serialize;
 

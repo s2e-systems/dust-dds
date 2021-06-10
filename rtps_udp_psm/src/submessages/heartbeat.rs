@@ -13,10 +13,6 @@ pub struct HeartbeatSubmessage {
 }
 
 impl rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm> for HeartbeatSubmessage {
-    type EntityId = EntityId;
-    type SequenceNumber = SequenceNumber;
-    type Count = Count;
-
     fn new(
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
@@ -56,23 +52,23 @@ impl rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm> for H
         self.header.flags.is_bit_set(2)
     }
 
-    fn reader_id(&self) -> &Self::EntityId {
+    fn reader_id(&self) -> &EntityId {
         &self.reader_id
     }
 
-    fn writer_id(&self) -> &Self::EntityId {
+    fn writer_id(&self) -> &EntityId {
         &self.writer_id
     }
 
-    fn first_sn(&self) -> &Self::SequenceNumber {
+    fn first_sn(&self) -> &SequenceNumber {
         &self.first_sn
     }
 
-    fn last_sn(&self) -> &Self::SequenceNumber {
+    fn last_sn(&self) -> &SequenceNumber {
         &self.last_sn
     }
 
-    fn count(&self) -> &Self::Count {
+    fn count(&self) -> &Count {
         &self.count
     }
 }

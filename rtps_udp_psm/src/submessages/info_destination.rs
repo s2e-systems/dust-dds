@@ -7,9 +7,7 @@ pub struct InfoDestination;
 impl rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdpPsm>
     for InfoDestination
 {
-    type GuidPrefix = GuidPrefix;
-
-    fn new(_endianness_flag: SubmessageFlag, _guid_prefix: Self::GuidPrefix) -> Self {
+    fn new(_endianness_flag: SubmessageFlag, _guid_prefix: GuidPrefix) -> Self {
         todo!()
     }
 
@@ -17,7 +15,7 @@ impl rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdpPsm>
         todo!()
     }
 
-    fn guid_prefix(&self) -> &Self::GuidPrefix {
+    fn guid_prefix(&self) -> &GuidPrefix {
         todo!()
     }
 }

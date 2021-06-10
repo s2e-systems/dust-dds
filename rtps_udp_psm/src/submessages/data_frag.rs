@@ -10,28 +10,21 @@ pub struct DataFrag<'a> {
 }
 
 impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<'a, RtpsUdpPsm> for DataFrag<'a> {
-    type EntityId = EntityId;
-    type SequenceNumber = SequenceNumber;
-    type FragmentNumber = FragmentNumber;
-    type UShort = UShort;
-    type ULong = ULong;
-    type SerializedData = SerializedData<'a>;
-    type ParameterList = ParameterList;
 
     fn new(
         _endianness_flag: SubmessageFlag,
         _inline_qos_flag: SubmessageFlag,
         _non_standard_payload_flag: SubmessageFlag,
         _key_flag: SubmessageFlag,
-        _reader_id: Self::EntityId,
-        _writer_id: Self::EntityId,
-        _writer_sn: Self::SequenceNumber,
-        _fragment_starting_num: Self::FragmentNumber,
-        _fragments_in_submessage: Self::UShort,
-        _data_size: Self::ULong,
-        _fragment_size: Self::UShort,
-        _inline_qos: Self::ParameterList,
-        _serialized_payload: Self::SerializedData,
+        _reader_id: EntityId,
+        _writer_id: EntityId,
+        _writer_sn: SequenceNumber,
+        _fragment_starting_num: FragmentNumber,
+        _fragments_in_submessage: UShort,
+        _data_size: ULong,
+        _fragment_size: UShort,
+        _inline_qos: ParameterList,
+        _serialized_payload: SerializedData,
     ) -> Self {
         todo!()
     }
@@ -52,39 +45,39 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<'a, RtpsUdpPsm
         todo!()
     }
 
-    fn reader_id(&self) -> &Self::EntityId {
+    fn reader_id(&self) -> &EntityId {
         todo!()
     }
 
-    fn writer_id(&self) -> &Self::EntityId {
+    fn writer_id(&self) -> &EntityId {
         todo!()
     }
 
-    fn writer_sn(&self) -> &Self::SequenceNumber {
+    fn writer_sn(&self) -> &SequenceNumber {
         todo!()
     }
 
-    fn fragment_starting_num(&self) -> &Self::FragmentNumber {
+    fn fragment_starting_num(&self) -> &FragmentNumber {
         todo!()
     }
 
-    fn fragments_in_submessage(&self) -> &Self::UShort {
+    fn fragments_in_submessage(&self) -> &UShort {
         todo!()
     }
 
-    fn data_size(&self) -> &Self::ULong {
+    fn data_size(&self) -> &ULong {
         todo!()
     }
 
-    fn fragment_size(&self) -> &Self::UShort {
+    fn fragment_size(&self) -> &UShort {
         todo!()
     }
 
-    fn inline_qos(&self) -> &Self::ParameterList {
+    fn inline_qos(&self) -> &ParameterList {
         todo!()
     }
 
-    fn serialized_payload(&self) -> &Self::SerializedData {
+    fn serialized_payload(&self) -> &SerializedData<'a> {
         todo!()
     }
 }

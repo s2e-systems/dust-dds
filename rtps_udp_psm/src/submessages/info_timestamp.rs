@@ -5,12 +5,10 @@ use super::SubmessageHeader;
 pub struct InfoTimestamp;
 
 impl rust_rtps_pim::messages::submessages::InfoTimestampSubmessage<RtpsUdpPsm> for InfoTimestamp {
-    type Timestamp = Time;
-
     fn new(
         _endianness_flag: SubmessageFlag,
         _invalidate_flag: SubmessageFlag,
-        _timestamp: Self::Timestamp,
+        _timestamp: Time,
     ) -> Self {
         todo!()
     }
@@ -23,7 +21,7 @@ impl rust_rtps_pim::messages::submessages::InfoTimestampSubmessage<RtpsUdpPsm> f
         todo!()
     }
 
-    fn timestamp(&self) -> &Self::Timestamp {
+    fn timestamp(&self) -> &Time {
         todo!()
     }
 }

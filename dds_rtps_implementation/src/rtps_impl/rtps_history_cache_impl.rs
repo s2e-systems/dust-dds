@@ -1,9 +1,8 @@
 use rust_rtps_pim::{
-    messages::types::ParameterIdPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
-            SequenceNumberPIM, GUIDPIM,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
@@ -19,7 +18,7 @@ pub trait RTPSHistoryCacheImplTrait:
     + EntityIdPIM
     + GuidPrefixPIM
     + GUIDPIM<Self>
-    + ParameterListPIM<Self>
+    + ParameterListSubmessageElementPIM<Self>
     + Sized
 {
 }
@@ -31,7 +30,7 @@ impl<
             + EntityIdPIM
             + GuidPrefixPIM
             + GUIDPIM<Self>
-            + ParameterListPIM<Self>
+            + ParameterListSubmessageElementPIM<Self>
             + Sized,
     > RTPSHistoryCacheImplTrait for T
 {
@@ -147,13 +146,13 @@ mod tests {
         const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
 
-    impl rust_rtps_pim::structure::types::ParameterListPIM<MockPSM> for MockPSM {
-        type ParameterListType = MockParameterList;
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM<MockPSM> for MockPSM {
+        type ParameterListSubmessageElementType = MockParameterList;
     }
 
     pub struct MockParameterList;
 
-    impl rust_rtps_pim::messages::submessage_elements::ParameterList<MockPSM> for MockParameterList {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<MockPSM> for MockParameterList {
         type Parameter = MockParameter;
 
         fn new(_parameter: &[MockParameter]) -> Self {
@@ -166,7 +165,7 @@ mod tests {
     }
 
     pub struct MockParameter;
-    impl rust_rtps_pim::messages::submessage_elements::Parameter<MockPSM> for MockParameter {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterType<MockPSM> for MockParameter {
         fn parameter_id(&self) -> u16 {
             todo!()
         }

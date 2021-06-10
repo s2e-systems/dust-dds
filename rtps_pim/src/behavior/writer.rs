@@ -1,9 +1,9 @@
 use crate::{
-    messages::types::ParameterIdPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::{
         types::{
             ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            ParameterListPIM, SequenceNumberPIM, GUIDPIM,
+            SequenceNumberPIM, GUIDPIM,
         },
         RTPSEndpoint, RTPSHistoryCache,
     },
@@ -20,7 +20,7 @@ pub trait RTPSWriter<
         + DataPIM
         + ParameterIdPIM
         + GUIDPIM<PSM>
-        + ParameterListPIM<PSM>
+        + ParameterListSubmessageElementPIM<PSM>
         + InstanceHandlePIM,
 >: RTPSEndpoint<PSM>
 {
@@ -39,7 +39,7 @@ pub trait RTPSWriter<
         &mut self,
         kind: ChangeKind,
         data: PSM::DataType,
-        inline_qos: PSM::ParameterListType,
+        inline_qos: PSM::ParameterListSubmessageElementType,
         handle: PSM::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange;
 }

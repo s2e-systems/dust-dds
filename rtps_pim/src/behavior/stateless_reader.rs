@@ -1,9 +1,9 @@
 use crate::{
     behavior::RTPSReader,
-    messages::types::ParameterIdPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-        SequenceNumberPIM, GUIDPIM,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
+        GUIDPIM,
     },
 };
 
@@ -19,7 +19,7 @@ pub trait RTPSStatelessReader<
         + DurationPIM
         + GUIDPIM<PSM>
         + ParameterIdPIM
-        + ParameterListPIM<PSM>,
+        + ParameterListSubmessageElementPIM<PSM>,
 >: RTPSReader<PSM>
 {
 }

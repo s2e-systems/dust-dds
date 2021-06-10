@@ -7,17 +7,14 @@ use super::SubmessageHeader;
 pub struct AckNack {}
 
 impl rust_rtps_pim::messages::submessages::AckNackSubmessage<RtpsUdpPsm> for AckNack {
-    type EntityId = EntityId;
-    type SequenceNumberSet = SequenceNumberSet;
-    type Count = Count;
 
     fn new(
         _endianness_flag: SubmessageFlag,
         _final_flag: SubmessageFlag,
-        _reader_id: Self::EntityId,
-        _writer_id: Self::EntityId,
-        _reader_sn_state: Self::SequenceNumberSet,
-        _count: Self::Count,
+        _reader_id: EntityId,
+        _writer_id: EntityId,
+        _reader_sn_state: SequenceNumberSet,
+        _count: Count,
     ) -> Self {
         todo!()
     }
@@ -30,19 +27,19 @@ impl rust_rtps_pim::messages::submessages::AckNackSubmessage<RtpsUdpPsm> for Ack
         todo!()
     }
 
-    fn reader_id(&self) -> &Self::EntityId {
+    fn reader_id(&self) -> &EntityId {
         todo!()
     }
 
-    fn writer_id(&self) -> &Self::EntityId {
+    fn writer_id(&self) -> &EntityId {
         todo!()
     }
 
-    fn reader_sn_state(&self) -> &Self::SequenceNumberSet {
+    fn reader_sn_state(&self) -> &SequenceNumberSet {
         todo!()
     }
 
-    fn count(&self) -> &Self::Count {
+    fn count(&self) -> &Count {
         todo!()
     }
 }

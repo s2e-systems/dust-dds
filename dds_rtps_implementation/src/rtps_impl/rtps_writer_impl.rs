@@ -5,11 +5,11 @@ use rust_rtps_pim::{
         types::DurationPIM,
         RTPSWriter,
     },
-    messages::types::ParameterIdPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::{
         types::{
             ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            ParameterListPIM, ReliabilityKind, SequenceNumberPIM, TopicKind, GUIDPIM,
+            ReliabilityKind, SequenceNumberPIM, TopicKind, GUIDPIM,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
@@ -30,7 +30,7 @@ pub trait RTPSWriterImplTrait:
     + InstanceHandlePIM
     + ParameterIdPIM
     + GUIDPIM<Self>
-    + ParameterListPIM<Self>
+    + ParameterListSubmessageElementPIM<Self>
     + Sized
 {
 }
@@ -45,7 +45,7 @@ impl<
             + InstanceHandlePIM
             + ParameterIdPIM
             + GUIDPIM<Self>
-            + ParameterListPIM<Self>
+            + ParameterListSubmessageElementPIM<Self>
             + Sized,
     > RTPSWriterImplTrait for T
 {
@@ -152,7 +152,7 @@ where
         &mut self,
         kind: ChangeKind,
         data: PSM::DataType,
-        inline_qos: PSM::ParameterListType,
+        inline_qos: PSM::ParameterListSubmessageElementType,
         handle: PSM::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
@@ -316,13 +316,17 @@ mod tests {
         const GUID_UNKNOWN: Self::GUIDType = MockGUID(0);
     }
 
-    impl rust_rtps_pim::structure::types::ParameterListPIM<MockPSM> for MockPSM {
-        type ParameterListType = MockParameterList;
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM<MockPSM>
+        for MockPSM
+    {
+        type ParameterListSubmessageElementType = MockParameterList;
     }
 
     pub struct MockParameterList;
 
-    impl rust_rtps_pim::messages::submessage_elements::ParameterList<MockPSM> for MockParameterList {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<MockPSM>
+        for MockParameterList
+    {
         type Parameter = MockParameter;
 
         fn new(_parameter: &[MockParameter]) -> Self {
@@ -335,7 +339,7 @@ mod tests {
     }
 
     pub struct MockParameter;
-    impl rust_rtps_pim::messages::submessage_elements::Parameter<MockPSM> for MockParameter {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterType<MockPSM> for MockParameter {
         fn parameter_id(&self) -> u16 {
             todo!()
         }

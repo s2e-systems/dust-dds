@@ -1,10 +1,7 @@
-use rust_rtps_pim::{
-    messages::types::ParameterIdPIM,
-    structure::types::{
-        ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
-        SequenceNumberPIM, GUIDPIM,
-    },
-};
+use rust_rtps_pim::{messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM}, structure::types::{
+        ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, SequenceNumberPIM,
+        GUIDPIM,
+    }};
 
 pub trait RTPSCacheChangeImplTrait:
     InstanceHandlePIM
@@ -14,7 +11,7 @@ pub trait RTPSCacheChangeImplTrait:
     + EntityIdPIM
     + GuidPrefixPIM
     + GUIDPIM<Self>
-    + ParameterListPIM<Self>
+    + ParameterListSubmessageElementPIM<Self>
     + Sized
 {
 }
@@ -26,7 +23,7 @@ impl<
             + EntityIdPIM
             + GuidPrefixPIM
             + GUIDPIM<Self>
-            + ParameterListPIM<Self>
+            + ParameterListSubmessageElementPIM<Self>
             + Sized,
     > RTPSCacheChangeImplTrait for T
 {
@@ -38,7 +35,7 @@ pub struct RTPSCacheChangeImpl<PSM: RTPSCacheChangeImplTrait> {
     instance_handle: PSM::InstanceHandleType,
     sequence_number: PSM::SequenceNumberType,
     data: PSM::DataType,
-    inline_qos: PSM::ParameterListType,
+    inline_qos: PSM::ParameterListSubmessageElementType,
 }
 
 impl<PSM: RTPSCacheChangeImplTrait> RTPSCacheChangeImpl<PSM> {
@@ -48,7 +45,7 @@ impl<PSM: RTPSCacheChangeImplTrait> RTPSCacheChangeImpl<PSM> {
         instance_handle: PSM::InstanceHandleType,
         sequence_number: PSM::SequenceNumberType,
         data: PSM::DataType,
-        inline_qos: PSM::ParameterListType,
+        inline_qos: PSM::ParameterListSubmessageElementType,
     ) -> Self {
         Self {
             kind,
@@ -84,7 +81,7 @@ impl<PSM: RTPSCacheChangeImplTrait> rust_rtps_pim::structure::RTPSCacheChange<PS
         &self.data
     }
 
-    fn inline_qos(&self) -> &PSM::ParameterListType {
+    fn inline_qos(&self) -> &PSM::ParameterListSubmessageElementType {
         &self.inline_qos
     }
 }

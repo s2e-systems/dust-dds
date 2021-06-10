@@ -1,10 +1,10 @@
 use crate::{
     behavior::{types::DurationPIM, RTPSWriter},
-    messages::types::ParameterIdPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-            SequenceNumberPIM, GUIDPIM,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
+            GUIDPIM,
         },
         RTPSHistoryCache,
     },
@@ -40,7 +40,7 @@ pub trait RTPSStatefulWriter<
         + DurationPIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterListPIM<PSM>
+        + ParameterListSubmessageElementPIM<PSM>
         + GUIDPIM<PSM>
         + InstanceHandlePIM
         + ParameterIdPIM,
@@ -75,7 +75,7 @@ pub fn can_send<
         + DurationPIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterListPIM<PSM>
+        + ParameterListSubmessageElementPIM<PSM>
         + GUIDPIM<PSM>
         + InstanceHandlePIM
         + ParameterIdPIM,
@@ -96,10 +96,7 @@ pub fn can_send<
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        messages::submessage_elements::{Parameter, ParameterList},
-        structure::types::{GUIDType, LocatorType},
-    };
+    use crate::{messages::submessage_elements::{ParameterListSubmessageElementType, ParameterType}, structure::types::{GUIDType, LocatorType}};
 
     use super::*;
 
@@ -152,8 +149,8 @@ mod tests {
         type ParameterIdType = ();
     }
 
-    impl ParameterListPIM<Self> for MockPSM {
-        type ParameterListType = MockParameterList;
+    impl ParameterListSubmessageElementPIM<Self> for MockPSM {
+        type ParameterListSubmessageElementType = MockParameterList;
     }
 
     impl InstanceHandlePIM for MockPSM {
@@ -202,7 +199,7 @@ mod tests {
 
     struct MockParameterList;
 
-    impl ParameterList<MockPSM> for MockParameterList {
+    impl ParameterListSubmessageElementType<MockPSM> for MockParameterList {
         type Parameter = MockParameter;
 
         fn new(_parameter: &[Self::Parameter]) -> Self {
@@ -216,7 +213,7 @@ mod tests {
 
     struct MockParameter;
 
-    impl Parameter<MockPSM> for MockParameter {
+    impl ParameterType<MockPSM> for MockParameter {
         fn parameter_id(&self) -> () {
             todo!()
         }

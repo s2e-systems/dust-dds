@@ -27,7 +27,7 @@ where
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListSubmessageElementType: Send,
 {
     fn get_inconsistent_topic_status(
         &self,
@@ -47,7 +47,7 @@ where
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListSubmessageElementType: Send,
 {
     fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
         self.participant

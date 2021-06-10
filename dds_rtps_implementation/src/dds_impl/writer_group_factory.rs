@@ -2,14 +2,10 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::types::DurationPIM,
-    messages::types::ParameterIdPIM,
-    structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
+use rust_rtps_pim::{behavior::types::DurationPIM, messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM}, structure::types::{
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
         SequenceNumberPIM, GUIDType, GUIDPIM,
-    },
-};
+    }};
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
@@ -25,7 +21,7 @@ pub trait WriterGroupFactoryTrait:
     + DataPIM
     + ParameterIdPIM
     + GUIDPIM<Self>
-    + ParameterListPIM<Self>
+    + ParameterListSubmessageElementPIM<Self>
     + Sized
 {
 }
@@ -40,7 +36,7 @@ impl<
             + DataPIM
             + ParameterIdPIM
             + GUIDPIM<Self>
-            + ParameterListPIM<Self>
+            + ParameterListSubmessageElementPIM<Self>
             + Sized,
     > WriterGroupFactoryTrait for T
 {

@@ -1,8 +1,9 @@
-use crate::messages::types::ParameterIdPIM;
+use crate::messages::{
+    submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM,
+};
 
 use super::types::{
-    ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
-    SequenceNumberPIM, GUIDPIM,
+    ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM,
 };
 
 pub trait RTPSCacheChange<
@@ -13,7 +14,7 @@ pub trait RTPSCacheChange<
         + DataPIM
         + ParameterIdPIM
         + GUIDPIM<PSM>
-        + ParameterListPIM<PSM>,
+        + ParameterListSubmessageElementPIM<PSM>,
 >
 {
     fn kind(&self) -> ChangeKind;
@@ -21,5 +22,5 @@ pub trait RTPSCacheChange<
     fn instance_handle(&self) -> &PSM::InstanceHandleType;
     fn sequence_number(&self) -> &PSM::SequenceNumberType;
     fn data_value(&self) -> &PSM::DataType;
-    fn inline_qos(&self) -> &PSM::ParameterListType;
+    fn inline_qos(&self) -> &PSM::ParameterListSubmessageElementType;
 }
