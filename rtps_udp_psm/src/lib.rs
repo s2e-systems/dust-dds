@@ -468,7 +468,7 @@ impl SequenceNumberSet {
 }
 
 impl serde::Serialize for SequenceNumberSet {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    fn serialize<S: serde::Serializer>(&self, _serializer: S) -> Result<S::Ok, S::Error> {
         // let len = 2 + self.bitmap.len();
         // let mut state = serializer.serialize_struct("SequenceNumberSet", len)?;
         // state.serialize_field("bitmapBase", &self.bitmap_base)?;
@@ -494,7 +494,7 @@ impl serde::Serialize for SequenceNumberSet {
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
     for SequenceNumberSet
 {
-    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
+    fn new(_base: SequenceNumber, _set: &[SequenceNumber]) -> Self {
         todo!()
     }
 
@@ -622,9 +622,7 @@ pub struct FragmentNumberSet(Vec<FragmentNumber>);
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
     for FragmentNumberSet
 {
-    type FragmentNumberVector = Self;
-
-    fn new(_base: FragmentNumber, _set: Self::FragmentNumberVector) -> Self {
+    fn new(_base: FragmentNumber, _set: &[FragmentNumber]) -> Self {
         todo!()
     }
 
@@ -632,7 +630,7 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
         &FragmentNumber(0)
     }
 
-    fn set(&self) -> Self::FragmentNumberVector {
+    fn set(&self) -> &[FragmentNumber] {
         todo!()
         // self
     }
@@ -694,13 +692,14 @@ impl ParameterList {
 
 impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for ParameterList {
     type Parameter = Parameter;
-    type ParameterList = Vec<Self::Parameter>;
 
-    fn new(parameter: Self::ParameterList) -> Self {
-        Self { parameter }
+    fn new(parameter: &[Self::Parameter]) -> Self {
+        Self {
+            parameter: parameter.iter().map(|x| x.clone()).collect(),
+        }
     }
 
-    fn parameter(&self) -> &Self::ParameterList {
+    fn parameter(&self) -> &[Self::Parameter] {
         &self.parameter
     }
 }
@@ -717,13 +716,12 @@ impl serde::Serialize for ParameterList {
 pub struct LocatorList(Vec<Locator>);
 
 impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for LocatorList {
-    type LocatorList = Vec<Locator>;
-
-    fn new(value: Self::LocatorList) -> Self {
-        Self(value)
+    fn new(_value: &[Locator]) -> Self {
+        // Self(value)
+        todo!()
     }
 
-    fn value(&self) -> &Self::LocatorList {
+    fn value(&self) -> &[Locator] {
         &self.0
     }
 }

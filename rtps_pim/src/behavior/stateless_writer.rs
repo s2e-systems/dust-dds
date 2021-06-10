@@ -275,13 +275,12 @@ mod tests {
 
     impl ParameterList<MockPSM> for MockParameterList {
         type Parameter = MockParameter;
-        type ParameterList = MockParameterList;
 
-        fn new(_parameter: Self::ParameterList) -> Self {
+        fn new(_parameter: &[Self::Parameter]) -> Self {
             todo!()
         }
 
-        fn parameter(&self) -> &Self::ParameterList {
+        fn parameter(&self) -> &[Self::Parameter] {
             todo!()
         }
     }
