@@ -4,14 +4,14 @@
 ///
 
 pub trait DurationPIM {
-    type DurationType: Copy + Send + Sync;
+    type DurationType;
 }
 
 pub trait ParticipantMessageDataPIM {
-    type ParticipantMessageDataType: Copy + Send + Sync;
+    type ParticipantMessageDataType;
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ChangeForReaderStatusKind {
     Unsent,
     Unacknowledged,
@@ -20,7 +20,7 @@ pub enum ChangeForReaderStatusKind {
     Underway,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ChangeFromWriterStatusKind {
     Lost,
     Missing,

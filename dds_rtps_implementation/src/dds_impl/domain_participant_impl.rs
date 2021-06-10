@@ -1,4 +1,7 @@
-use std::{ops::DerefMut, sync::{Arc, Mutex}};
+use std::{
+    ops::DerefMut,
+    sync::{Arc, Mutex},
+};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -13,6 +16,7 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use rust_rtps_pim::structure::types::{GUID, GUIDPIM};
 
 // use rust_rtps_pim::structure::RTPSEntity;
 
@@ -33,7 +37,11 @@ pub struct DomainParticipantImpl<PSM: PIM> {
     transport: Arc<Mutex<dyn Transport<PSM>>>,
 }
 
-impl<PSM: PIM> DomainParticipantImpl<PSM> {
+impl<PSM: PIM> DomainParticipantImpl<PSM>
+where
+    PSM::GUIDType: GUID<PSM> + Send,
+    PSM::GuidPrefixType: Clone + Copy,
+{
     pub fn new(guid_prefix: PSM::GuidPrefixType, transport: impl Transport<PSM> + 'static) -> Self {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
@@ -45,6 +53,18 @@ impl<PSM: PIM> DomainParticipantImpl<PSM> {
 
 impl<'p, PSM: PIM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
     for DomainParticipantImpl<PSM>
+where
+    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
+    PSM::GuidPrefixType: Clone + Copy,
+    PSM::LocatorType: Clone + PartialEq + Send,
+    PSM::SubmessageFlagType: From<bool>,
+    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::DataType: AsRef<[u8]>,
+    PSM::DurationType: Send,
+    PSM::EntityIdType: Send,
+    PSM::InstanceHandleType: Send,
+    PSM::DataType: Send,
+    PSM::ParameterListType: Send,
 {
     type PublisherType = PublisherImpl<'p, PSM>;
     fn create_publisher(
@@ -81,6 +101,18 @@ impl<'p, PSM: PIM> rust_dds_api::domain::domain_participant::PublisherFactory<'p
 
 impl<'s, PSM: PIM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     for DomainParticipantImpl<PSM>
+where
+    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
+    PSM::GuidPrefixType: Clone,
+    PSM::LocatorType: Clone + PartialEq + Send,
+    PSM::SubmessageFlagType: From<bool>,
+    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::DataType: AsRef<[u8]>,
+    PSM::DurationType: Send,
+    PSM::EntityIdType: Send,
+    PSM::InstanceHandleType: Send,
+    PSM::DataType: Send,
+    PSM::ParameterListType: Send,
 {
     type SubscriberType = SubscriberImpl<'s, PSM>;
 
@@ -137,6 +169,18 @@ impl<'s, PSM: PIM> rust_dds_api::domain::domain_participant::SubscriberFactory<'
 
 impl<'t, T: 'static, PSM: PIM> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
     for DomainParticipantImpl<PSM>
+where
+    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
+    PSM::GuidPrefixType: Clone,
+    PSM::LocatorType: Clone + PartialEq + Send,
+    PSM::SubmessageFlagType: From<bool>,
+    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::DataType: AsRef<[u8]>,
+    PSM::DurationType: Send,
+    PSM::EntityIdType: Send,
+    PSM::InstanceHandleType: Send,
+    PSM::DataType: Send,
+    PSM::ParameterListType: Send,
 {
     type TopicType = TopicImpl<'t, T, PSM>;
 
@@ -161,6 +205,18 @@ impl<'t, T: 'static, PSM: PIM> rust_dds_api::domain::domain_participant::TopicFa
 
 impl<PSM: PIM> rust_dds_api::domain::domain_participant::DomainParticipant
     for DomainParticipantImpl<PSM>
+where
+    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
+    PSM::GuidPrefixType: Clone,
+    PSM::LocatorType: Clone + PartialEq + Send,
+    PSM::SubmessageFlagType: From<bool>,
+    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::DataType: AsRef<[u8]>,
+    PSM::DurationType: Send,
+    PSM::EntityIdType: Send,
+    PSM::InstanceHandleType: Send,
+    PSM::DataType: Send,
+    PSM::ParameterListType: Send,
 {
     fn lookup_topicdescription<'t, T>(
         &'t self,
@@ -268,7 +324,20 @@ impl<PSM: PIM> rust_dds_api::domain::domain_participant::DomainParticipant
     }
 }
 
-impl<PSM: PIM> Entity for DomainParticipantImpl<PSM> {
+impl<PSM: PIM> Entity for DomainParticipantImpl<PSM>
+where
+    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
+    PSM::GuidPrefixType: Clone,
+    PSM::LocatorType: Clone + PartialEq + Send,
+    PSM::SubmessageFlagType: From<bool>,
+    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::DataType: AsRef<[u8]>,
+    PSM::DurationType: Send,
+    PSM::EntityIdType: Send,
+    PSM::InstanceHandleType: Send,
+    PSM::DataType: Send,
+    PSM::ParameterListType: Send,
+{
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
@@ -308,7 +377,10 @@ impl<PSM: PIM> Entity for DomainParticipantImpl<PSM> {
         std::thread::spawn(move || {
             loop {
                 if let Some(rtps_participant) = rtps_participant.try_lock() {
-                    send_data(rtps_participant.as_ref(), transport.lock().unwrap().deref_mut());
+                    send_data(
+                        rtps_participant.as_ref(),
+                        transport.lock().unwrap().deref_mut(),
+                    );
                     // rtps_participant.send_data::<UDPHeartbeatMessage>();
                     // rtps_participant.receive_data();
                     // rtps_participant.run_listeners();

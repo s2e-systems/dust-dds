@@ -11,7 +11,7 @@ use crate::{
 };
 
 pub trait RTPSReaderProxy<
-    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM<PSM> + SequenceNumberPIM,
+    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM + SequenceNumberPIM,
 >
 {
     type SequenceNumberVector; //: IntoIterator<Item = PSM::SequenceNumber>;
@@ -41,7 +41,7 @@ pub trait RTPSStatefulWriter<
         + SequenceNumberPIM
         + DataPIM
         + ParameterListPIM<PSM>
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + InstanceHandlePIM
         + ParameterIdPIM,
 >: RTPSWriter<PSM>
@@ -76,7 +76,7 @@ pub fn can_send<
         + SequenceNumberPIM
         + DataPIM
         + ParameterListPIM<PSM>
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + InstanceHandlePIM
         + ParameterIdPIM,
 >(
@@ -121,13 +121,15 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM<Self> for MockPSM {
+    impl GUIDPIM for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
 
     impl LocatorPIM for MockPSM {
         type LocatorType = MockLocator;
+
+        const LOCATOR_INVALID: Self::LocatorType = MockLocator;
     }
 
     impl DurationPIM for MockPSM {
@@ -135,7 +137,7 @@ mod tests {
     }
 
     impl DataPIM for MockPSM {
-        type DataType = [u8;0];
+        type DataType = [u8; 0];
     }
 
     impl ParameterIdPIM for MockPSM {
@@ -158,11 +160,11 @@ mod tests {
             todo!()
         }
 
-        fn prefix(&self) -> &[u8; 12] {
+        fn prefix(&self) -> [u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> &[u8; 4] {
+        fn entity_id(&self) -> [u8; 4] {
             todo!()
         }
     }
@@ -182,7 +184,6 @@ mod tests {
         const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
         type LocatorAddress = [u8; 16];
         const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
-        const LOCATOR_INVALID: Self = MockLocator;
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()

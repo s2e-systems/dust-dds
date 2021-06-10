@@ -9,6 +9,7 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use rust_rtps_pim::structure::types::{GUID, GUIDPIM};
 
 use super::{domain_participant_impl::DomainParticipantImpl, PIM};
 
@@ -17,7 +18,19 @@ pub struct TopicImpl<'t, T: 'static, PSM: PIM> {
     phantom: PhantomData<&'t T>,
 }
 
-impl<'t, T: 'static, PSM: PIM> rust_dds_api::topic::topic::Topic<T> for TopicImpl<'t, T, PSM> {
+impl<'t, T: 'static, PSM: PIM> rust_dds_api::topic::topic::Topic<T> for TopicImpl<'t, T, PSM>
+where
+    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::SequenceNumberType: Copy + Ord + Send,
+    PSM::GuidPrefixType: Clone,
+    PSM::LocatorType: Clone + PartialEq + Send,
+    PSM::SubmessageFlagType: From<bool>,
+    PSM::DataType: AsRef<[u8]> + Send,
+    PSM::DurationType: Send,
+    PSM::EntityIdType: Send,
+    PSM::InstanceHandleType: Send,
+    PSM::ParameterListType: Send,
+{
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
@@ -26,7 +39,19 @@ impl<'t, T: 'static, PSM: PIM> rust_dds_api::topic::topic::Topic<T> for TopicImp
     }
 }
 
-impl<'t, T: 'static, PSM: PIM> TopicDescription<T> for TopicImpl<'t, T, PSM> {
+impl<'t, T: 'static, PSM: PIM> TopicDescription<T> for TopicImpl<'t, T, PSM>
+where
+    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::SequenceNumberType: Copy + Ord + Send,
+    PSM::GuidPrefixType: Clone,
+    PSM::LocatorType: Clone + PartialEq + Send,
+    PSM::SubmessageFlagType: From<bool>,
+    PSM::DataType: AsRef<[u8]> + Send,
+    PSM::DurationType: Send,
+    PSM::EntityIdType: Send,
+    PSM::InstanceHandleType: Send,
+    PSM::ParameterListType: Send,
+{
     fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
         self.participant
     }

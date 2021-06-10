@@ -38,7 +38,7 @@ impl EntityIdPIM for RtpsUdpPsm {
     };
 }
 
-impl GUIDPIM<RtpsUdpPsm> for RtpsUdpPsm {
+impl GUIDPIM for RtpsUdpPsm {
     type GUIDType = GUID;
     const GUID_UNKNOWN: Self::GUIDType = GUID {
         prefix: RtpsUdpPsm::GUIDPREFIX_UNKNOWN,
@@ -57,11 +57,11 @@ impl rust_rtps_pim::structure::types::GUID<RtpsUdpPsm> for GUID {
         Self { prefix, entity_id }
     }
 
-    fn prefix(&self) -> &GuidPrefix {
+    fn prefix(&self) -> GuidPrefix {
         todo!()
     }
 
-    fn entity_id(&self) -> &EntityId {
+    fn entity_id(&self) -> EntityId {
         todo!()
     }
 }
@@ -76,6 +76,12 @@ impl SequenceNumberPIM for RtpsUdpPsm {
 
 impl LocatorPIM for RtpsUdpPsm {
     type LocatorType = Locator;
+
+    const LOCATOR_INVALID: Self::LocatorType = Locator {
+        kind: <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_KIND_INVALID,
+        port: <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_PORT_INVALID,
+        address: <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_ADDRESS_INVALID,
+    };
 }
 
 impl InstanceHandlePIM for RtpsUdpPsm {
@@ -412,11 +418,7 @@ impl rust_rtps_pim::structure::types::Locator for Locator {
     const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
     const LOCATOR_PORT_INVALID: Self::LocatorPort = ULong(0);
 
-    const LOCATOR_INVALID: Self = Locator {
-        kind: Self::LOCATOR_KIND_INVALID,
-        port: Self::LOCATOR_PORT_INVALID,
-        address: Self::LOCATOR_ADDRESS_INVALID,
-    };
+
 
     fn kind(&self) -> &Self::LocatorKind {
         &self.kind

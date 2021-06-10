@@ -3,16 +3,16 @@
 ///
 
 pub trait ProtocolIdPIM {
-    type ProtocolIdType: Copy;
+    type ProtocolIdType;
     const PROTOCOL_RTPS: Self::ProtocolIdType;
 }
 
 pub trait SubmessageFlagPIM {
-    type SubmessageFlagType: Into<bool> + From<bool> + Copy;
+    type SubmessageFlagType;
 }
 
 pub trait SubmessageKindPIM {
-    type SubmessageKindType: Copy;
+    type SubmessageKindType;
     const DATA: Self::SubmessageKindType;
     const GAP: Self::SubmessageKindType;
     const HEARTBEAT: Self::SubmessageKindType;
@@ -28,24 +28,24 @@ pub trait SubmessageKindPIM {
 }
 
 pub trait TimePIM {
-    type TimeType: Copy;
+    type TimeType;
     const TIME_ZERO: Self::TimeType;
     const TIME_INVALID: Self::TimeType;
     const TIME_INFINITE: Self::TimeType;
 }
 
 pub trait CountPIM {
-    type CountType: Copy;
+    type CountType;
 }
 
 pub trait ParameterIdPIM {
-    type ParameterIdType: Copy;
+    type ParameterIdType;
 }
 
 pub trait FragmentNumberPIM {
-    type FragmentNumberType: Copy;
+    type FragmentNumberType;
 }
 
 pub trait GroupDigestPIM {
-    type GroupDigestType: Copy;
+    type GroupDigestType;
 }

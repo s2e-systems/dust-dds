@@ -54,7 +54,7 @@ pub trait RTPSStatelessWriter<
         + InstanceHandlePIM
         + LocatorPIM
         + SequenceNumberPIM
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + ParameterIdPIM
         + ParameterListPIM<PSM>,
 >: RTPSWriter<PSM>
@@ -80,7 +80,7 @@ pub fn best_effort_send_unsent_data<
         + DataPIM
         + ParameterIdPIM
         + ParameterListPIM<PSM>
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + SubmessageKindPIM
         + SubmessageFlagPIM
         + SubmessageHeaderPIM<PSM>
@@ -99,6 +99,10 @@ pub fn best_effort_send_unsent_data<
 ) where
     <PSM as DataPIM>::DataType: 'a,
     <PSM as ParameterListPIM<PSM>>::ParameterListType: 'a,
+    <PSM as SubmessageFlagPIM>::SubmessageFlagType: From<bool>,
+    <PSM as GUIDPIM>::GUIDType: GUID<PSM>,
+    <PSM as DataPIM>::DataType: AsRef<[u8]>,
+    <PSM as SequenceNumberPIM>::SequenceNumberType : Copy,
     HistoryCache::CacheChange: 'a,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
@@ -115,12 +119,13 @@ pub fn best_effort_send_unsent_data<
             let non_standard_payload_flag = false.into();
             let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
             let writer_id =
-                submessage_elements::EntityId::new(change.writer_guid().entity_id().clone());
+                submessage_elements::EntityId::new(change.writer_guid().entity_id());
             let writer_sn =
-                submessage_elements::SequenceNumber::new(change.sequence_number().clone());
+                submessage_elements::SequenceNumber::new(*change.sequence_number());
             let inline_qos = change.inline_qos();
+            let data = change.data_value();
             let serialized_payload =
-                submessage_elements::SerializedData::new(change.data_value().as_ref());
+                submessage_elements::SerializedData::new(data.as_ref());
             let data_submessage = PSM::DataSubmessageType::new(
                 endianness_flag,
                 inline_qos_flag,
@@ -216,12 +221,12 @@ mod tests {
             todo!()
         }
 
-        fn prefix(&self) -> &[u8; 12] {
+        fn prefix(&self) -> [u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> &[u8; 4] {
-            &MockPSM::ENTITYID_UNKNOWN
+        fn entity_id(&self) -> [u8; 4] {
+            MockPSM::ENTITYID_UNKNOWN
         }
     }
     #[derive(Clone, Copy, PartialEq)]
@@ -239,7 +244,6 @@ mod tests {
         const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
         type LocatorAddress = [u8; 16];
         const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
-        const LOCATOR_INVALID: Self = MockLocator;
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -313,7 +317,7 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM<MockPSM> for MockPSM {
+    impl GUIDPIM for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
@@ -325,6 +329,8 @@ mod tests {
 
     impl LocatorPIM for MockPSM {
         type LocatorType = MockLocator;
+
+        const LOCATOR_INVALID: Self::LocatorType = MockLocator;
     }
 
     impl SubmessageKindPIM for MockPSM {

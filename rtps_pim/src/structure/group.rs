@@ -3,4 +3,4 @@ use super::{
     RTPSEntity,
 };
 
-pub trait RTPSGroup<PSM: GuidPrefixPIM + EntityIdPIM + GUIDPIM<PSM>>: RTPSEntity<PSM> {}
+pub trait RTPSGroup<PSM: GuidPrefixPIM + EntityIdPIM + GUIDPIM>: RTPSEntity<PSM> {}

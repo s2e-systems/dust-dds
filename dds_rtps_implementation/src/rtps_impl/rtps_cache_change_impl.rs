@@ -13,7 +13,7 @@ pub trait RTPSCacheChangeImplTrait:
     + ParameterIdPIM
     + EntityIdPIM
     + GuidPrefixPIM
-    + GUIDPIM<Self>
+    + GUIDPIM
     + ParameterListPIM<Self>
     + Sized
 {
@@ -25,7 +25,7 @@ impl<
             + ParameterIdPIM
             + EntityIdPIM
             + GuidPrefixPIM
-            + GUIDPIM<Self>
+            + GUIDPIM
             + ParameterListPIM<Self>
             + Sized,
     > RTPSCacheChangeImplTrait for T

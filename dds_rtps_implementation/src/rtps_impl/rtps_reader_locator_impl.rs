@@ -25,7 +25,10 @@ impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocatorImpl<PSM> {
     }
 }
 
-impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocator<PSM> for RTPSReaderLocatorImpl<PSM> {
+impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocator<PSM> for RTPSReaderLocatorImpl<PSM>
+where
+    PSM::SequenceNumberType: Clone + Ord + Copy,
+{
     type SequenceNumberVector = Vec<PSM::SequenceNumberType>;
 
     fn locator(&self) -> &PSM::LocatorType {
@@ -51,7 +54,7 @@ impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocator<PSM> for RTPSReaderLocat
     ) -> Option<PSM::SequenceNumberType> {
         if &self.last_sent_sequence_number < last_change_sequence_number {
             self.last_sent_sequence_number = (self.last_sent_sequence_number.into() + 1).into();
-            Some(self.last_sent_sequence_number)
+            Some(self.last_sent_sequence_number.clone())
         } else {
             None
         }
@@ -112,7 +115,6 @@ mod tests {
         type LocatorAddress = [u8; 16];
 
         const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
-        const LOCATOR_INVALID: Self = MockLocator(0);
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -129,6 +131,8 @@ mod tests {
 
     impl rust_rtps_pim::structure::types::LocatorPIM for MockPSM {
         type LocatorType = MockLocator;
+
+        const LOCATOR_INVALID: Self::LocatorType = MockLocator(0);
     }
 
     impl rust_rtps_pim::structure::types::SequenceNumberPIM for MockPSM {

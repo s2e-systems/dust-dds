@@ -18,7 +18,7 @@ pub trait RTPSHistoryCacheImplTrait:
     + ParameterIdPIM
     + EntityIdPIM
     + GuidPrefixPIM
-    + GUIDPIM<Self>
+    + GUIDPIM
     + ParameterListPIM<Self>
     + Sized
 {
@@ -30,7 +30,7 @@ impl<
             + ParameterIdPIM
             + EntityIdPIM
             + GuidPrefixPIM
-            + GUIDPIM<Self>
+            + GUIDPIM
             + ParameterListPIM<Self>
             + Sized,
     > RTPSHistoryCacheImplTrait for T
@@ -41,7 +41,10 @@ pub struct RTPSHistoryCacheImpl<PSM: RTPSHistoryCacheImplTrait> {
     changes: Vec<RTPSCacheChangeImpl<PSM>>,
 }
 
-impl<PSM: RTPSHistoryCacheImplTrait> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM> {
+impl<PSM: RTPSHistoryCacheImplTrait> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM>
+where
+    PSM::SequenceNumberType: PartialEq + Ord,
+{
     type CacheChange = RTPSCacheChangeImpl<PSM>;
 
     fn new() -> Self
@@ -91,7 +94,7 @@ mod tests {
     }
 
     impl rust_rtps_pim::structure::types::DataPIM for MockPSM {
-        type DataType = [u8;0];
+        type DataType = [u8; 0];
     }
 
     impl rust_rtps_pim::structure::types::EntityIdPIM for MockPSM {
@@ -118,16 +121,16 @@ mod tests {
             todo!()
         }
 
-        fn prefix(&self) -> &[u8; 12] {
+        fn prefix(&self) -> [u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> &[u8; 4] {
+        fn entity_id(&self) -> [u8; 4] {
             todo!()
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDPIM<MockPSM> for MockPSM {
+    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
