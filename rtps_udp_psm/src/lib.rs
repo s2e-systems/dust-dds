@@ -656,71 +656,32 @@ pub struct Duration {
 
 
 #[derive(Debug, PartialEq)]
-pub struct Vector<T>(Vec<T>);
-impl<T: serde::Serialize> serde::Serialize for Vector<T> {
+pub struct Vector(Vec<u8>);
+impl serde::Serialize for Vector {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.collect_seq(VectorIter(self.0.iter()))
+        serializer.serialize_bytes(self.0.as_slice())
     }
 }
-impl<'de, T: serde::Deserialize<'de>> serde::Deserialize<'de> for Vector<T> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de> {
-            const MAX_BYTES: usize = 2^16;
-            deserializer.deserialize_tuple(MAX_BYTES, VectorVisitor(std::marker::PhantomData))
-    }
-}
-impl<T: serde::Serialize> From<Vec<T>> for Vector<T> {
-    fn from(value: Vec<T>) -> Self {
+
+impl From<Vec<u8>> for Vector {
+    fn from(value: Vec<u8>) -> Self {
         Self(value)
     }
 }
-struct VectorVisitor<T>(std::marker::PhantomData<T>);
 
-impl<'de, T: serde::Deserialize<'de>> serde::de::Visitor<'de> for VectorVisitor<T> {
-    type Value = Vector<T>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("2 byte length + length bytes")
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-        where A: serde::de::SeqAccess<'de>,
-    {
-        let error_message_len = seq.size_hint().unwrap_or(0);
-        let data_length: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let mut data = vec![];
-        for _ in 0..data_length {
-            data.push(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(error_message_len, &self))?);
-        }
-        // Ok(Vector())
-        todo!()
-    }
-}
-/// Note: size_hint() is not implemented since the default returns (0, None) which
-/// in turn istructs the collect_seq of the serializer to put a None to the len argument
-/// of the serialize_seq() function. And this in turn should cause the serilization of a
-/// sequence without serializing its length as prefix
-pub struct VectorIter<'a, T: serde::Serialize>(std::slice::Iter<'a, T>);
-impl<'a, T: serde::Serialize> Iterator for VectorIter<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
-
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq)]
 pub struct Parameter {
     pub parameter_id: ParameterId,
     pub length: i16,
-    pub value: Vector<u8>,
+    pub value: Vector,
 }
 
 impl Parameter {
-    pub fn new(parameter_id: ParameterId, value: Vector<u8>) -> Self {
+    pub fn new(parameter_id: ParameterId, value: Vector) -> Self {
         Self {
-            parameter_id, length: value.0.len() as i16, value
+            parameter_id,
+            length: value.0.len() as i16,
+            value
         }
     }
 
@@ -740,6 +701,18 @@ impl rust_rtps_pim::messages::submessage_elements::Parameter<RtpsUdpPsm> for Par
 
     fn value(&self) -> &[u8] {
         &self.value.0
+    }
+}
+
+impl serde::Serialize for Parameter {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+            let mut state = serializer.serialize_struct("Parameter", 3)?;
+            state.serialize_field("ParameterId", &self.parameter_id)?;
+            state.serialize_field("length", &self.length)?;
+            state.serialize_field("value", &self.value)?;
+            state.end()
     }
 }
 
@@ -775,17 +748,19 @@ impl<'de> serde::Deserialize<'de> for Parameter {
 }
 const PID_SENTINEL: ParameterId = 1;
 static SENTINEL: Parameter = Parameter{parameter_id: PID_SENTINEL, length: 0, value: Vector(vec![])};
+static EMPTY_PARAMETER_LIST: ParameterList = ParameterList{parameter:vec![]};
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterList {
-    pub parameter: Vector<Parameter>,
+    pub parameter: Vec<Parameter>,
 }
 impl serde::Serialize for ParameterList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer {
-        let mut state = serializer.serialize_struct("ParameterList", 2)?;
-        state.serialize_field("parameter", &self.parameter)?;
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let len = self.parameter.len();
+        let mut state = serializer.serialize_struct("ParameterList", len)?;
+        for parameter in &self.parameter {
+            state.serialize_field("parameter", &parameter)?;
+        }
         state.serialize_field("sentinel", &SENTINEL)?;
         state.end()
     }
@@ -825,31 +800,33 @@ impl<'de, 'a> serde::Deserialize<'de> for ParameterList {
         deserializer.deserialize_tuple(MAX_PARAMETERS, ParameterListVisitor{})
     }
 }
-static EMPTY_PARAMETER: ParameterList = ParameterList{parameter: Vector(vec![])};
+
+
+
 impl<'de, 'a> serde::Deserialize<'de> for &'a ParameterList {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {
-            Ok(&EMPTY_PARAMETER)
+            Ok(&EMPTY_PARAMETER_LIST)
     }
 }
 
 impl ParameterList {
     pub fn len(&self) -> u16 {
-        self.parameter.0.iter().map(|p| p.len()).sum()
+        self.parameter.iter().map(|p| p.len()).sum()
     }
 }
 
 impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for ParameterList {
     type Parameter = Parameter;
 
-    fn new(parameter: &[Self::Parameter]) -> Self {
+    fn new(_parameter: &[Self::Parameter]) -> Self {
         //let vec: Vec<Parameter> = parameter.iter().map(|x| x.clone()).collect();
         todo!()
     }
 
     fn parameter(&self) -> &[Self::Parameter] {
-        &self.parameter.0
+        &self.parameter
     }
 }
 
@@ -1029,7 +1006,7 @@ mod tests {
             Parameter::new(0x03, vec![25, 26, 27, 28].into())
         ].into()};
         #[rustfmt::skip]
-        let result = deserialize(&[
+        let result: ParameterList = deserialize(&[
             0x02, 0x00, 4, 0, // Parameter ID | length
             15, 16, 17, 18,        // value
             0x03, 0x00, 4, 0, // Parameter ID | length

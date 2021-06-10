@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     structure::types::ParameterListPIM,
 };
 
-use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag, Vector};
+use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
 
 use super::SubmessageHeader;
 
@@ -139,7 +139,7 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
     }
 }
 
-static EMPTY_PARAMETER_LIST: ParameterList = ParameterList{parameter: Vector(vec![])};
+static EMPTY_PARAMETER_LIST: ParameterList = ParameterList{parameter: vec![]};
 struct DataSubmesageVisitor<'a>(std::marker::PhantomData<&'a ()>);
 
 impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
@@ -163,7 +163,8 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
         let writer_id: EntityId = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
         let writer_sn: SequenceNumber = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
         let inline_qos = if inline_qos_flag {
-            todo!()
+            let parameter_list = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(6, &self))?;
+            parameter_list
         } else{
             &EMPTY_PARAMETER_LIST
         };
@@ -395,6 +396,52 @@ mod tests {
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
             1, 2, 3, 4, // SerializedPayload
+            9, 9, 9,    // Following data
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_with_inline_qos_no_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = true;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = [1, 2, 3, 4].into();
+        let writer_id = [6, 7, 8, 9].into();
+        let writer_sn = 5.into();
+        let param1 = crate::Parameter::new(6, vec![10, 11, 12, 13].into());
+        let param2 = crate::Parameter::new(7, vec![20, 21, 22, 23].into());
+        let inline_qos = ParameterList {
+            parameter: vec![param1, param2].into(),
+        };
+        let serialized_payload = SerializedData([][..].into());
+        let expected = DataSubmesage::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            &inline_qos,
+            serialized_payload,
+        );
+        #[rustfmt::skip]
+        let result = deserialize(&[
+            0x15_u8, 0b_0000_0011, 24, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 0, 0, // inlineQos: Sentinel
             9, 9, 9,    // Following data
         ]);
         assert_eq!(expected, result);
