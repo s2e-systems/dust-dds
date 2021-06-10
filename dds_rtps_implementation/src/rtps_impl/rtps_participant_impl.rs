@@ -12,8 +12,8 @@ use rust_rtps_pim::{
     },
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-            ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDType, GUIDPIM,
+            DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
         },
         RTPSEntity, RTPSParticipant,
     },
@@ -69,8 +69,7 @@ pub struct RTPSParticipantImpl<PSM: RTPSParticipantImplTrait> {
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
-impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM>
-{
+impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         let guid = GUIDType::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
 
@@ -166,10 +165,10 @@ pub fn send_data<
                         |_locator, gap_submessage| gap_submessage_list.push(gap_submessage),
                     );
                 }
-                let protocol = PSM::PROTOCOL_RTPS;
+                let protocol = &PSM::PROTOCOL_RTPS;
                 let version = rtps_participant_impl.protocol_version();
                 let vendor_id = rtps_participant_impl.vendor_id();
-                let guid_prefix = rtps_participant_impl.guid().prefix().clone();
+                let guid_prefix = rtps_participant_impl.guid().prefix();
 
                 let mut submessages: Vec<&dyn rust_rtps_pim::messages::Submessage<PSM>> = vec![];
                 for data_submessage in &data_submessage_list {
@@ -195,11 +194,11 @@ pub fn send_data<
 impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PSM>
     for RTPSParticipantImpl<PSM>
 {
-    fn protocol_version(&self) -> PSM::ProtocolVersionType {
+    fn protocol_version(&self) -> &PSM::ProtocolVersionType {
         todo!()
     }
 
-    fn vendor_id(&self) -> PSM::VendorIdType {
+    fn vendor_id(&self) -> &PSM::VendorIdType {
         todo!()
     }
 

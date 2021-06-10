@@ -41,7 +41,7 @@ pub trait ParameterIdPIM {
 }
 
 pub trait FragmentNumberPIM {
-    type FragmentNumberType;
+    type FragmentNumberType: From<u32> + Into<u32>;
 }
 
 pub trait GroupDigestPIM {

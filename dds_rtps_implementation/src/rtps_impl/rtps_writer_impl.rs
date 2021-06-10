@@ -168,12 +168,12 @@ where
 }
 
 impl<PSM: RTPSWriterImplTrait> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
-    fn topic_kind(&self) -> TopicKind {
-        self.topic_kind
+    fn topic_kind(&self) -> &TopicKind {
+        &self.topic_kind
     }
 
-    fn reliability_level(&self) -> ReliabilityKind {
-        self.reliability_level
+    fn reliability_level(&self) -> &ReliabilityKind {
+        &self.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[PSM::LocatorType] {

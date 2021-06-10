@@ -96,13 +96,19 @@ impl LocatorPIM for RtpsUdpPsm {
     };
     const LOCATOR_KIND_INVALID:
         <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(-1);
-    const LOCATOR_KIND_RESERVED: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(0);
+    const LOCATOR_KIND_RESERVED:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(0);
     #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(1);
+    const LOCATOR_KIND_UDPv4:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(1);
     #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(2);
-    const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress = [0; 16];
-    const LOCATOR_PORT_INVALID: <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort = ULong(0);
+    const LOCATOR_KIND_UDPv6:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(2);
+    const LOCATOR_ADDRESS_INVALID:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress =
+        [0; 16];
+    const LOCATOR_PORT_INVALID:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort = ULong(0);
 }
 
 impl InstanceHandlePIM for RtpsUdpPsm {
@@ -624,6 +630,18 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumber<RtpsUdpPsm> fo
     }
 }
 
+impl From<u32> for FragmentNumber {
+    fn from(_: u32) -> Self {
+        todo!()
+    }
+}
+
+impl Into<u32> for FragmentNumber {
+    fn into(self) -> u32 {
+        todo!()
+    }
+}
+
 pub struct FragmentNumberSet(Vec<FragmentNumber>);
 
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
@@ -734,45 +752,45 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for L
 }
 
 #[derive(Clone, Copy)]
-pub struct RTPSMessageHeader {
-    protocol: ProtocolId,
-    version: ProtocolVersion,
-    vendor_id: VendorId,
-    guid_prefix: GuidPrefix,
+pub struct RTPSMessageHeader<'a> {
+    protocol: &'a ProtocolId,
+    version: &'a ProtocolVersion,
+    vendor_id: &'a VendorId,
+    guid_prefix: &'a GuidPrefix,
 }
 
-impl rust_rtps_pim::messages::Header<RtpsUdpPsm> for RTPSMessageHeader {
-    fn protocol(&self) -> ProtocolId {
-        self.protocol
+impl<'a> rust_rtps_pim::messages::RtpsMessageHeader<RtpsUdpPsm> for RTPSMessageHeader<'a> {
+    fn protocol(&self) -> &ProtocolId {
+        &self.protocol
     }
 
-    fn version(&self) -> ProtocolVersion {
-        self.version
+    fn version(&self) -> &ProtocolVersion {
+        &self.version
     }
 
-    fn vendor_id(&self) -> VendorId {
-        self.vendor_id
+    fn vendor_id(&self) -> &VendorId {
+        &self.vendor_id
     }
 
-    fn guid_prefix(&self) -> GuidPrefix {
-        self.guid_prefix
+    fn guid_prefix(&self) -> &GuidPrefix {
+        &self.guid_prefix
     }
 }
 
 pub struct RTPSMessage<'a> {
-    header: RTPSMessageHeader,
+    header: RTPSMessageHeader<'a>,
     submessages: Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>,
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a> {
-    type RTPSMessageHeaderType = RTPSMessageHeader;
+    type RTPSMessageHeaderType = RTPSMessageHeader<'a>;
     type RTPSSubmessageVectorType = Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>;
 
     fn new<T: IntoIterator<Item = &'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>>(
-        protocol: ProtocolId,
-        version: ProtocolVersion,
-        vendor_id: VendorId,
-        guid_prefix: GuidPrefix,
+        protocol: &'a ProtocolId,
+        version: &'a ProtocolVersion,
+        vendor_id: &'a VendorId,
+        guid_prefix: &'a GuidPrefix,
         submessages: T,
     ) -> Self {
         Self {

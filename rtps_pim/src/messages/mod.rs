@@ -6,11 +6,11 @@ use crate::structure::types::{GuidPrefixPIM, ProtocolVersionPIM, VendorIdPIM};
 
 use self::types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM};
 
-pub trait Header<PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM> {
-    fn protocol(&self) -> PSM::ProtocolIdType;
-    fn version(&self) -> PSM::ProtocolVersionType;
-    fn vendor_id(&self) -> PSM::VendorIdType;
-    fn guid_prefix(&self) -> PSM::GuidPrefixType;
+pub trait RtpsMessageHeader<PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM> {
+    fn protocol(&self) -> &PSM::ProtocolIdType;
+    fn version(&self) -> &PSM::ProtocolVersionType;
+    fn vendor_id(&self) -> &PSM::VendorIdType;
+    fn guid_prefix(&self) -> &PSM::GuidPrefixType;
 }
 
 pub trait SubmessageHeaderPIM<PSM: SubmessageKindPIM> {
@@ -40,14 +40,14 @@ pub trait RTPSMessage<
     PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM + SubmessageKindPIM + 'a,
 >
 {
-    type RTPSMessageHeaderType: Header<PSM>;
+    type RTPSMessageHeaderType: RtpsMessageHeader<PSM>;
     type RTPSSubmessageVectorType: IntoIterator<Item = &'a dyn Submessage<PSM>>;
 
     fn new<T: IntoIterator<Item = &'a dyn Submessage<PSM>>>(
-        protocol: PSM::ProtocolIdType,
-        version: PSM::ProtocolVersionType,
-        vendor_id: PSM::VendorIdType,
-        guid_prefix: PSM::GuidPrefixType,
+        protocol: &'a PSM::ProtocolIdType,
+        version: &'a PSM::ProtocolVersionType,
+        vendor_id: &'a PSM::VendorIdType,
+        guid_prefix: &'a PSM::GuidPrefixType,
         submessages: T,
     ) -> Self;
 
