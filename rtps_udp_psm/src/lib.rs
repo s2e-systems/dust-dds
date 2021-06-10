@@ -434,77 +434,73 @@ impl rust_rtps_pim::structure::types::Locator for Locator {
 
 #[derive(Clone)]
 pub struct SequenceNumberSet {
-    bitmap_base: SequenceNumber,
-    // num_bits: ULong,
-    bitmap: Vec<SequenceNumber>,
+    base: SequenceNumber,
+    set: Vec<SequenceNumber>,
+    num_bits: ULong,
+    bitmap: Vec<i32>
 }
 
 impl SequenceNumberSet {
-    // pub fn new(bitmap_base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
-    //     let base = Into::<i64>::into(bitmap_base) as i32;
-    //     let max = set.iter().max();
-    //     let num_bits = match max {
-    //         Some(max) => Into::<i64>::into(*max) as i32 - base,
-    //         None => 0,
-    //     };
-    //     let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
-    //     let mut bitmap = vec![0; number_of_bitmap_elements];
-    //     for sequence_number in set.iter() {
-    //         let delta_n = Into::<i64>::into(*sequence_number) as i32 - base;
-    //         let bitmap_num = delta_n / 32;
-    //         let bit_position = delta_n - bitmap_num * 32;
-    //         bitmap[bitmap_num as usize] |= 1 << bit_position;
-    //     }
-    //     Self {
-    //         bitmap_base,
-    //         num_bits: ULong(num_bits as u32),
-    //         bitmap,
-    //     }
-    // }
-
     pub fn len(&self) -> u16 {
-        12 + 4 * self.bitmap.len() as u16
+        12 /*bitmapBase + numBits */ + 4 * self.bitmap.len() /* bitmap[0] .. bitmap[M-1] */ as u16
     }
 }
 
 impl serde::Serialize for SequenceNumberSet {
-    fn serialize<S: serde::Serializer>(&self, _serializer: S) -> Result<S::Ok, S::Error> {
-        // let len = 2 + self.bitmap.len();
-        // let mut state = serializer.serialize_struct("SequenceNumberSet", len)?;
-        // state.serialize_field("bitmapBase", &self.bitmap_base)?;
-        // state.serialize_field("numBits", &self.num_bits)?;
-        // const BITMAP_NAMES: [&str; 8] = [
-        //     "bitmap[0]",
-        //     "bitmap[1]",
-        //     "bitmap[2]",
-        //     "bitmap[3]",
-        //     "bitmap[4]",
-        //     "bitmap[5]",
-        //     "bitmap[6]",
-        //     "bitmap[7]",
-        // ];
-        // for e in self.bitmap.iter().enumerate() {
-        //     state.serialize_field(BITMAP_NAMES[e.0], e.1)?;
-        // }
-        // state.end()
-        todo!()
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let len = 2 + self.bitmap.len();
+
+        let mut state = serializer.serialize_struct("SequenceNumberSet", len)?;
+        state.serialize_field("bitmapBase", &self.base)?;
+        state.serialize_field("numBits", &self.num_bits)?;
+        const BITMAP_NAMES: [&str; 8] = [
+            "bitmap[0]",
+            "bitmap[1]",
+            "bitmap[2]",
+            "bitmap[3]",
+            "bitmap[4]",
+            "bitmap[5]",
+            "bitmap[6]",
+            "bitmap[7]",
+        ];
+        for e in self.bitmap.iter().enumerate() {
+            state.serialize_field(BITMAP_NAMES[e.0], e.1)?;
+        }
+        state.end()
     }
 }
 
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
     for SequenceNumberSet
 {
-    fn new(_base: SequenceNumber, _set: &[SequenceNumber]) -> Self {
-        todo!()
+    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
+        let max = set.iter().max();
+        let num_bits = match max {
+            Some(max) => Into::<i64>::into(*max) - Into::<i64>::into(base),
+            None => 0,
+        };
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
+        let mut bitmap = vec![0; number_of_bitmap_elements];
+        for sequence_number in set.iter() {
+            let delta_n = Into::<i64>::into(*sequence_number) - Into::<i64>::into(base);
+            let bitmap_num = delta_n / 32;
+            let bit_position = delta_n - bitmap_num * 32;
+            bitmap[bitmap_num as usize] |= 1 << bit_position;
+        }
+        Self {
+            base,
+            set: set.into_iter().map(|x|x.clone()).collect(),
+            num_bits: ULong(num_bits as u32),
+            bitmap,
+        }
     }
 
     fn base(&self) -> &SequenceNumber {
-        &self.bitmap_base
+        &self.base
     }
 
     fn set(&self) -> &[SequenceNumber] {
-        // &self.bitmap
-        todo!()
+        &self.set
     }
 }
 
