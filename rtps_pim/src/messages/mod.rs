@@ -27,15 +27,13 @@ pub trait Submessage<PSM: SubmessageFlagPIM + SubmessageKindPIM + SubmessageHead
     fn submessage_header(&self) -> PSM::SubmessageHeaderType;
 }
 
-pub trait RTPSMessagePIM<
-    'a,
+pub trait RTPSMessagePIM<'a,
     PSM: ProtocolIdPIM
         + ProtocolVersionPIM
         + VendorIdPIM
         + GuidPrefixPIM
         + SubmessageFlagPIM
-        + SubmessageKindPIM
-        + 'a,
+        + SubmessageKindPIM + 'a
 >
 {
     type RTPSMessageType: RTPSMessage<'a, PSM>;

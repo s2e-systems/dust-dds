@@ -19,7 +19,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::utils::shared_object::RtpsShared;
+use crate::{transport::Transport, utils::shared_object::RtpsShared};
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
@@ -34,7 +34,7 @@ pub trait RTPSParticipantImplTrait:
     + DataPIM
     + ProtocolVersionPIM
     + ParameterIdPIM
-    + GUIDPIM<Self>
+    + GUIDPIM
     + SubmessageKindPIM
     + SubmessageFlagPIM
     + SubmessageHeaderPIM<Self>
@@ -55,7 +55,7 @@ impl<
             + DataPIM
             + ProtocolVersionPIM
             + ParameterIdPIM
-            + GUIDPIM<Self>
+            + GUIDPIM
             + ParameterListPIM<Self>
             + SubmessageKindPIM
             + SubmessageFlagPIM
@@ -71,7 +71,10 @@ pub struct RTPSParticipantImpl<PSM: RTPSParticipantImplTrait> {
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
-impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
+impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM>
+where
+    PSM::GUIDType: GUID<PSM>,
+{
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         let guid = GUID::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
 
@@ -126,7 +129,7 @@ pub fn send_data<
         + DataPIM
         + ProtocolVersionPIM
         + ParameterIdPIM
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + SubmessageKindPIM
         + SubmessageFlagPIM
         + ProtocolIdPIM
@@ -139,7 +142,15 @@ pub fn send_data<
         + 'static,
 >(
     rtps_participant_impl: &RTPSParticipantImpl<PSM>,
-) {
+    transport: &mut dyn Transport<PSM>,
+) where
+    PSM::SequenceNumberType: Clone + Copy + Ord,
+    PSM::GuidPrefixType: Clone,
+    PSM::LocatorType: Clone + PartialEq,
+    PSM::SubmessageFlagType: From<bool>,
+    PSM::GUIDType: GUID<PSM> + Copy,
+    PSM::DataType: AsRef<[u8]>,
+{
     for writer_group in &rtps_participant_impl.rtps_writer_groups {
         let writer_group_lock = writer_group.lock();
         let writer_list = writer_group_lock.writer_list();
@@ -149,13 +160,16 @@ pub fn send_data<
                 let mut data_submessage_list = vec![];
                 let mut gap_submessage_list = vec![];
                 let (reader_locators, writer_cache) = writer_lock.reader_locators();
-
+                let mut destination_locator = <PSM as LocatorPIM>::LOCATOR_INVALID;
                 for reader_locator in reader_locators {
                     best_effort_send_unsent_data(
                         reader_locator,
                         last_change_sequence_number,
                         writer_cache,
-                        |_locator, data_submessage| data_submessage_list.push(data_submessage),
+                        |locator, data_submessage| {
+                            data_submessage_list.push(data_submessage);
+                            destination_locator = locator.clone();
+                        },
                         |_locator, gap_submessage| gap_submessage_list.push(gap_submessage),
                     );
                 }
@@ -172,20 +186,14 @@ pub fn send_data<
                     submessages.push(gap_submessage);
                 }
 
-                let _message = PSM::RTPSMessageType::new(
+                let message = PSM::RTPSMessageType::new(
                     protocol,
                     version,
                     vendor_id,
                     guid_prefix,
                     submessages,
                 );
-
-                // let rtps_message = PSM::RTPSMessageType::new();
-
-                // let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
-                // behavior.send_unsent_data();
-                // let data = data_submessage_list[0].serialized_payload();
-                // println!("{:?}", data.value())
+                transport.write(&message, &destination_locator);
             }
         }
     }

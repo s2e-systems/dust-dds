@@ -1,5 +1,3 @@
-use core::iter::FromIterator;
-
 use structure::types::{EntityIdPIM, GuidPrefixPIM};
 
 ///
@@ -59,12 +57,9 @@ pub trait SequenceNumber<PSM: SequenceNumberPIM> {
 }
 
 pub trait SequenceNumberSet<PSM: SequenceNumberPIM> {
-    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>
-        + FromIterator<PSM::SequenceNumberType>;
-
-    fn new(base: PSM::SequenceNumberType, set: Self::SequenceNumberVector) -> Self;
+    fn new(base: PSM::SequenceNumberType, set: &[PSM::SequenceNumberType]) -> Self;
     fn base(&self) -> &PSM::SequenceNumberType;
-    fn set(&self) -> Self::SequenceNumberVector;
+    fn set(&self) -> &[PSM::SequenceNumberType];
 }
 
 pub trait FragmentNumber<PSM: FragmentNumberPIM> {
@@ -73,11 +68,9 @@ pub trait FragmentNumber<PSM: FragmentNumberPIM> {
 }
 
 pub trait FragmentNumberSet<PSM: FragmentNumberPIM> {
-    type FragmentNumberVector;
-
-    fn new(base: PSM::FragmentNumberType, set: Self::FragmentNumberVector) -> Self;
+    fn new(base: PSM::FragmentNumberType, set: &[PSM::FragmentNumberType]) -> Self;
     fn base(&self) -> &PSM::FragmentNumberType;
-    fn set(&self) -> Self::FragmentNumberVector;
+    fn set(&self) -> &[PSM::FragmentNumberType];
 }
 
 pub trait Timestamp<PSM: TimePIM> {
@@ -93,10 +86,9 @@ pub trait Parameter<PSM: ParameterIdPIM> {
 
 pub trait ParameterList<PSM: ParameterIdPIM> {
     type Parameter: Parameter<PSM>;
-    type ParameterList;
 
-    fn new(parameter: Self::ParameterList) -> Self;
-    fn parameter(&self) -> &Self::ParameterList;
+    fn new(parameter: &[Self::Parameter]) -> Self;
+    fn parameter(&self) -> &[Self::Parameter];
 }
 
 pub trait Count<PSM: CountPIM> {
@@ -105,10 +97,8 @@ pub trait Count<PSM: CountPIM> {
 }
 
 pub trait LocatorList<PSM: LocatorPIM> {
-    type LocatorList;
-
-    fn new(value: Self::LocatorList) -> Self;
-    fn value(&self) -> &Self::LocatorList;
+    fn new(value: &[PSM::LocatorType]) -> Self;
+    fn value(&self) -> &[PSM::LocatorType];
 }
 
 pub trait SerializedData<'a> {

@@ -73,6 +73,7 @@ impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for GapSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSet;
     use rust_serde_cdr::serializer::RtpsMessageSerializer;
     use serde::Serialize;
 
@@ -88,7 +89,7 @@ mod tests {
         let reader_id = [1, 2, 3, 4].into();
         let writer_id = [6, 7, 8, 9].into();
         let gap_start = 5.into();
-        let gap_list = SequenceNumberSet::new(10.into(), vec![]);
+        let gap_list = SequenceNumberSet::new(10.into(), &[]);
         let submessage: GapSubmessage = rust_rtps_pim::messages::submessages::GapSubmessage::new(
             endianness_flag,
             reader_id,

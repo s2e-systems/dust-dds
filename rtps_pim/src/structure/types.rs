@@ -5,27 +5,30 @@ use crate::messages::{submessage_elements, types::ParameterIdPIM};
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
 pub trait GuidPrefixPIM {
-    type GuidPrefixType: Into<[u8; 12]> + From<[u8; 12]> + Copy + PartialEq + Send + Sync;
+    type GuidPrefixType: Into<[u8; 12]> + From<[u8; 12]>;
     const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType;
 }
 
 pub trait EntityIdPIM {
-    type EntityIdType: Into<[u8; 4]> + From<[u8; 4]> + Copy + PartialEq + Send + Sync;
+    type EntityIdType: Into<[u8; 4]> + From<[u8; 4]>;
     const ENTITYID_UNKNOWN: Self::EntityIdType;
     const ENTITYID_PARTICIPANT: Self::EntityIdType;
 }
 
 pub trait SequenceNumberPIM {
-    type SequenceNumberType: Into<i64> + From<i64> + Ord + Copy + Send + Sync;
+    type SequenceNumberType: Into<i64> + From<i64>;
     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType;
 }
 
 pub trait LocatorPIM {
-    type LocatorType: Locator;
+    type LocatorType;
+
+    const LOCATOR_INVALID: Self::LocatorType;
 }
 
-pub trait Locator: PartialEq + Copy + Send + Sync {
-    type LocatorKind: Into<[u8; 4]> + From<[u8; 4]> + PartialEq + Copy + Send + Sync;
+pub trait Locator {
+    type LocatorKind: Into<[u8; 4]> + From<[u8; 4]>;
+
     const LOCATOR_KIND_INVALID: Self::LocatorKind;
     const LOCATOR_KIND_RESERVED: Self::LocatorKind;
     #[allow(non_upper_case_globals)]
@@ -33,13 +36,11 @@ pub trait Locator: PartialEq + Copy + Send + Sync {
     #[allow(non_upper_case_globals)]
     const LOCATOR_KIND_UDPv6: Self::LocatorKind;
 
-    type LocatorPort: Into<[u8; 4]> + From<[u8; 4]> + PartialEq + Copy + Send + Sync;
+    type LocatorPort: Into<[u8; 4]> + From<[u8; 4]>;
     const LOCATOR_PORT_INVALID: Self::LocatorPort;
 
-    type LocatorAddress: Into<[u8; 16]> + From<[u8; 16]> + PartialEq + Copy + Send + Sync;
+    type LocatorAddress: Into<[u8; 16]> + From<[u8; 16]>;
     const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress;
-
-    const LOCATOR_INVALID: Self;
 
     fn kind(&self) -> &Self::LocatorKind;
     fn port(&self) -> &Self::LocatorPort;
@@ -47,11 +48,11 @@ pub trait Locator: PartialEq + Copy + Send + Sync {
 }
 
 pub trait InstanceHandlePIM {
-    type InstanceHandleType: Copy + Send + Sync;
+    type InstanceHandleType;
 }
 
 pub trait ProtocolVersionPIM {
-    type ProtocolVersionType: Copy + Send + Sync;
+    type ProtocolVersionType;
     const PROTOCOLVERSION: Self::ProtocolVersionType;
     const PROTOCOLVERSION_1_0: Self::ProtocolVersionType;
     const PROTOCOLVERSION_1_1: Self::ProtocolVersionType;
@@ -63,37 +64,37 @@ pub trait ProtocolVersionPIM {
 }
 
 pub trait VendorIdPIM {
-    type VendorIdType: Copy + Send + Sync;
+    type VendorIdType;
     const VENDOR_ID_UNKNOWN: Self::VendorIdType;
 }
 
 pub trait DataPIM {
-    type DataType: AsRef<[u8]> + Send + Sync;
+    type DataType;
 }
 
 pub trait ParameterListPIM<PSM: ParameterIdPIM> {
-    type ParameterListType: submessage_elements::ParameterList<PSM> + Send + Sync;
+    type ParameterListType: submessage_elements::ParameterList<PSM>;
 }
 
-pub trait GUIDPIM<PSM: GuidPrefixPIM + EntityIdPIM> {
-    type GUIDType: GUID<PSM> + Copy + PartialEq + Send + Sync;
+pub trait GUIDPIM {
+    type GUIDType;
     const GUID_UNKNOWN: Self::GUIDType;
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
 pub trait GUID<PSM: GuidPrefixPIM + EntityIdPIM> {
     fn new(prefix: PSM::GuidPrefixType, entity_id: PSM::EntityIdType) -> Self;
-    fn prefix(&self) -> &PSM::GuidPrefixType;
-    fn entity_id(&self) -> &PSM::EntityIdType;
+    fn prefix(&self) -> PSM::GuidPrefixType;
+    fn entity_id(&self) -> PSM::EntityIdType;
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TopicKind {
     NoKey,
     WithKey,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,
@@ -101,7 +102,7 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ReliabilityKind {
     BestEffort,
     Reliable,

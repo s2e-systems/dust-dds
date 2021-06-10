@@ -19,7 +19,7 @@ pub trait RTPSReader<
         + SequenceNumberPIM
         + LocatorPIM
         + DurationPIM
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + ParameterIdPIM
         + ParameterListPIM<PSM>,
 >: RTPSEndpoint<PSM>

@@ -24,7 +24,7 @@ pub trait WriterGroupFactoryTrait:
     + LocatorPIM
     + DataPIM
     + ParameterIdPIM
-    + GUIDPIM<Self>
+    + GUIDPIM
     + ParameterListPIM<Self>
     + Sized
 {
@@ -39,7 +39,7 @@ impl<
             + LocatorPIM
             + DataPIM
             + ParameterIdPIM
-            + GUIDPIM<Self>
+            + GUIDPIM
             + ParameterListPIM<Self>
             + Sized,
     > WriterGroupFactoryTrait for T
@@ -52,7 +52,11 @@ pub struct WriterGroupFactory<PSM: WriterGroupFactoryTrait> {
     default_publisher_qos: PublisherQos,
 }
 
-impl<PSM: WriterGroupFactoryTrait> WriterGroupFactory<PSM> {
+impl<PSM: WriterGroupFactoryTrait> WriterGroupFactory<PSM>
+where
+    <PSM as GUIDPIM>::GUIDType: GUID<PSM> + Send,
+    PSM::GuidPrefixType: Clone
+{
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {
             guid_prefix,

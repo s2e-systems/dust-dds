@@ -38,7 +38,7 @@ impl EntityIdPIM for RtpsUdpPsm {
     };
 }
 
-impl GUIDPIM<RtpsUdpPsm> for RtpsUdpPsm {
+impl GUIDPIM for RtpsUdpPsm {
     type GUIDType = GUID;
     const GUID_UNKNOWN: Self::GUIDType = GUID {
         prefix: RtpsUdpPsm::GUIDPREFIX_UNKNOWN,
@@ -57,11 +57,11 @@ impl rust_rtps_pim::structure::types::GUID<RtpsUdpPsm> for GUID {
         Self { prefix, entity_id }
     }
 
-    fn prefix(&self) -> &GuidPrefix {
+    fn prefix(&self) -> GuidPrefix {
         todo!()
     }
 
-    fn entity_id(&self) -> &EntityId {
+    fn entity_id(&self) -> EntityId {
         todo!()
     }
 }
@@ -76,6 +76,13 @@ impl SequenceNumberPIM for RtpsUdpPsm {
 
 impl LocatorPIM for RtpsUdpPsm {
     type LocatorType = Locator;
+
+    const LOCATOR_INVALID: Self::LocatorType = Locator {
+        kind: <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_KIND_INVALID,
+        port: <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_PORT_INVALID,
+        address:
+            <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_ADDRESS_INVALID,
+    };
 }
 
 impl InstanceHandlePIM for RtpsUdpPsm {
@@ -412,12 +419,6 @@ impl rust_rtps_pim::structure::types::Locator for Locator {
     const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
     const LOCATOR_PORT_INVALID: Self::LocatorPort = ULong(0);
 
-    const LOCATOR_INVALID: Self = Locator {
-        kind: Self::LOCATOR_KIND_INVALID,
-        port: Self::LOCATOR_PORT_INVALID,
-        address: Self::LOCATOR_ADDRESS_INVALID,
-    };
-
     fn kind(&self) -> &Self::LocatorKind {
         &self.kind
     }
@@ -434,32 +435,32 @@ impl rust_rtps_pim::structure::types::Locator for Locator {
 #[derive(Clone)]
 pub struct SequenceNumberSet {
     bitmap_base: SequenceNumber,
-    num_bits: ULong,
-    bitmap: Vec<i32>,
+    // num_bits: ULong,
+    bitmap: Vec<SequenceNumber>,
 }
 
 impl SequenceNumberSet {
-    pub fn new(bitmap_base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
-        let base = Into::<i64>::into(bitmap_base) as i32;
-        let max = set.iter().max();
-        let num_bits = match max {
-            Some(max) => Into::<i64>::into(*max) as i32 - base,
-            None => 0,
-        };
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
-        let mut bitmap = vec![0; number_of_bitmap_elements];
-        for sequence_number in set.iter() {
-            let delta_n = Into::<i64>::into(*sequence_number) as i32 - base;
-            let bitmap_num = delta_n / 32;
-            let bit_position = delta_n - bitmap_num * 32;
-            bitmap[bitmap_num as usize] |= 1 << bit_position;
-        }
-        Self {
-            bitmap_base,
-            num_bits: ULong(num_bits as u32),
-            bitmap,
-        }
-    }
+    // pub fn new(bitmap_base: SequenceNumber, set: Vec<SequenceNumber>) -> Self {
+    //     let base = Into::<i64>::into(bitmap_base) as i32;
+    //     let max = set.iter().max();
+    //     let num_bits = match max {
+    //         Some(max) => Into::<i64>::into(*max) as i32 - base,
+    //         None => 0,
+    //     };
+    //     let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
+    //     let mut bitmap = vec![0; number_of_bitmap_elements];
+    //     for sequence_number in set.iter() {
+    //         let delta_n = Into::<i64>::into(*sequence_number) as i32 - base;
+    //         let bitmap_num = delta_n / 32;
+    //         let bit_position = delta_n - bitmap_num * 32;
+    //         bitmap[bitmap_num as usize] |= 1 << bit_position;
+    //     }
+    //     Self {
+    //         bitmap_base,
+    //         num_bits: ULong(num_bits as u32),
+    //         bitmap,
+    //     }
+    // }
 
     pub fn len(&self) -> u16 {
         12 + 4 * self.bitmap.len() as u16
@@ -467,34 +468,33 @@ impl SequenceNumberSet {
 }
 
 impl serde::Serialize for SequenceNumberSet {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let len = 2 + self.bitmap.len();
-        let mut state = serializer.serialize_struct("SequenceNumberSet", len)?;
-        state.serialize_field("bitmapBase", &self.bitmap_base)?;
-        state.serialize_field("numBits", &self.num_bits)?;
-        const BITMAP_NAMES: [&str; 8] = [
-            "bitmap[0]",
-            "bitmap[1]",
-            "bitmap[2]",
-            "bitmap[3]",
-            "bitmap[4]",
-            "bitmap[5]",
-            "bitmap[6]",
-            "bitmap[7]",
-        ];
-        for e in self.bitmap.iter().enumerate() {
-            state.serialize_field(BITMAP_NAMES[e.0], e.1)?;
-        }
-        state.end()
+    fn serialize<S: serde::Serializer>(&self, _serializer: S) -> Result<S::Ok, S::Error> {
+        // let len = 2 + self.bitmap.len();
+        // let mut state = serializer.serialize_struct("SequenceNumberSet", len)?;
+        // state.serialize_field("bitmapBase", &self.bitmap_base)?;
+        // state.serialize_field("numBits", &self.num_bits)?;
+        // const BITMAP_NAMES: [&str; 8] = [
+        //     "bitmap[0]",
+        //     "bitmap[1]",
+        //     "bitmap[2]",
+        //     "bitmap[3]",
+        //     "bitmap[4]",
+        //     "bitmap[5]",
+        //     "bitmap[6]",
+        //     "bitmap[7]",
+        // ];
+        // for e in self.bitmap.iter().enumerate() {
+        //     state.serialize_field(BITMAP_NAMES[e.0], e.1)?;
+        // }
+        // state.end()
+        todo!()
     }
 }
 
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
     for SequenceNumberSet
 {
-    type SequenceNumberVector = Vec<SequenceNumber>;
-
-    fn new(_base: SequenceNumber, _set: Self::SequenceNumberVector) -> Self {
+    fn new(_base: SequenceNumber, _set: &[SequenceNumber]) -> Self {
         todo!()
     }
 
@@ -502,7 +502,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
         &self.bitmap_base
     }
 
-    fn set(&self) -> Self::SequenceNumberVector {
+    fn set(&self) -> &[SequenceNumber] {
         // &self.bitmap
         todo!()
     }
@@ -632,9 +632,7 @@ pub struct FragmentNumberSet(Vec<FragmentNumber>);
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
     for FragmentNumberSet
 {
-    type FragmentNumberVector = Self;
-
-    fn new(_base: FragmentNumber, _set: Self::FragmentNumberVector) -> Self {
+    fn new(_base: FragmentNumber, _set: &[FragmentNumber]) -> Self {
         todo!()
     }
 
@@ -642,7 +640,7 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
         &FragmentNumber(0)
     }
 
-    fn set(&self) -> Self::FragmentNumberVector {
+    fn set(&self) -> &[FragmentNumber] {
         todo!()
         // self
     }
@@ -844,13 +842,13 @@ impl ParameterList {
 
 impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for ParameterList {
     type Parameter = Parameter;
-    type ParameterList = Vec<Self::Parameter>;
 
-    fn new(parameter: Self::ParameterList) -> Self {
-        Self { parameter: parameter.into() }
+    fn new(parameter: &[Self::Parameter]) -> Self {
+        //let vec: Vec<Parameter> = parameter.iter().map(|x| x.clone()).collect();
+        todo!()
     }
 
-    fn parameter(&self) -> &Self::ParameterList {
+    fn parameter(&self) -> &[Self::Parameter] {
         &self.parameter.0
     }
 }
@@ -858,13 +856,12 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for
 pub struct LocatorList(Vec<Locator>);
 
 impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for LocatorList {
-    type LocatorList = Vec<Locator>;
-
-    fn new(value: Self::LocatorList) -> Self {
-        Self(value)
+    fn new(_value: &[Locator]) -> Self {
+        // Self(value)
+        todo!()
     }
 
-    fn value(&self) -> &Self::LocatorList {
+    fn value(&self) -> &[Locator] {
         &self.0
     }
 }

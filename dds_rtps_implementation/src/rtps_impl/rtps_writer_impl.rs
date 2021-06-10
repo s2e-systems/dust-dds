@@ -29,7 +29,7 @@ pub trait RTPSWriterImplTrait:
     + LocatorPIM
     + InstanceHandlePIM
     + ParameterIdPIM
-    + GUIDPIM<Self>
+    + GUIDPIM
     + ParameterListPIM<Self>
     + Sized
 {
@@ -44,7 +44,7 @@ impl<
             + LocatorPIM
             + InstanceHandlePIM
             + ParameterIdPIM
-            + GUIDPIM<Self>
+            + GUIDPIM
             + ParameterListPIM<Self>
             + Sized,
     > RTPSWriterImplTrait for T
@@ -68,7 +68,10 @@ pub struct RTPSWriterImpl<PSM: RTPSWriterImplTrait> {
     writer_cache: RTPSHistoryCacheImpl<PSM>,
 }
 
-impl<PSM: RTPSWriterImplTrait> RTPSWriterImpl<PSM> {
+impl<PSM: RTPSWriterImplTrait> RTPSWriterImpl<PSM>
+where
+    PSM::SequenceNumberType: Ord,
+{
     pub fn new(
         guid: PSM::GUIDType,
         topic_kind: TopicKind,
@@ -106,7 +109,11 @@ impl<PSM: RTPSWriterImplTrait> RTPSEntity<PSM> for RTPSWriterImpl<PSM> {
     }
 }
 
-impl<PSM: RTPSWriterImplTrait> RTPSWriter<PSM> for RTPSWriterImpl<PSM> {
+impl<PSM: RTPSWriterImplTrait> RTPSWriter<PSM> for RTPSWriterImpl<PSM>
+where
+    PSM::SequenceNumberType: Ord + Clone + Copy,
+    PSM::GUIDType: Copy,
+{
     type HistoryCacheType = RTPSHistoryCacheImpl<PSM>;
 
     fn push_mode(&self) -> bool {
@@ -178,7 +185,12 @@ impl<PSM: RTPSWriterImplTrait> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
     }
 }
 
-impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> {
+impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM>
+where
+    PSM::LocatorType: PartialEq,
+    PSM::SequenceNumberType: Clone + Ord + Copy,
+    PSM::GUIDType: Copy,
+{
     type ReaderLocatorPIM = RTPSReaderLocatorImpl<PSM>;
 
     fn reader_locators(&mut self) -> (&mut [Self::ReaderLocatorPIM], &Self::HistoryCacheType) {
@@ -198,7 +210,12 @@ impl<PSM: RTPSWriterImplTrait> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM> 
     }
 }
 
-impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
+impl<PSM: RTPSWriterImplTrait> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM>
+where
+    PSM::GUIDType: PartialEq,
+    PSM::SequenceNumberType: Ord + Copy,
+    PSM::GUIDType: Copy,
+{
     type ReaderProxyType = RTPSReaderProxyImpl<PSM>;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType] {
@@ -246,7 +263,7 @@ mod tests {
     }
 
     impl rust_rtps_pim::structure::types::DataPIM for MockPSM {
-        type DataType = [u8;0];
+        type DataType = [u8; 0];
     }
 
     impl rust_rtps_pim::structure::types::EntityIdPIM for MockPSM {
@@ -273,16 +290,16 @@ mod tests {
             todo!()
         }
 
-        fn prefix(&self) -> &[u8; 12] {
+        fn prefix(&self) -> [u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> &[u8; 4] {
+        fn entity_id(&self) -> [u8; 4] {
             todo!()
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDPIM<MockPSM> for MockPSM {
+    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID(0);
     }
@@ -295,13 +312,12 @@ mod tests {
 
     impl rust_rtps_pim::messages::submessage_elements::ParameterList<MockPSM> for MockParameterList {
         type Parameter = MockParameter;
-        type ParameterList = MockParameterList;
 
-        fn new(_parameter: Self::ParameterList) -> Self {
+        fn new(_parameter: &[MockParameter]) -> Self {
             todo!()
         }
 
-        fn parameter(&self) -> &Self::ParameterList {
+        fn parameter(&self) -> &[MockParameter] {
             todo!()
         }
     }
@@ -344,7 +360,6 @@ mod tests {
         type LocatorAddress = [u8; 16];
 
         const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
-        const LOCATOR_INVALID: Self = MockLocator(0);
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -361,6 +376,8 @@ mod tests {
 
     impl rust_rtps_pim::structure::types::LocatorPIM for MockPSM {
         type LocatorType = MockLocator;
+
+        const LOCATOR_INVALID: Self::LocatorType = MockLocator(0);
     }
 
     #[test]

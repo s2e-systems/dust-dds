@@ -19,7 +19,7 @@ pub trait RTPSWriter<
         + SequenceNumberPIM
         + DataPIM
         + ParameterIdPIM
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + ParameterListPIM<PSM>
         + InstanceHandlePIM,
 >: RTPSEndpoint<PSM>

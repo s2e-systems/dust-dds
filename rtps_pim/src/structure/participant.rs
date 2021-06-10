@@ -4,7 +4,7 @@ use super::{
 };
 
 pub trait RTPSParticipant<
-    PSM: GuidPrefixPIM + EntityIdPIM + ProtocolVersionPIM + VendorIdPIM + LocatorPIM + GUIDPIM<PSM>,
+    PSM: GuidPrefixPIM + EntityIdPIM + ProtocolVersionPIM + VendorIdPIM + LocatorPIM + GUIDPIM,
 >: RTPSEntity<PSM>
 {
     fn protocol_version(&self) -> PSM::ProtocolVersionType;

@@ -26,7 +26,7 @@ pub trait RTPSWriterGroupImplTrait:
     + InstanceHandlePIM
     + LocatorPIM
     + DataPIM
-    + GUIDPIM<Self>
+    + GUIDPIM
     + ParameterIdPIM
     + ParameterListPIM<Self>
     + Sized
@@ -42,7 +42,7 @@ impl<
             + InstanceHandlePIM
             + LocatorPIM
             + DataPIM
-            + GUIDPIM<Self>
+            + GUIDPIM
             + ParameterIdPIM
             + ParameterListPIM<Self>
             + Sized,

@@ -7,6 +7,8 @@ use rust_dds_rtps_implementation::dds_impl::domain_participant_impl::DomainParti
 
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
+use crate::udp_transport::UdpTransport;
+
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
 /// - It acts as factory for the Publisher, Subscriber, Topic, and MultiTopic Entity objects.
@@ -64,8 +66,10 @@ impl DomainParticipantFactory {
         // };
         let guid_prefix = [1; 12];
 
-        let participant: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(guid_prefix.into());
+        let transport = UdpTransport::new();
+
+        let participant =
+            DomainParticipantImpl::new(guid_prefix.into(), transport);
 
         // let domain_participant_impl =
         // DomainParticipantImpl::new(guid_prefix.into()); // domain_id, qos.clone(), a_listener, mask, configuration
