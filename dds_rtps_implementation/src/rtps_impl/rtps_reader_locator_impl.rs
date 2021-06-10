@@ -64,16 +64,17 @@ where
         self.requested_changes.clone()
     }
 
-    fn requested_changes_set<T: IntoIterator<Item = PSM::SequenceNumberType>>(
+    fn requested_changes_set<T: AsRef<[PSM::SequenceNumberType]>>(
         &mut self,
         req_seq_num_set: T,
         last_change_sequence_number: PSM::SequenceNumberType,
     ) {
-        for requested_change in req_seq_num_set {
-            if requested_change <= last_change_sequence_number {
-                self.requested_changes.push(requested_change)
-            }
-        }
+        todo!()
+        // for requested_change in req_seq_num_set.as_ref() {
+        //     if requested_change <= last_change_sequence_number {
+        //         self.requested_changes.push(requested_change)
+        //     }
+        // }
     }
 
     fn unsent_changes(

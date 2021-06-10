@@ -1,5 +1,3 @@
-use core::iter::FromIterator;
-
 use structure::types::{EntityIdPIM, GuidPrefixPIM};
 
 ///
@@ -59,12 +57,9 @@ pub trait SequenceNumber<PSM: SequenceNumberPIM> {
 }
 
 pub trait SequenceNumberSet<PSM: SequenceNumberPIM> {
-    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>
-        + FromIterator<PSM::SequenceNumberType>;
-
-    fn new(base: PSM::SequenceNumberType, set: Self::SequenceNumberVector) -> Self;
+    fn new(base: PSM::SequenceNumberType, set: &[PSM::SequenceNumberType]) -> Self;
     fn base(&self) -> &PSM::SequenceNumberType;
-    fn set(&self) -> Self::SequenceNumberVector;
+    fn set(&self) -> &[PSM::SequenceNumberType];
 }
 
 pub trait FragmentNumber<PSM: FragmentNumberPIM> {

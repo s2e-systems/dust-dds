@@ -34,7 +34,7 @@ pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
 
     fn requested_changes(&self) -> Self::SequenceNumberVector;
 
-    fn requested_changes_set<T: IntoIterator<Item = PSM::SequenceNumberType>>(
+    fn requested_changes_set<T: AsRef<[PSM::SequenceNumberType]>>(
         &mut self,
         req_seq_num_set: T,
         last_change_sequence_number: PSM::SequenceNumberType,
@@ -102,7 +102,7 @@ pub fn best_effort_send_unsent_data<
     <PSM as SubmessageFlagPIM>::SubmessageFlagType: From<bool>,
     <PSM as GUIDPIM>::GUIDType: GUID<PSM>,
     <PSM as DataPIM>::DataType: AsRef<[u8]>,
-    <PSM as SequenceNumberPIM>::SequenceNumberType : Copy,
+    <PSM as SequenceNumberPIM>::SequenceNumberType: Copy,
     HistoryCache::CacheChange: 'a,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
@@ -118,14 +118,11 @@ pub fn best_effort_send_unsent_data<
             };
             let non_standard_payload_flag = false.into();
             let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            let writer_id =
-                submessage_elements::EntityId::new(change.writer_guid().entity_id());
-            let writer_sn =
-                submessage_elements::SequenceNumber::new(*change.sequence_number());
+            let writer_id = submessage_elements::EntityId::new(change.writer_guid().entity_id());
+            let writer_sn = submessage_elements::SequenceNumber::new(*change.sequence_number());
             let inline_qos = change.inline_qos();
             let data = change.data_value();
-            let serialized_payload =
-                submessage_elements::SerializedData::new(data.as_ref());
+            let serialized_payload = submessage_elements::SerializedData::new(data.as_ref());
             let data_submessage = PSM::DataSubmessageType::new(
                 endianness_flag,
                 inline_qos_flag,
@@ -140,20 +137,21 @@ pub fn best_effort_send_unsent_data<
             );
             send_data(reader_locator.locator(), data_submessage)
         } else {
-            let endianness_flag = true.into();
-            let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            let writer_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            let gap_start = submessage_elements::SequenceNumber::new(seq_num);
-            let set = core::iter::empty().collect();
-            let gap_list = submessage_elements::SequenceNumberSet::new(seq_num, set);
-            let gap_submessage = PSM::GapSubmessageType::new(
-                endianness_flag,
-                reader_id,
-                writer_id,
-                gap_start,
-                gap_list,
-            );
-            send_gap(reader_locator.locator(), gap_submessage)
+            todo!()
+            // let endianness_flag = true.into();
+            // let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
+            // let writer_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
+            // let gap_start = submessage_elements::SequenceNumber::new(seq_num);
+            // let set = core::iter::empty().collect();
+            // let gap_list = submessage_elements::SequenceNumberSet::new(seq_num, set);
+            // let gap_submessage = PSM::GapSubmessageType::new(
+            //     endianness_flag,
+            //     reader_id,
+            //     writer_id,
+            //     gap_start,
+            //     gap_list,
+            // );
+            // send_gap(reader_locator.locator(), gap_submessage)
         }
     }
 }
@@ -509,9 +507,7 @@ mod tests {
     struct MockSequenceNumberSet;
 
     impl submessage_elements::SequenceNumberSet<MockPSM> for MockSequenceNumberSet {
-        type SequenceNumberVector = MockSequenceNumberVector;
-
-        fn new(_base: i64, _set: Self::SequenceNumberVector) -> Self {
+        fn new(_base: i64, _set: &[i64]) -> Self {
             MockSequenceNumberSet
         }
 
@@ -519,7 +515,7 @@ mod tests {
             todo!()
         }
 
-        fn set(&self) -> Self::SequenceNumberVector {
+        fn set(&self) -> &[i64] {
             todo!()
         }
     }
@@ -600,7 +596,7 @@ mod tests {
             todo!()
         }
 
-        fn requested_changes_set<T: IntoIterator<Item = i64>>(
+        fn requested_changes_set<T: AsRef<[i64]>>(
             &mut self,
             _req_seq_num_set: T,
             _last_change_sequence_number: i64,
