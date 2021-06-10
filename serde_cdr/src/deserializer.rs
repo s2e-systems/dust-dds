@@ -1,12 +1,10 @@
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::io::Read;
 
-
-pub struct RtpsMessageDeserializer<R> {
-    pub reader: R,
+pub struct RtpsMessageDeserializer<'de> {
+    pub reader: &'de [u8],
 }
 
-impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializer<R> {
+impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializer<'de> {
     type Error = crate::error::Error;
 
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -119,11 +117,11 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeser
         todo!()
     }
 
-    fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
+        visitor.visit_borrowed_bytes(self.reader)
     }
 
     fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -175,13 +173,13 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeser
     {
         let len: u32 = serde::de::Deserialize::deserialize(&mut *self)?;
 
-        struct Access<'a, R: Read + 'a> {
-            deserializer: &'a mut RtpsMessageDeserializer<R>,
+        struct Access<'de, 'a> {
+            deserializer: &'a mut RtpsMessageDeserializer<'de>,
             remaining_items: usize,
             len: usize
         }
 
-        impl<'de, 'a, R: Read + 'a> serde::de::SeqAccess<'de> for Access<'a, R>{
+        impl<'de, 'a> serde::de::SeqAccess<'de> for Access<'de, 'a>{
             type Error = crate::error::Error;
 
             fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -189,7 +187,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeser
             {
                 if self.remaining_items > 0 {
                     self.remaining_items -= 1;
-                    let value = serde::de::DeserializeSeed::deserialize(seed, &mut *self.deserializer)?;
+                    let value = seed.deserialize(&mut *self.deserializer)?;
                     Ok(Some(value))
                 } else {
                     Ok(None)
@@ -207,13 +205,13 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeser
     where
         V: serde::de::Visitor<'de>,
     {
-        struct Access<'a, R: Read + 'a> {
-            deserializer: &'a mut RtpsMessageDeserializer<R>,
+        struct Access<'de, 'a> {
+            deserializer: &'a mut RtpsMessageDeserializer<'de>,
             remaining_items: usize,
             len: usize
         }
 
-        impl<'de, 'a, R: Read + 'a> serde::de::SeqAccess<'de> for Access<'a, R>{
+        impl<'de, 'a> serde::de::SeqAccess<'de> for Access<'de, 'a>{
             type Error = crate::error::Error;
 
             fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -263,12 +261,12 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeser
     where
         V: serde::de::Visitor<'de>,
     {
-        struct Access<'a, R: Read + 'a> {
-            deserializer: &'a mut RtpsMessageDeserializer<R>,
+        struct Access<'de, 'a> {
+            deserializer: &'a mut RtpsMessageDeserializer<'de>,
             len: usize,
         }
 
-        impl<'de, 'a, R: Read + 'a> serde::de::SeqAccess<'de> for Access<'a, R>{
+        impl<'de, 'a> serde::de::SeqAccess<'de> for Access<'de, 'a>{
             type Error = crate::error::Error;
 
             fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -276,7 +274,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeser
             {
                 if self.len > 0 {
                     self.len -= 1;
-                    let value = serde::de::DeserializeSeed::deserialize(seed, &mut *self.deserializer)?;
+                    let value = seed.deserialize(&mut *self.deserializer)?;
                     Ok(Some(value))
                 } else {
                     Ok(None)
@@ -323,7 +321,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeser
 mod tests {
     use super::*;
 
-    fn deserialize<'de, T: serde::Deserialize<'de>, const N: usize>(buffer: [u8; N]) -> T {
+    fn deserialize<'de, T: serde::Deserialize<'de>, const N: usize>(buffer: &'de [u8; N]) -> T {
         let mut de = RtpsMessageDeserializer {
             reader: buffer.as_ref(),
         };
@@ -331,7 +329,7 @@ mod tests {
     }
     #[test]
     fn deserialize_u8() {
-        let result: u8 = deserialize([1]);
+        let result: u8 = deserialize(&[1]);
         assert_eq!(result, 1);
     }
 
@@ -339,7 +337,7 @@ mod tests {
     fn deserialize_multiple_u8() {
         let buffer = [1, 2];
         let mut de = RtpsMessageDeserializer {
-            reader: buffer.as_ref(),
+            reader: &buffer,
         };
         let result: u8 = serde::de::Deserialize::deserialize(&mut de).unwrap();
         assert_eq!(result, 1);
@@ -349,33 +347,33 @@ mod tests {
 
     #[test]
     fn deserialize_u16() {
-        let result: u16 = deserialize([0x03, 0x42]);
+        let result: u16 = deserialize(&[0x03, 0x42]);
         assert_eq!(result, 0x4203);
     }
 
     #[test]
     fn deserialize_bool() {
-        let result: bool = deserialize([1]);
+        let result: bool = deserialize(&[1]);
         assert_eq!(result, true);
-        let result: bool = deserialize([0]);
+        let result: bool = deserialize(&[0]);
         assert_eq!(result, false);
     }
 
     #[test]
     #[should_panic]
     fn deserialize_bool_invalid() {
-        let _result: bool = deserialize([2]);
+        let _result: bool = deserialize(&[2]);
     }
 
     #[test]
     fn deserialize_tuple() {
-        let result: (u8, u8) = deserialize([0x03, 0x42]);
+        let result: (u8, u8) = deserialize(&[0x03, 0x42]);
         assert_eq!(result, (0x03, 0x42));
     }
 
     #[test]
     fn deserialze_sequence() {
-        let result: Vec<u8> = deserialize([0x02, 0x00, 1, 2]);
+        let result: Vec<u8> = deserialize(&[0x02, 0x00, 0x00, 0x00, 1, 2]);
         assert_eq!(result, vec![1, 2]);
     }
 
@@ -387,7 +385,7 @@ mod tests {
 
     #[test]
     fn deserialze_primitive_struct() {
-        let result: PrimitiveStruct = deserialize([0x03, 0x00, 0b00000001]);
+        let result: PrimitiveStruct = deserialize(&[0x03, 0x00, 0b00000001]);
         assert_eq!(result, PrimitiveStruct{id: 0x0003, flags: 0b00000001});
     }
 
@@ -399,7 +397,7 @@ mod tests {
 
     #[test]
     fn deserialze_complex_struct() {
-        let result: ComplexStruct = deserialize([0x03, 0x00, 0b00000001, 0x04, 0x00, 0x05, 0x00]);
+        let result: ComplexStruct = deserialize(&[0x03, 0x00, 0b00000001, 0x04, 0x00, 0x05, 0x00]);
         assert_eq!(result, ComplexStruct{header: PrimitiveStruct{id: 0x0003, flags: 0b00000001}, data: [0x0004, 0x0005]});
     }
 
@@ -442,7 +440,48 @@ mod tests {
 
     #[test]
     fn deserialze_custom_struct() {
-        let result: CustomStruct = deserialize([0x02, 0x00, 4, 5]);
+        let result: CustomStruct = deserialize(&[0x02, 0x00, 4, 5]);
         assert_eq!(result, CustomStruct{data_length: 2, data: vec![4, 5]});
+    }
+
+    struct ReferenceStructVisitor<'a>(std::marker::PhantomData<&'a ()>);
+
+    impl<'a, 'de: 'a> serde::de::Visitor<'de> for ReferenceStructVisitor<'a> {
+        type Value = ReferenceStruct<'a>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("ReferenceStruct")
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where A: serde::de::SeqAccess<'de>,
+        {
+            let length: u8 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+            let data: &[u8] = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+            Ok(ReferenceStruct{length, data: &data[0..length as usize]})
+        }
+    }
+
+    #[derive(PartialEq, Debug)]
+    struct ReferenceStruct<'a> {
+        length: u8,
+        data: &'a [u8]
+    }
+    impl<'a, 'de: 'a> serde::Deserialize<'de> for ReferenceStruct<'a> {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de> {
+                deserializer.deserialize_tuple(2, ReferenceStructVisitor(std::marker::PhantomData))
+        }
+    }
+
+    #[test]
+    fn deserialze_reference_struct() {
+        let buffer = [3, 4, 5, 6, 7];
+        let mut de = RtpsMessageDeserializer {
+            reader: buffer.as_ref(),
+        };
+        let result: ReferenceStruct = serde::de::Deserialize::deserialize(&mut de).unwrap();
+        assert_eq!(result, ReferenceStruct{length: 3, data: &[4, 5, 6]});
     }
 }

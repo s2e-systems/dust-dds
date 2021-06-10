@@ -142,7 +142,7 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
 static EMPTY_PARAMETER_LIST: ParameterList = ParameterList{parameter: Vector(vec![])};
 struct DataSubmesageVisitor<'a>(std::marker::PhantomData<&'a ()>);
 
-impl<'a, 'de> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
+impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
     type Value = DataSubmesage<'a>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -156,30 +156,29 @@ impl<'a, 'de> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
         let inline_qos_flag = header.flags.is_bit_set(1);
         let data_flag = header.flags.is_bit_set(2);
         let key_flag = header.flags.is_bit_set(3);
-        let non_standard_payload_flag = header.flags.is_bit_set(4);
-        let inline_qos = if inline_qos_flag {
-            todo!()
-        } else{
-            &EMPTY_PARAMETER_LIST
-        };
-        let serialized_payload = if data_flag || key_flag {
-            todo!()
-        } else {
-            SerializedData(Slice(&[]))
-        };
-        if non_standard_payload_flag {
-            todo!()
-        }
+        // let non_standard_payload_flag = header.flags.is_bit_set(4);
         let extra_flags: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
         let octets_to_inline_qos: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
         let reader_id: EntityId = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
         let writer_id: EntityId = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
         let writer_sn: SequenceNumber = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
+        let inline_qos = if inline_qos_flag {
+            todo!()
+        } else{
+            &EMPTY_PARAMETER_LIST
+        };
+        let serialized_payload: SerializedData = if data_flag || key_flag {
+            let serialized_payload_length = (header.submessage_length - 20 - inline_qos.len()) as usize;
+            let data: &[u8] = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(7, &self))?;
+            SerializedData(&data[..serialized_payload_length])
+        } else {
+            SerializedData(&[])
+        };
         Ok(DataSubmesage{ header, extra_flags, octets_to_inline_qos, reader_id, writer_id, writer_sn, inline_qos, serialized_payload})
     }
 }
 
-impl<'a, 'de> serde::Deserialize<'de> for DataSubmesage<'a> {
+impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesage<'a> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {
@@ -198,9 +197,9 @@ mod tests {
         value.serialize(&mut serializer).unwrap();
         serializer.writer
     }
-    fn deserialize<'de, T: serde::Deserialize<'de>, const N: usize>(buffer: [u8; N]) -> T {
+    fn deserialize<'de, T: serde::Deserialize<'de>>(buffer: &'de [u8]) -> T {
         let mut de = RtpsMessageDeserializer {
-            reader: buffer.as_ref(),
+            reader: buffer,
         };
         serde::de::Deserialize::deserialize(&mut de).unwrap()
     }
@@ -283,6 +282,7 @@ mod tests {
                 10, 11, 12, 13, // inlineQos: value_1[length_1]
                 7, 0, 4, 0, // inlineQos: parameterId_2, length_2
                 20, 21, 22, 23, // inlineQos: value_2[length_2]
+                1, 0, 0, 0, // inlineQos: Sentinel
             ]
         );
     }
@@ -336,7 +336,43 @@ mod tests {
         let writer_id = [6, 7, 8, 9].into();
         let writer_sn = 5.into();
         let inline_qos = ParameterList { parameter: vec![].into() };
-        let data = [];
+        let serialized_payload = SerializedData([][..].into());
+        let expected = DataSubmesage::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            &inline_qos,
+            serialized_payload,
+        );
+        #[rustfmt::skip]
+        let result = deserialize(&[
+            0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
+            0, 0, 12, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_no_inline_qos_with_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = [1, 2, 3, 4].into();
+        let writer_id = [6, 7, 8, 9].into();
+        let writer_sn = 5.into();
+        let inline_qos = ParameterList { parameter: vec![].into() };
+        let data = [1, 2, 3, 4];
         let serialized_payload = SerializedData(data[..].into());
         let expected = DataSubmesage::new(
             endianness_flag,
@@ -351,13 +387,15 @@ mod tests {
             serialized_payload,
         );
         #[rustfmt::skip]
-        let result = deserialize([
-            0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
+        let result = deserialize(&[
+            0x15_u8, 0b_0000_0101, 24, 0, // Submessage header
             0, 0, 12, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
+            1, 2, 3, 4, // SerializedPayload
+            9, 9, 9,    // Following data
         ]);
         assert_eq!(expected, result);
     }

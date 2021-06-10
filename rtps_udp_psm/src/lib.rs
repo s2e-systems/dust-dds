@@ -529,11 +529,11 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> f
 pub type Data = Vec<u8>;
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct SerializedData<'a>(Slice<'a, u8>);
+pub struct SerializedData<'a>(&'a [u8]);
 
 impl<'a> SerializedData<'a> {
     pub fn len(&self) -> u16 {
-        self.0.0.len() as u16
+        self.0.len() as u16
     }
 }
 
@@ -543,7 +543,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedData<'a> for Se
     }
 
     fn value(&self) -> &[u8] {
-        self.0.0
+        self.0
     }
 }
 
@@ -555,7 +555,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment<'a
     }
 
     fn value(&self) -> &[u8] {
-        self.0.0
+        self.0
     }
 }
 
@@ -647,22 +647,22 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Slice<'a, T>(&'a [T]);
-impl<'a, T: serde::Serialize> serde::Serialize for Slice<'a, T> {
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct Slice<'a>(&'a [u8]);
+impl<'a> serde::Serialize for Slice<'a> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_seq(SliceIter(self.0.iter()))
     }
 }
-impl<'de, 'a, T: serde::Deserialize<'de>> serde::Deserialize<'de> for Slice<'a, T> {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de> {
-            Err(serde::de::Error::missing_field("Vector"))
-    }
-}
-impl<'a, T: serde::Serialize> From<&'a [T]> for Slice<'a, T> {
-    fn from(value: &'a [T]) -> Self {
+// impl<'de, 'a, T: serde::Deserialize<'de>> serde::Deserialize<'de> for Slice<'a, T> {
+//     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: serde::Deserializer<'de> {
+//             Err(serde::de::Error::missing_field("Slice"))
+//     }
+// }
+impl<'a> From<&'a [u8]> for Slice<'a> {
+    fn from(value: &'a [u8]) -> Self {
         Self(value)
     }
 }
@@ -956,9 +956,9 @@ mod tests {
         serializer.writer
     }
 
-    fn deserialize<'de, T: serde::Deserialize<'de>, const N: usize>(buffer: [u8; N]) -> T {
+    fn deserialize<'de, T: serde::Deserialize<'de>>(buffer: &'de [u8]) -> T {
         let mut de = RtpsMessageDeserializer {
-            reader: buffer.as_ref(),
+            reader: buffer,
         };
         serde::de::Deserialize::deserialize(&mut de).unwrap()
     }
@@ -1000,7 +1000,7 @@ mod tests {
     }
     #[test]
     fn deserialize_octet() {
-        let result: Octet = deserialize([5]);
+        let result: Octet = deserialize(&[5]);
         assert_eq!(result, Octet(5));
     }
 
@@ -1036,7 +1036,7 @@ mod tests {
     fn deserialize_parameter() {
         let expected = Parameter::new(0x02, vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
-        let result = deserialize([
+        let result = deserialize(&[
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
         ]);
@@ -1050,7 +1050,7 @@ mod tests {
             Parameter::new(0x03, vec![25, 26, 27, 28].into())
         ].into()};
         #[rustfmt::skip]
-        let result = deserialize([
+        let result = deserialize(&[
             0x02, 0x00, 4, 0, // Parameter ID | length
             15, 16, 17, 18,        // value
             0x03, 0x00, 4, 0, // Parameter ID | length
