@@ -655,7 +655,7 @@ pub struct Duration {
 }
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Vector(Vec<u8>);
 impl serde::Serialize for Vector {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -669,7 +669,7 @@ impl From<Vec<u8>> for Vector {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Parameter {
     pub parameter_id: ParameterId,
     pub length: i16,
@@ -750,7 +750,7 @@ const PID_SENTINEL: ParameterId = 1;
 static SENTINEL: Parameter = Parameter{parameter_id: PID_SENTINEL, length: 0, value: Vector(vec![])};
 static EMPTY_PARAMETER_LIST: ParameterList = ParameterList{parameter:vec![]};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ParameterList {
     pub parameter: Vec<Parameter>,
 }
@@ -798,16 +798,6 @@ impl<'de, 'a> serde::Deserialize<'de> for ParameterList {
         D: serde::Deserializer<'de> {
         const MAX_PARAMETERS: usize = 2^16;
         deserializer.deserialize_tuple(MAX_PARAMETERS, ParameterListVisitor{})
-    }
-}
-
-
-
-impl<'de, 'a> serde::Deserialize<'de> for &'a ParameterList {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de> {
-            Ok(&EMPTY_PARAMETER_LIST)
     }
 }
 

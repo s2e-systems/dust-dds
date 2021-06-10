@@ -98,7 +98,7 @@ pub fn best_effort_send_unsent_data<
     mut send_gap: impl FnMut(&PSM::LocatorType, PSM::GapSubmessageType),
 ) where
     <PSM as DataPIM>::DataType: 'a,
-    <PSM as ParameterListPIM<PSM>>::ParameterListType: 'a,
+    <PSM as ParameterListPIM<PSM>>::ParameterListType: Clone,
     <PSM as SubmessageFlagPIM>::SubmessageFlagType: From<bool>,
     <PSM as GUIDPIM>::GUIDType: GUID<PSM>,
     <PSM as DataPIM>::DataType: AsRef<[u8]>,
@@ -120,7 +120,7 @@ pub fn best_effort_send_unsent_data<
             let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
             let writer_id = submessage_elements::EntityId::new(change.writer_guid().entity_id());
             let writer_sn = submessage_elements::SequenceNumber::new(*change.sequence_number());
-            let inline_qos = change.inline_qos();
+            let inline_qos = change.inline_qos().clone();
             let data = change.data_value();
             let serialized_payload = submessage_elements::SerializedData::new(data.as_ref());
             let data_submessage = PSM::DataSubmessageType::new(
@@ -271,6 +271,7 @@ mod tests {
             todo!()
         }
     }
+    #[derive(Clone)]
     struct MockParameterList;
 
     impl ParameterList<MockPSM> for MockParameterList {
@@ -427,7 +428,7 @@ mod tests {
             _reader_id: Self::EntityId,
             _writer_id: Self::EntityId,
             writer_sn: Self::SequenceNumber,
-            _inline_qos: &'a MockParameterList,
+            _inline_qos: MockParameterList,
             _serialized_payload: Self::SerializedData,
         ) -> Self {
             Self(writer_sn)

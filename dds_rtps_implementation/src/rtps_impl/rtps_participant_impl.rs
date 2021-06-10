@@ -150,6 +150,7 @@ pub fn send_data<
     PSM::SubmessageFlagType: From<bool>,
     PSM::GUIDType: GUID<PSM> + Copy,
     PSM::DataType: AsRef<[u8]>,
+    PSM::ParameterListType: Clone,
 {
     for writer_group in &rtps_participant_impl.rtps_writer_groups {
         let writer_group_lock = writer_group.lock();

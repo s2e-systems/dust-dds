@@ -64,7 +64,7 @@ where
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListType: Clone + Send,
 {
     type PublisherType = PublisherImpl<'p, PSM>;
     fn create_publisher(
@@ -112,7 +112,7 @@ where
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListType: Clone + Send,
 {
     type SubscriberType = SubscriberImpl<'s, PSM>;
 
@@ -180,7 +180,7 @@ where
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListType: Clone + Send,
 {
     type TopicType = TopicImpl<'t, T, PSM>;
 
@@ -216,7 +216,7 @@ where
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListType: Clone + Send,
 {
     fn lookup_topicdescription<'t, T>(
         &'t self,
@@ -336,7 +336,7 @@ where
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListType: Clone + Send,
 {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;

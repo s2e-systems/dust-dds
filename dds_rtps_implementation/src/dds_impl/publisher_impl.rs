@@ -72,7 +72,7 @@ where
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListType: Clone + Send,
 {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 
@@ -93,7 +93,7 @@ where
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListType: Clone + Send,
 {
     type TopicType = TopicImpl<'t, T, PSM>;
     type DataWriterType = DataWriterImpl<'dw, 'p, 't, T, PSM>;

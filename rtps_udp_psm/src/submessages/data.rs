@@ -15,7 +15,7 @@ pub struct DataSubmesage<'a> {
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
-    inline_qos: &'a ParameterList,
+    inline_qos: ParameterList,
     serialized_payload: SerializedData<'a>,
 }
 
@@ -35,7 +35,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
-        inline_qos: &'a <RtpsUdpPsm as ParameterListPIM<RtpsUdpPsm>>::ParameterListType,
+        inline_qos: <RtpsUdpPsm as ParameterListPIM<RtpsUdpPsm>>::ParameterListType,
         serialized_payload: SerializedData<'a>,
     ) -> Self {
         let flags = [
@@ -46,7 +46,12 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
             non_standard_payload_flag,
         ]
         .into();
-        let submessage_length = 20 + inline_qos.len() + serialized_payload.len();
+        let inline_qos_len = if inline_qos_flag {
+            inline_qos.len() + 4 /*sentinel */
+        } else {
+            inline_qos.len()
+        };
+        let submessage_length = 20 + inline_qos_len + serialized_payload.len();
         let header = SubmessageHeader {
             submessage_id: RtpsUdpPsm::DATA.into(),
             flags,
@@ -139,7 +144,6 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
     }
 }
 
-static EMPTY_PARAMETER_LIST: ParameterList = ParameterList{parameter: vec![]};
 struct DataSubmesageVisitor<'a>(std::marker::PhantomData<&'a ()>);
 
 impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
@@ -162,11 +166,10 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
         let reader_id: EntityId = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
         let writer_id: EntityId = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
         let writer_sn: SequenceNumber = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
-        let inline_qos = if inline_qos_flag {
-            let parameter_list = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(6, &self))?;
-            parameter_list
+        let inline_qos: ParameterList = if inline_qos_flag {
+            seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(6, &self))?
         } else{
-            &EMPTY_PARAMETER_LIST
+            ParameterList{parameter: vec![]}
         };
         let serialized_payload: SerializedData = if data_flag || key_flag {
             let serialized_payload_length = (header.submessage_length - octets_to_inline_qos - 4 - inline_qos.len()) as usize;
@@ -227,7 +230,7 @@ mod tests {
             reader_id,
             writer_id,
             writer_sn,
-            &inline_qos,
+            inline_qos,
             serialized_payload,
         );
         #[rustfmt::skip]
@@ -268,12 +271,12 @@ mod tests {
             reader_id,
             writer_id,
             writer_sn,
-            &inline_qos,
+            inline_qos,
             serialized_payload,
         );
         #[rustfmt::skip]
         assert_eq!(serialize(submessage), vec![
-                0x15, 0b_0000_0011, 36, 0, // Submessage header
+                0x15, 0b_0000_0011, 40, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
@@ -310,7 +313,7 @@ mod tests {
             reader_id,
             writer_id,
             writer_sn,
-            &inline_qos,
+            inline_qos,
             serialized_payload,
         );
         #[rustfmt::skip]
@@ -347,7 +350,7 @@ mod tests {
             reader_id,
             writer_id,
             writer_sn,
-            &inline_qos,
+            inline_qos,
             serialized_payload,
         );
         #[rustfmt::skip]
@@ -384,7 +387,7 @@ mod tests {
             reader_id,
             writer_id,
             writer_sn,
-            &inline_qos,
+            inline_qos,
             serialized_payload,
         );
         #[rustfmt::skip]
@@ -426,12 +429,12 @@ mod tests {
             reader_id,
             writer_id,
             writer_sn,
-            &inline_qos,
+            inline_qos,
             serialized_payload,
         );
         #[rustfmt::skip]
         let result = deserialize(&[
-            0x15_u8, 0b_0000_0011, 24, 0, // Submessage header
+            0x15_u8, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]

@@ -94,7 +94,7 @@ pub trait DataSubmessage<
         reader_id: Self::EntityId,
         writer_id: Self::EntityId,
         writer_sn: Self::SequenceNumber,
-        inline_qos: &'a PSM::ParameterListType,
+        inline_qos: PSM::ParameterListType,
         serialized_payload: Self::SerializedData,
     ) -> Self;
     fn endianness_flag(&self) -> PSM::SubmessageFlagType;

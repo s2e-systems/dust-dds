@@ -43,7 +43,7 @@ where
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListType: Clone + Send,
 {
     type TopicType = TopicImpl<'t, T, PSM>;
     type DataReaderType = DataReaderImpl<'dr, 's, 't, T, PSM>;
@@ -81,7 +81,7 @@ where
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Send,
+    PSM::ParameterListType: Clone + Send,
 {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
