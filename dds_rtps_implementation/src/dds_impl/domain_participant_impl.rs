@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{ops::DerefMut, sync::{Arc, Mutex}};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -308,7 +308,7 @@ impl<PSM: PIM> Entity for DomainParticipantImpl<PSM> {
         std::thread::spawn(move || {
             loop {
                 if let Some(rtps_participant) = rtps_participant.try_lock() {
-                    send_data(rtps_participant.as_ref(), &mut *transport.lock().unwrap());
+                    send_data(rtps_participant.as_ref(), transport.lock().unwrap().deref_mut());
                     // rtps_participant.send_data::<UDPHeartbeatMessage>();
                     // rtps_participant.receive_data();
                     // rtps_participant.run_listeners();
