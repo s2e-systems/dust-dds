@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     structure::types::ParameterListPIM,
 };
 
-use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, Slice, SubmessageFlag, Vector};
+use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag, Vector};
 
 use super::SubmessageHeader;
 

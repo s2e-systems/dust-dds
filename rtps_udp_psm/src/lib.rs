@@ -528,7 +528,10 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> f
 
 pub type Data = Vec<u8>;
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+
+
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct SerializedData<'a>(&'a [u8]);
 
 impl<'a> SerializedData<'a> {
@@ -546,6 +549,18 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedData<'a> for Se
         self.0
     }
 }
+
+impl<'a> serde::Serialize for SerializedData<'a> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(VectorIter(self.0.iter()))
+    }
+}
+
+
+
+
+
+
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment<'a>
     for SerializedData<'a>
@@ -647,51 +662,6 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-struct SliceVisitor<'a>(std::marker::PhantomData<&'a()>);
-
-impl<'a, 'de: 'a> serde::de::Visitor<'de> for SliceVisitor<'a> {
-    type Value = Slice<'a>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("Slice")
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-        where A: serde::de::SeqAccess<'de>,
-    {
-        let length = seq.size_hint().unwrap_or(0);
-        let data: &[u8] = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        Ok(Slice(&data[..length as usize]))
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Slice<'a>(&'a [u8]);
-impl<'a> serde::Serialize for Slice<'a> {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.collect_seq(SliceIter(self.0.iter()))
-    }
-}
-impl<'a, 'de: 'a> serde::Deserialize<'de> for Slice<'a> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de> {
-            deserializer.deserialize_bytes(SliceVisitor(std::marker::PhantomData))
-    }
-}
-impl<'a> From<&'a [u8]> for Slice<'a> {
-    fn from(value: &'a [u8]) -> Self {
-        Self(value)
-    }
-}
-pub struct SliceIter<'a, T: serde::Serialize>(std::slice::Iter<'a, T>);
-impl<'a, T: serde::Serialize> Iterator for SliceIter<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub struct Vector<T>(Vec<T>);
@@ -1079,12 +1049,12 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-    #[test]
-    fn serialize_slice() {
-        let slice = Slice(&[1, 2]);
-        #[rustfmt::skip]
-        assert_eq!(serialize(slice), vec![1, 2]);
-    }
+    // #[test]
+    // fn serialize_slice() {
+    //     let slice = Slice(&[1, 2]);
+    //     #[rustfmt::skip]
+    //     assert_eq!(serialize(slice), vec![1, 2]);
+    // }
 }
 
 // impl EntityId {
