@@ -1056,6 +1056,7 @@ mod tests {
             0x03, 0x00, 4, 0, // Parameter ID | length
             25, 26, 27, 28,        // value
             0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
+            9, 9, 9,    // Following data
         ]);
         assert_eq!(expected, result);
     }

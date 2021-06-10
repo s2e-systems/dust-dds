@@ -55,7 +55,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
         Self {
             header,
             extra_flags: 0b_0000_0000_0000_0000,
-            octets_to_inline_qos: 12,
+            octets_to_inline_qos: 16,
             reader_id,
             writer_id,
             writer_sn,
@@ -168,7 +168,7 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
             &EMPTY_PARAMETER_LIST
         };
         let serialized_payload: SerializedData = if data_flag || key_flag {
-            let serialized_payload_length = (header.submessage_length - 20 - inline_qos.len()) as usize;
+            let serialized_payload_length = (header.submessage_length - octets_to_inline_qos - 4 - inline_qos.len()) as usize;
             let data: &[u8] = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(7, &self))?;
             SerializedData(&data[..serialized_payload_length])
         } else {
@@ -232,7 +232,7 @@ mod tests {
         #[rustfmt::skip]
         assert_eq!(serialize(submessage), vec![
                 0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
-                0, 0, 12, 0, // extraFlags, octetsToInlineQos
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
                 0, 0, 0, 0, // writerSN: high
@@ -273,7 +273,7 @@ mod tests {
         #[rustfmt::skip]
         assert_eq!(serialize(submessage), vec![
                 0x15, 0b_0000_0011, 36, 0, // Submessage header
-                0, 0, 12, 0, // extraFlags, octetsToInlineQos
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
                 0, 0, 0, 0, // writerSN: high
@@ -315,7 +315,7 @@ mod tests {
         #[rustfmt::skip]
         assert_eq!(serialize(submessage), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
-                0, 0, 12, 0, // extraFlags, octetsToInlineQos
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
                 0, 0, 0, 0, // writerSN: high
@@ -352,7 +352,7 @@ mod tests {
         #[rustfmt::skip]
         let result = deserialize(&[
             0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
-            0, 0, 12, 0, // extraFlags, octetsToInlineQos
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // writerSN: high
@@ -389,7 +389,7 @@ mod tests {
         #[rustfmt::skip]
         let result = deserialize(&[
             0x15_u8, 0b_0000_0101, 24, 0, // Submessage header
-            0, 0, 12, 0, // extraFlags, octetsToInlineQos
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // writerSN: high
