@@ -18,9 +18,9 @@ pub trait Transport<
 {
     fn write<'a>(&mut self, message: &PSM::RTPSMessageType, destination_locator: &PSM::LocatorType) where PSM: RTPSMessagePIM<'a, PSM>;
 
-    // fn read<'a>(&'a self) -> DDSResult<Option<(RtpsMessage<'a>, Locator)>>;
+    fn read<'a>(&'a self) -> Option<(PSM::RTPSMessageType, PSM::LocatorType)> where PSM: RTPSMessagePIM<'a, PSM>;
 
     fn unicast_locator_list(&self) -> &[PSM::LocatorType];
 
-    // fn multicast_locator_list(&self) -> &[PSM::LocatorType];
+    fn multicast_locator_list(&self) -> &[PSM::LocatorType];
 }

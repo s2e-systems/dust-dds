@@ -26,7 +26,23 @@ impl Transport<RtpsUdpPsm> for UdpTransport {
         todo!()
     }
 
+    fn read<'a>(
+        &self,
+    ) -> Option<(
+        <RtpsUdpPsm as RTPSMessagePIM<'a, RtpsUdpPsm>>::RTPSMessageType,
+        <RtpsUdpPsm as LocatorPIM>::LocatorType,
+    )>
+    where
+        RtpsUdpPsm: RTPSMessagePIM<'a, RtpsUdpPsm>,
+    {
+        todo!()
+    }
+
     fn unicast_locator_list(&self) -> &[<RtpsUdpPsm as LocatorPIM>::LocatorType] {
+        todo!()
+    }
+
+    fn multicast_locator_list(&self) -> &[<RtpsUdpPsm as LocatorPIM>::LocatorType] {
         todo!()
     }
 }
