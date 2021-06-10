@@ -38,7 +38,7 @@ impl EntityIdPIM for RtpsUdpPsm {
     };
 }
 
-impl GUIDPIM for RtpsUdpPsm {
+impl GUIDPIM<Self> for RtpsUdpPsm {
     type GUIDType = GUID;
     const GUID_UNKNOWN: Self::GUIDType = GUID {
         prefix: RtpsUdpPsm::GUIDPREFIX_UNKNOWN,
@@ -52,7 +52,7 @@ pub struct GUID {
     pub entity_id: EntityId,
 }
 
-impl rust_rtps_pim::structure::types::GUID<RtpsUdpPsm> for GUID {
+impl rust_rtps_pim::structure::types::GUIDType<RtpsUdpPsm> for GUID {
     fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self {
         Self { prefix, entity_id }
     }

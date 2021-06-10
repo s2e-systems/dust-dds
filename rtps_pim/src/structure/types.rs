@@ -76,13 +76,13 @@ pub trait ParameterListPIM<PSM: ParameterIdPIM> {
     type ParameterListType: submessage_elements::ParameterList<PSM>;
 }
 
-pub trait GUIDPIM {
-    type GUIDType;
+pub trait GUIDPIM<PSM: GuidPrefixPIM + EntityIdPIM> {
+    type GUIDType: GUIDType<PSM>;
     const GUID_UNKNOWN: Self::GUIDType;
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub trait GUID<PSM: GuidPrefixPIM + EntityIdPIM> {
+pub trait GUIDType<PSM: GuidPrefixPIM + EntityIdPIM> {
     fn new(prefix: PSM::GuidPrefixType, entity_id: PSM::EntityIdType) -> Self;
     fn prefix(&self) -> PSM::GuidPrefixType;
     fn entity_id(&self) -> PSM::EntityIdType;

@@ -3,11 +3,11 @@ use rust_rtps_pim::structure::types::{
 };
 
 pub trait RTPSReaderProxyImplTrait:
-    SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM + LocatorPIM + Sized
+    SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM<Self> + LocatorPIM + Sized
 {
 }
 
-impl<T: SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM + LocatorPIM + Sized>
+impl<T: SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM<Self> + LocatorPIM + Sized>
     RTPSReaderProxyImplTrait for T
 {
 }

@@ -12,7 +12,7 @@ pub trait RTPSCacheChange<
         + SequenceNumberPIM
         + DataPIM
         + ParameterIdPIM
-        + GUIDPIM
+        + GUIDPIM<PSM>
         + ParameterListPIM<PSM>,
 >
 {

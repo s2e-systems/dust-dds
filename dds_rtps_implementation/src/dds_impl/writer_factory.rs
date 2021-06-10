@@ -22,7 +22,7 @@ pub trait WriterFactoryTrait:
     + LocatorPIM
     + InstanceHandlePIM
     + ParameterIdPIM
-    + GUIDPIM
+    + GUIDPIM<Self>
     + ParameterListPIM<Self>
     + Sized
 {
@@ -37,7 +37,7 @@ impl<
             + LocatorPIM
             + InstanceHandlePIM
             + ParameterIdPIM
-            + GUIDPIM
+            + GUIDPIM<Self>
             + ParameterListPIM<Self>
             + Sized,
     > WriterFactoryTrait for T

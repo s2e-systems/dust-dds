@@ -7,7 +7,7 @@ use rust_rtps_pim::{
     messages::types::ParameterIdPIM,
     structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-        SequenceNumberPIM, GUID, GUIDPIM,
+        SequenceNumberPIM, GUIDType, GUIDPIM,
     },
 };
 
@@ -24,7 +24,7 @@ pub trait WriterGroupFactoryTrait:
     + LocatorPIM
     + DataPIM
     + ParameterIdPIM
-    + GUIDPIM
+    + GUIDPIM<Self>
     + ParameterListPIM<Self>
     + Sized
 {
@@ -39,7 +39,7 @@ impl<
             + LocatorPIM
             + DataPIM
             + ParameterIdPIM
-            + GUIDPIM
+            + GUIDPIM<Self>
             + ParameterListPIM<Self>
             + Sized,
     > WriterGroupFactoryTrait for T
@@ -54,7 +54,7 @@ pub struct WriterGroupFactory<PSM: WriterGroupFactoryTrait> {
 
 impl<PSM: WriterGroupFactoryTrait> WriterGroupFactory<PSM>
 where
-    <PSM as GUIDPIM>::GUIDType: GUID<PSM> + Send,
+    <PSM as GUIDPIM<PSM>>::GUIDType: Send,
     PSM::GuidPrefixType: Clone
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
@@ -82,7 +82,7 @@ where
             ENTITYKIND_USER_DEFINED_WRITER_GROUP,
         ]
         .into();
-        let guid = GUID::new(guid_prefix, entity_id);
+        let guid = GUIDType::new(guid_prefix, entity_id);
         Ok(RTPSWriterGroupImpl::new(guid, qos, a_listener, mask))
     }
 

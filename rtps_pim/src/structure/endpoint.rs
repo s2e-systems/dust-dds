@@ -3,7 +3,7 @@ use super::{
     RTPSEntity,
 };
 
-pub trait RTPSEndpoint<PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + GUIDPIM>:
+pub trait RTPSEndpoint<PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + GUIDPIM<PSM>>:
     RTPSEntity<PSM>
 {
     fn topic_kind(&self) -> TopicKind;

@@ -15,7 +15,7 @@ pub trait RTPSHistoryCache<
         + DataPIM
         + ParameterIdPIM
         + ParameterListPIM<PSM>
-        + GUIDPIM
+        + GUIDPIM<PSM>
         + SequenceNumberPIM,
 >
 {

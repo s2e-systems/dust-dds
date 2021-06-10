@@ -14,7 +14,6 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::structure::types::GUID;
 
 use crate::{
     rtps_impl::rtps_reader_group_impl::RTPSReaderGroupImpl, utils::shared_object::RtpsWeak,
@@ -34,7 +33,7 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM>
     rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T>
     for SubscriberImpl<'s, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::GUIDType: Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
@@ -71,7 +70,7 @@ where
 
 impl<'s, PSM: PIM> rust_dds_api::subscription::subscriber::Subscriber for SubscriberImpl<'s, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::GUIDType: Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,

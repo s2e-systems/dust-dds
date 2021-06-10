@@ -31,7 +31,7 @@ pub trait PIM:
     + InstanceHandlePIM
     + LocatorPIM
     + DataPIM
-    + GUIDPIM
+    + GUIDPIM<Self>
     + ParameterIdPIM
     + ParameterListPIM<Self>
     + SubmessageKindPIM
@@ -55,7 +55,7 @@ impl<
             + InstanceHandlePIM
             + LocatorPIM
             + DataPIM
-            + GUIDPIM
+            + GUIDPIM<Self>
             + ParameterIdPIM
             + ParameterListPIM<Self>
             + SubmessageKindPIM

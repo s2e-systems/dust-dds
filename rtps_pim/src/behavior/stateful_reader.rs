@@ -10,7 +10,7 @@ use crate::{
 use super::types::DurationPIM;
 
 pub trait RTPSWriterProxy<
-    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM + SequenceNumberPIM,
+    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM<PSM> + SequenceNumberPIM,
 >
 {
     type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>;
@@ -37,7 +37,7 @@ pub trait RTPSStatefulReader<
         + SequenceNumberPIM
         + LocatorPIM
         + DurationPIM
-        + GUIDPIM
+        + GUIDPIM<PSM>
         + ParameterIdPIM
         + ParameterListPIM<PSM>,
 >: RTPSReader<PSM>

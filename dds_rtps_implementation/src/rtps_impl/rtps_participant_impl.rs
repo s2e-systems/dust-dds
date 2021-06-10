@@ -13,7 +13,7 @@ use rust_rtps_pim::{
     structure::{
         types::{
             DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-            ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUID, GUIDPIM,
+            ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDType, GUIDPIM,
         },
         RTPSEntity, RTPSParticipant,
     },
@@ -34,7 +34,7 @@ pub trait RTPSParticipantImplTrait:
     + DataPIM
     + ProtocolVersionPIM
     + ParameterIdPIM
-    + GUIDPIM
+    + GUIDPIM<Self>
     + SubmessageKindPIM
     + SubmessageHeaderPIM<Self>
     + ParameterListPIM<Self>
@@ -54,7 +54,7 @@ impl<
             + DataPIM
             + ProtocolVersionPIM
             + ParameterIdPIM
-            + GUIDPIM
+            + GUIDPIM<Self>
             + ParameterListPIM<Self>
             + SubmessageKindPIM
             + SubmessageHeaderPIM<Self>
@@ -70,11 +70,9 @@ pub struct RTPSParticipantImpl<PSM: RTPSParticipantImplTrait> {
 }
 
 impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM>
-where
-    PSM::GUIDType: GUID<PSM>,
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
-        let guid = GUID::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
+        let guid = GUIDType::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
 
         Self {
             guid,
@@ -127,7 +125,7 @@ pub fn send_data<
         + DataPIM
         + ProtocolVersionPIM
         + ParameterIdPIM
-        + GUIDPIM
+        + GUIDPIM<PSM>
         + SubmessageKindPIM
         + ProtocolIdPIM
         + ParameterListPIM<PSM>
@@ -144,7 +142,7 @@ pub fn send_data<
     PSM::SequenceNumberType: Clone + Copy + Ord,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq,
-    PSM::GUIDType: GUID<PSM> + Copy,
+    PSM::GUIDType: Copy,
     PSM::DataType: AsRef<[u8]>,
 {
     for writer_group in &rtps_participant_impl.rtps_writer_groups {

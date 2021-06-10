@@ -14,7 +14,7 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
+use rust_rtps_pim::structure::{types::GUIDType, RTPSEntity};
 
 use crate::{
     dds_type::DDSType,
@@ -41,7 +41,7 @@ pub struct PublisherImpl<'p, PSM: PIM> {
 
 impl<'p, PSM: PIM> PublisherImpl<'p, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send,
+    PSM::GUIDType: Send,
     PSM::GuidPrefixType: Copy,
 {
     pub fn new(
@@ -60,7 +60,7 @@ where
 
 impl<'p, PSM: PIM> PublisherParent for PublisherImpl<'p, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::GUIDType: Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
@@ -80,7 +80,7 @@ where
 impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM> DataWriterFactory<'dw, 't, T>
     for PublisherImpl<'p, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::GUIDType: Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,

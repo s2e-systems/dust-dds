@@ -11,7 +11,7 @@ use crate::{
 };
 
 pub trait RTPSReaderProxy<
-    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM + SequenceNumberPIM,
+    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM<PSM> + SequenceNumberPIM,
 >
 {
     type SequenceNumberVector; //: IntoIterator<Item = PSM::SequenceNumber>;
@@ -41,7 +41,7 @@ pub trait RTPSStatefulWriter<
         + SequenceNumberPIM
         + DataPIM
         + ParameterListPIM<PSM>
-        + GUIDPIM
+        + GUIDPIM<PSM>
         + InstanceHandlePIM
         + ParameterIdPIM,
 >: RTPSWriter<PSM>
@@ -76,7 +76,7 @@ pub fn can_send<
         + SequenceNumberPIM
         + DataPIM
         + ParameterListPIM<PSM>
-        + GUIDPIM
+        + GUIDPIM<PSM>
         + InstanceHandlePIM
         + ParameterIdPIM,
 >(
@@ -98,7 +98,7 @@ pub fn can_send<
 mod tests {
     use crate::{
         messages::submessage_elements::{Parameter, ParameterList},
-        structure::types::{Locator, GUID},
+        structure::types::{Locator, GUIDType},
     };
 
     use super::*;
@@ -121,7 +121,7 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM for MockPSM {
+    impl GUIDPIM<Self> for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
@@ -155,7 +155,7 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
-    impl GUID<MockPSM> for MockGUID {
+    impl GUIDType<MockPSM> for MockGUID {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }

@@ -11,7 +11,7 @@ use crate::{
     structure::{
         types::{
             ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            ParameterListPIM, SequenceNumberPIM, GUID, GUIDPIM,
+            ParameterListPIM, SequenceNumberPIM, GUIDType, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
@@ -54,7 +54,7 @@ pub trait RTPSStatelessWriter<
         + InstanceHandlePIM
         + LocatorPIM
         + SequenceNumberPIM
-        + GUIDPIM
+        + GUIDPIM<PSM>
         + ParameterIdPIM
         + ParameterListPIM<PSM>,
 >: RTPSWriter<PSM>
@@ -80,7 +80,7 @@ pub fn best_effort_send_unsent_data<
         + DataPIM
         + ParameterIdPIM
         + ParameterListPIM<PSM>
-        + GUIDPIM
+        + GUIDPIM<PSM>
         + SubmessageKindPIM
         + SubmessageHeaderPIM<PSM>
         + DataSubmessagePIM<'a, PSM>
@@ -98,7 +98,6 @@ pub fn best_effort_send_unsent_data<
 ) where
     <PSM as DataPIM>::DataType: 'a,
     <PSM as ParameterListPIM<PSM>>::ParameterListType: 'a,
-    <PSM as GUIDPIM>::GUIDType: GUID<PSM>,
     <PSM as DataPIM>::DataType: AsRef<[u8]>,
     <PSM as SequenceNumberPIM>::SequenceNumberType: Copy,
     HistoryCache::CacheChange: 'a,
@@ -201,7 +200,7 @@ mod tests {
             Submessage, SubmessageHeader,
         },
         structure::{
-            types::{Locator, GUID},
+            types::{Locator, GUIDType},
             RTPSCacheChange, RTPSHistoryCache,
         },
     };
@@ -211,7 +210,7 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
-    impl GUID<MockPSM> for MockGUID {
+    impl GUIDType<MockPSM> for MockGUID {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }
@@ -311,7 +310,7 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM for MockPSM {
+    impl GUIDPIM<Self> for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }

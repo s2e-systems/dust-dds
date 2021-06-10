@@ -29,7 +29,7 @@ pub trait RTPSWriterImplTrait:
     + LocatorPIM
     + InstanceHandlePIM
     + ParameterIdPIM
-    + GUIDPIM
+    + GUIDPIM<Self>
     + ParameterListPIM<Self>
     + Sized
 {
@@ -44,7 +44,7 @@ impl<
             + LocatorPIM
             + InstanceHandlePIM
             + ParameterIdPIM
-            + GUIDPIM
+            + GUIDPIM<Self>
             + ParameterListPIM<Self>
             + Sized,
     > RTPSWriterImplTrait for T
@@ -285,7 +285,7 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID(u8);
 
-    impl rust_rtps_pim::structure::types::GUID<MockPSM> for MockGUID {
+    impl rust_rtps_pim::structure::types::GUIDType<MockPSM> for MockGUID {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }
@@ -299,7 +299,7 @@ mod tests {
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
+    impl rust_rtps_pim::structure::types::GUIDPIM<Self> for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID(0);
     }
