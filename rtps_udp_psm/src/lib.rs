@@ -552,15 +552,9 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedData<'a> for Se
 
 impl<'a> serde::Serialize for SerializedData<'a> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.collect_seq(VectorIter(self.0.iter()))
+        serializer.serialize_bytes(self.0)
     }
 }
-
-
-
-
-
-
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment<'a>
     for SerializedData<'a>
@@ -1049,12 +1043,11 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-    // #[test]
-    // fn serialize_slice() {
-    //     let slice = Slice(&[1, 2]);
-    //     #[rustfmt::skip]
-    //     assert_eq!(serialize(slice), vec![1, 2]);
-    // }
+    #[test]
+    fn serialize_serialized_data() {
+        let data = SerializedData(&[1, 2]);
+        assert_eq!(serialize(data), vec![1, 2]);
+    }
 }
 
 // impl EntityId {
