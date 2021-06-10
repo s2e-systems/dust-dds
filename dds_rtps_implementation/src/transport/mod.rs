@@ -1,10 +1,22 @@
-use rust_rtps_pim::structure::types::{LocatorPIM};
+use rust_rtps_pim::{
+    messages::{
+        types::{ProtocolIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
+        RTPSMessagePIM,
+    },
+    structure::types::{GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM},
+};
 
-// pub mod memory;
-
-
-pub trait Transport<PSM: LocatorPIM>: Send + Sync {
-    // fn write<'a>(&'a self, message: RtpsMessage<'a>, destination_locator: &Locator);
+pub trait Transport<
+    PSM: LocatorPIM
+        + ProtocolIdPIM
+        + ProtocolVersionPIM
+        + VendorIdPIM
+        + GuidPrefixPIM
+        + SubmessageFlagPIM
+        + SubmessageKindPIM
+>: Send + Sync
+{
+    fn write<'a>(&self, message: &PSM::RTPSMessageType, destination_locator: &PSM::LocatorType) where PSM: RTPSMessagePIM<'a, PSM>;
 
     // fn read<'a>(&'a self) -> DDSResult<Option<(RtpsMessage<'a>, Locator)>>;
 
@@ -12,4 +24,3 @@ pub trait Transport<PSM: LocatorPIM>: Send + Sync {
 
     // fn multicast_locator_list(&self) -> &[PSM::LocatorType];
 }
-

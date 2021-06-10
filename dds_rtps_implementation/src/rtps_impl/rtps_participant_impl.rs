@@ -149,13 +149,13 @@ pub fn send_data<
                 let mut data_submessage_list = vec![];
                 let mut gap_submessage_list = vec![];
                 let (reader_locators, writer_cache) = writer_lock.reader_locators();
-
+                let mut destination_locator = <<PSM as LocatorPIM>::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_INVALID;
                 for reader_locator in reader_locators {
                     best_effort_send_unsent_data(
                         reader_locator,
                         last_change_sequence_number,
                         writer_cache,
-                        |_locator, data_submessage| data_submessage_list.push(data_submessage),
+                        |locator, data_submessage| {data_submessage_list.push(data_submessage); destination_locator=locator.clone();},
                         |_locator, gap_submessage| gap_submessage_list.push(gap_submessage),
                     );
                 }
@@ -172,21 +172,14 @@ pub fn send_data<
                     submessages.push(gap_submessage);
                 }
 
-                let _message = PSM::RTPSMessageType::new(
+                let message = PSM::RTPSMessageType::new(
                     protocol,
                     version,
                     vendor_id,
                     guid_prefix,
                     submessages,
                 );
-                let ull = transport.unicast_locator_list();
-
-                // let rtps_message = PSM::RTPSMessageType::new();
-
-                // let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
-                // behavior.send_unsent_data();
-                // let data = data_submessage_list[0].serialized_payload();
-                // println!("{:?}", data.value())
+                transport.write(&message, &destination_locator);
             }
         }
     }

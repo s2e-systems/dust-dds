@@ -16,7 +16,11 @@ use rust_dds_api::{
 
 // use rust_rtps_pim::structure::RTPSEntity;
 
-use crate::{rtps_impl::rtps_participant_impl::{RTPSParticipantImpl, send_data}, transport::Transport, utils::shared_object::RtpsShared};
+use crate::{
+    rtps_impl::rtps_participant_impl::{send_data, RTPSParticipantImpl},
+    transport::Transport,
+    utils::shared_object::RtpsShared,
+};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
