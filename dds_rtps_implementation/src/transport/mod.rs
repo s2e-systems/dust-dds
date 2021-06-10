@@ -1,10 +1,4 @@
-use rust_rtps_pim::{
-    messages::{
-        types::{ProtocolIdPIM, SubmessageKindPIM},
-        RTPSMessagePIM,
-    },
-    structure::types::{GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM},
-};
+use rust_rtps_pim::{messages::{RTPSMessagePIM, RtpsMessageHeaderPIM, types::{ProtocolIdPIM, SubmessageKindPIM}}, structure::types::{GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM}};
 
 pub trait Transport<
     PSM: LocatorPIM
@@ -12,6 +6,7 @@ pub trait Transport<
         + ProtocolVersionPIM
         + VendorIdPIM
         + GuidPrefixPIM
+        + for<'a> RtpsMessageHeaderPIM<'a, PSM>
         + SubmessageKindPIM,
 >: Send + Sync
 {

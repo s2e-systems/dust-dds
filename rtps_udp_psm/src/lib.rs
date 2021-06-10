@@ -1,20 +1,12 @@
 use serde::ser::SerializeStruct;
 
-use rust_rtps_pim::{
-    behavior::types::{DurationPIM, ParticipantMessageDataPIM},
-    messages::{
-        submessages::{DataSubmessagePIM, GapSubmessagePIM},
-        types::{
+use rust_rtps_pim::{behavior::types::{DurationPIM, ParticipantMessageDataPIM}, messages::{RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM, submessages::{DataSubmessagePIM, GapSubmessagePIM}, types::{
             CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
             SubmessageKindPIM, TimePIM,
-        },
-        RTPSMessagePIM, SubmessageHeaderPIM,
-    },
-    structure::types::{
+        }}, structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
         ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-    },
-};
+    }};
 
 pub mod submessages;
 
@@ -207,8 +199,12 @@ impl<'a> RTPSMessagePIM<'a, Self> for RtpsUdpPsm {
     type RTPSMessageType = RTPSMessage<'a>;
 }
 
-impl SubmessageHeaderPIM<Self> for RtpsUdpPsm {
-    type SubmessageHeaderType = submessages::SubmessageHeader;
+impl<'a> RtpsMessageHeaderPIM<'a, Self> for RtpsUdpPsm {
+    type RtpsMessageHeaderType = RTPSMessageHeader<'a>;
+}
+
+impl RtpsSubmessageHeaderPIM<Self> for RtpsUdpPsm {
+    type RtpsSubmessageHeaderType = submessages::SubmessageHeader;
 }
 
 impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
@@ -759,7 +755,7 @@ pub struct RTPSMessageHeader<'a> {
     guid_prefix: &'a GuidPrefix,
 }
 
-impl<'a> rust_rtps_pim::messages::RtpsMessageHeader<RtpsUdpPsm> for RTPSMessageHeader<'a> {
+impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<'a, RtpsUdpPsm> for RTPSMessageHeader<'a> {
     fn protocol(&self) -> &ProtocolId {
         &self.protocol
     }
@@ -783,7 +779,6 @@ pub struct RTPSMessage<'a> {
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a> {
-    type RTPSMessageHeaderType = RTPSMessageHeader<'a>;
     type RTPSSubmessageVectorType = Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>;
 
     fn new<T: IntoIterator<Item = &'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>>(
@@ -804,7 +799,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a
         }
     }
 
-    fn header(&self) -> Self::RTPSMessageHeaderType {
+    fn header(&self) -> RTPSMessageHeader<'a> {
         self.header
     }
 }

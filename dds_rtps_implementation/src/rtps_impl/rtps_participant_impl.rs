@@ -1,23 +1,15 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
-use rust_rtps_pim::{
-    behavior::{
+use rust_rtps_pim::{behavior::{
         stateless_writer::{best_effort_send_unsent_data, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
-    },
-    messages::{
-        submessages::{DataSubmessagePIM, GapSubmessagePIM},
-        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM},
-        RTPSMessage, RTPSMessagePIM, SubmessageHeaderPIM,
-    },
-    structure::{
+    }, messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM, submessages::{DataSubmessagePIM, GapSubmessagePIM}, types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM}}, structure::{
         types::{
             DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
             ParameterListPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
         },
         RTPSEntity, RTPSParticipant,
-    },
-};
+    }};
 
 use crate::{transport::Transport, utils::shared_object::RtpsShared};
 
@@ -36,7 +28,7 @@ pub trait RTPSParticipantImplTrait:
     + ParameterIdPIM
     + GUIDPIM<Self>
     + SubmessageKindPIM
-    + SubmessageHeaderPIM<Self>
+    + RtpsSubmessageHeaderPIM<Self>
     + ParameterListPIM<Self>
     + for<'a> DataSubmessagePIM<'a, Self>
     + Sized
@@ -57,7 +49,7 @@ impl<
             + GUIDPIM<Self>
             + ParameterListPIM<Self>
             + SubmessageKindPIM
-            + SubmessageHeaderPIM<Self>
+            + RtpsSubmessageHeaderPIM<Self>
             + for<'a> DataSubmessagePIM<'a, T>
             + Sized,
     > RTPSParticipantImplTrait for T
@@ -128,10 +120,11 @@ pub fn send_data<
         + SubmessageKindPIM
         + ProtocolIdPIM
         + ParameterListPIM<PSM>
-        + SubmessageHeaderPIM<PSM>
+        + RtpsSubmessageHeaderPIM<PSM>
         + for<'a> DataSubmessagePIM<'a, PSM>
         + GapSubmessagePIM<PSM>
         + for<'a> RTPSMessagePIM<'a, PSM>
+        + for<'a> RtpsMessageHeaderPIM<'a, PSM>
         + Sized
         + 'static,
 >(

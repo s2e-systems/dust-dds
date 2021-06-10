@@ -6,7 +6,7 @@ use crate::{
             AckNackSubmessage, DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM,
         },
         types::{CountPIM, ParameterIdPIM, SubmessageKindPIM},
-        SubmessageHeaderPIM,
+        RtpsSubmessageHeaderPIM,
     },
     structure::{
         types::{
@@ -82,7 +82,7 @@ pub fn best_effort_send_unsent_data<
         + ParameterListPIM<PSM>
         + GUIDPIM<PSM>
         + SubmessageKindPIM
-        + SubmessageHeaderPIM<PSM>
+        + RtpsSubmessageHeaderPIM<PSM>
         + DataSubmessagePIM<'a, PSM>
         + GapSubmessagePIM<PSM>,
     HistoryCache: RTPSHistoryCache<PSM>,
@@ -169,7 +169,7 @@ pub fn reliable_receive_acknack<
         + SubmessageKindPIM
         + EntityIdPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>,
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
     acknack: &impl AckNackSubmessage<PSM>,
@@ -197,7 +197,7 @@ mod tests {
     use crate::{
         messages::{
             submessage_elements::{Parameter, ParameterList},
-            Submessage, SubmessageHeader,
+            Submessage, RtpsSubmessageHeaderType,
         },
         structure::{
             types::{GUIDType, LocatorType},
@@ -351,13 +351,13 @@ mod tests {
         type DataSubmessageType = MockDataSubmessage;
     }
 
-    impl SubmessageHeaderPIM<Self> for MockPSM {
-        type SubmessageHeaderType = MockSubmessageHeader;
+    impl RtpsSubmessageHeaderPIM<Self> for MockPSM {
+        type RtpsSubmessageHeaderType = MockSubmessageHeader;
     }
 
     struct MockSubmessageHeader;
 
-    impl SubmessageHeader<MockPSM> for MockSubmessageHeader {
+    impl RtpsSubmessageHeaderType<MockPSM> for MockSubmessageHeader {
         fn submessage_id(&self) -> u8 {
             todo!()
         }

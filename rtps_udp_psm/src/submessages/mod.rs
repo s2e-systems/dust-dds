@@ -20,7 +20,7 @@ pub struct SubmessageHeader {
     submessage_length: u16,
 }
 
-impl rust_rtps_pim::messages::SubmessageHeader<RtpsUdpPsm> for SubmessageHeader {
+impl rust_rtps_pim::messages::RtpsSubmessageHeaderType<RtpsUdpPsm> for SubmessageHeader {
     fn submessage_id(&self) -> SubmessageKind {
         self.submessage_id.into()
     }
