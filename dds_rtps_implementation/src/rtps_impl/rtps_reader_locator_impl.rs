@@ -64,17 +64,16 @@ where
         self.requested_changes.clone()
     }
 
-    fn requested_changes_set<T: AsRef<[PSM::SequenceNumberType]>>(
+    fn requested_changes_set(
         &mut self,
-        req_seq_num_set: T,
-        last_change_sequence_number: PSM::SequenceNumberType,
+        req_seq_num_set: &[PSM::SequenceNumberType],
+        last_change_sequence_number: &PSM::SequenceNumberType,
     ) {
-        todo!()
-        // for requested_change in req_seq_num_set.as_ref() {
-        //     if requested_change <= last_change_sequence_number {
-        //         self.requested_changes.push(requested_change)
-        //     }
-        // }
+        for requested_change in req_seq_num_set.as_ref() {
+            if requested_change <= last_change_sequence_number {
+                self.requested_changes.push(requested_change.clone())
+            }
+        }
     }
 
     fn unsent_changes(
@@ -181,7 +180,7 @@ mod tests {
             RTPSReaderLocatorImpl::new(MockLocator(0), false);
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(req_seq_num_set, 3);
+        reader_locator.requested_changes_set(&req_seq_num_set, &3);
 
         let expected_requested_changes = vec![1, 2, 3];
         assert_eq!(
@@ -196,7 +195,7 @@ mod tests {
             RTPSReaderLocatorImpl::new(MockLocator(0), false);
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(req_seq_num_set, 1);
+        reader_locator.requested_changes_set(&req_seq_num_set, &1);
 
         let expected_requested_changes = vec![1];
         assert_eq!(

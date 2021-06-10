@@ -330,8 +330,8 @@ impl Into<[u8; 12]> for GuidPrefix {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::GuidPrefix<RtpsUdpPsm> for GuidPrefix {
-    fn new(value: GuidPrefix) -> Self {
-        value
+    fn new(value: &GuidPrefix) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &GuidPrefix {
@@ -366,8 +366,8 @@ impl From<[u8; 4]> for EntityId {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> for EntityId {
-    fn new(value: EntityId) -> Self {
-        value
+    fn new(value: &EntityId) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &EntityId {
@@ -407,8 +407,8 @@ impl From<i64> for SequenceNumber {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumber<RtpsUdpPsm> for SequenceNumber {
-    fn new(value: SequenceNumber) -> Self {
-        value
+    fn new(value: &SequenceNumber) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &SequenceNumber {
@@ -503,7 +503,7 @@ impl serde::Serialize for SequenceNumberSet {
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
     for SequenceNumberSet
 {
-    fn new(_base: SequenceNumber, _set: &[SequenceNumber]) -> Self {
+    fn new(_base: &SequenceNumber, _set: &[SequenceNumber]) -> Self {
         todo!()
     }
 
@@ -526,8 +526,8 @@ pub struct ProtocolVersion {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> for ProtocolVersion {
-    fn new(value: ProtocolVersion) -> Self {
-        value
+    fn new(value: &ProtocolVersion) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &ProtocolVersion {
@@ -571,8 +571,8 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment<'a
 pub struct VendorId([u8; 2]);
 
 impl rust_rtps_pim::messages::submessage_elements::VendorId<RtpsUdpPsm> for VendorId {
-    fn new(value: VendorId) -> Self {
-        value
+    fn new(value: &VendorId) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &VendorId {
@@ -590,8 +590,8 @@ pub struct Time {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::Timestamp<RtpsUdpPsm> for Time {
-    fn new(value: Time) -> Self {
-        value
+    fn new(value: &Time) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &Time {
@@ -603,8 +603,8 @@ impl rust_rtps_pim::messages::submessage_elements::Timestamp<RtpsUdpPsm> for Tim
 pub struct Count(i32);
 
 impl rust_rtps_pim::messages::submessage_elements::Count<RtpsUdpPsm> for Count {
-    fn new(value: Count) -> Self {
-        value
+    fn new(value: &Count) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &Count {
@@ -617,8 +617,8 @@ pub type ParameterId = i16;
 pub struct FragmentNumber(u32);
 
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumber<RtpsUdpPsm> for FragmentNumber {
-    fn new(value: FragmentNumber) -> Self {
-        value
+    fn new(value: &FragmentNumber) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &FragmentNumber {
@@ -643,7 +643,7 @@ pub struct FragmentNumberSet(Vec<FragmentNumber>);
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
     for FragmentNumberSet
 {
-    fn new(_base: FragmentNumber, _set: &[FragmentNumber]) -> Self {
+    fn new(_base: &FragmentNumber, _set: &[FragmentNumber]) -> Self {
         todo!()
     }
 

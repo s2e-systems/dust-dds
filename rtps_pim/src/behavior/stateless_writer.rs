@@ -34,10 +34,10 @@ pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
 
     fn requested_changes(&self) -> Self::SequenceNumberVector;
 
-    fn requested_changes_set<T: AsRef<[PSM::SequenceNumberType]>>(
+    fn requested_changes_set(
         &mut self,
-        req_seq_num_set: T,
-        last_change_sequence_number: PSM::SequenceNumberType,
+        req_seq_num_set: &[PSM::SequenceNumberType],
+        last_change_sequence_number: &PSM::SequenceNumberType,
     );
 
     fn unsent_changes(
@@ -98,57 +98,54 @@ pub fn best_effort_send_unsent_data<
 ) where
     <PSM as DataPIM>::DataType: 'a,
     <PSM as ParameterListPIM<PSM>>::ParameterListType: 'a,
-    <PSM as SequenceNumberPIM>::SequenceNumberType: Copy,
     HistoryCache::CacheChange: 'a,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
-            todo!()
-            // let endianness_flag = true.into();
-            // let inline_qos_flag = true.into();
-            // let (data_flag, key_flag) = match change.kind() {
-            //     ChangeKind::Alive => (true.into(), false.into()),
-            //     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-            //         (false.into(), true.into())
-            //     }
-            //     _ => todo!(),
-            // };
-            // let non_standard_payload_flag = false.into();
-            // let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            // let writer_id = submessage_elements::EntityId::new(change.writer_guid().entity_id());
-            // let writer_sn = submessage_elements::SequenceNumber::new(*change.sequence_number());
-            // let inline_qos = change.inline_qos();
-            // let data = change.data_value();
-            // let serialized_payload = submessage_elements::SerializedData::new(data.as_ref());
-            // let data_submessage = PSM::DataSubmessageType::new(
-            //     endianness_flag,
-            //     inline_qos_flag,
-            //     data_flag,
-            //     key_flag,
-            //     non_standard_payload_flag,
-            //     reader_id,
-            //     writer_id,
-            //     writer_sn,
-            //     inline_qos,
-            //     serialized_payload,
-            // );
-            // send_data(reader_locator.locator(), data_submessage)
+            let endianness_flag = true.into();
+            let inline_qos_flag = true.into();
+            let (data_flag, key_flag) = match change.kind() {
+                ChangeKind::Alive => (true.into(), false.into()),
+                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
+                    (false.into(), true.into())
+                }
+                _ => todo!(),
+            };
+            let non_standard_payload_flag = false.into();
+            let reader_id = submessage_elements::EntityId::new(&PSM::ENTITYID_UNKNOWN);
+            let writer_id = submessage_elements::EntityId::new(change.writer_guid().entity_id());
+            let writer_sn = submessage_elements::SequenceNumber::new(change.sequence_number());
+            let inline_qos = change.inline_qos();
+            let data = change.data_value();
+            let serialized_payload = submessage_elements::SerializedData::new(data.as_ref());
+            let data_submessage = PSM::DataSubmessageType::new(
+                endianness_flag,
+                inline_qos_flag,
+                data_flag,
+                key_flag,
+                non_standard_payload_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                inline_qos,
+                serialized_payload,
+            );
+            send_data(reader_locator.locator(), data_submessage)
         } else {
-            todo!()
-            // let endianness_flag = true.into();
-            // let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            // let writer_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            // let gap_start = submessage_elements::SequenceNumber::new(seq_num);
-            // let set = core::iter::empty().collect();
-            // let gap_list = submessage_elements::SequenceNumberSet::new(seq_num, set);
-            // let gap_submessage = PSM::GapSubmessageType::new(
-            //     endianness_flag,
-            //     reader_id,
-            //     writer_id,
-            //     gap_start,
-            //     gap_list,
-            // );
-            // send_gap(reader_locator.locator(), gap_submessage)
+            let endianness_flag = true.into();
+            let reader_id = submessage_elements::EntityId::new(&PSM::ENTITYID_UNKNOWN);
+            let writer_id = submessage_elements::EntityId::new(&PSM::ENTITYID_UNKNOWN);
+            let gap_start = submessage_elements::SequenceNumber::new(&seq_num);
+            let set = &[];
+            let gap_list = submessage_elements::SequenceNumberSet::new(&seq_num, set);
+            let gap_submessage = PSM::GapSubmessageType::new(
+                endianness_flag,
+                reader_id,
+                writer_id,
+                gap_start,
+                gap_list,
+            );
+            send_gap(reader_locator.locator(), gap_submessage)
         }
     }
 }
@@ -173,10 +170,10 @@ pub fn reliable_receive_acknack<
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
     acknack: &impl AckNackSubmessage<PSM>,
-    last_change_sequence_number: PSM::SequenceNumberType,
+    last_change_sequence_number: &PSM::SequenceNumberType,
 ) {
     reader_locator.requested_changes_set(
-        acknack.reader_sn_state().set().into_iter(),
+        acknack.reader_sn_state().set(),
         last_change_sequence_number,
     );
 }
@@ -197,7 +194,7 @@ mod tests {
     use crate::{
         messages::{
             submessage_elements::{Parameter, ParameterList},
-            Submessage, RtpsSubmessageHeaderType,
+            RtpsSubmessageHeaderType, Submessage,
         },
         structure::{
             types::{GUIDType, LocatorType},
@@ -380,8 +377,8 @@ mod tests {
     }
 
     impl submessage_elements::EntityId<MockPSM> for [u8; 4] {
-        fn new(value: [u8; 4]) -> Self {
-            value
+        fn new(value: &[u8; 4]) -> Self {
+            value.clone()
         }
 
         fn value(&self) -> &[u8; 4] {
@@ -390,8 +387,8 @@ mod tests {
     }
 
     impl submessage_elements::SequenceNumber<MockPSM> for i64 {
-        fn new(value: i64) -> Self {
-            value
+        fn new(value: &i64) -> Self {
+            value.clone()
         }
 
         fn value(&self) -> &i64 {
@@ -502,7 +499,7 @@ mod tests {
     struct MockSequenceNumberSet;
 
     impl submessage_elements::SequenceNumberSet<MockPSM> for MockSequenceNumberSet {
-        fn new(_base: i64, _set: &[i64]) -> Self {
+        fn new(_base: &i64, _set: &[i64]) -> Self {
             MockSequenceNumberSet
         }
 
@@ -591,10 +588,10 @@ mod tests {
             todo!()
         }
 
-        fn requested_changes_set<T: AsRef<[i64]>>(
+        fn requested_changes_set(
             &mut self,
-            _req_seq_num_set: T,
-            _last_change_sequence_number: i64,
+            _req_seq_num_set: &[i64],
+            _last_change_sequence_number: &i64,
         ) {
             todo!()
         }

@@ -32,49 +32,49 @@ pub trait Long {
 }
 
 pub trait GuidPrefix<PSM: GuidPrefixPIM> {
-    fn new(value: PSM::GuidPrefixType) -> Self;
+    fn new(value: &PSM::GuidPrefixType) -> Self;
     fn value(&self) -> &PSM::GuidPrefixType;
 }
 
 pub trait EntityId<PSM: EntityIdPIM> {
-    fn new(value: PSM::EntityIdType) -> Self;
+    fn new(value: &PSM::EntityIdType) -> Self;
     fn value(&self) -> &PSM::EntityIdType;
 }
 
 pub trait VendorId<PSM: VendorIdPIM> {
-    fn new(value: PSM::VendorIdType) -> Self;
+    fn new(value: &PSM::VendorIdType) -> Self;
     fn value(&self) -> &PSM::VendorIdType;
 }
 
 pub trait ProtocolVersion<PSM: ProtocolVersionPIM> {
-    fn new(value: PSM::ProtocolVersionType) -> Self;
+    fn new(value: &PSM::ProtocolVersionType) -> Self;
     fn value(&self) -> &PSM::ProtocolVersionType;
 }
 
 pub trait SequenceNumber<PSM: SequenceNumberPIM> {
-    fn new(value: PSM::SequenceNumberType) -> Self;
+    fn new(value: &PSM::SequenceNumberType) -> Self;
     fn value(&self) -> &PSM::SequenceNumberType;
 }
 
 pub trait SequenceNumberSet<PSM: SequenceNumberPIM> {
-    fn new(base: PSM::SequenceNumberType, set: &[PSM::SequenceNumberType]) -> Self;
+    fn new(base: &PSM::SequenceNumberType, set: &[PSM::SequenceNumberType]) -> Self;
     fn base(&self) -> &PSM::SequenceNumberType;
     fn set(&self) -> &[PSM::SequenceNumberType];
 }
 
 pub trait FragmentNumber<PSM: FragmentNumberPIM> {
-    fn new(value: PSM::FragmentNumberType) -> Self;
+    fn new(value: &PSM::FragmentNumberType) -> Self;
     fn value(&self) -> &PSM::FragmentNumberType;
 }
 
 pub trait FragmentNumberSet<PSM: FragmentNumberPIM> {
-    fn new(base: PSM::FragmentNumberType, set: &[PSM::FragmentNumberType]) -> Self;
+    fn new(base: &PSM::FragmentNumberType, set: &[PSM::FragmentNumberType]) -> Self;
     fn base(&self) -> &PSM::FragmentNumberType;
     fn set(&self) -> &[PSM::FragmentNumberType];
 }
 
 pub trait Timestamp<PSM: TimePIM> {
-    fn new(value: PSM::TimeType) -> Self;
+    fn new(value: &PSM::TimeType) -> Self;
     fn value(&self) -> &PSM::TimeType;
 }
 
@@ -92,7 +92,7 @@ pub trait ParameterList<PSM: ParameterIdPIM> {
 }
 
 pub trait Count<PSM: CountPIM> {
-    fn new(value: PSM::CountType) -> Self;
+    fn new(value: &PSM::CountType) -> Self;
     fn value(&self) -> &PSM::CountType;
 }
 
@@ -112,6 +112,6 @@ pub trait SerializedDataFragment<'a> {
 }
 
 pub trait GroupDigest<PSM: GroupDigestPIM> {
-    fn new(value: PSM::GroupDigestType) -> Self;
+    fn new(value: &PSM::GroupDigestType) -> Self;
     fn value(&self) -> PSM::GroupDigestType;
 }
