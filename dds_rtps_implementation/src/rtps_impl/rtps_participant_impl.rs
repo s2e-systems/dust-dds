@@ -19,7 +19,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::utils::shared_object::RtpsShared;
+use crate::{transport::Transport, utils::shared_object::RtpsShared};
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
@@ -138,7 +138,7 @@ pub fn send_data<
         + Sized
         + 'static,
 >(
-    rtps_participant_impl: &RTPSParticipantImpl<PSM>,
+    rtps_participant_impl: &RTPSParticipantImpl<PSM>, transport: &dyn Transport<PSM>,
 ) {
     for writer_group in &rtps_participant_impl.rtps_writer_groups {
         let writer_group_lock = writer_group.lock();
@@ -179,6 +179,7 @@ pub fn send_data<
                     guid_prefix,
                     submessages,
                 );
+                let ull = transport.unicast_locator_list();
 
                 // let rtps_message = PSM::RTPSMessageType::new();
 

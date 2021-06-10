@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -16,7 +16,7 @@ use rust_dds_api::{
 
 // use rust_rtps_pim::structure::RTPSEntity;
 
-use crate::{rtps_impl::rtps_participant_impl::{RTPSParticipantImpl, send_data}, utils::shared_object::RtpsShared};
+use crate::{rtps_impl::rtps_participant_impl::{RTPSParticipantImpl, send_data}, transport::Transport, utils::shared_object::RtpsShared};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -26,13 +26,15 @@ use super::{
 pub struct DomainParticipantImpl<PSM: PIM> {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
+    transport: Arc<dyn Transport<PSM>>,
 }
 
 impl<PSM: PIM> DomainParticipantImpl<PSM> {
-    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefixType, transport: impl Transport<PSM> + 'static) -> Self {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
             rtps_participant_impl: RtpsShared::new(RTPSParticipantImpl::new(guid_prefix)),
+            transport: Arc::new(transport),
         }
     }
 }
@@ -298,10 +300,11 @@ impl<PSM: PIM> Entity for DomainParticipantImpl<PSM> {
 
     fn enable(&self) -> DDSResult<()> {
         let rtps_participant = self.rtps_participant_impl.clone();
+        let transport = self.transport.clone();
         std::thread::spawn(move || {
             loop {
                 if let Some(rtps_participant) = rtps_participant.try_lock() {
-                    send_data(rtps_participant.as_ref());
+                    send_data(rtps_participant.as_ref(), transport.as_ref());
                     // rtps_participant.send_data::<UDPHeartbeatMessage>();
                     // rtps_participant.receive_data();
                     // rtps_participant.run_listeners();
