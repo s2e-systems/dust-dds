@@ -328,7 +328,9 @@ pub trait InfoDestinationSubmessagePIM<
     PSM: SubmessageKindPIM
         + GuidPrefixPIM
         + RtpsSubmessageHeaderPIM<PSM>
-        + GuidPrefixSubmessageElementPIM<PSM>,
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
 >
 {
     type InfoDestinationSubmessageType: InfoDestinationSubmessage<PSM>;
@@ -338,7 +340,9 @@ pub trait InfoDestinationSubmessage<
     PSM: SubmessageKindPIM
         + GuidPrefixPIM
         + RtpsSubmessageHeaderPIM<PSM>
-        + GuidPrefixSubmessageElementPIM<PSM>,
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
 >: Submessage<PSM>
 {
     fn new(
@@ -353,7 +357,9 @@ pub trait InfoReplySubmessagePIM<
     PSM: SubmessageKindPIM
         + LocatorPIM
         + RtpsSubmessageHeaderPIM<PSM>
-        + LocatorListSubmessageElementPIM<PSM>,
+        + LocatorListSubmessageElementPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
 >
 {
     type InfoReplySubmessageType: InfoReplySubmessage<PSM>;
@@ -363,7 +369,9 @@ pub trait InfoReplySubmessage<
     PSM: SubmessageKindPIM
         + LocatorPIM
         + RtpsSubmessageHeaderPIM<PSM>
-        + LocatorListSubmessageElementPIM<PSM>,
+        + LocatorListSubmessageElementPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
 >: Submessage<PSM>
 {
     fn new(
@@ -386,7 +394,9 @@ pub trait InfoSourceSubmessagePIM<
         + RtpsSubmessageHeaderPIM<PSM>
         + ProtocolVersionSubmessageElementPIM<PSM>
         + VendorIdSubmessageElementPIM<PSM>
-        + GuidPrefixSubmessageElementPIM<PSM>,
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
 >
 {
     type InfoSourceSubmessageType: InfoSourceSubmessage<PSM>;
@@ -400,7 +410,9 @@ pub trait InfoSourceSubmessage<
         + RtpsSubmessageHeaderPIM<PSM>
         + ProtocolVersionSubmessageElementPIM<PSM>
         + VendorIdSubmessageElementPIM<PSM>
-        + GuidPrefixSubmessageElementPIM<PSM>,
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
 >: Submessage<PSM>
 {
     fn new(
@@ -416,14 +428,24 @@ pub trait InfoSourceSubmessage<
 }
 
 pub trait InfoTimestampSubmessagePIM<
-    PSM: SubmessageKindPIM + TimePIM + RtpsSubmessageHeaderPIM<PSM> + TimestampSubmessageElementPIM<PSM>,
+    PSM: SubmessageKindPIM
+        + TimePIM
+        + RtpsSubmessageHeaderPIM<PSM>
+        + TimestampSubmessageElementPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
 >
 {
     type InfoTimestampSubmessageType: InfoTimestampSubmessage<PSM>;
 }
 
 pub trait InfoTimestampSubmessage<
-    PSM: SubmessageKindPIM + TimePIM + RtpsSubmessageHeaderPIM<PSM> + TimestampSubmessageElementPIM<PSM>,
+    PSM: SubmessageKindPIM
+        + TimePIM
+        + RtpsSubmessageHeaderPIM<PSM>
+        + TimestampSubmessageElementPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
 >: Submessage<PSM>
 {
     fn new(
@@ -481,11 +503,21 @@ pub trait NackFragSubmessage<
     fn count(&self) -> &PSM::CountSubmessageElementType;
 }
 
-pub trait PadSubmessagePIM<PSM: SubmessageKindPIM + RtpsSubmessageHeaderPIM<PSM>> {
+pub trait PadSubmessagePIM<
+    PSM: SubmessageKindPIM
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
+>
+{
     type PadSubmessageType: PadSubmessage<PSM>;
 }
 
-pub trait PadSubmessage<PSM: SubmessageKindPIM + RtpsSubmessageHeaderPIM<PSM>>:
-    Submessage<PSM>
+pub trait PadSubmessage<
+    PSM: SubmessageKindPIM
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
+>: Submessage<PSM>
 {
 }

@@ -88,7 +88,7 @@ impl<'a> rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for DataFrag<'a> {
 
     fn submessage_elements(
         &self,
-    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements] {
+    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<RtpsUdpPsm>] {
         todo!()
     }
 }

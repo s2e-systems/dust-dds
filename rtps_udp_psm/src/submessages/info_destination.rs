@@ -27,7 +27,7 @@ impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for InfoDestination {
 
     fn submessage_elements(
         &self,
-    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements] {
+    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<RtpsUdpPsm>] {
         todo!()
     }
 }

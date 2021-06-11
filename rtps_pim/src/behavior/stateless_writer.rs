@@ -405,7 +405,7 @@ mod tests {
 
         fn submessage_elements(
             &self,
-        ) -> &[crate::messages::submessage_elements::SubmessageElements] {
+        ) -> &[crate::messages::submessage_elements::SubmessageElements<MockPSM>] {
             todo!()
         }
     }
@@ -551,7 +551,7 @@ mod tests {
 
         fn submessage_elements(
             &self,
-        ) -> &[crate::messages::submessage_elements::SubmessageElements] {
+        ) -> &[crate::messages::submessage_elements::SubmessageElements<MockPSM>] {
             todo!()
         }
     }

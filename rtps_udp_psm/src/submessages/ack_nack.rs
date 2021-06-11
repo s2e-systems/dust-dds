@@ -50,7 +50,7 @@ impl Submessage<RtpsUdpPsm> for AckNack {
 
     fn submessage_elements(
         &self,
-    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements] {
+    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<RtpsUdpPsm>] {
         todo!()
     }
 }

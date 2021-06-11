@@ -11,8 +11,8 @@ use crate::structure::{
 
 use super::types::{CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, TimePIM};
 
-pub enum SubmessageElements {
-
+pub enum SubmessageElements<PSM: EntityIdPIM + EntityIdSubmessageElementPIM<PSM>> {
+    EntityId(PSM::EntityIdSubmessageElementType),
 }
 
 pub trait UShortSubmessageElementPIM {

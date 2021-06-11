@@ -2,10 +2,10 @@ pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
 
-use crate::structure::types::{GuidPrefixPIM, ProtocolVersionPIM, VendorIdPIM};
+use crate::structure::types::{EntityIdPIM, GuidPrefixPIM, ProtocolVersionPIM, VendorIdPIM};
 
 use self::{
-    submessage_elements::SubmessageElements,
+    submessage_elements::{EntityIdSubmessageElementPIM, SubmessageElements},
     types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM},
 };
 
@@ -38,10 +38,16 @@ pub trait RtpsSubmessageHeaderType<PSM: SubmessageKindPIM> {
     fn submessage_length(&self) -> u16;
 }
 
-pub trait Submessage<PSM: SubmessageKindPIM + RtpsSubmessageHeaderPIM<PSM>> {
+pub trait Submessage<
+    PSM: SubmessageKindPIM
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdPIM
+        + EntityIdSubmessageElementPIM<PSM>,
+>
+{
     fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType;
 
-    fn submessage_elements(&self) -> &[SubmessageElements];
+    fn submessage_elements(&self) -> &[SubmessageElements<PSM>];
 }
 
 pub trait RTPSMessagePIM<
