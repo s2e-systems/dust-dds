@@ -402,6 +402,12 @@ mod tests {
         fn submessage_header(&self) -> MockSubmessageHeader {
             todo!()
         }
+
+        fn submessage_elements(
+            &self,
+        ) -> &[crate::messages::submessage_elements::SubmessageElements] {
+            todo!()
+        }
     }
 
     impl EntityIdSubmessageElementType<MockPSM> for [u8; 4] {
@@ -540,6 +546,12 @@ mod tests {
 
     impl Submessage<MockPSM> for MockGapSubmessage {
         fn submessage_header(&self) -> MockSubmessageHeader {
+            todo!()
+        }
+
+        fn submessage_elements(
+            &self,
+        ) -> &[crate::messages::submessage_elements::SubmessageElements] {
             todo!()
         }
     }

@@ -886,7 +886,6 @@ static SENTINEL: Parameter = Parameter {
     length: 0,
     value: Vector(vec![]),
 };
-static EMPTY_PARAMETER_LIST: ParameterList = ParameterList { parameter: vec![] };
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParameterList {

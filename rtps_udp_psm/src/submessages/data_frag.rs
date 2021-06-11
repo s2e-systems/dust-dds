@@ -10,7 +10,6 @@ pub struct DataFrag<'a> {
 }
 
 impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<'a, RtpsUdpPsm> for DataFrag<'a> {
-
     fn new(
         _endianness_flag: SubmessageFlag,
         _inline_qos_flag: SubmessageFlag,
@@ -84,6 +83,12 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<'a, RtpsUdpPsm
 
 impl<'a> rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for DataFrag<'a> {
     fn submessage_header(&self) -> SubmessageHeader {
+        todo!()
+    }
+
+    fn submessage_elements(
+        &self,
+    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements] {
         todo!()
     }
 }

@@ -107,6 +107,12 @@ impl<'a> Submessage<RtpsUdpPsm> for DataSubmesage<'a> {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
+
+    fn submessage_elements(
+        &self,
+    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements] {
+        todo!()
+    }
 }
 
 impl<'a> serde::Serialize for DataSubmesage<'a> {

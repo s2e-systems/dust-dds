@@ -11,6 +11,10 @@ use crate::structure::{
 
 use super::types::{CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, TimePIM};
 
+pub enum SubmessageElements {
+
+}
+
 pub trait UShortSubmessageElementPIM {
     type UShortSubmessageElementType: UShortSubmessageElementType;
 }
