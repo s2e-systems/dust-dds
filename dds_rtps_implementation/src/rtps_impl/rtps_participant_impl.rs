@@ -194,7 +194,7 @@ pub fn send_data<
                         version,
                         vendor_id,
                         guid_prefix,
-                        submessages,
+                        &submessages,
                     );
                     transport.write(&message, reader_locator.locator());
                 }

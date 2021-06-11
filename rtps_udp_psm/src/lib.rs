@@ -534,7 +534,7 @@ pub struct SequenceNumberSet {
     base: SequenceNumber,
     set: Vec<SequenceNumber>,
     num_bits: ULong,
-    bitmap: Vec<i32>
+    bitmap: Vec<i32>,
 }
 
 impl SequenceNumberSet {
@@ -570,7 +570,8 @@ impl serde::Serialize for SequenceNumberSet {
 impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         todo!()
     }
 }
@@ -595,7 +596,7 @@ impl
         }
         Self {
             base: base.clone(),
-            set: set.into_iter().map(|x|x.clone()).collect(),
+            set: set.into_iter().map(|x| x.clone()).collect(),
             num_bits: ULong(num_bits as u32),
             bitmap,
         }
@@ -631,9 +632,6 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElem
 }
 
 pub type Data = Vec<u8>;
-
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct SerializedData<'a>(&'a [u8]);
@@ -781,7 +779,6 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Vector(Vec<u8>);
 impl serde::Serialize for Vector {
@@ -808,7 +805,7 @@ impl Parameter {
         Self {
             parameter_id,
             length: value.0.len() as i16,
-            value
+            value,
         }
     }
 
@@ -834,12 +831,13 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterType<RtpsUdpPsm> for
 impl serde::Serialize for Parameter {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
-            let mut state = serializer.serialize_struct("Parameter", 3)?;
-            state.serialize_field("ParameterId", &self.parameter_id)?;
-            state.serialize_field("length", &self.length)?;
-            state.serialize_field("value", &self.value)?;
-            state.end()
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("Parameter", 3)?;
+        state.serialize_field("ParameterId", &self.parameter_id)?;
+        state.serialize_field("length", &self.length)?;
+        state.serialize_field("value", &self.value)?;
+        state.end()
     }
 }
 
@@ -853,13 +851,21 @@ impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-        where A: serde::de::SeqAccess<'de>,
+    where
+        A: serde::de::SeqAccess<'de>,
     {
-        let paramter_id: ParameterId = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let data_length: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+        let paramter_id: ParameterId = seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        let data_length: u16 = seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
         let mut data = vec![];
         for _ in 0..data_length {
-            data.push(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?);
+            data.push(
+                seq.next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?,
+            );
         }
         Ok(Parameter::new(paramter_id, data.into()))
     }
@@ -868,14 +874,19 @@ impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
 impl<'de> serde::Deserialize<'de> for Parameter {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
-            const MAX_BYTES: usize = 2^16;
-            deserializer.deserialize_tuple( MAX_BYTES, ParameterVisitor {})
+        D: serde::Deserializer<'de>,
+    {
+        const MAX_BYTES: usize = 2 ^ 16;
+        deserializer.deserialize_tuple(MAX_BYTES, ParameterVisitor {})
     }
 }
 const PID_SENTINEL: ParameterId = 1;
-static SENTINEL: Parameter = Parameter{parameter_id: PID_SENTINEL, length: 0, value: Vector(vec![])};
-static EMPTY_PARAMETER_LIST: ParameterList = ParameterList{parameter:vec![]};
+static SENTINEL: Parameter = Parameter {
+    parameter_id: PID_SENTINEL,
+    length: 0,
+    value: Vector(vec![]),
+};
+static EMPTY_PARAMETER_LIST: ParameterList = ParameterList { parameter: vec![] };
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParameterList {
@@ -903,15 +914,19 @@ impl<'de> serde::de::Visitor<'de> for ParameterListVisitor {
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-        where A: serde::de::SeqAccess<'de>,
+    where
+        A: serde::de::SeqAccess<'de>,
     {
         let mut parameters = vec![];
         for _ in 0..seq.size_hint().unwrap() {
-            let parameter: Parameter = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+            let parameter: Parameter = seq
+                .next_element()?
+                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
             if parameter == SENTINEL {
-                return Ok(ParameterList{parameter: parameters.into()});
-            }
-            else {
+                return Ok(ParameterList {
+                    parameter: parameters.into(),
+                });
+            } else {
                 parameters.push(parameter);
             }
         }
@@ -922,9 +937,10 @@ impl<'de> serde::de::Visitor<'de> for ParameterListVisitor {
 impl<'de, 'a> serde::Deserialize<'de> for ParameterList {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
-        const MAX_PARAMETERS: usize = 2^16;
-        deserializer.deserialize_tuple(MAX_PARAMETERS, ParameterListVisitor{})
+        D: serde::Deserializer<'de>,
+    {
+        const MAX_PARAMETERS: usize = 2 ^ 16;
+        deserializer.deserialize_tuple(MAX_PARAMETERS, ParameterListVisitor {})
     }
 }
 
@@ -996,14 +1012,12 @@ pub struct RTPSMessage<'a> {
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a> {
-    type RTPSSubmessageVectorType = Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>;
-
-    fn new<T: IntoIterator<Item = &'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>>(
+    fn new(
         protocol: &'a ProtocolId,
         version: &'a ProtocolVersion,
         vendor_id: &'a VendorId,
         guid_prefix: &'a GuidPrefix,
-        submessages: T,
+        submessages: &[&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>],
     ) -> Self {
         Self {
             header: RTPSMessageHeader {
@@ -1012,30 +1026,36 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a
                 vendor_id,
                 guid_prefix,
             },
-            submessages: submessages.into_iter().collect(),
+            submessages: submessages.to_vec(),
         }
     }
 
     fn header(&self) -> RTPSMessageHeader<'a> {
         self.header
     }
+
+    fn submessages(&self) -> &[&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>] {
+        &self.submessages
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer};
+    use rust_serde_cdr::{
+        deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
+    };
 
     fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
-        let mut serializer = RtpsMessageSerializer {writer: Vec::<u8>::new()};
+        let mut serializer = RtpsMessageSerializer {
+            writer: Vec::<u8>::new(),
+        };
         value.serialize(&mut serializer).unwrap();
         serializer.writer
     }
 
     fn deserialize<'de, T: serde::Deserialize<'de>>(buffer: &'de [u8]) -> T {
-        let mut de = RtpsMessageDeserializer {
-            reader: buffer,
-        };
+        let mut de = RtpsMessageDeserializer { reader: buffer };
         serde::de::Deserialize::deserialize(&mut de).unwrap()
     }
 
@@ -1092,11 +1112,12 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter = ParameterList{
+        let parameter = ParameterList {
             parameter: vec![
                 Parameter::new(2, vec![51, 61, 71, 81].into()),
-                Parameter::new(3, vec![52, 62, 72, 82].into())
-            ].into()
+                Parameter::new(3, vec![52, 62, 72, 82].into()),
+            ]
+            .into(),
         };
         #[rustfmt::skip]
         assert_eq!(serialize(parameter), vec![
@@ -1121,10 +1142,13 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_list() {
-        let expected = ParameterList{parameter: vec![
-            Parameter::new(0x02, vec![15, 16, 17, 18].into()),
-            Parameter::new(0x03, vec![25, 26, 27, 28].into())
-        ].into()};
+        let expected = ParameterList {
+            parameter: vec![
+                Parameter::new(0x02, vec![15, 16, 17, 18].into()),
+                Parameter::new(0x03, vec![25, 26, 27, 28].into()),
+            ]
+            .into(),
+        };
         #[rustfmt::skip]
         let result: ParameterList = deserialize(&[
             0x02, 0x00, 4, 0, // Parameter ID | length
@@ -1143,11 +1167,8 @@ mod tests {
         assert_eq!(serialize(data), vec![1, 2]);
     }
 
-
-
     #[test]
     fn serialize_sequence_number_set() {
-
         use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
 
         let sequence_number_set = SequenceNumberSet::new(&2.into(), &[4.into(), 6.into()]);

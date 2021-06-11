@@ -6,7 +6,8 @@ use crate::structure::types::{GuidPrefixPIM, ProtocolVersionPIM, VendorIdPIM};
 
 use self::types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM};
 
-pub trait RtpsMessageHeaderPIM<'a,
+pub trait RtpsMessageHeaderPIM<
+    'a,
     PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM,
 >
 {
@@ -63,15 +64,15 @@ pub trait RTPSMessage<
         + 'a,
 >
 {
-    type RTPSSubmessageVectorType: IntoIterator<Item = &'a dyn Submessage<PSM>>;
-
-    fn new<T: IntoIterator<Item = &'a dyn Submessage<PSM>>>(
+    fn new(
         protocol: &'a PSM::ProtocolIdType,
         version: &'a PSM::ProtocolVersionType,
         vendor_id: &'a PSM::VendorIdType,
         guid_prefix: &'a PSM::GuidPrefixType,
-        submessages: T,
+        submessages: &[&'a dyn Submessage<PSM>],
     ) -> Self;
 
     fn header(&self) -> PSM::RtpsMessageHeaderType;
+
+    fn submessages(&self) -> &[&'a dyn Submessage<PSM>];
 }
