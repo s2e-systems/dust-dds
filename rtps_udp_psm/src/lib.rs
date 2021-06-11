@@ -1142,6 +1142,23 @@ mod tests {
         let data = SerializedData(&[1, 2]);
         assert_eq!(serialize(data), vec![1, 2]);
     }
+
+
+
+    #[test]
+    fn serialize_sequence_number_set() {
+
+        use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
+
+        let sequence_number_set = SequenceNumberSet::new(&2.into(), &[4.into(), 6.into()]);
+        #[rustfmt::skip]
+        assert_eq!(serialize(sequence_number_set), vec![
+            0, 0, 0, 0, // SequenceNumberSet: bitmapBase: high
+            2, 0, 0, 0, // SequenceNumberSet: bitmapBase: low
+            4, 0, 0, 0, // SequenceNumberSet: numBits (ULong)
+           0b_001_0100, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // SequenceNumberSet: bitmap[0] long
+        ]);
+    }
 }
 
 // impl EntityId {
