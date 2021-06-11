@@ -282,7 +282,7 @@ impl<'a> RTPSMessagePIM<'a, Self> for RtpsUdpPsm {
 }
 
 impl<'a> RtpsMessageHeaderPIM<'a, Self> for RtpsUdpPsm {
-    type RtpsMessageHeaderType = RTPSMessageHeader<'a>;
+    type RtpsMessageHeaderType = RTPSMessageHeader;
 }
 
 impl RtpsSubmessageHeaderPIM<Self> for RtpsUdpPsm {
@@ -293,7 +293,7 @@ impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
     type DataSubmessageType = submessages::data::DataSubmesage<'a>;
 }
 
-impl GapSubmessagePIM<Self> for RtpsUdpPsm {
+impl<'a> GapSubmessagePIM<'a, Self> for RtpsUdpPsm {
     type GapSubmessageType = submessages::gap::GapSubmessage;
 }
 
@@ -980,14 +980,14 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
 }
 
 #[derive(Clone, Copy)]
-pub struct RTPSMessageHeader<'a> {
-    protocol: &'a ProtocolId,
-    version: &'a ProtocolVersion,
-    vendor_id: &'a VendorId,
-    guid_prefix: &'a GuidPrefix,
+pub struct RTPSMessageHeader {
+    protocol: ProtocolId,
+    version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
 }
 
-impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<'a, RtpsUdpPsm> for RTPSMessageHeader<'a> {
+impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<'a, RtpsUdpPsm> for RTPSMessageHeader {
     fn protocol(&self) -> &ProtocolId {
         &self.protocol
     }
@@ -1006,8 +1006,8 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<'a, RtpsUdpPsm> for RTPS
 }
 
 pub struct RTPSMessage<'a> {
-    header: RTPSMessageHeader<'a>,
-    submessages: Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>,
+    header: RTPSMessageHeader,
+    submessages: Vec<&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>>,
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a> {
@@ -1016,24 +1016,24 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a
         version: &'a ProtocolVersion,
         vendor_id: &'a VendorId,
         guid_prefix: &'a GuidPrefix,
-        submessages: &[&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>],
+        submessages: &'a [&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>],
     ) -> Self {
         Self {
             header: RTPSMessageHeader {
-                protocol,
-                version,
-                vendor_id,
-                guid_prefix,
+                protocol: protocol.clone(),
+                version: version.clone(),
+                vendor_id: vendor_id.clone(),
+                guid_prefix: guid_prefix.clone(),
             },
             submessages: submessages.to_vec(),
         }
     }
 
-    fn header(&self) -> RTPSMessageHeader<'a> {
+    fn header(&self) -> RTPSMessageHeader {
         self.header
     }
 
-    fn submessages(&self) -> &[&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>] {
+    fn submessages(&self) -> &[&dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>] {
         &self.submessages
     }
 }

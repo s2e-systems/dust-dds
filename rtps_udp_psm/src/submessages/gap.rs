@@ -13,7 +13,7 @@ pub struct GapSubmessage {
     gap_list: SequenceNumberSet,
 }
 
-impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for GapSubmessage {
+impl<'a> rust_rtps_pim::messages::submessages::GapSubmessage<'a, RtpsUdpPsm> for GapSubmessage {
     fn new(
         endianness_flag: SubmessageFlag,
         reader_id: EntityId,
@@ -60,14 +60,14 @@ impl rust_rtps_pim::messages::submessages::GapSubmessage<RtpsUdpPsm> for GapSubm
     }
 }
 
-impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for GapSubmessage {
+impl<'a> rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm> for GapSubmessage {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
 
     fn submessage_elements(
         &self,
-    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<RtpsUdpPsm>] {
+    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<'a, RtpsUdpPsm>] {
         todo!()
     }
 }

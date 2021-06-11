@@ -16,7 +16,7 @@ pub struct DataSubmesage<'a> {
     writer_sn: SequenceNumber,
     inline_qos: ParameterList,
     serialized_payload: SerializedData<'a>,
-    submessage_elements: [SubmessageElements<RtpsUdpPsm>; 2],
+    submessage_elements: [SubmessageElements<'a, RtpsUdpPsm>; 2],
 }
 
 impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
@@ -112,14 +112,14 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
     }
 }
 
-impl<'a> Submessage<RtpsUdpPsm> for DataSubmesage<'a> {
+impl<'a> Submessage<'a, RtpsUdpPsm> for DataSubmesage<'a> {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
 
     fn submessage_elements(
         &self,
-    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<RtpsUdpPsm>] {
+    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<'a, RtpsUdpPsm>] {
         todo!()
     }
 }

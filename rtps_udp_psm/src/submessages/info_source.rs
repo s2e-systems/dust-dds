@@ -4,7 +4,7 @@ use super::SubmessageHeader;
 
 pub struct InfoSource;
 
-impl rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm> for InfoSource {
+impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessage<'a, RtpsUdpPsm> for InfoSource {
     fn new(
         _endianness_flag: SubmessageFlag,
         _protocol_version: ProtocolVersion,
@@ -31,14 +31,14 @@ impl rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm> for 
     }
 }
 
-impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for InfoSource {
+impl<'a> rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm> for InfoSource {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
 
     fn submessage_elements(
         &self,
-    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<RtpsUdpPsm>] {
+    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<'a, RtpsUdpPsm>] {
         todo!()
     }
 }

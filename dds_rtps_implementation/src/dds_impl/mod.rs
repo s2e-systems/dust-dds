@@ -49,7 +49,7 @@ pub trait PIM:
     + for<'a> RtpsMessageHeaderPIM<'a, Self>
     + for<'a> RTPSMessagePIM<'a, Self>
     + for<'a> DataSubmessagePIM<'a, Self>
-    + GapSubmessagePIM<Self>
+    + for<'a> GapSubmessagePIM<'a, Self>
     + Sized
     + 'static
 {
@@ -78,7 +78,7 @@ impl<
             + for<'a> SerializedDataSubmessageElementPIM<'a>
             + for<'a> RTPSMessagePIM<'a, Self>
             + for<'a> DataSubmessagePIM<'a, Self>
-            + GapSubmessagePIM<Self>
+            + for<'a> GapSubmessagePIM<'a, Self>
             + Sized
             + 'static,
     > PIM for T
