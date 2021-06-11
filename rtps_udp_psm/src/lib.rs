@@ -567,13 +567,41 @@ impl serde::Serialize for SequenceNumberSet {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de> {
-        todo!()
+
+struct SequenceNumberSetVisitor;
+
+impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
+    type Value = SequenceNumberSet;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("SequenceNumberSet Submessage Element")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where A: serde::de::SeqAccess<'de>,
+    {
+        use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
+
+        let base: SequenceNumber = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        let num_bits: u32 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+        let num_bitmaps = (num_bits + 31) / 32; //In standard refered to as "M"
+        let mut set = vec![];
+        for _ in 0..num_bitmaps {
+            set.push(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?);
+        }
+        Ok(SequenceNumberSet::new(&base, &set))
     }
 }
+
+impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+            const MAX_BYTES: usize = 2^16;
+            deserializer.deserialize_tuple( MAX_BYTES, SequenceNumberSetVisitor {})
+    }
+}
+
 
 impl
     rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType<RtpsUdpPsm>
@@ -582,7 +610,7 @@ impl
     fn new(base: &SequenceNumber, set: &[SequenceNumber]) -> Self {
         let max = set.iter().max();
         let num_bits = match max {
-            Some(max) => Into::<i64>::into(*max) - Into::<i64>::into(*base),
+            Some(max) => Into::<i64>::into(*max) - Into::<i64>::into(*base) + 1,
             None => 0,
         };
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
@@ -1145,19 +1173,43 @@ mod tests {
 
 
 
+
+    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
+
     #[test]
-    fn serialize_sequence_number_set() {
-
-        use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
-
-        let sequence_number_set = SequenceNumberSet::new(&2.into(), &[4.into(), 6.into()]);
+    fn serialize_sequence_number_set_two_bitmaps() {
+        let sequence_number_set = SequenceNumberSet::new(&0.into(), &[2.into(), 32.into()]);
         #[rustfmt::skip]
         assert_eq!(serialize(sequence_number_set), vec![
-            0, 0, 0, 0, // SequenceNumberSet: bitmapBase: high
-            2, 0, 0, 0, // SequenceNumberSet: bitmapBase: low
-            4, 0, 0, 0, // SequenceNumberSet: numBits (ULong)
-           0b_001_0100, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // SequenceNumberSet: bitmap[0] long
+            0, 0, 0, 0, // bitmapBase: high (long)
+            0, 0, 0, 0, // bitmapBase: low (unsigned long)
+           33, 0, 0, 0, // numBits (ULong)
+           0b_000_0100, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[0] (long)
+           0b_000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
         ]);
+    }
+
+    #[test]
+    fn serialize_sequence_number_set_empty() {
+        let sequence_number_set = SequenceNumberSet::new(&2.into(), &[]);
+        #[rustfmt::skip]
+        assert_eq!(serialize(sequence_number_set), vec![
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 0, 0, 0, // numBits (ULong)
+        ]);
+    }
+
+    #[test]
+    fn deserialize_sequence_number_set_empty() {
+        let expected = SequenceNumberSet::new(&2.into(), &[]);
+        #[rustfmt::skip]
+        let result = deserialize(&[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 0, 0, 0, // numBits (ULong)
+        ]);
+        assert_eq!(expected, result);
     }
 }
 
