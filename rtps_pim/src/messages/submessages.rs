@@ -1,25 +1,37 @@
 use crate::{
-    messages::{submessage_elements, Submessage},
+    messages::Submessage,
     structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, LocatorPIM, ParameterListPIM, ProtocolVersionPIM,
-        SequenceNumberPIM, VendorIdPIM,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM,
+        VendorIdPIM,
     },
 };
 
 use super::{
-    types::{
-        CountPIM, FragmentNumberPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
+    submessage_elements::{
+        CountSubmessageElementPIM, EntityIdSubmessageElementPIM,
+        FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM,
+        GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
+        ParameterListSubmessageElementPIM, ProtocolVersionSubmessageElementPIM,
+        SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM,
+        SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementPIM,
+        TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM,
+        VendorIdSubmessageElementPIM,
     },
-    SubmessageHeaderPIM,
+    types::{
+        CountPIM, FragmentNumberPIM, ParameterIdPIM, SubmessageFlag, SubmessageKindPIM, TimePIM,
+    },
+    RtpsSubmessageHeaderPIM,
 };
 
 pub trait AckNackSubmessagePIM<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>,
 >
 {
     type AckNackSubmessageType: AckNackSubmessage<PSM>;
@@ -27,43 +39,44 @@ pub trait AckNackSubmessagePIM<
 
 pub trait AckNackSubmessage<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>,
 >: Submessage<PSM>
 {
-    type EntityId: submessage_elements::EntityId<PSM>;
-    type SequenceNumberSet: submessage_elements::SequenceNumberSet<PSM>;
-    type Count: submessage_elements::Count<PSM>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        final_flag: PSM::SubmessageFlagType,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        reader_sn_state: Self::SequenceNumberSet,
-        count: Self::Count,
+        endianness_flag: SubmessageFlag,
+        final_flag: SubmessageFlag,
+        reader_id: PSM::EntityIdSubmessageElementType,
+        writer_id: PSM::EntityIdSubmessageElementType,
+        reader_sn_state: PSM::SequenceNumberSetSubmessageElementType,
+        count: PSM::CountSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn final_flag(&self) -> PSM::SubmessageFlagType;
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn reader_sn_state(&self) -> &Self::SequenceNumberSet;
-    fn count(&self) -> &Self::Count;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn final_flag(&self) -> SubmessageFlag;
+    fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn reader_sn_state(&self) -> &PSM::SequenceNumberSetSubmessageElementType;
+    fn count(&self) -> &PSM::CountSubmessageElementType;
 }
 
 pub trait DataSubmessagePIM<
     'a,
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + ParameterIdPIM
-        + ParameterListPIM<PSM>
+        + ParameterListSubmessageElementPIM<PSM>
         + DataPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM<PSM>
+        + SerializedDataSubmessageElementPIM<'a>,
 >
 {
     type DataSubmessageType: DataSubmessage<'a, PSM>;
@@ -72,53 +85,58 @@ pub trait DataSubmessagePIM<
 pub trait DataSubmessage<
     'a,
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + ParameterIdPIM
-        + ParameterListPIM<PSM>
+        + ParameterListSubmessageElementPIM<PSM>
         + DataPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM<PSM>
+        + SerializedDataSubmessageElementPIM<'a>,
 >: Submessage<PSM>
 {
-    type EntityId: submessage_elements::EntityId<PSM>;
-    type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
-    type SerializedData: submessage_elements::SerializedData<'a>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        inline_qos_flag: PSM::SubmessageFlagType,
-        data_flag: PSM::SubmessageFlagType,
-        key_flag: PSM::SubmessageFlagType,
-        non_standard_payload_flag: PSM::SubmessageFlagType,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        writer_sn: Self::SequenceNumber,
-        inline_qos: PSM::ParameterListType,
-        serialized_payload: Self::SerializedData,
+        endianness_flag: SubmessageFlag,
+        inline_qos_flag: SubmessageFlag,
+        data_flag: SubmessageFlag,
+        key_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        reader_id: PSM::EntityIdSubmessageElementType,
+        writer_id: PSM::EntityIdSubmessageElementType,
+        writer_sn: PSM::SequenceNumberSubmessageElementType,
+        inline_qos: PSM::ParameterListSubmessageElementType,
+        serialized_payload: PSM::SerializedDataSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn inline_qos_flag(&self) -> PSM::SubmessageFlagType;
-    fn data_flag(&self) -> PSM::SubmessageFlagType;
-    fn key_flag(&self) -> PSM::SubmessageFlagType;
-    fn non_standard_payload_flag(&self) -> PSM::SubmessageFlagType;
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn writer_sn(&self) -> &Self::SequenceNumber;
-    fn inline_qos(&self) -> &PSM::ParameterListType;
-    fn serialized_payload(&self) -> &Self::SerializedData;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn inline_qos_flag(&self) -> SubmessageFlag;
+    fn data_flag(&self) -> SubmessageFlag;
+    fn key_flag(&self) -> SubmessageFlag;
+    fn non_standard_payload_flag(&self) -> SubmessageFlag;
+    fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_sn(&self) -> &PSM::SequenceNumberSubmessageElementType;
+    fn inline_qos(&self) -> &PSM::ParameterListSubmessageElementType;
+    fn serialized_payload(&self) -> &PSM::SerializedDataSubmessageElementType;
 }
 
 pub trait DataFragSubmessagePIM<
     'a,
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + FragmentNumberPIM
         + DataPIM
         + ParameterIdPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + UShortSubmessageElementPIM
+        + ULongSubmessageElementPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + SerializedDataFragmentSubmessageElementPIM<'a>,
 >
 {
     type DataFragSubmessageType: DataFragSubmessage<'a, PSM>;
@@ -127,59 +145,59 @@ pub trait DataFragSubmessagePIM<
 pub trait DataFragSubmessage<
     'a,
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + FragmentNumberPIM
         + DataPIM
         + ParameterIdPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + UShortSubmessageElementPIM
+        + ULongSubmessageElementPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + SerializedDataFragmentSubmessageElementPIM<'a>,
 >: Submessage<PSM>
 {
-    type EntityId: submessage_elements::EntityId<PSM>;
-    type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
-    type FragmentNumber: submessage_elements::FragmentNumber<PSM>;
-    type UShort: submessage_elements::UShort;
-    type ULong: submessage_elements::ULong;
-    type SerializedData: submessage_elements::SerializedDataFragment<'a>;
-    type ParameterList: submessage_elements::ParameterList<PSM>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        inline_qos_flag: PSM::SubmessageFlagType,
-        non_standard_payload_flag: PSM::SubmessageFlagType,
-        key_flag: PSM::SubmessageFlagType,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        writer_sn: Self::SequenceNumber,
-        fragment_starting_num: Self::FragmentNumber,
-        fragments_in_submessage: Self::UShort,
-        data_size: Self::ULong,
-        fragment_size: Self::UShort,
-        inline_qos: Self::ParameterList,
-        serialized_payload: Self::SerializedData,
+        endianness_flag: SubmessageFlag,
+        inline_qos_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        key_flag: SubmessageFlag,
+        reader_id: PSM::EntityIdSubmessageElementType,
+        writer_id: PSM::EntityIdSubmessageElementType,
+        writer_sn: PSM::SequenceNumberSubmessageElementType,
+        fragment_starting_num: PSM::FragmentNumberSubmessageElementType,
+        fragments_in_submessage: PSM::UShortSubmessageElementType,
+        data_size: PSM::ULongSubmessageElementType,
+        fragment_size: PSM::UShortSubmessageElementType,
+        inline_qos: PSM::ParameterListSubmessageElementType,
+        serialized_payload: PSM::SerializedDataFragmentSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn inline_qos_flag(&self) -> PSM::SubmessageFlagType;
-    fn non_standard_payload_flag(&self) -> PSM::SubmessageFlagType;
-    fn key_flag(&self) -> PSM::SubmessageFlagType;
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn writer_sn(&self) -> &Self::SequenceNumber;
-    fn fragment_starting_num(&self) -> &Self::FragmentNumber;
-    fn fragments_in_submessage(&self) -> &Self::UShort;
-    fn data_size(&self) -> &Self::ULong;
-    fn fragment_size(&self) -> &Self::UShort;
-    fn inline_qos(&self) -> &Self::ParameterList;
-    fn serialized_payload(&self) -> &Self::SerializedData;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn inline_qos_flag(&self) -> SubmessageFlag;
+    fn non_standard_payload_flag(&self) -> SubmessageFlag;
+    fn key_flag(&self) -> SubmessageFlag;
+    fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_sn(&self) -> &PSM::SequenceNumberSubmessageElementType;
+    fn fragment_starting_num(&self) -> &PSM::FragmentNumberSubmessageElementType;
+    fn fragments_in_submessage(&self) -> &PSM::UShortSubmessageElementType;
+    fn data_size(&self) -> &PSM::ULongSubmessageElementType;
+    fn fragment_size(&self) -> &PSM::UShortSubmessageElementType;
+    fn inline_qos(&self) -> &PSM::ParameterListSubmessageElementType;
+    fn serialized_payload(&self) -> &PSM::SerializedDataFragmentSubmessageElementType;
 }
 
 pub trait GapSubmessagePIM<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>,
 >
 {
     type GapSubmessageType: GapSubmessage<PSM>;
@@ -187,39 +205,39 @@ pub trait GapSubmessagePIM<
 
 pub trait GapSubmessage<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>,
 >: Submessage<PSM>
 {
-    type EntityId: submessage_elements::EntityId<PSM>;
-    type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
-    type SequenceNumberSet: submessage_elements::SequenceNumberSet<PSM>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        gap_start: Self::SequenceNumber,
-        gap_list: Self::SequenceNumberSet,
+        endianness_flag: SubmessageFlag,
+        reader_id: PSM::EntityIdSubmessageElementType,
+        writer_id: PSM::EntityIdSubmessageElementType,
+        gap_start: PSM::SequenceNumberSubmessageElementType,
+        gap_list: PSM::SequenceNumberSetSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn gap_start(&self) -> &Self::SequenceNumber;
-    fn gap_list(&self) -> &Self::SequenceNumberSet;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn gap_start(&self) -> &PSM::SequenceNumberSubmessageElementType;
+    fn gap_list(&self) -> &PSM::SequenceNumberSetSubmessageElementType;
     // gap_start_gsn: submessage_elements::SequenceNumber,
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
 
 pub trait HeartbeatSubmessagePIM<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>,
 >
 {
     type HeartbeatSubmessageType: HeartbeatSubmessage<PSM>;
@@ -227,35 +245,33 @@ pub trait HeartbeatSubmessagePIM<
 
 pub trait HeartbeatSubmessage<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>,
 >: Submessage<PSM>
 {
-    type EntityId: submessage_elements::EntityId<PSM>;
-    type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
-    type Count: submessage_elements::Count<PSM>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        final_flag: PSM::SubmessageFlagType,
-        liveliness_flag: PSM::SubmessageFlagType,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        first_sn: Self::SequenceNumber,
-        last_sn: Self::SequenceNumber,
-        count: Self::Count,
+        endianness_flag: SubmessageFlag,
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        reader_id: PSM::EntityIdSubmessageElementType,
+        writer_id: PSM::EntityIdSubmessageElementType,
+        first_sn: PSM::SequenceNumberSubmessageElementType,
+        last_sn: PSM::SequenceNumberSubmessageElementType,
+        count: PSM::CountSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn final_flag(&self) -> PSM::SubmessageFlagType;
-    fn liveliness_flag(&self) -> PSM::SubmessageFlagType;
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn first_sn(&self) -> &Self::SequenceNumber;
-    fn last_sn(&self) -> &Self::SequenceNumber;
-    fn count(&self) -> &Self::Count;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn final_flag(&self) -> SubmessageFlag;
+    fn liveliness_flag(&self) -> SubmessageFlag;
+    fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn first_sn(&self) -> &PSM::SequenceNumberSubmessageElementType;
+    fn last_sn(&self) -> &PSM::SequenceNumberSubmessageElementType;
+    fn count(&self) -> &PSM::CountSubmessageElementType;
     // current_gsn: submessage_elements::SequenceNumber,
     // first_gsn: submessage_elements::SequenceNumber,
     // last_gsn: submessage_elements::SequenceNumber,
@@ -265,12 +281,15 @@ pub trait HeartbeatSubmessage<
 
 pub trait HeartbeatFragSubmessagePIM<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + FragmentNumberPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>,
 >
 {
     type HeartbeatFragSubmessageType: HeartbeatFragSubmessage<PSM>;
@@ -278,84 +297,96 @@ pub trait HeartbeatFragSubmessagePIM<
 
 pub trait HeartbeatFragSubmessage<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + FragmentNumberPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>,
 >: Submessage<PSM>
 {
-    type EntityId: submessage_elements::EntityId<PSM>;
-    type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
-    type FragmentNumber: submessage_elements::FragmentNumber<PSM>;
-    type Count: submessage_elements::Count<PSM>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        writer_sn: Self::SequenceNumber,
-        last_fragment_num: Self::FragmentNumber,
-        count: Self::Count,
+        endianness_flag: SubmessageFlag,
+        reader_id: PSM::EntityIdSubmessageElementType,
+        writer_id: PSM::EntityIdSubmessageElementType,
+        writer_sn: PSM::SequenceNumberSubmessageElementType,
+        last_fragment_num: PSM::FragmentNumberSubmessageElementType,
+        count: PSM::CountSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn writer_sn(&self) -> &Self::SequenceNumber;
-    fn last_fragment_num(&self) -> &Self::FragmentNumber;
-    fn count(&self) -> &Self::Count;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_sn(&self) -> &PSM::SequenceNumberSubmessageElementType;
+    fn last_fragment_num(&self) -> &PSM::FragmentNumberSubmessageElementType;
+    fn count(&self) -> &PSM::CountSubmessageElementType;
 }
 
 pub trait InfoDestinationSubmessagePIM<
-    PSM: SubmessageKindPIM + SubmessageFlagPIM + GuidPrefixPIM + SubmessageHeaderPIM<PSM>,
+    PSM: SubmessageKindPIM
+        + GuidPrefixPIM
+        + RtpsSubmessageHeaderPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>,
 >
 {
     type InfoDestinationSubmessageType: InfoDestinationSubmessage<PSM>;
 }
 
 pub trait InfoDestinationSubmessage<
-    PSM: SubmessageKindPIM + SubmessageFlagPIM + GuidPrefixPIM + SubmessageHeaderPIM<PSM>,
+    PSM: SubmessageKindPIM
+        + GuidPrefixPIM
+        + RtpsSubmessageHeaderPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>,
 >: Submessage<PSM>
 {
-    type GuidPrefix: submessage_elements::GuidPrefix<PSM>;
-    fn new(endianness_flag: PSM::SubmessageFlagType, guid_prefix: Self::GuidPrefix) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn guid_prefix(&self) -> &Self::GuidPrefix;
+    fn new(
+        endianness_flag: SubmessageFlag,
+        guid_prefix: PSM::GuidPrefixSubmessageElementType,
+    ) -> Self;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn guid_prefix(&self) -> &PSM::GuidPrefixSubmessageElementType;
 }
 
 pub trait InfoReplySubmessagePIM<
-    PSM: SubmessageKindPIM + SubmessageFlagPIM + LocatorPIM + SubmessageHeaderPIM<PSM>,
+    PSM: SubmessageKindPIM
+        + LocatorPIM
+        + RtpsSubmessageHeaderPIM<PSM>
+        + LocatorListSubmessageElementPIM<PSM>,
 >
 {
     type InfoReplySubmessageType: InfoReplySubmessage<PSM>;
 }
 
 pub trait InfoReplySubmessage<
-    PSM: SubmessageKindPIM + SubmessageFlagPIM + LocatorPIM + SubmessageHeaderPIM<PSM>,
+    PSM: SubmessageKindPIM
+        + LocatorPIM
+        + RtpsSubmessageHeaderPIM<PSM>
+        + LocatorListSubmessageElementPIM<PSM>,
 >: Submessage<PSM>
 {
-    type LocatorList: submessage_elements::LocatorList<PSM>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        multicast_flag: PSM::SubmessageFlagType,
-        unicast_locator_list: Self::LocatorList,
-        multicast_locator_list: Self::LocatorList,
+        endianness_flag: SubmessageFlag,
+        multicast_flag: SubmessageFlag,
+        unicast_locator_list: PSM::LocatorListSubmessageElementType,
+        multicast_locator_list: PSM::LocatorListSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn multicast_flag(&self) -> PSM::SubmessageFlagType;
-    fn unicast_locator_list(&self) -> &Self::LocatorList;
-    fn multicast_locator_list(&self) -> &Self::LocatorList;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn multicast_flag(&self) -> SubmessageFlag;
+    fn unicast_locator_list(&self) -> &PSM::LocatorListSubmessageElementType;
+    fn multicast_locator_list(&self) -> &PSM::LocatorListSubmessageElementType;
 }
 
 pub trait InfoSourceSubmessagePIM<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + ProtocolVersionPIM
         + VendorIdPIM
         + GuidPrefixPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + ProtocolVersionSubmessageElementPIM<PSM>
+        + VendorIdSubmessageElementPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>,
 >
 {
     type InfoSourceSubmessageType: InfoSourceSubmessage<PSM>;
@@ -363,60 +394,59 @@ pub trait InfoSourceSubmessagePIM<
 
 pub trait InfoSourceSubmessage<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + ProtocolVersionPIM
         + VendorIdPIM
         + GuidPrefixPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + ProtocolVersionSubmessageElementPIM<PSM>
+        + VendorIdSubmessageElementPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>,
 >: Submessage<PSM>
 {
-    type GuidPrefix: submessage_elements::GuidPrefix<PSM>;
-    type ProtocolVersion: submessage_elements::ProtocolVersion<PSM>;
-    type VendorId: submessage_elements::VendorId<PSM>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        protocol_version: Self::ProtocolVersion,
-        vendor_id: Self::VendorId,
-        guid_prefix: Self::GuidPrefix,
+        endianness_flag: SubmessageFlag,
+        protocol_version: PSM::ProtocolVersionSubmessageElementType,
+        vendor_id: PSM::VendorIdSubmessageElementType,
+        guid_prefix: PSM::GuidPrefixSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn protocol_version(&self) -> &Self::ProtocolVersion;
-    fn vendor_id(&self) -> &Self::VendorId;
-    fn guid_prefix(&self) -> &Self::GuidPrefix;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn protocol_version(&self) -> &PSM::ProtocolVersionSubmessageElementType;
+    fn vendor_id(&self) -> &PSM::VendorIdSubmessageElementType;
+    fn guid_prefix(&self) -> &PSM::GuidPrefixSubmessageElementType;
 }
 
 pub trait InfoTimestampSubmessagePIM<
-    PSM: SubmessageKindPIM + SubmessageFlagPIM + TimePIM + SubmessageHeaderPIM<PSM>,
+    PSM: SubmessageKindPIM + TimePIM + RtpsSubmessageHeaderPIM<PSM> + TimestampSubmessageElementPIM<PSM>,
 >
 {
     type InfoTimestampSubmessageType: InfoTimestampSubmessage<PSM>;
 }
 
 pub trait InfoTimestampSubmessage<
-    PSM: SubmessageKindPIM + SubmessageFlagPIM + TimePIM + SubmessageHeaderPIM<PSM>,
+    PSM: SubmessageKindPIM + TimePIM + RtpsSubmessageHeaderPIM<PSM> + TimestampSubmessageElementPIM<PSM>,
 >: Submessage<PSM>
 {
-    type Timestamp: submessage_elements::Timestamp<PSM>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        invalidate_flag: PSM::SubmessageFlagType,
-        timestamp: Self::Timestamp,
+        endianness_flag: SubmessageFlag,
+        invalidate_flag: SubmessageFlag,
+        timestamp: PSM::TimestampSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn invalidate_flag(&self) -> PSM::SubmessageFlagType;
-    fn timestamp(&self) -> &Self::Timestamp;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn invalidate_flag(&self) -> SubmessageFlag;
+    fn timestamp(&self) -> &PSM::TimestampSubmessageElementType;
 }
 
 pub trait NackFragSubmessagePIM<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + FragmentNumberPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + FragmentNumberSetSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>,
 >
 {
     type NackFragSubmessageType: NackFragSubmessage<PSM>;
@@ -424,40 +454,38 @@ pub trait NackFragSubmessagePIM<
 
 pub trait NackFragSubmessage<
     PSM: SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + FragmentNumberPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + FragmentNumberSetSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>,
 >: Submessage<PSM>
 {
-    type EntityId: submessage_elements::EntityId<PSM>;
-    type SequenceNumber: submessage_elements::SequenceNumber<PSM>;
-    type FragmentNumberSet: submessage_elements::FragmentNumberSet<PSM>;
-    type Count: submessage_elements::Count<PSM>;
-
     fn new(
-        endianness_flag: PSM::SubmessageFlagType,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        writer_sn: Self::SequenceNumber,
-        fragment_number_state: Self::FragmentNumberSet,
-        count: Self::Count,
+        endianness_flag: SubmessageFlag,
+        reader_id: PSM::EntityIdSubmessageElementType,
+        writer_id: PSM::EntityIdSubmessageElementType,
+        writer_sn: PSM::SequenceNumberSubmessageElementType,
+        fragment_number_state: PSM::FragmentNumberSetSubmessageElementType,
+        count: PSM::CountSubmessageElementType,
     ) -> Self;
-    fn endianness_flag(&self) -> PSM::SubmessageFlagType;
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn writer_sn(&self) -> &Self::SequenceNumber;
-    fn fragment_number_state(&self) -> &Self::FragmentNumberSet;
-    fn count(&self) -> &Self::Count;
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
+    fn writer_sn(&self) -> &PSM::SequenceNumberSubmessageElementType;
+    fn fragment_number_state(&self) -> &PSM::FragmentNumberSetSubmessageElementType;
+    fn count(&self) -> &PSM::CountSubmessageElementType;
 }
 
-pub trait PadSubmessagePIM<PSM: SubmessageKindPIM + SubmessageFlagPIM + SubmessageHeaderPIM<PSM>> {
+pub trait PadSubmessagePIM<PSM: SubmessageKindPIM + RtpsSubmessageHeaderPIM<PSM>> {
     type PadSubmessageType: PadSubmessage<PSM>;
 }
 
-pub trait PadSubmessage<PSM: SubmessageKindPIM + SubmessageFlagPIM + SubmessageHeaderPIM<PSM>>:
+pub trait PadSubmessage<PSM: SubmessageKindPIM + RtpsSubmessageHeaderPIM<PSM>>:
     Submessage<PSM>
 {
 }

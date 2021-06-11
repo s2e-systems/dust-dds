@@ -1,7 +1,4 @@
-use rust_rtps_pim::{
-    messages::{submessages::DataSubmessage, types::SubmessageKindPIM, Submessage},
-    structure::types::ParameterListPIM,
-};
+use rust_rtps_pim::messages::{submessages::DataSubmessage, types::SubmessageKindPIM, Submessage};
 
 use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
 
@@ -22,10 +19,6 @@ pub struct DataSubmesage<'a> {
 impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
     for DataSubmesage<'a>
 {
-    type EntityId = EntityId;
-    type SequenceNumber = SequenceNumber;
-    type SerializedData = SerializedData<'a>;
-
     fn new(
         endianness_flag: SubmessageFlag,
         inline_qos_flag: SubmessageFlag,
@@ -35,7 +28,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
-        inline_qos: <RtpsUdpPsm as ParameterListPIM<RtpsUdpPsm>>::ParameterListType,
+        inline_qos: ParameterList,
         serialized_payload: SerializedData<'a>,
     ) -> Self {
         let flags = [
@@ -89,23 +82,23 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
         self.header.flags.is_bit_set(4)
     }
 
-    fn reader_id(&self) -> &Self::EntityId {
+    fn reader_id(&self) -> &EntityId {
         &self.reader_id
     }
 
-    fn writer_id(&self) -> &Self::EntityId {
+    fn writer_id(&self) -> &EntityId {
         &self.writer_id
     }
 
-    fn writer_sn(&self) -> &Self::SequenceNumber {
+    fn writer_sn(&self) -> &SequenceNumber {
         &self.writer_sn
     }
 
-    fn inline_qos(&self) -> &<RtpsUdpPsm as ParameterListPIM<RtpsUdpPsm>>::ParameterListType {
+    fn inline_qos(&self) -> &ParameterList {
         todo!()
     }
 
-    fn serialized_payload(&self) -> &Self::SerializedData {
+    fn serialized_payload(&self) -> &SerializedData<'a> {
         &self.serialized_payload
     }
 }

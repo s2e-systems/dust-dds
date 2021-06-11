@@ -16,7 +16,6 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::types::{GUID, GUIDPIM};
 
 // use rust_rtps_pim::structure::RTPSEntity;
 
@@ -39,7 +38,7 @@ pub struct DomainParticipantImpl<PSM: PIM> {
 
 impl<PSM: PIM> DomainParticipantImpl<PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send,
+    PSM::GUIDType: Send,
     PSM::GuidPrefixType: Clone + Copy,
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType, transport: impl Transport<PSM> + 'static) -> Self {
@@ -57,14 +56,12 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone + Copy,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
-    PSM::DataType: AsRef<[u8]>,
+    PSM::GUIDType: Send + Copy,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Clone + Send,
+    PSM::ParameterListSubmessageElementType: Clone + Send,
 {
     type PublisherType = PublisherImpl<'p, PSM>;
     fn create_publisher(
@@ -105,14 +102,12 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
-    PSM::DataType: AsRef<[u8]>,
+    PSM::GUIDType: Send + Copy,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Clone + Send,
+    PSM::ParameterListSubmessageElementType: Clone + Send,
 {
     type SubscriberType = SubscriberImpl<'s, PSM>;
 
@@ -173,14 +168,12 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
-    PSM::DataType: AsRef<[u8]>,
+    PSM::GUIDType: Send + Copy,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Clone + Send,
+    PSM::ParameterListSubmessageElementType: Clone + Send,
 {
     type TopicType = TopicImpl<'t, T, PSM>;
 
@@ -209,14 +202,12 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
-    PSM::DataType: AsRef<[u8]>,
+    PSM::GUIDType: Send + Copy,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Clone + Send,
+    PSM::ParameterListSubmessageElementType: Clone + Send,
 {
     fn lookup_topicdescription<'t, T>(
         &'t self,
@@ -329,14 +320,12 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
-    PSM::DataType: AsRef<[u8]>,
+    PSM::GUIDType: Send + Copy,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
     PSM::DataType: Send,
-    PSM::ParameterListType: Clone + Send,
+    PSM::ParameterListSubmessageElementType: Clone + Send,
 {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;

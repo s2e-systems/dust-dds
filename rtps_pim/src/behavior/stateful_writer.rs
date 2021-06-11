@@ -1,17 +1,17 @@
 use crate::{
     behavior::{types::DurationPIM, RTPSWriter},
-    messages::types::ParameterIdPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-            SequenceNumberPIM, GUIDPIM,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
+            GUIDPIM,
         },
         RTPSHistoryCache,
     },
 };
 
 pub trait RTPSReaderProxy<
-    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM + SequenceNumberPIM,
+    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM<PSM> + SequenceNumberPIM,
 >
 {
     type SequenceNumberVector; //: IntoIterator<Item = PSM::SequenceNumber>;
@@ -40,8 +40,8 @@ pub trait RTPSStatefulWriter<
         + DurationPIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterListPIM<PSM>
-        + GUIDPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GUIDPIM<PSM>
         + InstanceHandlePIM
         + ParameterIdPIM,
 >: RTPSWriter<PSM>
@@ -75,8 +75,8 @@ pub fn can_send<
         + DurationPIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterListPIM<PSM>
-        + GUIDPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GUIDPIM<PSM>
         + InstanceHandlePIM
         + ParameterIdPIM,
 >(
@@ -96,10 +96,7 @@ pub fn can_send<
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        messages::submessage_elements::{Parameter, ParameterList},
-        structure::types::{Locator, GUID},
-    };
+    use crate::{messages::submessage_elements::{ParameterListSubmessageElementType, ParameterType}, structure::types::{GUIDType, LocatorType}};
 
     use super::*;
 
@@ -121,15 +118,23 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM for MockPSM {
-        type GUIDType = MockGUID;
-        const GUID_UNKNOWN: Self::GUIDType = MockGUID;
+    impl GUIDPIM<Self> for MockPSM {
+        type GUIDType = [u8; 16];
+        const GUID_UNKNOWN: Self::GUIDType = [0; 16];
     }
 
     impl LocatorPIM for MockPSM {
         type LocatorType = MockLocator;
 
         const LOCATOR_INVALID: Self::LocatorType = MockLocator;
+        const LOCATOR_KIND_INVALID: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        const LOCATOR_KIND_RESERVED: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        const LOCATOR_PORT_INVALID: <Self::LocatorType as LocatorType>::LocatorPort = [0; 4];
+        const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as LocatorType>::LocatorAddress = [0; 16];
     }
 
     impl DurationPIM for MockPSM {
@@ -144,8 +149,8 @@ mod tests {
         type ParameterIdType = ();
     }
 
-    impl ParameterListPIM<Self> for MockPSM {
-        type ParameterListType = MockParameterList;
+    impl ParameterListSubmessageElementPIM<Self> for MockPSM {
+        type ParameterListSubmessageElementType = MockParameterList;
     }
 
     impl InstanceHandlePIM for MockPSM {
@@ -155,16 +160,16 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
-    impl GUID<MockPSM> for MockGUID {
+    impl GUIDType<MockPSM> for [u8; 16] {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }
 
-        fn prefix(&self) -> [u8; 12] {
+        fn prefix(&self) -> &[u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> [u8; 4] {
+        fn entity_id(&self) -> &[u8; 4] {
             todo!()
         }
     }
@@ -172,18 +177,12 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockLocator;
 
-    impl Locator for MockLocator {
+    impl LocatorType for MockLocator {
         type LocatorKind = [u8; 4];
-        const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
-        const LOCATOR_KIND_RESERVED: Self::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: Self::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: Self::LocatorKind = [0; 4];
+
         type LocatorPort = [u8; 4];
-        const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
+
         type LocatorAddress = [u8; 16];
-        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -200,7 +199,7 @@ mod tests {
 
     struct MockParameterList;
 
-    impl ParameterList<MockPSM> for MockParameterList {
+    impl ParameterListSubmessageElementType<MockPSM> for MockParameterList {
         type Parameter = MockParameter;
 
         fn new(_parameter: &[Self::Parameter]) -> Self {
@@ -214,7 +213,7 @@ mod tests {
 
     struct MockParameter;
 
-    impl Parameter<MockPSM> for MockParameter {
+    impl ParameterType<MockPSM> for MockParameter {
         fn parameter_id(&self) -> () {
             todo!()
         }
@@ -233,7 +232,7 @@ mod tests {
     impl RTPSReaderProxy<MockPSM> for MockReaderProxy {
         type SequenceNumberVector = [i64; 2];
 
-        fn remote_reader_guid(&self) -> &MockGUID {
+        fn remote_reader_guid(&self) -> &[u8; 16] {
             todo!()
         }
 

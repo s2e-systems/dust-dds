@@ -3,16 +3,26 @@ use serde::ser::SerializeStruct;
 use rust_rtps_pim::{
     behavior::types::{DurationPIM, ParticipantMessageDataPIM},
     messages::{
+        submessage_elements::{
+            CountSubmessageElementPIM, EntityIdSubmessageElementPIM,
+            FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM,
+            GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
+            LongSubmessageElementPIM, ParameterListSubmessageElementPIM,
+            ProtocolVersionSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
+            SequenceNumberSubmessageElementPIM, SerializedDataFragmentSubmessageElementPIM,
+            SerializedDataSubmessageElementPIM, TimestampSubmessageElementPIM,
+            ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM,
+        },
         submessages::{DataSubmessagePIM, GapSubmessagePIM},
         types::{
             CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
-            SubmessageFlagPIM, SubmessageKindPIM, TimePIM,
+            SubmessageFlag, SubmessageKindPIM, TimePIM,
         },
-        RTPSMessagePIM, SubmessageHeaderPIM,
+        RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
     structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-        ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM,
+        SequenceNumberPIM, VendorIdPIM, GUIDPIM,
     },
 };
 
@@ -38,7 +48,7 @@ impl EntityIdPIM for RtpsUdpPsm {
     };
 }
 
-impl GUIDPIM for RtpsUdpPsm {
+impl GUIDPIM<Self> for RtpsUdpPsm {
     type GUIDType = GUID;
     const GUID_UNKNOWN: Self::GUIDType = GUID {
         prefix: RtpsUdpPsm::GUIDPREFIX_UNKNOWN,
@@ -52,16 +62,28 @@ pub struct GUID {
     pub entity_id: EntityId,
 }
 
-impl rust_rtps_pim::structure::types::GUID<RtpsUdpPsm> for GUID {
+impl rust_rtps_pim::structure::types::GUIDType<RtpsUdpPsm> for GUID {
     fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self {
         Self { prefix, entity_id }
     }
 
-    fn prefix(&self) -> GuidPrefix {
+    fn prefix(&self) -> &GuidPrefix {
         todo!()
     }
 
-    fn entity_id(&self) -> EntityId {
+    fn entity_id(&self) -> &EntityId {
+        todo!()
+    }
+}
+
+impl From<[u8; 16]> for GUID {
+    fn from(_: [u8; 16]) -> Self {
+        todo!()
+    }
+}
+
+impl Into<[u8; 16]> for GUID {
+    fn into(self) -> [u8; 16] {
         todo!()
     }
 }
@@ -78,11 +100,25 @@ impl LocatorPIM for RtpsUdpPsm {
     type LocatorType = Locator;
 
     const LOCATOR_INVALID: Self::LocatorType = Locator {
-        kind: <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_KIND_INVALID,
-        port: <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_PORT_INVALID,
-        address:
-            <Self::LocatorType as rust_rtps_pim::structure::types::Locator>::LOCATOR_ADDRESS_INVALID,
+        kind: Self::LOCATOR_KIND_INVALID,
+        port: Self::LOCATOR_PORT_INVALID,
+        address: Self::LOCATOR_ADDRESS_INVALID,
     };
+    const LOCATOR_KIND_INVALID:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(-1);
+    const LOCATOR_KIND_RESERVED:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(0);
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv4:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(1);
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv6:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(2);
+    const LOCATOR_ADDRESS_INVALID:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress =
+        [0; 16];
+    const LOCATOR_PORT_INVALID:
+        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort = ULong(0);
 }
 
 impl InstanceHandlePIM for RtpsUdpPsm {
@@ -115,12 +151,8 @@ impl ProtocolIdPIM for RtpsUdpPsm {
     const PROTOCOL_RTPS: Self::ProtocolIdType = [b'R', b'T', b'P', b'S'];
 }
 
-impl ParameterListPIM<RtpsUdpPsm> for RtpsUdpPsm {
-    type ParameterListType = ParameterList;
-}
-
-impl SubmessageFlagPIM for RtpsUdpPsm {
-    type SubmessageFlagType = SubmessageFlag;
+impl ParameterListSubmessageElementPIM<RtpsUdpPsm> for RtpsUdpPsm {
+    type ParameterListSubmessageElementType = ParameterList;
 }
 
 type SubmessageKind = u8;
@@ -181,12 +213,80 @@ impl ParticipantMessageDataPIM for RtpsUdpPsm {
     type ParticipantMessageDataType = ();
 }
 
+impl UShortSubmessageElementPIM for RtpsUdpPsm {
+    type UShortSubmessageElementType = UShort;
+}
+
+impl ULongSubmessageElementPIM for RtpsUdpPsm {
+    type ULongSubmessageElementType = ULong;
+}
+
+impl LongSubmessageElementPIM for RtpsUdpPsm {
+    type LongSubmessageElementType = Long;
+}
+
+impl EntityIdSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type EntityIdSubmessageElementType = EntityId;
+}
+
+impl GuidPrefixSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type GuidPrefixSubmessageElementType = GuidPrefix;
+}
+
+impl SequenceNumberSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type SequenceNumberSubmessageElementType = SequenceNumber;
+}
+
+impl SequenceNumberSetSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type SequenceNumberSetSubmessageElementType = SequenceNumberSet;
+}
+
+impl FragmentNumberSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type FragmentNumberSubmessageElementType = FragmentNumber;
+}
+
+impl FragmentNumberSetSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type FragmentNumberSetSubmessageElementType = FragmentNumberSet;
+}
+
+impl VendorIdSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type VendorIdSubmessageElementType = VendorId;
+}
+
+impl LocatorListSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type LocatorListSubmessageElementType = LocatorList;
+}
+
+impl ProtocolVersionSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type ProtocolVersionSubmessageElementType = ProtocolVersion;
+}
+
+impl TimestampSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type TimestampSubmessageElementType = Time;
+}
+
+impl<'a> SerializedDataSubmessageElementPIM<'a> for RtpsUdpPsm {
+    type SerializedDataSubmessageElementType = SerializedData<'a>;
+}
+
+impl<'a> SerializedDataFragmentSubmessageElementPIM<'a> for RtpsUdpPsm {
+    type SerializedDataFragmentSubmessageElementType = SerializedData<'a>;
+}
+
+impl CountSubmessageElementPIM<Self> for RtpsUdpPsm {
+    type CountSubmessageElementType = Count;
+}
+
 impl<'a> RTPSMessagePIM<'a, Self> for RtpsUdpPsm {
     type RTPSMessageType = RTPSMessage<'a>;
 }
 
-impl SubmessageHeaderPIM<Self> for RtpsUdpPsm {
-    type SubmessageHeaderType = submessages::SubmessageHeader;
+impl<'a> RtpsMessageHeaderPIM<'a, Self> for RtpsUdpPsm {
+    type RtpsMessageHeaderType = RTPSMessageHeader<'a>;
+}
+
+impl RtpsSubmessageHeaderPIM<Self> for RtpsUdpPsm {
+    type RtpsSubmessageHeaderType = submessages::SubmessageHeader;
 }
 
 impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
@@ -236,7 +336,7 @@ impl From<u8> for Octet {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UShort(u16);
 
-impl rust_rtps_pim::messages::submessage_elements::UShort for UShort {
+impl rust_rtps_pim::messages::submessage_elements::UShortSubmessageElementType for UShort {
     fn new(value: u16) -> Self {
         Self(value)
     }
@@ -249,7 +349,7 @@ impl rust_rtps_pim::messages::submessage_elements::UShort for UShort {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 pub struct Long(i32);
 
-impl rust_rtps_pim::messages::submessage_elements::Long for Long {
+impl rust_rtps_pim::messages::submessage_elements::LongSubmessageElementType for Long {
     fn new(value: i32) -> Self {
         Self(value)
     }
@@ -274,7 +374,7 @@ impl Into<[u8; 4]> for Long {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 pub struct ULong(u32);
 
-impl rust_rtps_pim::messages::submessage_elements::ULong for ULong {
+impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType for ULong {
     fn new(value: u32) -> Self {
         Self(value)
     }
@@ -311,9 +411,11 @@ impl Into<[u8; 12]> for GuidPrefix {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::GuidPrefix<RtpsUdpPsm> for GuidPrefix {
-    fn new(value: GuidPrefix) -> Self {
-        value
+impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementType<RtpsUdpPsm>
+    for GuidPrefix
+{
+    fn new(value: &GuidPrefix) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &GuidPrefix {
@@ -347,9 +449,11 @@ impl From<[u8; 4]> for EntityId {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::EntityId<RtpsUdpPsm> for EntityId {
-    fn new(value: EntityId) -> Self {
-        value
+impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType<RtpsUdpPsm>
+    for EntityId
+{
+    fn new(value: &EntityId) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &EntityId {
@@ -388,9 +492,11 @@ impl From<i64> for SequenceNumber {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::SequenceNumber<RtpsUdpPsm> for SequenceNumber {
-    fn new(value: SequenceNumber) -> Self {
-        value
+impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType<RtpsUdpPsm>
+    for SequenceNumber
+{
+    fn new(value: &SequenceNumber) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &SequenceNumber {
@@ -405,19 +511,10 @@ pub struct Locator {
     pub address: [u8; 16],
 }
 
-impl rust_rtps_pim::structure::types::Locator for Locator {
+impl rust_rtps_pim::structure::types::LocatorType for Locator {
     type LocatorKind = Long;
     type LocatorPort = ULong;
     type LocatorAddress = [u8; 16];
-
-    const LOCATOR_KIND_INVALID: Self::LocatorKind = Long(-1);
-    const LOCATOR_KIND_RESERVED: Self::LocatorKind = Long(0);
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4: Self::LocatorKind = Long(1);
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6: Self::LocatorKind = Long(2);
-    const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
-    const LOCATOR_PORT_INVALID: Self::LocatorPort = ULong(0);
 
     fn kind(&self) -> &Self::LocatorKind {
         &self.kind
@@ -470,25 +567,26 @@ impl serde::Serialize for SequenceNumberSet {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<RtpsUdpPsm>
+impl
+    rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType<RtpsUdpPsm>
     for SequenceNumberSet
 {
-    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
+    fn new(base: &SequenceNumber, set: &[SequenceNumber]) -> Self {
         let max = set.iter().max();
         let num_bits = match max {
-            Some(max) => Into::<i64>::into(*max) - Into::<i64>::into(base),
+            Some(max) => Into::<i64>::into(*max) - Into::<i64>::into(*base),
             None => 0,
         };
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
         let mut bitmap = vec![0; number_of_bitmap_elements];
         for sequence_number in set.iter() {
-            let delta_n = Into::<i64>::into(*sequence_number) - Into::<i64>::into(base);
+            let delta_n = Into::<i64>::into(*sequence_number) - Into::<i64>::into(*base);
             let bitmap_num = delta_n / 32;
             let bit_position = delta_n - bitmap_num * 32;
             bitmap[bitmap_num as usize] |= 1 << bit_position;
         }
         Self {
-            base,
+            base: base.clone(),
             set: set.into_iter().map(|x|x.clone()).collect(),
             num_bits: ULong(num_bits as u32),
             bitmap,
@@ -512,9 +610,11 @@ pub struct ProtocolVersion {
     pub minor: u8,
 }
 
-impl rust_rtps_pim::messages::submessage_elements::ProtocolVersion<RtpsUdpPsm> for ProtocolVersion {
-    fn new(value: ProtocolVersion) -> Self {
-        value
+impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType<RtpsUdpPsm>
+    for ProtocolVersion
+{
+    fn new(value: &ProtocolVersion) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &ProtocolVersion {
@@ -536,7 +636,9 @@ impl<'a> SerializedData<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedData<'a> for SerializedData<'a> {
+impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElementType<'a>
+    for SerializedData<'a>
+{
     fn new(value: &'a [u8]) -> Self {
         Self(value.into())
     }
@@ -552,7 +654,8 @@ impl<'a> serde::Serialize for SerializedData<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment<'a>
+impl<'a>
+    rust_rtps_pim::messages::submessage_elements::SerializedDataFragmentSubmessageElementType<'a>
     for SerializedData<'a>
 {
     fn new(value: &'a [u8]) -> Self {
@@ -567,9 +670,11 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragment<'a
 #[derive(Clone, Copy)]
 pub struct VendorId([u8; 2]);
 
-impl rust_rtps_pim::messages::submessage_elements::VendorId<RtpsUdpPsm> for VendorId {
-    fn new(value: VendorId) -> Self {
-        value
+impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType<RtpsUdpPsm>
+    for VendorId
+{
+    fn new(value: &VendorId) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &VendorId {
@@ -578,7 +683,6 @@ impl rust_rtps_pim::messages::submessage_elements::VendorId<RtpsUdpPsm> for Vend
 }
 
 pub type ProtocolId = [u8; 4];
-pub type SubmessageFlag = bool;
 
 #[derive(Clone, Copy)]
 pub struct Time {
@@ -586,9 +690,11 @@ pub struct Time {
     pub fraction: u32,
 }
 
-impl rust_rtps_pim::messages::submessage_elements::Timestamp<RtpsUdpPsm> for Time {
-    fn new(value: Time) -> Self {
-        value
+impl rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType<RtpsUdpPsm>
+    for Time
+{
+    fn new(value: &Time) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &Time {
@@ -599,9 +705,11 @@ impl rust_rtps_pim::messages::submessage_elements::Timestamp<RtpsUdpPsm> for Tim
 #[derive(Clone, Copy, serde::Serialize)]
 pub struct Count(i32);
 
-impl rust_rtps_pim::messages::submessage_elements::Count<RtpsUdpPsm> for Count {
-    fn new(value: Count) -> Self {
-        value
+impl rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType<RtpsUdpPsm>
+    for Count
+{
+    fn new(value: &Count) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &Count {
@@ -613,9 +721,11 @@ pub type ParameterId = i16;
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct FragmentNumber(u32);
 
-impl rust_rtps_pim::messages::submessage_elements::FragmentNumber<RtpsUdpPsm> for FragmentNumber {
-    fn new(value: FragmentNumber) -> Self {
-        value
+impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSubmessageElementType<RtpsUdpPsm>
+    for FragmentNumber
+{
+    fn new(value: &FragmentNumber) -> Self {
+        value.clone()
     }
 
     fn value(&self) -> &FragmentNumber {
@@ -623,12 +733,25 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumber<RtpsUdpPsm> fo
     }
 }
 
+impl From<u32> for FragmentNumber {
+    fn from(_: u32) -> Self {
+        todo!()
+    }
+}
+
+impl Into<u32> for FragmentNumber {
+    fn into(self) -> u32 {
+        todo!()
+    }
+}
+
 pub struct FragmentNumberSet(Vec<FragmentNumber>);
 
-impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSet<RtpsUdpPsm>
+impl
+    rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElementType<RtpsUdpPsm>
     for FragmentNumberSet
 {
-    fn new(_base: FragmentNumber, _set: &[FragmentNumber]) -> Self {
+    fn new(_base: &FragmentNumber, _set: &[FragmentNumber]) -> Self {
         todo!()
     }
 
@@ -686,7 +809,7 @@ impl Parameter {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::Parameter<RtpsUdpPsm> for Parameter {
+impl rust_rtps_pim::messages::submessage_elements::ParameterType<RtpsUdpPsm> for Parameter {
     fn parameter_id(&self) -> ParameterId {
         self.parameter_id
     }
@@ -803,7 +926,9 @@ impl ParameterList {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for ParameterList {
+impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<RtpsUdpPsm>
+    for ParameterList
+{
     type Parameter = Parameter;
 
     fn new(_parameter: &[Self::Parameter]) -> Self {
@@ -818,7 +943,9 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterList<RtpsUdpPsm> for
 
 pub struct LocatorList(Vec<Locator>);
 
-impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for LocatorList {
+impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementType<RtpsUdpPsm>
+    for LocatorList
+{
     fn new(_value: &[Locator]) -> Self {
         // Self(value)
         todo!()
@@ -830,45 +957,44 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorList<RtpsUdpPsm> for L
 }
 
 #[derive(Clone, Copy)]
-pub struct RTPSMessageHeader {
-    protocol: ProtocolId,
-    version: ProtocolVersion,
-    vendor_id: VendorId,
-    guid_prefix: GuidPrefix,
+pub struct RTPSMessageHeader<'a> {
+    protocol: &'a ProtocolId,
+    version: &'a ProtocolVersion,
+    vendor_id: &'a VendorId,
+    guid_prefix: &'a GuidPrefix,
 }
 
-impl rust_rtps_pim::messages::Header<RtpsUdpPsm> for RTPSMessageHeader {
-    fn protocol(&self) -> ProtocolId {
-        self.protocol
+impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<'a, RtpsUdpPsm> for RTPSMessageHeader<'a> {
+    fn protocol(&self) -> &ProtocolId {
+        &self.protocol
     }
 
-    fn version(&self) -> ProtocolVersion {
-        self.version
+    fn version(&self) -> &ProtocolVersion {
+        &self.version
     }
 
-    fn vendor_id(&self) -> VendorId {
-        self.vendor_id
+    fn vendor_id(&self) -> &VendorId {
+        &self.vendor_id
     }
 
-    fn guid_prefix(&self) -> GuidPrefix {
-        self.guid_prefix
+    fn guid_prefix(&self) -> &GuidPrefix {
+        &self.guid_prefix
     }
 }
 
 pub struct RTPSMessage<'a> {
-    header: RTPSMessageHeader,
+    header: RTPSMessageHeader<'a>,
     submessages: Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>,
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a> {
-    type RTPSMessageHeaderType = RTPSMessageHeader;
     type RTPSSubmessageVectorType = Vec<&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>;
 
     fn new<T: IntoIterator<Item = &'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>>>(
-        protocol: ProtocolId,
-        version: ProtocolVersion,
-        vendor_id: VendorId,
-        guid_prefix: GuidPrefix,
+        protocol: &'a ProtocolId,
+        version: &'a ProtocolVersion,
+        vendor_id: &'a VendorId,
+        guid_prefix: &'a GuidPrefix,
         submessages: T,
     ) -> Self {
         Self {
@@ -882,7 +1008,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a
         }
     }
 
-    fn header(&self) -> Self::RTPSMessageHeaderType {
+    fn header(&self) -> RTPSMessageHeader<'a> {
         self.header
     }
 }

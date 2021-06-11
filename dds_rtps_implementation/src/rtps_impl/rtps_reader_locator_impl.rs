@@ -64,17 +64,16 @@ where
         self.requested_changes.clone()
     }
 
-    fn requested_changes_set<T: AsRef<[PSM::SequenceNumberType]>>(
+    fn requested_changes_set(
         &mut self,
-        req_seq_num_set: T,
-        last_change_sequence_number: PSM::SequenceNumberType,
+        req_seq_num_set: &[PSM::SequenceNumberType],
+        last_change_sequence_number: &PSM::SequenceNumberType,
     ) {
-        todo!()
-        // for requested_change in req_seq_num_set.as_ref() {
-        //     if requested_change <= last_change_sequence_number {
-        //         self.requested_changes.push(requested_change)
-        //     }
-        // }
+        for requested_change in req_seq_num_set.as_ref() {
+            if requested_change <= last_change_sequence_number {
+                self.requested_changes.push(requested_change.clone())
+            }
+        }
     }
 
     fn unsent_changes(
@@ -100,22 +99,12 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     pub struct MockLocator(u8);
 
-    impl rust_rtps_pim::structure::types::Locator for MockLocator {
+    impl rust_rtps_pim::structure::types::LocatorType for MockLocator {
         type LocatorKind = [u8; 4];
 
-        const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
-        const LOCATOR_KIND_RESERVED: Self::LocatorKind = [1; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: Self::LocatorKind = [2; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: Self::LocatorKind = [3; 4];
-
         type LocatorPort = [u8; 4];
-        const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
 
         type LocatorAddress = [u8; 16];
-
-        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -134,6 +123,26 @@ mod tests {
         type LocatorType = MockLocator;
 
         const LOCATOR_INVALID: Self::LocatorType = MockLocator(0);
+        const LOCATOR_KIND_INVALID:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [0; 4];
+        const LOCATOR_KIND_RESERVED:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [1; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [2; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [3; 4];
+        const LOCATOR_PORT_INVALID:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort =
+            [0; 4];
+        const LOCATOR_ADDRESS_INVALID:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress =
+            [0; 16];
     }
 
     impl rust_rtps_pim::structure::types::SequenceNumberPIM for MockPSM {
@@ -171,7 +180,7 @@ mod tests {
             RTPSReaderLocatorImpl::new(MockLocator(0), false);
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(req_seq_num_set, 3);
+        reader_locator.requested_changes_set(&req_seq_num_set, &3);
 
         let expected_requested_changes = vec![1, 2, 3];
         assert_eq!(
@@ -186,7 +195,7 @@ mod tests {
             RTPSReaderLocatorImpl::new(MockLocator(0), false);
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(req_seq_num_set, 1);
+        reader_locator.requested_changes_set(&req_seq_num_set, &1);
 
         let expected_requested_changes = vec![1];
         assert_eq!(

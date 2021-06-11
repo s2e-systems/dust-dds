@@ -1,9 +1,8 @@
 use rust_rtps_pim::{
-    messages::types::ParameterIdPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, ParameterListPIM,
-            SequenceNumberPIM, GUIDPIM,
+            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
@@ -18,8 +17,8 @@ pub trait RTPSHistoryCacheImplTrait:
     + ParameterIdPIM
     + EntityIdPIM
     + GuidPrefixPIM
-    + GUIDPIM
-    + ParameterListPIM<Self>
+    + GUIDPIM<Self>
+    + ParameterListSubmessageElementPIM<Self>
     + Sized
 {
 }
@@ -30,8 +29,8 @@ impl<
             + ParameterIdPIM
             + EntityIdPIM
             + GuidPrefixPIM
-            + GUIDPIM
-            + ParameterListPIM<Self>
+            + GUIDPIM<Self>
+            + ParameterListSubmessageElementPIM<Self>
             + Sized,
     > RTPSHistoryCacheImplTrait for T
 {
@@ -116,32 +115,44 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
-    impl rust_rtps_pim::structure::types::GUID<MockPSM> for MockGUID {
+    impl rust_rtps_pim::structure::types::GUIDType<MockPSM> for MockGUID {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }
 
-        fn prefix(&self) -> [u8; 12] {
+        fn prefix(&self) -> &[u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> [u8; 4] {
+        fn entity_id(&self) -> &[u8; 4] {
             todo!()
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
+    impl From<[u8; 16]> for MockGUID {
+        fn from(_: [u8; 16]) -> Self {
+            todo!()
+        }
+    }
+
+    impl Into<[u8; 16]> for MockGUID {
+        fn into(self) -> [u8; 16] {
+            todo!()
+        }
+    }
+
+    impl rust_rtps_pim::structure::types::GUIDPIM<Self> for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
 
-    impl rust_rtps_pim::structure::types::ParameterListPIM<MockPSM> for MockPSM {
-        type ParameterListType = MockParameterList;
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM<MockPSM> for MockPSM {
+        type ParameterListSubmessageElementType = MockParameterList;
     }
 
     pub struct MockParameterList;
 
-    impl rust_rtps_pim::messages::submessage_elements::ParameterList<MockPSM> for MockParameterList {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<MockPSM> for MockParameterList {
         type Parameter = MockParameter;
 
         fn new(_parameter: &[MockParameter]) -> Self {
@@ -154,7 +165,7 @@ mod tests {
     }
 
     pub struct MockParameter;
-    impl rust_rtps_pim::messages::submessage_elements::Parameter<MockPSM> for MockParameter {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterType<MockPSM> for MockParameter {
         fn parameter_id(&self) -> u16 {
             todo!()
         }

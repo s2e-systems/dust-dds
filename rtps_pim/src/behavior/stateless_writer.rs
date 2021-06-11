@@ -1,17 +1,23 @@
 use crate::{
     behavior::RTPSWriter,
     messages::{
-        submessage_elements::{self, SequenceNumberSet},
+        submessage_elements::{
+            CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
+            ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
+            SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
+            SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM,
+            SerializedDataSubmessageElementType,
+        },
         submessages::{
             AckNackSubmessage, DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM,
         },
-        types::{CountPIM, ParameterIdPIM, SubmessageFlagPIM, SubmessageKindPIM},
-        SubmessageHeaderPIM,
+        types::{CountPIM, ParameterIdPIM, SubmessageKindPIM},
+        RtpsSubmessageHeaderPIM,
     },
     structure::{
         types::{
-            ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            ParameterListPIM, SequenceNumberPIM, GUID, GUIDPIM,
+            ChangeKind, DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM,
+            LocatorPIM, SequenceNumberPIM, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
@@ -34,10 +40,10 @@ pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
 
     fn requested_changes(&self) -> Self::SequenceNumberVector;
 
-    fn requested_changes_set<T: AsRef<[PSM::SequenceNumberType]>>(
+    fn requested_changes_set(
         &mut self,
-        req_seq_num_set: T,
-        last_change_sequence_number: PSM::SequenceNumberType,
+        req_seq_num_set: &[PSM::SequenceNumberType],
+        last_change_sequence_number: &PSM::SequenceNumberType,
     );
 
     fn unsent_changes(
@@ -54,9 +60,9 @@ pub trait RTPSStatelessWriter<
         + InstanceHandlePIM
         + LocatorPIM
         + SequenceNumberPIM
-        + GUIDPIM
+        + GUIDPIM<PSM>
         + ParameterIdPIM
-        + ParameterListPIM<PSM>,
+        + ParameterListSubmessageElementPIM<PSM>,
 >: RTPSWriter<PSM>
 {
     type ReaderLocatorPIM: RTPSReaderLocator<PSM>;
@@ -79,50 +85,45 @@ pub fn best_effort_send_unsent_data<
         + InstanceHandlePIM
         + DataPIM
         + ParameterIdPIM
-        + ParameterListPIM<PSM>
-        + GUIDPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GUIDPIM<PSM>
         + SubmessageKindPIM
-        + SubmessageFlagPIM
-        + SubmessageHeaderPIM<PSM>
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + SerializedDataSubmessageElementPIM<'a>
+        + SequenceNumberSetSubmessageElementPIM<PSM>
         + DataSubmessagePIM<'a, PSM>
         + GapSubmessagePIM<PSM>,
     HistoryCache: RTPSHistoryCache<PSM>,
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
-    last_change_sequence_number: PSM::SequenceNumberType,
+    last_change_sequence_number: &PSM::SequenceNumberType,
     writer_cache: &'a HistoryCache,
-    mut send_data: impl FnMut(
-        &PSM::LocatorType,
-        <PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType,
-    ),
-    mut send_gap: impl FnMut(&PSM::LocatorType, PSM::GapSubmessageType),
+    mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
+    mut send_gap: impl FnMut(PSM::GapSubmessageType),
 ) where
-    <PSM as DataPIM>::DataType: 'a,
-    <PSM as ParameterListPIM<PSM>>::ParameterListType: Clone,
-    <PSM as SubmessageFlagPIM>::SubmessageFlagType: From<bool>,
-    <PSM as GUIDPIM>::GUIDType: GUID<PSM>,
-    <PSM as DataPIM>::DataType: AsRef<[u8]>,
-    <PSM as SequenceNumberPIM>::SequenceNumberType: Copy,
+    PSM::DataType: 'a,
+    PSM::ParameterListSubmessageElementType: 'a + Clone,
     HistoryCache::CacheChange: 'a,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
-            let endianness_flag = true.into();
-            let inline_qos_flag = true.into();
+            let endianness_flag = true;
+            let inline_qos_flag = true;
             let (data_flag, key_flag) = match change.kind() {
-                ChangeKind::Alive => (true.into(), false.into()),
-                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                    (false.into(), true.into())
-                }
+                ChangeKind::Alive => (true, false),
+                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
                 _ => todo!(),
             };
-            let non_standard_payload_flag = false.into();
-            let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            let writer_id = submessage_elements::EntityId::new(change.writer_guid().entity_id());
-            let writer_sn = submessage_elements::SequenceNumber::new(*change.sequence_number());
+            let non_standard_payload_flag = false;
+            let reader_id = PSM::EntityIdSubmessageElementType::new(&PSM::ENTITYID_UNKNOWN);
+            let writer_id =
+                PSM::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
+            let writer_sn = PSM::SequenceNumberSubmessageElementType::new(change.sequence_number());
             let inline_qos = change.inline_qos().clone();
             let data = change.data_value();
-            let serialized_payload = submessage_elements::SerializedData::new(data.as_ref());
+            let serialized_payload = PSM::SerializedDataSubmessageElementType::new(data.as_ref());
             let data_submessage = PSM::DataSubmessageType::new(
                 endianness_flag,
                 inline_qos_flag,
@@ -135,23 +136,22 @@ pub fn best_effort_send_unsent_data<
                 inline_qos,
                 serialized_payload,
             );
-            send_data(reader_locator.locator(), data_submessage)
+            send_data(data_submessage)
         } else {
-            todo!()
-            // let endianness_flag = true.into();
-            // let reader_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            // let writer_id = submessage_elements::EntityId::new(PSM::ENTITYID_UNKNOWN);
-            // let gap_start = submessage_elements::SequenceNumber::new(seq_num);
-            // let set = core::iter::empty().collect();
-            // let gap_list = submessage_elements::SequenceNumberSet::new(seq_num, set);
-            // let gap_submessage = PSM::GapSubmessageType::new(
-            //     endianness_flag,
-            //     reader_id,
-            //     writer_id,
-            //     gap_start,
-            //     gap_list,
-            // );
-            // send_gap(reader_locator.locator(), gap_submessage)
+            let endianness_flag = true;
+            let reader_id = PSM::EntityIdSubmessageElementType::new(&PSM::ENTITYID_UNKNOWN);
+            let writer_id = PSM::EntityIdSubmessageElementType::new(&PSM::ENTITYID_UNKNOWN);
+            let gap_start = PSM::SequenceNumberSubmessageElementType::new(&seq_num);
+            let set = &[];
+            let gap_list = PSM::SequenceNumberSetSubmessageElementType::new(&seq_num, set);
+            let gap_submessage = PSM::GapSubmessageType::new(
+                endianness_flag,
+                reader_id,
+                writer_id,
+                gap_start,
+                gap_list,
+            );
+            send_gap(gap_submessage)
         }
     }
 }
@@ -170,19 +170,19 @@ pub fn reliable_receive_acknack<
     PSM: LocatorPIM
         + SequenceNumberPIM
         + SubmessageKindPIM
-        + SubmessageFlagPIM
         + EntityIdPIM
         + CountPIM
-        + SubmessageHeaderPIM<PSM>,
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>
+        + RtpsSubmessageHeaderPIM<PSM>,
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
     acknack: &impl AckNackSubmessage<PSM>,
-    last_change_sequence_number: PSM::SequenceNumberType,
+    last_change_sequence_number: &PSM::SequenceNumberType,
 ) {
-    reader_locator.requested_changes_set(
-        acknack.reader_sn_state().set().into_iter(),
-        last_change_sequence_number,
-    );
+    reader_locator
+        .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
 }
 
 pub fn reliable_after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(
@@ -200,11 +200,15 @@ mod tests {
 
     use crate::{
         messages::{
-            submessage_elements::{Parameter, ParameterList},
-            Submessage, SubmessageHeader,
+            submessage_elements::{
+                EntityIdSubmessageElementType, ParameterListSubmessageElementType, ParameterType,
+                SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
+                SerializedDataSubmessageElementType,
+            },
+            RtpsSubmessageHeaderType, Submessage,
         },
         structure::{
-            types::{Locator, GUID},
+            types::{GUIDType, LocatorType},
             RTPSCacheChange, RTPSHistoryCache,
         },
     };
@@ -214,34 +218,28 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
-    impl GUID<MockPSM> for MockGUID {
+    impl GUIDType<MockPSM> for [u8; 16] {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }
 
-        fn prefix(&self) -> [u8; 12] {
+        fn prefix(&self) -> &[u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> [u8; 4] {
-            MockPSM::ENTITYID_UNKNOWN
+        fn entity_id(&self) -> &[u8; 4] {
+            &MockPSM::ENTITYID_UNKNOWN
         }
     }
     #[derive(Clone, Copy, PartialEq)]
     struct MockLocator;
 
-    impl Locator for MockLocator {
+    impl LocatorType for MockLocator {
         type LocatorKind = [u8; 4];
-        const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
-        const LOCATOR_KIND_RESERVED: Self::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: Self::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: Self::LocatorKind = [0; 4];
+
         type LocatorPort = [u8; 4];
-        const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
+
         type LocatorAddress = [u8; 16];
-        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -258,7 +256,7 @@ mod tests {
 
     struct MockParameter;
 
-    impl Parameter<MockPSM> for MockParameter {
+    impl ParameterType<MockPSM> for MockParameter {
         fn parameter_id(&self) -> () {
             todo!()
         }
@@ -274,7 +272,7 @@ mod tests {
     #[derive(Clone)]
     struct MockParameterList;
 
-    impl ParameterList<MockPSM> for MockParameterList {
+    impl ParameterListSubmessageElementType<MockPSM> for MockParameterList {
         type Parameter = MockParameter;
 
         fn new(_parameter: &[Self::Parameter]) -> Self {
@@ -292,8 +290,8 @@ mod tests {
         type ParameterIdType = ();
     }
 
-    impl ParameterListPIM<MockPSM> for MockPSM {
-        type ParameterListType = MockParameterList;
+    impl ParameterListSubmessageElementPIM<MockPSM> for MockPSM {
+        type ParameterListSubmessageElementType = MockParameterList;
     }
 
     impl DataPIM for MockPSM {
@@ -315,9 +313,9 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM for MockPSM {
-        type GUIDType = MockGUID;
-        const GUID_UNKNOWN: Self::GUIDType = MockGUID;
+    impl GUIDPIM<Self> for MockPSM {
+        type GUIDType = [u8; 16];
+        const GUID_UNKNOWN: Self::GUIDType = [0; 16];
     }
 
     impl SequenceNumberPIM for MockPSM {
@@ -329,6 +327,16 @@ mod tests {
         type LocatorType = MockLocator;
 
         const LOCATOR_INVALID: Self::LocatorType = MockLocator;
+        const LOCATOR_KIND_INVALID: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        const LOCATOR_KIND_RESERVED: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
+
+        const LOCATOR_PORT_INVALID: <Self::LocatorType as LocatorType>::LocatorPort = [0; 4];
+
+        const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as LocatorType>::LocatorAddress = [0; 16];
     }
 
     impl SubmessageKindPIM for MockPSM {
@@ -348,21 +356,33 @@ mod tests {
         const HEARTBEAT_FRAG: Self::SubmessageKindType = 0;
     }
 
-    impl SubmessageFlagPIM for MockPSM {
-        type SubmessageFlagType = bool;
+    impl<'a> SerializedDataSubmessageElementPIM<'a> for MockPSM {
+        type SerializedDataSubmessageElementType = &'a [u8];
+    }
+
+    impl SequenceNumberSubmessageElementPIM<Self> for MockPSM {
+        type SequenceNumberSubmessageElementType = i64;
+    }
+
+    impl EntityIdSubmessageElementPIM<Self> for MockPSM {
+        type EntityIdSubmessageElementType = [u8; 4];
+    }
+
+    impl SequenceNumberSetSubmessageElementPIM<Self> for MockPSM {
+        type SequenceNumberSetSubmessageElementType = MockSequenceNumberSet;
     }
 
     impl<'a> DataSubmessagePIM<'a, Self> for MockPSM {
         type DataSubmessageType = MockDataSubmessage;
     }
 
-    impl SubmessageHeaderPIM<Self> for MockPSM {
-        type SubmessageHeaderType = MockSubmessageHeader;
+    impl RtpsSubmessageHeaderPIM<Self> for MockPSM {
+        type RtpsSubmessageHeaderType = MockSubmessageHeader;
     }
 
     struct MockSubmessageHeader;
 
-    impl SubmessageHeader<MockPSM> for MockSubmessageHeader {
+    impl RtpsSubmessageHeaderType<MockPSM> for MockSubmessageHeader {
         fn submessage_id(&self) -> u8 {
             todo!()
         }
@@ -384,9 +404,9 @@ mod tests {
         }
     }
 
-    impl submessage_elements::EntityId<MockPSM> for [u8; 4] {
-        fn new(value: [u8; 4]) -> Self {
-            value
+    impl EntityIdSubmessageElementType<MockPSM> for [u8; 4] {
+        fn new(value: &[u8; 4]) -> Self {
+            value.clone()
         }
 
         fn value(&self) -> &[u8; 4] {
@@ -394,9 +414,9 @@ mod tests {
         }
     }
 
-    impl submessage_elements::SequenceNumber<MockPSM> for i64 {
-        fn new(value: i64) -> Self {
-            value
+    impl SequenceNumberSubmessageElementType<MockPSM> for i64 {
+        fn new(value: &i64) -> Self {
+            value.clone()
         }
 
         fn value(&self) -> &i64 {
@@ -404,7 +424,7 @@ mod tests {
         }
     }
 
-    impl<'a> submessage_elements::SerializedData<'a> for &'a [u8] {
+    impl<'a> SerializedDataSubmessageElementType<'a> for &'a [u8] {
         fn new(value: &'a [u8]) -> Self {
             value
         }
@@ -415,21 +435,17 @@ mod tests {
     }
 
     impl<'a> DataSubmessage<'a, MockPSM> for MockDataSubmessage {
-        type EntityId = [u8; 4];
-        type SequenceNumber = i64;
-        type SerializedData = &'a [u8];
-
         fn new(
             _endianness_flag: bool,
             _inline_qos_flag: bool,
             _data_flag: bool,
             _key_flag: bool,
             _non_standard_payload_flag: bool,
-            _reader_id: Self::EntityId,
-            _writer_id: Self::EntityId,
-            writer_sn: Self::SequenceNumber,
+            _reader_id: [u8; 4],
+            _writer_id: [u8; 4],
+            writer_sn: i64,
             _inline_qos: MockParameterList,
-            _serialized_payload: Self::SerializedData,
+            _serialized_payload: &'a [u8],
         ) -> Self {
             Self(writer_sn)
         }
@@ -454,15 +470,15 @@ mod tests {
             todo!()
         }
 
-        fn reader_id(&self) -> &Self::EntityId {
+        fn reader_id(&self) -> &[u8; 4] {
             todo!()
         }
 
-        fn writer_id(&self) -> &Self::EntityId {
+        fn writer_id(&self) -> &[u8; 4] {
             todo!()
         }
 
-        fn writer_sn(&self) -> &Self::SequenceNumber {
+        fn writer_sn(&self) -> &i64 {
             &self.0
         }
 
@@ -470,7 +486,7 @@ mod tests {
             todo!()
         }
 
-        fn serialized_payload(&self) -> &Self::SerializedData {
+        fn serialized_payload(&self) -> &&'a [u8] {
             todo!()
         }
     }
@@ -506,8 +522,8 @@ mod tests {
 
     struct MockSequenceNumberSet;
 
-    impl submessage_elements::SequenceNumberSet<MockPSM> for MockSequenceNumberSet {
-        fn new(_base: i64, _set: &[i64]) -> Self {
+    impl SequenceNumberSetSubmessageElementType<MockPSM> for MockSequenceNumberSet {
+        fn new(_base: &i64, _set: &[i64]) -> Self {
             MockSequenceNumberSet
         }
 
@@ -529,16 +545,12 @@ mod tests {
     }
 
     impl GapSubmessage<MockPSM> for MockGapSubmessage {
-        type EntityId = [u8; 4];
-        type SequenceNumber = i64;
-        type SequenceNumberSet = MockSequenceNumberSet;
-
         fn new(
             _endianness_flag: bool,
-            _reader_id: Self::EntityId,
-            _writer_id: Self::EntityId,
-            gap_start: Self::SequenceNumber,
-            _gap_list: Self::SequenceNumberSet,
+            _reader_id: [u8; 4],
+            _writer_id: [u8; 4],
+            gap_start: i64,
+            _gap_list: MockSequenceNumberSet,
         ) -> Self {
             MockGapSubmessage(gap_start)
         }
@@ -547,19 +559,19 @@ mod tests {
             todo!()
         }
 
-        fn reader_id(&self) -> &Self::EntityId {
+        fn reader_id(&self) -> &[u8; 4] {
             todo!()
         }
 
-        fn writer_id(&self) -> &Self::EntityId {
+        fn writer_id(&self) -> &[u8; 4] {
             todo!()
         }
 
-        fn gap_start(&self) -> &Self::SequenceNumber {
+        fn gap_start(&self) -> &i64 {
             &self.0
         }
 
-        fn gap_list(&self) -> &Self::SequenceNumberSet {
+        fn gap_list(&self) -> &MockSequenceNumberSet {
             todo!()
         }
     }
@@ -596,10 +608,10 @@ mod tests {
             todo!()
         }
 
-        fn requested_changes_set<T: AsRef<[i64]>>(
+        fn requested_changes_set(
             &mut self,
-            _req_seq_num_set: T,
-            _last_change_sequence_number: i64,
+            _req_seq_num_set: &[i64],
+            _last_change_sequence_number: &i64,
         ) {
             todo!()
         }
@@ -619,8 +631,8 @@ mod tests {
             self.kind
         }
 
-        fn writer_guid(&self) -> &MockGUID {
-            &MockPSM::GUID_UNKNOWN
+        fn writer_guid(&self) -> &[u8; 16] {
+            &[0; 16]
         }
 
         fn instance_handle(&self) -> &() {
@@ -703,13 +715,13 @@ mod tests {
         };
         best_effort_send_unsent_data(
             &mut reader_locator,
-            2,
+            &2,
             &writer_cache,
-            |_, data_submessage| {
+            |data_submessage| {
                 sent_data_seq_num[total_data] = data_submessage.writer_sn().clone();
                 total_data += 1;
             },
-            |_, gap_submessage| {
+            |gap_submessage| {
                 sent_gap_seq_num[total_gap] = gap_submessage.gap_start().clone();
                 total_gap += 1;
             },
@@ -739,13 +751,13 @@ mod tests {
         let writer_cache = MockHistoryCache::<0> { changes: [] };
         best_effort_send_unsent_data(
             &mut reader_locator,
-            2,
+            &2,
             &writer_cache,
-            |_, data_submessage| {
+            |data_submessage| {
                 sent_data_seq_num[total_data] = data_submessage.writer_sn().clone();
                 total_data += 1;
             },
-            |_, gap_submessage| {
+            |gap_submessage| {
                 sent_gap_seq_num[total_gap] = gap_submessage.gap_start().clone();
                 total_gap += 1;
             },
@@ -780,13 +792,13 @@ mod tests {
         };
         best_effort_send_unsent_data(
             &mut reader_locator,
-            2,
+            &2,
             &writer_cache,
-            |_, data_submessage| {
+            |data_submessage| {
                 sent_data_seq_num[total_data] = data_submessage.writer_sn().clone();
                 total_data += 1;
             },
-            |_, gap_submessage| {
+            |gap_submessage| {
                 sent_gap_seq_num[total_gap] = gap_submessage.gap_start().clone();
                 total_gap += 1;
             },

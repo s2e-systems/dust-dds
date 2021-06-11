@@ -5,11 +5,11 @@ use rust_rtps_pim::{
         types::DurationPIM,
         RTPSWriter,
     },
-    messages::types::ParameterIdPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::{
         types::{
             ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            ParameterListPIM, ReliabilityKind, SequenceNumberPIM, TopicKind, GUIDPIM,
+            ReliabilityKind, SequenceNumberPIM, TopicKind, GUIDPIM,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
@@ -29,8 +29,8 @@ pub trait RTPSWriterImplTrait:
     + LocatorPIM
     + InstanceHandlePIM
     + ParameterIdPIM
-    + GUIDPIM
-    + ParameterListPIM<Self>
+    + GUIDPIM<Self>
+    + ParameterListSubmessageElementPIM<Self>
     + Sized
 {
 }
@@ -44,8 +44,8 @@ impl<
             + LocatorPIM
             + InstanceHandlePIM
             + ParameterIdPIM
-            + GUIDPIM
-            + ParameterListPIM<Self>
+            + GUIDPIM<Self>
+            + ParameterListSubmessageElementPIM<Self>
             + Sized,
     > RTPSWriterImplTrait for T
 {
@@ -152,7 +152,7 @@ where
         &mut self,
         kind: ChangeKind,
         data: PSM::DataType,
-        inline_qos: PSM::ParameterListType,
+        inline_qos: PSM::ParameterListSubmessageElementType,
         handle: PSM::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
@@ -168,12 +168,12 @@ where
 }
 
 impl<PSM: RTPSWriterImplTrait> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
-    fn topic_kind(&self) -> TopicKind {
-        self.topic_kind
+    fn topic_kind(&self) -> &TopicKind {
+        &self.topic_kind
     }
 
-    fn reliability_level(&self) -> ReliabilityKind {
-        self.reliability_level
+    fn reliability_level(&self) -> &ReliabilityKind {
+        &self.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[PSM::LocatorType] {
@@ -285,32 +285,48 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID(u8);
 
-    impl rust_rtps_pim::structure::types::GUID<MockPSM> for MockGUID {
+    impl rust_rtps_pim::structure::types::GUIDType<MockPSM> for MockGUID {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }
 
-        fn prefix(&self) -> [u8; 12] {
+        fn prefix(&self) -> &[u8; 12] {
             todo!()
         }
 
-        fn entity_id(&self) -> [u8; 4] {
+        fn entity_id(&self) -> &[u8; 4] {
             todo!()
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
+    impl From<[u8; 16]> for MockGUID {
+        fn from(_: [u8; 16]) -> Self {
+            todo!()
+        }
+    }
+
+    impl Into<[u8; 16]> for MockGUID {
+        fn into(self) -> [u8; 16] {
+            todo!()
+        }
+    }
+
+    impl rust_rtps_pim::structure::types::GUIDPIM<Self> for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID(0);
     }
 
-    impl rust_rtps_pim::structure::types::ParameterListPIM<MockPSM> for MockPSM {
-        type ParameterListType = MockParameterList;
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM<MockPSM>
+        for MockPSM
+    {
+        type ParameterListSubmessageElementType = MockParameterList;
     }
 
     pub struct MockParameterList;
 
-    impl rust_rtps_pim::messages::submessage_elements::ParameterList<MockPSM> for MockParameterList {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<MockPSM>
+        for MockParameterList
+    {
         type Parameter = MockParameter;
 
         fn new(_parameter: &[MockParameter]) -> Self {
@@ -323,7 +339,7 @@ mod tests {
     }
 
     pub struct MockParameter;
-    impl rust_rtps_pim::messages::submessage_elements::Parameter<MockPSM> for MockParameter {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterType<MockPSM> for MockParameter {
         fn parameter_id(&self) -> u16 {
             todo!()
         }
@@ -344,22 +360,12 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     pub struct MockLocator(u8);
 
-    impl rust_rtps_pim::structure::types::Locator for MockLocator {
+    impl rust_rtps_pim::structure::types::LocatorType for MockLocator {
         type LocatorKind = [u8; 4];
 
-        const LOCATOR_KIND_INVALID: Self::LocatorKind = [0; 4];
-        const LOCATOR_KIND_RESERVED: Self::LocatorKind = [1; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: Self::LocatorKind = [2; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: Self::LocatorKind = [3; 4];
-
         type LocatorPort = [u8; 4];
-        const LOCATOR_PORT_INVALID: Self::LocatorPort = [0; 4];
 
         type LocatorAddress = [u8; 16];
-
-        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
 
         fn kind(&self) -> &Self::LocatorKind {
             todo!()
@@ -378,6 +384,26 @@ mod tests {
         type LocatorType = MockLocator;
 
         const LOCATOR_INVALID: Self::LocatorType = MockLocator(0);
+        const LOCATOR_KIND_INVALID:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [0; 4];
+        const LOCATOR_KIND_RESERVED:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [1; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [2; 4];
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
+            [3; 4];
+        const LOCATOR_PORT_INVALID:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort =
+            [0; 4];
+        const LOCATOR_ADDRESS_INVALID:
+            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress =
+            [0; 16];
     }
 
     #[test]

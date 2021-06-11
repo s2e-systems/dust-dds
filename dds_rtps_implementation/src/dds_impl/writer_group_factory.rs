@@ -2,14 +2,10 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::types::DurationPIM,
-    messages::types::ParameterIdPIM,
-    structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-        SequenceNumberPIM, GUID, GUIDPIM,
-    },
-};
+use rust_rtps_pim::{behavior::types::DurationPIM, messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM}, structure::types::{
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+        SequenceNumberPIM, GUIDType, GUIDPIM,
+    }};
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
@@ -24,8 +20,8 @@ pub trait WriterGroupFactoryTrait:
     + LocatorPIM
     + DataPIM
     + ParameterIdPIM
-    + GUIDPIM
-    + ParameterListPIM<Self>
+    + GUIDPIM<Self>
+    + ParameterListSubmessageElementPIM<Self>
     + Sized
 {
 }
@@ -39,8 +35,8 @@ impl<
             + LocatorPIM
             + DataPIM
             + ParameterIdPIM
-            + GUIDPIM
-            + ParameterListPIM<Self>
+            + GUIDPIM<Self>
+            + ParameterListSubmessageElementPIM<Self>
             + Sized,
     > WriterGroupFactoryTrait for T
 {
@@ -54,7 +50,7 @@ pub struct WriterGroupFactory<PSM: WriterGroupFactoryTrait> {
 
 impl<PSM: WriterGroupFactoryTrait> WriterGroupFactory<PSM>
 where
-    <PSM as GUIDPIM>::GUIDType: GUID<PSM> + Send,
+    <PSM as GUIDPIM<PSM>>::GUIDType: Send,
     PSM::GuidPrefixType: Clone
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
@@ -82,7 +78,7 @@ where
             ENTITYKIND_USER_DEFINED_WRITER_GROUP,
         ]
         .into();
-        let guid = GUID::new(guid_prefix, entity_id);
+        let guid = GUIDType::new(guid_prefix, entity_id);
         Ok(RTPSWriterGroupImpl::new(guid, qos, a_listener, mask))
     }
 

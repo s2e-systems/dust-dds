@@ -5,15 +5,11 @@ use super::SubmessageHeader;
 pub struct InfoSource;
 
 impl rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm> for InfoSource {
-    type GuidPrefix = GuidPrefix;
-    type ProtocolVersion = ProtocolVersion;
-    type VendorId = VendorId;
-
     fn new(
         _endianness_flag: SubmessageFlag,
-        _protocol_version: Self::ProtocolVersion,
-        _vendor_id: Self::VendorId,
-        _guid_prefix: Self::GuidPrefix,
+        _protocol_version: ProtocolVersion,
+        _vendor_id: VendorId,
+        _guid_prefix: GuidPrefix,
     ) -> Self {
         todo!()
     }
@@ -22,15 +18,15 @@ impl rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm> for 
         todo!()
     }
 
-    fn protocol_version(&self) -> &Self::ProtocolVersion {
+    fn protocol_version(&self) -> &ProtocolVersion {
         todo!()
     }
 
-    fn vendor_id(&self) -> &Self::VendorId {
+    fn vendor_id(&self) -> &VendorId {
         todo!()
     }
 
-    fn guid_prefix(&self) -> &Self::GuidPrefix {
+    fn guid_prefix(&self) -> &GuidPrefix {
         todo!()
     }
 }

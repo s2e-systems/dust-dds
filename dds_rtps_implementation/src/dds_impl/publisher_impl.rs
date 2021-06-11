@@ -14,10 +14,7 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::structure::{
-    types::{GUID, GUIDPIM},
-    RTPSEntity,
-};
+use rust_rtps_pim::structure::{types::GUIDType, RTPSEntity};
 
 use crate::{
     dds_type::DDSType,
@@ -44,14 +41,14 @@ pub struct PublisherImpl<'p, PSM: PIM> {
 
 impl<'p, PSM: PIM> PublisherImpl<'p, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send,
+    PSM::GUIDType: Send,
     PSM::GuidPrefixType: Copy,
 {
     pub fn new(
         participant: &'p DomainParticipantImpl<PSM>,
         rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
     ) -> Self {
-        let writer_factory = WriterFactory::new(rtps_writer_group_impl.lock().guid().prefix());
+        let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
             participant,
             default_datawriter_qos: Mutex::new(DataWriterQos::default()),
@@ -63,16 +60,15 @@ where
 
 impl<'p, PSM: PIM> PublisherParent for PublisherImpl<'p, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::GUIDType: Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
-    PSM::DataType: AsRef<[u8]> + Send,
+    PSM::DataType: Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Clone + Send,
+    PSM::ParameterListSubmessageElementType: Clone + Send,
 {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 
@@ -84,16 +80,15 @@ where
 impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM> DataWriterFactory<'dw, 't, T>
     for PublisherImpl<'p, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::GUIDType: Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
-    PSM::DataType: AsRef<[u8]> + Send,
+    PSM::DataType: Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Clone + Send,
+    PSM::ParameterListSubmessageElementType: Clone + Send,
 {
     type TopicType = TopicImpl<'t, T, PSM>;
     type DataWriterType = DataWriterImpl<'dw, 'p, 't, T, PSM>;

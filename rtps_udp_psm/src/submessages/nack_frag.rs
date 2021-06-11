@@ -1,22 +1,19 @@
-use crate::{Count, EntityId, FragmentNumberSet, RtpsUdpPsm, SequenceNumber, SubmessageFlag};
+use rust_rtps_pim::messages::types::SubmessageFlag;
+
+use crate::{Count, EntityId, FragmentNumberSet, RtpsUdpPsm, SequenceNumber};
 
 use super::SubmessageHeader;
 
 pub struct NackFrag;
 
 impl rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm> for NackFrag {
-    type EntityId = EntityId;
-    type SequenceNumber = SequenceNumber;
-    type FragmentNumberSet = FragmentNumberSet;
-    type Count = Count;
-
     fn new(
         _endianness_flag: SubmessageFlag,
-        _reader_id: Self::EntityId,
-        _writer_id: Self::EntityId,
-        _writer_sn: Self::SequenceNumber,
-        _fragment_number_state: Self::FragmentNumberSet,
-        _count: Self::Count,
+        _reader_id: EntityId,
+        _writer_id: EntityId,
+        _writer_sn: SequenceNumber,
+        _fragment_number_state: FragmentNumberSet,
+        _count: Count,
     ) -> Self {
         todo!()
     }
@@ -25,23 +22,23 @@ impl rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm> for Na
         todo!()
     }
 
-    fn reader_id(&self) -> &Self::EntityId {
+    fn reader_id(&self) -> &EntityId {
         todo!()
     }
 
-    fn writer_id(&self) -> &Self::EntityId {
+    fn writer_id(&self) -> &EntityId {
         todo!()
     }
 
-    fn writer_sn(&self) -> &Self::SequenceNumber {
+    fn writer_sn(&self) -> &SequenceNumber {
         todo!()
     }
 
-    fn fragment_number_state(&self) -> &Self::FragmentNumberSet {
+    fn fragment_number_state(&self) -> &FragmentNumberSet {
         todo!()
     }
 
-    fn count(&self) -> &Self::Count {
+    fn count(&self) -> &Count {
         todo!()
     }
 }

@@ -14,7 +14,6 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::structure::types::{GUID, GUIDPIM};
 
 use crate::{
     rtps_impl::rtps_reader_group_impl::RTPSReaderGroupImpl, utils::shared_object::RtpsWeak,
@@ -34,16 +33,15 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM>
     rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T>
     for SubscriberImpl<'s, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::GUIDType: Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
-    PSM::DataType: AsRef<[u8]> + Send,
+    PSM::DataType: Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Clone + Send,
+    PSM::ParameterListSubmessageElementType: Clone + Send,
 {
     type TopicType = TopicImpl<'t, T, PSM>;
     type DataReaderType = DataReaderImpl<'dr, 's, 't, T, PSM>;
@@ -72,16 +70,15 @@ where
 
 impl<'s, PSM: PIM> rust_dds_api::subscription::subscriber::Subscriber for SubscriberImpl<'s, PSM>
 where
-    PSM::GUIDType: GUID<PSM> + Send + Copy,
+    PSM::GUIDType: Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::SubmessageFlagType: From<bool>,
-    PSM::DataType: AsRef<[u8]> + Send,
+    PSM::DataType: Send,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
-    PSM::ParameterListType: Clone + Send,
+    PSM::ParameterListSubmessageElementType: Clone + Send,
 {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()

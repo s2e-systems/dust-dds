@@ -4,10 +4,10 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::types::DurationPIM,
-    messages::types::ParameterIdPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ParameterListPIM,
-        SequenceNumberPIM, GUIDPIM,
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
+        GUIDPIM,
     },
 };
 
@@ -22,8 +22,8 @@ pub trait WriterFactoryTrait:
     + LocatorPIM
     + InstanceHandlePIM
     + ParameterIdPIM
-    + GUIDPIM
-    + ParameterListPIM<Self>
+    + GUIDPIM<Self>
+    + ParameterListSubmessageElementPIM<Self>
     + Sized
 {
 }
@@ -37,8 +37,8 @@ impl<
             + LocatorPIM
             + InstanceHandlePIM
             + ParameterIdPIM
-            + GUIDPIM
-            + ParameterListPIM<Self>
+            + GUIDPIM<Self>
+            + ParameterListSubmessageElementPIM<Self>
             + Sized,
     > WriterFactoryTrait for T
 {
