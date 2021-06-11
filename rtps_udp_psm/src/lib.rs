@@ -371,7 +371,7 @@ impl Into<[u8; 4]> for Long {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 pub struct ULong(u32);
 
 impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType for ULong {
@@ -529,7 +529,7 @@ impl rust_rtps_pim::structure::types::LocatorType for Locator {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SequenceNumberSet {
     base: SequenceNumber,
     set: Vec<SequenceNumber>,
@@ -564,6 +564,14 @@ impl serde::Serialize for SequenceNumberSet {
             state.serialize_field(BITMAP_NAMES[e.0], e.1)?;
         }
         state.end()
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        todo!()
     }
 }
 
