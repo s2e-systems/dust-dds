@@ -15,12 +15,12 @@ pub struct DataSubmesage<'a> {
     writer_id: EntityId,
     writer_sn: SequenceNumber,
     inline_qos: ParameterList,
-    serialized_payload: SerializedData<'a>,
+    // serialized_payload: SerializedData<'a>,
     submessage_elements: [SubmessageElements<'a, RtpsUdpPsm>; 2],
 }
 
 impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
-    for DataSubmesage<'a>
+    for DataSubmesage<'_>
 {
     fn new(
         endianness_flag: SubmessageFlag,
@@ -63,7 +63,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
             writer_id,
             writer_sn,
             inline_qos,
-            serialized_payload,
+            // serialized_payload,
             submessage_elements,
         }
     }
@@ -108,11 +108,12 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
     }
 
     fn serialized_payload(&self) -> &SerializedData<'a> {
-        &self.serialized_payload
+        // &self.serialized_payload
+        todo!()
     }
 }
 
-impl<'a> Submessage<'a, RtpsUdpPsm> for DataSubmesage<'a> {
+impl<'a> Submessage<'a, RtpsUdpPsm> for DataSubmesage<'_> {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
@@ -146,7 +147,7 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
             state.serialize_field("inline_qos", &self.inline_qos)?;
         }
         if self.data_flag() || self.key_flag() {
-            state.serialize_field("serialized_payload", &self.serialized_payload)?;
+            //state.serialize_field("serialized_payload", &self.serialized_payload)?;
         }
         state.end()
     }
@@ -212,7 +213,7 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
             writer_id,
             writer_sn,
             inline_qos,
-            serialized_payload,
+            // serialized_payload,
             submessage_elements
         })
     }

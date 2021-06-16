@@ -278,7 +278,7 @@ impl CountSubmessageElementPIM<Self> for RtpsUdpPsm {
 }
 
 impl<'a> RTPSMessagePIM<'a, Self> for RtpsUdpPsm {
-    type RTPSMessageType = RTPSMessage<'a>;
+    type RTPSMessageType = RTPSMessageC<'a>;
 }
 
 impl<'a> RtpsMessageHeaderPIM<'a, Self> for RtpsUdpPsm {
@@ -1005,20 +1005,22 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<'a, RtpsUdpPsm> for RTPS
     }
 }
 
-pub struct RTPSMessage<'a> {
+pub struct RTPSMessageC<'a> {
     header: RTPSMessageHeader,
     submessages: Vec<&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a> {
+impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'_> {
+    type Constructed = RTPSMessageC<'a>;
+
     fn new(
-        protocol: &'a ProtocolId,
-        version: &'a ProtocolVersion,
-        vendor_id: &'a VendorId,
-        guid_prefix: &'a GuidPrefix,
-        submessages: &'a [&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>],
-    ) -> Self {
-        Self {
+        protocol: ProtocolId,
+        version: ProtocolVersion,
+        vendor_id: VendorId,
+        guid_prefix: GuidPrefix,
+        submessages: &[&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>],
+    ) -> RTPSMessageC<'a> {
+        RTPSMessageC {
             header: RTPSMessageHeader {
                 protocol: protocol.clone(),
                 version: version.clone(),
@@ -1034,8 +1036,10 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessage<'a
     }
 
     fn submessages(&self) -> &[&dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>] {
-        &self.submessages
+        // &self.submessages
+        todo!()
     }
+
 }
 
 #[cfg(test)]

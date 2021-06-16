@@ -99,7 +99,7 @@ pub trait DataSubmessage<
         + SequenceNumberSubmessageElementPIM<PSM>
         + ParameterListSubmessageElementPIM<PSM>
         + SerializedDataSubmessageElementPIM<'a>,
->: Submessage<'a, PSM>
+>: for<'b> Submessage<'b, PSM>
 {
     fn new(
         endianness_flag: SubmessageFlag,
@@ -221,7 +221,7 @@ pub trait GapSubmessage<
         + SequenceNumberSubmessageElementPIM<PSM>
         + SequenceNumberSetSubmessageElementPIM<PSM>
         + SerializedDataSubmessageElementPIM<'a>,
->: Submessage<'a, PSM>
+>: for<'b> Submessage<'b, PSM>
 {
     fn new(
         endianness_flag: SubmessageFlag,

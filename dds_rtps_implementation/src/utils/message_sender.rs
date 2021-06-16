@@ -1,301 +1,100 @@
-use rust_rtps::{
-    messages::{submessages::Submessage, RtpsMessage},
-    types::{
-        constants::{PROTOCOL_VERSION_2_4, VENDOR_ID},
-        GuidPrefix,
+use rust_rtps_pim::{
+    behavior::{
+        stateless_writer::{best_effort_send_unsent_data, RTPSReaderLocator, RTPSStatelessWriter},
+        types::DurationPIM,
+        RTPSWriter,
+    },
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM,
+            SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM,
+            SerializedDataSubmessageElementPIM,
+        },
+        submessages::{DataSubmessagePIM, GapSubmessagePIM},
+        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM},
+        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
+    },
+    structure::types::{
+        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM,
+        SequenceNumberPIM, VendorIdPIM, GUIDPIM,
     },
 };
 
-use crate::transport::Transport;
+use crate::{rtps_impl::rtps_writer_impl::RTPSWriterImpl, transport::Transport};
 
-use super::endpoint_traits::DestinedMessages;
+pub fn send_data<
+    PSM: GuidPrefixPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + LocatorPIM
+        + VendorIdPIM
+        + DurationPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ProtocolVersionPIM
+        + ParameterIdPIM
+        + GUIDPIM<PSM>
+        + SubmessageKindPIM
+        + ProtocolIdPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>
+        + for<'a> SerializedDataSubmessageElementPIM<'a>
+        + for<'a> DataSubmessagePIM<'a, PSM>
+        + for<'a> GapSubmessagePIM<'a, PSM>
+        + for<'a> RTPSMessagePIM<'a, PSM>
+        + for<'a> RtpsMessageHeaderPIM<'a, PSM>
+        + Sized
+        + 'static,
+>(
+    writer: &mut RTPSWriterImpl<PSM>,
+    transport: &mut dyn Transport<PSM>,
+) where
+    PSM::SequenceNumberType: Clone + Copy + Ord,
+    PSM::GuidPrefixType: Clone,
+    PSM::LocatorType: Clone + PartialEq,
+    PSM::GUIDType: Copy,
+    PSM::ParameterListSubmessageElementType: Clone,
+{
+    // for writer_group in &rtps_participant_impl.rtps_writer_groups {
+    // let writer_group_lock = writer_group.lock();
+    // let writer_list = rtps_writer_group_impl.writer_list();
+    // for writer in writer_list {
+    let last_change_sequence_number = *writer.last_change_sequence_number();
+    let (reader_locators, writer_cache) = writer.reader_locators();
+    for reader_locator in reader_locators {
+        let mut data_submessage_list: Vec<<PSM as DataSubmessagePIM<PSM>>::DataSubmessageType> = vec![];
+        let mut gap_submessage_list: Vec<<PSM as GapSubmessagePIM<PSM>>::GapSubmessageType>  = vec![];
+        best_effort_send_unsent_data(
+            reader_locator,
+            &last_change_sequence_number,
+            writer_cache,
+            |data_submessage| data_submessage_list.push(data_submessage),
+            |gap_submessage| gap_submessage_list.push(gap_submessage),
+        );
 
-pub struct RtpsMessageSender;
+        let protocol = PSM::PROTOCOL_RTPS;
+        // let version = rtps_participant_impl.protocol_version();
+        // let vendor_id = rtps_participant_impl.vendor_id();
+        // let guid_prefix = rtps_participant_impl.guid().prefix();
 
-impl RtpsMessageSender {
-    pub fn send_cache_change_messages<'a>(
-        participant_guid_prefix: GuidPrefix,
-        transport: &dyn Transport,
-        destined_messages: Vec<DestinedMessages<'a>>,
-    ) {
-        for destined_message in destined_messages {
-            match destined_message {
-                DestinedMessages::SingleDestination { locator, messages } => {
-                    if messages.len() > 0 {
-                        let messages_reference: Vec<&dyn Submessage> =
-                            messages.iter().map(|x| x.as_ref()).collect();
-                        let message = RtpsMessage::new(
-                            PROTOCOL_VERSION_2_4,
-                            VENDOR_ID,
-                            participant_guid_prefix,
-                            &messages_reference,
-                        );
-                        transport.write(message, &locator);
-                    }
-                }
-                DestinedMessages::MultiDestination {
-                    unicast_locator_list,
-                    multicast_locator_list,
-                    messages,
-                } => {
-                    if messages.len() > 0 {
-                        let messages_reference: Vec<&dyn Submessage> =
-                            messages.iter().map(|x| x.as_ref()).collect();
-                        let message = RtpsMessage::new(
-                            PROTOCOL_VERSION_2_4,
-                            VENDOR_ID,
-                            participant_guid_prefix,
-                            &messages_reference,
-                        );
-
-                        if !unicast_locator_list.is_empty() {
-                            transport.write(message, &unicast_locator_list[0]);
-                        } else if !multicast_locator_list.is_empty() {
-                            transport.write(message, &multicast_locator_list[0]);
-                        }
-                    }
-                }
-            }
+        let mut submessages: Vec<&dyn rust_rtps_pim::messages::Submessage<PSM>> = vec![];
+        for data_submessage in &data_submessage_list {
+            submessages.push(data_submessage)
         }
+        for gap_submessage in &gap_submessage_list {
+            submessages.push(gap_submessage);
+        }
+
+        let message = PSM::RTPSMessageType::new(
+            protocol,
+            PSM::PROTOCOLVERSION_2_4,
+            PSM::VENDOR_ID_UNKNOWN,
+            PSM::GUIDPREFIX_UNKNOWN,
+            submessages.as_slice(),
+        );
+        transport.write(&message, reader_locator.locator());
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::transport::memory::MemoryTransport;
-//     use crate::types::{TopicKind, GUID, ChangeKind, Locator};
-//     use crate::types::constants::{
-//         ENTITYID_UNKNOWN,
-//         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-//         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-//         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-//     use crate::behavior::{StatelessWriter, StatefulWriter, ReaderProxy};
-
-//     use rust_dds_api::qos::DataWriterQos;
-//     use rust_dds_api::qos_policy::ReliabilityQosPolicyKind;
-
-//     #[test]
-//     fn stateless_writer_single_reader_locator() {
-//         let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
-//         let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
-//         let writer_qos = DataWriterQos::default();
-//         let mut stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey, &writer_qos);
-//         let reader_locator_1 = Locator::new(-2, 10000, [1;16]);
-//         stateless_writer_1.reader_locator_add(reader_locator_1);
-
-//         // Check that nothing is sent to start with
-//         RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1]);
-
-//         assert_eq!(transport.pop_write(), None);
-
-//         // Add a change to the stateless writer history cache and run the writer
-//         let change_1 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-//         stateless_writer_1.writer_cache().add_change(change_1).unwrap();
-//         stateless_writer_1.run();
-
-//         RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1]);
-//         let (message, dst_locator) = transport.pop_write().unwrap();
-//         assert_eq!(dst_locator, vec![reader_locator_1]);
-//         assert_eq!(message.submessages().len(), 2);
-//         match &message.submessages()[0] {
-//             RtpsSubmessage::InfoTs(info_ts) => {
-//                 assert_eq!(info_ts.time().is_some(), true);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//         match &message.submessages()[1] {
-//             RtpsSubmessage::Data(data) => {
-//                 assert_eq!(data.reader_id(), ENTITYID_UNKNOWN);
-//                 assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-//                 assert_eq!(data.writer_sn(), 1);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-
-//         // Add two changes to the stateless writer history cache and run the writer
-//         let change_2 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-//         let change_3 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-//         stateless_writer_1.writer_cache().add_change(change_2).unwrap();
-//         stateless_writer_1.writer_cache().add_change(change_3).unwrap();
-//         stateless_writer_1.run();
-
-//         RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1]);
-//         let (message, dst_locator) = transport.pop_write().unwrap();
-//         assert_eq!(dst_locator, vec![reader_locator_1]);
-//         assert_eq!(message.submessages().len(), 4);
-//         match &message.submessages()[0] {
-//             RtpsSubmessage::InfoTs(info_ts) => {
-//                 assert_eq!(info_ts.time().is_some(), true);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//         match &message.submessages()[1] {
-//             RtpsSubmessage::Data(data) => {
-//                 assert_eq!(data.reader_id(), ENTITYID_UNKNOWN);
-//                 assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-//                 assert_eq!(data.writer_sn(), 2);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//         match &message.submessages()[2] {
-//             RtpsSubmessage::InfoTs(info_ts) => {
-//                 assert_eq!(info_ts.time().is_some(), true);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//         match &message.submessages()[3] {
-//             RtpsSubmessage::Data(data) => {
-//                 assert_eq!(data.reader_id(), ENTITYID_UNKNOWN);
-//                 assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-//                 assert_eq!(data.writer_sn(), 3);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-
-//         // Add two new changes but only one to the stateless writer history cache and run the writer
-//         let _change_4 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-//         let change_5 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-//         stateless_writer_1.writer_cache().add_change(change_5).unwrap();
-//         stateless_writer_1.run();
-
-//         RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1]);
-//         let (message, dst_locator) = transport.pop_write().unwrap();
-//         assert_eq!(dst_locator, vec![reader_locator_1]);
-//         assert_eq!(message.submessages().len(), 4);
-//         match &message.submessages()[0] {
-//             RtpsSubmessage::InfoTs(info_ts) => {
-//                 assert_eq!(info_ts.time().is_some(), true);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//         match &message.submessages()[1] {
-//             RtpsSubmessage::Gap(gap) => {
-//                 assert_eq!(gap.reader_id(), ENTITYID_UNKNOWN);
-//                 assert_eq!(gap.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//         match &message.submessages()[2] {
-//             RtpsSubmessage::InfoTs(info_ts) => {
-//                 assert_eq!(info_ts.time().is_some(), true);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//         match &message.submessages()[3] {
-//             RtpsSubmessage::Data(data) => {
-//                 assert_eq!(data.reader_id(), ENTITYID_UNKNOWN);
-//                 assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-//                 assert_eq!(data.writer_sn(), 5);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//     }
-
-//     #[test]
-//     fn multiple_stateless_writers_multiple_reader_locators() {
-//         let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
-//         let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
-
-//         let reader_locator_1 = Locator::new(-2, 10000, [1;16]);
-//         let reader_locator_2 = Locator::new(-2, 2000, [2;16]);
-//         let reader_locator_3 = Locator::new(-2, 300, [3;16]);
-
-//         let writer_qos = DataWriterQos::default();
-
-//         let mut stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey, &writer_qos);
-//         let mut stateless_writer_2 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), TopicKind::WithKey, &writer_qos);
-
-//         RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1, &mut stateless_writer_2]);
-
-//         stateless_writer_1.reader_locator_add(reader_locator_1);
-
-//         stateless_writer_2.reader_locator_add(reader_locator_1);
-//         stateless_writer_2.reader_locator_add(reader_locator_2);
-//         stateless_writer_2.reader_locator_add(reader_locator_3);
-
-//         let change_1_1 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-//         let change_1_2 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-//         stateless_writer_1.writer_cache().add_change(change_1_1).unwrap();
-//         stateless_writer_1.writer_cache().add_change(change_1_2).unwrap();
-
-//         let _change_2_1 = stateless_writer_2.new_change(ChangeKind::Alive, Some(vec![1,2,4]), None, [12;16]);
-//         let change_2_2 = stateless_writer_2.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [12;16]);
-//         stateless_writer_2.writer_cache().add_change(change_2_2).unwrap();
-
-//         stateless_writer_1.run();
-//         stateless_writer_2.run();
-
-//         RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1, &mut stateless_writer_2]);
-
-//         // The order at which the messages are sent is not predictable so collect eveything in a vector and test from there onwards
-//         let mut sent_messages = Vec::new();
-//         sent_messages.push(transport.pop_write().unwrap());
-//         sent_messages.push(transport.pop_write().unwrap());
-//         sent_messages.push(transport.pop_write().unwrap());
-//         sent_messages.push(transport.pop_write().unwrap());
-
-//         assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&vec![reader_locator_1]).count(), 2);
-//         assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&vec![reader_locator_2]).count(), 1);
-//         assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&vec![reader_locator_3]).count(), 1);
-
-//         assert!(transport.pop_write().is_none());
-//     }
-
-//     #[test]
-//     fn stateful_writer_multiple_reader_locators() {
-//         let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
-//         let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
-
-//         let mut writer_qos = DataWriterQos::default();
-//         writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-
-//         let mut stateful_writer_1 = StatefulWriter::new(
-//             GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
-//             TopicKind::WithKey,
-//             &writer_qos
-//         );
-
-//         let reader_guid_prefix = [5;12];
-//         let unicast_locator_1 = Locator::new(-2, 10000, [1;16]);
-//         let unicast_locator_2 = Locator::new(-2, 200, [2;16]);
-//         let multicast_locator = Locator::new(-2, 5, [10;16]);
-//         let reader_proxy_1 = ReaderProxy::new(
-//             GUID::new(reader_guid_prefix,ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-//             vec![unicast_locator_1, unicast_locator_2],
-//             vec![multicast_locator],
-//             false,
-//             true);
-
-//         stateful_writer_1.matched_reader_add(reader_proxy_1);
-
-//         // Check that nothing is sent to start with
-//         RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateful_writer_1]);
-//         assert_eq!(transport.pop_write(), None);
-
-//         // Add a change to the stateless writer history cache and run the writer
-//         let change_1 = stateful_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-//         stateful_writer_1.writer_cache().add_change(change_1).unwrap();
-//         stateful_writer_1.run();
-
-//         RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateful_writer_1]);
-//         let (message, dst_locator) = transport.pop_write().unwrap();
-//         assert_eq!(dst_locator, vec![unicast_locator_1, unicast_locator_2,  multicast_locator ]);
-//         assert_eq!(message.submessages().len(), 2);
-//         match &message.submessages()[0] {
-//             RtpsSubmessage::InfoTs(info_ts) => {
-//                 assert_eq!(info_ts.time().is_some(), true);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//         match &message.submessages()[1] {
-//             RtpsSubmessage::Data(data) => {
-//                 assert_eq!(data.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-//                 assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-//                 assert_eq!(data.writer_sn(), 1);
-//             },
-//             _ => panic!("Unexpected submessage type received"),
-//         };
-//     }
-
-// }

@@ -2,7 +2,7 @@ pub mod node;
 pub mod shared_object;
 // pub mod endpoint_traits;
 pub mod mask_listener;
-// pub mod message_sender;
+pub mod message_sender;
 
 // use rust_dds_api::dcps_psm::InstanceHandle;
 // use rust_rtps_pim::structure::types::GUID;

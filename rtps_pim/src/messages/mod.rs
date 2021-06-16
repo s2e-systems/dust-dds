@@ -71,20 +71,22 @@ pub trait RTPSMessagePIM<
 pub trait RTPSMessage<
     'a,
     PSM: ProtocolIdPIM
-        + ProtocolVersionPIM
-        + VendorIdPIM
-        + GuidPrefixPIM
-        + SubmessageKindPIM
+       + ProtocolVersionPIM
+       + VendorIdPIM
+       + GuidPrefixPIM
+       + SubmessageKindPIM
         + RtpsMessageHeaderPIM<'a, PSM>
 >
 {
+    type Constructed;
+
     fn new(
-        protocol: &'a PSM::ProtocolIdType,
-        version: &'a PSM::ProtocolVersionType,
-        vendor_id: &'a PSM::VendorIdType,
-        guid_prefix: &'a PSM::GuidPrefixType,
-        submessages: &'a [&'a dyn Submessage<'a, PSM>],
-    ) -> Self;
+        protocol: PSM::ProtocolIdType,
+        version: PSM::ProtocolVersionType,
+        vendor_id: PSM::VendorIdType,
+        guid_prefix: PSM::GuidPrefixType,
+        submessages: &[&'a dyn Submessage<'a, PSM>],
+    ) -> Self::Constructed;
 
     fn header(&self) -> PSM::RtpsMessageHeaderType;
 
