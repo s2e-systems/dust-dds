@@ -24,17 +24,61 @@ use super::{
 };
 
 pub enum RtpsSubmessageType<
+    'a,
     PSM: SubmessageKindPIM
         + EntityIdPIM
         + SequenceNumberPIM
         + CountPIM
+        + ParameterIdPIM
+        + DataPIM
+        + FragmentNumberPIM
+        + UShortSubmessageElementPIM
+        + ULongSubmessageElementPIM
+        + GuidPrefixPIM
+        + LocatorPIM
+        + ProtocolVersionPIM
+        + VendorIdPIM
+        + TimePIM
+        + ParameterListSubmessageElementPIM<PSM>
         + RtpsSubmessageHeaderPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
         + SequenceNumberSetSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + AckNackSubmessagePIM<PSM>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + SerializedDataFragmentSubmessageElementPIM<'a>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + LocatorListSubmessageElementPIM<PSM>
+        + ProtocolVersionSubmessageElementPIM<PSM>
+        + VendorIdSubmessageElementPIM<PSM>
+        + TimestampSubmessageElementPIM<PSM>
+        + FragmentNumberSetSubmessageElementPIM<PSM>
+        + AckNackSubmessagePIM<PSM>
+        + DataSubmessagePIM<'a, PSM>
+        + DataFragSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>
+        + HeartbeatSubmessagePIM<PSM>
+        + HeartbeatFragSubmessagePIM<PSM>
+        + InfoDestinationSubmessagePIM<PSM>
+        + InfoReplySubmessagePIM<PSM>
+        + InfoSourceSubmessagePIM<PSM>
+        + InfoTimestampSubmessagePIM<PSM>
+        + NackFragSubmessagePIM<PSM>
+        + PadSubmessagePIM<PSM>,
 > {
     AckNack(PSM::AckNackSubmessageType),
+    Data(PSM::DataSubmessageType),
+    DataFrag(PSM::DataFragSubmessageType),
+    Gap(PSM::GapSubmessageType),
+    Heartbeat(PSM::HeartbeatSubmessageType),
+    HeartbeatFrag(PSM::HeartbeatFragSubmessageType),
+    InfoDestination(PSM::InfoDestinationSubmessageType),
+    InfoReply(PSM::InfoReplySubmessageType),
+    InfoSource(PSM::InfoSourceSubmessageType),
+    InfoTimestamp(PSM::InfoTimestampSubmessageType),
+    NackFrag(PSM::NackFragSubmessageType),
+    Pad(PSM::PadSubmessageType),
 }
 
 pub trait AckNackSubmessagePIM<
@@ -434,7 +478,6 @@ pub trait InfoSourceSubmessage<
 }
 
 pub trait InfoTimestampSubmessagePIM<
-    'a,
     PSM: SubmessageKindPIM + TimePIM + RtpsSubmessageHeaderPIM<PSM> + TimestampSubmessageElementPIM<PSM>,
 >
 {
