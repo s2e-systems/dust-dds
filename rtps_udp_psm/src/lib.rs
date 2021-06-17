@@ -1007,17 +1007,17 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<'a, RtpsUdpPsm> for RTPS
 
 pub struct RTPSMessageC<'a> {
     header: RTPSMessageHeader,
-    submessages: Vec<&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>>,
+    submessages: &'a[&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>],
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'_> {
+impl<'a> rust_rtps_pim::messages::RTPSMessageConstructor<'a, RtpsUdpPsm> for RTPSMessageC<'_> {
 
     fn new(
         protocol: ProtocolId,
         version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
-        submessages: &[&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>],
+        submessages: &'a [&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>],
     ) -> RTPSMessageC<'a> {
         RTPSMessageC {
             header: RTPSMessageHeader {
@@ -1026,17 +1026,19 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'
                 vendor_id: vendor_id.clone(),
                 guid_prefix: guid_prefix.clone(),
             },
-            submessages: submessages.to_vec(),
+            submessages,
         }
     }
+}
+
+impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'a> {
 
     fn header(&self) -> RTPSMessageHeader {
         self.header
     }
 
     fn submessages(&self) -> &[&dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>] {
-        // &self.submessages
-        todo!()
+        &self.submessages
     }
 
 }

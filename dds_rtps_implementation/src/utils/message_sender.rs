@@ -12,7 +12,7 @@ use rust_rtps_pim::{
         },
         submessages::{DataSubmessagePIM, GapSubmessagePIM},
         types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM},
-        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
+        RTPSMessageConstructor, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
     structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM,

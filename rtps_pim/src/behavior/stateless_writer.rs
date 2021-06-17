@@ -176,7 +176,8 @@ pub fn reliable_receive_acknack<'a,
         + SequenceNumberSetSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
         + RtpsSubmessageHeaderPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
     acknack: &impl AckNackSubmessage<'a, PSM>,

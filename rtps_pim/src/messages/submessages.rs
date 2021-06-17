@@ -33,7 +33,8 @@ pub trait AckNackSubmessagePIM<
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSetSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type AckNackSubmessageType: AckNackSubmessage<'a, PSM>;
@@ -49,7 +50,8 @@ pub trait AckNackSubmessage<
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSetSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
     fn new(
@@ -143,7 +145,8 @@ pub trait DataFragSubmessagePIM<
         + ULongSubmessageElementPIM
         + ParameterListSubmessageElementPIM<PSM>
         + SerializedDataFragmentSubmessageElementPIM<'a>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type DataFragSubmessageType: DataFragSubmessage<'a, PSM>;
@@ -165,7 +168,8 @@ pub trait DataFragSubmessage<
         + ULongSubmessageElementPIM
         + ParameterListSubmessageElementPIM<PSM>
         + SerializedDataFragmentSubmessageElementPIM<'a>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
     fn new(
@@ -251,7 +255,8 @@ pub trait HeartbeatSubmessagePIM<
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type HeartbeatSubmessageType: HeartbeatSubmessage<'a, PSM>;
@@ -267,7 +272,8 @@ pub trait HeartbeatSubmessage<
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
     fn new(
@@ -307,7 +313,8 @@ pub trait HeartbeatFragSubmessagePIM<
         + SequenceNumberSubmessageElementPIM<PSM>
         + FragmentNumberSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type HeartbeatFragSubmessageType: HeartbeatFragSubmessage<'a, PSM>;
@@ -325,7 +332,8 @@ pub trait HeartbeatFragSubmessage<
         + SequenceNumberSubmessageElementPIM<PSM>
         + FragmentNumberSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
     fn new(
@@ -352,7 +360,8 @@ pub trait InfoDestinationSubmessagePIM<
         + GuidPrefixSubmessageElementPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type InfoDestinationSubmessageType: InfoDestinationSubmessage<'a, PSM>;
@@ -366,7 +375,8 @@ pub trait InfoDestinationSubmessage<
         + GuidPrefixSubmessageElementPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
     fn new(
@@ -385,7 +395,8 @@ pub trait InfoReplySubmessagePIM<
         + LocatorListSubmessageElementPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type InfoReplySubmessageType: InfoReplySubmessage<'a, PSM>;
@@ -399,7 +410,8 @@ pub trait InfoReplySubmessage<
         + LocatorListSubmessageElementPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
     fn new(
@@ -426,7 +438,8 @@ pub trait InfoSourceSubmessagePIM<
         + GuidPrefixSubmessageElementPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type InfoSourceSubmessageType: InfoSourceSubmessage<'a, PSM>;
@@ -444,7 +457,8 @@ pub trait InfoSourceSubmessage<
         + GuidPrefixSubmessageElementPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
     fn new(
@@ -467,7 +481,8 @@ pub trait InfoTimestampSubmessagePIM<
         + TimestampSubmessageElementPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type InfoTimestampSubmessageType: InfoTimestampSubmessage<'a, PSM>;
@@ -481,7 +496,8 @@ pub trait InfoTimestampSubmessage<
         + TimestampSubmessageElementPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
     fn new(
@@ -506,7 +522,8 @@ pub trait NackFragSubmessagePIM<
         + SequenceNumberSubmessageElementPIM<PSM>
         + FragmentNumberSetSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type NackFragSubmessageType: NackFragSubmessage<'a, PSM>;
@@ -524,7 +541,8 @@ pub trait NackFragSubmessage<
         + SequenceNumberSubmessageElementPIM<PSM>
         + FragmentNumberSetSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
     fn new(
@@ -549,7 +567,8 @@ pub trait PadSubmessagePIM<
         + RtpsSubmessageHeaderPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >
 {
     type PadSubmessageType: PadSubmessage<'a, PSM>;
@@ -561,7 +580,8 @@ pub trait PadSubmessage<
         + RtpsSubmessageHeaderPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + EntityIdPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a
 >: Submessage<'a, PSM>
 {
 }

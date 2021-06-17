@@ -46,7 +46,8 @@ pub trait Submessage<
         + RtpsSubmessageHeaderPIM<PSM>
         + EntityIdPIM
         + EntityIdSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + 'a,
 >
 {
     fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType;
@@ -62,33 +63,39 @@ pub trait RTPSMessagePIM<
         + GuidPrefixPIM
         + SubmessageKindPIM
         + RtpsMessageHeaderPIM<'a, PSM>
-        + RTPSMessagePIM<'a, PSM>
-        // + 'a,
->
+        + RTPSMessagePIM<'a, PSM>, // + 'a,
+> // + 'a,
 {
-    type RTPSMessageType: RTPSMessage<'a, PSM>;
+    type RTPSMessageType: RTPSMessage<'a, PSM> + RTPSMessageConstructor<'a, PSM>;
 }
 
-pub trait RTPSMessage<
-    'a,
+pub trait RTPSMessageConstructor<'a, PSM>
+where
     PSM: ProtocolIdPIM
-       + ProtocolVersionPIM
-       + VendorIdPIM
-       + GuidPrefixPIM
-       + SubmessageKindPIM
-       + RtpsMessageHeaderPIM<'a, PSM>
-       + RTPSMessagePIM<'a, PSM>
->
+        + ProtocolVersionPIM
+        + VendorIdPIM
+        + GuidPrefixPIM
+        + SubmessageKindPIM
+        + RtpsMessageHeaderPIM<'a, PSM>
+        + RTPSMessagePIM<'a, PSM>,
 {
     fn new(
         protocol: PSM::ProtocolIdType,
         version: PSM::ProtocolVersionType,
         vendor_id: PSM::VendorIdType,
         guid_prefix: PSM::GuidPrefixType,
-        submessages: &[&'a dyn Submessage<'a, PSM>],
+        submessages: &'a [&'a dyn Submessage<'a, PSM>],
     ) -> <PSM as RTPSMessagePIM<'a, PSM>>::RTPSMessageType;
-
+}
+pub trait RTPSMessage<'a, PSM>
+where
+    PSM: ProtocolIdPIM
+        + ProtocolVersionPIM
+        + VendorIdPIM
+        + GuidPrefixPIM
+        + RtpsMessageHeaderPIM<'a, PSM>,
+{
     fn header(&self) -> PSM::RtpsMessageHeaderType;
 
-    fn submessages(&'a self) -> &[&dyn Submessage<PSM>];
+    fn submessages(&self) -> &[&dyn Submessage<'a, PSM>];
 }
