@@ -108,64 +108,9 @@ where
         + RtpsMessageHeaderPIM<PSM>
         + RTPSMessagePIM<'a, PSM>,
 {
-    type RTPSMessageType: RTPSMessage<'a, PSM> + RTPSMessageConstructor<'a, PSM>;
+    type RTPSMessageType: RTPSMessage<'a, PSM>;
 }
 
-pub trait RTPSMessageConstructor<'a, PSM>
-where
-    PSM: SubmessageKindPIM
-        + EntityIdPIM
-        + SequenceNumberPIM
-        + CountPIM
-        + ParameterIdPIM
-        + DataPIM
-        + FragmentNumberPIM
-        + UShortSubmessageElementPIM
-        + ULongSubmessageElementPIM
-        + GuidPrefixPIM
-        + LocatorPIM
-        + ProtocolVersionPIM
-        + VendorIdPIM
-        + TimePIM
-        + ProtocolIdPIM
-        + ParameterListSubmessageElementPIM<PSM>
-        + RtpsSubmessageHeaderPIM<PSM>
-        + EntityIdSubmessageElementPIM<PSM>
-        + SequenceNumberSubmessageElementPIM<PSM>
-        + SequenceNumberSetSubmessageElementPIM<PSM>
-        + CountSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>
-        + SerializedDataFragmentSubmessageElementPIM<'a>
-        + FragmentNumberSubmessageElementPIM<PSM>
-        + GuidPrefixSubmessageElementPIM<PSM>
-        + LocatorListSubmessageElementPIM<PSM>
-        + ProtocolVersionSubmessageElementPIM<PSM>
-        + VendorIdSubmessageElementPIM<PSM>
-        + TimestampSubmessageElementPIM<PSM>
-        + FragmentNumberSetSubmessageElementPIM<PSM>
-        + AckNackSubmessagePIM<PSM>
-        + DataSubmessagePIM<'a, PSM>
-        + DataFragSubmessagePIM<'a, PSM>
-        + GapSubmessagePIM<PSM>
-        + HeartbeatSubmessagePIM<PSM>
-        + HeartbeatFragSubmessagePIM<PSM>
-        + InfoDestinationSubmessagePIM<PSM>
-        + InfoReplySubmessagePIM<PSM>
-        + InfoSourceSubmessagePIM<PSM>
-        + InfoTimestampSubmessagePIM<PSM>
-        + NackFragSubmessagePIM<PSM>
-        + PadSubmessagePIM<PSM>
-        + RtpsMessageHeaderPIM<PSM>
-        + RTPSMessagePIM<'a, PSM>,
-{
-    fn new(
-        protocol: PSM::ProtocolIdType,
-        version: PSM::ProtocolVersionType,
-        vendor_id: PSM::VendorIdType,
-        guid_prefix: PSM::GuidPrefixType,
-        submessages: &'a [RtpsSubmessageType<'a, PSM>],
-    ) -> <PSM as RTPSMessagePIM<'a, PSM>>::RTPSMessageType;
-}
 pub trait RTPSMessage<'a, PSM>
 where
     PSM: SubmessageKindPIM
@@ -212,6 +157,14 @@ where
         + PadSubmessagePIM<PSM>
         + RtpsMessageHeaderPIM<PSM>,
 {
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
+        protocol: PSM::ProtocolIdType,
+        version: PSM::ProtocolVersionType,
+        vendor_id: PSM::VendorIdType,
+        guid_prefix: PSM::GuidPrefixType,
+        submessages: T,
+    ) -> Self;
+
     fn header(&self) -> PSM::RtpsMessageHeaderType;
 
     fn submessages(&self) -> &[RtpsSubmessageType<'a, PSM>];

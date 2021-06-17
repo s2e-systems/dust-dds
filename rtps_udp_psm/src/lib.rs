@@ -1,6 +1,9 @@
 use serde::ser::SerializeStruct;
 
-use rust_rtps_pim::{behavior::types::{DurationPIM, ParticipantMessageDataPIM}, messages::{RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM, submessage_elements::{
+use rust_rtps_pim::{
+    behavior::types::{DurationPIM, ParticipantMessageDataPIM},
+    messages::{
+        submessage_elements::{
             CountSubmessageElementPIM, EntityIdSubmessageElementPIM,
             FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM,
             GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
@@ -9,13 +12,24 @@ use rust_rtps_pim::{behavior::types::{DurationPIM, ParticipantMessageDataPIM}, m
             SequenceNumberSubmessageElementPIM, SerializedDataFragmentSubmessageElementPIM,
             SerializedDataSubmessageElementPIM, TimestampSubmessageElementPIM,
             ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM,
-        }, submessages::{AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM}, types::{
+        },
+        submessages::{
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
+            HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
+            InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
+            NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
+        },
+        types::{
             CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
             SubmessageFlag, SubmessageKindPIM, TimePIM,
-        }}, structure::types::{
+        },
+        RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
+    },
+    structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM,
         SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-    }};
+    },
+};
 
 pub mod submessages;
 
@@ -288,7 +302,7 @@ impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
     type DataSubmessageType = submessages::data::DataSubmesage<'a>;
 }
 
-impl<'a> DataFragSubmessagePIM<'a,Self> for RtpsUdpPsm {
+impl<'a> DataFragSubmessagePIM<'a, Self> for RtpsUdpPsm {
     type DataFragSubmessageType = submessages::data_frag::DataFrag<'a>;
 }
 
@@ -296,11 +310,11 @@ impl GapSubmessagePIM<Self> for RtpsUdpPsm {
     type GapSubmessageType = submessages::gap::GapSubmessage;
 }
 
-impl HeartbeatSubmessagePIM<Self> for RtpsUdpPsm  {
+impl HeartbeatSubmessagePIM<Self> for RtpsUdpPsm {
     type HeartbeatSubmessageType = submessages::heartbeat::HeartbeatSubmessage;
 }
 
-impl HeartbeatFragSubmessagePIM<Self> for RtpsUdpPsm  {
+impl HeartbeatFragSubmessagePIM<Self> for RtpsUdpPsm {
     type HeartbeatFragSubmessageType = submessages::heartbeat_frag::HeartbeatFrag;
 }
 
@@ -1038,17 +1052,17 @@ impl rust_rtps_pim::messages::RtpsMessageHeaderType<RtpsUdpPsm> for RTPSMessageH
 
 pub struct RTPSMessageC<'a> {
     header: RTPSMessageHeader,
-    submessages: &'a [&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>],
+    submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessageConstructor<'a, RtpsUdpPsm> for RTPSMessageC<'_> {
-    fn new(
+impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'a> {
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, RtpsUdpPsm>>>(
         protocol: ProtocolId,
         version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
-        submessages: &'a [&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>],
-    ) -> RTPSMessageC<'a> {
+        submessages: T,
+    ) -> Self {
         RTPSMessageC {
             header: RTPSMessageHeader {
                 protocol: protocol.clone(),
@@ -1056,17 +1070,15 @@ impl<'a> rust_rtps_pim::messages::RTPSMessageConstructor<'a, RtpsUdpPsm> for RTP
                 vendor_id: vendor_id.clone(),
                 guid_prefix: guid_prefix.clone(),
             },
-            submessages,
+            submessages: submessages.into_iter().collect(),
         }
     }
-}
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'a> {
     fn header(&self) -> RTPSMessageHeader {
         self.header
     }
 
-    fn submessages(&self) -> &[&dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>] {
+    fn submessages(&self) -> &[RtpsSubmessageType<'a, RtpsUdpPsm>] {
         &self.submessages
     }
 }

@@ -20,9 +20,9 @@ use rust_dds_api::{
 // use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::{
-    rtps_impl::rtps_participant_impl::{send_data, RTPSParticipantImpl},
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
     transport::Transport,
-    utils::shared_object::RtpsShared,
+    utils::{message_sender::send_data, shared_object::RtpsShared},
 };
 
 use super::{
@@ -366,10 +366,11 @@ where
         std::thread::spawn(move || {
             loop {
                 if let Some(rtps_participant) = rtps_participant.try_lock() {
-                    send_data(
-                        rtps_participant.as_ref(),
-                        transport.lock().unwrap().deref_mut(),
-                    );
+                    todo!()
+                    // send_data(
+                    //     rtps_participant.as_ref(),
+                    //     transport.lock().unwrap().deref_mut(),
+                    // );
                     // rtps_participant.send_data::<UDPHeartbeatMessage>();
                     // rtps_participant.receive_data();
                     // rtps_participant.run_listeners();

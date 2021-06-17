@@ -6,13 +6,25 @@ use rust_rtps_pim::{
     },
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM,
+            CountSubmessageElementPIM, EntityIdSubmessageElementPIM,
+            FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM,
+            GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
+            ParameterListSubmessageElementPIM, ProtocolVersionSubmessageElementPIM,
             SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM,
-            SerializedDataSubmessageElementPIM,
+            SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementPIM,
+            TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM,
+            VendorIdSubmessageElementPIM,
         },
-        submessages::{DataSubmessagePIM, GapSubmessagePIM},
-        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM},
-        RTPSMessageConstructor, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
+        submessages::{
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
+            HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
+            InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
+            NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
+        },
+        types::{
+            CountPIM, FragmentNumberPIM, ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM, TimePIM,
+        },
+        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
     structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM,
@@ -36,16 +48,41 @@ pub fn send_data<
         + GUIDPIM<PSM>
         + SubmessageKindPIM
         + ProtocolIdPIM
+        + CountPIM
+        + FragmentNumberPIM
+        + UShortSubmessageElementPIM
+        + ULongSubmessageElementPIM
+        + TimePIM
         + ParameterListSubmessageElementPIM<PSM>
         + RtpsSubmessageHeaderPIM<PSM>
+        + CountSubmessageElementPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSubmessageElementPIM<PSM>
         + SequenceNumberSetSubmessageElementPIM<PSM>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + LocatorListSubmessageElementPIM<PSM>
+        + ProtocolVersionSubmessageElementPIM<PSM>
+        + VendorIdSubmessageElementPIM<PSM>
+        + TimestampSubmessageElementPIM<PSM>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + FragmentNumberSetSubmessageElementPIM<PSM>
+        + AckNackSubmessagePIM<PSM>
+        + HeartbeatSubmessagePIM<PSM>
+        + HeartbeatFragSubmessagePIM<PSM>
+        + InfoDestinationSubmessagePIM<PSM>
+        + InfoReplySubmessagePIM<PSM>
+        + InfoSourceSubmessagePIM<PSM>
+        + InfoTimestampSubmessagePIM<PSM>
+        + NackFragSubmessagePIM<PSM>
+        + PadSubmessagePIM<PSM>
         + for<'a> SerializedDataSubmessageElementPIM<'a>
+        + for<'a> SerializedDataFragmentSubmessageElementPIM<'a>
+        + for<'a> DataFragSubmessagePIM<'a, PSM>
         + for<'a> DataSubmessagePIM<'a, PSM>
         + GapSubmessagePIM<PSM>
         + for<'a> RTPSMessagePIM<'a, PSM>
-        + for<'a> RtpsMessageHeaderPIM<'a, PSM>
+        + RtpsMessageHeaderPIM<PSM>
         + Sized
         + 'static,
 >(
@@ -65,35 +102,35 @@ pub fn send_data<
     let last_change_sequence_number = *writer.last_change_sequence_number();
     let (reader_locators, writer_cache) = writer.reader_locators();
     for reader_locator in reader_locators {
-        let mut data_submessage_list: Vec<<PSM as DataSubmessagePIM<PSM>>::DataSubmessageType> = vec![];
-        let mut gap_submessage_list: Vec<<PSM as GapSubmessagePIM<PSM>>::GapSubmessageType>  = vec![];
+        let mut data_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
+        let mut gap_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
+
+        // let mut submessages = vec![];
         best_effort_send_unsent_data(
             reader_locator,
             &last_change_sequence_number,
             writer_cache,
-            |data_submessage| data_submessage_list.push(data_submessage),
-            |gap_submessage| gap_submessage_list.push(gap_submessage),
+            |data_submessage| data_submessage_list.push(RtpsSubmessageType::Data(data_submessage)),
+            |gap_submessage| gap_submessage_list.push(RtpsSubmessageType::Gap(gap_submessage)),
         );
 
         let protocol = PSM::PROTOCOL_RTPS;
         // let version = rtps_participant_impl.protocol_version();
         // let vendor_id = rtps_participant_impl.vendor_id();
         // let guid_prefix = rtps_participant_impl.guid().prefix();
-
-        let mut submessages: Vec<&dyn rust_rtps_pim::messages::Submessage<PSM>> = vec![];
-        for data_submessage in &data_submessage_list {
-            submessages.push(data_submessage)
-        }
-        for gap_submessage in &gap_submessage_list {
-            submessages.push(gap_submessage);
-        }
+        // for data_submessage in &data_submessage_list {
+        //     submessages.push(RtpsSubmessageType::Data(data_submessage))
+        // }
+        // for gap_submessage in &gap_submessage_list {
+        //     submessages.push(gap_submessage);
+        // }
 
         let message = PSM::RTPSMessageType::new(
             protocol,
             PSM::PROTOCOLVERSION_2_4,
             PSM::VENDOR_ID_UNKNOWN,
             PSM::GUIDPREFIX_UNKNOWN,
-            submessages.as_slice(),
+            data_submessage_list,
         );
         transport.write(&message, reader_locator.locator());
     }
