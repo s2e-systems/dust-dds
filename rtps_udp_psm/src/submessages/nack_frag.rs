@@ -6,7 +6,7 @@ use super::SubmessageHeader;
 
 pub struct NackFrag;
 
-impl<'a> rust_rtps_pim::messages::submessages::NackFragSubmessage<'a, RtpsUdpPsm> for NackFrag {
+impl rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm> for NackFrag {
     fn new(
         _endianness_flag: SubmessageFlag,
         _reader_id: EntityId,
@@ -43,7 +43,7 @@ impl<'a> rust_rtps_pim::messages::submessages::NackFragSubmessage<'a, RtpsUdpPsm
     }
 }
 
-impl<'a> rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm> for NackFrag {
+impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for NackFrag {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

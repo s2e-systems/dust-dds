@@ -81,7 +81,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<'a, RtpsUdpPsm
     }
 }
 
-impl<'a> rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm> for DataFrag<'a> {
+impl<'a> rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for DataFrag<'a> {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

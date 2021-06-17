@@ -4,7 +4,7 @@ use super::SubmessageHeader;
 
 pub struct InfoReply;
 
-impl<'a> rust_rtps_pim::messages::submessages::InfoReplySubmessage<'a, RtpsUdpPsm> for InfoReply {
+impl rust_rtps_pim::messages::submessages::InfoReplySubmessage<RtpsUdpPsm> for InfoReply {
     fn new(
         _endianness_flag: SubmessageFlag,
         _multicast_flag: SubmessageFlag,
@@ -31,7 +31,7 @@ impl<'a> rust_rtps_pim::messages::submessages::InfoReplySubmessage<'a, RtpsUdpPs
     }
 }
 
-impl<'a> rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm> for InfoReply {
+impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for InfoReply {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

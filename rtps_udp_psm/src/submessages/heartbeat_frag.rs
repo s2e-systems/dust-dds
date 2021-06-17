@@ -4,7 +4,7 @@ use super::SubmessageHeader;
 
 pub struct HeartbeatFrag;
 
-impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<'a, RtpsUdpPsm> for HeartbeatFrag {
+impl rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPsm> for HeartbeatFrag {
     fn new(
         _endianness_flag: SubmessageFlag,
         _reader_id: EntityId,
@@ -41,7 +41,7 @@ impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<'a, RtpsU
     }
 }
 
-impl<'a> rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm> for HeartbeatFrag {
+impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for HeartbeatFrag {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

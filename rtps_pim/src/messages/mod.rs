@@ -2,12 +2,9 @@ pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
 
-use crate::structure::types::{EntityIdPIM, GuidPrefixPIM, ProtocolVersionPIM, VendorIdPIM};
+use crate::structure::types::{GuidPrefixPIM, ProtocolVersionPIM, VendorIdPIM};
 
-use self::{
-    submessage_elements::{EntityIdSubmessageElementPIM, SerializedDataSubmessageElementPIM},
-    types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM},
-};
+use self::types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM};
 
 pub trait RtpsMessageHeaderPIM<
     'a,
@@ -38,15 +35,7 @@ pub trait RtpsSubmessageHeaderType<PSM: SubmessageKindPIM> {
     fn submessage_length(&self) -> u16;
 }
 
-pub trait Submessage<
-    'a,
-    PSM: SubmessageKindPIM
-        + RtpsSubmessageHeaderPIM<PSM>
-        + EntityIdPIM
-        + EntityIdSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
->
-{
+pub trait Submessage<PSM: SubmessageKindPIM + RtpsSubmessageHeaderPIM<PSM>> {
     fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType;
 }
 
@@ -79,7 +68,7 @@ where
         version: PSM::ProtocolVersionType,
         vendor_id: PSM::VendorIdType,
         guid_prefix: PSM::GuidPrefixType,
-        submessages: &'a [&'a dyn Submessage<'a, PSM>],
+        submessages: &'a [&'a dyn Submessage<PSM>],
     ) -> <PSM as RTPSMessagePIM<'a, PSM>>::RTPSMessageType;
 }
 pub trait RTPSMessage<'a, PSM>
@@ -92,5 +81,5 @@ where
 {
     fn header(&self) -> PSM::RtpsMessageHeaderType;
 
-    fn submessages(&self) -> &[&dyn Submessage<'a, PSM>];
+    fn submessages(&self) -> &[&dyn Submessage<PSM>];
 }

@@ -103,7 +103,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
     }
 }
 
-impl<'a> Submessage<'a, RtpsUdpPsm> for DataSubmesage<'_> {
+impl<'a> Submessage<RtpsUdpPsm> for DataSubmesage<'_> {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

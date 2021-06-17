@@ -43,7 +43,7 @@ pub fn send_data<
         + SequenceNumberSetSubmessageElementPIM<PSM>
         + for<'a> SerializedDataSubmessageElementPIM<'a>
         + for<'a> DataSubmessagePIM<'a, PSM>
-        + for<'a> GapSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>
         + for<'a> RTPSMessagePIM<'a, PSM>
         + for<'a> RtpsMessageHeaderPIM<'a, PSM>
         + Sized

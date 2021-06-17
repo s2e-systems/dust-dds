@@ -293,7 +293,7 @@ impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
     type DataSubmessageType = submessages::data::DataSubmesage<'a>;
 }
 
-impl<'a> GapSubmessagePIM<'a, Self> for RtpsUdpPsm {
+impl GapSubmessagePIM<Self> for RtpsUdpPsm {
     type GapSubmessageType = submessages::gap::GapSubmessage;
 }
 
@@ -1007,17 +1007,16 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<'a, RtpsUdpPsm> for RTPS
 
 pub struct RTPSMessageC<'a> {
     header: RTPSMessageHeader,
-    submessages: &'a[&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>],
+    submessages: &'a [&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>],
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessageConstructor<'a, RtpsUdpPsm> for RTPSMessageC<'_> {
-
     fn new(
         protocol: ProtocolId,
         version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
-        submessages: &'a [&'a dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>],
+        submessages: &'a [&'a dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>],
     ) -> RTPSMessageC<'a> {
         RTPSMessageC {
             header: RTPSMessageHeader {
@@ -1032,15 +1031,13 @@ impl<'a> rust_rtps_pim::messages::RTPSMessageConstructor<'a, RtpsUdpPsm> for RTP
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'a> {
-
     fn header(&self) -> RTPSMessageHeader {
         self.header
     }
 
-    fn submessages(&self) -> &[&dyn rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm>] {
+    fn submessages(&self) -> &[&dyn rust_rtps_pim::messages::Submessage<RtpsUdpPsm>] {
         &self.submessages
     }
-
 }
 
 #[cfg(test)]

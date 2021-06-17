@@ -94,14 +94,14 @@ pub fn best_effort_send_unsent_data<
         + SequenceNumberSetSubmessageElementPIM<PSM>
         + SerializedDataSubmessageElementPIM<'a>
         + DataSubmessagePIM<'a, PSM>
-        + GapSubmessagePIM<'a, PSM>,
+        + GapSubmessagePIM<PSM>,
     HistoryCache: RTPSHistoryCache<PSM>,
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
     last_change_sequence_number: &PSM::SequenceNumberType,
     writer_cache: &'a HistoryCache,
     mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
-    mut send_gap: impl FnMut(<PSM as GapSubmessagePIM<'a,PSM>>::GapSubmessageType),
+    mut send_gap: impl FnMut(<PSM as GapSubmessagePIM<PSM>>::GapSubmessageType),
 ) where
     PSM::DataType: 'a,
     PSM::ParameterListSubmessageElementType: 'a + Clone,
@@ -166,7 +166,7 @@ pub fn reliable_send_unsent_data<PSM: LocatorPIM + SequenceNumberPIM>(
     }
 }
 
-pub fn reliable_receive_acknack<'a,
+pub fn reliable_receive_acknack<
     PSM: LocatorPIM
         + SequenceNumberPIM
         + SubmessageKindPIM
@@ -175,12 +175,10 @@ pub fn reliable_receive_acknack<'a,
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSetSubmessageElementPIM<PSM>
         + CountSubmessageElementPIM<PSM>
-        + RtpsSubmessageHeaderPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>
-        + 'a
+        + RtpsSubmessageHeaderPIM<PSM>,
 >(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
-    acknack: &impl AckNackSubmessage<'a, PSM>,
+    acknack: &impl AckNackSubmessage<PSM>,
     last_change_sequence_number: &PSM::SequenceNumberType,
 ) {
     reader_locator
@@ -400,7 +398,7 @@ mod tests {
 
     struct MockDataSubmessage(i64);
 
-    impl<'a> Submessage<'a, MockPSM> for MockDataSubmessage {
+    impl Submessage<MockPSM> for MockDataSubmessage {
         fn submessage_header(&self) -> MockSubmessageHeader {
             todo!()
         }
@@ -518,7 +516,7 @@ mod tests {
         }
     }
 
-    impl<'a> GapSubmessagePIM<'a, MockPSM> for MockPSM {
+    impl GapSubmessagePIM<MockPSM> for MockPSM {
         type GapSubmessageType = MockGapSubmessage;
     }
 
@@ -540,13 +538,13 @@ mod tests {
 
     struct MockGapSubmessage(i64);
 
-    impl<'a> Submessage<'a, MockPSM> for MockGapSubmessage {
+    impl Submessage<MockPSM> for MockGapSubmessage {
         fn submessage_header(&self) -> MockSubmessageHeader {
             todo!()
         }
     }
 
-    impl<'a> GapSubmessage<'a, MockPSM> for MockGapSubmessage {
+    impl GapSubmessage<MockPSM> for MockGapSubmessage {
         fn new(
             _endianness_flag: bool,
             _reader_id: [u8; 4],

@@ -1,15 +1,28 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
-use rust_rtps_pim::{behavior::{
+use rust_rtps_pim::{
+    behavior::{
         stateless_writer::{best_effort_send_unsent_data, RTPSReaderLocator, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
-    }, messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM, submessage_elements::{EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM}, submessages::{DataSubmessagePIM, GapSubmessagePIM}, types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM}}, structure::{
+    },
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM,
+            SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM,
+            SerializedDataSubmessageElementPIM,
+        },
+        submessages::{DataSubmessagePIM, GapSubmessagePIM},
+        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM},
+        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
+    },
+    structure::{
         types::{
             DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
             ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
         },
         RTPSEntity, RTPSParticipant,
-    }};
+    },
+};
 
 use crate::{transport::Transport, utils::shared_object::RtpsShared};
 
@@ -35,7 +48,7 @@ pub trait RTPSParticipantImplTrait:
     + SequenceNumberSubmessageElementPIM<Self>
     + SequenceNumberSetSubmessageElementPIM<Self>
     + for<'a> DataSubmessagePIM<'a, Self>
-    + for<'a> GapSubmessagePIM<'a, Self>
+    + GapSubmessagePIM<Self>
     + for<'a> RTPSMessagePIM<'a, Self>
     + for<'a> RtpsMessageHeaderPIM<'a, Self>
     + Sized
@@ -63,7 +76,7 @@ impl<
             + SequenceNumberSubmessageElementPIM<Self>
             + SequenceNumberSetSubmessageElementPIM<Self>
             + for<'a> DataSubmessagePIM<'a, Self>
-            + for<'a> GapSubmessagePIM<'a, Self>
+            + GapSubmessagePIM<Self>
             + for<'a> RTPSMessagePIM<'a, Self>
             + for<'a> RtpsMessageHeaderPIM<'a, Self>
             + Sized
@@ -142,7 +155,7 @@ pub fn send_data<
         + SequenceNumberSetSubmessageElementPIM<PSM>
         + for<'a> SerializedDataSubmessageElementPIM<'a>
         + for<'a> DataSubmessagePIM<'a, PSM>
-        + for<'a> GapSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>
         + for<'a> RTPSMessagePIM<'a, PSM>
         + for<'a> RtpsMessageHeaderPIM<'a, PSM>
         + Sized
@@ -155,7 +168,7 @@ pub fn send_data<
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq,
     PSM::GUIDType: Copy,
-    PSM::ParameterListSubmessageElementType: Clone
+    PSM::ParameterListSubmessageElementType: Clone,
 {
     for writer_group in &rtps_participant_impl.rtps_writer_groups {
         let writer_group_lock = writer_group.lock();
@@ -181,7 +194,6 @@ pub fn send_data<
                     let version = rtps_participant_impl.protocol_version();
                     let vendor_id = rtps_participant_impl.vendor_id();
                     let guid_prefix = rtps_participant_impl.guid().prefix();
-
 
                     for data_submessage in &data_submessage_list {
                         submessages.push(data_submessage)
