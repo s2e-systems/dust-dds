@@ -368,4 +368,15 @@ mod tests {
         tuple.serialize(&mut serializer).unwrap();
         assert_eq!(serializer.writer, vec![1, 2]);
     }
+
+    #[test]
+    fn serialize_bytes() {
+        let data = &[1_u8,2][..];
+        let mut serializer = RtpsMessageSerializer::default();
+        data.serialize(&mut serializer).unwrap();
+        #[rustfmt::skip]
+        assert_eq!(serializer.writer, vec![
+            1, 2 // Data
+        ]);
+    }
 }
