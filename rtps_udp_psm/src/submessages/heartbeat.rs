@@ -77,12 +77,6 @@ impl<'a> rust_rtps_pim::messages::Submessage<'a, RtpsUdpPsm> for HeartbeatSubmes
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
-
-    fn submessage_elements(
-        &self,
-    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<'a, RtpsUdpPsm>] {
-        todo!()
-    }
 }
 
 #[cfg(test)]

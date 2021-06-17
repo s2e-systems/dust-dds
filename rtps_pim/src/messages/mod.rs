@@ -5,9 +5,7 @@ pub mod types;
 use crate::structure::types::{EntityIdPIM, GuidPrefixPIM, ProtocolVersionPIM, VendorIdPIM};
 
 use self::{
-    submessage_elements::{
-        EntityIdSubmessageElementPIM, SerializedDataSubmessageElementPIM, SubmessageElements,
-    },
+    submessage_elements::{EntityIdSubmessageElementPIM, SerializedDataSubmessageElementPIM},
     types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM},
 };
 
@@ -46,12 +44,10 @@ pub trait Submessage<
         + RtpsSubmessageHeaderPIM<PSM>
         + EntityIdPIM
         + EntityIdSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>
+        + SerializedDataSubmessageElementPIM<'a>,
 >
 {
     fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType;
-
-    fn submessage_elements(&self) -> &[SubmessageElements<'a, PSM>];
 }
 
 pub trait RTPSMessagePIM<

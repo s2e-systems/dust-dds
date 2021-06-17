@@ -11,13 +11,6 @@ use crate::structure::{
 
 use super::types::{CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, TimePIM};
 
-pub enum SubmessageElements<'a,
-    PSM: EntityIdPIM + EntityIdSubmessageElementPIM<PSM> + SerializedDataSubmessageElementPIM<'a>,
-> {
-    EntityId(PSM::EntityIdSubmessageElementType),
-    SerializedData(PSM::SerializedDataSubmessageElementType),
-}
-
 pub trait UShortSubmessageElementPIM {
     type UShortSubmessageElementType: UShortSubmessageElementType;
 }

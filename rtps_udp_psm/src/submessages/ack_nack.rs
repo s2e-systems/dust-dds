@@ -47,10 +47,4 @@ impl<'a> Submessage<'a, RtpsUdpPsm> for AckNack {
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
-
-    fn submessage_elements(
-        &self,
-    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<'a, RtpsUdpPsm>] {
-        todo!()
-    }
 }

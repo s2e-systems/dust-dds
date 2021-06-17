@@ -1,7 +1,4 @@
-use rust_rtps_pim::messages::{
-    submessage_elements::SubmessageElements, submessages::DataSubmessage, types::SubmessageKindPIM,
-    Submessage,
-};
+use rust_rtps_pim::messages::{submessages::DataSubmessage, types::SubmessageKindPIM, Submessage};
 
 use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
 
@@ -16,7 +13,6 @@ pub struct DataSubmesage<'a> {
     writer_sn: SequenceNumber,
     inline_qos: ParameterList,
     serialized_payload: SerializedData<'a>,
-    submessage_elements: [SubmessageElements<'a, RtpsUdpPsm>; 2],
 }
 
 impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
@@ -54,7 +50,6 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
             submessage_length,
         };
 
-        let submessage_elements = [SubmessageElements::EntityId(reader_id), SubmessageElements::EntityId(writer_id)];
         DataSubmesage {
             header,
             extra_flags: 0b_0000_0000_0000_0000,
@@ -64,7 +59,6 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
             writer_sn,
             inline_qos,
             serialized_payload,
-            submessage_elements,
         }
     }
 
@@ -89,10 +83,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
     }
 
     fn reader_id(&self) -> &EntityId {
-        match &self.submessage_elements[0] {
-            SubmessageElements::EntityId(entity_id) => entity_id,
-            _ => panic!("Invalid type"),
-        }
+        &self.reader_id
     }
 
     fn writer_id(&self) -> &EntityId {
@@ -114,12 +105,6 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
 
 impl<'a> Submessage<'a, RtpsUdpPsm> for DataSubmesage<'_> {
     fn submessage_header(&self) -> SubmessageHeader {
-        todo!()
-    }
-
-    fn submessage_elements(
-        &self,
-    ) -> &[rust_rtps_pim::messages::submessage_elements::SubmessageElements<'a, RtpsUdpPsm>] {
         todo!()
     }
 }
@@ -203,7 +188,6 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
         } else {
             SerializedData(&[])
         };
-        let submessage_elements = [SubmessageElements::EntityId(reader_id), SubmessageElements::EntityId(writer_id)];
         Ok(DataSubmesage {
             header,
             extra_flags,
@@ -213,7 +197,6 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
             writer_sn,
             inline_qos,
             serialized_payload,
-            submessage_elements
         })
     }
 }
@@ -249,7 +232,7 @@ mod tests {
     };
 
     impl<'a> std::fmt::Debug for DataSubmesage<'a> {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             todo!()
         }
     }
