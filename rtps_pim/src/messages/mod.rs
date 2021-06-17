@@ -47,7 +47,6 @@ pub trait Submessage<
         + EntityIdPIM
         + EntityIdSubmessageElementPIM<PSM>
         + SerializedDataSubmessageElementPIM<'a>
-        + 'a,
 >
 {
     fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType;
@@ -63,8 +62,8 @@ pub trait RTPSMessagePIM<
         + GuidPrefixPIM
         + SubmessageKindPIM
         + RtpsMessageHeaderPIM<'a, PSM>
-        + RTPSMessagePIM<'a, PSM>, // + 'a,
-> // + 'a,
+        + RTPSMessagePIM<'a, PSM>,
+>
 {
     type RTPSMessageType: RTPSMessage<'a, PSM> + RTPSMessageConstructor<'a, PSM>;
 }
