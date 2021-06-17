@@ -1011,7 +1011,6 @@ pub struct RTPSMessageC<'a> {
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'_> {
-    type Constructed = RTPSMessageC<'a>;
 
     fn new(
         protocol: ProtocolId,

@@ -62,7 +62,8 @@ pub trait RTPSMessagePIM<
         + GuidPrefixPIM
         + SubmessageKindPIM
         + RtpsMessageHeaderPIM<'a, PSM>
-        + 'a,
+        + RTPSMessagePIM<'a, PSM>
+        // + 'a,
 >
 {
     type RTPSMessageType: RTPSMessage<'a, PSM>;
@@ -75,18 +76,17 @@ pub trait RTPSMessage<
        + VendorIdPIM
        + GuidPrefixPIM
        + SubmessageKindPIM
-        + RtpsMessageHeaderPIM<'a, PSM>
+       + RtpsMessageHeaderPIM<'a, PSM>
+       + RTPSMessagePIM<'a, PSM>
 >
 {
-    type Constructed;
-
     fn new(
         protocol: PSM::ProtocolIdType,
         version: PSM::ProtocolVersionType,
         vendor_id: PSM::VendorIdType,
         guid_prefix: PSM::GuidPrefixType,
         submessages: &[&'a dyn Submessage<'a, PSM>],
-    ) -> Self::Constructed;
+    ) -> <PSM as RTPSMessagePIM<'a, PSM>>::RTPSMessageType;
 
     fn header(&self) -> PSM::RtpsMessageHeaderType;
 
