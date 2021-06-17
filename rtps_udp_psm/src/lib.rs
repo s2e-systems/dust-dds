@@ -1,9 +1,6 @@
 use serde::ser::SerializeStruct;
 
-use rust_rtps_pim::{
-    behavior::types::{DurationPIM, ParticipantMessageDataPIM},
-    messages::{
-        submessage_elements::{
+use rust_rtps_pim::{behavior::types::{DurationPIM, ParticipantMessageDataPIM}, messages::{RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM, submessage_elements::{
             CountSubmessageElementPIM, EntityIdSubmessageElementPIM,
             FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM,
             GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
@@ -12,19 +9,13 @@ use rust_rtps_pim::{
             SequenceNumberSubmessageElementPIM, SerializedDataFragmentSubmessageElementPIM,
             SerializedDataSubmessageElementPIM, TimestampSubmessageElementPIM,
             ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM,
-        },
-        submessages::{DataSubmessagePIM, GapSubmessagePIM},
-        types::{
+        }, submessages::{AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM}, types::{
             CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
             SubmessageFlag, SubmessageKindPIM, TimePIM,
-        },
-        RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
-    },
-    structure::types::{
+        }}, structure::types::{
         DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM,
         SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-    },
-};
+    }};
 
 pub mod submessages;
 
@@ -281,7 +272,7 @@ impl<'a> RTPSMessagePIM<'a, Self> for RtpsUdpPsm {
     type RTPSMessageType = RTPSMessageC<'a>;
 }
 
-impl<'a> RtpsMessageHeaderPIM<'a, Self> for RtpsUdpPsm {
+impl RtpsMessageHeaderPIM<Self> for RtpsUdpPsm {
     type RtpsMessageHeaderType = RTPSMessageHeader;
 }
 
@@ -289,12 +280,52 @@ impl RtpsSubmessageHeaderPIM<Self> for RtpsUdpPsm {
     type RtpsSubmessageHeaderType = submessages::SubmessageHeader;
 }
 
+impl AckNackSubmessagePIM<Self> for RtpsUdpPsm {
+    type AckNackSubmessageType = submessages::ack_nack::AckNack;
+}
+
 impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
     type DataSubmessageType = submessages::data::DataSubmesage<'a>;
 }
 
+impl<'a> DataFragSubmessagePIM<'a,Self> for RtpsUdpPsm {
+    type DataFragSubmessageType = submessages::data_frag::DataFrag<'a>;
+}
+
 impl GapSubmessagePIM<Self> for RtpsUdpPsm {
     type GapSubmessageType = submessages::gap::GapSubmessage;
+}
+
+impl HeartbeatSubmessagePIM<Self> for RtpsUdpPsm  {
+    type HeartbeatSubmessageType = submessages::heartbeat::HeartbeatSubmessage;
+}
+
+impl HeartbeatFragSubmessagePIM<Self> for RtpsUdpPsm  {
+    type HeartbeatFragSubmessageType = submessages::heartbeat_frag::HeartbeatFrag;
+}
+
+impl InfoDestinationSubmessagePIM<Self> for RtpsUdpPsm {
+    type InfoDestinationSubmessageType = submessages::info_destination::InfoDestination;
+}
+
+impl InfoReplySubmessagePIM<Self> for RtpsUdpPsm {
+    type InfoReplySubmessageType = submessages::info_reply::InfoReply;
+}
+
+impl InfoSourceSubmessagePIM<Self> for RtpsUdpPsm {
+    type InfoSourceSubmessageType = submessages::info_source::InfoSource;
+}
+
+impl InfoTimestampSubmessagePIM<Self> for RtpsUdpPsm {
+    type InfoTimestampSubmessageType = submessages::info_timestamp::InfoTimestamp;
+}
+
+impl NackFragSubmessagePIM<Self> for RtpsUdpPsm {
+    type NackFragSubmessageType = submessages::nack_frag::NackFrag;
+}
+
+impl PadSubmessagePIM<Self> for RtpsUdpPsm {
+    type PadSubmessageType = submessages::pad::Pad;
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
@@ -987,7 +1018,7 @@ pub struct RTPSMessageHeader {
     guid_prefix: GuidPrefix,
 }
 
-impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<'a, RtpsUdpPsm> for RTPSMessageHeader {
+impl rust_rtps_pim::messages::RtpsMessageHeaderType<RtpsUdpPsm> for RTPSMessageHeader {
     fn protocol(&self) -> &ProtocolId {
         &self.protocol
     }

@@ -2,20 +2,42 @@ pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
 
-use crate::structure::types::{GuidPrefixPIM, ProtocolVersionPIM, VendorIdPIM};
+use crate::structure::types::{
+    DataPIM, EntityIdPIM, GuidPrefixPIM, LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM,
+    VendorIdPIM,
+};
 
-use self::types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM};
+use self::{
+    submessage_elements::{
+        CountSubmessageElementPIM, EntityIdSubmessageElementPIM,
+        FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM,
+        GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
+        ParameterListSubmessageElementPIM, ProtocolVersionSubmessageElementPIM,
+        SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM,
+        SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementPIM,
+        TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM,
+        VendorIdSubmessageElementPIM,
+    },
+    submessages::{
+        AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
+        HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
+        InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
+        NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
+    },
+    types::{
+        CountPIM, FragmentNumberPIM, ParameterIdPIM, ProtocolIdPIM, SubmessageFlag,
+        SubmessageKindPIM, TimePIM,
+    },
+};
 
 pub trait RtpsMessageHeaderPIM<
-    'a,
     PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM,
 >
 {
-    type RtpsMessageHeaderType: RtpsMessageHeaderType<'a, PSM>;
+    type RtpsMessageHeaderType: RtpsMessageHeaderType<PSM>;
 }
 
 pub trait RtpsMessageHeaderType<
-    'a,
     PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM,
 >
 {
@@ -39,28 +61,101 @@ pub trait Submessage<PSM: SubmessageKindPIM + RtpsSubmessageHeaderPIM<PSM>> {
     fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType;
 }
 
-pub trait RTPSMessagePIM<
-    'a,
-    PSM: ProtocolIdPIM
+pub trait RTPSMessagePIM<'a, PSM>
+where
+    PSM: SubmessageKindPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + CountPIM
+        + ParameterIdPIM
+        + DataPIM
+        + FragmentNumberPIM
+        + UShortSubmessageElementPIM
+        + ULongSubmessageElementPIM
+        + GuidPrefixPIM
+        + LocatorPIM
         + ProtocolVersionPIM
         + VendorIdPIM
-        + GuidPrefixPIM
-        + SubmessageKindPIM
-        + RtpsMessageHeaderPIM<'a, PSM>
+        + TimePIM
+        + ProtocolIdPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>
+        + SerializedDataSubmessageElementPIM<'a>
+        + SerializedDataFragmentSubmessageElementPIM<'a>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + LocatorListSubmessageElementPIM<PSM>
+        + ProtocolVersionSubmessageElementPIM<PSM>
+        + VendorIdSubmessageElementPIM<PSM>
+        + TimestampSubmessageElementPIM<PSM>
+        + FragmentNumberSetSubmessageElementPIM<PSM>
+        + AckNackSubmessagePIM<PSM>
+        + DataSubmessagePIM<'a, PSM>
+        + DataFragSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>
+        + HeartbeatSubmessagePIM<PSM>
+        + HeartbeatFragSubmessagePIM<PSM>
+        + InfoDestinationSubmessagePIM<PSM>
+        + InfoReplySubmessagePIM<PSM>
+        + InfoSourceSubmessagePIM<PSM>
+        + InfoTimestampSubmessagePIM<PSM>
+        + NackFragSubmessagePIM<PSM>
+        + PadSubmessagePIM<PSM>
+        + RtpsMessageHeaderPIM<PSM>
         + RTPSMessagePIM<'a, PSM>,
->
 {
     type RTPSMessageType: RTPSMessage<'a, PSM> + RTPSMessageConstructor<'a, PSM>;
 }
 
 pub trait RTPSMessageConstructor<'a, PSM>
 where
-    PSM: ProtocolIdPIM
+    PSM: SubmessageKindPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + CountPIM
+        + ParameterIdPIM
+        + DataPIM
+        + FragmentNumberPIM
+        + UShortSubmessageElementPIM
+        + ULongSubmessageElementPIM
+        + GuidPrefixPIM
+        + LocatorPIM
         + ProtocolVersionPIM
         + VendorIdPIM
-        + GuidPrefixPIM
-        + SubmessageKindPIM
-        + RtpsMessageHeaderPIM<'a, PSM>
+        + TimePIM
+        + ProtocolIdPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>
+        + SerializedDataSubmessageElementPIM<'a>
+        + SerializedDataFragmentSubmessageElementPIM<'a>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + LocatorListSubmessageElementPIM<PSM>
+        + ProtocolVersionSubmessageElementPIM<PSM>
+        + VendorIdSubmessageElementPIM<PSM>
+        + TimestampSubmessageElementPIM<PSM>
+        + FragmentNumberSetSubmessageElementPIM<PSM>
+        + AckNackSubmessagePIM<PSM>
+        + DataSubmessagePIM<'a, PSM>
+        + DataFragSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>
+        + HeartbeatSubmessagePIM<PSM>
+        + HeartbeatFragSubmessagePIM<PSM>
+        + InfoDestinationSubmessagePIM<PSM>
+        + InfoReplySubmessagePIM<PSM>
+        + InfoSourceSubmessagePIM<PSM>
+        + InfoTimestampSubmessagePIM<PSM>
+        + NackFragSubmessagePIM<PSM>
+        + PadSubmessagePIM<PSM>
+        + RtpsMessageHeaderPIM<PSM>
         + RTPSMessagePIM<'a, PSM>,
 {
     fn new(
@@ -68,18 +163,56 @@ where
         version: PSM::ProtocolVersionType,
         vendor_id: PSM::VendorIdType,
         guid_prefix: PSM::GuidPrefixType,
-        submessages: &'a [&'a dyn Submessage<PSM>],
+        submessages: &'a [RtpsSubmessageType<'a, PSM>],
     ) -> <PSM as RTPSMessagePIM<'a, PSM>>::RTPSMessageType;
 }
 pub trait RTPSMessage<'a, PSM>
 where
-    PSM: ProtocolIdPIM
+    PSM: SubmessageKindPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + CountPIM
+        + ParameterIdPIM
+        + DataPIM
+        + FragmentNumberPIM
+        + UShortSubmessageElementPIM
+        + ULongSubmessageElementPIM
+        + GuidPrefixPIM
+        + LocatorPIM
         + ProtocolVersionPIM
         + VendorIdPIM
-        + GuidPrefixPIM
-        + RtpsMessageHeaderPIM<'a, PSM>,
+        + TimePIM
+        + ProtocolIdPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>
+        + SerializedDataSubmessageElementPIM<'a>
+        + SerializedDataFragmentSubmessageElementPIM<'a>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + LocatorListSubmessageElementPIM<PSM>
+        + ProtocolVersionSubmessageElementPIM<PSM>
+        + VendorIdSubmessageElementPIM<PSM>
+        + TimestampSubmessageElementPIM<PSM>
+        + FragmentNumberSetSubmessageElementPIM<PSM>
+        + AckNackSubmessagePIM<PSM>
+        + DataSubmessagePIM<'a, PSM>
+        + DataFragSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>
+        + HeartbeatSubmessagePIM<PSM>
+        + HeartbeatFragSubmessagePIM<PSM>
+        + InfoDestinationSubmessagePIM<PSM>
+        + InfoReplySubmessagePIM<PSM>
+        + InfoSourceSubmessagePIM<PSM>
+        + InfoTimestampSubmessagePIM<PSM>
+        + NackFragSubmessagePIM<PSM>
+        + PadSubmessagePIM<PSM>
+        + RtpsMessageHeaderPIM<PSM>,
 {
     fn header(&self) -> PSM::RtpsMessageHeaderType;
 
-    fn submessages(&self) -> &[&dyn Submessage<PSM>];
+    fn submessages(&self) -> &[RtpsSubmessageType<'a, PSM>];
 }
