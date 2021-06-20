@@ -91,8 +91,8 @@ pub fn best_effort_send_unsent_data<
         + RtpsSubmessageHeaderPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>
         + SequenceNumberSetSubmessageElementPIM<PSM>
+        + SerializedDataSubmessageElementPIM<'a>
         + DataSubmessagePIM<'a, PSM>
         + GapSubmessagePIM<PSM>,
     HistoryCache: RTPSHistoryCache<PSM>,
@@ -101,7 +101,7 @@ pub fn best_effort_send_unsent_data<
     last_change_sequence_number: &PSM::SequenceNumberType,
     writer_cache: &'a HistoryCache,
     mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
-    mut send_gap: impl FnMut(PSM::GapSubmessageType),
+    mut send_gap: impl FnMut(<PSM as GapSubmessagePIM<PSM>>::GapSubmessageType),
 ) where
     PSM::DataType: 'a,
     PSM::ParameterListSubmessageElementType: 'a + Clone,

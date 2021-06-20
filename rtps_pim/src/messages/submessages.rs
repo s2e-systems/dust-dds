@@ -23,6 +23,64 @@ use super::{
     RtpsSubmessageHeaderPIM,
 };
 
+pub enum RtpsSubmessageType<
+    'a,
+    PSM: SubmessageKindPIM
+        + EntityIdPIM
+        + SequenceNumberPIM
+        + CountPIM
+        + ParameterIdPIM
+        + DataPIM
+        + FragmentNumberPIM
+        + UShortSubmessageElementPIM
+        + ULongSubmessageElementPIM
+        + GuidPrefixPIM
+        + LocatorPIM
+        + ProtocolVersionPIM
+        + VendorIdPIM
+        + TimePIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + RtpsSubmessageHeaderPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM<PSM>
+        + SequenceNumberSetSubmessageElementPIM<PSM>
+        + CountSubmessageElementPIM<PSM>
+        + SerializedDataSubmessageElementPIM<'a>
+        + SerializedDataFragmentSubmessageElementPIM<'a>
+        + FragmentNumberSubmessageElementPIM<PSM>
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + LocatorListSubmessageElementPIM<PSM>
+        + ProtocolVersionSubmessageElementPIM<PSM>
+        + VendorIdSubmessageElementPIM<PSM>
+        + TimestampSubmessageElementPIM<PSM>
+        + FragmentNumberSetSubmessageElementPIM<PSM>
+        + AckNackSubmessagePIM<PSM>
+        + DataSubmessagePIM<'a, PSM>
+        + DataFragSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM<PSM>
+        + HeartbeatSubmessagePIM<PSM>
+        + HeartbeatFragSubmessagePIM<PSM>
+        + InfoDestinationSubmessagePIM<PSM>
+        + InfoReplySubmessagePIM<PSM>
+        + InfoSourceSubmessagePIM<PSM>
+        + InfoTimestampSubmessagePIM<PSM>
+        + NackFragSubmessagePIM<PSM>
+        + PadSubmessagePIM<PSM>,
+> {
+    AckNack(PSM::AckNackSubmessageType),
+    Data(PSM::DataSubmessageType),
+    DataFrag(PSM::DataFragSubmessageType),
+    Gap(PSM::GapSubmessageType),
+    Heartbeat(PSM::HeartbeatSubmessageType),
+    HeartbeatFrag(PSM::HeartbeatFragSubmessageType),
+    InfoDestination(PSM::InfoDestinationSubmessageType),
+    InfoReply(PSM::InfoReplySubmessageType),
+    InfoSource(PSM::InfoSourceSubmessageType),
+    InfoTimestamp(PSM::InfoTimestampSubmessageType),
+    NackFrag(PSM::NackFragSubmessageType),
+    Pad(PSM::PadSubmessageType),
+}
+
 pub trait AckNackSubmessagePIM<
     PSM: SubmessageKindPIM
         + EntityIdPIM
@@ -76,7 +134,8 @@ pub trait DataSubmessagePIM<
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSubmessageElementPIM<PSM>
         + ParameterListSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + DataSubmessagePIM<'a, PSM>,
 >
 {
     type DataSubmessageType: DataSubmessage<'a, PSM>;
@@ -94,7 +153,8 @@ pub trait DataSubmessage<
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSubmessageElementPIM<PSM>
         + ParameterListSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>,
+        + SerializedDataSubmessageElementPIM<'a>
+        + DataSubmessagePIM<'a, PSM>,
 >: Submessage<PSM>
 {
     fn new(
@@ -108,7 +168,7 @@ pub trait DataSubmessage<
         writer_sn: PSM::SequenceNumberSubmessageElementType,
         inline_qos: PSM::ParameterListSubmessageElementType,
         serialized_payload: PSM::SerializedDataSubmessageElementType,
-    ) -> Self;
+    ) -> <PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType;
     fn endianness_flag(&self) -> SubmessageFlag;
     fn inline_qos_flag(&self) -> SubmessageFlag;
     fn data_flag(&self) -> SubmessageFlag;
@@ -118,7 +178,7 @@ pub trait DataSubmessage<
     fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
     fn writer_sn(&self) -> &PSM::SequenceNumberSubmessageElementType;
     fn inline_qos(&self) -> &PSM::ParameterListSubmessageElementType;
-    fn serialized_payload(&self) -> &PSM::SerializedDataSubmessageElementType;
+    fn serialized_payload(&'a self) -> &'a PSM::SerializedDataSubmessageElementType;
 }
 
 pub trait DataFragSubmessagePIM<
@@ -328,7 +388,9 @@ pub trait InfoDestinationSubmessagePIM<
     PSM: SubmessageKindPIM
         + GuidPrefixPIM
         + RtpsSubmessageHeaderPIM<PSM>
-        + GuidPrefixSubmessageElementPIM<PSM>,
+        + GuidPrefixSubmessageElementPIM<PSM>
+        + EntityIdSubmessageElementPIM<PSM>
+        + EntityIdPIM,
 >
 {
     type InfoDestinationSubmessageType: InfoDestinationSubmessage<PSM>;

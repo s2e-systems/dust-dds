@@ -7,7 +7,6 @@ use super::SubmessageHeader;
 pub struct AckNack {}
 
 impl rust_rtps_pim::messages::submessages::AckNackSubmessage<RtpsUdpPsm> for AckNack {
-
     fn new(
         _endianness_flag: SubmessageFlag,
         _final_flag: SubmessageFlag,

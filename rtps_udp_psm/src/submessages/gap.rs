@@ -69,19 +69,21 @@ impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for GapSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer};
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
+    use rust_serde_cdr::{
+        deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
+    };
 
     fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
-        let mut serializer = RtpsMessageSerializer {writer: Vec::<u8>::new()};
+        let mut serializer = RtpsMessageSerializer {
+            writer: Vec::<u8>::new(),
+        };
         value.serialize(&mut serializer).unwrap();
         serializer.writer
     }
 
     fn deserialize<'de, T: serde::Deserialize<'de>>(buffer: &'de [u8]) -> T {
-        let mut de = RtpsMessageDeserializer {
-            reader: buffer,
-        };
+        let mut de = RtpsMessageDeserializer { reader: buffer };
         serde::de::Deserialize::deserialize(&mut de).unwrap()
     }
 
