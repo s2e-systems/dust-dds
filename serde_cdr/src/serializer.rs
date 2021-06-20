@@ -254,6 +254,12 @@ mod tests {
         }
     }
 
+    fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
+        let mut serializer = RtpsMessageSerializer {writer: Vec::<u8>::new()};
+        value.serialize(&mut serializer).unwrap();
+        serializer.writer
+    }
+
     #[test]
     fn serialize_bool() {
         let mut serializer = RtpsMessageSerializer::default();
@@ -367,5 +373,19 @@ mod tests {
         let mut serializer = RtpsMessageSerializer::default();
         tuple.serialize(&mut serializer).unwrap();
         assert_eq!(serializer.writer, vec![1, 2]);
+    }
+
+    #[derive(PartialEq, Debug, Serialize)]
+    struct ReferenceStruct<'a> {
+        length: u8,
+        #[serde(with = "serde_bytes")]
+        data: &'a [u8]
+    }
+
+    #[test]
+    fn serialize_reference_struct() {
+        let value = ReferenceStruct{length: 2, data: &[3, 4]};
+
+        assert_eq!(serialize(value), vec![2, 3, 4]);
     }
 }
