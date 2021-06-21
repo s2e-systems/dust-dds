@@ -441,7 +441,7 @@ impl Into<[u8; 4]> for ULong {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct GuidPrefix(pub [u8; 12]);
 
 impl From<[u8; 12]> for GuidPrefix {
@@ -685,7 +685,7 @@ impl
 
 pub type InstanceHandle = i32;
 
-#[derive(Clone, Copy, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
@@ -745,7 +745,7 @@ impl<'a>
     }
 }
 
-#[derive(Clone, Copy, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VendorId([u8; 2]);
 
 impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType<RtpsUdpPsm>
@@ -1051,7 +1051,7 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
     }
 }
 
-#[derive(Clone, Copy, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RTPSMessageHeader {
     protocol: ProtocolId,
     version: ProtocolVersion,
@@ -1322,6 +1322,25 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
         ]);
+    }
+
+    #[test]
+    fn deserialize_rtps_message_header() {
+        let expected = RTPSMessageHeader{
+            protocol: b"RTPS".to_owned(),
+            version: ProtocolVersion{ major: 2, minor: 3 },
+            vendor_id: VendorId([9, 8]),
+            guid_prefix: GuidPrefix([3;12]),
+        };
+        #[rustfmt::skip]
+        let result = deserialize(&[
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 3, 9, 8, // ProtocolVersion | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+        ]);
+        assert_eq!(expected, result);
     }
 
     #[test]
