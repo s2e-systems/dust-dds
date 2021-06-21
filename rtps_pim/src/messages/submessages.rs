@@ -23,6 +23,7 @@ use super::{
     RtpsSubmessageHeaderPIM,
 };
 
+#[derive(Debug, PartialEq)]
 pub enum RtpsSubmessageType<
     'a,
     PSM: SubmessageKindPIM

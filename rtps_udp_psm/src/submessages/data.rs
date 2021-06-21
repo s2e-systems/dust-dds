@@ -4,6 +4,7 @@ use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData,
 
 use super::SubmessageHeader;
 
+#[derive(Debug, PartialEq)]
 pub struct DataSubmesage<'a> {
     header: SubmessageHeader,
     extra_flags: u16,
@@ -230,18 +231,6 @@ mod tests {
     use rust_serde_cdr::{
         deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
     };
-
-    impl<'a> std::fmt::Debug for DataSubmesage<'a> {
-        fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            todo!()
-        }
-    }
-
-    impl<'a> PartialEq for DataSubmesage<'a> {
-        fn eq(&self, other: &Self) -> bool {
-            self.writer_id == other.writer_id
-        }
-    }
 
     fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
         let mut serializer = RtpsMessageSerializer {

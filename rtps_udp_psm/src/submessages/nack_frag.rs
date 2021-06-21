@@ -4,6 +4,7 @@ use crate::{Count, EntityId, FragmentNumberSet, RtpsUdpPsm, SequenceNumber};
 
 use super::SubmessageHeader;
 
+#[derive(Debug, PartialEq)]
 pub struct NackFrag;
 
 impl rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm> for NackFrag {

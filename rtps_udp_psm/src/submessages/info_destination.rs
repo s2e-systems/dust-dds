@@ -2,6 +2,7 @@ use crate::{GuidPrefix, RtpsUdpPsm, SubmessageFlag};
 
 use super::SubmessageHeader;
 
+#[derive(Debug, PartialEq)]
 pub struct InfoDestination;
 
 impl rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdpPsm>

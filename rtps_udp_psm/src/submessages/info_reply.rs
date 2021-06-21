@@ -2,6 +2,7 @@ use crate::{LocatorList, RtpsUdpPsm, SubmessageFlag};
 
 use super::SubmessageHeader;
 
+#[derive(Debug, PartialEq)]
 pub struct InfoReply;
 
 impl rust_rtps_pim::messages::submessages::InfoReplySubmessage<RtpsUdpPsm> for InfoReply {
