@@ -1139,12 +1139,44 @@ impl<'a> serde::Serialize for RTPSMessageC<'a>{
             state.end()
     }
 }
+struct RTPSMessageVisitor<'a>(std::marker::PhantomData<&'a ()>);
 
-impl<'a, 'de> serde::Deserialize<'de> for  RTPSMessageC<'a>{
+impl<'a, 'de: 'a> serde::de::Visitor<'de> for RTPSMessageVisitor<'a> {
+    type Value = RTPSMessageC<'a>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("RTPSMessage")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let header: RTPSMessageHeader = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        let mut submessages = vec![];
+
+        for _ in 0..seq.size_hint().unwrap() {
+            let submessage_id_result: Result<Option<Octet>, _> = seq.next_element();
+            let submessage_id: u8 = match submessage_id_result {
+                Ok(submessage_id) => submessage_id.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?.into(),
+                Err(_) => break,
+            };
+            let typed_submessage = match submessage_id {
+                0x08 => RtpsSubmessageType::Gap(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?),
+                0x15 => RtpsSubmessageType::Data(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?),
+                _ => todo!("Submessage type unhandled")
+            };
+            submessages.push(typed_submessage);
+        }
+        Ok(RTPSMessageC{ header, submessages})
+    }
+}
+impl<'a, 'de: 'a> serde::Deserialize<'de> for  RTPSMessageC<'a>{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {
-        todo!()
+            const MAX_SUBMESSAGES: usize = 2 ^ 16;
+            deserializer.deserialize_tuple(MAX_SUBMESSAGES, RTPSMessageVisitor(std::marker::PhantomData))
     }
 }
 
@@ -1421,7 +1453,26 @@ mod tests {
         ]);
     }
 
+    #[test]
+    fn deserialize_rtps_message_no_submessage() {
+        let header = RTPSMessageHeader{
+            protocol: b"RTPS".to_owned(),
+            version: ProtocolVersion{ major: 2, minor: 3 },
+            vendor_id: VendorId([9, 8]),
+            guid_prefix: GuidPrefix([3;12]),
+        };
 
+        let expected = RTPSMessageC{ header, submessages: vec![] };
+        #[rustfmt::skip]
+        let result: RTPSMessageC = deserialize(&[
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 3, 9, 8, // ProtocolVersion | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+        ]);
+        assert_eq!(result, expected);
+    }
 
     #[test]
     fn deserialize_rtps_message() {
@@ -1431,6 +1482,7 @@ mod tests {
             vendor_id: VendorId([9, 8]),
             guid_prefix: GuidPrefix([3;12]),
         };
+
         let endianness_flag = true;
         let reader_id = [1, 2, 3, 4].into();
         let writer_id = [6, 7, 8, 9].into();
@@ -1474,6 +1526,20 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
+            0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // gapStart: SequenceNumber: high
+            5, 0, 0, 0, // gapStart: SequenceNumber: low
+            0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
+           10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
+            0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
+            0x15, 0b_0000_0001, 20, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
         ]);
         assert_eq!(result, expected);
     }
