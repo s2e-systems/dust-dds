@@ -4,6 +4,7 @@ use crate::{Count, EntityId, RtpsUdpPsm, SequenceNumberSet, SubmessageFlag};
 
 use super::SubmessageHeader;
 
+#[derive(Debug, PartialEq)]
 pub struct AckNack {}
 
 impl rust_rtps_pim::messages::submessages::AckNackSubmessage<RtpsUdpPsm> for AckNack {

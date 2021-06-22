@@ -2,6 +2,7 @@ use crate::{Count, EntityId, FragmentNumber, RtpsUdpPsm, SequenceNumber, Submess
 
 use super::SubmessageHeader;
 
+#[derive(Debug, PartialEq)]
 pub struct HeartbeatFrag;
 
 impl rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPsm> for HeartbeatFrag {

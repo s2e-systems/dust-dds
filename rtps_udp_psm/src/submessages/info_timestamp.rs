@@ -2,6 +2,7 @@ use crate::{RtpsUdpPsm, SubmessageFlag, Time};
 
 use super::SubmessageHeader;
 
+#[derive(Debug, PartialEq)]
 pub struct InfoTimestamp;
 
 impl rust_rtps_pim::messages::submessages::InfoTimestampSubmessage<RtpsUdpPsm> for InfoTimestamp {

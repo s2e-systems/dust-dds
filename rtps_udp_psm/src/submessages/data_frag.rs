@@ -5,6 +5,7 @@ use crate::{
 
 use super::SubmessageHeader;
 
+#[derive(Debug, PartialEq)]
 pub struct DataFrag<'a> {
     pub serialized_data: SerializedData<'a>,
 }
