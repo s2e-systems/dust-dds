@@ -417,7 +417,7 @@ impl Into<[u8; 4]> for Long {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct ULong(u32);
 
 impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType for ULong {
@@ -575,17 +575,39 @@ impl rust_rtps_pim::structure::types::LocatorType for Locator {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct SequenceNumberSet {
     base: SequenceNumber,
     set: Vec<SequenceNumber>,
     num_bits: ULong,
     bitmap: Vec<i32>,
 }
+impl PartialEq for SequenceNumberSet {
+    fn eq(&self, other: &Self) -> bool {
+        use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
+        self.base() == other.base() && self.set() == other.set()
+    }
+}
 
 impl SequenceNumberSet {
     pub fn len(&self) -> u16 {
         12 /*bitmapBase + numBits */ + 4 * self.bitmap.len() /* bitmap[0] .. bitmap[M-1] */ as u16
+    }
+    pub fn from_bitmap(bitmap_base: SequenceNumber, bitmap: Vec<i32>) -> Self {
+        let mut set = vec![];
+        let num_bits = 32 * bitmap.len();
+        for delta_n in 0..num_bits {
+            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
+                let seq_num = Into::<i64>::into(bitmap_base) + delta_n as i64;
+                set.push(seq_num.into());
+            }
+        };
+        Self {
+            base: bitmap_base,
+            set,
+            num_bits: ULong(num_bits as u32),
+            bitmap
+        }
     }
 }
 
@@ -626,16 +648,15 @@ impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
         where A: serde::de::SeqAccess<'de>,
     {
-        use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
-
         let base: SequenceNumber = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
         let num_bits: u32 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
         let num_bitmaps = (num_bits + 31) / 32; //In standard refered to as "M"
         let mut set = vec![];
         for _ in 0..num_bitmaps {
-            set.push(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?);
+            let bitmap = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+            set.push(bitmap);
         }
-        Ok(SequenceNumberSet::new(&base, &set))
+        Ok(SequenceNumberSet::from_bitmap(base, set))
     }
 }
 
@@ -643,8 +664,9 @@ impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {
-            const MAX_BYTES: usize = 2^16;
-            deserializer.deserialize_tuple( MAX_BYTES, SequenceNumberSetVisitor {})
+            const MAX_BITMAPS: usize = 8;
+            const MAX_FIELDS: usize = MAX_BITMAPS + 4;
+            deserializer.deserialize_tuple( MAX_FIELDS, SequenceNumberSetVisitor)
     }
 }
 
@@ -664,8 +686,7 @@ impl
         for sequence_number in set.iter() {
             let delta_n = Into::<i64>::into(*sequence_number) - Into::<i64>::into(*base);
             let bitmap_num = delta_n / 32;
-            let bit_position = delta_n - bitmap_num * 32;
-            bitmap[bitmap_num as usize] |= 1 << bit_position;
+            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
         }
         Self {
             base: base.clone(),
@@ -1313,15 +1334,21 @@ mod tests {
     use rust_rtps_pim::messages::{submessage_elements::SequenceNumberSetSubmessageElementType, submessages::{DataSubmessage, GapSubmessage}};
 
     #[test]
-    fn serialize_sequence_number_set_two_bitmaps() {
-        let sequence_number_set = SequenceNumberSet::new(&0.into(), &[2.into(), 32.into()]);
+    fn serialize_sequence_number_max_gap() {
+        let sequence_number_set = SequenceNumberSet::new(&2.into(), &[2.into(), 257.into()]);
         #[rustfmt::skip]
         assert_eq!(serialize(sequence_number_set), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
-            0, 0, 0, 0, // bitmapBase: low (unsigned long)
-           33, 0, 0, 0, // numBits (ULong)
-           0b_000_0100, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[0] (long)
-           0b_000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 1, 0, 0, // numBits (ULong)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
+            0b_000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
         ]);
     }
 
@@ -1344,6 +1371,27 @@ mod tests {
             0, 0, 0, 0, // bitmapBase: high (long)
             2, 0, 0, 0, // bitmapBase: low (unsigned long)
             0, 0, 0, 0, // numBits (ULong)
+        ]);
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_sequence_number_set_max_gap() {
+        let expected = SequenceNumberSet::new(&2.into(), &[2.into(), 257.into()]);
+        #[rustfmt::skip]
+        let result = deserialize(&[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 1, 0, 0, // numBits (ULong)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
+            0b_000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
+
         ]);
         assert_eq!(expected, result);
     }
@@ -1543,6 +1591,7 @@ mod tests {
         ]);
         assert_eq!(result, expected);
     }
+
 }
 
 // impl EntityId {
