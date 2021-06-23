@@ -419,7 +419,7 @@ pub trait InfoReplySubmessagePIM<
         + LocatorListSubmessageElementPIM<PSM>,
 >
 {
-    type InfoReplySubmessageType: InfoReplySubmessage<PSM>;
+    type InfoReplySubmessageType;
 }
 
 pub trait InfoReplySubmessage<
