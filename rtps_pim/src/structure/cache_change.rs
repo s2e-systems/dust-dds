@@ -7,12 +7,9 @@ use super::types::{
 };
 
 pub trait RTPSCacheChange<
-    PSM: GuidPrefixPIM
-        + EntityIdPIM
-        + InstanceHandlePIM
+    PSM: InstanceHandlePIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterIdPIM
         + GUIDPIM<PSM>
         + ParameterListSubmessageElementPIM<PSM>,
 >

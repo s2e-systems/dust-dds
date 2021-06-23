@@ -47,8 +47,8 @@ pub trait RtpsMessageHeaderType<
     fn guid_prefix(&self) -> &PSM::GuidPrefixType;
 }
 
-pub trait RtpsSubmessageHeaderPIM<PSM: SubmessageKindPIM> {
-    type RtpsSubmessageHeaderType: RtpsSubmessageHeaderType<PSM>;
+pub trait RtpsSubmessageHeaderPIM<PSM> {
+    type RtpsSubmessageHeaderType;
 }
 
 pub trait RtpsSubmessageHeaderType<PSM: SubmessageKindPIM> {
@@ -57,7 +57,7 @@ pub trait RtpsSubmessageHeaderType<PSM: SubmessageKindPIM> {
     fn submessage_length(&self) -> u16;
 }
 
-pub trait Submessage<PSM: SubmessageKindPIM + RtpsSubmessageHeaderPIM<PSM>> {
+pub trait Submessage<PSM: RtpsSubmessageHeaderPIM<PSM>> {
     fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType;
 }
 

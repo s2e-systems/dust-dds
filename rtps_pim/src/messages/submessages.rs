@@ -91,13 +91,7 @@ pub trait DataSubmessagePIM<'a, PSM> {
 
 pub trait DataSubmessage<
     'a,
-    PSM: SubmessageKindPIM
-        + EntityIdPIM
-        + SequenceNumberPIM
-        + ParameterIdPIM
-        + ParameterListSubmessageElementPIM<PSM>
-        + DataPIM
-        + RtpsSubmessageHeaderPIM<PSM>
+    PSM: RtpsSubmessageHeaderPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSubmessageElementPIM<PSM>
         + ParameterListSubmessageElementPIM<PSM>
@@ -186,8 +180,7 @@ pub trait GapSubmessagePIM<PSM> {
 }
 
 pub trait GapSubmessage<
-    PSM: SubmessageKindPIM
-        + EntityIdPIM
+    PSM: EntityIdPIM
         + SequenceNumberPIM
         + RtpsSubmessageHeaderPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>

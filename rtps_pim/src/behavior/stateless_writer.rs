@@ -1,6 +1,4 @@
-use crate::{
-    behavior::RTPSWriter,
-    messages::{
+use crate::{behavior::RTPSWriter, messages::{
         submessage_elements::{
             CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
             ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
@@ -13,15 +11,7 @@ use crate::{
         },
         types::{CountPIM, ParameterIdPIM, SubmessageKindPIM},
         RtpsSubmessageHeaderPIM,
-    },
-    structure::{
-        types::{
-            ChangeKind, DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM,
-            LocatorPIM, SequenceNumberPIM, GUIDPIM,
-        },
-        RTPSCacheChange, RTPSHistoryCache,
-    },
-};
+    }, structure::{RTPSCacheChange, RTPSHistoryCache, types::{ChangeKind, DataPIM, EntityIdPIM, GUIDPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, LocatorType, SequenceNumberPIM}}};
 
 use super::types::DurationPIM;
 pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
@@ -76,18 +66,21 @@ pub trait RTPSStatelessWriter<
     fn unsent_changes_reset(&mut self);
 }
 
-pub fn best_effort_send_unsent_data<
-    'a,
+pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
+    reader_locator: &mut impl RTPSReaderLocator<PSM>,
+    last_change_sequence_number: &PSM::SequenceNumberType,
+    writer_cache: &'a HistoryCache,
+    mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
+    mut send_gap: impl FnMut(<PSM as GapSubmessagePIM<PSM>>::GapSubmessageType),
+) where
     PSM: LocatorPIM
         + SequenceNumberPIM
         + GuidPrefixPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterIdPIM
         + ParameterListSubmessageElementPIM<PSM>
         + GUIDPIM<PSM>
-        + SubmessageKindPIM
         + RtpsSubmessageHeaderPIM<PSM>
         + EntityIdSubmessageElementPIM<PSM>
         + SequenceNumberSubmessageElementPIM<PSM>
@@ -95,19 +88,17 @@ pub fn best_effort_send_unsent_data<
         + SerializedDataSubmessageElementPIM<'a>
         + DataSubmessagePIM<'a, PSM>
         + GapSubmessagePIM<PSM>,
-    HistoryCache: RTPSHistoryCache<PSM>,
->(
-    reader_locator: &mut impl RTPSReaderLocator<PSM>,
-    last_change_sequence_number: &PSM::SequenceNumberType,
-    writer_cache: &'a HistoryCache,
-    mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
-    mut send_gap: impl FnMut(<PSM as GapSubmessagePIM<PSM>>::GapSubmessageType),
-) where
-    PSM::DataType: 'a,
-    PSM::ParameterListSubmessageElementType: 'a + Clone,
-    HistoryCache::CacheChange: 'a,
+    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType<PSM>,
+    PSM::GUIDType: GUIDType<PSM>,
+    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType<PSM>,
+    PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>,
+    PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType<PSM>,
     PSM::DataSubmessageType: DataSubmessage<'a, PSM>,
     PSM::GapSubmessageType: GapSubmessage<PSM>,
+    PSM::DataType: 'a,
+    PSM::ParameterListSubmessageElementType: 'a + Clone,
+    HistoryCache: RTPSHistoryCache<PSM>,
+    HistoryCache::CacheChange: RTPSCacheChange<PSM> + 'a,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
@@ -183,8 +174,9 @@ pub fn reliable_receive_acknack<
     acknack: &impl AckNackSubmessage<PSM>,
     last_change_sequence_number: &PSM::SequenceNumberType,
 ) {
-    reader_locator
-        .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
+    // reader_locator
+    //     .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
+    todo!()
 }
 
 pub fn reliable_after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(

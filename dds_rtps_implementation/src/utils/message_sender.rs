@@ -1,99 +1,80 @@
-use rust_rtps_pim::{
-    behavior::{
+use rust_rtps_pim::{behavior::{
         stateless_writer::{best_effort_send_unsent_data, RTPSReaderLocator, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
-    },
-    messages::{
-        submessage_elements::{
-            CountSubmessageElementPIM, EntityIdSubmessageElementPIM,
-            FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM,
-            GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
-            ParameterListSubmessageElementPIM, ProtocolVersionSubmessageElementPIM,
-            SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM,
-            SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementPIM,
-            TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM,
-            VendorIdSubmessageElementPIM,
-        },
-        submessages::{
+    }, messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM, submessage_elements::{CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType, FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM, GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM, ParameterListSubmessageElementPIM, ProtocolVersionSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType, SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementPIM, SerializedDataSubmessageElementType, TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM}, submessages::{
             AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
             HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
             InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
             NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
-        },
-        types::{
+        }, types::{
             CountPIM, FragmentNumberPIM, ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM, TimePIM,
-        },
-        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
-    },
-    structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM,
-        SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-    },
-};
+        }}, structure::types::{DataPIM, EntityIdPIM, GUIDPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM}};
 
 use crate::{rtps_impl::rtps_writer_impl::RTPSWriterImpl, transport::Transport};
 
-pub fn send_data<
-    PSM: GuidPrefixPIM
-        + EntityIdPIM
-        + SequenceNumberPIM
-        + LocatorPIM
-        + VendorIdPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ProtocolVersionPIM
-        + ParameterIdPIM
-        + GUIDPIM<PSM>
-        + SubmessageKindPIM
-        + ProtocolIdPIM
-        + CountPIM
-        + FragmentNumberPIM
-        + UShortSubmessageElementPIM
-        + ULongSubmessageElementPIM
-        + TimePIM
-        + ParameterListSubmessageElementPIM<PSM>
-        + RtpsSubmessageHeaderPIM<PSM>
-        + CountSubmessageElementPIM<PSM>
-        + EntityIdSubmessageElementPIM<PSM>
-        + SequenceNumberSubmessageElementPIM<PSM>
-        + SequenceNumberSetSubmessageElementPIM<PSM>
-        + FragmentNumberSubmessageElementPIM<PSM>
-        + GuidPrefixSubmessageElementPIM<PSM>
-        + LocatorListSubmessageElementPIM<PSM>
-        + ProtocolVersionSubmessageElementPIM<PSM>
-        + VendorIdSubmessageElementPIM<PSM>
-        + TimestampSubmessageElementPIM<PSM>
-        + FragmentNumberSubmessageElementPIM<PSM>
-        + FragmentNumberSetSubmessageElementPIM<PSM>
-        + AckNackSubmessagePIM<PSM>
-        + HeartbeatSubmessagePIM<PSM>
-        + HeartbeatFragSubmessagePIM<PSM>
-        + InfoDestinationSubmessagePIM<PSM>
-        + InfoReplySubmessagePIM<PSM>
-        + InfoSourceSubmessagePIM<PSM>
-        + InfoTimestampSubmessagePIM<PSM>
-        + NackFragSubmessagePIM<PSM>
-        + PadSubmessagePIM<PSM>
-        + for<'a> SerializedDataSubmessageElementPIM<'a>
-        + for<'a> SerializedDataFragmentSubmessageElementPIM<'a>
-        + for<'a> DataFragSubmessagePIM<'a, PSM>
-        + for<'a> DataSubmessagePIM<'a, PSM>
-        + GapSubmessagePIM<PSM>
-        + for<'a> RTPSMessagePIM<'a, PSM>
-        + RtpsMessageHeaderPIM<PSM>
-        + Sized
-        + 'static,
->(
+pub fn send_data<PSM>(
     writer: &mut impl RTPSStatelessWriter<PSM>,
     transport: &mut dyn Transport<PSM>,
 ) where
+    PSM: GuidPrefixPIM
+    + EntityIdPIM
+    + SequenceNumberPIM
+    + LocatorPIM
+    + VendorIdPIM
+    + DurationPIM
+    + InstanceHandlePIM
+    + DataPIM
+    + ProtocolVersionPIM
+    + ParameterIdPIM
+    + GUIDPIM<PSM>
+    + SubmessageKindPIM
+    + ProtocolIdPIM
+    // + CountPIM
+    // + FragmentNumberPIM
+    // + UShortSubmessageElementPIM
+    // + ULongSubmessageElementPIM
+    // + TimePIM
+    + ParameterListSubmessageElementPIM<PSM>
+    + RtpsSubmessageHeaderPIM<PSM>
+    // + CountSubmessageElementPIM<PSM>
+    + EntityIdSubmessageElementPIM<PSM>
+    + SequenceNumberSubmessageElementPIM<PSM>
+    + SequenceNumberSetSubmessageElementPIM<PSM>
+    // + FragmentNumberSubmessageElementPIM<PSM>
+    // + GuidPrefixSubmessageElementPIM<PSM>
+    // + LocatorListSubmessageElementPIM<PSM>
+    // + ProtocolVersionSubmessageElementPIM<PSM>
+    // + VendorIdSubmessageElementPIM<PSM>
+    // + TimestampSubmessageElementPIM<PSM>
+    // + FragmentNumberSubmessageElementPIM<PSM>
+    // + FragmentNumberSetSubmessageElementPIM<PSM>
+    + AckNackSubmessagePIM<PSM>
+    + HeartbeatSubmessagePIM<PSM>
+    + HeartbeatFragSubmessagePIM<PSM>
+    + InfoDestinationSubmessagePIM<PSM>
+    + InfoReplySubmessagePIM<PSM>
+    + InfoSourceSubmessagePIM<PSM>
+    + InfoTimestampSubmessagePIM<PSM>
+    + NackFragSubmessagePIM<PSM>
+    + PadSubmessagePIM<PSM>
+    + for<'a> SerializedDataSubmessageElementPIM<'a>
+    // + for<'a> SerializedDataFragmentSubmessageElementPIM<'a>
+    + for<'a> DataFragSubmessagePIM<'a, PSM>
+    + for<'a> DataSubmessagePIM<'a, PSM>
+    + GapSubmessagePIM<PSM>
+    // + for<'a> RTPSMessagePIM<'a, PSM>
+    + RtpsMessageHeaderPIM<PSM>
+    + Sized
+    + 'static,
     PSM::SequenceNumberType: Clone + Copy + Ord,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq,
-    PSM::GUIDType: Copy,
+    PSM::GUIDType: GUIDType<PSM> + Copy,
     PSM::ParameterListSubmessageElementType: Clone,
+    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType<PSM>,
+    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType<PSM>,
+    // PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a, PSM>,
 {
     // for writer_group in &rtps_participant_impl.rtps_writer_groups {
     // let writer_group_lock = writer_group.lock();

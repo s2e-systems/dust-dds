@@ -1,22 +1,14 @@
-use crate::messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM};
+use crate::messages::{
+    submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM,
+};
 
 use super::{
     types::{DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM},
     RTPSCacheChange,
 };
 
-pub trait RTPSHistoryCache<
-    PSM: GuidPrefixPIM
-        + EntityIdPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterIdPIM
-        + ParameterListSubmessageElementPIM<PSM>
-        + GUIDPIM<PSM>
-        + SequenceNumberPIM,
->
-{
-    type CacheChange: RTPSCacheChange<PSM>;
+pub trait RTPSHistoryCache<PSM: SequenceNumberPIM> {
+    type CacheChange;
 
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     fn new() -> Self
