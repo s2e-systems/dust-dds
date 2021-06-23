@@ -106,6 +106,8 @@ pub fn best_effort_send_unsent_data<
     PSM::DataType: 'a,
     PSM::ParameterListSubmessageElementType: 'a + Clone,
     HistoryCache::CacheChange: 'a,
+    PSM::DataSubmessageType: DataSubmessage<'a, PSM>,
+    PSM::GapSubmessageType: GapSubmessage<PSM>,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
