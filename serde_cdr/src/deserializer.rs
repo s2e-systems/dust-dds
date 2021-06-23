@@ -484,4 +484,15 @@ mod tests {
         let result: ReferenceStruct = serde::de::Deserialize::deserialize(&mut de).unwrap();
         assert_eq!(result, ReferenceStruct{length: 3, data: &[4, 5, 6]});
     }
+
+
+    #[test]
+    fn shift() {
+        let mut buffer = &[0b_0000_0000_u8, 0b_0000_0000_u8, 0b_0000_0000_u8, 0b_1000_0000][..];
+        let value = buffer.read_i32::<LittleEndian>().unwrap();
+        assert_eq!(value, -2147483648);
+
+        assert_eq!((value & 1 << 31) != 0, true);
+        assert_eq!((value & 1 << 30) == 0, true);
+    }
 }

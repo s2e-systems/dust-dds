@@ -652,8 +652,8 @@ impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
         let num_bits: u32 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
         let num_bitmaps = (num_bits + 31) / 32; //In standard refered to as "M"
         let mut set = vec![];
-        for _ in 0..num_bitmaps {
-            let bitmap = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+        for i in 0..num_bitmaps as usize {
+            let bitmap = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(i + 2, &self))?;
             set.push(bitmap);
         }
         Ok(SequenceNumberSet::from_bitmap(base, set))
@@ -665,7 +665,8 @@ impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
     where
         D: serde::Deserializer<'de> {
             const MAX_BITMAPS: usize = 8;
-            const MAX_FIELDS: usize = MAX_BITMAPS + 4;
+            const OTHER_FIELDS: usize = 2; /* base + num_bits */
+            const MAX_FIELDS: usize = MAX_BITMAPS + OTHER_FIELDS;
             deserializer.deserialize_tuple( MAX_FIELDS, SequenceNumberSetVisitor)
     }
 }
@@ -1197,7 +1198,9 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for  RTPSMessageC<'a>{
     where
         D: serde::Deserializer<'de> {
             const MAX_SUBMESSAGES: usize = 2 ^ 16;
-            deserializer.deserialize_tuple(MAX_SUBMESSAGES, RTPSMessageVisitor(std::marker::PhantomData))
+            const OTHER_FIELDS: usize = 1;
+            const MAX_FIELDS: usize = MAX_SUBMESSAGES + OTHER_FIELDS;
+            deserializer.deserialize_tuple(MAX_FIELDS, RTPSMessageVisitor(std::marker::PhantomData))
     }
 }
 
