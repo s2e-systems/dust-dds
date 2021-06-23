@@ -88,7 +88,10 @@ pub struct RTPSParticipantImpl<PSM: RTPSParticipantImplTrait> {
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
-impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
+impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM>
+where
+    PSM::GUIDType: GUIDType<PSM>,
+{
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         let guid = GUIDType::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
 
@@ -131,7 +134,6 @@ impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM> {
     //     }
     // }
 }
-
 
 impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PSM>
     for RTPSParticipantImpl<PSM>

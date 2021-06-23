@@ -16,6 +16,7 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use rust_rtps_pim::structure::types::GUIDType;
 
 // use rust_rtps_pim::structure::RTPSEntity;
 
@@ -38,7 +39,7 @@ pub struct DomainParticipantImpl<PSM: PIM> {
 
 impl<PSM: PIM> DomainParticipantImpl<PSM>
 where
-    PSM::GUIDType: Send,
+    PSM::GUIDType: GUIDType<PSM> + Send,
     PSM::GuidPrefixType: Clone + Copy,
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType, transport: impl Transport<PSM> + 'static) -> Self {
@@ -56,7 +57,7 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone + Copy,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::GUIDType: Send + Copy,
+    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
@@ -102,7 +103,7 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::GUIDType: Send + Copy,
+    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
@@ -168,7 +169,7 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::GUIDType: Send + Copy,
+    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,
@@ -202,7 +203,7 @@ where
     PSM::SequenceNumberType: Clone + Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::GUIDType: Send + Copy,
+    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
     PSM::DurationType: Send,
     PSM::EntityIdType: Send,
     PSM::InstanceHandleType: Send,

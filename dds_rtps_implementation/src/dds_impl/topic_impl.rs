@@ -9,6 +9,7 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use rust_rtps_pim::structure::types::GUIDType;
 
 use super::{domain_participant_impl::DomainParticipantImpl, PIM};
 
@@ -19,7 +20,7 @@ pub struct TopicImpl<'t, T: 'static, PSM: PIM> {
 
 impl<'t, T: 'static, PSM: PIM> rust_dds_api::topic::topic::Topic<T> for TopicImpl<'t, T, PSM>
 where
-    PSM::GUIDType: Send + Copy,
+    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,
@@ -39,7 +40,7 @@ where
 
 impl<'t, T: 'static, PSM: PIM> TopicDescription<T> for TopicImpl<'t, T, PSM>
 where
-    PSM::GUIDType: Send + Copy,
+    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
     PSM::SequenceNumberType: Copy + Ord + Send,
     PSM::GuidPrefixType: Clone,
     PSM::LocatorType: Clone + PartialEq + Send,

@@ -1,28 +1,22 @@
 use crate::{
-    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{
-            ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-            SequenceNumberPIM, GUIDPIM,
-        },
+        types::{ChangeKind, DataPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM, GUIDPIM},
         RTPSEndpoint, RTPSHistoryCache,
     },
 };
 
 use super::types::DurationPIM;
 
-pub trait RTPSWriter<
-    PSM: GuidPrefixPIM
-        + EntityIdPIM
-        + LocatorPIM
-        + DurationPIM
+pub trait RTPSWriter<PSM>: RTPSEndpoint<PSM>
+where
+    PSM: LocatorPIM
         + SequenceNumberPIM
-        + DataPIM
-        + ParameterIdPIM
+        + DurationPIM
         + GUIDPIM<PSM>
+        + DataPIM
         + ParameterListSubmessageElementPIM<PSM>
         + InstanceHandlePIM,
->: RTPSEndpoint<PSM>
 {
     type HistoryCacheType: RTPSHistoryCache<PSM>;
 

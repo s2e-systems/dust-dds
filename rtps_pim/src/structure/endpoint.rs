@@ -1,10 +1,11 @@
 use super::{
-    types::{EntityIdPIM, GuidPrefixPIM, LocatorPIM, ReliabilityKind, TopicKind, GUIDPIM},
+    types::{LocatorPIM, ReliabilityKind, TopicKind, GUIDPIM},
     RTPSEntity,
 };
 
-pub trait RTPSEndpoint<PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + GUIDPIM<PSM>>:
-    RTPSEntity<PSM>
+pub trait RTPSEndpoint<PSM>: RTPSEntity<PSM>
+where
+    PSM: LocatorPIM + GUIDPIM<PSM>,
 {
     fn topic_kind(&self) -> &TopicKind;
     fn reliability_level(&self) -> &ReliabilityKind;

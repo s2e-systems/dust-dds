@@ -1,11 +1,4 @@
-use crate::messages::{
-    submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM,
-};
-
-use super::{
-    types::{DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM},
-    RTPSCacheChange,
-};
+use super::types::SequenceNumberPIM;
 
 pub trait RTPSHistoryCache<PSM: SequenceNumberPIM> {
     type CacheChange;

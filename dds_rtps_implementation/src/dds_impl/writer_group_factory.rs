@@ -2,10 +2,14 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
-use rust_rtps_pim::{behavior::types::DurationPIM, messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM}, structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-        SequenceNumberPIM, GUIDType, GUIDPIM,
-    }};
+use rust_rtps_pim::{
+    behavior::types::DurationPIM,
+    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
+    structure::types::{
+        DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+        SequenceNumberPIM, GUIDPIM,
+    },
+};
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
@@ -50,8 +54,8 @@ pub struct WriterGroupFactory<PSM: WriterGroupFactoryTrait> {
 
 impl<PSM: WriterGroupFactoryTrait> WriterGroupFactory<PSM>
 where
-    <PSM as GUIDPIM<PSM>>::GUIDType: Send,
-    PSM::GuidPrefixType: Clone
+    <PSM as GUIDPIM<PSM>>::GUIDType: GUIDType<PSM> + Send,
+    PSM::GuidPrefixType: Clone,
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {
