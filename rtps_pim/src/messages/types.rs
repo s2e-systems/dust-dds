@@ -36,9 +36,7 @@ pub trait CountPIM {
     type CountType;
 }
 
-pub trait ParameterIdPIM {
-    type ParameterIdType;
-}
+pub type ParameterId = u16;
 
 pub type FragmentNumber = u32;
 

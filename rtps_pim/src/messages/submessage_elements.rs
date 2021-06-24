@@ -6,7 +6,7 @@ use crate::structure::types::{
     EntityId, GuidPrefix, Locator, ProtocolVersionPIM, SequenceNumber, VendorIdPIM,
 };
 
-use super::types::{CountPIM, FragmentNumber, GroupDigestPIM, ParameterIdPIM, TimePIM};
+use super::types::{CountPIM, FragmentNumber, GroupDigestPIM, ParameterId, TimePIM};
 
 pub trait UShortSubmessageElementPIM {
     type UShortSubmessageElementType;
@@ -127,8 +127,8 @@ pub trait TimestampSubmessageElementType<PSM: TimePIM> {
     fn value(&self) -> &PSM::TimeType;
 }
 
-pub trait ParameterType<PSM: ParameterIdPIM> {
-    fn parameter_id(&self) -> PSM::ParameterIdType;
+pub trait ParameterType {
+    fn parameter_id(&self) -> ParameterId;
     fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }

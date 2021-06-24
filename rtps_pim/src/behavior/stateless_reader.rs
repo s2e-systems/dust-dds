@@ -1,6 +1,6 @@
 use crate::{
     behavior::RTPSReader,
-    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
+    messages::{submessage_elements::ParameterListSubmessageElementPIM},
     structure::types::{
         DataPIM, InstanceHandlePIM,
     },
@@ -12,7 +12,6 @@ pub trait RTPSStatelessReader<
     PSM: InstanceHandlePIM
         + DataPIM
         + DurationPIM
-        + ParameterIdPIM
         + ParameterListSubmessageElementPIM,
 >: RTPSReader<PSM>
 {

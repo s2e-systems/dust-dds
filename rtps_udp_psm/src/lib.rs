@@ -20,8 +20,7 @@ use rust_rtps_pim::{
             NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
         },
         types::{
-            CountPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM, SubmessageFlag,
-            SubmessageKindPIM, TimePIM,
+            CountPIM, GroupDigestPIM, ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM, TimePIM,
         },
         RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
@@ -103,10 +102,6 @@ impl TimePIM for RtpsUdpPsm {
 
 impl CountPIM for RtpsUdpPsm {
     type CountType = Count;
-}
-
-impl ParameterIdPIM for RtpsUdpPsm {
-    type ParameterIdType = ParameterId;
 }
 
 impl GroupDigestPIM for RtpsUdpPsm {
@@ -641,7 +636,6 @@ impl rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType<Rt
     }
 }
 
-pub type ParameterId = i16;
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct FragmentNumber(u32);
 
@@ -715,13 +709,13 @@ impl From<Vec<u8>> for Vector {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parameter {
-    pub parameter_id: ParameterId,
+    pub parameter_id: rust_rtps_pim::messages::types::ParameterId,
     pub length: i16,
     pub value: Vector,
 }
 
 impl Parameter {
-    pub fn new(parameter_id: ParameterId, value: Vector) -> Self {
+    pub fn new(parameter_id: rust_rtps_pim::messages::types::ParameterId, value: Vector) -> Self {
         Self {
             parameter_id,
             length: value.0.len() as i16,
@@ -734,8 +728,8 @@ impl Parameter {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::ParameterType<RtpsUdpPsm> for Parameter {
-    fn parameter_id(&self) -> ParameterId {
+impl rust_rtps_pim::messages::submessage_elements::ParameterType for Parameter {
+    fn parameter_id(&self) -> rust_rtps_pim::messages::types::ParameterId {
         self.parameter_id
     }
 
@@ -774,7 +768,7 @@ impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        let paramter_id: ParameterId = seq
+        let paramter_id: rust_rtps_pim::messages::types::ParameterId = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
         let data_length: u16 = seq
@@ -800,7 +794,7 @@ impl<'de> serde::Deserialize<'de> for Parameter {
         deserializer.deserialize_tuple(MAX_BYTES, ParameterVisitor {})
     }
 }
-const PID_SENTINEL: ParameterId = 1;
+const PID_SENTINEL: rust_rtps_pim::messages::types::ParameterId = 1;
 static SENTINEL: Parameter = Parameter {
     parameter_id: PID_SENTINEL,
     length: 0,

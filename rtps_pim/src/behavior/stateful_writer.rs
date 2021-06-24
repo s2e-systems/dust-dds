@@ -42,7 +42,6 @@ mod tests {
                 ParameterListSubmessageElementPIM, ParameterListSubmessageElementType,
                 ParameterType,
             },
-            types::ParameterIdPIM,
         },
         structure::types::{DataPIM, InstanceHandlePIM},
     };
@@ -57,10 +56,6 @@ mod tests {
 
     impl DataPIM for MockPSM {
         type DataType = [u8; 0];
-    }
-
-    impl ParameterIdPIM for MockPSM {
-        type ParameterIdType = ();
     }
 
     impl ParameterListSubmessageElementPIM for MockPSM {
@@ -87,8 +82,8 @@ mod tests {
 
     struct MockParameter;
 
-    impl ParameterType<MockPSM> for MockParameter {
-        fn parameter_id(&self) -> () {
+    impl ParameterType for MockParameter {
+        fn parameter_id(&self) -> u16 {
             todo!()
         }
 

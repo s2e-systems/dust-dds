@@ -250,9 +250,6 @@ mod tests {
         type DataType = [u8; 0];
     }
 
-    impl rust_rtps_pim::messages::types::ParameterIdPIM for MockPSM {
-        type ParameterIdType = u16;
-    }
 
     impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
@@ -275,7 +272,7 @@ mod tests {
     }
 
     pub struct MockParameter;
-    impl rust_rtps_pim::messages::submessage_elements::ParameterType<MockPSM> for MockParameter {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterType for MockParameter {
         fn parameter_id(&self) -> u16 {
             todo!()
         }
