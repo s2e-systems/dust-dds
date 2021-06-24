@@ -4,8 +4,8 @@ use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{
-            DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM,
-            VendorIdPIM, GUIDPIM,
+            DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM,
+            GUIDPIM,
         },
         RTPSEntity,
     },

@@ -6,7 +6,7 @@ use crate::structure::types::{
     EntityId, GuidPrefix, LocatorPIM, ProtocolVersionPIM, SequenceNumber, VendorIdPIM,
 };
 
-use super::types::{CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, TimePIM};
+use super::types::{CountPIM, FragmentNumber, GroupDigestPIM, ParameterIdPIM, TimePIM};
 
 pub trait UShortSubmessageElementPIM {
     type UShortSubmessageElementType;
@@ -103,19 +103,19 @@ pub trait FragmentNumberSubmessageElementPIM {
     type FragmentNumberSubmessageElementType;
 }
 
-pub trait FragmentNumberSubmessageElementType<PSM: FragmentNumberPIM> {
-    fn new(value: &PSM::FragmentNumberType) -> Self;
-    fn value(&self) -> &PSM::FragmentNumberType;
+pub trait FragmentNumberSubmessageElementType {
+    fn new(value: &FragmentNumber) -> Self;
+    fn value(&self) -> &FragmentNumber;
 }
 
 pub trait FragmentNumberSetSubmessageElementPIM {
     type FragmentNumberSetSubmessageElementType;
 }
 
-pub trait FragmentNumberSetSubmessageElementType<PSM: FragmentNumberPIM> {
-    fn new(base: &PSM::FragmentNumberType, set: &[PSM::FragmentNumberType]) -> Self;
-    fn base(&self) -> &PSM::FragmentNumberType;
-    fn set(&self) -> &[PSM::FragmentNumberType];
+pub trait FragmentNumberSetSubmessageElementType {
+    fn new(base: &FragmentNumber, set: &[FragmentNumber]) -> Self;
+    fn base(&self) -> &FragmentNumber;
+    fn set(&self) -> &[FragmentNumber];
 }
 
 pub trait TimestampSubmessageElementPIM {

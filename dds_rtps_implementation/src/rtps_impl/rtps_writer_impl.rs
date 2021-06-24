@@ -8,8 +8,8 @@ use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{
-            ChangeKind, DataPIM, InstanceHandlePIM, LocatorPIM, ReliabilityKind,
-            SequenceNumber, TopicKind, GUIDPIM,
+            ChangeKind, DataPIM, InstanceHandlePIM, LocatorPIM, ReliabilityKind, SequenceNumber,
+            TopicKind, GUIDPIM,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },

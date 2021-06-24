@@ -20,8 +20,8 @@ use rust_rtps_pim::{
             NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
         },
         types::{
-            CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM,
-            SubmessageFlag, SubmessageKindPIM, TimePIM,
+            CountPIM, GroupDigestPIM, ParameterIdPIM, ProtocolIdPIM, SubmessageFlag,
+            SubmessageKindPIM, TimePIM,
         },
         RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
@@ -177,10 +177,6 @@ impl CountPIM for RtpsUdpPsm {
 
 impl ParameterIdPIM for RtpsUdpPsm {
     type ParameterIdType = ParameterId;
-}
-
-impl FragmentNumberPIM for RtpsUdpPsm {
-    type FragmentNumberType = FragmentNumber;
 }
 
 impl GroupDigestPIM for RtpsUdpPsm {
@@ -504,7 +500,10 @@ impl SequenceNumberSet {
     pub fn len(&self) -> u16 {
         12 /*bitmapBase + numBits */ + 4 * self.bitmap.len() /* bitmap[0] .. bitmap[M-1] */ as u16
     }
-    pub fn from_bitmap(bitmap_base: rust_rtps_pim::structure::types::SequenceNumber, bitmap: Vec<i32>) -> Self {
+    pub fn from_bitmap(
+        bitmap_base: rust_rtps_pim::structure::types::SequenceNumber,
+        bitmap: Vec<i32>,
+    ) -> Self {
         let mut set = vec![];
         let num_bits = 32 * bitmap.len();
         for delta_n in 0..num_bits {
@@ -741,15 +740,15 @@ pub type ParameterId = i16;
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct FragmentNumber(u32);
 
-impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSubmessageElementType<RtpsUdpPsm>
+impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSubmessageElementType
     for FragmentNumber
 {
-    fn new(value: &FragmentNumber) -> Self {
-        value.clone()
+    fn new(value: &rust_rtps_pim::messages::types::FragmentNumber) -> Self {
+        Self(value.clone())
     }
 
-    fn value(&self) -> &FragmentNumber {
-        self
+    fn value(&self) -> &rust_rtps_pim::messages::types::FragmentNumber {
+        &self.0
     }
 }
 
@@ -768,18 +767,18 @@ impl Into<u32> for FragmentNumber {
 pub struct FragmentNumberSet(Vec<FragmentNumber>);
 
 impl
-    rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElementType<RtpsUdpPsm>
+    rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElementType
     for FragmentNumberSet
 {
-    fn new(_base: &FragmentNumber, _set: &[FragmentNumber]) -> Self {
+    fn new(_base: &rust_rtps_pim::messages::types::FragmentNumber, _set: &[rust_rtps_pim::messages::types::FragmentNumber]) -> Self {
         todo!()
     }
 
-    fn base(&self) -> &FragmentNumber {
-        &FragmentNumber(0)
+    fn base(&self) -> &rust_rtps_pim::messages::types::FragmentNumber {
+        &0
     }
 
-    fn set(&self) -> &[FragmentNumber] {
+    fn set(&self) -> &[rust_rtps_pim::messages::types::FragmentNumber] {
         todo!()
         // self
     }
