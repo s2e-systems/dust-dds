@@ -26,7 +26,7 @@ use rust_rtps_pim::{
         RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
     structure::types::{
-        DataPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM, GUIDPIM,
+        DataPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM,
     },
 };
 
@@ -35,48 +35,6 @@ pub mod submessages;
 #[derive(Debug, PartialEq)]
 pub struct RtpsUdpPsm;
 
-impl GUIDPIM for RtpsUdpPsm {
-    type GUIDType = GUID;
-    const GUID_UNKNOWN: Self::GUIDType = GUID {
-        prefix: rust_rtps_pim::structure::types::GUIDPREFIX_UNKNOWN,
-        entity_id: rust_rtps_pim::structure::types::ENTITYID_UNKNOWN,
-    };
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub struct GUID {
-    pub prefix: rust_rtps_pim::structure::types::GuidPrefix,
-    pub entity_id: rust_rtps_pim::structure::types::EntityId,
-}
-
-impl rust_rtps_pim::structure::types::GUIDType for GUID {
-    fn new(
-        prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        entity_id: rust_rtps_pim::structure::types::EntityId,
-    ) -> Self {
-        Self { prefix, entity_id }
-    }
-
-    fn prefix(&self) -> &rust_rtps_pim::structure::types::GuidPrefix {
-        todo!()
-    }
-
-    fn entity_id(&self) -> &rust_rtps_pim::structure::types::EntityId {
-        todo!()
-    }
-}
-
-impl From<[u8; 16]> for GUID {
-    fn from(_: [u8; 16]) -> Self {
-        todo!()
-    }
-}
-
-impl Into<[u8; 16]> for GUID {
-    fn into(self) -> [u8; 16] {
-        todo!()
-    }
-}
 
 impl LocatorPIM for RtpsUdpPsm {
     type LocatorType = Locator;

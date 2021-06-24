@@ -1,11 +1,9 @@
-use crate::structure::types::{EntityId, LocatorPIM, SequenceNumber, GUIDPIM};
+use crate::structure::types::{EntityId, LocatorPIM, SequenceNumber, GUID};
 
 pub trait RTPSReaderProxy<PSM> {
     type SequenceNumberVector;
 
-    fn remote_reader_guid(&self) -> &PSM::GUIDType
-    where
-        PSM: GUIDPIM;
+    fn remote_reader_guid(&self) -> &GUID;
     fn remote_group_entity_id(&self) -> &EntityId;
     fn unicast_locator_list(&self) -> &[PSM::LocatorType]
     where
@@ -32,16 +30,12 @@ pub trait RTPSStatefulWriter<PSM> {
 
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType);
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUIDType)
-    where
-        PSM: GUIDPIM;
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID);
 
     fn matched_reader_lookup(
         &self,
-        a_reader_guid: &PSM::GUIDType,
-    ) -> Option<&Self::ReaderProxyType>
-    where
-        PSM: GUIDPIM;
+        a_reader_guid: &GUID,
+    ) -> Option<&Self::ReaderProxyType>;
 
     fn is_acked_by_all(&self) -> bool;
 }
@@ -57,17 +51,12 @@ mod tests {
             },
             types::ParameterIdPIM,
         },
-        structure::types::{DataPIM, GUIDType, InstanceHandlePIM, LocatorType},
+        structure::types::{DataPIM, InstanceHandlePIM, LocatorType},
     };
 
     use super::*;
 
     struct MockPSM;
-
-    impl GUIDPIM for MockPSM {
-        type GUIDType = [u8; 16];
-        const GUID_UNKNOWN: Self::GUIDType = [0; 16];
-    }
 
     impl LocatorPIM for MockPSM {
         type LocatorType = MockLocator;
@@ -103,22 +92,6 @@ mod tests {
         type InstanceHandleType = ();
     }
 
-    #[derive(Clone, Copy, PartialEq)]
-    struct MockGUID;
-
-    impl GUIDType for [u8; 16] {
-        fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
-            todo!()
-        }
-
-        fn prefix(&self) -> &[u8; 12] {
-            todo!()
-        }
-
-        fn entity_id(&self) -> &[u8; 4] {
-            todo!()
-        }
-    }
 
     #[derive(Clone, Copy, PartialEq)]
     struct MockLocator;
@@ -178,7 +151,7 @@ mod tests {
     impl RTPSReaderProxy<MockPSM> for MockReaderProxy {
         type SequenceNumberVector = [i64; 2];
 
-        fn remote_reader_guid(&self) -> &[u8; 16] {
+        fn remote_reader_guid(&self) -> &GUID {
             todo!()
         }
 

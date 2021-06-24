@@ -65,16 +65,45 @@ pub trait DataPIM {
     type DataType: AsRef<[u8]>;
 }
 
-pub trait GUIDPIM {
-    type GUIDType;
-    const GUID_UNKNOWN: Self::GUIDType;
+/// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct GUID {
+    prefix: GuidPrefix,
+    entity_id: EntityId,
 }
 
-/// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub trait GUIDType: From<[u8; 16]> + Into<[u8; 16]> {
-    fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self;
-    fn prefix(&self) -> &GuidPrefix;
-    fn entity_id(&self) -> &EntityId;
+pub const GUID_UNKNOWN: GUID = GUID {
+    prefix: GUIDPREFIX_UNKNOWN,
+    entity_id: ENTITYID_UNKNOWN,
+};
+
+impl GUID {
+    pub fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self {
+        Self {
+            prefix,
+            entity_id,
+        }
+    }
+
+    pub fn prefix(&self) -> &GuidPrefix {
+        &self.prefix
+    }
+
+    pub fn entity_id(&self) -> &EntityId {
+        &self.entity_id
+    }
+}
+
+impl From<[u8;16]> for GUID {
+    fn from(_: [u8;16]) -> Self {
+        todo!()
+    }
+}
+
+impl From<GUID> for [u8;16] {
+    fn from(_: GUID) -> Self {
+        todo!()
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

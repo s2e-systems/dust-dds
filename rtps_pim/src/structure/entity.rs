@@ -1,7 +1,5 @@
-use super::types::GUIDPIM;
+use super::types::GUID;
 
-pub trait RTPSEntity<PSM> {
-    fn guid(&self) -> &PSM::GUIDType
-    where
-        PSM: GUIDPIM;
+pub trait RTPSEntity {
+    fn guid(&self) -> &GUID;
 }

@@ -15,8 +15,7 @@ use crate::{
     },
     structure::{
         types::{
-            ChangeKind, DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM, SequenceNumber,
-            ENTITYID_UNKNOWN, GUIDPIM,
+            ChangeKind, DataPIM, InstanceHandlePIM, LocatorPIM, SequenceNumber, ENTITYID_UNKNOWN,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
@@ -78,7 +77,6 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
         + DataSubmessagePIM<'a, PSM>
         + InstanceHandlePIM
         + DataPIM
-        + GUIDPIM
         + ParameterListSubmessageElementPIM
         + EntityIdSubmessageElementPIM
         + SequenceNumberSubmessageElementPIM
@@ -90,7 +88,6 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
     HistoryCache: RTPSHistoryCache,
     HistoryCache::CacheChange: RTPSCacheChange<PSM> + 'a,
     PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
-    PSM::GUIDType: GUIDType,
     PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
     PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>,
     PSM::DataSubmessageType: DataSubmessage<'a, PSM>,
@@ -187,17 +184,14 @@ pub fn reliable_after_nack_response_delay<PSM: LocatorPIM>(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        messages::{
+    use crate::{messages::{
             submessage_elements::{
                 EntityIdSubmessageElementType, ParameterListSubmessageElementType,
                 SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
                 SerializedDataSubmessageElementType,
             },
             RtpsSubmessageHeaderType, Submessage,
-        },
-        structure::{types::LocatorType, RTPSCacheChange, RTPSHistoryCache},
-    };
+        }, structure::{RTPSCacheChange, RTPSHistoryCache, types::{GUID, GUID_UNKNOWN, LocatorType}}};
 
     use super::*;
 
@@ -267,11 +261,6 @@ mod tests {
 
     impl InstanceHandlePIM for MockPSM {
         type InstanceHandleType = ();
-    }
-
-    impl GUIDPIM for MockPSM {
-        type GUIDType = [u8; 16];
-        const GUID_UNKNOWN: Self::GUIDType = [0; 16];
     }
 
     impl LocatorPIM for MockPSM {
@@ -557,8 +546,8 @@ mod tests {
             self.kind
         }
 
-        fn writer_guid(&self) -> &[u8; 16] {
-            &[0; 16]
+        fn writer_guid(&self) -> &GUID {
+            &GUID_UNKNOWN
         }
 
         fn instance_handle(&self) -> &() {

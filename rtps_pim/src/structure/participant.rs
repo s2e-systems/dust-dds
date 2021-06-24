@@ -1,11 +1,11 @@
 use super::{
-    types::{LocatorPIM, ProtocolVersionPIM, VendorIdPIM, GUIDPIM},
+    types::{LocatorPIM, ProtocolVersionPIM, VendorIdPIM},
     RTPSEntity,
 };
 
-pub trait RTPSParticipant<PSM>: RTPSEntity<PSM>
+pub trait RTPSParticipant<PSM>: RTPSEntity
 where
-    PSM: GUIDPIM + ProtocolVersionPIM + VendorIdPIM + LocatorPIM,
+    PSM: ProtocolVersionPIM + VendorIdPIM + LocatorPIM,
 {
     fn protocol_version(&self) -> &PSM::ProtocolVersionType;
     fn vendor_id(&self) -> &PSM::VendorIdType;

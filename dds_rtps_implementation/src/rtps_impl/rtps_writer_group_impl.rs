@@ -7,9 +7,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{
-        DataPIM, InstanceHandlePIM, LocatorPIM, GUIDPIM,
-    },
+    structure::types::{DataPIM, InstanceHandlePIM, LocatorPIM, GUID},
 };
 
 use crate::utils::shared_object::RtpsShared;
@@ -18,14 +16,9 @@ use super::rtps_writer_impl::RTPSWriterImpl;
 
 pub struct RTPSWriterGroupImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
-    guid: PSM::GUIDType,
+    guid: GUID,
     qos: PublisherQos,
     listener: Option<&'static dyn PublisherListener>,
     status_mask: StatusMask,
@@ -34,15 +27,14 @@ where
 
 impl<PSM> RTPSWriterGroupImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
+    PSM: LocatorPIM
         + DurationPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
 {
     pub fn new(
-        guid: PSM::GUIDType,
+        guid: GUID,
         qos: PublisherQos,
         listener: Option<&'static dyn PublisherListener>,
         status_mask: StatusMask,
@@ -77,8 +69,7 @@ where
 }
 
 impl<PSM> rust_rtps_pim::structure::RTPSGroup<PSM> for RTPSWriterGroupImpl<PSM> where
-    PSM: GUIDPIM
-        + LocatorPIM
+    PSM:  LocatorPIM
         + DurationPIM
         + InstanceHandlePIM
         + DataPIM
@@ -86,16 +77,15 @@ impl<PSM> rust_rtps_pim::structure::RTPSGroup<PSM> for RTPSWriterGroupImpl<PSM> 
 {
 }
 
-impl<PSM> rust_rtps_pim::structure::RTPSEntity<PSM> for RTPSWriterGroupImpl<PSM>
+impl<PSM> rust_rtps_pim::structure::RTPSEntity for RTPSWriterGroupImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
+    PSM:  LocatorPIM
         + DurationPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
 {
-    fn guid(&self) -> &PSM::GUIDType {
+    fn guid(&self) -> &GUID {
         &self.guid
     }
 }

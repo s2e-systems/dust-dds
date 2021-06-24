@@ -14,7 +14,6 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::structure::types::GUIDPIM;
 
 use crate::{
     rtps_impl::rtps_reader_group_impl::RTPSReaderGroupImpl, utils::shared_object::RtpsWeak,
@@ -22,19 +21,13 @@ use crate::{
 
 use super::{data_reader_impl::DataReaderImpl, topic_impl::TopicImpl};
 
-pub struct SubscriberImpl<'s, PSM>
-where
-    PSM: GUIDPIM,
-{
+pub struct SubscriberImpl<'s> {
     participant: &'s dyn DomainParticipant,
-    rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl<PSM>>,
+    rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl>,
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM>
-    rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T>
-    for SubscriberImpl<'s, PSM>
-where
-    PSM: GUIDPIM,
+impl<'dr, 's: 'dr, 't: 'dr, T: 'static>
+    rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T> for SubscriberImpl<'s>
 {
     type TopicType = TopicImpl<'t, T>;
     type DataReaderType = DataReaderImpl<'dr, T>;
@@ -61,10 +54,7 @@ where
     }
 }
 
-impl<'s, PSM> rust_dds_api::subscription::subscriber::Subscriber for SubscriberImpl<'s, PSM>
-where
-    PSM: GUIDPIM,
-{
+impl<'s> rust_dds_api::subscription::subscriber::Subscriber for SubscriberImpl<'s> {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
     }
@@ -117,10 +107,7 @@ where
     }
 }
 
-impl<'s, PSM> Entity for SubscriberImpl<'s, PSM>
-where
-    PSM: GUIDPIM,
-{
+impl<'s> Entity for SubscriberImpl<'s> {
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 

@@ -7,39 +7,30 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{
-        DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
-        GUIDPIM,
-    },
+    structure::types::{DataPIM, InstanceHandlePIM, LocatorPIM, GUID},
 };
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 
-pub struct WriterGroupFactory<PSM>
-{
+pub struct WriterGroupFactory<PSM> {
     guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
     publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    phantom: PhantomData<PSM>
+    phantom: PhantomData<PSM>,
 }
 
 impl<PSM> WriterGroupFactory<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         Self {
             guid_prefix,
             publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -48,10 +39,7 @@ where
         qos: Option<PublisherQos>,
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
-    ) -> DDSResult<RTPSWriterGroupImpl<PSM>>
-    where
-        PSM::GUIDType: GUIDType,
-    {
+    ) -> DDSResult<RTPSWriterGroupImpl<PSM>> {
         let qos = qos.unwrap_or(self.default_publisher_qos.clone());
         let guid_prefix = self.guid_prefix.clone();
 
@@ -63,7 +51,7 @@ where
             ENTITYKIND_USER_DEFINED_WRITER_GROUP,
         ]
         .into();
-        let guid = GUIDType::new(guid_prefix, entity_id);
+        let guid = GUID::new(guid_prefix, entity_id);
         Ok(RTPSWriterGroupImpl::new(guid, qos, a_listener, mask))
     }
 

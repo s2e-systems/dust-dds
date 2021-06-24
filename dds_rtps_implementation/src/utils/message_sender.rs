@@ -63,7 +63,7 @@
 //     StatelessWriter: RTPSStatelessWriter<PSM> + RTPSWriter<PSM>,
 //     StatelessWriter::ReaderLocatorPIM: RTPSReaderLocator<PSM>,
 //     PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType<PSM>,
-//     PSM::GUIDType: GUIDType<PSM>,
+//     GUID: GUIDType<PSM>,
 //     PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType<PSM>,
 //     for<'a> <PSM as SerializedDataSubmessageElementPIM<'a>>::SerializedDataSubmessageElementType:
 //         SerializedDataSubmessageElementType<'a>,

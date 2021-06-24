@@ -17,10 +17,7 @@ use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{
-            DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
-            GUIDPIM,
-        },
+        types::{DataPIM, InstanceHandlePIM, LocatorPIM},
         RTPSEntity,
     },
 };
@@ -42,12 +39,7 @@ const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
 pub struct PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     participant: &'p dyn DomainParticipant,
     writer_factory: Mutex<WriterFactory<PSM>>,
@@ -57,20 +49,12 @@ where
 
 impl<'p, PSM> PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         participant: &'p dyn DomainParticipant,
         rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
-    ) -> Self
-    where
-        PSM::GUIDType: GUIDType,
-    {
+    ) -> Self {
         let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
             participant,
@@ -84,8 +68,7 @@ where
 impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM> DataWriterFactory<'dw, 't, T>
     for PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
+    PSM: LocatorPIM
         + DurationPIM
         + InstanceHandlePIM
         + DataPIM
@@ -139,12 +122,7 @@ where
 
 impl<'p, PSM> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
@@ -201,12 +179,7 @@ where
 
 impl<'p, PSM> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;

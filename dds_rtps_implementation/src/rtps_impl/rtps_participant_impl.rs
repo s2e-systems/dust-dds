@@ -3,10 +3,7 @@ use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{
-            DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM,
-            GUIDPIM,
-        },
+        types::{DataPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM, GUID},
         RTPSEntity,
     },
 };
@@ -17,31 +14,18 @@ use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 pub struct RTPSParticipantImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
-    guid: PSM::GUIDType,
+    guid: GUID,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
 impl<PSM> RTPSParticipantImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
-    pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self
-    where
-        PSM::GUIDType: GUIDType,
-    {
-        let guid = GUIDType::new(
+    pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
+        let guid = GUID::new(
             guid_prefix,
             rust_rtps_pim::structure::types::ENTITYID_PARTICIPANT,
         );
@@ -88,8 +72,7 @@ where
 
 impl<PSM> rust_rtps_pim::structure::RTPSParticipant<PSM> for RTPSParticipantImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
+    PSM: LocatorPIM
         + DurationPIM
         + InstanceHandlePIM
         + DataPIM
@@ -115,16 +98,11 @@ where
     }
 }
 
-impl<PSM> RTPSEntity<PSM> for RTPSParticipantImpl<PSM>
+impl<PSM> RTPSEntity for RTPSParticipantImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
-    fn guid(&self) -> &PSM::GUIDType {
+    fn guid(&self) -> &GUID {
         &self.guid
     }
 }

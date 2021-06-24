@@ -1,7 +1,7 @@
 use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{DataPIM, InstanceHandlePIM, SequenceNumber, GUIDPIM},
+        types::{DataPIM, InstanceHandlePIM, SequenceNumber},
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
@@ -10,20 +10,14 @@ use super::rtps_cache_change_impl::RTPSCacheChangeImpl;
 
 pub struct RTPSHistoryCacheImpl<PSM>
 where
-    PSM: GUIDPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     changes: Vec<RTPSCacheChangeImpl<PSM>>,
 }
 
 impl<PSM> RTPSHistoryCache for RTPSHistoryCacheImpl<PSM>
 where
-    PSM: GUIDPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     type CacheChange = RTPSCacheChangeImpl<PSM>;
 
@@ -61,6 +55,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use rust_rtps_pim::structure::types::GUID_UNKNOWN;
+
     use super::*;
     struct MockPSM;
 
@@ -73,47 +69,10 @@ mod tests {
     }
 
     impl rust_rtps_pim::structure::types::DataPIM for MockPSM {
-        type DataType = [u8;0];
+        type DataType = [u8; 0];
     }
 
-
-    #[derive(Clone, Copy, PartialEq)]
-    struct MockGUID;
-
-    impl rust_rtps_pim::structure::types::GUIDType for MockGUID {
-        fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
-            todo!()
-        }
-
-        fn prefix(&self) -> &[u8; 12] {
-            todo!()
-        }
-
-        fn entity_id(&self) -> &[u8; 4] {
-            todo!()
-        }
-    }
-
-    impl From<[u8; 16]> for MockGUID {
-        fn from(_: [u8; 16]) -> Self {
-            todo!()
-        }
-    }
-
-    impl Into<[u8; 16]> for MockGUID {
-        fn into(self) -> [u8; 16] {
-            todo!()
-        }
-    }
-
-    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
-        type GUIDType = MockGUID;
-        const GUID_UNKNOWN: Self::GUIDType = MockGUID;
-    }
-
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM
-        for MockPSM
-    {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
     }
 
@@ -153,7 +112,7 @@ mod tests {
         let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
         let change = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
-            MockGUID,
+            GUID_UNKNOWN,
             (),
             1,
             [],
@@ -168,7 +127,7 @@ mod tests {
         let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
         let change = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
-            MockGUID,
+            GUID_UNKNOWN,
             (),
             1,
             [],
@@ -184,7 +143,7 @@ mod tests {
         let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
         let change = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
-            MockGUID,
+            GUID_UNKNOWN,
             (),
             1,
             [],
@@ -200,7 +159,7 @@ mod tests {
         let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
         let change1 = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
-            MockGUID,
+            GUID_UNKNOWN,
             (),
             1,
             [],
@@ -208,7 +167,7 @@ mod tests {
         );
         let change2 = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
-            MockGUID,
+            GUID_UNKNOWN,
             (),
             2,
             [],
@@ -224,7 +183,7 @@ mod tests {
         let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
         let change1 = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
-            MockGUID,
+            GUID_UNKNOWN,
             (),
             1,
             [],
@@ -232,7 +191,7 @@ mod tests {
         );
         let change2 = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
-            MockGUID,
+            GUID_UNKNOWN,
             (),
             2,
             [],

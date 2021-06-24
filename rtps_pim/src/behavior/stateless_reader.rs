@@ -3,7 +3,6 @@ use crate::{
     messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::types::{
         DataPIM, InstanceHandlePIM, LocatorPIM,
-        GUIDPIM,
     },
 };
 
@@ -14,7 +13,6 @@ pub trait RTPSStatelessReader<
         + DataPIM
         + LocatorPIM
         + DurationPIM
-        + GUIDPIM
         + ParameterIdPIM
         + ParameterListSubmessageElementPIM,
 >: RTPSReader<PSM>

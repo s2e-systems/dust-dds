@@ -7,28 +7,23 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{
-        DataPIM, InstanceHandlePIM, LocatorPIM,
-        GUIDPIM,
-    },
+    structure::types::{DataPIM, InstanceHandlePIM, LocatorPIM},
 };
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
-pub struct WriterFactory<PSM>
-{
+pub struct WriterFactory<PSM> {
     guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
     datawriter_counter: u8,
-    phantom: PhantomData<PSM>
+    phantom: PhantomData<PSM>,
 }
 
-impl<PSM> WriterFactory<PSM>
-{
+impl<PSM> WriterFactory<PSM> {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         Self {
             guid_prefix,
             datawriter_counter: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -39,8 +34,7 @@ impl<PSM> WriterFactory<PSM>
         _mask: StatusMask,
     ) -> RTPSWriterImpl<PSM>
     where
-        PSM: GUIDPIM
-            + LocatorPIM
+        PSM: LocatorPIM
             + DurationPIM
             + InstanceHandlePIM
             + DataPIM

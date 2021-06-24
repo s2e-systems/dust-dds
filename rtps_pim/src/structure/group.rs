@@ -1,7 +1,3 @@
-use super::{types::GUIDPIM, RTPSEntity};
+use super::RTPSEntity;
 
-pub trait RTPSGroup<PSM>: RTPSEntity<PSM>
-where
-    PSM: GUIDPIM,
-{
-}
+pub trait RTPSGroup<PSM>: RTPSEntity {}

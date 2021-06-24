@@ -9,7 +9,7 @@ use rust_rtps_pim::{
     structure::{
         types::{
             ChangeKind, DataPIM, InstanceHandlePIM, LocatorPIM, ReliabilityKind, SequenceNumber,
-            TopicKind, GUIDPIM,
+            TopicKind, GUID,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
@@ -22,14 +22,9 @@ use super::{
 
 pub struct RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
-    guid: PSM::GUIDType,
+    guid: GUID,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
     push_mode: bool,
@@ -47,15 +42,10 @@ where
 
 impl<PSM> RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
-        guid: PSM::GUIDType,
+        guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         push_mode: bool,
@@ -97,30 +87,20 @@ where
     }
 }
 
-impl<PSM> RTPSEntity<PSM> for RTPSWriterImpl<PSM>
+impl<PSM> RTPSEntity for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
-    fn guid(&self) -> &PSM::GUIDType {
+    fn guid(&self) -> &GUID {
         &self.guid
     }
 }
 
 impl<PSM> RTPSWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
     SequenceNumber: Ord + Copy,
-    PSM::GUIDType: Copy,
+    GUID: Copy,
 {
     type HistoryCacheType = RTPSHistoryCacheImpl<PSM>;
 
@@ -181,12 +161,7 @@ where
 
 impl<PSM> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
@@ -207,12 +182,7 @@ where
 
 impl<PSM> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
     PSM::LocatorType: PartialEq,
 {
     type ReaderLocatorPIM = RTPSReaderLocatorImpl<PSM>;
@@ -236,15 +206,10 @@ where
 
 impl<PSM> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM
-        + LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
-    PSM::GUIDType: PartialEq,
+    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    GUID: PartialEq,
     // SequenceNumber: Ord + Copy,
-    // PSM::GUIDType: Copy,
+    // GUID: Copy,
 {
     type ReaderProxyType = RTPSReaderProxyImpl<PSM>;
 
@@ -256,15 +221,12 @@ where
         self.matched_readers.push(a_reader_proxy)
     }
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUIDType) {
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != reader_proxy_guid)
     }
 
-    fn matched_reader_lookup(
-        &self,
-        a_reader_guid: &PSM::GUIDType,
-    ) -> Option<&Self::ReaderProxyType> {
+    fn matched_reader_lookup(&self, a_reader_guid: &GUID) -> Option<&Self::ReaderProxyType> {
         self.matched_readers
             .iter()
             .find(|&x| x.remote_reader_guid() == a_reader_guid)
@@ -277,7 +239,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::RTPSCacheChange;
+    use rust_rtps_pim::structure::{types::GUID_UNKNOWN, RTPSCacheChange};
 
     use super::*;
 
@@ -293,40 +255,6 @@ mod tests {
 
     impl rust_rtps_pim::messages::types::ParameterIdPIM for MockPSM {
         type ParameterIdType = u16;
-    }
-
-    #[derive(Clone, Copy, PartialEq)]
-    struct MockGUID(u8);
-
-    impl rust_rtps_pim::structure::types::GUIDType for MockGUID {
-        fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
-            todo!()
-        }
-
-        fn prefix(&self) -> &[u8; 12] {
-            todo!()
-        }
-
-        fn entity_id(&self) -> &[u8; 4] {
-            todo!()
-        }
-    }
-
-    impl From<[u8; 16]> for MockGUID {
-        fn from(_: [u8; 16]) -> Self {
-            todo!()
-        }
-    }
-
-    impl Into<[u8; 16]> for MockGUID {
-        fn into(self) -> [u8; 16] {
-            todo!()
-        }
-    }
-
-    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
-        type GUIDType = MockGUID;
-        const GUID_UNKNOWN: Self::GUIDType = MockGUID(0);
     }
 
     impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM for MockPSM {
@@ -429,7 +357,7 @@ mod tests {
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
-            MockGUID(1),
+            GUID_UNKNOWN,
             topic_kind,
             reliability_level,
             push_mode,
@@ -459,7 +387,7 @@ mod tests {
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
-            MockGUID(1),
+            GUID_UNKNOWN,
             topic_kind,
             reliability_level,
             push_mode,
@@ -490,7 +418,7 @@ mod tests {
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
-            MockGUID(1),
+            GUID_UNKNOWN,
             topic_kind,
             reliability_level,
             push_mode,
@@ -523,7 +451,7 @@ mod tests {
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
-            MockGUID(1),
+            GUID_UNKNOWN,
             topic_kind,
             reliability_level,
             push_mode,
@@ -535,9 +463,9 @@ mod tests {
             data_max_size_serialized,
         );
         let reader_proxy1 =
-            RTPSReaderProxyImpl::new(MockGUID(2), [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
         let reader_proxy2 =
-            RTPSReaderProxyImpl::new(MockGUID(3), [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
         writer.matched_reader_add(reader_proxy1);
         writer.matched_reader_add(reader_proxy2);
         assert_eq!(writer.matched_readers().len(), 2)
@@ -555,7 +483,7 @@ mod tests {
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
-            MockGUID(1),
+            GUID_UNKNOWN,
             topic_kind,
             reliability_level,
             push_mode,
@@ -568,12 +496,12 @@ mod tests {
         );
 
         let reader_proxy1 =
-            RTPSReaderProxyImpl::new(MockGUID(2), [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
         let reader_proxy2 =
-            RTPSReaderProxyImpl::new(MockGUID(3), [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
         writer.matched_reader_add(reader_proxy1);
         writer.matched_reader_add(reader_proxy2);
-        writer.matched_reader_remove(&MockGUID(1));
+        writer.matched_reader_remove(&GUID_UNKNOWN);
 
         assert_eq!(writer.matched_readers().len(), 2)
     }
@@ -590,7 +518,7 @@ mod tests {
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
-            MockGUID(1),
+            GUID_UNKNOWN,
             topic_kind,
             reliability_level,
             push_mode,
@@ -603,13 +531,13 @@ mod tests {
         );
 
         let reader_proxy1 =
-            RTPSReaderProxyImpl::new(MockGUID(2), [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
         let reader_proxy2 =
-            RTPSReaderProxyImpl::new(MockGUID(3), [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
         writer.matched_reader_add(reader_proxy1);
         writer.matched_reader_add(reader_proxy2);
 
-        assert!(writer.matched_reader_lookup(&MockGUID(3)).is_some());
-        assert!(writer.matched_reader_lookup(&MockGUID(4)).is_none());
+        assert!(writer.matched_reader_lookup(&GUID_UNKNOWN).is_some());
+        assert!(writer.matched_reader_lookup(&GUID_UNKNOWN).is_none());
     }
 }

@@ -1,19 +1,15 @@
 use crate::{
     behavior::RTPSReader,
     messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
-    structure::types::{
-        DataPIM, EntityId, InstanceHandlePIM, LocatorPIM, SequenceNumber,
-        GUIDPIM,
-    },
+    structure::types::{DataPIM, EntityId, InstanceHandlePIM, LocatorPIM, SequenceNumber, GUID},
 };
 
 use super::types::DurationPIM;
 
-pub trait RTPSWriterProxy<PSM: LocatorPIM + GUIDPIM >
-{
+pub trait RTPSWriterProxy<PSM: LocatorPIM> {
     type SequenceNumberVector: IntoIterator<Item = SequenceNumber>;
 
-    fn remote_writer_guid(&self) -> &PSM::GUIDType;
+    fn remote_writer_guid(&self) -> &GUID;
     fn remote_group_entity_id(&self) -> &EntityId;
     fn unicast_locator_list(&self) -> &[PSM::LocatorType];
     fn multicast_locator_list(&self) -> &[PSM::LocatorType];
@@ -32,7 +28,6 @@ pub trait RTPSStatefulReader<
         + DataPIM
         + LocatorPIM
         + DurationPIM
-        + GUIDPIM
         + ParameterIdPIM
         + ParameterListSubmessageElementPIM,
 >: RTPSReader<PSM>
@@ -41,7 +36,7 @@ pub trait RTPSStatefulReader<
 
     fn matched_writers(&self) -> &[Self::WriterProxyType];
     fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType);
-    fn matched_writer_remove(&mut self, writer_proxy_guid: &PSM::GUIDType);
-    fn matched_writer_lookup(&self, a_writer_guid: PSM::GUIDType)
+    fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID);
+    fn matched_writer_lookup(&self, a_writer_guid: GUID)
         -> Option<&Self::WriterProxyType>;
 }
