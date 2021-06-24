@@ -1,30 +1,19 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
     behavior::{
-        stateless_writer::{best_effort_send_unsent_data, RTPSReaderLocator, RTPSStatelessWriter},
         types::DurationPIM,
-        RTPSWriter,
     },
-    messages::{
-        submessage_elements::{
-            EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM,
-            SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM,
-            SerializedDataSubmessageElementPIM,
-        },
-        submessages::{DataSubmessagePIM, GapSubmessagePIM},
-        types::{ParameterIdPIM, ProtocolIdPIM, SubmessageKindPIM},
-        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
-    },
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{
             DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
             ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
         },
-        RTPSEntity, RTPSParticipant,
+        RTPSEntity,
     },
 };
 
-use crate::{transport::Transport, utils::shared_object::RtpsShared};
+use crate::utils::shared_object::RtpsShared;
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 

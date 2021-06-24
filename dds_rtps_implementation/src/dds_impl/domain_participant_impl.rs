@@ -1,7 +1,4 @@
-use std::{
-    ops::DerefMut,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -64,7 +61,7 @@ where
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM<PSM>
-        + GuidPrefixPIM
+        + GuidPrefixPIM,
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType, transport: impl Transport<PSM> + 'static) -> Self
     where

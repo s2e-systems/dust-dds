@@ -1,5 +1,5 @@
 use crate::{
-    dds_type::DDSType, rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::RtpsWeak,
+    rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::RtpsWeak,
 };
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,

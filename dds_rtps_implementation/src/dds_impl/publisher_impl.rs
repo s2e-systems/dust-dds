@@ -32,7 +32,7 @@ use crate::{
 };
 
 use super::{
-    data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
+    data_writer_impl::DataWriterImpl,
     topic_impl::TopicImpl, writer_factory::WriterFactory,
 };
 

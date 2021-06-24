@@ -1,14 +1,4 @@
-use crate::{
-    behavior::{types::DurationPIM, RTPSWriter},
-    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
-    structure::{
-        types::{
-            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
-            GUIDPIM,
-        },
-        RTPSHistoryCache,
-    },
-};
+use crate::structure::types::{EntityIdPIM, LocatorPIM, SequenceNumberPIM, GUIDPIM};
 
 pub trait RTPSReaderProxy<PSM> {
     type SequenceNumberVector;
@@ -50,23 +40,23 @@ pub trait RTPSStatefulWriter<PSM> {
 
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType);
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUIDType) where PSM: GUIDPIM<PSM>;
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUIDType)
+    where
+        PSM: GUIDPIM<PSM>;
 
     fn matched_reader_lookup(
         &self,
         a_reader_guid: &PSM::GUIDType,
-    ) -> Option<&Self::ReaderProxyType> where PSM: GUIDPIM<PSM>;
+    ) -> Option<&Self::ReaderProxyType>
+    where
+        PSM: GUIDPIM<PSM>;
 
     fn is_acked_by_all(&self) -> bool;
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::{
-        messages::submessage_elements::{ParameterListSubmessageElementType, ParameterType},
-        structure::types::{GUIDType, LocatorType},
-    };
+    use crate::{behavior::types::DurationPIM, messages::{submessage_elements::{ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ParameterType}, types::ParameterIdPIM}, structure::types::{DataPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorType}};
 
     use super::*;
 

@@ -4,7 +4,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::types::DurationPIM,
-    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
+    messages::{submessage_elements::ParameterListSubmessageElementPIM},
     structure::types::{
         DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
         SequenceNumberPIM, GUIDPIM,

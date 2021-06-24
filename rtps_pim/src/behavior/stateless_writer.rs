@@ -1,5 +1,4 @@
 use crate::{
-    behavior::RTPSWriter,
     messages::{
         submessage_elements::{
             CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
@@ -23,7 +22,6 @@ use crate::{
     },
 };
 
-use super::types::DurationPIM;
 pub trait RTPSReaderLocator<PSM> {
     type SequenceNumberVector;
 
