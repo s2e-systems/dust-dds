@@ -70,16 +70,16 @@ pub trait DataPIM {
     type DataType: AsRef<[u8]>;
 }
 
-pub trait GUIDPIM<PSM: GuidPrefixPIM + EntityIdPIM> {
-    type GUIDType: GUIDType<PSM>;
+pub trait GUIDPIM {
+    type GUIDType;
     const GUID_UNKNOWN: Self::GUIDType;
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub trait GUIDType<PSM: GuidPrefixPIM + EntityIdPIM>: From<[u8; 16]> + Into<[u8; 16]> {
-    fn new(prefix: PSM::GuidPrefixType, entity_id: PSM::EntityIdType) -> Self;
-    fn prefix(&self) -> &PSM::GuidPrefixType;
-    fn entity_id(&self) -> &PSM::EntityIdType;
+pub trait GUIDType<PSM>: From<[u8; 16]> + Into<[u8; 16]> {
+    fn new(prefix: PSM::GuidPrefixType, entity_id: PSM::EntityIdType) -> Self  where PSM: GuidPrefixPIM + EntityIdPIM;
+    fn prefix(&self) -> &PSM::GuidPrefixType where PSM: GuidPrefixPIM;
+    fn entity_id(&self) -> &PSM::EntityIdType where PSM: EntityIdPIM;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

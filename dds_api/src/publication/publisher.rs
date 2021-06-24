@@ -32,12 +32,6 @@ pub trait DataWriterFactory<'dw, 't: 'dw, T: 'static>: Publisher {
     fn lookup_datawriter(&'dw self, topic: &'dw Self::TopicType) -> Option<Self::DataWriterType>;
 }
 
-pub trait PublisherParent {
-    type DomainParticipantType: DomainParticipant;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType;
-}
-
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
@@ -161,12 +155,7 @@ pub trait Publisher: Entity<Qos = PublisherQos, Listener = &'static dyn Publishe
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&self) -> &Self::DomainParticipantType
-    where
-        Self: PublisherParent + Sized,
-    {
-        <Self as PublisherParent>::get_participant(self)
-    }
+    fn get_participant(&self) -> &dyn DomainParticipant;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.

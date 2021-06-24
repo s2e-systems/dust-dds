@@ -2,56 +2,39 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
-use rust_rtps_pim::{behavior::types::DurationPIM, messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM}, structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-        SequenceNumberPIM, GUIDType, GUIDPIM,
-    }};
+use rust_rtps_pim::{
+    behavior::types::DurationPIM,
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::types::{
+        DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+        SequenceNumberPIM, GUIDPIM,
+    },
+};
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 
-pub trait WriterGroupFactoryTrait:
-    GuidPrefixPIM
-    + EntityIdPIM
-    + SequenceNumberPIM
-    + DurationPIM
-    + InstanceHandlePIM
-    + LocatorPIM
-    + DataPIM
-    + ParameterIdPIM
-    + GUIDPIM<Self>
-    + ParameterListSubmessageElementPIM<Self>
-    + Sized
+pub struct WriterGroupFactory<PSM>
+where
+    PSM: GuidPrefixPIM,
 {
-}
-
-impl<
-        T: GuidPrefixPIM
-            + EntityIdPIM
-            + SequenceNumberPIM
-            + DurationPIM
-            + InstanceHandlePIM
-            + LocatorPIM
-            + DataPIM
-            + ParameterIdPIM
-            + GUIDPIM<Self>
-            + ParameterListSubmessageElementPIM<Self>
-            + Sized,
-    > WriterGroupFactoryTrait for T
-{
-}
-
-pub struct WriterGroupFactory<PSM: WriterGroupFactoryTrait> {
     guid_prefix: PSM::GuidPrefixType,
     publisher_counter: u8,
     default_publisher_qos: PublisherQos,
 }
 
-impl<PSM: WriterGroupFactoryTrait> WriterGroupFactory<PSM>
+impl<PSM> WriterGroupFactory<PSM>
 where
-    <PSM as GUIDPIM<PSM>>::GUIDType: Send,
-    PSM::GuidPrefixType: Clone
+    PSM: GuidPrefixPIM
+        + GUIDPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {
@@ -66,7 +49,11 @@ where
         qos: Option<PublisherQos>,
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
-    ) -> DDSResult<RTPSWriterGroupImpl<PSM>> {
+    ) -> DDSResult<RTPSWriterGroupImpl<PSM>>
+    where
+        PSM::GuidPrefixType: Clone,
+        PSM::GUIDType: GUIDType<PSM>,
+    {
         let qos = qos.unwrap_or(self.default_publisher_qos.clone());
         let guid_prefix = self.guid_prefix.clone();
 

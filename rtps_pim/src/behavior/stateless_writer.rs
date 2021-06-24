@@ -1,5 +1,4 @@
 use crate::{
-    behavior::RTPSWriter,
     messages::{
         submessage_elements::{
             CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
@@ -11,7 +10,7 @@ use crate::{
         submessages::{
             AckNackSubmessage, DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM,
         },
-        types::{CountPIM, ParameterIdPIM, SubmessageKindPIM},
+        types::{CountPIM, SubmessageKindPIM},
         RtpsSubmessageHeaderPIM,
     },
     structure::{
@@ -23,20 +22,25 @@ use crate::{
     },
 };
 
-use super::types::DurationPIM;
-pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
-    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>;
+pub trait RTPSReaderLocator<PSM> {
+    type SequenceNumberVector;
 
-    fn locator(&self) -> &PSM::LocatorType;
+    fn locator(&self) -> &PSM::LocatorType
+    where
+        PSM: LocatorPIM;
 
     fn expects_inline_qos(&self) -> bool;
 
-    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType>;
+    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType>
+    where
+        PSM: SequenceNumberPIM;
 
     fn next_unsent_change(
         &mut self,
         last_change_sequence_number: &PSM::SequenceNumberType,
-    ) -> Option<PSM::SequenceNumberType>;
+    ) -> Option<PSM::SequenceNumberType>
+    where
+        PSM: SequenceNumberPIM;
 
     fn requested_changes(&self) -> Self::SequenceNumberVector;
 
@@ -44,68 +48,66 @@ pub trait RTPSReaderLocator<PSM: LocatorPIM + SequenceNumberPIM> {
         &mut self,
         req_seq_num_set: &[PSM::SequenceNumberType],
         last_change_sequence_number: &PSM::SequenceNumberType,
-    );
+    ) where
+        PSM: SequenceNumberPIM;
 
     fn unsent_changes(
         &self,
         last_change_sequence_number: PSM::SequenceNumberType,
-    ) -> Self::SequenceNumberVector;
+    ) -> Self::SequenceNumberVector
+    where
+        PSM: SequenceNumberPIM;
 }
 
-pub trait RTPSStatelessWriter<
-    PSM: GuidPrefixPIM
-        + EntityIdPIM
-        + DurationPIM
-        + DataPIM
-        + InstanceHandlePIM
-        + LocatorPIM
-        + SequenceNumberPIM
-        + GUIDPIM<PSM>
-        + ParameterIdPIM
-        + ParameterListSubmessageElementPIM<PSM>,
->: RTPSWriter<PSM>
-{
-    type ReaderLocatorPIM: RTPSReaderLocator<PSM>;
+pub trait RTPSStatelessWriter<PSM> {
+    type ReaderLocatorPIM;
 
-    fn reader_locators(&mut self) -> (&mut [Self::ReaderLocatorPIM], &Self::HistoryCacheType);
+    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorPIM];
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM);
 
-    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType);
+    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType)
+    where
+        PSM: LocatorPIM;
 
     fn unsent_changes_reset(&mut self);
 }
 
-pub fn best_effort_send_unsent_data<
-    'a,
-    PSM: LocatorPIM
-        + SequenceNumberPIM
-        + GuidPrefixPIM
-        + EntityIdPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterIdPIM
-        + ParameterListSubmessageElementPIM<PSM>
-        + GUIDPIM<PSM>
-        + SubmessageKindPIM
-        + RtpsSubmessageHeaderPIM<PSM>
-        + EntityIdSubmessageElementPIM<PSM>
-        + SequenceNumberSubmessageElementPIM<PSM>
-        + SequenceNumberSetSubmessageElementPIM<PSM>
-        + SerializedDataSubmessageElementPIM<'a>
-        + DataSubmessagePIM<'a, PSM>
-        + GapSubmessagePIM<PSM>,
-    HistoryCache: RTPSHistoryCache<PSM>,
->(
+pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
     last_change_sequence_number: &PSM::SequenceNumberType,
     writer_cache: &'a HistoryCache,
     mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
-    mut send_gap: impl FnMut(<PSM as GapSubmessagePIM<PSM>>::GapSubmessageType),
+    mut send_gap: impl FnMut(<PSM as GapSubmessagePIM>::GapSubmessageType),
 ) where
+    PSM: SequenceNumberPIM
+        + LocatorPIM
+        + GapSubmessagePIM
+        + DataSubmessagePIM<'a, PSM>
+        + InstanceHandlePIM
+        + DataPIM
+        + GUIDPIM
+        + ParameterListSubmessageElementPIM
+        + EntityIdSubmessageElementPIM
+        + EntityIdPIM
+        + GuidPrefixPIM
+        + SequenceNumberSubmessageElementPIM
+        + SerializedDataSubmessageElementPIM<'a>
+        + DataSubmessagePIM<'a, PSM>
+        + RtpsSubmessageHeaderPIM
+        + SequenceNumberSetSubmessageElementPIM
+        + GapSubmessagePIM,
+    HistoryCache: RTPSHistoryCache<PSM>,
+    HistoryCache::CacheChange: RTPSCacheChange<PSM> + 'a,
+    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType<PSM>,
+    PSM::GUIDType: GUIDType<PSM>,
+    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType<PSM>,
+    PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>,
+    PSM::DataSubmessageType: DataSubmessage<'a, PSM>,
+    PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType<PSM>,
+    PSM::GapSubmessageType: GapSubmessage<PSM>,
     PSM::DataType: 'a,
-    PSM::ParameterListSubmessageElementType: 'a + Clone,
-    HistoryCache::CacheChange: 'a,
+    PSM::ParameterListSubmessageElementType: Clone,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
@@ -172,17 +174,18 @@ pub fn reliable_receive_acknack<
         + SubmessageKindPIM
         + EntityIdPIM
         + CountPIM
-        + EntityIdSubmessageElementPIM<PSM>
-        + SequenceNumberSetSubmessageElementPIM<PSM>
-        + CountSubmessageElementPIM<PSM>
-        + RtpsSubmessageHeaderPIM<PSM>,
+        + EntityIdSubmessageElementPIM
+        + SequenceNumberSetSubmessageElementPIM
+        + CountSubmessageElementPIM
+        + RtpsSubmessageHeaderPIM,
 >(
-    reader_locator: &mut impl RTPSReaderLocator<PSM>,
-    acknack: &impl AckNackSubmessage<PSM>,
-    last_change_sequence_number: &PSM::SequenceNumberType,
+    _reader_locator: &mut impl RTPSReaderLocator<PSM>,
+    _acknack: &impl AckNackSubmessage<PSM>,
+    _last_change_sequence_number: &PSM::SequenceNumberType,
 ) {
-    reader_locator
-        .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
+    // reader_locator
+    //     .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
+    todo!()
 }
 
 pub fn reliable_after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(
@@ -196,12 +199,10 @@ pub fn reliable_after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(
 
 #[cfg(test)]
 mod tests {
-    use core::iter::FromIterator;
-
     use crate::{
         messages::{
             submessage_elements::{
-                EntityIdSubmessageElementType, ParameterListSubmessageElementType, ParameterType,
+                EntityIdSubmessageElementType, ParameterListSubmessageElementType,
                 SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
                 SerializedDataSubmessageElementType,
             },
@@ -254,26 +255,11 @@ mod tests {
         }
     }
 
-    struct MockParameter;
-
-    impl ParameterType<MockPSM> for MockParameter {
-        fn parameter_id(&self) -> () {
-            todo!()
-        }
-
-        fn length(&self) -> i16 {
-            todo!()
-        }
-
-        fn value(&self) -> &[u8] {
-            todo!()
-        }
-    }
     #[derive(Clone)]
     struct MockParameterList;
 
     impl ParameterListSubmessageElementType<MockPSM> for MockParameterList {
-        type Parameter = MockParameter;
+        type Parameter = ();
 
         fn new(_parameter: &[Self::Parameter]) -> Self {
             todo!()
@@ -286,11 +272,7 @@ mod tests {
 
     struct MockPSM;
 
-    impl ParameterIdPIM for MockPSM {
-        type ParameterIdType = ();
-    }
-
-    impl ParameterListSubmessageElementPIM<MockPSM> for MockPSM {
+    impl ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
     }
 
@@ -313,7 +295,7 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM<Self> for MockPSM {
+    impl GUIDPIM for MockPSM {
         type GUIDType = [u8; 16];
         const GUID_UNKNOWN: Self::GUIDType = [0; 16];
     }
@@ -360,15 +342,15 @@ mod tests {
         type SerializedDataSubmessageElementType = &'a [u8];
     }
 
-    impl SequenceNumberSubmessageElementPIM<Self> for MockPSM {
+    impl SequenceNumberSubmessageElementPIM for MockPSM {
         type SequenceNumberSubmessageElementType = i64;
     }
 
-    impl EntityIdSubmessageElementPIM<Self> for MockPSM {
+    impl EntityIdSubmessageElementPIM for MockPSM {
         type EntityIdSubmessageElementType = [u8; 4];
     }
 
-    impl SequenceNumberSetSubmessageElementPIM<Self> for MockPSM {
+    impl SequenceNumberSetSubmessageElementPIM for MockPSM {
         type SequenceNumberSetSubmessageElementType = MockSequenceNumberSet;
     }
 
@@ -376,7 +358,7 @@ mod tests {
         type DataSubmessageType = MockDataSubmessage;
     }
 
-    impl RtpsSubmessageHeaderPIM<Self> for MockPSM {
+    impl RtpsSubmessageHeaderPIM for MockPSM {
         type RtpsSubmessageHeaderType = MockSubmessageHeader;
     }
 
@@ -491,32 +473,7 @@ mod tests {
         }
     }
 
-    struct MockSequenceNumberVectorIter;
-    impl Iterator for MockSequenceNumberVectorIter {
-        type Item = i64;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            todo!()
-        }
-    }
-    struct MockSequenceNumberVector;
-
-    impl FromIterator<i64> for MockSequenceNumberVector {
-        fn from_iter<T: IntoIterator<Item = i64>>(_iter: T) -> Self {
-            MockSequenceNumberVector
-        }
-    }
-
-    impl IntoIterator for MockSequenceNumberVector {
-        type Item = i64;
-        type IntoIter = MockSequenceNumberVectorIter;
-
-        fn into_iter(self) -> Self::IntoIter {
-            todo!()
-        }
-    }
-
-    impl GapSubmessagePIM<MockPSM> for MockPSM {
+    impl GapSubmessagePIM for MockPSM {
         type GapSubmessageType = MockGapSubmessage;
     }
 

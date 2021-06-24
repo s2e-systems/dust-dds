@@ -1,102 +1,72 @@
-use crate::{
-    behavior::{types::DurationPIM, RTPSWriter},
-    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
-    structure::{
-        types::{
-            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
-            GUIDPIM,
-        },
-        RTPSHistoryCache,
-    },
-};
+use crate::structure::types::{EntityIdPIM, LocatorPIM, SequenceNumberPIM, GUIDPIM};
 
-pub trait RTPSReaderProxy<
-    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM<PSM> + SequenceNumberPIM,
->
-{
-    type SequenceNumberVector; //: IntoIterator<Item = PSM::SequenceNumber>;
+pub trait RTPSReaderProxy<PSM> {
+    type SequenceNumberVector;
 
-    fn remote_reader_guid(&self) -> &PSM::GUIDType;
-    fn remote_group_entity_id(&self) -> &PSM::EntityIdType;
-    fn unicast_locator_list(&self) -> &[PSM::LocatorType];
-    fn multicast_locator_list(&self) -> &[PSM::LocatorType];
+    fn remote_reader_guid(&self) -> &PSM::GUIDType
+    where
+        PSM: GUIDPIM;
+    fn remote_group_entity_id(&self) -> &PSM::EntityIdType
+    where
+        PSM: EntityIdPIM;
+    fn unicast_locator_list(&self) -> &[PSM::LocatorType]
+    where
+        PSM: LocatorPIM;
+    fn multicast_locator_list(&self) -> &[PSM::LocatorType]
+    where
+        PSM: LocatorPIM;
     fn expects_inline_qos(&self) -> bool;
     fn is_active(&self) -> bool;
 
-    fn acked_changes_set(&mut self, committed_seq_num: PSM::SequenceNumberType);
-    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType>;
-    fn next_unsent_change(&mut self) -> Option<PSM::SequenceNumberType>;
+    fn acked_changes_set(&mut self, committed_seq_num: PSM::SequenceNumberType)
+    where
+        PSM: SequenceNumberPIM;
+    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType>
+    where
+        PSM: SequenceNumberPIM;
+    fn next_unsent_change(&mut self) -> Option<PSM::SequenceNumberType>
+    where
+        PSM: SequenceNumberPIM;
     fn unsent_changes(&self) -> Self::SequenceNumberVector;
     fn requested_changes(&self) -> Self::SequenceNumberVector;
     fn requested_changes_set(&mut self, req_seq_num_set: Self::SequenceNumberVector);
     fn unacked_changes(&self) -> Self::SequenceNumberVector;
 }
 
-pub trait RTPSStatefulWriter<
-    PSM: GuidPrefixPIM
-        + EntityIdPIM
-        + LocatorPIM
-        + EntityIdPIM
-        + DurationPIM
-        + SequenceNumberPIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
-        + GUIDPIM<PSM>
-        + InstanceHandlePIM
-        + ParameterIdPIM,
->: RTPSWriter<PSM>
-{
-    type ReaderProxyType: RTPSReaderProxy<PSM>;
+pub trait RTPSStatefulWriter<PSM> {
+    type ReaderProxyType;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType];
 
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType);
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUIDType);
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUIDType)
+    where
+        PSM: GUIDPIM;
 
     fn matched_reader_lookup(
         &self,
         a_reader_guid: &PSM::GUIDType,
-    ) -> Option<&Self::ReaderProxyType>;
+    ) -> Option<&Self::ReaderProxyType>
+    where
+        PSM: GUIDPIM;
 
     fn is_acked_by_all(&self) -> bool;
 }
 
-pub enum DataOrGap {
-    Data(),
-    Gap(),
-}
-
-pub fn can_send<
-    PSM: GuidPrefixPIM
-        + EntityIdPIM
-        + LocatorPIM
-        + EntityIdPIM
-        + DurationPIM
-        + SequenceNumberPIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
-        + GUIDPIM<PSM>
-        + InstanceHandlePIM
-        + ParameterIdPIM,
->(
-    reader_proxy: &mut impl RTPSReaderProxy<PSM>,
-    writer_cache: &impl RTPSHistoryCache<PSM>,
-) -> Option<DataOrGap> {
-    if let Some(seq_num) = reader_proxy.next_unsent_change() {
-        if let Some(_change) = writer_cache.get_change(&seq_num) {
-            todo!()
-        } else {
-            todo!()
-        }
-    } else {
-        None
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{messages::submessage_elements::{ParameterListSubmessageElementType, ParameterType}, structure::types::{GUIDType, LocatorType}};
+    use crate::{
+        behavior::types::DurationPIM,
+        messages::{
+            submessage_elements::{
+                ParameterListSubmessageElementPIM, ParameterListSubmessageElementType,
+                ParameterType,
+            },
+            types::ParameterIdPIM,
+        },
+        structure::types::{DataPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorType},
+    };
 
     use super::*;
 
@@ -118,7 +88,7 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM<Self> for MockPSM {
+    impl GUIDPIM for MockPSM {
         type GUIDType = [u8; 16];
         const GUID_UNKNOWN: Self::GUIDType = [0; 16];
     }
@@ -149,7 +119,7 @@ mod tests {
         type ParameterIdType = ();
     }
 
-    impl ParameterListSubmessageElementPIM<Self> for MockPSM {
+    impl ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
     }
 

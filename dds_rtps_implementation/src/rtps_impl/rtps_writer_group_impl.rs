@@ -4,49 +4,29 @@ use rust_dds_api::{
     publication::publisher_listener::PublisherListener,
     return_type::DDSResult,
 };
-use rust_rtps_pim::{behavior::types::DurationPIM, messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM}, structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
-        GUIDPIM,
-    }};
+use rust_rtps_pim::{
+    behavior::types::DurationPIM,
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::types::{
+        DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM, GUIDPIM,
+    },
+};
 
 use crate::utils::shared_object::RtpsShared;
 
 use super::rtps_writer_impl::RTPSWriterImpl;
 
-pub trait RTPSWriterGroupImplTrait:
-    EntityIdPIM
-    + GuidPrefixPIM
-    + EntityIdPIM
-    + SequenceNumberPIM
-    + DurationPIM
-    + InstanceHandlePIM
-    + LocatorPIM
-    + DataPIM
-    + GUIDPIM<Self>
-    + ParameterIdPIM
-    + ParameterListSubmessageElementPIM<Self>
-    + Sized
+pub struct RTPSWriterGroupImpl<PSM>
+where
+    PSM: GUIDPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
 {
-}
-
-impl<
-        T: EntityIdPIM
-            + GuidPrefixPIM
-            + EntityIdPIM
-            + SequenceNumberPIM
-            + DurationPIM
-            + InstanceHandlePIM
-            + LocatorPIM
-            + DataPIM
-            + GUIDPIM<Self>
-            + ParameterIdPIM
-            + ParameterListSubmessageElementPIM<Self>
-            + Sized,
-    > RTPSWriterGroupImplTrait for T
-{
-}
-
-pub struct RTPSWriterGroupImpl<PSM: RTPSWriterGroupImplTrait> {
     guid: PSM::GUIDType,
     qos: PublisherQos,
     listener: Option<&'static dyn PublisherListener>,
@@ -54,7 +34,17 @@ pub struct RTPSWriterGroupImpl<PSM: RTPSWriterGroupImplTrait> {
     writer_list: Vec<RtpsShared<RTPSWriterImpl<PSM>>>,
 }
 
-impl<PSM: RTPSWriterGroupImplTrait> RTPSWriterGroupImpl<PSM> {
+impl<PSM> RTPSWriterGroupImpl<PSM>
+where
+    PSM: GUIDPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
+{
     pub fn new(
         guid: PSM::GUIDType,
         qos: PublisherQos,
@@ -90,13 +80,28 @@ impl<PSM: RTPSWriterGroupImplTrait> RTPSWriterGroupImpl<PSM> {
     }
 }
 
-impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSGroup<PSM>
-    for RTPSWriterGroupImpl<PSM>
+impl<PSM> rust_rtps_pim::structure::RTPSGroup<PSM> for RTPSWriterGroupImpl<PSM> where
+    PSM: GUIDPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM
 {
 }
 
-impl<PSM: RTPSWriterGroupImplTrait> rust_rtps_pim::structure::RTPSEntity<PSM>
-    for RTPSWriterGroupImpl<PSM>
+impl<PSM> rust_rtps_pim::structure::RTPSEntity<PSM> for RTPSWriterGroupImpl<PSM>
+where
+    PSM: GUIDPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
 {
     fn guid(&self) -> &PSM::GUIDType {
         &self.guid

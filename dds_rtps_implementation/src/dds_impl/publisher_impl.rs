@@ -2,19 +2,28 @@ use std::sync::Mutex;
 
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
+    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::StatusCondition,
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
-        data_writer::DataWriter,
-        data_writer_listener::DataWriterListener,
-        publisher::{DataWriterFactory, PublisherParent},
-        publisher_listener::PublisherListener,
+        data_writer::DataWriter, data_writer_listener::DataWriterListener,
+        publisher::DataWriterFactory, publisher_listener::PublisherListener,
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::structure::{types::GUIDType, RTPSEntity};
+use rust_rtps_pim::{
+    behavior::types::DurationPIM,
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::{
+        types::{
+            DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            SequenceNumberPIM, GUIDPIM,
+        },
+        RTPSEntity,
+    },
+};
 
 use crate::{
     dds_type::DDSType,
@@ -23,8 +32,7 @@ use crate::{
 };
 
 use super::{
-    data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl, writer_factory::WriterFactory, PIM,
+    data_writer_impl::DataWriterImpl, topic_impl::TopicImpl, writer_factory::WriterFactory,
 };
 
 const ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
@@ -32,22 +40,44 @@ const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
 const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
 const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
-pub struct PublisherImpl<'p, PSM: PIM> {
-    participant: &'p DomainParticipantImpl<PSM>,
+pub struct PublisherImpl<'p, PSM>
+where
+    PSM: GUIDPIM
+        + GuidPrefixPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
+{
+    participant: &'p dyn DomainParticipant,
     writer_factory: Mutex<WriterFactory<PSM>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
     rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<PSM>>,
 }
 
-impl<'p, PSM: PIM> PublisherImpl<'p, PSM>
+impl<'p, PSM> PublisherImpl<'p, PSM>
 where
-    PSM::GUIDType: Send,
-    PSM::GuidPrefixType: Copy,
+    PSM: GUIDPIM
+        + GuidPrefixPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
 {
     pub fn new(
-        participant: &'p DomainParticipantImpl<PSM>,
+        participant: &'p dyn DomainParticipant,
         rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
-    ) -> Self {
+    ) -> Self
+    where
+        PSM::GUIDType: GUIDType<PSM>,
+        PSM::GuidPrefixType: Copy,
+    {
         let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
             participant,
@@ -58,40 +88,22 @@ where
     }
 }
 
-impl<'p, PSM: PIM> PublisherParent for PublisherImpl<'p, PSM>
-where
-    PSM::GUIDType: Send + Copy,
-    PSM::SequenceNumberType: Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::DataType: Send,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
-{
-    type DomainParticipantType = DomainParticipantImpl<PSM>;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType {
-        &self.participant
-    }
-}
-
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM> DataWriterFactory<'dw, 't, T>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM> DataWriterFactory<'dw, 't, T>
     for PublisherImpl<'p, PSM>
 where
-    PSM::GUIDType: Send + Copy,
-    PSM::SequenceNumberType: Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::DataType: Send,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
+    PSM: GUIDPIM
+        + GuidPrefixPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM
+        + 'static,
 {
-    type TopicType = TopicImpl<'t, T, PSM>;
-    type DataWriterType = DataWriterImpl<'dw, 'p, 't, T, PSM>;
+    type TopicType = TopicImpl<'t, T>;
+    type DataWriterType = DataWriterImpl<'dw, T, PSM>;
 
     fn create_datawriter(
         &'dw self,
@@ -135,7 +147,18 @@ where
     }
 }
 
-impl<'p, PSM: PIM> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p, PSM> {
+impl<'p, PSM> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p, PSM>
+where
+    PSM: GUIDPIM
+        + GuidPrefixPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
+{
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
@@ -183,9 +206,24 @@ impl<'p, PSM: PIM> rust_dds_api::publication::publisher::Publisher for Publisher
     ) -> DDSResult<()> {
         todo!()
     }
+
+    fn get_participant(&self) -> &dyn DomainParticipant {
+        todo!()
+    }
 }
 
-impl<'p, PSM: PIM> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p, PSM> {
+impl<'p, PSM> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p, PSM>
+where
+    PSM: GUIDPIM
+        + GuidPrefixPIM
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
+{
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 

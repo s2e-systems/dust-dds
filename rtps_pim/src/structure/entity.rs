@@ -1,5 +1,7 @@
-use super::types::{EntityIdPIM, GuidPrefixPIM, GUIDPIM};
+use super::types::GUIDPIM;
 
-pub trait RTPSEntity<PSM: GuidPrefixPIM + EntityIdPIM + GUIDPIM<PSM>> {
-    fn guid(&self) -> &PSM::GUIDType;
+pub trait RTPSEntity<PSM> {
+    fn guid(&self) -> &PSM::GUIDType
+    where
+        PSM: GUIDPIM;
 }

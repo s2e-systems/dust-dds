@@ -1,47 +1,31 @@
 use rust_rtps_pim::{
-    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{
-            DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM,
-        },
+        types::{DataPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM},
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
 
 use super::rtps_cache_change_impl::RTPSCacheChangeImpl;
 
-pub trait RTPSHistoryCacheImplTrait:
-    InstanceHandlePIM
-    + SequenceNumberPIM
-    + DataPIM
-    + ParameterIdPIM
-    + EntityIdPIM
-    + GuidPrefixPIM
-    + GUIDPIM<Self>
-    + ParameterListSubmessageElementPIM<Self>
-    + Sized
+pub struct RTPSHistoryCacheImpl<PSM>
+where
+    PSM: GUIDPIM
+        + InstanceHandlePIM
+        + SequenceNumberPIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
 {
-}
-impl<
-        T: InstanceHandlePIM
-            + SequenceNumberPIM
-            + DataPIM
-            + ParameterIdPIM
-            + EntityIdPIM
-            + GuidPrefixPIM
-            + GUIDPIM<Self>
-            + ParameterListSubmessageElementPIM<Self>
-            + Sized,
-    > RTPSHistoryCacheImplTrait for T
-{
-}
-
-pub struct RTPSHistoryCacheImpl<PSM: RTPSHistoryCacheImplTrait> {
     changes: Vec<RTPSCacheChangeImpl<PSM>>,
 }
 
-impl<PSM: RTPSHistoryCacheImplTrait> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM>
+impl<PSM> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM>
 where
+    PSM: GUIDPIM
+        + InstanceHandlePIM
+        + SequenceNumberPIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM,
     PSM::SequenceNumberType: PartialEq + Ord,
 {
     type CacheChange = RTPSCacheChangeImpl<PSM>;
@@ -141,18 +125,22 @@ mod tests {
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDPIM<Self> for MockPSM {
+    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
 
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM<MockPSM> for MockPSM {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM
+        for MockPSM
+    {
         type ParameterListSubmessageElementType = MockParameterList;
     }
 
     pub struct MockParameterList;
 
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<MockPSM> for MockParameterList {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<MockPSM>
+        for MockParameterList
+    {
         type Parameter = MockParameter;
 
         fn new(_parameter: &[MockParameter]) -> Self {
