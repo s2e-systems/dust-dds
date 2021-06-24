@@ -16,33 +16,61 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::types::GUIDType;
+use rust_rtps_pim::{
+    behavior::types::DurationPIM,
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::types::{
+        DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+        SequenceNumberPIM, GUIDPIM,
+    },
+};
 
 // use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::{
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
-    transport::Transport,
-    utils::{shared_object::RtpsShared},
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, transport::Transport,
+    utils::shared_object::RtpsShared,
 };
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
-    writer_group_factory::WriterGroupFactory, PIM,
+    writer_group_factory::WriterGroupFactory,
 };
 
-pub struct DomainParticipantImpl<PSM: PIM> {
+pub struct DomainParticipantImpl<PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GuidPrefixPIM,
+{
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
     transport: Arc<Mutex<dyn Transport<PSM>>>,
 }
 
-impl<PSM: PIM> DomainParticipantImpl<PSM>
+impl<PSM> DomainParticipantImpl<PSM>
 where
-    PSM::GUIDType: GUIDType<PSM> + Send,
-    PSM::GuidPrefixType: Clone + Copy,
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GuidPrefixPIM
 {
-    pub fn new(guid_prefix: PSM::GuidPrefixType, transport: impl Transport<PSM> + 'static) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefixType, transport: impl Transport<PSM> + 'static) -> Self
+    where
+        PSM::GUIDType: GUIDType<PSM>,
+        PSM::GuidPrefixType: Copy,
+    {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
             rtps_participant_impl: RtpsShared::new(RTPSParticipantImpl::new(guid_prefix)),
@@ -51,18 +79,29 @@ where
     }
 }
 
-impl<'p, PSM: PIM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
+impl<'p, PSM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
     for DomainParticipantImpl<PSM>
 where
-    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone + Copy,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::DataType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GuidPrefixPIM
+        + 'static,
+    PSM::GUIDType: GUIDType<PSM> + Send + Sync,
+    PSM::GuidPrefixType: Clone,
+    PSM::DurationType: Send + Sync,
+    PSM::SequenceNumberType: Send + Sync,
+    PSM::LocatorType: Send + Sync,
+    PSM::EntityIdType: Send + Sync,
+    PSM::InstanceHandleType: Send + Sync,
+    PSM::DataType: Send + Sync,
+    PSM::ParameterListSubmessageElementType: Send + Sync,
+    PSM::GuidPrefixType: Copy + Send + Sync,
 {
     type PublisherType = PublisherImpl<'p, PSM>;
     fn create_publisher(
@@ -97,18 +136,28 @@ where
     }
 }
 
-impl<'s, PSM: PIM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
+impl<'s, PSM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     for DomainParticipantImpl<PSM>
 where
-    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::DataType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GuidPrefixPIM
+        + 'static,
+    PSM::GUIDType: Send + Sync,
+    PSM::DurationType: Send + Sync,
+    PSM::SequenceNumberType: Send + Sync,
+    PSM::LocatorType: Send + Sync,
+    PSM::EntityIdType: Send + Sync,
+    PSM::InstanceHandleType: Send + Sync,
+    PSM::DataType: Send + Sync,
+    PSM::ParameterListSubmessageElementType: Send + Sync,
+    PSM::GuidPrefixType: Send + Sync,
 {
     type SubscriberType = SubscriberImpl<'s, PSM>;
 
@@ -163,20 +212,30 @@ where
     }
 }
 
-impl<'t, T: 'static, PSM: PIM> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
+impl<'t, T: 'static, PSM> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
     for DomainParticipantImpl<PSM>
 where
-    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::DataType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GuidPrefixPIM
+        + 'static,
+    PSM::GUIDType: Send + Sync,
+    PSM::DurationType: Send + Sync,
+    PSM::SequenceNumberType: Send + Sync,
+    PSM::LocatorType: Send + Sync,
+    PSM::EntityIdType: Send + Sync,
+    PSM::InstanceHandleType: Send + Sync,
+    PSM::DataType: Send + Sync,
+    PSM::ParameterListSubmessageElementType: Send + Sync,
+    PSM::GuidPrefixType: Send + Sync,
 {
-    type TopicType = TopicImpl<'t, T, PSM>;
+    type TopicType = TopicImpl<'t, T>;
 
     fn create_topic(
         &'t self,
@@ -197,18 +256,27 @@ where
     }
 }
 
-impl<PSM: PIM> rust_dds_api::domain::domain_participant::DomainParticipant
-    for DomainParticipantImpl<PSM>
+impl<PSM> rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl<PSM>
 where
-    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::DataType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GuidPrefixPIM
+        + 'static,
+    PSM::GUIDType: Send + Sync,
+    PSM::DurationType: Send + Sync,
+    PSM::SequenceNumberType: Send + Sync,
+    PSM::LocatorType: Send + Sync,
+    PSM::EntityIdType: Send + Sync,
+    PSM::InstanceHandleType: Send + Sync,
+    PSM::DataType: Send + Sync,
+    PSM::ParameterListSubmessageElementType: Send + Sync,
+    PSM::GuidPrefixType: Send + Sync,
 {
     fn lookup_topicdescription<'t, T>(
         &'t self,
@@ -316,17 +384,27 @@ where
     }
 }
 
-impl<PSM: PIM> Entity for DomainParticipantImpl<PSM>
+impl<PSM> Entity for DomainParticipantImpl<PSM>
 where
-    PSM::SequenceNumberType: Clone + Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::GUIDType: Send + Copy,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::DataType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GuidPrefixPIM
+        + 'static,
+    PSM::GUIDType: Send + Sync,
+    PSM::DurationType: Send + Sync,
+    PSM::SequenceNumberType: Send + Sync,
+    PSM::LocatorType: Send + Sync,
+    PSM::EntityIdType: Send + Sync,
+    PSM::InstanceHandleType: Send + Sync,
+    PSM::DataType: Send + Sync,
+    PSM::ParameterListSubmessageElementType: Send + Sync,
+    PSM::GuidPrefixType: Send + Sync,
 {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
@@ -367,6 +445,7 @@ where
         std::thread::spawn(move || {
             loop {
                 if let Some(rtps_participant) = rtps_participant.try_lock() {
+                    let writer_group = rtps_participant.writer_groups()[0].lock();
                     todo!()
                     // send_data(
                     //     rtps_participant.as_ref(),

@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
+    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
@@ -9,27 +10,13 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::types::GUIDType;
 
-use super::{domain_participant_impl::DomainParticipantImpl, PIM};
-
-pub struct TopicImpl<'t, T: 'static, PSM: PIM> {
-    participant: &'t DomainParticipantImpl<PSM>,
+pub struct TopicImpl<'t, T> {
+    participant: &'t dyn DomainParticipant,
     phantom: PhantomData<&'t T>,
 }
 
-impl<'t, T: 'static, PSM: PIM> rust_dds_api::topic::topic::Topic<T> for TopicImpl<'t, T, PSM>
-where
-    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
-    PSM::SequenceNumberType: Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::DataType: Send,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
-{
+impl<'t, T: 'static> rust_dds_api::topic::topic::Topic<T> for TopicImpl<'t, T>{
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
@@ -38,18 +25,7 @@ where
     }
 }
 
-impl<'t, T: 'static, PSM: PIM> TopicDescription<T> for TopicImpl<'t, T, PSM>
-where
-    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
-    PSM::SequenceNumberType: Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::DataType: Send,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
-{
+impl<'t, T: 'static> TopicDescription<T> for TopicImpl<'t, T> {
     fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
         self.participant
     }
@@ -77,7 +53,7 @@ where
     }
 }
 
-impl<'t, T: 'static, PSM: PIM> Entity for TopicImpl<'t, T, PSM> {
+impl<'t, T: 'static> Entity for TopicImpl<'t, T> {
     type Qos = TopicQos;
     type Listener = &'static dyn TopicListener<DataPIM = T>;
 

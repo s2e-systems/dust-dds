@@ -1,7 +1,10 @@
 use rust_dds_api::infrastructure::qos::SubscriberQos;
-use rust_rtps_pim::structure::types::{EntityIdPIM, GuidPrefixPIM, GUIDPIM};
+use rust_rtps_pim::structure::types::GUIDPIM;
 
-pub struct RTPSReaderGroupImpl<PSM: EntityIdPIM + GuidPrefixPIM + GUIDPIM<PSM> + Sized> {
+pub struct RTPSReaderGroupImpl<PSM>
+where
+    PSM: GUIDPIM<PSM>,
+{
     guid: PSM::GUIDType,
     qos: SubscriberQos,
 }

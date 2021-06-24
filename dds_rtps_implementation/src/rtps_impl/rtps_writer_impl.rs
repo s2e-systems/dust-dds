@@ -5,10 +5,10 @@ use rust_rtps_pim::{
         types::DurationPIM,
         RTPSWriter,
     },
-    messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
+    messages::{submessage_elements::ParameterListSubmessageElementPIM},
     structure::{
         types::{
-            ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            ChangeKind, DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM,
             ReliabilityKind, SequenceNumberPIM, TopicKind, GUIDPIM,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,

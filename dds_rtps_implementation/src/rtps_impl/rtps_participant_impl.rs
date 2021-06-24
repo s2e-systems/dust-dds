@@ -28,71 +28,37 @@ use crate::{transport::Transport, utils::shared_object::RtpsShared};
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
-pub trait RTPSParticipantImplTrait:
-    GuidPrefixPIM
-    + EntityIdPIM
-    + SequenceNumberPIM
-    + LocatorPIM
-    + VendorIdPIM
-    + DurationPIM
-    + InstanceHandlePIM
-    + DataPIM
-    + ProtocolVersionPIM
-    + ParameterIdPIM
-    + GUIDPIM<Self>
-    + SubmessageKindPIM
-    + ProtocolIdPIM
-    + ParameterListSubmessageElementPIM<Self>
-    + RtpsSubmessageHeaderPIM<Self>
-    + EntityIdSubmessageElementPIM<Self>
-    + SequenceNumberSubmessageElementPIM<Self>
-    + SequenceNumberSetSubmessageElementPIM<Self>
-    + for<'a> DataSubmessagePIM<'a, Self>
-    + GapSubmessagePIM<Self>
-    + RtpsMessageHeaderPIM<Self>
-    + Sized
-    + 'static
+pub struct RTPSParticipantImpl<PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
 {
-}
-
-impl<
-        T: GuidPrefixPIM
-            + EntityIdPIM
-            + SequenceNumberPIM
-            + LocatorPIM
-            + VendorIdPIM
-            + DurationPIM
-            + InstanceHandlePIM
-            + DataPIM
-            + ProtocolVersionPIM
-            + ParameterIdPIM
-            + GUIDPIM<Self>
-            + SubmessageKindPIM
-            + ProtocolIdPIM
-            + ParameterListSubmessageElementPIM<Self>
-            + RtpsSubmessageHeaderPIM<Self>
-            + EntityIdSubmessageElementPIM<Self>
-            + SequenceNumberSubmessageElementPIM<Self>
-            + SequenceNumberSetSubmessageElementPIM<Self>
-            + for<'a> DataSubmessagePIM<'a, Self>
-            + GapSubmessagePIM<Self>
-            + RtpsMessageHeaderPIM<Self>
-            + Sized
-            + 'static,
-    > RTPSParticipantImplTrait for T
-{
-}
-
-pub struct RTPSParticipantImpl<PSM: RTPSParticipantImplTrait> {
     guid: PSM::GUIDType,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
-impl<PSM: RTPSParticipantImplTrait> RTPSParticipantImpl<PSM>
+impl<PSM> RTPSParticipantImpl<PSM>
 where
-    PSM::GUIDType: GUIDType<PSM>,
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + GuidPrefixPIM,
 {
-    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self
+    where
+        PSM::GUIDType: GUIDType<PSM>,
+    {
         let guid = GUIDType::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
 
         Self {
@@ -135,8 +101,19 @@ where
     // }
 }
 
-impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PSM>
-    for RTPSParticipantImpl<PSM>
+impl<PSM> rust_rtps_pim::structure::RTPSParticipant<PSM> for RTPSParticipantImpl<PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>
+        + ProtocolVersionPIM
+        + VendorIdPIM
+        + LocatorPIM,
 {
     fn protocol_version(&self) -> &PSM::ProtocolVersionType {
         todo!()
@@ -155,7 +132,17 @@ impl<PSM: RTPSParticipantImplTrait> rust_rtps_pim::structure::RTPSParticipant<PS
     }
 }
 
-impl<PSM: RTPSParticipantImplTrait> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
+impl<PSM> RTPSEntity<PSM> for RTPSParticipantImpl<PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
+{
     fn guid(&self) -> &PSM::GUIDType {
         &self.guid
     }

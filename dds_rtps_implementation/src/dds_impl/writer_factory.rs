@@ -13,43 +13,18 @@ use rust_rtps_pim::{
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
-pub trait WriterFactoryTrait:
-    GuidPrefixPIM
-    + SequenceNumberPIM
-    + EntityIdPIM
-    + DurationPIM
-    + DataPIM
-    + LocatorPIM
-    + InstanceHandlePIM
-    + ParameterIdPIM
-    + GUIDPIM<Self>
-    + ParameterListSubmessageElementPIM<Self>
-    + Sized
+pub struct WriterFactory<PSM>
+where
+    PSM: GuidPrefixPIM,
 {
-}
-
-impl<
-        T: GuidPrefixPIM
-            + SequenceNumberPIM
-            + EntityIdPIM
-            + DurationPIM
-            + DataPIM
-            + LocatorPIM
-            + InstanceHandlePIM
-            + ParameterIdPIM
-            + GUIDPIM<Self>
-            + ParameterListSubmessageElementPIM<Self>
-            + Sized,
-    > WriterFactoryTrait for T
-{
-}
-
-pub struct WriterFactory<PSM: WriterFactoryTrait> {
     guid_prefix: PSM::GuidPrefixType,
     datawriter_counter: u8,
 }
 
-impl<PSM: WriterFactoryTrait> WriterFactory<PSM> {
+impl<PSM> WriterFactory<PSM>
+where
+    PSM: GuidPrefixPIM,
+{
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {
             guid_prefix,
@@ -62,7 +37,17 @@ impl<PSM: WriterFactoryTrait> WriterFactory<PSM> {
         _qos: DataWriterQos,
         _a_listener: Option<&'a (dyn DataWriterListener<DataPIM = T> + 'a)>,
         _mask: StatusMask,
-    ) -> RTPSWriterImpl<PSM> {
+    ) -> RTPSWriterImpl<PSM>
+    where
+        PSM: GUIDPIM<PSM>
+            + LocatorPIM
+            + DurationPIM
+            + SequenceNumberPIM
+            + EntityIdPIM
+            + InstanceHandlePIM
+            + DataPIM
+            + ParameterListSubmessageElementPIM<PSM>,
+    {
         todo!()
     }
 }

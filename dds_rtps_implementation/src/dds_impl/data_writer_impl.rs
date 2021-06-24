@@ -8,22 +8,48 @@ use rust_dds_api::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
     infrastructure::{entity::StatusCondition, qos::DataWriterQos},
-    publication::data_writer_listener::DataWriterListener,
+    publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     return_type::DDSResult,
+    topic::topic::Topic,
+};
+use rust_rtps_pim::{
+    behavior::types::DurationPIM,
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::types::{
+        DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM, GUIDPIM,
+    },
 };
 
-use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl, PIM};
-
-pub struct DataWriterImpl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM> {
-    publisher: &'dw PublisherImpl<'p, PSM>,
-    topic: &'dw TopicImpl<'t, T, PSM>,
+pub struct DataWriterImpl<'dw, T: 'static, PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
+{
+    publisher: &'dw dyn Publisher,
+    topic: &'dw dyn Topic<T>,
     rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: PIM> DataWriterImpl<'dw, 'p, 't, T, PSM> {
+impl<'dw, T: 'static, PSM> DataWriterImpl<'dw, T, PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
+{
     pub fn new(
-        publisher: &'dw PublisherImpl<'p, PSM>,
-        topic: &'dw TopicImpl<'t, T, PSM>,
+        publisher: &'dw dyn Publisher,
+        topic: &'dw dyn Topic<T>,
         rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
     ) -> Self {
         Self {
@@ -34,19 +60,17 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: PIM> DataWriterImpl<'dw, 
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM>
-    rust_dds_api::publication::data_writer::DataWriterParent
-    for DataWriterImpl<'dw, 'p, 't, T, PSM>
-{
-    type PublisherType = PublisherImpl<'p, PSM>;
-
-    fn get_publisher(&self) -> &Self::PublisherType {
-        self.publisher
-    }
-}
-
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM>
-    rust_dds_api::publication::data_writer::DataWriter<T> for DataWriterImpl<'dw, 'p, 't, T, PSM>
+impl<'dw, T: 'static, PSM> rust_dds_api::publication::data_writer::DataWriter<T>
+    for DataWriterImpl<'dw, T, PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -167,10 +191,27 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM>
     ) -> DDSResult<()> {
         todo!()
     }
+
+    fn get_topic(&self) -> &dyn Topic<T> {
+        todo!()
+    }
+
+    fn get_publisher(&self) -> &dyn Publisher {
+        todo!()
+    }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM>
-    rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, T, PSM>
+impl<'dw, T: 'static, PSM> rust_dds_api::infrastructure::entity::Entity
+    for DataWriterImpl<'dw, T, PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
 {
     type Qos = DataWriterQos;
     type Listener = &'static dyn DataWriterListener<DataPIM = T>;
@@ -212,8 +253,17 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: PIM>
-    rust_dds_api::publication::data_writer::AnyDataWriter for DataWriterImpl<'dw, 'p, 't, T, PSM>
+impl<'dw, T: 'static, PSM> rust_dds_api::publication::data_writer::AnyDataWriter
+    for DataWriterImpl<'dw, T, PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + LocatorPIM
+        + DurationPIM
+        + SequenceNumberPIM
+        + EntityIdPIM
+        + InstanceHandlePIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
 {
 }
 

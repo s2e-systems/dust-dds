@@ -14,38 +14,30 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::structure::types::GUIDType;
+use rust_rtps_pim::structure::types::GUIDPIM;
 
 use crate::{
     rtps_impl::rtps_reader_group_impl::RTPSReaderGroupImpl, utils::shared_object::RtpsWeak,
 };
 
-use super::{
-    data_reader_impl::DataReaderImpl, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl, PIM,
-};
+use super::{data_reader_impl::DataReaderImpl, topic_impl::TopicImpl};
 
-pub struct SubscriberImpl<'s, PSM: PIM> {
-    participant: &'s DomainParticipantImpl<PSM>,
+pub struct SubscriberImpl<'s, PSM>
+where
+    PSM: GUIDPIM<PSM>,
+{
+    participant: &'s dyn DomainParticipant,
     rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl<PSM>>,
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: PIM>
+impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM>
     rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T>
     for SubscriberImpl<'s, PSM>
 where
-    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
-    PSM::SequenceNumberType: Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::DataType: Send,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
+    PSM: GUIDPIM<PSM>,
 {
-    type TopicType = TopicImpl<'t, T, PSM>;
-    type DataReaderType = DataReaderImpl<'dr, 's, 't, T, PSM>;
+    type TopicType = TopicImpl<'t, T>;
+    type DataReaderType = DataReaderImpl<'dr, T>;
 
     fn create_datareader(
         &'dr self,
@@ -69,17 +61,9 @@ where
     }
 }
 
-impl<'s, PSM: PIM> rust_dds_api::subscription::subscriber::Subscriber for SubscriberImpl<'s, PSM>
+impl<'s, PSM> rust_dds_api::subscription::subscriber::Subscriber for SubscriberImpl<'s, PSM>
 where
-    PSM::GUIDType: GUIDType<PSM> + Send + Copy,
-    PSM::SequenceNumberType: Copy + Ord + Send,
-    PSM::GuidPrefixType: Clone,
-    PSM::LocatorType: Clone + PartialEq + Send,
-    PSM::DataType: Send,
-    PSM::DurationType: Send,
-    PSM::EntityIdType: Send,
-    PSM::InstanceHandleType: Send,
-    PSM::ParameterListSubmessageElementType: Clone + Send,
+    PSM: GUIDPIM<PSM>,
 {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
@@ -133,7 +117,10 @@ where
     }
 }
 
-impl<'s, PSM: PIM> Entity for SubscriberImpl<'s, PSM> {
+impl<'s, PSM> Entity for SubscriberImpl<'s, PSM>
+where
+    PSM: GUIDPIM<PSM>,
+{
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 
