@@ -16,7 +16,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::{types::DurationPIM, RTPSWriter},
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{DataPIM, InstanceHandlePIM, LocatorPIM, GUID},
+    structure::types::{DataPIM, InstanceHandlePIM, GUID},
 };
 
 // use rust_rtps_pim::structure::RTPSEntity;
@@ -33,7 +33,7 @@ use super::{
 
 pub struct DomainParticipantImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
@@ -42,7 +42,7 @@ where
 
 impl<PSM> DomainParticipantImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
@@ -59,14 +59,8 @@ where
 impl<'p, PSM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
     for DomainParticipantImpl<PSM>
 where
-    PSM: LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM
-        + 'static,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM + 'static,
     PSM::DurationType: Send + Sync,
-    PSM::LocatorType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
@@ -107,14 +101,8 @@ where
 impl<'s, PSM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     for DomainParticipantImpl<PSM>
 where
-    PSM: LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM
-        + 'static,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM + 'static,
     PSM::DurationType: Send + Sync,
-    PSM::LocatorType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
@@ -175,14 +163,12 @@ where
 impl<'t, T: 'static, PSM> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
     for DomainParticipantImpl<PSM>
 where
-    PSM: LocatorPIM
-        + DurationPIM
+    PSM:  DurationPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
         + 'static,
     PSM::DurationType: Send + Sync,
-    PSM::LocatorType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
@@ -210,15 +196,13 @@ where
 
 impl<PSM> rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl<PSM>
 where
-    PSM: LocatorPIM
-        + DurationPIM
+    PSM:  DurationPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
         + 'static,
     GUID: Send + Sync,
     PSM::DurationType: Send + Sync,
-    PSM::LocatorType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
@@ -332,15 +316,13 @@ where
 
 impl<PSM> Entity for DomainParticipantImpl<PSM>
 where
-    PSM: LocatorPIM
-        + DurationPIM
+    PSM:  DurationPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
         + 'static,
     GUID: Send + Sync,
     PSM::DurationType: Send + Sync,
-    PSM::LocatorType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,

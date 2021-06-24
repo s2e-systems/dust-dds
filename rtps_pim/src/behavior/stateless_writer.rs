@@ -15,18 +15,16 @@ use crate::{
     },
     structure::{
         types::{
-            ChangeKind, DataPIM, InstanceHandlePIM, LocatorPIM, SequenceNumber, ENTITYID_UNKNOWN,
+            ChangeKind, DataPIM, InstanceHandlePIM, Locator, SequenceNumber, ENTITYID_UNKNOWN,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
 
-pub trait RTPSReaderLocator<PSM> {
+pub trait RTPSReaderLocator {
     type SequenceNumberVector;
 
-    fn locator(&self) -> &PSM::LocatorType
-    where
-        PSM: LocatorPIM;
+    fn locator(&self) -> &Locator;
 
     fn expects_inline_qos(&self) -> bool;
 
@@ -51,29 +49,26 @@ pub trait RTPSReaderLocator<PSM> {
     ) -> Self::SequenceNumberVector;
 }
 
-pub trait RTPSStatelessWriter<PSM> {
+pub trait RTPSStatelessWriter {
     type ReaderLocatorPIM;
 
     fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorPIM];
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM);
 
-    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType)
-    where
-        PSM: LocatorPIM;
+    fn reader_locator_remove(&mut self, a_locator: &Locator);
 
     fn unsent_changes_reset(&mut self);
 }
 
 pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
-    reader_locator: &mut impl RTPSReaderLocator<PSM>,
+    reader_locator: &mut impl RTPSReaderLocator,
     last_change_sequence_number: &SequenceNumber,
     writer_cache: &'a HistoryCache,
     mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
     mut send_gap: impl FnMut(<PSM as GapSubmessagePIM>::GapSubmessageType),
 ) where
-    PSM: LocatorPIM
-        + GapSubmessagePIM
+    PSM: GapSubmessagePIM
         + DataSubmessagePIM<'a, PSM>
         + InstanceHandlePIM
         + DataPIM
@@ -145,8 +140,8 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
     }
 }
 
-pub fn reliable_send_unsent_data<PSM: LocatorPIM>(
-    reader_locator: &mut impl RTPSReaderLocator<PSM>,
+pub fn reliable_send_unsent_data(
+    reader_locator: &mut impl RTPSReaderLocator,
     last_change_sequence_number: SequenceNumber,
     mut send: impl FnMut(SequenceNumber),
 ) {
@@ -156,15 +151,14 @@ pub fn reliable_send_unsent_data<PSM: LocatorPIM>(
 }
 
 pub fn reliable_receive_acknack<
-    PSM: LocatorPIM
-        + SubmessageKindPIM
+    PSM:  SubmessageKindPIM
         + CountPIM
         + EntityIdSubmessageElementPIM
         + SequenceNumberSetSubmessageElementPIM
         + CountSubmessageElementPIM
         + RtpsSubmessageHeaderPIM,
 >(
-    _reader_locator: &mut impl RTPSReaderLocator<PSM>,
+    _reader_locator: &mut impl RTPSReaderLocator,
     _acknack: &impl AckNackSubmessage<PSM>,
     _last_change_sequence_number: &SequenceNumber,
 ) {
@@ -173,8 +167,8 @@ pub fn reliable_receive_acknack<
     todo!()
 }
 
-pub fn reliable_after_nack_response_delay<PSM: LocatorPIM>(
-    reader_locator: &mut impl RTPSReaderLocator<PSM>,
+pub fn reliable_after_nack_response_delay(
+    reader_locator: &mut impl RTPSReaderLocator,
     mut send: impl FnMut(SequenceNumber),
 ) {
     while let Some(seq_num) = reader_locator.next_requested_change() {
@@ -191,48 +185,11 @@ mod tests {
                 SerializedDataSubmessageElementType,
             },
             RtpsSubmessageHeaderType, Submessage,
-        }, structure::{RTPSCacheChange, RTPSHistoryCache, types::{GUID, GUID_UNKNOWN, LocatorType}}};
+        }, structure::{RTPSCacheChange, RTPSHistoryCache, types::{GUID, GUID_UNKNOWN, LOCATOR_INVALID, Locator}}};
 
     use super::*;
 
-    #[derive(Clone, Copy, PartialEq)]
-    struct MockGUID;
-
-    // impl GUIDType for [u8; 16] {
-    //     fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
-    //         todo!()
-    //     }
-
-    //     fn prefix(&self) -> &[u8; 12] {
-    //         todo!()
-    //     }
-
-    //     fn entity_id(&self) -> &[u8; 4] {
-    //         &MockPSM::ENTITYID_UNKNOWN
-    //     }
-    // }
-    #[derive(Clone, Copy, PartialEq)]
-    struct MockLocator;
-
-    impl LocatorType for MockLocator {
-        type LocatorKind = [u8; 4];
-
-        type LocatorPort = [u8; 4];
-
-        type LocatorAddress = [u8; 16];
-
-        fn kind(&self) -> &Self::LocatorKind {
-            todo!()
-        }
-
-        fn port(&self) -> &Self::LocatorPort {
-            todo!()
-        }
-
-        fn address(&self) -> &Self::LocatorAddress {
-            todo!()
-        }
-    }
+    
 
     #[derive(Clone)]
     struct MockParameterList;
@@ -263,21 +220,7 @@ mod tests {
         type InstanceHandleType = ();
     }
 
-    impl LocatorPIM for MockPSM {
-        type LocatorType = MockLocator;
-
-        const LOCATOR_INVALID: Self::LocatorType = MockLocator;
-        const LOCATOR_KIND_INVALID: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
-        const LOCATOR_KIND_RESERVED: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
-
-        const LOCATOR_PORT_INVALID: <Self::LocatorType as LocatorType>::LocatorPort = [0; 4];
-
-        const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as LocatorType>::LocatorAddress = [0; 16];
-    }
+   
 
     impl SubmessageKindPIM for MockPSM {
         type SubmessageKindType = u8;
@@ -495,11 +438,11 @@ mod tests {
         last_sent_sequence_number: i64,
     }
 
-    impl<'a> RTPSReaderLocator<MockPSM> for MockReaderLocator {
+    impl<'a> RTPSReaderLocator for MockReaderLocator {
         type SequenceNumberVector = Option<i64>;
 
-        fn locator(&self) -> &MockLocator {
-            &MockLocator
+        fn locator(&self) -> &Locator {
+            &LOCATOR_INVALID
         }
 
         fn expects_inline_qos(&self) -> bool {

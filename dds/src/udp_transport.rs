@@ -1,5 +1,5 @@
 use rust_dds_rtps_implementation::transport::Transport;
-use rust_rtps_pim::{messages::{RTPSMessage, RTPSMessagePIM}, structure::types::LocatorPIM};
+use rust_rtps_pim::{messages::{RTPSMessage, RTPSMessagePIM}, structure::types::Locator};
 use rust_rtps_udp_psm::RtpsUdpPsm;
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
 
@@ -19,7 +19,7 @@ impl Transport<RtpsUdpPsm> for UdpTransport {
     fn write<'a>(
         &mut self,
         _message: &<RtpsUdpPsm as RTPSMessagePIM<'a, RtpsUdpPsm>>::RTPSMessageType,
-        _destination_locator: &<RtpsUdpPsm as LocatorPIM>::LocatorType,
+        _destination_locator: &Locator,
     ) where
         RtpsUdpPsm: rust_rtps_pim::messages::RTPSMessagePIM<'a, RtpsUdpPsm>,
     {
@@ -30,7 +30,7 @@ impl Transport<RtpsUdpPsm> for UdpTransport {
         &self,
     ) -> Option<(
         <RtpsUdpPsm as RTPSMessagePIM<'a, RtpsUdpPsm>>::RTPSMessageType,
-        <RtpsUdpPsm as LocatorPIM>::LocatorType,
+        Locator,
     )>
     where
         RtpsUdpPsm: RTPSMessagePIM<'a, RtpsUdpPsm>,
@@ -38,11 +38,11 @@ impl Transport<RtpsUdpPsm> for UdpTransport {
         todo!()
     }
 
-    fn unicast_locator_list(&self) -> &[<RtpsUdpPsm as LocatorPIM>::LocatorType] {
+    fn unicast_locator_list(&self) -> &[Locator] {
         todo!()
     }
 
-    fn multicast_locator_list(&self) -> &[<RtpsUdpPsm as LocatorPIM>::LocatorType] {
+    fn multicast_locator_list(&self) -> &[Locator] {
         todo!()
     }
 }

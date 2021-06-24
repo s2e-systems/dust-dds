@@ -7,7 +7,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{DataPIM, InstanceHandlePIM, LocatorPIM, GUID},
+    structure::types::{DataPIM, InstanceHandlePIM, GUID},
 };
 
 use crate::utils::shared_object::RtpsShared;
@@ -16,7 +16,7 @@ use super::rtps_writer_impl::RTPSWriterImpl;
 
 pub struct RTPSWriterGroupImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     guid: GUID,
     qos: PublisherQos,
@@ -27,11 +27,7 @@ where
 
 impl<PSM> RTPSWriterGroupImpl<PSM>
 where
-    PSM: LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         guid: GUID,
@@ -69,21 +65,13 @@ where
 }
 
 impl<PSM> rust_rtps_pim::structure::RTPSGroup<PSM> for RTPSWriterGroupImpl<PSM> where
-    PSM:  LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM
 {
 }
 
 impl<PSM> rust_rtps_pim::structure::RTPSEntity for RTPSWriterGroupImpl<PSM>
 where
-    PSM:  LocatorPIM
-        + DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     fn guid(&self) -> &GUID {
         &self.guid

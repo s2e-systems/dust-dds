@@ -25,41 +25,13 @@ use rust_rtps_pim::{
         },
         RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
-    structure::types::{
-        DataPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM,
-    },
+    structure::types::{DataPIM, InstanceHandlePIM, ProtocolVersionPIM, VendorIdPIM},
 };
 
 pub mod submessages;
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsUdpPsm;
-
-
-impl LocatorPIM for RtpsUdpPsm {
-    type LocatorType = Locator;
-
-    const LOCATOR_INVALID: Self::LocatorType = Locator {
-        kind: Self::LOCATOR_KIND_INVALID,
-        port: Self::LOCATOR_PORT_INVALID,
-        address: Self::LOCATOR_ADDRESS_INVALID,
-    };
-    const LOCATOR_KIND_INVALID:
-        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(-1);
-    const LOCATOR_KIND_RESERVED:
-        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(0);
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4:
-        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(1);
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6:
-        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind = Long(2);
-    const LOCATOR_ADDRESS_INVALID:
-        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress =
-        [0; 16];
-    const LOCATOR_PORT_INVALID:
-        <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort = ULong(0);
-}
 
 impl InstanceHandlePIM for RtpsUdpPsm {
     type InstanceHandleType = InstanceHandle;
@@ -415,31 +387,6 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageEleme
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct Locator {
-    pub kind: Long,
-    pub port: ULong,
-    pub address: [u8; 16],
-}
-
-impl rust_rtps_pim::structure::types::LocatorType for Locator {
-    type LocatorKind = Long;
-    type LocatorPort = ULong;
-    type LocatorAddress = [u8; 16];
-
-    fn kind(&self) -> &Self::LocatorKind {
-        &self.kind
-    }
-
-    fn port(&self) -> &Self::LocatorPort {
-        &self.port
-    }
-
-    fn address(&self) -> &Self::LocatorAddress {
-        &self.address
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct SequenceNumberSet {
     base: rust_rtps_pim::structure::types::SequenceNumber,
@@ -724,11 +671,13 @@ impl Into<u32> for FragmentNumber {
 
 pub struct FragmentNumberSet(Vec<FragmentNumber>);
 
-impl
-    rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElementType
+impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElementType
     for FragmentNumberSet
 {
-    fn new(_base: &rust_rtps_pim::messages::types::FragmentNumber, _set: &[rust_rtps_pim::messages::types::FragmentNumber]) -> Self {
+    fn new(
+        _base: &rust_rtps_pim::messages::types::FragmentNumber,
+        _set: &[rust_rtps_pim::messages::types::FragmentNumber],
+    ) -> Self {
         todo!()
     }
 
@@ -935,17 +884,17 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElemen
     }
 }
 
-pub struct LocatorList(Vec<Locator>);
+pub struct LocatorList(Vec<rust_rtps_pim::structure::types::Locator>);
 
-impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementType<RtpsUdpPsm>
+impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementType
     for LocatorList
 {
-    fn new(_value: &[Locator]) -> Self {
+    fn new(_value: &[rust_rtps_pim::structure::types::Locator]) -> Self {
         // Self(value)
         todo!()
     }
 
-    fn value(&self) -> &[Locator] {
+    fn value(&self) -> &[rust_rtps_pim::structure::types::Locator] {
         &self.0
     }
 }

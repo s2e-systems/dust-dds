@@ -7,7 +7,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{DataPIM, InstanceHandlePIM, LocatorPIM},
+    structure::types::{DataPIM, InstanceHandlePIM},
 };
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
@@ -34,11 +34,7 @@ impl<PSM> WriterFactory<PSM> {
         _mask: StatusMask,
     ) -> RTPSWriterImpl<PSM>
     where
-        PSM: LocatorPIM
-            + DurationPIM
-            + InstanceHandlePIM
-            + DataPIM
-            + ParameterListSubmessageElementPIM,
+        PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
     {
         todo!()
     }

@@ -13,12 +13,12 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{DataPIM, InstanceHandlePIM, LocatorPIM},
+    structure::types::{DataPIM, InstanceHandlePIM},
 };
 
 pub struct DataWriterImpl<'dw, T: 'static, PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     publisher: &'dw dyn Publisher,
     topic: &'dw dyn Topic<T>,
@@ -27,7 +27,7 @@ where
 
 impl<'dw, T: 'static, PSM> DataWriterImpl<'dw, T, PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         publisher: &'dw dyn Publisher,
@@ -45,7 +45,7 @@ where
 impl<'dw, T: 'static, PSM> rust_dds_api::publication::data_writer::DataWriter<T>
     for DataWriterImpl<'dw, T, PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -179,7 +179,7 @@ where
 impl<'dw, T: 'static, PSM> rust_dds_api::infrastructure::entity::Entity
     for DataWriterImpl<'dw, T, PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     type Qos = DataWriterQos;
     type Listener = &'static dyn DataWriterListener<DataPIM = T>;
@@ -224,7 +224,7 @@ where
 impl<'dw, T: 'static, PSM> rust_dds_api::publication::data_writer::AnyDataWriter
     for DataWriterImpl<'dw, T, PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
 }
 

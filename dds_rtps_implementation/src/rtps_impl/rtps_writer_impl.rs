@@ -8,7 +8,7 @@ use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{
-            ChangeKind, DataPIM, InstanceHandlePIM, LocatorPIM, ReliabilityKind, SequenceNumber,
+            ChangeKind, DataPIM, InstanceHandlePIM, Locator, ReliabilityKind, SequenceNumber,
             TopicKind, GUID,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
@@ -22,35 +22,35 @@ use super::{
 
 pub struct RTPSWriterImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     guid: GUID,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
     push_mode: bool,
-    unicast_locator_list: Vec<PSM::LocatorType>,
-    multicast_locator_list: Vec<PSM::LocatorType>,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
     heartbeat_period: PSM::DurationType,
     nack_response_delay: PSM::DurationType,
     nack_suppression_duration: PSM::DurationType,
     last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: i32,
-    reader_locators: Vec<RTPSReaderLocatorImpl<PSM>>,
-    matched_readers: Vec<RTPSReaderProxyImpl<PSM>>,
+    reader_locators: Vec<RTPSReaderLocatorImpl>,
+    matched_readers: Vec<RTPSReaderProxyImpl>,
     writer_cache: RTPSHistoryCacheImpl<PSM>,
 }
 
 impl<PSM> RTPSWriterImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         push_mode: bool,
-        unicast_locator_list: Vec<PSM::LocatorType>,
-        multicast_locator_list: Vec<PSM::LocatorType>,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         heartbeat_period: PSM::DurationType,
         nack_response_delay: PSM::DurationType,
         nack_suppression_duration: PSM::DurationType,
@@ -81,7 +81,7 @@ where
         &mut self,
     ) -> (
         &RTPSHistoryCacheImpl<PSM>,
-        &mut Vec<RTPSReaderLocatorImpl<PSM>>,
+        &mut Vec<RTPSReaderLocatorImpl>,
     ) {
         (&self.writer_cache, &mut self.reader_locators)
     }
@@ -89,7 +89,7 @@ where
 
 impl<PSM> RTPSEntity for RTPSWriterImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     fn guid(&self) -> &GUID {
         &self.guid
@@ -98,7 +98,7 @@ where
 
 impl<PSM> RTPSWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
     SequenceNumber: Ord + Copy,
     GUID: Copy,
 {
@@ -159,9 +159,9 @@ where
     }
 }
 
-impl<PSM> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM>
+impl<PSM> RTPSEndpoint for RTPSWriterImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM:  DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
@@ -171,21 +171,21 @@ where
         &self.reliability_level
     }
 
-    fn unicast_locator_list(&self) -> &[PSM::LocatorType] {
+    fn unicast_locator_list(&self) -> &[Locator] {
         &self.unicast_locator_list
     }
 
-    fn multicast_locator_list(&self) -> &[PSM::LocatorType] {
+    fn multicast_locator_list(&self) -> &[Locator] {
         &self.multicast_locator_list
     }
 }
 
-impl<PSM> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM>
+impl<PSM> RTPSStatelessWriter for RTPSWriterImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
-    PSM::LocatorType: PartialEq,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    Locator: PartialEq,
 {
-    type ReaderLocatorPIM = RTPSReaderLocatorImpl<PSM>;
+    type ReaderLocatorPIM = RTPSReaderLocatorImpl;
 
     fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorPIM] {
         &mut self.reader_locators
@@ -195,7 +195,7 @@ where
         self.reader_locators.push(a_locator)
     }
 
-    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType) {
+    fn reader_locator_remove(&mut self, a_locator: &Locator) {
         self.reader_locators.retain(|x| x.locator() != a_locator)
     }
 
@@ -206,12 +206,9 @@ where
 
 impl<PSM> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
-    GUID: PartialEq,
-    // SequenceNumber: Ord + Copy,
-    // GUID: Copy,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
-    type ReaderProxyType = RTPSReaderProxyImpl<PSM>;
+    type ReaderProxyType = RTPSReaderProxyImpl;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType] {
         &self.matched_readers
@@ -296,55 +293,6 @@ mod tests {
         type DurationType = i64;
     }
 
-    #[derive(Clone, Copy, PartialEq)]
-    pub struct MockLocator(u8);
-
-    impl rust_rtps_pim::structure::types::LocatorType for MockLocator {
-        type LocatorKind = [u8; 4];
-
-        type LocatorPort = [u8; 4];
-
-        type LocatorAddress = [u8; 16];
-
-        fn kind(&self) -> &Self::LocatorKind {
-            todo!()
-        }
-
-        fn port(&self) -> &Self::LocatorPort {
-            todo!()
-        }
-
-        fn address(&self) -> &Self::LocatorAddress {
-            todo!()
-        }
-    }
-
-    impl rust_rtps_pim::structure::types::LocatorPIM for MockPSM {
-        type LocatorType = MockLocator;
-
-        const LOCATOR_INVALID: Self::LocatorType = MockLocator(0);
-        const LOCATOR_KIND_INVALID:
-            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
-            [0; 4];
-        const LOCATOR_KIND_RESERVED:
-            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
-            [1; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4:
-            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
-            [2; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6:
-            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
-            [3; 4];
-        const LOCATOR_PORT_INVALID:
-            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort =
-            [0; 4];
-        const LOCATOR_ADDRESS_INVALID:
-            <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress =
-            [0; 16];
-    }
-
     #[test]
     fn new_change() {
         let push_mode = true;
@@ -398,8 +346,8 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        let reader_locator1 = RTPSReaderLocatorImpl::new(MockLocator(1), false);
-        let reader_locator2 = RTPSReaderLocatorImpl::new(MockLocator(2), false);
+        let reader_locator1 = RTPSReaderLocatorImpl::new(Locator::new([1;4],[1;4], [1;16]), false);
+        let reader_locator2 = RTPSReaderLocatorImpl::new(Locator::new([2;4],[2;4], [2;16]), false);
         writer.reader_locator_add(reader_locator1);
         writer.reader_locator_add(reader_locator2);
 
@@ -430,11 +378,11 @@ mod tests {
             data_max_size_serialized,
         );
 
-        let reader_locator1 = RTPSReaderLocatorImpl::new(MockLocator(1), false);
-        let reader_locator2 = RTPSReaderLocatorImpl::new(MockLocator(2), false);
+        let reader_locator1 = RTPSReaderLocatorImpl::new(Locator::new([1;4],[1;4], [1;16]), false);
+        let reader_locator2 = RTPSReaderLocatorImpl::new(Locator::new([2;4],[2;4], [2;16]), false);
         writer.reader_locator_add(reader_locator1);
         writer.reader_locator_add(reader_locator2);
-        writer.reader_locator_remove(&MockLocator(1));
+        writer.reader_locator_remove(&Locator::new([1;4],[1;4], [1;16]));
 
         assert_eq!(writer.reader_locators().len(), 1)
     }

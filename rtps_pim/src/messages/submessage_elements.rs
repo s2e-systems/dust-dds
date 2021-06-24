@@ -3,7 +3,7 @@
 /// 8.3.5 RTPS SubmessageElements
 ///
 use crate::structure::types::{
-    EntityId, GuidPrefix, LocatorPIM, ProtocolVersionPIM, SequenceNumber, VendorIdPIM,
+    EntityId, GuidPrefix, Locator, ProtocolVersionPIM, SequenceNumber, VendorIdPIM,
 };
 
 use super::types::{CountPIM, FragmentNumber, GroupDigestPIM, ParameterIdPIM, TimePIM};
@@ -157,9 +157,9 @@ pub trait LocatorListSubmessageElementPIM {
     type LocatorListSubmessageElementType;
 }
 
-pub trait LocatorListSubmessageElementType<PSM: LocatorPIM> {
-    fn new(value: &[PSM::LocatorType]) -> Self;
-    fn value(&self) -> &[PSM::LocatorType];
+pub trait LocatorListSubmessageElementType {
+    fn new(value: &[Locator]) -> Self;
+    fn value(&self) -> &[Locator];
 }
 
 pub trait SerializedDataSubmessageElementPIM<'a> {

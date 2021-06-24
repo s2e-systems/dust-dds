@@ -1,16 +1,12 @@
-use crate::structure::types::{EntityId, LocatorPIM, SequenceNumber, GUID};
+use crate::structure::types::{EntityId, Locator, SequenceNumber, GUID};
 
-pub trait RTPSReaderProxy<PSM> {
+pub trait RTPSReaderProxy {
     type SequenceNumberVector;
 
     fn remote_reader_guid(&self) -> &GUID;
     fn remote_group_entity_id(&self) -> &EntityId;
-    fn unicast_locator_list(&self) -> &[PSM::LocatorType]
-    where
-        PSM: LocatorPIM;
-    fn multicast_locator_list(&self) -> &[PSM::LocatorType]
-    where
-        PSM: LocatorPIM;
+    fn unicast_locator_list(&self) -> &[Locator];
+    fn multicast_locator_list(&self) -> &[Locator];
     fn expects_inline_qos(&self) -> bool;
     fn is_active(&self) -> bool;
 
@@ -32,10 +28,7 @@ pub trait RTPSStatefulWriter<PSM> {
 
     fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID);
 
-    fn matched_reader_lookup(
-        &self,
-        a_reader_guid: &GUID,
-    ) -> Option<&Self::ReaderProxyType>;
+    fn matched_reader_lookup(&self, a_reader_guid: &GUID) -> Option<&Self::ReaderProxyType>;
 
     fn is_acked_by_all(&self) -> bool;
 }
@@ -51,26 +44,12 @@ mod tests {
             },
             types::ParameterIdPIM,
         },
-        structure::types::{DataPIM, InstanceHandlePIM, LocatorType},
+        structure::types::{DataPIM, InstanceHandlePIM},
     };
 
     use super::*;
 
     struct MockPSM;
-
-    impl LocatorPIM for MockPSM {
-        type LocatorType = MockLocator;
-
-        const LOCATOR_INVALID: Self::LocatorType = MockLocator;
-        const LOCATOR_KIND_INVALID: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
-        const LOCATOR_KIND_RESERVED: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: <Self::LocatorType as LocatorType>::LocatorKind = [0; 4];
-        const LOCATOR_PORT_INVALID: <Self::LocatorType as LocatorType>::LocatorPort = [0; 4];
-        const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as LocatorType>::LocatorAddress = [0; 16];
-    }
 
     impl DurationPIM for MockPSM {
         type DurationType = i64;
@@ -90,30 +69,6 @@ mod tests {
 
     impl InstanceHandlePIM for MockPSM {
         type InstanceHandleType = ();
-    }
-
-
-    #[derive(Clone, Copy, PartialEq)]
-    struct MockLocator;
-
-    impl LocatorType for MockLocator {
-        type LocatorKind = [u8; 4];
-
-        type LocatorPort = [u8; 4];
-
-        type LocatorAddress = [u8; 16];
-
-        fn kind(&self) -> &Self::LocatorKind {
-            todo!()
-        }
-
-        fn port(&self) -> &Self::LocatorPort {
-            todo!()
-        }
-
-        fn address(&self) -> &Self::LocatorAddress {
-            todo!()
-        }
     }
 
     struct MockParameterList;
@@ -148,7 +103,7 @@ mod tests {
 
     struct MockReaderProxy;
 
-    impl RTPSReaderProxy<MockPSM> for MockReaderProxy {
+    impl RTPSReaderProxy for MockReaderProxy {
         type SequenceNumberVector = [i64; 2];
 
         fn remote_reader_guid(&self) -> &GUID {
@@ -159,11 +114,11 @@ mod tests {
             todo!()
         }
 
-        fn unicast_locator_list(&self) -> &[MockLocator] {
+        fn unicast_locator_list(&self) -> &[Locator] {
             todo!()
         }
 
-        fn multicast_locator_list(&self) -> &[MockLocator] {
+        fn multicast_locator_list(&self) -> &[Locator] {
             todo!()
         }
 

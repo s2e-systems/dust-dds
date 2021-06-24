@@ -13,31 +13,48 @@ pub const ENTITYID_PARTICIPANT: EntityId = [0, 0, 0x01, 0xc1];
 pub type SequenceNumber = i64;
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
 
-pub trait LocatorPIM {
-    type LocatorType: LocatorType;
+type LocatorKind = [u8; 4];
+pub const LOCATOR_KIND_INVALID: LocatorKind = [0xff, 0xff, 0xff, 0xff];
+pub const LOCATOR_KIND_RESERVED: LocatorKind = [0; 4];
+#[allow(non_upper_case_globals)]
+pub const LOCATOR_KIND_UDPv4: LocatorKind = [0, 0, 0, 1];
+#[allow(non_upper_case_globals)]
+pub const LOCATOR_KIND_UDPv6: LocatorKind = [0, 0, 0, 2];
+type LocatorPort = [u8; 4];
+pub const LOCATOR_PORT_INVALID: LocatorPort = [0; 4];
+type LocatorAddress = [u8; 16];
+pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = [0; 16];
 
-    const LOCATOR_INVALID: Self::LocatorType;
-
-    const LOCATOR_KIND_INVALID: <Self::LocatorType as LocatorType>::LocatorKind;
-    const LOCATOR_KIND_RESERVED: <Self::LocatorType as LocatorType>::LocatorKind;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4: <Self::LocatorType as LocatorType>::LocatorKind;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6: <Self::LocatorType as LocatorType>::LocatorKind;
-
-    const LOCATOR_PORT_INVALID: <Self::LocatorType as LocatorType>::LocatorPort;
-
-    const LOCATOR_ADDRESS_INVALID: <Self::LocatorType as LocatorType>::LocatorAddress;
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct Locator {
+    kind: LocatorKind,
+    port: LocatorPort,
+    address: LocatorAddress,
 }
 
-pub trait LocatorType {
-    type LocatorKind: Into<[u8; 4]> + From<[u8; 4]>;
-    type LocatorPort: Into<[u8; 4]> + From<[u8; 4]>;
-    type LocatorAddress: Into<[u8; 16]> + From<[u8; 16]>;
+pub const LOCATOR_INVALID: Locator = Locator {
+    kind: LOCATOR_KIND_INVALID,
+    port: LOCATOR_PORT_INVALID,
+    address: LOCATOR_ADDRESS_INVALID,
+};
 
-    fn kind(&self) -> &Self::LocatorKind;
-    fn port(&self) -> &Self::LocatorPort;
-    fn address(&self) -> &Self::LocatorAddress;
+impl Locator {
+    pub fn new(kind: LocatorKind, port: LocatorPort, address: LocatorAddress) -> Self {
+        Self {
+            kind,
+            port,
+            address,
+        }
+    }
+    pub fn kind(&self) -> &LocatorKind {
+        &self.kind
+    }
+    pub fn port(&self) -> &LocatorPort {
+        &self.port
+    }
+    pub fn address(&self) -> &LocatorAddress {
+        &self.address
+    }
 }
 
 pub trait InstanceHandlePIM {
@@ -79,10 +96,7 @@ pub const GUID_UNKNOWN: GUID = GUID {
 
 impl GUID {
     pub fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self {
-        Self {
-            prefix,
-            entity_id,
-        }
+        Self { prefix, entity_id }
     }
 
     pub fn prefix(&self) -> &GuidPrefix {
@@ -94,13 +108,13 @@ impl GUID {
     }
 }
 
-impl From<[u8;16]> for GUID {
-    fn from(_: [u8;16]) -> Self {
+impl From<[u8; 16]> for GUID {
+    fn from(_: [u8; 16]) -> Self {
         todo!()
     }
 }
 
-impl From<GUID> for [u8;16] {
+impl From<GUID> for [u8; 16] {
     fn from(_: GUID) -> Self {
         todo!()
     }

@@ -1,27 +1,21 @@
-use rust_rtps_pim::structure::types::{EntityId, LocatorPIM, SequenceNumber, GUID};
+use rust_rtps_pim::structure::types::{EntityId, Locator, SequenceNumber, GUID};
 
-pub struct RTPSReaderProxyImpl<PSM>
-where
-    PSM: LocatorPIM,
-{
+pub struct RTPSReaderProxyImpl {
     remote_reader_guid: GUID,
     remote_group_entity_id: EntityId,
-    unicast_locator_list: Vec<PSM::LocatorType>,
-    multicast_locator_list: Vec<PSM::LocatorType>,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
     expects_inline_qos: bool,
     is_active: bool,
     last_sent_sequence_number: SequenceNumber,
 }
 
-impl<PSM> RTPSReaderProxyImpl<PSM>
-where
-    PSM: LocatorPIM,
-{
+impl RTPSReaderProxyImpl {
     pub fn new(
         remote_reader_guid: GUID,
         remote_group_entity_id: EntityId,
-        unicast_locator_list: Vec<PSM::LocatorType>,
-        multicast_locator_list: Vec<PSM::LocatorType>,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
         is_active: bool,
     ) -> Self {
@@ -37,11 +31,7 @@ where
     }
 }
 
-impl<PSM> rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>
-    for RTPSReaderProxyImpl<PSM>
-where
-    PSM: LocatorPIM,
-{
+impl rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy for RTPSReaderProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
 
     fn remote_reader_guid(&self) -> &GUID {
@@ -52,11 +42,11 @@ where
         &self.remote_group_entity_id
     }
 
-    fn unicast_locator_list(&self) -> &[PSM::LocatorType] {
+    fn unicast_locator_list(&self) -> &[Locator] {
         &self.unicast_locator_list
     }
 
-    fn multicast_locator_list(&self) -> &[PSM::LocatorType] {
+    fn multicast_locator_list(&self) -> &[Locator] {
         &self.multicast_locator_list
     }
 

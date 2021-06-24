@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{DataPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM, GUID},
+        types::{DataPIM, InstanceHandlePIM, Locator, ProtocolVersionPIM, VendorIdPIM, GUID},
         RTPSEntity,
     },
 };
@@ -14,7 +14,7 @@ use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 pub struct RTPSParticipantImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     guid: GUID,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
@@ -22,7 +22,7 @@ where
 
 impl<PSM> RTPSParticipantImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         let guid = GUID::new(
@@ -72,14 +72,12 @@ where
 
 impl<PSM> rust_rtps_pim::structure::RTPSParticipant<PSM> for RTPSParticipantImpl<PSM>
 where
-    PSM: LocatorPIM
-        + DurationPIM
+    PSM: DurationPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
         + ProtocolVersionPIM
-        + VendorIdPIM
-        + LocatorPIM,
+        + VendorIdPIM,
 {
     fn protocol_version(&self) -> &PSM::ProtocolVersionType {
         todo!()
@@ -89,18 +87,18 @@ where
         todo!()
     }
 
-    fn default_unicast_locator_list(&self) -> &[PSM::LocatorType] {
+    fn default_unicast_locator_list(&self) -> &[Locator] {
         todo!()
     }
 
-    fn default_multicast_locator_list(&self) -> &[PSM::LocatorType] {
+    fn default_multicast_locator_list(&self) -> &[Locator] {
         todo!()
     }
 }
 
 impl<PSM> RTPSEntity for RTPSParticipantImpl<PSM>
 where
-    PSM: LocatorPIM + DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
 {
     fn guid(&self) -> &GUID {
         &self.guid
