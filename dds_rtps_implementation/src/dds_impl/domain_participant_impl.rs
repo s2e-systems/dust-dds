@@ -14,7 +14,7 @@ use rust_dds_api::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::{
-    behavior::types::DurationPIM,
+    behavior::{types::DurationPIM, RTPSWriter},
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::types::{
         DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
@@ -99,6 +99,8 @@ where
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GuidPrefixType: Copy + Send + Sync,
+    PSM::GUIDType: Copy,
+    PSM::SequenceNumberType: Ord + Copy,
 {
     type PublisherType = PublisherImpl<'p, PSM>;
     fn create_publisher(
@@ -155,6 +157,8 @@ where
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GuidPrefixType: Send + Sync,
+    PSM::GUIDType: Copy,
+    PSM::SequenceNumberType: Ord + Copy,
 {
     type SubscriberType = SubscriberImpl<'s, PSM>;
 
@@ -231,6 +235,8 @@ where
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GuidPrefixType: Send + Sync,
+    PSM::GUIDType: Copy,
+    PSM::SequenceNumberType: Ord + Copy,
 {
     type TopicType = TopicImpl<'t, T>;
 
@@ -274,6 +280,8 @@ where
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GuidPrefixType: Send + Sync,
+    PSM::GUIDType: Copy,
+    PSM::SequenceNumberType: Ord + Copy,
 {
     fn lookup_topicdescription<'t, T>(
         &'t self,
@@ -402,6 +410,8 @@ where
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GuidPrefixType: Send + Sync,
+    PSM::GUIDType: Copy,
+    PSM::SequenceNumberType: Ord + Copy,
 {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
@@ -443,6 +453,9 @@ where
             loop {
                 if let Some(rtps_participant) = rtps_participant.try_lock() {
                     let writer_group = rtps_participant.writer_groups()[0].lock();
+                    let mut writer = writer_group.writer_list()[0].lock();
+                    let last_change_sequence_number = *writer.last_change_sequence_number();
+                    let (writer_cache, reader_locators) = writer.writer_cache_and_reader_locators();
                     todo!()
                     // send_data(
                     //     rtps_participant.as_ref(),
