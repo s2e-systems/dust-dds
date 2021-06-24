@@ -32,8 +32,7 @@ use crate::{
 };
 
 use super::{
-    data_writer_impl::DataWriterImpl,
-    topic_impl::TopicImpl, writer_factory::WriterFactory,
+    data_writer_impl::DataWriterImpl, topic_impl::TopicImpl, writer_factory::WriterFactory,
 };
 
 const ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;

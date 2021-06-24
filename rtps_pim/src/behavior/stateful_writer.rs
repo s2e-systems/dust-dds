@@ -56,7 +56,17 @@ pub trait RTPSStatefulWriter<PSM> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{behavior::types::DurationPIM, messages::{submessage_elements::{ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ParameterType}, types::ParameterIdPIM}, structure::types::{DataPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorType}};
+    use crate::{
+        behavior::types::DurationPIM,
+        messages::{
+            submessage_elements::{
+                ParameterListSubmessageElementPIM, ParameterListSubmessageElementType,
+                ParameterType,
+            },
+            types::ParameterIdPIM,
+        },
+        structure::types::{DataPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorType},
+    };
 
     use super::*;
 

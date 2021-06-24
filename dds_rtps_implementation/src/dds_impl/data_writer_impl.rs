@@ -1,6 +1,4 @@
-use crate::{
-    rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::RtpsWeak,
-};
+use crate::{rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::RtpsWeak};
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{

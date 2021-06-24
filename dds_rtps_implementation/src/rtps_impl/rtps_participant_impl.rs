@@ -1,8 +1,6 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::{
-    behavior::{
-        types::DurationPIM,
-    },
+    behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{

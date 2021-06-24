@@ -1,9 +1,7 @@
 use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{
-            DataPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM,
-        },
+        types::{DataPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM},
         RTPSCacheChange, RTPSHistoryCache,
     },
 };

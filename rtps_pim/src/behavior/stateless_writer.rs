@@ -66,7 +66,9 @@ pub trait RTPSStatelessWriter<PSM> {
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM);
 
-    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType) where PSM: LocatorPIM;
+    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType)
+    where
+        PSM: LocatorPIM;
 
     fn unsent_changes_reset(&mut self);
 }
