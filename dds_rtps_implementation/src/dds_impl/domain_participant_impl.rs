@@ -17,7 +17,7 @@ use rust_rtps_pim::{
     behavior::{types::DurationPIM, RTPSWriter},
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::types::{
-        DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+        DataPIM, EntityIdPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
         SequenceNumberPIM, GUIDPIM,
     },
 };
@@ -44,7 +44,6 @@ where
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
-        + GuidPrefixPIM,
 {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
@@ -61,12 +60,10 @@ where
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
-        + GuidPrefixPIM,
 {
-    pub fn new(guid_prefix: PSM::GuidPrefixType, transport: impl Transport<PSM> + 'static) -> Self
+    pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix, transport: impl Transport<PSM> + 'static) -> Self
     where
         PSM::GUIDType: GUIDType<PSM>,
-        PSM::GuidPrefixType: Copy,
     {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
@@ -87,10 +84,8 @@ where
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
-        + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: GUIDType<PSM> + Send + Sync,
-    PSM::GuidPrefixType: Clone,
     PSM::DurationType: Send + Sync,
     PSM::SequenceNumberType: Send + Sync,
     PSM::LocatorType: Send + Sync,
@@ -98,7 +93,6 @@ where
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
-    PSM::GuidPrefixType: Copy + Send + Sync,
     PSM::GUIDType: Copy,
     PSM::SequenceNumberType: Ord + Copy,
 {
@@ -146,7 +140,6 @@ where
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
-        + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
     PSM::DurationType: Send + Sync,
@@ -156,7 +149,6 @@ where
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
-    PSM::GuidPrefixType: Send + Sync,
     PSM::GUIDType: Copy,
     PSM::SequenceNumberType: Ord + Copy,
 {
@@ -224,7 +216,6 @@ where
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
-        + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
     PSM::DurationType: Send + Sync,
@@ -234,7 +225,6 @@ where
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
-    PSM::GuidPrefixType: Send + Sync,
     PSM::GUIDType: Copy,
     PSM::SequenceNumberType: Ord + Copy,
 {
@@ -269,7 +259,6 @@ where
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
-        + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
     PSM::DurationType: Send + Sync,
@@ -279,7 +268,6 @@ where
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
-    PSM::GuidPrefixType: Send + Sync,
     PSM::GUIDType: Copy,
     PSM::SequenceNumberType: Ord + Copy,
 {
@@ -399,7 +387,6 @@ where
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
-        + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
     PSM::DurationType: Send + Sync,
@@ -409,7 +396,6 @@ where
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
-    PSM::GuidPrefixType: Send + Sync,
     PSM::GUIDType: Copy,
     PSM::SequenceNumberType: Ord + Copy,
 {

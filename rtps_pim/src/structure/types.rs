@@ -2,10 +2,9 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
-pub trait GuidPrefixPIM {
-    type GuidPrefixType: Into<[u8; 12]> + From<[u8; 12]>;
-    const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType;
-}
+
+pub type GuidPrefix = [u8; 12];
+pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
 pub trait EntityIdPIM {
     type EntityIdType: Into<[u8; 4]> + From<[u8; 4]>;
@@ -77,9 +76,13 @@ pub trait GUIDPIM {
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
 pub trait GUIDType<PSM>: From<[u8; 16]> + Into<[u8; 16]> {
-    fn new(prefix: PSM::GuidPrefixType, entity_id: PSM::EntityIdType) -> Self  where PSM: GuidPrefixPIM + EntityIdPIM;
-    fn prefix(&self) -> &PSM::GuidPrefixType where PSM: GuidPrefixPIM;
-    fn entity_id(&self) -> &PSM::EntityIdType where PSM: EntityIdPIM;
+    fn new(prefix: GuidPrefix, entity_id: PSM::EntityIdType) -> Self
+    where
+        PSM: EntityIdPIM;
+    fn prefix(&self) -> &GuidPrefix;
+    fn entity_id(&self) -> &PSM::EntityIdType
+    where
+        PSM: EntityIdPIM;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

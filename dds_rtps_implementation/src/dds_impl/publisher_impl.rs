@@ -18,7 +18,7 @@ use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            DataPIM, EntityIdPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
             SequenceNumberPIM, GUIDPIM,
         },
         RTPSEntity,
@@ -43,7 +43,6 @@ const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 pub struct PublisherImpl<'p, PSM>
 where
     PSM: GUIDPIM
-        + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
@@ -61,7 +60,6 @@ where
 impl<'p, PSM> PublisherImpl<'p, PSM>
 where
     PSM: GUIDPIM
-        + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
@@ -76,7 +74,6 @@ where
     ) -> Self
     where
         PSM::GUIDType: GUIDType<PSM>,
-        PSM::GuidPrefixType: Copy,
     {
         let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
@@ -92,7 +89,6 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM> DataWriterFactory<'d
     for PublisherImpl<'p, PSM>
 where
     PSM: GUIDPIM
-        + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
@@ -150,7 +146,6 @@ where
 impl<'p, PSM> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p, PSM>
 where
     PSM: GUIDPIM
-        + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
@@ -215,7 +210,6 @@ where
 impl<'p, PSM> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p, PSM>
 where
     PSM: GUIDPIM
-        + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM

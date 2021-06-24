@@ -2,7 +2,7 @@ use crate::{
     behavior::RTPSReader,
     messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
+        DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
         GUIDPIM,
     },
 };
@@ -10,7 +10,7 @@ use crate::{
 use super::types::DurationPIM;
 
 pub trait RTPSWriterProxy<
-    PSM: GuidPrefixPIM + EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM + SequenceNumberPIM,
+    PSM: EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM + SequenceNumberPIM,
 >
 {
     type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>;
@@ -31,7 +31,6 @@ pub trait RTPSWriterProxy<
 
 pub trait RTPSStatefulReader<
     PSM: InstanceHandlePIM
-        + GuidPrefixPIM
         + DataPIM
         + EntityIdPIM
         + SequenceNumberPIM

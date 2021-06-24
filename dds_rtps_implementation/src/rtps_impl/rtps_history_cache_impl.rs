@@ -91,10 +91,6 @@ mod tests {
         type ParameterIdType = u16;
     }
 
-    impl rust_rtps_pim::structure::types::GuidPrefixPIM for MockPSM {
-        type GuidPrefixType = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
-    }
 
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;

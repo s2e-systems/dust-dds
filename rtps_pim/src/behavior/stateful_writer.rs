@@ -65,7 +65,7 @@ mod tests {
             },
             types::ParameterIdPIM,
         },
-        structure::types::{DataPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorType},
+        structure::types::{DataPIM, GUIDType, InstanceHandlePIM, LocatorType},
     };
 
     use super::*;
@@ -81,11 +81,6 @@ mod tests {
         type EntityIdType = [u8; 4];
         const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
         const ENTITYID_PARTICIPANT: Self::EntityIdType = [0; 4];
-    }
-
-    impl GuidPrefixPIM for MockPSM {
-        type GuidPrefixType = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
     impl GUIDPIM for MockPSM {

@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::DataWriterQos,
     publication::data_writer_listener::DataWriterListener,
@@ -6,7 +8,7 @@ use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::types::{
-        DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
+        DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
         GUIDPIM,
     },
 };
@@ -14,21 +16,19 @@ use rust_rtps_pim::{
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
 pub struct WriterFactory<PSM>
-where
-    PSM: GuidPrefixPIM,
 {
-    guid_prefix: PSM::GuidPrefixType,
+    guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
     datawriter_counter: u8,
+    phantom: PhantomData<PSM>
 }
 
 impl<PSM> WriterFactory<PSM>
-where
-    PSM: GuidPrefixPIM,
 {
-    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
+    pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         Self {
             guid_prefix,
             datawriter_counter: 0,
+            phantom: PhantomData
         }
     }
 

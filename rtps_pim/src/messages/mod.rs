@@ -2,7 +2,7 @@ pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
 
-use crate::structure::types::{GuidPrefixPIM, ProtocolVersionPIM, VendorIdPIM};
+use crate::structure::types::{GuidPrefix, ProtocolVersionPIM, VendorIdPIM};
 
 use self::{
     submessages::{
@@ -20,12 +20,12 @@ pub trait RtpsMessageHeaderPIM {
 
 pub trait RtpsMessageHeaderType<PSM>
 where
-    PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM + GuidPrefixPIM,
+    PSM: ProtocolIdPIM + ProtocolVersionPIM + VendorIdPIM,
 {
     fn protocol(&self) -> &PSM::ProtocolIdType;
     fn version(&self) -> &PSM::ProtocolVersionType;
     fn vendor_id(&self) -> &PSM::VendorIdType;
-    fn guid_prefix(&self) -> &PSM::GuidPrefixType;
+    fn guid_prefix(&self) -> &GuidPrefix;
 }
 
 pub trait RtpsSubmessageHeaderPIM {
@@ -57,7 +57,6 @@ where
     PSM: ProtocolIdPIM
         + ProtocolVersionPIM
         + VendorIdPIM
-        + GuidPrefixPIM
         + RtpsMessageHeaderPIM
         + AckNackSubmessagePIM
         + DataSubmessagePIM<'a, PSM>
@@ -76,7 +75,7 @@ where
         protocol: PSM::ProtocolIdType,
         version: PSM::ProtocolVersionType,
         vendor_id: PSM::VendorIdType,
-        guid_prefix: PSM::GuidPrefixType,
+        guid_prefix: GuidPrefix,
         submessages: T,
     ) -> Self;
 

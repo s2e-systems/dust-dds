@@ -4,7 +4,7 @@ use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
+            DataPIM, EntityIdPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
             ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
         },
         RTPSEntity,
@@ -40,9 +40,8 @@ where
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
-        + GuidPrefixPIM,
 {
-    pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self
+    pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self
     where
         PSM::GUIDType: GUIDType<PSM>,
     {

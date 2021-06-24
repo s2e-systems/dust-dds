@@ -1,4 +1,4 @@
-use structure::types::{EntityIdPIM, GuidPrefixPIM};
+use structure::types::EntityIdPIM;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -6,7 +6,7 @@ use structure::types::{EntityIdPIM, GuidPrefixPIM};
 ///
 use crate::structure::{
     self,
-    types::{LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM},
+    types::{GuidPrefix, LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM},
 };
 
 use super::types::{CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, TimePIM};
@@ -51,9 +51,9 @@ pub trait GuidPrefixSubmessageElementPIM {
     type GuidPrefixSubmessageElementType;
 }
 
-pub trait GuidPrefixSubmessageElementType<PSM: GuidPrefixPIM> {
-    fn new(value: &PSM::GuidPrefixType) -> Self;
-    fn value(&self) -> &PSM::GuidPrefixType;
+pub trait GuidPrefixSubmessageElementType {
+    fn new(value: &GuidPrefix) -> Self;
+    fn value(&self) -> &GuidPrefix;
 }
 
 pub trait EntityIdSubmessageElementPIM {

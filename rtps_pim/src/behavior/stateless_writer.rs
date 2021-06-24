@@ -15,7 +15,7 @@ use crate::{
     },
     structure::{
         types::{
-            ChangeKind, DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM,
+            ChangeKind, DataPIM, EntityIdPIM, GUIDType, InstanceHandlePIM,
             LocatorPIM, SequenceNumberPIM, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
@@ -90,7 +90,6 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
         + ParameterListSubmessageElementPIM
         + EntityIdSubmessageElementPIM
         + EntityIdPIM
-        + GuidPrefixPIM
         + SequenceNumberSubmessageElementPIM
         + SerializedDataSubmessageElementPIM<'a>
         + DataSubmessagePIM<'a, PSM>
@@ -288,11 +287,6 @@ mod tests {
         type EntityIdType = [u8; 4];
         const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
         const ENTITYID_PARTICIPANT: Self::EntityIdType = [0; 4];
-    }
-
-    impl GuidPrefixPIM for MockPSM {
-        type GuidPrefixType = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
     impl GUIDPIM for MockPSM {
