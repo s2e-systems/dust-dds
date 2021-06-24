@@ -36,14 +36,14 @@ use super::{
 
 pub struct DomainParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + GuidPrefixPIM,
 {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
@@ -53,14 +53,14 @@ where
 
 impl<PSM> DomainParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + GuidPrefixPIM,
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType, transport: impl Transport<PSM> + 'static) -> Self
@@ -79,14 +79,14 @@ where
 impl<'p, PSM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
     for DomainParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: GUIDType<PSM> + Send + Sync,
@@ -138,14 +138,14 @@ where
 impl<'s, PSM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     for DomainParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
@@ -216,14 +216,14 @@ where
 impl<'t, T: 'static, PSM> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
     for DomainParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
@@ -261,14 +261,14 @@ where
 
 impl<PSM> rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
@@ -391,14 +391,14 @@ where
 
 impl<PSM> Entity for DomainParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + GuidPrefixPIM
         + 'static,
     PSM::GUIDType: Send + Sync,

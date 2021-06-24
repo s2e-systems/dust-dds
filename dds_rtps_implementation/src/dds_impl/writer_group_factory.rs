@@ -27,14 +27,14 @@ where
 impl<PSM> WriterGroupFactory<PSM>
 where
     PSM: GuidPrefixPIM
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self {
         Self {

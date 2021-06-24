@@ -4,11 +4,11 @@ use rust_rtps_pim::{
 };
 pub struct RTPSCacheChangeImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + InstanceHandlePIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     kind: ChangeKind,
     writer_guid: PSM::GUIDType,
@@ -20,11 +20,11 @@ where
 
 impl<PSM> RTPSCacheChangeImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + InstanceHandlePIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         kind: ChangeKind,
@@ -47,11 +47,11 @@ where
 
 impl<PSM> rust_rtps_pim::structure::RTPSCacheChange<PSM> for RTPSCacheChangeImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + InstanceHandlePIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     fn kind(&self) -> ChangeKind {
         self.kind

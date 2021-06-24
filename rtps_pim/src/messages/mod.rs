@@ -14,7 +14,7 @@ use self::{
     types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM},
 };
 
-pub trait RtpsMessageHeaderPIM<PSM> {
+pub trait RtpsMessageHeaderPIM {
     type RtpsMessageHeaderType;
 }
 
@@ -28,7 +28,7 @@ where
     fn guid_prefix(&self) -> &PSM::GuidPrefixType;
 }
 
-pub trait RtpsSubmessageHeaderPIM<PSM> {
+pub trait RtpsSubmessageHeaderPIM {
     type RtpsSubmessageHeaderType;
 }
 
@@ -43,7 +43,7 @@ where
 
 pub trait Submessage<PSM>
 where
-    PSM: RtpsSubmessageHeaderPIM<PSM>,
+    PSM: RtpsSubmessageHeaderPIM,
 {
     fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType;
 }
@@ -58,19 +58,19 @@ where
         + ProtocolVersionPIM
         + VendorIdPIM
         + GuidPrefixPIM
-        + RtpsMessageHeaderPIM<PSM>
-        + AckNackSubmessagePIM<PSM>
+        + RtpsMessageHeaderPIM
+        + AckNackSubmessagePIM
         + DataSubmessagePIM<'a, PSM>
         + DataFragSubmessagePIM<'a, PSM>
-        + GapSubmessagePIM<PSM>
-        + HeartbeatSubmessagePIM<PSM>
-        + HeartbeatFragSubmessagePIM<PSM>
-        + InfoDestinationSubmessagePIM<PSM>
-        + InfoReplySubmessagePIM<PSM>
-        + InfoSourceSubmessagePIM<PSM>
-        + InfoTimestampSubmessagePIM<PSM>
-        + NackFragSubmessagePIM<PSM>
-        + PadSubmessagePIM<PSM>,
+        + GapSubmessagePIM
+        + HeartbeatSubmessagePIM
+        + HeartbeatFragSubmessagePIM
+        + InfoDestinationSubmessagePIM
+        + InfoReplySubmessagePIM
+        + InfoSourceSubmessagePIM
+        + InfoTimestampSubmessagePIM
+        + NackFragSubmessagePIM
+        + PadSubmessagePIM,
 {
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
         protocol: PSM::ProtocolIdType,

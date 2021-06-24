@@ -32,34 +32,34 @@
 //     PSM: SequenceNumberPIM
 //         + LocatorPIM
 //         + DurationPIM
-//         + GUIDPIM<PSM>
+//         + GUIDPIM
 //         + DataPIM
-//         + ParameterListSubmessageElementPIM<PSM>
+//         + ParameterListSubmessageElementPIM
 //         + InstanceHandlePIM
-//         + AckNackSubmessagePIM<PSM>
+//         + AckNackSubmessagePIM
 //         + for<'a> DataSubmessagePIM<'a, PSM>
 //         + for<'a> DataFragSubmessagePIM<'a, PSM>
-//         + GapSubmessagePIM<PSM>
-//         + HeartbeatSubmessagePIM<PSM>
-//         + HeartbeatFragSubmessagePIM<PSM>
-//         + InfoDestinationSubmessagePIM<PSM>
-//         + InfoReplySubmessagePIM<PSM>
-//         + InfoSourceSubmessagePIM<PSM>
-//         + InfoTimestampSubmessagePIM<PSM>
-//         + NackFragSubmessagePIM<PSM>
-//         + PadSubmessagePIM<PSM>
-//         + EntityIdSubmessageElementPIM<PSM>
+//         + GapSubmessagePIM
+//         + HeartbeatSubmessagePIM
+//         + HeartbeatFragSubmessagePIM
+//         + InfoDestinationSubmessagePIM
+//         + InfoReplySubmessagePIM
+//         + InfoSourceSubmessagePIM
+//         + InfoTimestampSubmessagePIM
+//         + NackFragSubmessagePIM
+//         + PadSubmessagePIM
+//         + EntityIdSubmessageElementPIM
 //         + EntityIdPIM
 //         + GuidPrefixPIM
-//         + SequenceNumberSubmessageElementPIM<PSM>
+//         + SequenceNumberSubmessageElementPIM
 //         + for<'a> SerializedDataSubmessageElementPIM<'a>
-//         + RtpsSubmessageHeaderPIM<PSM>
-//         + SequenceNumberSetSubmessageElementPIM<PSM>
+//         + RtpsSubmessageHeaderPIM
+//         + SequenceNumberSetSubmessageElementPIM
 //         + ProtocolIdPIM
 //         + ProtocolVersionPIM
 //         + VendorIdPIM
 //         + for<'a> RTPSMessagePIM<'a, PSM>
-//         + RtpsMessageHeaderPIM<PSM>,
+//         + RtpsMessageHeaderPIM,
 //     StatelessWriter: RTPSStatelessWriter<PSM> + RTPSWriter<PSM>,
 //     StatelessWriter::ReaderLocatorPIM: RTPSReaderLocator<PSM>,
 //     PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType<PSM>,
@@ -171,7 +171,7 @@
 // //             [0; 16];
 // //     }
 
-// //     // impl ParameterListSubmessageElementPIM<Self> for MockPSM {
+// //     // impl ParameterListSubmessageElementPIM for MockPSM {
 // //     //     type ParameterListSubmessageElementType = MockParameterList;
 // //     // }
 
@@ -179,7 +179,7 @@
 // //     //     type ParameterIdType = ();
 // //     // }
 
-// //     // impl GUIDPIM<Self> for MockPSM {
+// //     // impl GUIDPIM for MockPSM {
 // //     //     type GUIDType = MockGuid;
 // //     //     const GUID_UNKNOWN: Self::GUIDType = MockGuid;
 // //     // }
@@ -232,7 +232,7 @@
 // //     //     type RTPSMessageType = MockRtpsMessage;
 // //     // }
 
-// //     // impl RtpsMessageHeaderPIM<Self> for MockPSM {
+// //     // impl RtpsMessageHeaderPIM for MockPSM {
 // //     //     type RtpsMessageHeaderType = MockRtpsMessageHeader;
 // //     // }
 
@@ -262,19 +262,19 @@
 // //     //     const HEARTBEAT_FRAG: Self::SubmessageKindType = ();
 // //     // }
 
-// //     // impl RtpsSubmessageHeaderPIM<Self> for MockPSM {
+// //     // impl RtpsSubmessageHeaderPIM for MockPSM {
 // //     //     type RtpsSubmessageHeaderType = MockRtpsSubmessageHeader;
 // //     // }
 
-// //     // impl CountSubmessageElementPIM<Self> for MockPSM {
+// //     // impl CountSubmessageElementPIM for MockPSM {
 // //     //     type CountSubmessageElementType = MockCountSubmessageElement;
 // //     // }
 
-// //     // impl NackFragSubmessagePIM<Self> for MockPSM {
+// //     // impl NackFragSubmessagePIM for MockPSM {
 // //     //     type NackFragSubmessageType = MockNackFragSubmessage;
 // //     // }
 
-// //     // impl PadSubmessagePIM<Self> for MockPSM {
+// //     // impl PadSubmessagePIM for MockPSM {
 // //     //     type PadSubmessageType = MockPadSubmessage;
 // //     // }
 

@@ -5,7 +5,7 @@ use super::{
 
 pub trait RTPSParticipant<PSM>: RTPSEntity<PSM>
 where
-    PSM: GUIDPIM<PSM> + ProtocolVersionPIM + VendorIdPIM + LocatorPIM,
+    PSM: GUIDPIM + ProtocolVersionPIM + VendorIdPIM + LocatorPIM,
 {
     fn protocol_version(&self) -> &PSM::ProtocolVersionType;
     fn vendor_id(&self) -> &PSM::VendorIdType;

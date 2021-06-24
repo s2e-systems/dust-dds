@@ -10,22 +10,22 @@ use super::rtps_cache_change_impl::RTPSCacheChangeImpl;
 
 pub struct RTPSHistoryCacheImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + InstanceHandlePIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     changes: Vec<RTPSCacheChangeImpl<PSM>>,
 }
 
 impl<PSM> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + InstanceHandlePIM
         + SequenceNumberPIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
     PSM::SequenceNumberType: PartialEq + Ord,
 {
     type CacheChange = RTPSCacheChangeImpl<PSM>;
@@ -125,12 +125,12 @@ mod tests {
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDPIM<Self> for MockPSM {
+    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID;
     }
 
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM<MockPSM>
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM
         for MockPSM
     {
         type ParameterListSubmessageElementType = MockParameterList;

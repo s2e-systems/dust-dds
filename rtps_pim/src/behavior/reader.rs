@@ -16,9 +16,9 @@ pub trait RTPSReader<
         + SequenceNumberPIM
         + LocatorPIM
         + DurationPIM
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + ParameterIdPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 >: RTPSEndpoint<PSM>
 {
     type HistoryCacheType: RTPSHistoryCache<PSM>;

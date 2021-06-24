@@ -22,14 +22,14 @@ use super::{
 
 pub struct RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     guid: PSM::GUIDType,
     topic_kind: TopicKind,
@@ -49,14 +49,14 @@ where
 
 impl<PSM> RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         guid: PSM::GUIDType,
@@ -103,14 +103,14 @@ where
 
 impl<PSM> RTPSEntity<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     fn guid(&self) -> &PSM::GUIDType {
         &self.guid
@@ -119,14 +119,14 @@ where
 
 impl<PSM> RTPSWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + EntityIdPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
     PSM::SequenceNumberType: Ord + Copy,
     PSM::GUIDType: Copy,
 {
@@ -173,7 +173,7 @@ where
     ) -> <Self::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange
     where
         // Self::HistoryCacheType: RTPSHistoryCache<PSM>,
-        PSM: DataPIM + ParameterListSubmessageElementPIM<PSM> + InstanceHandlePIM,
+        PSM: DataPIM + ParameterListSubmessageElementPIM + InstanceHandlePIM,
     {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
         RTPSCacheChangeImpl::new(
@@ -189,14 +189,14 @@ where
 
 impl<PSM> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
@@ -217,14 +217,14 @@ where
 
 impl<PSM> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + EntityIdPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
     PSM::LocatorType: PartialEq,
     PSM::SequenceNumberType: Ord + Copy,
 {
@@ -249,14 +249,14 @@ where
 
 impl<PSM> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
     PSM::GUIDType: PartialEq,
     // PSM::SequenceNumberType: Ord + Copy,
     // PSM::GUIDType: Copy,
@@ -356,12 +356,12 @@ mod tests {
         }
     }
 
-    impl rust_rtps_pim::structure::types::GUIDPIM<Self> for MockPSM {
+    impl rust_rtps_pim::structure::types::GUIDPIM for MockPSM {
         type GUIDType = MockGUID;
         const GUID_UNKNOWN: Self::GUIDType = MockGUID(0);
     }
 
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM<MockPSM>
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM
         for MockPSM
     {
         type ParameterListSubmessageElementType = MockParameterList;

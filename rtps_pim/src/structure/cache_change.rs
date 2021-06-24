@@ -7,8 +7,8 @@ where
     PSM: InstanceHandlePIM
         + SequenceNumberPIM
         + DataPIM
-        + GUIDPIM<PSM>
-        + ParameterListSubmessageElementPIM<PSM>,
+        + GUIDPIM
+        + ParameterListSubmessageElementPIM,
 {
     fn kind(&self) -> ChangeKind;
     fn writer_guid(&self) -> &PSM::GUIDType;

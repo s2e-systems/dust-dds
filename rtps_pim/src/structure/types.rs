@@ -70,7 +70,7 @@ pub trait DataPIM {
     type DataType: AsRef<[u8]>;
 }
 
-pub trait GUIDPIM<PSM> {
+pub trait GUIDPIM {
     type GUIDType;
     const GUID_UNKNOWN: Self::GUIDType;
 }

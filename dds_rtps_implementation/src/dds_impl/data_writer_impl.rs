@@ -20,14 +20,14 @@ use rust_rtps_pim::{
 
 pub struct DataWriterImpl<'dw, T: 'static, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     publisher: &'dw dyn Publisher,
     topic: &'dw dyn Topic<T>,
@@ -36,14 +36,14 @@ where
 
 impl<'dw, T: 'static, PSM> DataWriterImpl<'dw, T, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         publisher: &'dw dyn Publisher,
@@ -61,14 +61,14 @@ where
 impl<'dw, T: 'static, PSM> rust_dds_api::publication::data_writer::DataWriter<T>
     for DataWriterImpl<'dw, T, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -202,14 +202,14 @@ where
 impl<'dw, T: 'static, PSM> rust_dds_api::infrastructure::entity::Entity
     for DataWriterImpl<'dw, T, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     type Qos = DataWriterQos;
     type Listener = &'static dyn DataWriterListener<DataPIM = T>;
@@ -254,14 +254,14 @@ where
 impl<'dw, T: 'static, PSM> rust_dds_api::publication::data_writer::AnyDataWriter
     for DataWriterImpl<'dw, T, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
 }
 

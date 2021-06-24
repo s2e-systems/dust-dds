@@ -47,7 +47,7 @@ pub trait LongSubmessageElementType {
     fn value(&self) -> &i32;
 }
 
-pub trait GuidPrefixSubmessageElementPIM<PSM> {
+pub trait GuidPrefixSubmessageElementPIM {
     type GuidPrefixSubmessageElementType;
 }
 
@@ -56,7 +56,7 @@ pub trait GuidPrefixSubmessageElementType<PSM: GuidPrefixPIM> {
     fn value(&self) -> &PSM::GuidPrefixType;
 }
 
-pub trait EntityIdSubmessageElementPIM<PSM> {
+pub trait EntityIdSubmessageElementPIM {
     type EntityIdSubmessageElementType;
 }
 
@@ -65,7 +65,7 @@ pub trait EntityIdSubmessageElementType<PSM: EntityIdPIM> {
     fn value(&self) -> &PSM::EntityIdType;
 }
 
-pub trait VendorIdSubmessageElementPIM<PSM> {
+pub trait VendorIdSubmessageElementPIM {
     type VendorIdSubmessageElementType;
 }
 
@@ -74,7 +74,7 @@ pub trait VendorIdSubmessageElementType<PSM: VendorIdPIM> {
     fn value(&self) -> &PSM::VendorIdType;
 }
 
-pub trait ProtocolVersionSubmessageElementPIM<PSM> {
+pub trait ProtocolVersionSubmessageElementPIM {
     type ProtocolVersionSubmessageElementType;
 }
 
@@ -83,7 +83,7 @@ pub trait ProtocolVersionSubmessageElementType<PSM: ProtocolVersionPIM> {
     fn value(&self) -> &PSM::ProtocolVersionType;
 }
 
-pub trait SequenceNumberSubmessageElementPIM<PSM> {
+pub trait SequenceNumberSubmessageElementPIM {
     type SequenceNumberSubmessageElementType;
 }
 
@@ -92,7 +92,7 @@ pub trait SequenceNumberSubmessageElementType<PSM: SequenceNumberPIM> {
     fn value(&self) -> &PSM::SequenceNumberType;
 }
 
-pub trait SequenceNumberSetSubmessageElementPIM<PSM> {
+pub trait SequenceNumberSetSubmessageElementPIM {
     type SequenceNumberSetSubmessageElementType;
 }
 
@@ -102,7 +102,7 @@ pub trait SequenceNumberSetSubmessageElementType<PSM: SequenceNumberPIM> {
     fn set(&self) -> &[PSM::SequenceNumberType];
 }
 
-pub trait FragmentNumberSubmessageElementPIM<PSM> {
+pub trait FragmentNumberSubmessageElementPIM {
     type FragmentNumberSubmessageElementType;
 }
 
@@ -111,7 +111,7 @@ pub trait FragmentNumberSubmessageElementType<PSM: FragmentNumberPIM> {
     fn value(&self) -> &PSM::FragmentNumberType;
 }
 
-pub trait FragmentNumberSetSubmessageElementPIM<PSM> {
+pub trait FragmentNumberSetSubmessageElementPIM {
     type FragmentNumberSetSubmessageElementType;
 }
 
@@ -121,7 +121,7 @@ pub trait FragmentNumberSetSubmessageElementType<PSM: FragmentNumberPIM> {
     fn set(&self) -> &[PSM::FragmentNumberType];
 }
 
-pub trait TimestampSubmessageElementPIM<PSM> {
+pub trait TimestampSubmessageElementPIM {
     type TimestampSubmessageElementType;
 }
 
@@ -136,7 +136,7 @@ pub trait ParameterType<PSM: ParameterIdPIM> {
     fn value(&self) -> &[u8];
 }
 
-pub trait ParameterListSubmessageElementPIM<PSM> {
+pub trait ParameterListSubmessageElementPIM {
     type ParameterListSubmessageElementType;
 }
 
@@ -147,7 +147,7 @@ pub trait ParameterListSubmessageElementType<PSM> {
     fn parameter(&self) -> &[Self::Parameter];
 }
 
-pub trait CountSubmessageElementPIM<PSM> {
+pub trait CountSubmessageElementPIM {
     type CountSubmessageElementType;
 }
 
@@ -156,7 +156,7 @@ pub trait CountSubmessageElementType<PSM: CountPIM> {
     fn value(&self) -> &PSM::CountType;
 }
 
-pub trait LocatorListSubmessageElementPIM<PSM> {
+pub trait LocatorListSubmessageElementPIM {
     type LocatorListSubmessageElementType;
 }
 
@@ -183,7 +183,7 @@ pub trait SerializedDataFragmentSubmessageElementType<'a> {
     fn value(&self) -> &[u8];
 }
 
-pub trait GroupDigestSubmessageElementPIM<PSM> {
+pub trait GroupDigestSubmessageElementPIM {
     type GroupDigestSubmessageElementType;
 }
 

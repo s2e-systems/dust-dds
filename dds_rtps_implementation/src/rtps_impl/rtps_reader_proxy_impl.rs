@@ -2,7 +2,7 @@ use rust_rtps_pim::structure::types::{EntityIdPIM, LocatorPIM, SequenceNumberPIM
 
 pub struct RTPSReaderProxyImpl<PSM>
 where
-    PSM: GUIDPIM<PSM> + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
+    PSM: GUIDPIM + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
 {
     remote_reader_guid: PSM::GUIDType,
     remote_group_entity_id: PSM::EntityIdType,
@@ -15,7 +15,7 @@ where
 
 impl<PSM> RTPSReaderProxyImpl<PSM>
 where
-    PSM: GUIDPIM<PSM> + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
+    PSM: GUIDPIM + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
 {
     pub fn new(
         remote_reader_guid: PSM::GUIDType,
@@ -40,7 +40,7 @@ where
 impl<PSM> rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>
     for RTPSReaderProxyImpl<PSM>
 where
-    PSM: GUIDPIM<PSM> + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
+    PSM: GUIDPIM + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
 {
     type SequenceNumberVector = Vec<PSM::SequenceNumberType>;
 

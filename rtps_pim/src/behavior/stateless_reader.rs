@@ -17,9 +17,9 @@ pub trait RTPSStatelessReader<
         + SequenceNumberPIM
         + LocatorPIM
         + DurationPIM
-        + GUIDPIM<PSM>
+        + GUIDPIM
         + ParameterIdPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 >: RTPSReader<PSM>
 {
 }

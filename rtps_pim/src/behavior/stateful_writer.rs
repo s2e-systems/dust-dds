@@ -5,7 +5,7 @@ pub trait RTPSReaderProxy<PSM> {
 
     fn remote_reader_guid(&self) -> &PSM::GUIDType
     where
-        PSM: GUIDPIM<PSM>;
+        PSM: GUIDPIM;
     fn remote_group_entity_id(&self) -> &PSM::EntityIdType
     where
         PSM: EntityIdPIM;
@@ -42,14 +42,14 @@ pub trait RTPSStatefulWriter<PSM> {
 
     fn matched_reader_remove(&mut self, reader_proxy_guid: &PSM::GUIDType)
     where
-        PSM: GUIDPIM<PSM>;
+        PSM: GUIDPIM;
 
     fn matched_reader_lookup(
         &self,
         a_reader_guid: &PSM::GUIDType,
     ) -> Option<&Self::ReaderProxyType>
     where
-        PSM: GUIDPIM<PSM>;
+        PSM: GUIDPIM;
 
     fn is_acked_by_all(&self) -> bool;
 }
@@ -88,7 +88,7 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM<Self> for MockPSM {
+    impl GUIDPIM for MockPSM {
         type GUIDType = [u8; 16];
         const GUID_UNKNOWN: Self::GUIDType = [0; 16];
     }
@@ -119,7 +119,7 @@ mod tests {
         type ParameterIdType = ();
     }
 
-    impl ParameterListSubmessageElementPIM<Self> for MockPSM {
+    impl ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
     }
 

@@ -78,25 +78,25 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
     last_change_sequence_number: &PSM::SequenceNumberType,
     writer_cache: &'a HistoryCache,
     mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
-    mut send_gap: impl FnMut(<PSM as GapSubmessagePIM<PSM>>::GapSubmessageType),
+    mut send_gap: impl FnMut(<PSM as GapSubmessagePIM>::GapSubmessageType),
 ) where
     PSM: SequenceNumberPIM
         + LocatorPIM
-        + GapSubmessagePIM<PSM>
+        + GapSubmessagePIM
         + DataSubmessagePIM<'a, PSM>
         + InstanceHandlePIM
         + DataPIM
-        + GUIDPIM<PSM>
-        + ParameterListSubmessageElementPIM<PSM>
-        + EntityIdSubmessageElementPIM<PSM>
+        + GUIDPIM
+        + ParameterListSubmessageElementPIM
+        + EntityIdSubmessageElementPIM
         + EntityIdPIM
         + GuidPrefixPIM
-        + SequenceNumberSubmessageElementPIM<PSM>
+        + SequenceNumberSubmessageElementPIM
         + SerializedDataSubmessageElementPIM<'a>
         + DataSubmessagePIM<'a, PSM>
-        + RtpsSubmessageHeaderPIM<PSM>
-        + SequenceNumberSetSubmessageElementPIM<PSM>
-        + GapSubmessagePIM<PSM>,
+        + RtpsSubmessageHeaderPIM
+        + SequenceNumberSetSubmessageElementPIM
+        + GapSubmessagePIM,
     HistoryCache: RTPSHistoryCache<PSM>,
     HistoryCache::CacheChange: RTPSCacheChange<PSM> + 'a,
     PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType<PSM>,
@@ -174,10 +174,10 @@ pub fn reliable_receive_acknack<
         + SubmessageKindPIM
         + EntityIdPIM
         + CountPIM
-        + EntityIdSubmessageElementPIM<PSM>
-        + SequenceNumberSetSubmessageElementPIM<PSM>
-        + CountSubmessageElementPIM<PSM>
-        + RtpsSubmessageHeaderPIM<PSM>,
+        + EntityIdSubmessageElementPIM
+        + SequenceNumberSetSubmessageElementPIM
+        + CountSubmessageElementPIM
+        + RtpsSubmessageHeaderPIM,
 >(
     _reader_locator: &mut impl RTPSReaderLocator<PSM>,
     _acknack: &impl AckNackSubmessage<PSM>,
@@ -272,7 +272,7 @@ mod tests {
 
     struct MockPSM;
 
-    impl ParameterListSubmessageElementPIM<MockPSM> for MockPSM {
+    impl ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
     }
 
@@ -295,7 +295,7 @@ mod tests {
         const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
     }
 
-    impl GUIDPIM<Self> for MockPSM {
+    impl GUIDPIM for MockPSM {
         type GUIDType = [u8; 16];
         const GUID_UNKNOWN: Self::GUIDType = [0; 16];
     }
@@ -342,15 +342,15 @@ mod tests {
         type SerializedDataSubmessageElementType = &'a [u8];
     }
 
-    impl SequenceNumberSubmessageElementPIM<Self> for MockPSM {
+    impl SequenceNumberSubmessageElementPIM for MockPSM {
         type SequenceNumberSubmessageElementType = i64;
     }
 
-    impl EntityIdSubmessageElementPIM<Self> for MockPSM {
+    impl EntityIdSubmessageElementPIM for MockPSM {
         type EntityIdSubmessageElementType = [u8; 4];
     }
 
-    impl SequenceNumberSetSubmessageElementPIM<Self> for MockPSM {
+    impl SequenceNumberSetSubmessageElementPIM for MockPSM {
         type SequenceNumberSetSubmessageElementType = MockSequenceNumberSet;
     }
 
@@ -358,7 +358,7 @@ mod tests {
         type DataSubmessageType = MockDataSubmessage;
     }
 
-    impl RtpsSubmessageHeaderPIM<Self> for MockPSM {
+    impl RtpsSubmessageHeaderPIM for MockPSM {
         type RtpsSubmessageHeaderType = MockSubmessageHeader;
     }
 
@@ -473,7 +473,7 @@ mod tests {
         }
     }
 
-    impl GapSubmessagePIM<MockPSM> for MockPSM {
+    impl GapSubmessagePIM for MockPSM {
         type GapSubmessageType = MockGapSubmessage;
     }
 

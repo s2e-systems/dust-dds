@@ -18,14 +18,14 @@ use super::rtps_writer_impl::RTPSWriterImpl;
 
 pub struct RTPSWriterGroupImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     guid: PSM::GUIDType,
     qos: PublisherQos,
@@ -36,14 +36,14 @@ where
 
 impl<PSM> RTPSWriterGroupImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         guid: PSM::GUIDType,
@@ -81,27 +81,27 @@ where
 }
 
 impl<PSM> rust_rtps_pim::structure::RTPSGroup<PSM> for RTPSWriterGroupImpl<PSM> where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
 {
 }
 
 impl<PSM> rust_rtps_pim::structure::RTPSEntity<PSM> for RTPSWriterGroupImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     fn guid(&self) -> &PSM::GUIDType {
         &self.guid

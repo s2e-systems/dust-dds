@@ -42,7 +42,7 @@ const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
 pub struct PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
@@ -50,7 +50,7 @@ where
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     participant: &'p dyn DomainParticipant,
     writer_factory: Mutex<WriterFactory<PSM>>,
@@ -60,7 +60,7 @@ where
 
 impl<'p, PSM> PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
@@ -68,7 +68,7 @@ where
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         participant: &'p dyn DomainParticipant,
@@ -91,7 +91,7 @@ where
 impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM> DataWriterFactory<'dw, 't, T>
     for PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
@@ -99,7 +99,7 @@ where
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + 'static,
 {
     type TopicType = TopicImpl<'t, T>;
@@ -149,7 +149,7 @@ where
 
 impl<'p, PSM> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
@@ -157,7 +157,7 @@ where
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
@@ -214,7 +214,7 @@ where
 
 impl<'p, PSM> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p, PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + GuidPrefixPIM
         + LocatorPIM
         + DurationPIM
@@ -222,7 +222,7 @@ where
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;

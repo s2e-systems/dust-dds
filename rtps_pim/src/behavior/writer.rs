@@ -37,5 +37,5 @@ pub trait RTPSWriter<PSM> {
     ) -> <Self::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange
     where
         Self::HistoryCacheType: RTPSHistoryCache<PSM>,
-        PSM: DataPIM + ParameterListSubmessageElementPIM<PSM> + InstanceHandlePIM;
+        PSM: DataPIM + ParameterListSubmessageElementPIM + InstanceHandlePIM;
 }

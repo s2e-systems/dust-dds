@@ -39,14 +39,14 @@ where
         _mask: StatusMask,
     ) -> RTPSWriterImpl<PSM>
     where
-        PSM: GUIDPIM<PSM>
+        PSM: GUIDPIM
             + LocatorPIM
             + DurationPIM
             + SequenceNumberPIM
             + EntityIdPIM
             + InstanceHandlePIM
             + DataPIM
-            + ParameterListSubmessageElementPIM<PSM>,
+            + ParameterListSubmessageElementPIM,
     {
         todo!()
     }

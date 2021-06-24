@@ -17,14 +17,14 @@ use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 pub struct RTPSParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     guid: PSM::GUIDType,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
@@ -32,14 +32,14 @@ where
 
 impl<PSM> RTPSParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + GuidPrefixPIM,
 {
     pub fn new(guid_prefix: PSM::GuidPrefixType) -> Self
@@ -90,14 +90,14 @@ where
 
 impl<PSM> rust_rtps_pim::structure::RTPSParticipant<PSM> for RTPSParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
+        + ParameterListSubmessageElementPIM
         + ProtocolVersionPIM
         + VendorIdPIM
         + LocatorPIM,
@@ -121,14 +121,14 @@ where
 
 impl<PSM> RTPSEntity<PSM> for RTPSParticipantImpl<PSM>
 where
-    PSM: GUIDPIM<PSM>
+    PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
         + SequenceNumberPIM
         + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>,
+        + ParameterListSubmessageElementPIM,
 {
     fn guid(&self) -> &PSM::GUIDType {
         &self.guid
