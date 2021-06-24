@@ -1,18 +1,9 @@
-use rust_rtps_pim::structure::types::{
-    EntityIdPIM, GuidPrefixPIM, LocatorPIM, SequenceNumberPIM, GUIDPIM,
-};
+use rust_rtps_pim::structure::types::{EntityIdPIM, LocatorPIM, SequenceNumberPIM, GUIDPIM};
 
-pub trait RTPSReaderProxyImplTrait:
-    SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM<Self> + LocatorPIM + Sized
+pub struct RTPSReaderProxyImpl<PSM>
+where
+    PSM: GUIDPIM<PSM> + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
 {
-}
-
-impl<T: SequenceNumberPIM + GuidPrefixPIM + EntityIdPIM + GUIDPIM<Self> + LocatorPIM + Sized>
-    RTPSReaderProxyImplTrait for T
-{
-}
-
-pub struct RTPSReaderProxyImpl<PSM: RTPSReaderProxyImplTrait> {
     remote_reader_guid: PSM::GUIDType,
     remote_group_entity_id: PSM::EntityIdType,
     unicast_locator_list: Vec<PSM::LocatorType>,
@@ -22,7 +13,10 @@ pub struct RTPSReaderProxyImpl<PSM: RTPSReaderProxyImplTrait> {
     last_sent_sequence_number: PSM::SequenceNumberType,
 }
 
-impl<PSM: RTPSReaderProxyImplTrait> RTPSReaderProxyImpl<PSM> {
+impl<PSM> RTPSReaderProxyImpl<PSM>
+where
+    PSM: GUIDPIM<PSM> + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
+{
     pub fn new(
         remote_reader_guid: PSM::GUIDType,
         remote_group_entity_id: PSM::EntityIdType,
@@ -43,8 +37,10 @@ impl<PSM: RTPSReaderProxyImplTrait> RTPSReaderProxyImpl<PSM> {
     }
 }
 
-impl<PSM: RTPSReaderProxyImplTrait> rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>
+impl<PSM> rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>
     for RTPSReaderProxyImpl<PSM>
+where
+    PSM: GUIDPIM<PSM> + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
 {
     type SequenceNumberVector = Vec<PSM::SequenceNumberType>;
 

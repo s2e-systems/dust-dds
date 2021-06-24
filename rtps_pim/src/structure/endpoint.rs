@@ -1,14 +1,12 @@
-use super::{
-    types::{LocatorPIM, ReliabilityKind, TopicKind, GUIDPIM},
-    RTPSEntity,
-};
+use super::types::{LocatorPIM, ReliabilityKind, TopicKind};
 
-pub trait RTPSEndpoint<PSM>: RTPSEntity<PSM>
-where
-    PSM: LocatorPIM + GUIDPIM<PSM>,
-{
+pub trait RTPSEndpoint<PSM> {
     fn topic_kind(&self) -> &TopicKind;
     fn reliability_level(&self) -> &ReliabilityKind;
-    fn unicast_locator_list(&self) -> &[PSM::LocatorType];
-    fn multicast_locator_list(&self) -> &[PSM::LocatorType];
+    fn unicast_locator_list(&self) -> &[PSM::LocatorType]
+    where
+        PSM: LocatorPIM;
+    fn multicast_locator_list(&self) -> &[PSM::LocatorType]
+    where
+        PSM: LocatorPIM;
 }

@@ -1,35 +1,15 @@
-use rust_rtps_pim::{messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM}, structure::types::{
-        ChangeKind, DataPIM, EntityIdPIM, GuidPrefixPIM, InstanceHandlePIM, SequenceNumberPIM,
-        GUIDPIM,
-    }};
-
-pub trait RTPSCacheChangeImplTrait:
-    InstanceHandlePIM
-    + SequenceNumberPIM
-    + DataPIM
-    + ParameterIdPIM
-    + EntityIdPIM
-    + GuidPrefixPIM
-    + GUIDPIM<Self>
-    + ParameterListSubmessageElementPIM<Self>
-    + Sized
+use rust_rtps_pim::{
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::types::{ChangeKind, DataPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM},
+};
+pub struct RTPSCacheChangeImpl<PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + InstanceHandlePIM
+        + SequenceNumberPIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
 {
-}
-impl<
-        T: InstanceHandlePIM
-            + SequenceNumberPIM
-            + DataPIM
-            + ParameterIdPIM
-            + EntityIdPIM
-            + GuidPrefixPIM
-            + GUIDPIM<Self>
-            + ParameterListSubmessageElementPIM<Self>
-            + Sized,
-    > RTPSCacheChangeImplTrait for T
-{
-}
-
-pub struct RTPSCacheChangeImpl<PSM: RTPSCacheChangeImplTrait> {
     kind: ChangeKind,
     writer_guid: PSM::GUIDType,
     instance_handle: PSM::InstanceHandleType,
@@ -38,7 +18,14 @@ pub struct RTPSCacheChangeImpl<PSM: RTPSCacheChangeImplTrait> {
     inline_qos: PSM::ParameterListSubmessageElementType,
 }
 
-impl<PSM: RTPSCacheChangeImplTrait> RTPSCacheChangeImpl<PSM> {
+impl<PSM> RTPSCacheChangeImpl<PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + InstanceHandlePIM
+        + SequenceNumberPIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
+{
     pub fn new(
         kind: ChangeKind,
         writer_guid: PSM::GUIDType,
@@ -58,8 +45,13 @@ impl<PSM: RTPSCacheChangeImplTrait> RTPSCacheChangeImpl<PSM> {
     }
 }
 
-impl<PSM: RTPSCacheChangeImplTrait> rust_rtps_pim::structure::RTPSCacheChange<PSM>
-    for RTPSCacheChangeImpl<PSM>
+impl<PSM> rust_rtps_pim::structure::RTPSCacheChange<PSM> for RTPSCacheChangeImpl<PSM>
+where
+    PSM: GUIDPIM<PSM>
+        + InstanceHandlePIM
+        + SequenceNumberPIM
+        + DataPIM
+        + ParameterListSubmessageElementPIM<PSM>,
 {
     fn kind(&self) -> ChangeKind {
         self.kind

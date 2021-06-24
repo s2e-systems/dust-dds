@@ -24,22 +24,25 @@ use crate::{
 };
 
 use super::types::DurationPIM;
-pub trait RTPSReaderLocator<PSM>
-where
-    PSM: LocatorPIM + SequenceNumberPIM,
-{
-    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>;
+pub trait RTPSReaderLocator<PSM> {
+    type SequenceNumberVector;
 
-    fn locator(&self) -> &PSM::LocatorType;
+    fn locator(&self) -> &PSM::LocatorType
+    where
+        PSM: LocatorPIM;
 
     fn expects_inline_qos(&self) -> bool;
 
-    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType>;
+    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType>
+    where
+        PSM: SequenceNumberPIM;
 
     fn next_unsent_change(
         &mut self,
         last_change_sequence_number: &PSM::SequenceNumberType,
-    ) -> Option<PSM::SequenceNumberType>;
+    ) -> Option<PSM::SequenceNumberType>
+    where
+        PSM: SequenceNumberPIM;
 
     fn requested_changes(&self) -> Self::SequenceNumberVector;
 
@@ -47,31 +50,25 @@ where
         &mut self,
         req_seq_num_set: &[PSM::SequenceNumberType],
         last_change_sequence_number: &PSM::SequenceNumberType,
-    );
+    ) where
+        PSM: SequenceNumberPIM;
 
     fn unsent_changes(
         &self,
         last_change_sequence_number: PSM::SequenceNumberType,
-    ) -> Self::SequenceNumberVector;
+    ) -> Self::SequenceNumberVector
+    where
+        PSM: SequenceNumberPIM;
 }
 
-pub trait RTPSStatelessWriter<PSM>: RTPSWriter<PSM>
-where
-    PSM: LocatorPIM
-        + SequenceNumberPIM
-        + DurationPIM
-        + GUIDPIM<PSM>
-        + DataPIM
-        + ParameterListSubmessageElementPIM<PSM>
-        + InstanceHandlePIM,
-{
+pub trait RTPSStatelessWriter<PSM> {
     type ReaderLocatorPIM;
 
-    fn reader_locators(&mut self) -> (&mut [Self::ReaderLocatorPIM], &Self::HistoryCacheType);
+    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorPIM];
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM);
 
-    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType);
+    fn reader_locator_remove(&mut self, a_locator: &PSM::LocatorType) where PSM: LocatorPIM;
 
     fn unsent_changes_reset(&mut self);
 }

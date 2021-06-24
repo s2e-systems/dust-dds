@@ -2,19 +2,14 @@ use rust_rtps_pim::{
     behavior::stateless_writer::RTPSReaderLocator,
     structure::types::{LocatorPIM, SequenceNumberPIM},
 };
-
-pub trait RTPSReaderLocatorImplTrait: LocatorPIM + SequenceNumberPIM {}
-
-impl<T: LocatorPIM + SequenceNumberPIM> RTPSReaderLocatorImplTrait for T {}
-
-pub struct RTPSReaderLocatorImpl<PSM: RTPSReaderLocatorImplTrait> {
+pub struct RTPSReaderLocatorImpl<PSM> where PSM: LocatorPIM + SequenceNumberPIM {
     locator: PSM::LocatorType,
     expects_inline_qos: bool,
     last_sent_sequence_number: PSM::SequenceNumberType,
     requested_changes: Vec<PSM::SequenceNumberType>,
 }
 
-impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocatorImpl<PSM> {
+impl<PSM> RTPSReaderLocatorImpl<PSM> where PSM: LocatorPIM + SequenceNumberPIM {
     pub fn new(locator: PSM::LocatorType, expects_inline_qos: bool) -> Self {
         Self {
             locator,
@@ -25,9 +20,10 @@ impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocatorImpl<PSM> {
     }
 }
 
-impl<PSM: RTPSReaderLocatorImplTrait> RTPSReaderLocator<PSM> for RTPSReaderLocatorImpl<PSM>
+impl<PSM> RTPSReaderLocator<PSM> for RTPSReaderLocatorImpl<PSM>
 where
-    PSM::SequenceNumberType: Clone + Ord + Copy,
+    PSM:LocatorPIM + SequenceNumberPIM,
+    PSM::SequenceNumberType: Ord + Copy,
 {
     type SequenceNumberVector = Vec<PSM::SequenceNumberType>;
 

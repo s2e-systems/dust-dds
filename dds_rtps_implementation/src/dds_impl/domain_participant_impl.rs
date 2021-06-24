@@ -23,7 +23,7 @@ use rust_rtps_pim::structure::types::GUIDType;
 use crate::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
     transport::Transport,
-    utils::{message_sender::send_data, shared_object::RtpsShared},
+    utils::{shared_object::RtpsShared},
 };
 
 use super::{
