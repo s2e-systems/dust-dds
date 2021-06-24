@@ -26,8 +26,7 @@ use rust_rtps_pim::{
         RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
     structure::types::{
-        DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM,
-        VendorIdPIM, GUIDPIM,
+        DataPIM, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM, VendorIdPIM, GUIDPIM,
     },
 };
 
@@ -36,35 +35,25 @@ pub mod submessages;
 #[derive(Debug, PartialEq)]
 pub struct RtpsUdpPsm;
 
-impl EntityIdPIM for RtpsUdpPsm {
-    type EntityIdType = EntityId;
-    const ENTITYID_UNKNOWN: Self::EntityIdType = EntityId {
-        entity_key: [0; 3],
-        entity_kind: 0,
-    };
-
-    const ENTITYID_PARTICIPANT: Self::EntityIdType = EntityId {
-        entity_key: [0, 0, 0x01],
-        entity_kind: 0xc1,
-    };
-}
-
 impl GUIDPIM for RtpsUdpPsm {
     type GUIDType = GUID;
     const GUID_UNKNOWN: Self::GUIDType = GUID {
         prefix: rust_rtps_pim::structure::types::GUIDPREFIX_UNKNOWN,
-        entity_id: RtpsUdpPsm::ENTITYID_UNKNOWN,
+        entity_id: rust_rtps_pim::structure::types::ENTITYID_UNKNOWN,
     };
 }
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct GUID {
     pub prefix: rust_rtps_pim::structure::types::GuidPrefix,
-    pub entity_id: EntityId,
+    pub entity_id: rust_rtps_pim::structure::types::EntityId,
 }
 
-impl rust_rtps_pim::structure::types::GUIDType<RtpsUdpPsm> for GUID {
-    fn new(prefix: rust_rtps_pim::structure::types::GuidPrefix, entity_id: EntityId) -> Self {
+impl rust_rtps_pim::structure::types::GUIDType for GUID {
+    fn new(
+        prefix: rust_rtps_pim::structure::types::GuidPrefix,
+        entity_id: rust_rtps_pim::structure::types::EntityId,
+    ) -> Self {
         Self { prefix, entity_id }
     }
 
@@ -72,7 +61,7 @@ impl rust_rtps_pim::structure::types::GUIDType<RtpsUdpPsm> for GUID {
         todo!()
     }
 
-    fn entity_id(&self) -> &EntityId {
+    fn entity_id(&self) -> &rust_rtps_pim::structure::types::EntityId {
         todo!()
     }
 }
@@ -87,14 +76,6 @@ impl Into<[u8; 16]> for GUID {
     fn into(self) -> [u8; 16] {
         todo!()
     }
-}
-
-impl SequenceNumberPIM for RtpsUdpPsm {
-    type SequenceNumberType = SequenceNumber;
-    const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = SequenceNumber {
-        high: core::i32::MIN,
-        low: core::u32::MAX,
-    };
 }
 
 impl LocatorPIM for RtpsUdpPsm {
@@ -453,83 +434,30 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementTy
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct EntityId {
-    pub entity_key: [u8; 3],
-    pub entity_kind: u8,
-}
+pub struct EntityId(rust_rtps_pim::structure::types::EntityId);
 
-impl Into<[u8; 4]> for EntityId {
-    fn into(self) -> [u8; 4] {
-        [
-            self.entity_key[0],
-            self.entity_key[1],
-            self.entity_key[2],
-            self.entity_kind,
-        ]
-    }
-}
-
-impl From<[u8; 4]> for EntityId {
-    fn from(value: [u8; 4]) -> Self {
-        Self {
-            entity_key: [value[0], value[1], value[2]],
-            entity_kind: value[3],
-        }
-    }
-}
-
-impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType<RtpsUdpPsm>
-    for EntityId
-{
-    fn new(value: &EntityId) -> Self {
-        value.clone()
+impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType for EntityId {
+    fn new(value: &rust_rtps_pim::structure::types::EntityId) -> Self {
+        Self(value.clone())
     }
 
-    fn value(&self) -> &EntityId {
-        self
+    fn value(&self) -> &rust_rtps_pim::structure::types::EntityId {
+        &self.0
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct SequenceNumber {
-    pub high: i32,
-    pub low: u32,
-}
-impl PartialOrd for SequenceNumber {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Into::<i64>::into(*self).partial_cmp(&(*other).into())
-    }
-}
-impl Ord for SequenceNumber {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        Into::<i64>::into(*self).cmp(&(*other).into())
-    }
-}
+pub struct SequenceNumber(i64);
 
-impl From<SequenceNumber> for i64 {
-    fn from(value: SequenceNumber) -> Self {
-        ((value.high as i64) << 32) + value.low as i64
-    }
-}
-
-impl From<i64> for SequenceNumber {
-    fn from(value: i64) -> Self {
-        Self {
-            high: (value >> 32) as i32,
-            low: value as u32,
-        }
-    }
-}
-
-impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType<RtpsUdpPsm>
+impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType
     for SequenceNumber
 {
-    fn new(value: &SequenceNumber) -> Self {
-        value.clone()
+    fn new(value: &rust_rtps_pim::structure::types::SequenceNumber) -> Self {
+        Self(value.clone())
     }
 
-    fn value(&self) -> &SequenceNumber {
-        self
+    fn value(&self) -> &rust_rtps_pim::structure::types::SequenceNumber {
+        &self.0
     }
 }
 
@@ -560,8 +488,8 @@ impl rust_rtps_pim::structure::types::LocatorType for Locator {
 
 #[derive(Debug, Clone)]
 pub struct SequenceNumberSet {
-    base: SequenceNumber,
-    set: Vec<SequenceNumber>,
+    base: rust_rtps_pim::structure::types::SequenceNumber,
+    set: Vec<rust_rtps_pim::structure::types::SequenceNumber>,
     num_bits: ULong,
     bitmap: Vec<i32>,
 }
@@ -576,12 +504,12 @@ impl SequenceNumberSet {
     pub fn len(&self) -> u16 {
         12 /*bitmapBase + numBits */ + 4 * self.bitmap.len() /* bitmap[0] .. bitmap[M-1] */ as u16
     }
-    pub fn from_bitmap(bitmap_base: SequenceNumber, bitmap: Vec<i32>) -> Self {
+    pub fn from_bitmap(bitmap_base: rust_rtps_pim::structure::types::SequenceNumber, bitmap: Vec<i32>) -> Self {
         let mut set = vec![];
         let num_bits = 32 * bitmap.len();
         for delta_n in 0..num_bits {
             if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                let seq_num = Into::<i64>::into(bitmap_base) + delta_n as i64;
+                let seq_num = bitmap_base + delta_n as i64;
                 set.push(seq_num.into());
             }
         }
@@ -631,7 +559,7 @@ impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        let base: SequenceNumber = seq
+        let base: rust_rtps_pim::structure::types::SequenceNumber = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
         let num_bits: u32 = seq
@@ -661,11 +589,13 @@ impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
     }
 }
 
-impl
-    rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType<RtpsUdpPsm>
+impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType
     for SequenceNumberSet
 {
-    fn new(base: &SequenceNumber, set: &[SequenceNumber]) -> Self {
+    fn new(
+        base: &rust_rtps_pim::structure::types::SequenceNumber,
+        set: &[rust_rtps_pim::structure::types::SequenceNumber],
+    ) -> Self {
         let max = set.iter().max();
         let num_bits = match max {
             Some(max) => Into::<i64>::into(*max) - Into::<i64>::into(*base) + 1,
@@ -686,11 +616,11 @@ impl
         }
     }
 
-    fn base(&self) -> &SequenceNumber {
+    fn base(&self) -> &rust_rtps_pim::structure::types::SequenceNumber {
         &self.base
     }
 
-    fn set(&self) -> &[SequenceNumber] {
+    fn set(&self) -> &[rust_rtps_pim::structure::types::SequenceNumber] {
         &self.set
     }
 }
@@ -1456,9 +1386,9 @@ mod tests {
             guid_prefix: [3; 12],
         };
         let endianness_flag = true;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let gap_start = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let gap_start = SequenceNumber(5);
         let gap_list = SequenceNumberSet::new(&10.into(), &[]);
         let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
             endianness_flag,
@@ -1472,7 +1402,7 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let writer_sn = 5.into();
+        let writer_sn = SequenceNumber(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };
@@ -1552,9 +1482,9 @@ mod tests {
         };
 
         let endianness_flag = true;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let gap_start = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let gap_start = SequenceNumber(5);
         let gap_list = SequenceNumberSet::new(&10.into(), &[]);
         let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
             endianness_flag,
@@ -1568,7 +1498,7 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let writer_sn = 5.into();
+        let writer_sn = SequenceNumber(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };

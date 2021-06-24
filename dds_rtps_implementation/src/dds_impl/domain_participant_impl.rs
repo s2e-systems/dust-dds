@@ -16,10 +16,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::{types::DurationPIM, RTPSWriter},
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{
-        DataPIM, EntityIdPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
-        SequenceNumberPIM, GUIDPIM,
-    },
+    structure::types::{DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM, GUIDPIM},
 };
 
 // use rust_rtps_pim::structure::RTPSEntity;
@@ -39,11 +36,9 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM
+        + ParameterListSubmessageElementPIM,
 {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
@@ -55,15 +50,16 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM
+        + ParameterListSubmessageElementPIM,
 {
-    pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix, transport: impl Transport<PSM> + 'static) -> Self
+    pub fn new(
+        guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
+        transport: impl Transport<PSM> + 'static,
+    ) -> Self
     where
-        PSM::GUIDType: GUIDType<PSM>,
+        PSM::GUIDType: GUIDType,
     {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
@@ -79,22 +75,17 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
         + 'static,
-    PSM::GUIDType: GUIDType<PSM> + Send + Sync,
+    PSM::GUIDType: GUIDType + Send + Sync,
     PSM::DurationType: Send + Sync,
-    PSM::SequenceNumberType: Send + Sync,
     PSM::LocatorType: Send + Sync,
-    PSM::EntityIdType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GUIDType: Copy,
-    PSM::SequenceNumberType: Ord + Copy,
 {
     type PublisherType = PublisherImpl<'p, PSM>;
     fn create_publisher(
@@ -135,22 +126,17 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
     PSM::DurationType: Send + Sync,
-    PSM::SequenceNumberType: Send + Sync,
     PSM::LocatorType: Send + Sync,
-    PSM::EntityIdType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GUIDType: Copy,
-    PSM::SequenceNumberType: Ord + Copy,
 {
     type SubscriberType = SubscriberImpl<'s, PSM>;
 
@@ -211,22 +197,17 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
     PSM::DurationType: Send + Sync,
-    PSM::SequenceNumberType: Send + Sync,
     PSM::LocatorType: Send + Sync,
-    PSM::EntityIdType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GUIDType: Copy,
-    PSM::SequenceNumberType: Ord + Copy,
 {
     type TopicType = TopicImpl<'t, T>;
 
@@ -254,22 +235,17 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
     PSM::DurationType: Send + Sync,
-    PSM::SequenceNumberType: Send + Sync,
     PSM::LocatorType: Send + Sync,
-    PSM::EntityIdType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GUIDType: Copy,
-    PSM::SequenceNumberType: Ord + Copy,
 {
     fn lookup_topicdescription<'t, T>(
         &'t self,
@@ -382,22 +358,17 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
         + 'static,
     PSM::GUIDType: Send + Sync,
     PSM::DurationType: Send + Sync,
-    PSM::SequenceNumberType: Send + Sync,
     PSM::LocatorType: Send + Sync,
-    PSM::EntityIdType: Send + Sync,
     PSM::InstanceHandleType: Send + Sync,
     PSM::DataType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     PSM::GUIDType: Copy,
-    PSM::SequenceNumberType: Ord + Copy,
 {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
@@ -434,14 +405,14 @@ where
 
     fn enable(&self) -> DDSResult<()> {
         let rtps_participant = self.rtps_participant_impl.clone();
-        let transport = self.transport.clone();
+        let _transport = self.transport.clone();
         std::thread::spawn(move || {
             loop {
                 if let Some(rtps_participant) = rtps_participant.try_lock() {
                     let writer_group = rtps_participant.writer_groups()[0].lock();
                     let mut writer = writer_group.writer_list()[0].lock();
-                    let last_change_sequence_number = *writer.last_change_sequence_number();
-                    let (writer_cache, reader_locators) = writer.writer_cache_and_reader_locators();
+                    let _last_change_sequence_number = *writer.last_change_sequence_number();
+                    let (_writer_cache, _reader_locators) = writer.writer_cache_and_reader_locators();
                     todo!()
                     // send_data(
                     //     rtps_participant.as_ref(),

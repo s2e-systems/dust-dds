@@ -73,7 +73,7 @@
 //     PSM::ParameterListSubmessageElementType: Clone,
 //     <StatelessWriter::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange: RTPSCacheChange<PSM>,
 //     for<'a> <PSM as RTPSMessagePIM<'a, PSM>>::RTPSMessageType: RTPSMessage<'a, PSM>,
-//     PSM::SequenceNumberType: Copy,
+//     SequenceNumber: Copy,
 // {
 //     // for writer_group in &rtps_participant_impl.rtps_writer_groups {
 //     // let writer_group_lock = writer_group.lock();

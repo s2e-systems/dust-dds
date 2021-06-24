@@ -8,8 +8,8 @@ use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{
-            ChangeKind, DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM, ReliabilityKind,
-            SequenceNumberPIM, TopicKind, GUIDPIM,
+            ChangeKind, DataPIM, InstanceHandlePIM, LocatorPIM, ReliabilityKind,
+            SequenceNumber, TopicKind, GUIDPIM,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
@@ -25,8 +25,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -40,7 +38,7 @@ where
     heartbeat_period: PSM::DurationType,
     nack_response_delay: PSM::DurationType,
     nack_suppression_duration: PSM::DurationType,
-    last_change_sequence_number: PSM::SequenceNumberType,
+    last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: i32,
     reader_locators: Vec<RTPSReaderLocatorImpl<PSM>>,
     matched_readers: Vec<RTPSReaderProxyImpl<PSM>>,
@@ -52,8 +50,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -71,7 +67,7 @@ where
         data_max_size_serialized: i32,
     ) -> Self
     where
-        PSM::SequenceNumberType: PartialEq + Ord,
+        SequenceNumber: PartialEq + Ord,
     {
         Self {
             guid,
@@ -106,8 +102,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -120,14 +114,12 @@ where
 impl<PSM> RTPSWriter<PSM> for RTPSWriterImpl<PSM>
 where
     PSM: GUIDPIM
-        + EntityIdPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
-    PSM::SequenceNumberType: Ord + Copy,
+    SequenceNumber: Ord + Copy,
     PSM::GUIDType: Copy,
 {
     type HistoryCacheType = RTPSHistoryCacheImpl<PSM>;
@@ -148,7 +140,7 @@ where
         &self.nack_suppression_duration
     }
 
-    fn last_change_sequence_number(&self) -> &PSM::SequenceNumberType {
+    fn last_change_sequence_number(&self) -> &SequenceNumber {
         &self.last_change_sequence_number
     }
 
@@ -170,12 +162,12 @@ where
         data: PSM::DataType,
         inline_qos: PSM::ParameterListSubmessageElementType,
         handle: PSM::InstanceHandleType,
-    ) -> <Self::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
         // Self::HistoryCacheType: RTPSHistoryCache<PSM>,
         PSM: DataPIM + ParameterListSubmessageElementPIM + InstanceHandlePIM,
     {
-        self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
+        self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RTPSCacheChangeImpl::new(
             kind,
             self.guid,
@@ -192,8 +184,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -218,15 +208,12 @@ where
 impl<PSM> RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM>
 where
     PSM: GUIDPIM
-        + EntityIdPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
     PSM::LocatorType: PartialEq,
-    PSM::SequenceNumberType: Ord + Copy,
 {
     type ReaderLocatorPIM = RTPSReaderLocatorImpl<PSM>;
 
@@ -252,13 +239,11 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
     PSM::GUIDType: PartialEq,
-    // PSM::SequenceNumberType: Ord + Copy,
+    // SequenceNumber: Ord + Copy,
     // PSM::GUIDType: Copy,
 {
     type ReaderProxyType = RTPSReaderProxyImpl<PSM>;
@@ -302,20 +287,8 @@ mod tests {
         type InstanceHandleType = ();
     }
 
-    impl rust_rtps_pim::structure::types::SequenceNumberPIM for MockPSM {
-        type SequenceNumberType = i64;
-        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = -1;
-    }
-
     impl rust_rtps_pim::structure::types::DataPIM for MockPSM {
         type DataType = [u8; 0];
-    }
-
-    impl rust_rtps_pim::structure::types::EntityIdPIM for MockPSM {
-        type EntityIdType = [u8; 4];
-
-        const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityIdType = [1; 4];
     }
 
     impl rust_rtps_pim::messages::types::ParameterIdPIM for MockPSM {
@@ -325,7 +298,7 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID(u8);
 
-    impl rust_rtps_pim::structure::types::GUIDType<MockPSM> for MockGUID {
+    impl rust_rtps_pim::structure::types::GUIDType for MockGUID {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }
@@ -356,9 +329,7 @@ mod tests {
         const GUID_UNKNOWN: Self::GUIDType = MockGUID(0);
     }
 
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM
-        for MockPSM
-    {
+    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
     }
 

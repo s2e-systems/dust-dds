@@ -90,9 +90,9 @@ mod tests {
     #[test]
     fn serialize_gap() {
         let endianness_flag = true;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let gap_start = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let gap_start = SequenceNumber(5);
         let gap_list = SequenceNumberSet::new(&10.into(), &[]);
         let submessage: GapSubmessage = rust_rtps_pim::messages::submessages::GapSubmessage::new(
             endianness_flag,
@@ -118,9 +118,9 @@ mod tests {
     #[test]
     fn deserialize_gap() {
         let endianness_flag = true;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let gap_start = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let gap_start = SequenceNumber(5);
         let gap_list = SequenceNumberSet::new(&10.into(), &[]);
         let expected: GapSubmessage = rust_rtps_pim::messages::submessages::GapSubmessage::new(
             endianness_flag,

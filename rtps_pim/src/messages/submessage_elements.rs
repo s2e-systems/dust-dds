@@ -1,12 +1,9 @@
-use structure::types::EntityIdPIM;
-
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-use crate::structure::{
-    self,
-    types::{GuidPrefix, LocatorPIM, ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM},
+use crate::structure::types::{
+    EntityId, GuidPrefix, LocatorPIM, ProtocolVersionPIM, SequenceNumber, VendorIdPIM,
 };
 
 use super::types::{CountPIM, FragmentNumberPIM, GroupDigestPIM, ParameterIdPIM, TimePIM};
@@ -60,9 +57,9 @@ pub trait EntityIdSubmessageElementPIM {
     type EntityIdSubmessageElementType;
 }
 
-pub trait EntityIdSubmessageElementType<PSM: EntityIdPIM> {
-    fn new(value: &PSM::EntityIdType) -> Self;
-    fn value(&self) -> &PSM::EntityIdType;
+pub trait EntityIdSubmessageElementType {
+    fn new(value: &EntityId) -> Self;
+    fn value(&self) -> &EntityId;
 }
 
 pub trait VendorIdSubmessageElementPIM {
@@ -87,19 +84,19 @@ pub trait SequenceNumberSubmessageElementPIM {
     type SequenceNumberSubmessageElementType;
 }
 
-pub trait SequenceNumberSubmessageElementType<PSM: SequenceNumberPIM> {
-    fn new(value: &PSM::SequenceNumberType) -> Self;
-    fn value(&self) -> &PSM::SequenceNumberType;
+pub trait SequenceNumberSubmessageElementType {
+    fn new(value: &SequenceNumber) -> Self;
+    fn value(&self) -> &SequenceNumber;
 }
 
 pub trait SequenceNumberSetSubmessageElementPIM {
     type SequenceNumberSetSubmessageElementType;
 }
 
-pub trait SequenceNumberSetSubmessageElementType<PSM: SequenceNumberPIM> {
-    fn new(base: &PSM::SequenceNumberType, set: &[PSM::SequenceNumberType]) -> Self;
-    fn base(&self) -> &PSM::SequenceNumberType;
-    fn set(&self) -> &[PSM::SequenceNumberType];
+pub trait SequenceNumberSetSubmessageElementType {
+    fn new(base: &SequenceNumber, set: &[SequenceNumber]) -> Self;
+    fn base(&self) -> &SequenceNumber;
+    fn set(&self) -> &[SequenceNumber];
 }
 
 pub trait FragmentNumberSubmessageElementPIM {

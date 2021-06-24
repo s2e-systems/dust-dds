@@ -96,10 +96,10 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let first_sn = 1.into();
-        let last_sn = 3.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let first_sn = SequenceNumber(1);
+        let last_sn = SequenceNumber(3);
         let count = Count(5);
         let submessage: HeartbeatSubmessage =
             rust_rtps_pim::messages::submessages::HeartbeatSubmessage::new(

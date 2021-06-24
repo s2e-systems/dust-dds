@@ -8,8 +8,8 @@ use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::types::{
-        DataPIM, EntityIdPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
-        SequenceNumberPIM, GUIDPIM,
+        DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
+        GUIDPIM,
     },
 };
 
@@ -30,8 +30,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -52,7 +50,7 @@ where
         mask: StatusMask,
     ) -> DDSResult<RTPSWriterGroupImpl<PSM>>
     where
-        PSM::GUIDType: GUIDType<PSM>,
+        PSM::GUIDType: GUIDType,
     {
         let qos = qos.unwrap_or(self.default_publisher_qos.clone());
         let guid_prefix = self.guid_prefix.clone();

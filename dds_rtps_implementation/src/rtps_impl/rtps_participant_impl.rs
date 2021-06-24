@@ -4,8 +4,8 @@ use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
-            ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
+            DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM, ProtocolVersionPIM,
+            VendorIdPIM, GUIDPIM,
         },
         RTPSEntity,
     },
@@ -20,8 +20,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -35,17 +33,18 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
-        + ParameterListSubmessageElementPIM
+        + ParameterListSubmessageElementPIM,
 {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self
     where
-        PSM::GUIDType: GUIDType<PSM>,
+        PSM::GUIDType: GUIDType,
     {
-        let guid = GUIDType::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
+        let guid = GUIDType::new(
+            guid_prefix,
+            rust_rtps_pim::structure::types::ENTITYID_PARTICIPANT,
+        );
 
         Self {
             guid,
@@ -92,8 +91,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
@@ -123,8 +120,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,

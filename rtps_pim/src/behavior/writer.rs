@@ -1,7 +1,7 @@
 use crate::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{ChangeKind, DataPIM, InstanceHandlePIM, SequenceNumberPIM},
+        types::{ChangeKind, DataPIM, InstanceHandlePIM, SequenceNumber},
         RTPSHistoryCache,
     },
 };
@@ -9,7 +9,7 @@ use crate::{
 use super::types::DurationPIM;
 
 pub trait RTPSWriter<PSM> {
-    type HistoryCacheType: RTPSHistoryCache<PSM>;
+    type HistoryCacheType: RTPSHistoryCache;
 
     fn push_mode(&self) -> bool;
     fn heartbeat_period(&self) -> &PSM::DurationType
@@ -21,9 +21,7 @@ pub trait RTPSWriter<PSM> {
     fn nack_suppression_duration(&self) -> &PSM::DurationType
     where
         PSM: DurationPIM;
-    fn last_change_sequence_number(&self) -> &PSM::SequenceNumberType
-    where
-        PSM: SequenceNumberPIM;
+    fn last_change_sequence_number(&self) -> &SequenceNumber;
     fn data_max_size_serialized(&self) -> i32;
     fn writer_cache(&self) -> &Self::HistoryCacheType;
     fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
@@ -34,8 +32,8 @@ pub trait RTPSWriter<PSM> {
         data: PSM::DataType,
         inline_qos: PSM::ParameterListSubmessageElementType,
         handle: PSM::InstanceHandleType,
-    ) -> <Self::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
-        Self::HistoryCacheType: RTPSHistoryCache<PSM>,
+        Self::HistoryCacheType: RTPSHistoryCache,
         PSM: DataPIM + ParameterListSubmessageElementPIM + InstanceHandlePIM;
 }

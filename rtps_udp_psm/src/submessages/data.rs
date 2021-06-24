@@ -251,9 +251,9 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let writer_sn = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let writer_sn = SequenceNumber(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };
@@ -290,9 +290,9 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let writer_sn = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let writer_sn = SequenceNumber(5);
         let param1 = crate::Parameter::new(6, vec![10, 11, 12, 13].into());
         let param2 = crate::Parameter::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = ParameterList {
@@ -336,9 +336,9 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let writer_sn = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let writer_sn = SequenceNumber(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };
@@ -376,9 +376,9 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let writer_sn = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let writer_sn = SequenceNumber(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };
@@ -414,9 +414,9 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let writer_sn = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let writer_sn = SequenceNumber(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };
@@ -455,9 +455,9 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = [1, 2, 3, 4].into();
-        let writer_id = [6, 7, 8, 9].into();
-        let writer_sn = 5.into();
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let writer_sn = SequenceNumber(5);
         let param1 = crate::Parameter::new(6, vec![10, 11, 12, 13].into());
         let param2 = crate::Parameter::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = ParameterList {

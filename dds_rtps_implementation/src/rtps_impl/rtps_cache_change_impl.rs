@@ -1,19 +1,20 @@
 use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{ChangeKind, DataPIM, InstanceHandlePIM, SequenceNumberPIM, GUIDPIM},
+    structure::types::{
+        ChangeKind, DataPIM, InstanceHandlePIM, SequenceNumber, GUIDPIM,
+    },
 };
 pub struct RTPSCacheChangeImpl<PSM>
 where
     PSM: GUIDPIM
         + InstanceHandlePIM
-        + SequenceNumberPIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
 {
     kind: ChangeKind,
     writer_guid: PSM::GUIDType,
     instance_handle: PSM::InstanceHandleType,
-    sequence_number: PSM::SequenceNumberType,
+    sequence_number: SequenceNumber,
     data: PSM::DataType,
     inline_qos: PSM::ParameterListSubmessageElementType,
 }
@@ -22,7 +23,6 @@ impl<PSM> RTPSCacheChangeImpl<PSM>
 where
     PSM: GUIDPIM
         + InstanceHandlePIM
-        + SequenceNumberPIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
 {
@@ -30,7 +30,7 @@ where
         kind: ChangeKind,
         writer_guid: PSM::GUIDType,
         instance_handle: PSM::InstanceHandleType,
-        sequence_number: PSM::SequenceNumberType,
+        sequence_number: SequenceNumber,
         data: PSM::DataType,
         inline_qos: PSM::ParameterListSubmessageElementType,
     ) -> Self {
@@ -49,7 +49,6 @@ impl<PSM> rust_rtps_pim::structure::RTPSCacheChange<PSM> for RTPSCacheChangeImpl
 where
     PSM: GUIDPIM
         + InstanceHandlePIM
-        + SequenceNumberPIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
 {
@@ -65,7 +64,7 @@ where
         &self.instance_handle
     }
 
-    fn sequence_number(&self) -> &PSM::SequenceNumberType {
+    fn sequence_number(&self) -> &SequenceNumber {
         &self.sequence_number
     }
 

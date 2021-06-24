@@ -6,16 +6,12 @@
 pub type GuidPrefix = [u8; 12];
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
-pub trait EntityIdPIM {
-    type EntityIdType: Into<[u8; 4]> + From<[u8; 4]>;
-    const ENTITYID_UNKNOWN: Self::EntityIdType;
-    const ENTITYID_PARTICIPANT: Self::EntityIdType;
-}
+pub type EntityId = [u8; 4];
+pub const ENTITYID_UNKNOWN: EntityId = [0; 4];
+pub const ENTITYID_PARTICIPANT: EntityId = [0, 0, 0x01, 0xc1];
 
-pub trait SequenceNumberPIM {
-    type SequenceNumberType: Into<i64> + From<i64>;
-    const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType;
-}
+pub type SequenceNumber = i64;
+pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
 
 pub trait LocatorPIM {
     type LocatorType: LocatorType;
@@ -75,14 +71,10 @@ pub trait GUIDPIM {
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub trait GUIDType<PSM>: From<[u8; 16]> + Into<[u8; 16]> {
-    fn new(prefix: GuidPrefix, entity_id: PSM::EntityIdType) -> Self
-    where
-        PSM: EntityIdPIM;
+pub trait GUIDType: From<[u8; 16]> + Into<[u8; 16]> {
+    fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self;
     fn prefix(&self) -> &GuidPrefix;
-    fn entity_id(&self) -> &PSM::EntityIdType
-    where
-        PSM: EntityIdPIM;
+    fn entity_id(&self) -> &EntityId;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

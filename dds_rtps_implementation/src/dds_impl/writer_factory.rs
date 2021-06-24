@@ -8,7 +8,7 @@ use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::types::{
-        DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
+        DataPIM, InstanceHandlePIM, LocatorPIM,
         GUIDPIM,
     },
 };
@@ -42,8 +42,6 @@ impl<PSM> WriterFactory<PSM>
         PSM: GUIDPIM
             + LocatorPIM
             + DurationPIM
-            + SequenceNumberPIM
-            + EntityIdPIM
             + InstanceHandlePIM
             + DataPIM
             + ParameterListSubmessageElementPIM,

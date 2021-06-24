@@ -1,15 +1,15 @@
 use rust_rtps_pim::{
     behavior::stateless_writer::RTPSReaderLocator,
-    structure::types::{LocatorPIM, SequenceNumberPIM},
+    structure::types::{LocatorPIM, SequenceNumber},
 };
-pub struct RTPSReaderLocatorImpl<PSM> where PSM: LocatorPIM + SequenceNumberPIM {
+pub struct RTPSReaderLocatorImpl<PSM> where PSM: LocatorPIM {
     locator: PSM::LocatorType,
     expects_inline_qos: bool,
-    last_sent_sequence_number: PSM::SequenceNumberType,
-    requested_changes: Vec<PSM::SequenceNumberType>,
+    last_sent_sequence_number: SequenceNumber,
+    requested_changes: Vec<SequenceNumber>,
 }
 
-impl<PSM> RTPSReaderLocatorImpl<PSM> where PSM: LocatorPIM + SequenceNumberPIM {
+impl<PSM> RTPSReaderLocatorImpl<PSM> where PSM: LocatorPIM {
     pub fn new(locator: PSM::LocatorType, expects_inline_qos: bool) -> Self {
         Self {
             locator,
@@ -22,10 +22,9 @@ impl<PSM> RTPSReaderLocatorImpl<PSM> where PSM: LocatorPIM + SequenceNumberPIM {
 
 impl<PSM> RTPSReaderLocator<PSM> for RTPSReaderLocatorImpl<PSM>
 where
-    PSM:LocatorPIM + SequenceNumberPIM,
-    PSM::SequenceNumberType: Ord + Copy,
+    PSM:LocatorPIM
 {
-    type SequenceNumberVector = Vec<PSM::SequenceNumberType>;
+    type SequenceNumberVector = Vec<SequenceNumber>;
 
     fn locator(&self) -> &PSM::LocatorType {
         &self.locator
@@ -35,7 +34,7 @@ where
         self.expects_inline_qos
     }
 
-    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType> {
+    fn next_requested_change(&mut self) -> Option<SequenceNumber> {
         if let Some(requested_change) = self.requested_changes.iter().min().cloned() {
             self.requested_changes.retain(|x| x != &requested_change);
             Some(requested_change.clone())
@@ -46,10 +45,10 @@ where
 
     fn next_unsent_change(
         &mut self,
-        last_change_sequence_number: &PSM::SequenceNumberType,
-    ) -> Option<PSM::SequenceNumberType> {
+        last_change_sequence_number: &SequenceNumber,
+    ) -> Option<SequenceNumber> {
         if &self.last_sent_sequence_number < last_change_sequence_number {
-            self.last_sent_sequence_number = (self.last_sent_sequence_number.into() + 1).into();
+            self.last_sent_sequence_number = self.last_sent_sequence_number + 1;
             Some(self.last_sent_sequence_number.clone())
         } else {
             None
@@ -62,8 +61,8 @@ where
 
     fn requested_changes_set(
         &mut self,
-        req_seq_num_set: &[PSM::SequenceNumberType],
-        last_change_sequence_number: &PSM::SequenceNumberType,
+        req_seq_num_set: &[SequenceNumber],
+        last_change_sequence_number: &SequenceNumber,
     ) {
         for requested_change in req_seq_num_set.as_ref() {
             if requested_change <= last_change_sequence_number {
@@ -74,13 +73,13 @@ where
 
     fn unsent_changes(
         &self,
-        last_change_sequence_number: PSM::SequenceNumberType,
+        last_change_sequence_number: SequenceNumber,
     ) -> Self::SequenceNumberVector {
         let mut unsent_changes = Vec::new();
         for unsent_change_seq_num in
-            self.last_sent_sequence_number.into() + 1..=last_change_sequence_number.into()
+            self.last_sent_sequence_number + 1..=last_change_sequence_number
         {
-            unsent_changes.push(unsent_change_seq_num.into())
+            unsent_changes.push(unsent_change_seq_num)
         }
         unsent_changes
     }
@@ -139,12 +138,6 @@ mod tests {
         const LOCATOR_ADDRESS_INVALID:
             <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress =
             [0; 16];
-    }
-
-    impl rust_rtps_pim::structure::types::SequenceNumberPIM for MockPSM {
-        type SequenceNumberType = i64;
-
-        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = 0;
     }
 
     #[test]

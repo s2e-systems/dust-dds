@@ -1,4 +1,4 @@
-use crate::structure::types::{EntityIdPIM, LocatorPIM, SequenceNumberPIM, GUIDPIM};
+use crate::structure::types::{EntityId, LocatorPIM, SequenceNumber, GUIDPIM};
 
 pub trait RTPSReaderProxy<PSM> {
     type SequenceNumberVector;
@@ -6,9 +6,7 @@ pub trait RTPSReaderProxy<PSM> {
     fn remote_reader_guid(&self) -> &PSM::GUIDType
     where
         PSM: GUIDPIM;
-    fn remote_group_entity_id(&self) -> &PSM::EntityIdType
-    where
-        PSM: EntityIdPIM;
+    fn remote_group_entity_id(&self) -> &EntityId;
     fn unicast_locator_list(&self) -> &[PSM::LocatorType]
     where
         PSM: LocatorPIM;
@@ -18,15 +16,9 @@ pub trait RTPSReaderProxy<PSM> {
     fn expects_inline_qos(&self) -> bool;
     fn is_active(&self) -> bool;
 
-    fn acked_changes_set(&mut self, committed_seq_num: PSM::SequenceNumberType)
-    where
-        PSM: SequenceNumberPIM;
-    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType>
-    where
-        PSM: SequenceNumberPIM;
-    fn next_unsent_change(&mut self) -> Option<PSM::SequenceNumberType>
-    where
-        PSM: SequenceNumberPIM;
+    fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber);
+    fn next_requested_change(&mut self) -> Option<SequenceNumber>;
+    fn next_unsent_change(&mut self) -> Option<SequenceNumber>;
     fn unsent_changes(&self) -> Self::SequenceNumberVector;
     fn requested_changes(&self) -> Self::SequenceNumberVector;
     fn requested_changes_set(&mut self, req_seq_num_set: Self::SequenceNumberVector);
@@ -72,17 +64,6 @@ mod tests {
 
     struct MockPSM;
 
-    impl SequenceNumberPIM for MockPSM {
-        type SequenceNumberType = i64;
-        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = -1;
-    }
-
-    impl EntityIdPIM for MockPSM {
-        type EntityIdType = [u8; 4];
-        const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityIdType = [0; 4];
-    }
-
     impl GUIDPIM for MockPSM {
         type GUIDType = [u8; 16];
         const GUID_UNKNOWN: Self::GUIDType = [0; 16];
@@ -125,7 +106,7 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
-    impl GUIDType<MockPSM> for [u8; 16] {
+    impl GUIDType for [u8; 16] {
         fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
             todo!()
         }

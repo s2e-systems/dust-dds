@@ -18,8 +18,8 @@ use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{
-            DataPIM, EntityIdPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
-            SequenceNumberPIM, GUIDPIM,
+            DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM,
+            GUIDPIM,
         },
         RTPSEntity,
     },
@@ -45,8 +45,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -62,8 +60,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -73,7 +69,7 @@ where
         rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
     ) -> Self
     where
-        PSM::GUIDType: GUIDType<PSM>,
+        PSM::GUIDType: GUIDType,
     {
         let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
@@ -91,8 +87,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
@@ -148,8 +142,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -212,8 +204,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,

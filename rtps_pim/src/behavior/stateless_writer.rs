@@ -15,8 +15,8 @@ use crate::{
     },
     structure::{
         types::{
-            ChangeKind, DataPIM, EntityIdPIM, GUIDType, InstanceHandlePIM,
-            LocatorPIM, SequenceNumberPIM, GUIDPIM,
+            ChangeKind, DataPIM, GUIDType, InstanceHandlePIM, LocatorPIM, SequenceNumber,
+            ENTITYID_UNKNOWN, GUIDPIM,
         },
         RTPSCacheChange, RTPSHistoryCache,
     },
@@ -31,32 +31,25 @@ pub trait RTPSReaderLocator<PSM> {
 
     fn expects_inline_qos(&self) -> bool;
 
-    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType>
-    where
-        PSM: SequenceNumberPIM;
+    fn next_requested_change(&mut self) -> Option<SequenceNumber>;
 
     fn next_unsent_change(
         &mut self,
-        last_change_sequence_number: &PSM::SequenceNumberType,
-    ) -> Option<PSM::SequenceNumberType>
-    where
-        PSM: SequenceNumberPIM;
+        last_change_sequence_number: &SequenceNumber,
+    ) -> Option<SequenceNumber>;
 
     fn requested_changes(&self) -> Self::SequenceNumberVector;
 
     fn requested_changes_set(
         &mut self,
-        req_seq_num_set: &[PSM::SequenceNumberType],
-        last_change_sequence_number: &PSM::SequenceNumberType,
-    ) where
-        PSM: SequenceNumberPIM;
+        req_seq_num_set: &[SequenceNumber],
+        last_change_sequence_number: &SequenceNumber,
+    );
 
     fn unsent_changes(
         &self,
-        last_change_sequence_number: PSM::SequenceNumberType,
-    ) -> Self::SequenceNumberVector
-    where
-        PSM: SequenceNumberPIM;
+        last_change_sequence_number: SequenceNumber,
+    ) -> Self::SequenceNumberVector;
 }
 
 pub trait RTPSStatelessWriter<PSM> {
@@ -75,13 +68,12 @@ pub trait RTPSStatelessWriter<PSM> {
 
 pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
-    last_change_sequence_number: &PSM::SequenceNumberType,
+    last_change_sequence_number: &SequenceNumber,
     writer_cache: &'a HistoryCache,
     mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
     mut send_gap: impl FnMut(<PSM as GapSubmessagePIM>::GapSubmessageType),
 ) where
-    PSM: SequenceNumberPIM
-        + LocatorPIM
+    PSM: LocatorPIM
         + GapSubmessagePIM
         + DataSubmessagePIM<'a, PSM>
         + InstanceHandlePIM
@@ -89,21 +81,20 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
         + GUIDPIM
         + ParameterListSubmessageElementPIM
         + EntityIdSubmessageElementPIM
-        + EntityIdPIM
         + SequenceNumberSubmessageElementPIM
         + SerializedDataSubmessageElementPIM<'a>
         + DataSubmessagePIM<'a, PSM>
         + RtpsSubmessageHeaderPIM
         + SequenceNumberSetSubmessageElementPIM
         + GapSubmessagePIM,
-    HistoryCache: RTPSHistoryCache<PSM>,
+    HistoryCache: RTPSHistoryCache,
     HistoryCache::CacheChange: RTPSCacheChange<PSM> + 'a,
-    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType<PSM>,
-    PSM::GUIDType: GUIDType<PSM>,
-    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType<PSM>,
+    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
+    PSM::GUIDType: GUIDType,
+    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
     PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>,
     PSM::DataSubmessageType: DataSubmessage<'a, PSM>,
-    PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType<PSM>,
+    PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
     PSM::GapSubmessageType: GapSubmessage<PSM>,
     PSM::DataType: 'a,
     PSM::ParameterListSubmessageElementType: Clone,
@@ -118,7 +109,7 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
                 _ => todo!(),
             };
             let non_standard_payload_flag = false;
-            let reader_id = PSM::EntityIdSubmessageElementType::new(&PSM::ENTITYID_UNKNOWN);
+            let reader_id = PSM::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
             let writer_id =
                 PSM::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
             let writer_sn = PSM::SequenceNumberSubmessageElementType::new(change.sequence_number());
@@ -140,8 +131,8 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
             send_data(data_submessage)
         } else {
             let endianness_flag = true;
-            let reader_id = PSM::EntityIdSubmessageElementType::new(&PSM::ENTITYID_UNKNOWN);
-            let writer_id = PSM::EntityIdSubmessageElementType::new(&PSM::ENTITYID_UNKNOWN);
+            let reader_id = PSM::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+            let writer_id = PSM::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
             let gap_start = PSM::SequenceNumberSubmessageElementType::new(&seq_num);
             let set = &[];
             let gap_list = PSM::SequenceNumberSetSubmessageElementType::new(&seq_num, set);
@@ -157,10 +148,10 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
     }
 }
 
-pub fn reliable_send_unsent_data<PSM: LocatorPIM + SequenceNumberPIM>(
+pub fn reliable_send_unsent_data<PSM: LocatorPIM>(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
-    last_change_sequence_number: PSM::SequenceNumberType,
-    mut send: impl FnMut(PSM::SequenceNumberType),
+    last_change_sequence_number: SequenceNumber,
+    mut send: impl FnMut(SequenceNumber),
 ) {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         send(seq_num)
@@ -169,9 +160,7 @@ pub fn reliable_send_unsent_data<PSM: LocatorPIM + SequenceNumberPIM>(
 
 pub fn reliable_receive_acknack<
     PSM: LocatorPIM
-        + SequenceNumberPIM
         + SubmessageKindPIM
-        + EntityIdPIM
         + CountPIM
         + EntityIdSubmessageElementPIM
         + SequenceNumberSetSubmessageElementPIM
@@ -180,16 +169,16 @@ pub fn reliable_receive_acknack<
 >(
     _reader_locator: &mut impl RTPSReaderLocator<PSM>,
     _acknack: &impl AckNackSubmessage<PSM>,
-    _last_change_sequence_number: &PSM::SequenceNumberType,
+    _last_change_sequence_number: &SequenceNumber,
 ) {
     // reader_locator
     //     .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
     todo!()
 }
 
-pub fn reliable_after_nack_response_delay<PSM: LocatorPIM + SequenceNumberPIM>(
+pub fn reliable_after_nack_response_delay<PSM: LocatorPIM>(
     reader_locator: &mut impl RTPSReaderLocator<PSM>,
-    mut send: impl FnMut(PSM::SequenceNumberType),
+    mut send: impl FnMut(SequenceNumber),
 ) {
     while let Some(seq_num) = reader_locator.next_requested_change() {
         send(seq_num)
@@ -207,10 +196,7 @@ mod tests {
             },
             RtpsSubmessageHeaderType, Submessage,
         },
-        structure::{
-            types::{GUIDType, LocatorType},
-            RTPSCacheChange, RTPSHistoryCache,
-        },
+        structure::{types::LocatorType, RTPSCacheChange, RTPSHistoryCache},
     };
 
     use super::*;
@@ -218,19 +204,19 @@ mod tests {
     #[derive(Clone, Copy, PartialEq)]
     struct MockGUID;
 
-    impl GUIDType<MockPSM> for [u8; 16] {
-        fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
-            todo!()
-        }
+    // impl GUIDType for [u8; 16] {
+    //     fn new(_prefix: [u8; 12], _entity_id: [u8; 4]) -> Self {
+    //         todo!()
+    //     }
 
-        fn prefix(&self) -> &[u8; 12] {
-            todo!()
-        }
+    //     fn prefix(&self) -> &[u8; 12] {
+    //         todo!()
+    //     }
 
-        fn entity_id(&self) -> &[u8; 4] {
-            &MockPSM::ENTITYID_UNKNOWN
-        }
-    }
+    //     fn entity_id(&self) -> &[u8; 4] {
+    //         &MockPSM::ENTITYID_UNKNOWN
+    //     }
+    // }
     #[derive(Clone, Copy, PartialEq)]
     struct MockLocator;
 
@@ -283,20 +269,9 @@ mod tests {
         type InstanceHandleType = ();
     }
 
-    impl EntityIdPIM for MockPSM {
-        type EntityIdType = [u8; 4];
-        const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityIdType = [0; 4];
-    }
-
     impl GUIDPIM for MockPSM {
         type GUIDType = [u8; 16];
         const GUID_UNKNOWN: Self::GUIDType = [0; 16];
-    }
-
-    impl SequenceNumberPIM for MockPSM {
-        type SequenceNumberType = i64;
-        const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = -1;
     }
 
     impl LocatorPIM for MockPSM {
@@ -380,7 +355,7 @@ mod tests {
         }
     }
 
-    impl EntityIdSubmessageElementType<MockPSM> for [u8; 4] {
+    impl EntityIdSubmessageElementType for [u8; 4] {
         fn new(value: &[u8; 4]) -> Self {
             value.clone()
         }
@@ -390,7 +365,7 @@ mod tests {
         }
     }
 
-    impl SequenceNumberSubmessageElementType<MockPSM> for i64 {
+    impl SequenceNumberSubmessageElementType for i64 {
         fn new(value: &i64) -> Self {
             value.clone()
         }
@@ -473,7 +448,7 @@ mod tests {
 
     struct MockSequenceNumberSet;
 
-    impl SequenceNumberSetSubmessageElementType<MockPSM> for MockSequenceNumberSet {
+    impl SequenceNumberSetSubmessageElementType for MockSequenceNumberSet {
         fn new(_base: &i64, _set: &[i64]) -> Self {
             MockSequenceNumberSet
         }
@@ -606,7 +581,7 @@ mod tests {
         changes: [MockCacheChange; N],
     }
 
-    impl<const N: usize> RTPSHistoryCache<MockPSM> for MockHistoryCache<N> {
+    impl<const N: usize> RTPSHistoryCache for MockHistoryCache<N> {
         type CacheChange = MockCacheChange;
 
         fn new() -> Self

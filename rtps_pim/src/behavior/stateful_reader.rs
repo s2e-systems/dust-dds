@@ -2,38 +2,34 @@ use crate::{
     behavior::RTPSReader,
     messages::{submessage_elements::ParameterListSubmessageElementPIM, types::ParameterIdPIM},
     structure::types::{
-        DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM,
+        DataPIM, EntityId, InstanceHandlePIM, LocatorPIM, SequenceNumber,
         GUIDPIM,
     },
 };
 
 use super::types::DurationPIM;
 
-pub trait RTPSWriterProxy<
-    PSM: EntityIdPIM + LocatorPIM + EntityIdPIM + GUIDPIM + SequenceNumberPIM,
->
+pub trait RTPSWriterProxy<PSM: LocatorPIM + GUIDPIM >
 {
-    type SequenceNumberVector: IntoIterator<Item = PSM::SequenceNumberType>;
+    type SequenceNumberVector: IntoIterator<Item = SequenceNumber>;
 
     fn remote_writer_guid(&self) -> &PSM::GUIDType;
-    fn remote_group_entity_id(&self) -> &PSM::EntityIdType;
+    fn remote_group_entity_id(&self) -> &EntityId;
     fn unicast_locator_list(&self) -> &[PSM::LocatorType];
     fn multicast_locator_list(&self) -> &[PSM::LocatorType];
     fn data_max_size_serialized(&self) -> i32;
 
-    fn available_changes_max(&self) -> &PSM::SequenceNumberType;
-    fn irrelevant_change_set(&mut self, a_seq_num: &PSM::SequenceNumberType);
-    fn lost_changes_update(&mut self, first_available_seq_num: &PSM::SequenceNumberType);
+    fn available_changes_max(&self) -> &SequenceNumber;
+    fn irrelevant_change_set(&mut self, a_seq_num: &SequenceNumber);
+    fn lost_changes_update(&mut self, first_available_seq_num: &SequenceNumber);
     fn missing_changes(&self) -> Self::SequenceNumberVector;
-    fn missing_changes_update(&mut self, last_available_seq_num: PSM::SequenceNumberType);
-    fn received_change_set(&mut self, a_seq_num: PSM::SequenceNumberType);
+    fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber);
+    fn received_change_set(&mut self, a_seq_num: SequenceNumber);
 }
 
 pub trait RTPSStatefulReader<
     PSM: InstanceHandlePIM
         + DataPIM
-        + EntityIdPIM
-        + SequenceNumberPIM
         + LocatorPIM
         + DurationPIM
         + GUIDPIM

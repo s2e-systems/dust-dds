@@ -1,25 +1,25 @@
-use rust_rtps_pim::structure::types::{EntityIdPIM, LocatorPIM, SequenceNumberPIM, GUIDPIM};
+use rust_rtps_pim::structure::types::{EntityId, LocatorPIM, SequenceNumber, GUIDPIM};
 
 pub struct RTPSReaderProxyImpl<PSM>
 where
-    PSM: GUIDPIM + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
+    PSM: GUIDPIM + LocatorPIM,
 {
     remote_reader_guid: PSM::GUIDType,
-    remote_group_entity_id: PSM::EntityIdType,
+    remote_group_entity_id: EntityId,
     unicast_locator_list: Vec<PSM::LocatorType>,
     multicast_locator_list: Vec<PSM::LocatorType>,
     expects_inline_qos: bool,
     is_active: bool,
-    last_sent_sequence_number: PSM::SequenceNumberType,
+    last_sent_sequence_number: SequenceNumber,
 }
 
 impl<PSM> RTPSReaderProxyImpl<PSM>
 where
-    PSM: GUIDPIM + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
+    PSM: GUIDPIM + LocatorPIM,
 {
     pub fn new(
         remote_reader_guid: PSM::GUIDType,
-        remote_group_entity_id: PSM::EntityIdType,
+        remote_group_entity_id: EntityId,
         unicast_locator_list: Vec<PSM::LocatorType>,
         multicast_locator_list: Vec<PSM::LocatorType>,
         expects_inline_qos: bool,
@@ -40,15 +40,15 @@ where
 impl<PSM> rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>
     for RTPSReaderProxyImpl<PSM>
 where
-    PSM: GUIDPIM + EntityIdPIM + LocatorPIM + SequenceNumberPIM,
+    PSM: GUIDPIM + LocatorPIM,
 {
-    type SequenceNumberVector = Vec<PSM::SequenceNumberType>;
+    type SequenceNumberVector = Vec<SequenceNumber>;
 
     fn remote_reader_guid(&self) -> &PSM::GUIDType {
         &self.remote_reader_guid
     }
 
-    fn remote_group_entity_id(&self) -> &PSM::EntityIdType {
+    fn remote_group_entity_id(&self) -> &EntityId {
         &self.remote_group_entity_id
     }
 
@@ -68,15 +68,15 @@ where
         self.is_active
     }
 
-    fn acked_changes_set(&mut self, _committed_seq_num: PSM::SequenceNumberType) {
+    fn acked_changes_set(&mut self, _committed_seq_num: SequenceNumber) {
         todo!()
     }
 
-    fn next_requested_change(&mut self) -> Option<PSM::SequenceNumberType> {
+    fn next_requested_change(&mut self) -> Option<SequenceNumber> {
         todo!()
     }
 
-    fn next_unsent_change(&mut self) -> Option<PSM::SequenceNumberType> {
+    fn next_unsent_change(&mut self) -> Option<SequenceNumber> {
         todo!()
     }
 

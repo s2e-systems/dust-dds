@@ -8,7 +8,7 @@ use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::types::{
-        DataPIM, EntityIdPIM, InstanceHandlePIM, LocatorPIM, SequenceNumberPIM, GUIDPIM,
+        DataPIM, InstanceHandlePIM, LocatorPIM, GUIDPIM,
     },
 };
 
@@ -21,8 +21,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -39,8 +37,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
@@ -84,8 +80,6 @@ impl<PSM> rust_rtps_pim::structure::RTPSGroup<PSM> for RTPSWriterGroupImpl<PSM> 
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
@@ -97,8 +91,6 @@ where
     PSM: GUIDPIM
         + LocatorPIM
         + DurationPIM
-        + SequenceNumberPIM
-        + EntityIdPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM,
