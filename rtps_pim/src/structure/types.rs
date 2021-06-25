@@ -61,22 +61,23 @@ pub trait InstanceHandlePIM {
     type InstanceHandleType;
 }
 
-pub trait ProtocolVersionPIM {
-    type ProtocolVersionType;
-    const PROTOCOLVERSION: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType;
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct ProtocolVersion {
+    pub major: u8,
+    pub minor: u8,
 }
 
-pub trait VendorIdPIM {
-    type VendorIdType;
-    const VENDOR_ID_UNKNOWN: Self::VendorIdType;
-}
+// pub const PROTOCOLVERSION: ProtocolVersion1
+pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion { major: 1, minor: 0 };
+pub const PROTOCOLVERSION_1_1: ProtocolVersion = ProtocolVersion { major: 1, minor: 1 };
+pub const PROTOCOLVERSION_2_0: ProtocolVersion = ProtocolVersion { major: 2, minor: 0 };
+pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion { major: 2, minor: 1 };
+pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, minor: 2 };
+pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
+pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
+
+pub type VendorId = [u8; 2];
+pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
 
 pub trait DataPIM {
     type DataType: AsRef<[u8]>;

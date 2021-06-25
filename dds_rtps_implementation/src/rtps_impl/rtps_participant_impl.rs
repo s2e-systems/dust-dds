@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{DataPIM, InstanceHandlePIM, Locator, ProtocolVersionPIM, VendorIdPIM, GUID},
+        types::{DataPIM, InstanceHandlePIM, Locator, ProtocolVersion, VendorId, GUID},
         RTPSEntity,
     },
 };
@@ -70,20 +70,18 @@ where
     // }
 }
 
-impl<PSM> rust_rtps_pim::structure::RTPSParticipant<PSM> for RTPSParticipantImpl<PSM>
+impl<PSM> rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl<PSM>
 where
     PSM: DurationPIM
         + InstanceHandlePIM
         + DataPIM
         + ParameterListSubmessageElementPIM
-        + ProtocolVersionPIM
-        + VendorIdPIM,
 {
-    fn protocol_version(&self) -> &PSM::ProtocolVersionType {
+    fn protocol_version(&self) -> &ProtocolVersion {
         todo!()
     }
 
-    fn vendor_id(&self) -> &PSM::VendorIdType {
+    fn vendor_id(&self) -> &VendorId {
         todo!()
     }
 

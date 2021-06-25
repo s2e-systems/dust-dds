@@ -3,7 +3,7 @@
 /// 8.3.5 RTPS SubmessageElements
 ///
 use crate::structure::types::{
-    EntityId, GuidPrefix, Locator, ProtocolVersionPIM, SequenceNumber, VendorIdPIM,
+    EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId,
 };
 
 use super::types::{CountPIM, FragmentNumber, GroupDigestPIM, ParameterId, TimePIM};
@@ -66,18 +66,18 @@ pub trait VendorIdSubmessageElementPIM {
     type VendorIdSubmessageElementType;
 }
 
-pub trait VendorIdSubmessageElementType<PSM: VendorIdPIM> {
-    fn new(value: &PSM::VendorIdType) -> Self;
-    fn value(&self) -> &PSM::VendorIdType;
+pub trait VendorIdSubmessageElementType {
+    fn new(value: &VendorId) -> Self;
+    fn value(&self) -> &VendorId;
 }
 
 pub trait ProtocolVersionSubmessageElementPIM {
     type ProtocolVersionSubmessageElementType;
 }
 
-pub trait ProtocolVersionSubmessageElementType<PSM: ProtocolVersionPIM> {
-    fn new(value: &PSM::ProtocolVersionType) -> Self;
-    fn value(&self) -> &PSM::ProtocolVersionType;
+pub trait ProtocolVersionSubmessageElementType {
+    fn new(value: &ProtocolVersion) -> Self;
+    fn value(&self) -> &ProtocolVersion;
 }
 
 pub trait SequenceNumberSubmessageElementPIM {

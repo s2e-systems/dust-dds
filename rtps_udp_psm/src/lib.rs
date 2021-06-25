@@ -24,7 +24,7 @@ use rust_rtps_pim::{
         },
         RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
-    structure::types::{DataPIM, InstanceHandlePIM, ProtocolVersionPIM, VendorIdPIM},
+    structure::types::{DataPIM, InstanceHandlePIM},
 };
 
 pub mod submessages;
@@ -34,23 +34,6 @@ pub struct RtpsUdpPsm;
 
 impl InstanceHandlePIM for RtpsUdpPsm {
     type InstanceHandleType = InstanceHandle;
-}
-
-impl ProtocolVersionPIM for RtpsUdpPsm {
-    type ProtocolVersionType = ProtocolVersion;
-    const PROTOCOLVERSION: Self::ProtocolVersionType = Self::PROTOCOLVERSION_2_4;
-    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType = ProtocolVersion { major: 1, minor: 0 };
-    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType = ProtocolVersion { major: 1, minor: 1 };
-    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 0 };
-    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 1 };
-    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 2 };
-    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 3 };
-    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType = ProtocolVersion { major: 2, minor: 4 };
-}
-
-impl VendorIdPIM for RtpsUdpPsm {
-    type VendorIdType = VendorId;
-    const VENDOR_ID_UNKNOWN: Self::VendorIdType = VendorId([0; 2]);
 }
 
 impl DataPIM for RtpsUdpPsm {
@@ -532,15 +515,15 @@ pub struct ProtocolVersion {
     pub minor: u8,
 }
 
-impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType<RtpsUdpPsm>
+impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType
     for ProtocolVersion
 {
-    fn new(value: &ProtocolVersion) -> Self {
-        value.clone()
+    fn new(value: &rust_rtps_pim::structure::types::ProtocolVersion) -> Self {
+        todo!()
     }
 
-    fn value(&self) -> &ProtocolVersion {
-        self
+    fn value(&self) -> &rust_rtps_pim::structure::types::ProtocolVersion {
+        todo!()
     }
 }
 
@@ -589,15 +572,15 @@ impl<'a>
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VendorId([u8; 2]);
 
-impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType<RtpsUdpPsm>
+impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType
     for VendorId
 {
-    fn new(value: &VendorId) -> Self {
-        value.clone()
+    fn new(value: &rust_rtps_pim::structure::types::VendorId) -> Self {
+        Self(value.clone())
     }
 
-    fn value(&self) -> &VendorId {
-        self
+    fn value(&self) -> &rust_rtps_pim::structure::types::VendorId {
+        &self.0
     }
 }
 
@@ -906,12 +889,14 @@ impl rust_rtps_pim::messages::RtpsMessageHeaderType<RtpsUdpPsm> for RTPSMessageH
         &self.protocol
     }
 
-    fn version(&self) -> &ProtocolVersion {
-        &self.version
+    fn version(&self) -> &rust_rtps_pim::structure::types::ProtocolVersion {
+        // &self.version
+        todo!()
     }
 
-    fn vendor_id(&self) -> &VendorId {
-        &self.vendor_id
+    fn vendor_id(&self) -> &rust_rtps_pim::structure::types::VendorId {
+        // &self.vendor_id
+        todo!()
     }
 
     fn guid_prefix(&self) -> &rust_rtps_pim::structure::types::GuidPrefix {
@@ -928,20 +913,21 @@ pub struct RTPSMessageC<'a> {
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'a> {
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, RtpsUdpPsm>>>(
         protocol: ProtocolId,
-        version: ProtocolVersion,
-        vendor_id: VendorId,
+        version: rust_rtps_pim::structure::types::ProtocolVersion,
+        vendor_id: rust_rtps_pim::structure::types::VendorId,
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
         submessages: T,
     ) -> Self {
-        RTPSMessageC {
-            header: RTPSMessageHeader {
-                protocol: protocol.clone(),
-                version: version.clone(),
-                vendor_id: vendor_id.clone(),
-                guid_prefix: guid_prefix.clone(),
-            },
-            submessages: submessages.into_iter().collect(),
-        }
+        todo!()
+        // RTPSMessageC {
+        //     header: RTPSMessageHeader {
+        //         protocol: protocol.clone(),
+        //         version: version.clone(),
+        //         vendor_id: vendor_id.clone(),
+        //         guid_prefix: guid_prefix.clone(),
+        //     },
+        //     submessages: submessages.into_iter().collect(),
+        // }
     }
 
     fn header(&self) -> RTPSMessageHeader {
