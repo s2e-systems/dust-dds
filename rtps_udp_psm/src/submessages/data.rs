@@ -228,6 +228,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesage<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
     use rust_serde_cdr::{
         deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
     };
@@ -253,7 +254,7 @@ mod tests {
         let non_standard_payload_flag = false;
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber(5);
+        let writer_sn = SequenceNumber::new(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };
@@ -292,7 +293,7 @@ mod tests {
         let non_standard_payload_flag = false;
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber(5);
+        let writer_sn = SequenceNumber::new(5);
         let param1 = crate::Parameter::new(6, vec![10, 11, 12, 13].into());
         let param2 = crate::Parameter::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = ParameterList {
@@ -338,7 +339,7 @@ mod tests {
         let non_standard_payload_flag = false;
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber(5);
+        let writer_sn = SequenceNumber::new(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };
@@ -378,7 +379,7 @@ mod tests {
         let non_standard_payload_flag = false;
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber(5);
+        let writer_sn = SequenceNumber::new(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };
@@ -416,7 +417,7 @@ mod tests {
         let non_standard_payload_flag = false;
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber(5);
+        let writer_sn = SequenceNumber::new(5);
         let inline_qos = ParameterList {
             parameter: vec![].into(),
         };
@@ -457,7 +458,7 @@ mod tests {
         let non_standard_payload_flag = false;
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber(5);
+        let writer_sn = SequenceNumber::new(5);
         let param1 = crate::Parameter::new(6, vec![10, 11, 12, 13].into());
         let param2 = crate::Parameter::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = ParameterList {

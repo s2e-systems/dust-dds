@@ -100,7 +100,8 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
             let reader_id = PSM::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
             let writer_id =
                 PSM::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
-            let writer_sn = PSM::SequenceNumberSubmessageElementType::new(change.sequence_number());
+            let writer_sn =
+                PSM::SequenceNumberSubmessageElementType::new(*change.sequence_number());
             let inline_qos = change.inline_qos().clone();
             let data = change.data_value().as_ref();
             let serialized_payload = PSM::SerializedDataSubmessageElementType::new(data.as_ref());
@@ -121,9 +122,9 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
             let endianness_flag = true;
             let reader_id = PSM::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
             let writer_id = PSM::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-            let gap_start = PSM::SequenceNumberSubmessageElementType::new(&seq_num);
+            let gap_start = PSM::SequenceNumberSubmessageElementType::new(seq_num);
             let set = &[];
-            let gap_list = PSM::SequenceNumberSetSubmessageElementType::new(&seq_num, set);
+            let gap_list = PSM::SequenceNumberSetSubmessageElementType::new(seq_num, set);
             let gap_submessage = PSM::GapSubmessageType::new(
                 endianness_flag,
                 reader_id,
@@ -288,12 +289,12 @@ mod tests {
     }
 
     impl SequenceNumberSubmessageElementType for i64 {
-        fn new(value: &i64) -> Self {
+        fn new(value: i64) -> Self {
             value.clone()
         }
 
-        fn value(&self) -> &i64 {
-            self
+        fn value(&self) -> i64 {
+            *self
         }
     }
 
@@ -371,15 +372,17 @@ mod tests {
     struct MockSequenceNumberSet;
 
     impl SequenceNumberSetSubmessageElementType for MockSequenceNumberSet {
-        fn new(_base: &i64, _set: &[i64]) -> Self {
-            MockSequenceNumberSet
-        }
+        type IntoIter = core::option::IntoIter<SequenceNumber>;
 
-        fn base(&self) -> &i64 {
+        fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
             todo!()
         }
 
-        fn set(&self) -> &[i64] {
+        fn base(&self) -> SequenceNumber {
+            todo!()
+        }
+
+        fn set(&self) -> Self::IntoIter {
             todo!()
         }
     }

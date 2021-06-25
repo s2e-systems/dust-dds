@@ -69,7 +69,9 @@ impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for GapSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
+    use rust_rtps_pim::messages::submessage_elements::{
+        SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
+    };
     use rust_serde_cdr::{
         deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
     };
@@ -92,8 +94,8 @@ mod tests {
         let endianness_flag = true;
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
-        let gap_start = SequenceNumber(5);
-        let gap_list = SequenceNumberSet::new(&10.into(), &[]);
+        let gap_start = SequenceNumber::new(5);
+        let gap_list = SequenceNumberSet::new(10, &[]);
         let submessage: GapSubmessage = rust_rtps_pim::messages::submessages::GapSubmessage::new(
             endianness_flag,
             reader_id,
@@ -120,8 +122,8 @@ mod tests {
         let endianness_flag = true;
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
-        let gap_start = SequenceNumber(5);
-        let gap_list = SequenceNumberSet::new(&10.into(), &[]);
+        let gap_start = SequenceNumber::new(5);
+        let gap_list = SequenceNumberSet::new(10, &[]);
         let expected: GapSubmessage = rust_rtps_pim::messages::submessages::GapSubmessage::new(
             endianness_flag,
             reader_id,

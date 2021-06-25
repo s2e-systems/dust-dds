@@ -85,8 +85,8 @@ pub trait SequenceNumberSubmessageElementPIM {
 }
 
 pub trait SequenceNumberSubmessageElementType {
-    fn new(value: &SequenceNumber) -> Self;
-    fn value(&self) -> &SequenceNumber;
+    fn new(value: SequenceNumber) -> Self;
+    fn value(&self) -> SequenceNumber;
 }
 
 pub trait SequenceNumberSetSubmessageElementPIM {
@@ -94,9 +94,11 @@ pub trait SequenceNumberSetSubmessageElementPIM {
 }
 
 pub trait SequenceNumberSetSubmessageElementType {
-    fn new(base: &SequenceNumber, set: &[SequenceNumber]) -> Self;
-    fn base(&self) -> &SequenceNumber;
-    fn set(&self) -> &[SequenceNumber];
+    type IntoIter: Iterator<Item = SequenceNumber>;
+
+    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self;
+    fn base(&self) -> SequenceNumber;
+    fn set(&self) -> Self::IntoIter;
 }
 
 pub trait FragmentNumberSubmessageElementPIM {

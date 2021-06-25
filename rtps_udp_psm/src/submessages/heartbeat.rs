@@ -82,6 +82,7 @@ impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for HeartbeatSubmessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
     use rust_serde_cdr::serializer::RtpsMessageSerializer;
     use serde::Serialize;
 
@@ -98,8 +99,8 @@ mod tests {
         let liveliness_flag = false;
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
-        let first_sn = SequenceNumber(1);
-        let last_sn = SequenceNumber(3);
+        let first_sn = SequenceNumber::new(1);
+        let last_sn = SequenceNumber::new(3);
         let count = Count(5);
         let submessage: HeartbeatSubmessage =
             rust_rtps_pim::messages::submessages::HeartbeatSubmessage::new(
