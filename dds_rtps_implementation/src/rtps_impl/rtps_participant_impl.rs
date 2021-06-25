@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{DataPIM, InstanceHandlePIM, Locator, ProtocolVersion, VendorId, GUID},
+        types::{InstanceHandlePIM, Locator, ProtocolVersion, VendorId, GUID},
         RTPSEntity,
     },
 };
@@ -14,7 +14,7 @@ use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 pub struct RTPSParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     guid: GUID,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
@@ -22,7 +22,7 @@ where
 
 impl<PSM> RTPSParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         let guid = GUID::new(
@@ -72,10 +72,7 @@ where
 
 impl<PSM> rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl<PSM>
 where
-    PSM: DurationPIM
-        + InstanceHandlePIM
-        + DataPIM
-        + ParameterListSubmessageElementPIM
+    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     fn protocol_version(&self) -> &ProtocolVersion {
         todo!()
@@ -96,7 +93,7 @@ where
 
 impl<PSM> RTPSEntity for RTPSParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     fn guid(&self) -> &GUID {
         &self.guid

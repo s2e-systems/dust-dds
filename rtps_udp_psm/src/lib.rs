@@ -24,7 +24,7 @@ use rust_rtps_pim::{
         },
         RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
-    structure::types::{DataPIM, InstanceHandlePIM},
+    structure::types::InstanceHandlePIM,
 };
 
 pub mod submessages;
@@ -34,10 +34,6 @@ pub struct RtpsUdpPsm;
 
 impl InstanceHandlePIM for RtpsUdpPsm {
     type InstanceHandleType = InstanceHandle;
-}
-
-impl DataPIM for RtpsUdpPsm {
-    type DataType = Data;
 }
 
 impl ProtocolIdPIM for RtpsUdpPsm {
@@ -527,8 +523,6 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElem
     }
 }
 
-pub type Data = Vec<u8>;
-
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct SerializedData<'a>(&'a [u8]);
 
@@ -572,9 +566,7 @@ impl<'a>
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VendorId([u8; 2]);
 
-impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType
-    for VendorId
-{
+impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType for VendorId {
     fn new(value: &rust_rtps_pim::structure::types::VendorId) -> Self {
         Self(value.clone())
     }

@@ -1,29 +1,32 @@
 use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{ChangeKind, DataPIM, InstanceHandlePIM, SequenceNumber, GUID},
+    structure::{
+        types::{ChangeKind, InstanceHandlePIM, SequenceNumber, GUID},
+        RTPSCacheChange,
+    },
 };
 pub struct RTPSCacheChangeImpl<PSM>
 where
-    PSM: InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     kind: ChangeKind,
     writer_guid: GUID,
     instance_handle: PSM::InstanceHandleType,
     sequence_number: SequenceNumber,
-    data: PSM::DataType,
+    data: <Self as RTPSCacheChange<PSM>>::DataType,
     inline_qos: PSM::ParameterListSubmessageElementType,
 }
 
 impl<PSM> RTPSCacheChangeImpl<PSM>
 where
-    PSM: InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         kind: ChangeKind,
         writer_guid: GUID,
         instance_handle: PSM::InstanceHandleType,
         sequence_number: SequenceNumber,
-        data: PSM::DataType,
+        data: <Self as RTPSCacheChange<PSM>>::DataType,
         inline_qos: PSM::ParameterListSubmessageElementType,
     ) -> Self {
         Self {
@@ -39,8 +42,10 @@ where
 
 impl<PSM> rust_rtps_pim::structure::RTPSCacheChange<PSM> for RTPSCacheChangeImpl<PSM>
 where
-    PSM: InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
+    type DataType = Vec<u8>;
+
     fn kind(&self) -> ChangeKind {
         self.kind
     }
@@ -57,7 +62,7 @@ where
         &self.sequence_number
     }
 
-    fn data_value(&self) -> &PSM::DataType {
+    fn data_value(&self) -> &Self::DataType {
         &self.data
     }
 

@@ -79,10 +79,6 @@ pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, min
 pub type VendorId = [u8; 2];
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
 
-pub trait DataPIM {
-    type DataType: AsRef<[u8]>;
-}
-
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct GUID {

@@ -16,10 +16,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::types::DurationPIM,
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::{
-        types::{DataPIM, InstanceHandlePIM},
-        RTPSEntity,
-    },
+    structure::{types::InstanceHandlePIM, RTPSEntity},
 };
 
 use crate::{
@@ -39,7 +36,7 @@ const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
 pub struct PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     participant: &'p dyn DomainParticipant,
     writer_factory: Mutex<WriterFactory<PSM>>,
@@ -49,7 +46,7 @@ where
 
 impl<'p, PSM> PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         participant: &'p dyn DomainParticipant,
@@ -68,7 +65,7 @@ where
 impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM> DataWriterFactory<'dw, 't, T>
     for PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM + 'static,
+    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM + 'static,
 {
     type TopicType = TopicImpl<'t, T>;
     type DataWriterType = DataWriterImpl<'dw, T, PSM>;
@@ -117,7 +114,7 @@ where
 
 impl<'p, PSM> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
@@ -174,7 +171,7 @@ where
 
 impl<'p, PSM> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;

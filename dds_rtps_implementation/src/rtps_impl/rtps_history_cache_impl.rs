@@ -1,7 +1,7 @@
 use rust_rtps_pim::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{DataPIM, InstanceHandlePIM, SequenceNumber},
+        types::{InstanceHandlePIM, SequenceNumber},
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
@@ -10,14 +10,14 @@ use super::rtps_cache_change_impl::RTPSCacheChangeImpl;
 
 pub struct RTPSHistoryCacheImpl<PSM>
 where
-    PSM: InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     changes: Vec<RTPSCacheChangeImpl<PSM>>,
 }
 
 impl<PSM> RTPSHistoryCache for RTPSHistoryCacheImpl<PSM>
 where
-    PSM: InstanceHandlePIM + DataPIM + ParameterListSubmessageElementPIM,
+    PSM: InstanceHandlePIM + ParameterListSubmessageElementPIM,
 {
     type CacheChange = RTPSCacheChangeImpl<PSM>;
 
@@ -64,10 +64,6 @@ mod tests {
         type InstanceHandleType = ();
     }
 
-    impl rust_rtps_pim::structure::types::DataPIM for MockPSM {
-        type DataType = [u8; 0];
-    }
-
     impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
     }
@@ -111,7 +107,7 @@ mod tests {
             GUID_UNKNOWN,
             (),
             1,
-            [],
+            vec![],
             MockParameterList,
         );
         hc.add_change(change);
@@ -126,7 +122,7 @@ mod tests {
             GUID_UNKNOWN,
             (),
             1,
-            [],
+            vec![],
             MockParameterList,
         );
         hc.add_change(change);
@@ -142,7 +138,7 @@ mod tests {
             GUID_UNKNOWN,
             (),
             1,
-            [],
+            vec![],
             MockParameterList,
         );
         hc.add_change(change);
@@ -158,7 +154,7 @@ mod tests {
             GUID_UNKNOWN,
             (),
             1,
-            [],
+            vec![],
             MockParameterList,
         );
         let change2 = RTPSCacheChangeImpl::new(
@@ -166,7 +162,7 @@ mod tests {
             GUID_UNKNOWN,
             (),
             2,
-            [],
+            vec![],
             MockParameterList,
         );
         hc.add_change(change1);
@@ -182,7 +178,7 @@ mod tests {
             GUID_UNKNOWN,
             (),
             1,
-            [],
+            vec![],
             MockParameterList,
         );
         let change2 = RTPSCacheChangeImpl::new(
@@ -190,7 +186,7 @@ mod tests {
             GUID_UNKNOWN,
             (),
             2,
-            [],
+            vec![],
             MockParameterList,
         );
         hc.add_change(change1);

@@ -1,18 +1,12 @@
 use crate::{
-    messages::{submessage_elements::ParameterListSubmessageElementPIM},
-    structure::{
-        types::{DataPIM, InstanceHandlePIM},
-        RTPSEndpoint, RTPSHistoryCache,
-    },
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::{types::InstanceHandlePIM, RTPSEndpoint, RTPSHistoryCache},
 };
 
 use super::types::DurationPIM;
 
 pub trait RTPSReader<
-    PSM: InstanceHandlePIM
-        + DataPIM
-        + DurationPIM
-        + ParameterListSubmessageElementPIM,
+    PSM: InstanceHandlePIM + DurationPIM + ParameterListSubmessageElementPIM,
 >: RTPSEndpoint
 {
     type HistoryCacheType: RTPSHistoryCache;

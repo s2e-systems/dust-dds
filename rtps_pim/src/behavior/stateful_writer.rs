@@ -37,13 +37,10 @@ pub trait RTPSStatefulWriter<PSM> {
 mod tests {
     use crate::{
         behavior::types::DurationPIM,
-        messages::{
-            submessage_elements::{
-                ParameterListSubmessageElementPIM, ParameterListSubmessageElementType,
-                ParameterType,
-            },
+        messages::submessage_elements::{
+            ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ParameterType,
         },
-        structure::types::{DataPIM, InstanceHandlePIM},
+        structure::types::InstanceHandlePIM,
     };
 
     use super::*;
@@ -52,10 +49,6 @@ mod tests {
 
     impl DurationPIM for MockPSM {
         type DurationType = i64;
-    }
-
-    impl DataPIM for MockPSM {
-        type DataType = [u8; 0];
     }
 
     impl ParameterListSubmessageElementPIM for MockPSM {

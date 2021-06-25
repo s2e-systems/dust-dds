@@ -14,9 +14,7 @@ use crate::{
         RtpsSubmessageHeaderPIM,
     },
     structure::{
-        types::{
-            ChangeKind, DataPIM, InstanceHandlePIM, Locator, SequenceNumber, ENTITYID_UNKNOWN,
-        },
+        types::{ChangeKind, InstanceHandlePIM, Locator, SequenceNumber, ENTITYID_UNKNOWN},
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
@@ -71,7 +69,6 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
     PSM: GapSubmessagePIM
         + DataSubmessagePIM<'a, PSM>
         + InstanceHandlePIM
-        + DataPIM
         + ParameterListSubmessageElementPIM
         + EntityIdSubmessageElementPIM
         + SequenceNumberSubmessageElementPIM
@@ -82,13 +79,13 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
         + GapSubmessagePIM,
     HistoryCache: RTPSHistoryCache,
     HistoryCache::CacheChange: RTPSCacheChange<PSM> + 'a,
+    <HistoryCache::CacheChange as RTPSCacheChange<PSM>>::DataType : 'a,
     PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
     PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
     PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>,
     PSM::DataSubmessageType: DataSubmessage<'a, PSM>,
     PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
     PSM::GapSubmessageType: GapSubmessage<PSM>,
-    PSM::DataType: 'a,
     PSM::ParameterListSubmessageElementType: Clone,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
@@ -106,7 +103,7 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
                 PSM::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
             let writer_sn = PSM::SequenceNumberSubmessageElementType::new(change.sequence_number());
             let inline_qos = change.inline_qos().clone();
-            let data = change.data_value();
+            let data = change.data_value().as_ref();
             let serialized_payload = PSM::SerializedDataSubmessageElementType::new(data.as_ref());
             let data_submessage = PSM::DataSubmessageType::new(
                 endianness_flag,
@@ -151,7 +148,7 @@ pub fn reliable_send_unsent_data(
 }
 
 pub fn reliable_receive_acknack<
-    PSM:  SubmessageKindPIM
+    PSM: SubmessageKindPIM
         + CountPIM
         + EntityIdSubmessageElementPIM
         + SequenceNumberSetSubmessageElementPIM
@@ -178,18 +175,22 @@ pub fn reliable_after_nack_response_delay(
 
 #[cfg(test)]
 mod tests {
-    use crate::{messages::{
+    use crate::{
+        messages::{
             submessage_elements::{
                 EntityIdSubmessageElementType, ParameterListSubmessageElementType,
                 SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
                 SerializedDataSubmessageElementType,
             },
             RtpsSubmessageHeaderType, Submessage,
-        }, structure::{RTPSCacheChange, RTPSHistoryCache, types::{GUID, GUID_UNKNOWN, LOCATOR_INVALID, Locator}}};
+        },
+        structure::{
+            types::{Locator, GUID, GUID_UNKNOWN, LOCATOR_INVALID},
+            RTPSCacheChange, RTPSHistoryCache,
+        },
+    };
 
     use super::*;
-
-    
 
     #[derive(Clone)]
     struct MockParameterList;
@@ -212,15 +213,9 @@ mod tests {
         type ParameterListSubmessageElementType = MockParameterList;
     }
 
-    impl DataPIM for MockPSM {
-        type DataType = [u8; 0];
-    }
-
     impl InstanceHandlePIM for MockPSM {
         type InstanceHandleType = ();
     }
-
-   
 
     impl SubmessageKindPIM for MockPSM {
         type SubmessageKindType = u8;
@@ -485,6 +480,8 @@ mod tests {
     }
 
     impl RTPSCacheChange<MockPSM> for MockCacheChange {
+        type DataType = [u8;0];
+
         fn kind(&self) -> crate::structure::types::ChangeKind {
             self.kind
         }

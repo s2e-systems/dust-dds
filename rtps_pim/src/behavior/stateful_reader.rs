@@ -1,7 +1,7 @@
 use crate::{
     behavior::RTPSReader,
-    messages::{submessage_elements::ParameterListSubmessageElementPIM},
-    structure::types::{DataPIM, EntityId, InstanceHandlePIM, Locator, SequenceNumber, GUID},
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::types::{EntityId, InstanceHandlePIM, Locator, SequenceNumber, GUID},
 };
 
 use super::types::DurationPIM;
@@ -24,7 +24,7 @@ pub trait RTPSWriterProxy {
 }
 
 pub trait RTPSStatefulReader<
-    PSM: InstanceHandlePIM + DataPIM + DurationPIM + ParameterListSubmessageElementPIM,
+    PSM: InstanceHandlePIM + DurationPIM + ParameterListSubmessageElementPIM,
 >: RTPSReader<PSM>
 {
     type WriterProxyType;
