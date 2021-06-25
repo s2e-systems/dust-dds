@@ -1,7 +1,7 @@
 use crate::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
-        types::{ChangeKind, InstanceHandlePIM, SequenceNumber},
+        types::{ChangeKind, SequenceNumber},
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
@@ -31,9 +31,9 @@ pub trait RTPSWriter<PSM> {
         kind: ChangeKind,
         data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange<PSM>>::DataType,
         inline_qos: PSM::ParameterListSubmessageElementType,
-        handle: PSM::InstanceHandleType,
+        handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange<PSM>>::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
         <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange<PSM>,
-        PSM: ParameterListSubmessageElementPIM + InstanceHandlePIM;
+        PSM: ParameterListSubmessageElementPIM;
 }

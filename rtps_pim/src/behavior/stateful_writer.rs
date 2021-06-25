@@ -40,7 +40,6 @@ mod tests {
         messages::submessage_elements::{
             ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ParameterType,
         },
-        structure::types::InstanceHandlePIM,
     };
 
     use super::*;
@@ -53,10 +52,6 @@ mod tests {
 
     impl ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
-    }
-
-    impl InstanceHandlePIM for MockPSM {
-        type InstanceHandleType = ();
     }
 
     struct MockParameterList;

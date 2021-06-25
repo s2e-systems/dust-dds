@@ -24,17 +24,12 @@ use rust_rtps_pim::{
         },
         RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
     },
-    structure::types::InstanceHandlePIM,
 };
 
 pub mod submessages;
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsUdpPsm;
-
-impl InstanceHandlePIM for RtpsUdpPsm {
-    type InstanceHandleType = InstanceHandle;
-}
 
 impl ProtocolIdPIM for RtpsUdpPsm {
     type ProtocolIdType = ProtocolId;

@@ -16,7 +16,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::{types::DurationPIM, RTPSWriter},
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{InstanceHandlePIM, GUID},
+    structure::types::GUID,
 };
 
 // use rust_rtps_pim::structure::RTPSEntity;
@@ -33,7 +33,7 @@ use super::{
 
 pub struct DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
@@ -42,7 +42,7 @@ where
 
 impl<PSM> DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
@@ -59,9 +59,8 @@ where
 impl<'p, PSM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
     for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM + 'static,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
     PSM::DurationType: Send + Sync,
-    PSM::InstanceHandleType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
 {
     type PublisherType = PublisherImpl<'p, PSM>;
@@ -100,9 +99,8 @@ where
 impl<'s, PSM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM + 'static,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
     PSM::DurationType: Send + Sync,
-    PSM::InstanceHandleType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
 {
     type SubscriberType = SubscriberImpl<'s>;
@@ -161,9 +159,8 @@ where
 impl<'t, T: 'static, PSM> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
     for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM + 'static,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
     PSM::DurationType: Send + Sync,
-    PSM::InstanceHandleType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
 {
     type TopicType = TopicImpl<'t, T>;
@@ -189,10 +186,9 @@ where
 
 impl<PSM> rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM + 'static,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
     GUID: Send + Sync,
     PSM::DurationType: Send + Sync,
-    PSM::InstanceHandleType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
     GUID: Copy,
 {
@@ -304,12 +300,9 @@ where
 
 impl<PSM> Entity for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM + 'static,
-    GUID: Send + Sync,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
     PSM::DurationType: Send + Sync,
-    PSM::InstanceHandleType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
-    GUID: Copy,
 {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;

@@ -14,7 +14,7 @@ use crate::{
         RtpsSubmessageHeaderPIM,
     },
     structure::{
-        types::{ChangeKind, InstanceHandlePIM, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{ChangeKind, Locator, SequenceNumber, ENTITYID_UNKNOWN},
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
@@ -68,7 +68,6 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
 ) where
     PSM: GapSubmessagePIM
         + DataSubmessagePIM<'a, PSM>
-        + InstanceHandlePIM
         + ParameterListSubmessageElementPIM
         + EntityIdSubmessageElementPIM
         + SequenceNumberSubmessageElementPIM
@@ -79,7 +78,7 @@ pub fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
         + GapSubmessagePIM,
     HistoryCache: RTPSHistoryCache,
     HistoryCache::CacheChange: RTPSCacheChange<PSM> + 'a,
-    <HistoryCache::CacheChange as RTPSCacheChange<PSM>>::DataType : 'a,
+    <HistoryCache::CacheChange as RTPSCacheChange<PSM>>::DataType: 'a,
     PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
     PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
     PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>,
@@ -211,10 +210,6 @@ mod tests {
 
     impl ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
-    }
-
-    impl InstanceHandlePIM for MockPSM {
-        type InstanceHandleType = ();
     }
 
     impl SubmessageKindPIM for MockPSM {
@@ -480,7 +475,8 @@ mod tests {
     }
 
     impl RTPSCacheChange<MockPSM> for MockCacheChange {
-        type DataType = [u8;0];
+        type DataType = [u8; 0];
+        type InstanceHandleType = ();
 
         fn kind(&self) -> crate::structure::types::ChangeKind {
             self.kind

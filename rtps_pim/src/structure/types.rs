@@ -57,10 +57,6 @@ impl Locator {
     }
 }
 
-pub trait InstanceHandlePIM {
-    type InstanceHandleType;
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ProtocolVersion {
     pub major: u8,

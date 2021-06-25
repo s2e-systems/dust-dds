@@ -1,12 +1,16 @@
-use rust_rtps_pim::{behavior::{
+use rust_rtps_pim::{
+    behavior::{
         stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
         types::DurationPIM,
         RTPSWriter,
-    }, messages::submessage_elements::ParameterListSubmessageElementPIM, structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache, types::{
-            ChangeKind, InstanceHandlePIM, Locator, ReliabilityKind, SequenceNumber, TopicKind,
-            GUID,
-        }}};
+    },
+    messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::{
+        types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
+        RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
+    },
+};
 
 use super::{
     rtps_cache_change_impl::RTPSCacheChangeImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl,
@@ -15,7 +19,7 @@ use super::{
 
 pub struct RTPSWriterImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     guid: GUID,
     topic_kind: TopicKind,
@@ -35,7 +39,7 @@ where
 
 impl<PSM> RTPSWriterImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         guid: GUID,
@@ -79,7 +83,7 @@ where
 
 impl<PSM> RTPSEntity for RTPSWriterImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     fn guid(&self) -> &GUID {
         &self.guid
@@ -88,7 +92,7 @@ where
 
 impl<PSM> RTPSWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
     SequenceNumber: Ord + Copy,
     GUID: Copy,
 {
@@ -131,11 +135,11 @@ where
         kind: ChangeKind,
         data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange<PSM>>::DataType,
         inline_qos: PSM::ParameterListSubmessageElementType,
-        handle: PSM::InstanceHandleType,
+        handle:  <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange<PSM>>::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
         <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange<PSM>,
-        PSM: ParameterListSubmessageElementPIM + InstanceHandlePIM,
+        PSM: ParameterListSubmessageElementPIM,
     {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RTPSCacheChangeImpl::new(
@@ -151,7 +155,7 @@ where
 
 impl<PSM> RTPSEndpoint for RTPSWriterImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
@@ -172,7 +176,7 @@ where
 
 impl<PSM> RTPSStatelessWriter for RTPSWriterImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
     Locator: PartialEq,
 {
     type ReaderLocatorPIM = RTPSReaderLocatorImpl;
@@ -196,7 +200,7 @@ where
 
 impl<PSM> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     type ReaderProxyType = RTPSReaderProxyImpl;
 
@@ -231,10 +235,6 @@ mod tests {
     use super::*;
 
     struct MockPSM;
-
-    impl rust_rtps_pim::structure::types::InstanceHandlePIM for MockPSM {
-        type InstanceHandleType = ();
-    }
 
     impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;
@@ -298,8 +298,8 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        let change1 = writer.new_change(ChangeKind::Alive, vec![], MockParameterList, ());
-        let change2 = writer.new_change(ChangeKind::Alive, vec![], MockParameterList, ());
+        let change1 = writer.new_change(ChangeKind::Alive, vec![], MockParameterList, 0);
+        let change2 = writer.new_change(ChangeKind::Alive, vec![], MockParameterList, 0);
 
         assert_eq!(change1.sequence_number(), &1);
         assert_eq!(change2.sequence_number(), &2);

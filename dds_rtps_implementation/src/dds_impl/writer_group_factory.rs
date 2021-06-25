@@ -5,9 +5,8 @@ use rust_dds_api::{
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::types::DurationPIM,
-    messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::{InstanceHandlePIM, GUID},
+    behavior::types::DurationPIM, messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::types::GUID,
 };
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
@@ -23,7 +22,7 @@ pub struct WriterGroupFactory<PSM> {
 
 impl<PSM> WriterGroupFactory<PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         Self {

@@ -14,13 +14,11 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
 };
 use rust_rtps_pim::{
-    behavior::types::DurationPIM,
-    messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::{types::InstanceHandlePIM, RTPSEntity},
+    behavior::types::DurationPIM, messages::submessage_elements::ParameterListSubmessageElementPIM,
+    structure::RTPSEntity,
 };
 
 use crate::{
-    dds_type::DDSType,
     rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl,
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
@@ -36,7 +34,7 @@ const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
 pub struct PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     participant: &'p dyn DomainParticipant,
     writer_factory: Mutex<WriterFactory<PSM>>,
@@ -46,7 +44,7 @@ where
 
 impl<'p, PSM> PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     pub fn new(
         participant: &'p dyn DomainParticipant,
@@ -62,10 +60,10 @@ where
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM> DataWriterFactory<'dw, 't, T>
+impl<'dw, 'p: 'dw, 't: 'dw, T: 'static, PSM> DataWriterFactory<'dw, 't, T>
     for PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM + 'static,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
 {
     type TopicType = TopicImpl<'t, T>;
     type DataWriterType = DataWriterImpl<'dw, T, PSM>;
@@ -114,7 +112,7 @@ where
 
 impl<'p, PSM> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
@@ -171,7 +169,7 @@ where
 
 impl<'p, PSM> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p, PSM>
 where
-    PSM: DurationPIM + InstanceHandlePIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;

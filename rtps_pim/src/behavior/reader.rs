@@ -1,14 +1,11 @@
 use crate::{
     messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::{types::InstanceHandlePIM, RTPSEndpoint, RTPSHistoryCache},
+    structure::{RTPSEndpoint, RTPSHistoryCache},
 };
 
 use super::types::DurationPIM;
 
-pub trait RTPSReader<
-    PSM: InstanceHandlePIM + DurationPIM + ParameterListSubmessageElementPIM,
->: RTPSEndpoint
-{
+pub trait RTPSReader<PSM: DurationPIM + ParameterListSubmessageElementPIM>: RTPSEndpoint {
     type HistoryCacheType: RTPSHistoryCache;
 
     fn expects_inline_qos(&self) -> bool;
