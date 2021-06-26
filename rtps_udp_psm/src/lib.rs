@@ -9,7 +9,8 @@ use rust_rtps_pim::{
             GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
             LongSubmessageElementPIM, ParameterListSubmessageElementPIM,
             ProtocolVersionSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
-            SequenceNumberSubmessageElementPIM, SerializedDataFragmentSubmessageElementPIM,
+            SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
+            SequenceNumberSubmessageElementType, SerializedDataFragmentSubmessageElementPIM,
             SerializedDataSubmessageElementPIM, TimestampSubmessageElementPIM,
             ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM,
         },
@@ -347,9 +348,7 @@ pub struct SequenceNumber {
     pub low: u32,
 }
 
-impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType
-    for SequenceNumber
-{
+impl SequenceNumberSubmessageElementType for SequenceNumber {
     fn new(value: rust_rtps_pim::structure::types::SequenceNumber) -> Self {
         Self {
             high: (value >> 32) as i32,
@@ -362,41 +361,17 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageEleme
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SequenceNumberSet {
     base: SequenceNumber,
-    set: Vec<rust_rtps_pim::structure::types::SequenceNumber>,
     num_bits: ULong,
-    bitmap: Vec<i32>,
-}
-impl PartialEq for SequenceNumberSet {
-    fn eq(&self, other: &Self) -> bool {
-        self.base == other.base && self.set == other.set
-    }
+    bitmap: [i32; 8],
 }
 
 impl SequenceNumberSet {
     pub fn len(&self) -> u16 {
-        12 /*bitmapBase + numBits */ + 4 * self.bitmap.len() /* bitmap[0] .. bitmap[M-1] */ as u16
-    }
-    pub fn from_bitmap(
-        bitmap_base: rust_rtps_pim::structure::types::SequenceNumber,
-        bitmap: Vec<i32>,
-    ) -> Self {
-        let mut set = vec![];
-        let num_bits = 32 * bitmap.len();
-        for delta_n in 0..num_bits {
-            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                let seq_num = bitmap_base + delta_n as i64;
-                set.push(seq_num);
-            }
-        }
-        Self {
-            base: <SequenceNumber as rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType>::new(bitmap_base),
-            set,
-            num_bits: ULong(num_bits as u32),
-            bitmap,
-        }
+        let number_of_bitmap_elements = ((self.num_bits.0 + 31) / 32) as usize; // aka "M"
+        12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */ as u16
     }
 }
 
@@ -417,8 +392,9 @@ impl serde::Serialize for SequenceNumberSet {
             "bitmap[6]",
             "bitmap[7]",
         ];
-        for e in self.bitmap.iter().enumerate() {
-            state.serialize_field(BITMAP_NAMES[e.0], e.1)?;
+        let number_of_bitmap_elements = ((self.num_bits.0 + 31) / 32) as usize; // aka "M"
+        for i in 0..number_of_bitmap_elements {
+            state.serialize_field(BITMAP_NAMES[i], &self.bitmap[i])?;
         }
         state.end()
     }
@@ -440,18 +416,22 @@ impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
         let base: SequenceNumber = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let num_bits: u32 = seq
+        let num_bits: ULong = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        let num_bitmaps = (num_bits + 31) / 32; //In standard refered to as "M"
-        let mut set = vec![];
+        let num_bitmaps = (num_bits.0 + 31) / 32; //In standard refered to as "M"
+        let mut bitmap = [0; 8];
         for i in 0..num_bitmaps as usize {
-            let bitmap = seq
+            let bitmap_i = seq
                 .next_element()?
                 .ok_or_else(|| serde::de::Error::invalid_length(i + 2, &self))?;
-            set.push(bitmap);
+            bitmap[i] = bitmap_i;
         }
-        Ok(SequenceNumberSet::from_bitmap(rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType::value(&base), set))
+        Ok(SequenceNumberSet {
+            base,
+            num_bits,
+            bitmap,
+        })
     }
 }
 
@@ -467,43 +447,45 @@ impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType
-    for SequenceNumberSet
-{
+impl SequenceNumberSetSubmessageElementType for SequenceNumberSet {
     type IntoIter = std::vec::IntoIter<rust_rtps_pim::structure::types::SequenceNumber>;
 
     fn new(
         base: rust_rtps_pim::structure::types::SequenceNumber,
         set: &[rust_rtps_pim::structure::types::SequenceNumber],
     ) -> Self {
-        let max = set.iter().max();
-        let num_bits = match max {
-            Some(max) => Into::<i64>::into(*max) - Into::<i64>::into(base) + 1,
-            None => 0,
-        };
-        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; // aka "M"
-        let mut bitmap = vec![0; number_of_bitmap_elements];
+        let mut bitmap = [0; 8];
+        let mut num_bits = 0;
         for sequence_number in set.iter() {
-            let delta_n = Into::<i64>::into(*sequence_number) - Into::<i64>::into(base);
+            let delta_n = (sequence_number - base) as u32;
             let bitmap_num = delta_n / 32;
             bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
+            if delta_n + 1 > num_bits {
+                num_bits = delta_n + 1;
+            }
         }
         Self {
-            base: <SequenceNumber as rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType>::new(base),
-            set: set.into_iter().map(|x| x.clone()).collect(),
-            num_bits: ULong(num_bits as u32),
+            base: SequenceNumber::new(base),
+            num_bits: ULong(num_bits),
             bitmap,
         }
     }
 
     fn base(&self) -> rust_rtps_pim::structure::types::SequenceNumber {
-        rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType::value(
-            &self.base,
-        )
+        self.base.value()
     }
 
     fn set(&self) -> Self::IntoIter {
-        self.set.clone().into_iter()
+        let mut set = vec![];
+        for delta_n in 0..self.num_bits.0 as usize {
+            if (self.bitmap[delta_n / 32] & (1 << (31 - delta_n % 32)))
+                == (1 << (31 - delta_n % 32))
+            {
+                let seq_num = self.base.value() + delta_n as i64;
+                set.push(seq_num);
+            }
+        }
+        set.into_iter()
     }
 }
 
@@ -1160,6 +1142,59 @@ mod tests {
         },
         submessages::{DataSubmessage, GapSubmessage},
     };
+
+    #[test]
+    fn sequence_number_set_submessage_element_type_constructor() {
+        let expected = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            num_bits: ULong(0),
+            bitmap: [0; 8],
+        };
+        assert_eq!(SequenceNumberSet::new(2, &[]), expected);
+
+        let expected = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            num_bits: ULong(1),
+            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0],
+        };
+        assert_eq!(SequenceNumberSet::new(2, &[2]), expected);
+
+
+        let expected = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            num_bits: ULong(256),
+            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0b_00000000_00000000_00000000_00000001],
+        };
+        assert_eq!(SequenceNumberSet::new(2, &[2, 257]), expected);
+    }
+
+    #[test]
+    fn sequence_number_set_submessage_element_type_getters() {
+        let sequence_number_set = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            num_bits: ULong(0),
+            bitmap: [0; 8],
+        };
+        assert_eq!(sequence_number_set.base(), 2);
+        assert!(sequence_number_set.set().eq(vec![]));
+
+        let sequence_number_set = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            num_bits: ULong(100),
+            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0],
+        };
+        assert_eq!(sequence_number_set.base(), 2);
+        assert!(sequence_number_set.set().eq(vec![2]));
+
+        let sequence_number_set = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            num_bits: ULong(256),
+            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0b_00000000_00000000_00000000_00000001],
+        };
+        assert_eq!(sequence_number_set.base(), 2);
+        assert!(sequence_number_set.set().eq(vec![2, 257]));
+    }
+
 
     #[test]
     fn serialize_sequence_number_max_gap() {
