@@ -373,26 +373,6 @@ impl SequenceNumberSet {
         let number_of_bitmap_elements = ((self.num_bits.0 + 31) / 32) as usize; // aka "M"
         12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */ as u16
     }
-    // pub fn from_bitmap(
-    //     bitmap_base: rust_rtps_pim::structure::types::SequenceNumber,
-    //     bitmap: Vec<i32>,
-    // ) -> Self {
-    //     let mut set = vec![];
-    //     let num_bits = 32 * bitmap.len();
-    //     for delta_n in 0..num_bits {
-    //         if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-    //             let seq_num = bitmap_base + delta_n as i64;
-    //             set.push(seq_num);
-    //         }
-    //     }
-    // Self {
-    //     base: <SequenceNumber as rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType>::new(bitmap_base),
-    //     // set,
-    //     num_bits: ULong(num_bits as u32),
-    //     bitmap,
-    // }
-    //     todo!()
-    // }
 }
 
 impl serde::Serialize for SequenceNumberSet {
