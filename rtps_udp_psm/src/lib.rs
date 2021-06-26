@@ -1164,6 +1164,31 @@ mod tests {
     };
 
     #[test]
+    fn sequence_number_set_submessage_element_type_constructor() {
+        let expected = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            num_bits: ULong(0),
+            bitmap: [0; 8],
+        };
+        assert_eq!(SequenceNumberSet::new(2, &[]), expected);
+
+        let expected = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            num_bits: ULong(1),
+            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0],
+        };
+        assert_eq!(SequenceNumberSet::new(2, &[2]), expected);
+
+
+        let expected = SequenceNumberSet {
+            base: SequenceNumber::new(2),
+            num_bits: ULong(256),
+            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0b_00000000_00000000_00000000_00000001],
+        };
+        assert_eq!(SequenceNumberSet::new(2, &[2, 257]), expected);
+    }
+
+    #[test]
     fn sequence_number_set_submessage_element_type_getters() {
         let sequence_number_set = SequenceNumberSet {
             base: SequenceNumber::new(2),
