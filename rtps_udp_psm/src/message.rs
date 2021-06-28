@@ -2,39 +2,10 @@ use rust_rtps_pim::messages::submessages::RtpsSubmessageType;
 use serde::ser::SerializeStruct;
 
 use crate::{
+    message_header::{ProtocolId, RTPSMessageHeader},
     psm::RtpsUdpPsm,
-    submessage_elements::{Octet, ProtocolVersion, VendorId},
+    submessage_elements::Octet,
 };
-
-pub type ProtocolId = [u8; 4];
-
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct RTPSMessageHeader {
-    protocol: ProtocolId,
-    version: ProtocolVersion,
-    vendor_id: VendorId,
-    guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-}
-
-impl rust_rtps_pim::messages::RtpsMessageHeaderType<RtpsUdpPsm> for RTPSMessageHeader {
-    fn protocol(&self) -> &ProtocolId {
-        &self.protocol
-    }
-
-    fn version(&self) -> &rust_rtps_pim::structure::types::ProtocolVersion {
-        // &self.version
-        todo!()
-    }
-
-    fn vendor_id(&self) -> &rust_rtps_pim::structure::types::VendorId {
-        // &self.vendor_id
-        todo!()
-    }
-
-    fn guid_prefix(&self) -> &rust_rtps_pim::structure::types::GuidPrefix {
-        &self.guid_prefix
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageC<'a> {
@@ -154,12 +125,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for RTPSMessageC<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        submessage_elements::{
-            EntityId, ParameterList, SequenceNumber, SequenceNumberSet, SerializedData,
-        },
-        submessages,
-    };
+    use crate::{submessage_elements::{EntityId, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet, SerializedData, VendorId}, submessages};
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
         submessage_elements::SequenceNumberSubmessageElementType,

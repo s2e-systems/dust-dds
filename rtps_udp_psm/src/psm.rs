@@ -22,7 +22,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::{message::{ProtocolId, RTPSMessageC, RTPSMessageHeader}, submessage_elements::{
+use crate::{message::RTPSMessageC, message_header::{ProtocolId, RTPSMessageHeader}, submessage_elements::{
         Count, Duration, EntityId, FragmentNumber, FragmentNumberSet, GroupDigest, GuidPrefix,
         LocatorList, Long, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet,
         SerializedData, Time, ULong, UShort, VendorId,
@@ -41,7 +41,6 @@ impl ParameterListSubmessageElementPIM for RtpsUdpPsm {
 }
 
 pub(crate) type SubmessageKind = u8;
-
 
 impl SubmessageKindPIM for RtpsUdpPsm {
     type SubmessageKindType = SubmessageKind;
