@@ -1,10 +1,13 @@
-use super::SubmessageHeader;
-use crate::{Count, EntityId, RtpsUdpPsm, SequenceNumber, SubmessageFlag};
-use rust_rtps_pim::messages::types::SubmessageKindPIM;
+use rust_rtps_pim::messages::types::{SubmessageFlag, SubmessageKindPIM};
+
+use crate::{psm::RtpsUdpPsm, submessage_elements::{Count, EntityId, SequenceNumber}};
+
+use super::header::SubmessageHeader;
+
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct HeartbeatSubmessage {
-    header: SubmessageHeader,
+    pub header: SubmessageHeader,
     reader_id: EntityId,
     writer_id: EntityId,
     first_sn: SequenceNumber,

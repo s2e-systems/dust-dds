@@ -1,6 +1,6 @@
 use rust_dds_rtps_implementation::transport::Transport;
-use rust_rtps_pim::{messages::{RTPSMessage, RTPSMessagePIM}, structure::types::Locator};
-use rust_rtps_udp_psm::RtpsUdpPsm;
+use rust_rtps_pim::{messages::{RTPSMessagePIM},structure::types::Locator};
+use rust_rtps_udp_psm::psm::RtpsUdpPsm;
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
 
 pub struct UdpTransport {

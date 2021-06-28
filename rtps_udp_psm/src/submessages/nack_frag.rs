@@ -1,8 +1,7 @@
 use rust_rtps_pim::messages::types::SubmessageFlag;
+use crate::{psm::RtpsUdpPsm, submessage_elements::{Count, EntityId, FragmentNumberSet, SequenceNumber}};
 
-use crate::{Count, EntityId, FragmentNumberSet, RtpsUdpPsm, SequenceNumber};
-
-use super::SubmessageHeader;
+use super::header::SubmessageHeader;
 
 #[derive(Debug, PartialEq)]
 pub struct NackFrag;

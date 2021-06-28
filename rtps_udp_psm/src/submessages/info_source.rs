@@ -1,6 +1,8 @@
-use crate::{GuidPrefix, ProtocolVersion, RtpsUdpPsm, SubmessageFlag, VendorId};
+use rust_rtps_pim::messages::types::SubmessageFlag;
 
-use super::SubmessageHeader;
+use crate::{psm::RtpsUdpPsm, submessage_elements::{GuidPrefix, ProtocolVersion, VendorId}};
+
+use super::header::SubmessageHeader;
 
 #[derive(Debug, PartialEq)]
 pub struct InfoSource;

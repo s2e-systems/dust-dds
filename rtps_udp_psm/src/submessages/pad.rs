@@ -1,6 +1,6 @@
-use crate::RtpsUdpPsm;
+use crate::psm::RtpsUdpPsm;
 
-use super::SubmessageHeader;
+use super::header::SubmessageHeader;
 
 #[derive(Debug, PartialEq)]
 pub struct Pad;

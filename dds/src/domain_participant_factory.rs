@@ -4,8 +4,7 @@ use rust_dds_api::{
     infrastructure::qos::DomainParticipantQos,
 };
 use rust_dds_rtps_implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
-
-use rust_rtps_udp_psm::RtpsUdpPsm;
+use rust_rtps_udp_psm::psm::RtpsUdpPsm;
 
 use crate::udp_transport::UdpTransport;
 

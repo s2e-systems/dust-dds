@@ -1,9 +1,8 @@
-use crate::{
-    EntityId, FragmentNumber, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData,
-    SubmessageFlag, ULong, UShort,
-};
+use rust_rtps_pim::messages::types::SubmessageFlag;
 
-use super::SubmessageHeader;
+use crate::{psm::RtpsUdpPsm, submessage_elements::{EntityId, FragmentNumber, ParameterList, SequenceNumber, SerializedData, ULong, UShort}};
+use super::header::SubmessageHeader;
+
 
 #[derive(Debug, PartialEq)]
 pub struct DataFrag<'a> {
