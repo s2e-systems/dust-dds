@@ -1,9 +1,5 @@
-use crate::{
-    psm::RtpsUdpPsm,
-    submessage_elements::{Count, EntityId, SequenceNumberSet},
-};
+use crate::{psm::RtpsUdpPsm, submessage_elements::{Count, EntityId, SequenceNumberSet}, submessage_header::SubmessageHeader};
 use rust_rtps_pim::messages::{types::SubmessageFlag, Submessage};
-use super::header::SubmessageHeader;
 
 #[derive(Debug, PartialEq)]
 pub struct AckNack {}

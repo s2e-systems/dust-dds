@@ -7,8 +7,8 @@ use rust_rtps_pim::messages::{
 use crate::{
     psm::RtpsUdpPsm,
     submessage_elements::{EntityId, ParameterList, SequenceNumber, SerializedData},
+    submessage_header::SubmessageHeader
 };
-use super::header::SubmessageHeader;
 
 #[derive(Debug, PartialEq)]
 pub struct DataSubmesage<'a> {

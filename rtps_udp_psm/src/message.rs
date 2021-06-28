@@ -44,11 +44,11 @@ pub struct RTPSMessageC<'a> {
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'a> {
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, RtpsUdpPsm>>>(
-        protocol: ProtocolId,
-        version: rust_rtps_pim::structure::types::ProtocolVersion,
-        vendor_id: rust_rtps_pim::structure::types::VendorId,
-        guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        submessages: T,
+        _protocol: ProtocolId,
+        _version: rust_rtps_pim::structure::types::ProtocolVersion,
+        _vendor_id: rust_rtps_pim::structure::types::VendorId,
+        _guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
+        _submessages: T,
     ) -> Self {
         todo!()
     }

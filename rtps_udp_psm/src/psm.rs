@@ -26,7 +26,7 @@ use crate::{message::{ProtocolId, RTPSMessageC, RTPSMessageHeader}, submessage_e
         Count, Duration, EntityId, FragmentNumber, FragmentNumberSet, GroupDigest, GuidPrefix,
         LocatorList, Long, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet,
         SerializedData, Time, ULong, UShort, VendorId,
-    }, submessages::{self, header::SubmessageHeader}};
+    }, submessage_header::SubmessageHeader, submessages};
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsUdpPsm;

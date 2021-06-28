@@ -3,8 +3,8 @@ use rust_rtps_pim::messages::types::{SubmessageFlag, SubmessageKindPIM};
 use crate::{
     psm::RtpsUdpPsm,
     submessage_elements::{EntityId, SequenceNumber, SequenceNumberSet},
+    submessage_header::SubmessageHeader
 };
-use super::header::SubmessageHeader;
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GapSubmessage {

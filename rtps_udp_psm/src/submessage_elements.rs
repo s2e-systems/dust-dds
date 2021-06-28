@@ -300,7 +300,7 @@ pub struct ProtocolVersion {
 impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType
     for ProtocolVersion
 {
-    fn new(value: &rust_rtps_pim::structure::types::ProtocolVersion) -> Self {
+    fn new(_value: &rust_rtps_pim::structure::types::ProtocolVersion) -> Self {
         todo!()
     }
 

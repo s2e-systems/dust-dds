@@ -1,8 +1,8 @@
 use rust_rtps_pim::messages::types::SubmessageFlag;
 
-use crate::{psm::RtpsUdpPsm, submessage_elements::GuidPrefix};
-
-use super::header::SubmessageHeader;
+use crate::{
+    psm::RtpsUdpPsm, submessage_elements::GuidPrefix, submessage_header::SubmessageHeader,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct InfoDestination;
