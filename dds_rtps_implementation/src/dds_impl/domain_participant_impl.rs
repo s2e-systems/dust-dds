@@ -44,20 +44,7 @@ where
     pub fn new(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
         transport: impl Transport<PSM> + 'static,
-    ) -> Self {
-        Self {
-            writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
-            rtps_participant_impl: RtpsShared::new(RTPSParticipantImpl::new(guid_prefix)),
-            transport: Arc::new(Mutex::new(transport)),
-        }
-    }
-
-    fn do_the_thread_thing(&self) {}
-}
-
-impl<'p, PSM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
-    for DomainParticipantImpl<PSM>
-where
+    ) -> Self where
     PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
     PSM::DurationType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
@@ -89,6 +76,43 @@ where
     GUID: Send + Sync,
     PSM::DurationType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
+    {
+        let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
+        let transport_impl = Arc::new(Mutex::new(transport));
+        let rtps_participant = rtps_participant_impl.clone();
+        let transport = transport_impl.clone();
+        std::thread::spawn(move || {
+            loop {
+                if let Some(rtps_participant) = rtps_participant.try_lock() {
+                    let writer_group = rtps_participant.writer_groups()[0].lock();
+                    let mut writer = writer_group.writer_list()[0].lock();
+                    let _last_change_sequence_number = *writer.last_change_sequence_number();
+                    let (writer_cache, reader_locators) = writer.writer_cache_and_reader_locators();
+                    send_data(
+                        writer_cache,
+                        reader_locators,
+                        0,
+                        &mut *transport.lock().unwrap(),
+                    );
+                    // rtps_participant.send_data::<UDPHeartbeatMessage>();
+                    // rtps_participant.receive_data();
+                    // rtps_participant.run_listeners();
+                }
+            }
+        });
+
+        Self {
+            writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
+            rtps_participant_impl,
+            transport: transport_impl,
+        }
+    }
+}
+
+impl<'p, PSM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
+    for DomainParticipantImpl<PSM>
+where
+    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
 {
     type PublisherType = PublisherImpl<'p, PSM>;
     fn create_publisher(
@@ -186,9 +210,7 @@ where
 impl<'t, T: 'static, PSM> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
     for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
-    PSM::DurationType: Send + Sync,
-    PSM::ParameterListSubmessageElementType: Send + Sync,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,// + 'static,
 {
     type TopicType = TopicImpl<'t, T>;
 
@@ -213,35 +235,7 @@ where
 
 impl<PSM> rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM
-    + AckNackSubmessagePIM
-    + for<'a> DataSubmessagePIM<'a, PSM>
-    + for<'a> DataFragSubmessagePIM<'a, PSM>
-    + GapSubmessagePIM
-    + HeartbeatSubmessagePIM
-    + HeartbeatFragSubmessagePIM
-    + InfoDestinationSubmessagePIM
-    + InfoReplySubmessagePIM
-    + InfoSourceSubmessagePIM
-    + InfoTimestampSubmessagePIM
-    + NackFragSubmessagePIM
-    + PadSubmessagePIM
-    + EntityIdSubmessageElementPIM
-    + SequenceNumberSubmessageElementPIM
-    + for<'a> SerializedDataSubmessageElementPIM<'a>
-    + RtpsSubmessageHeaderPIM
-    + SequenceNumberSetSubmessageElementPIM
-    + ProtocolIdPIM + 'static,
-    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
-    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
-    PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
-    PSM::GapSubmessageType: GapSubmessage<PSM>,
-    PSM::ParameterListSubmessageElementType: Clone + Send + Sync,
-    PSM::DurationType: Send + Sync,
-    GUID: Send + Sync,
-    PSM::DurationType: Send + Sync,
-    PSM::ParameterListSubmessageElementType: Send + Sync,
-    GUID: Copy,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     fn lookup_topicdescription<'t, T>(
         &'t self,
@@ -351,33 +345,7 @@ where
 
 impl<PSM> Entity for DomainParticipantImpl<PSM>
 where
-    PSM::DurationType: Send + Sync,
-    PSM::ParameterListSubmessageElementType: Send + Sync,
-    PSM: DurationPIM + ParameterListSubmessageElementPIM
-        + AckNackSubmessagePIM
-        + for<'a> DataSubmessagePIM<'a, PSM>
-        + for<'a> DataFragSubmessagePIM<'a, PSM>
-        + GapSubmessagePIM
-        + HeartbeatSubmessagePIM
-        + HeartbeatFragSubmessagePIM
-        + InfoDestinationSubmessagePIM
-        + InfoReplySubmessagePIM
-        + InfoSourceSubmessagePIM
-        + InfoTimestampSubmessagePIM
-        + NackFragSubmessagePIM
-        + PadSubmessagePIM
-        + EntityIdSubmessageElementPIM
-        + SequenceNumberSubmessageElementPIM
-        + for<'a> SerializedDataSubmessageElementPIM<'a>
-        + RtpsSubmessageHeaderPIM
-        + SequenceNumberSetSubmessageElementPIM
-        + ProtocolIdPIM + 'static,
-        PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
-        PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
-        PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
-        PSM::GapSubmessageType: GapSubmessage<PSM>,
-        PSM::ParameterListSubmessageElementType: Clone + Send + Sync,
-        PSM::DurationType: Send + Sync,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
@@ -421,28 +389,7 @@ where
     }
 
     fn enable(&self) -> DDSResult<()> {
-
-        let rtps_participant = self.rtps_participant_impl.clone();
-        let transport = self.transport.clone();
-        std::thread::spawn(move || {
-            loop {
-                if let Some(rtps_participant) = rtps_participant.try_lock() {
-                    let writer_group = rtps_participant.writer_groups()[0].lock();
-                    let mut writer = writer_group.writer_list()[0].lock();
-                    let _last_change_sequence_number = *writer.last_change_sequence_number();
-                    let (writer_cache, reader_locators) = writer.writer_cache_and_reader_locators();
-                    send_data(
-                        writer_cache,
-                        reader_locators,
-                        0,
-                        &mut *transport.lock().unwrap(),
-                    );
-                    // rtps_participant.send_data::<UDPHeartbeatMessage>();
-                    // rtps_participant.receive_data();
-                    // rtps_participant.run_listeners();
-                }
-            }
-        });
+        // todo!()
         Ok(())
     }
 }

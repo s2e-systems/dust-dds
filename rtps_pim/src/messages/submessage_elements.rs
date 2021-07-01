@@ -165,7 +165,7 @@ pub trait LocatorListSubmessageElementType {
 }
 
 pub trait SerializedDataSubmessageElementPIM<'a> {
-    type SerializedDataSubmessageElementType : SerializedDataSubmessageElementType<'a>;
+    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>;
 }
 
 pub trait SerializedDataSubmessageElementType<'a> {
