@@ -1,6 +1,8 @@
-use crate::{LocatorList, RtpsUdpPsm, SubmessageFlag};
+use rust_rtps_pim::messages::types::SubmessageFlag;
 
-use super::SubmessageHeader;
+use crate::{
+    psm::RtpsUdpPsm, submessage_elements::LocatorList, submessage_header::SubmessageHeader,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct InfoReply;

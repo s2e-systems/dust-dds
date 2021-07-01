@@ -1,6 +1,10 @@
-use crate::{Count, EntityId, FragmentNumber, RtpsUdpPsm, SequenceNumber, SubmessageFlag};
+use rust_rtps_pim::messages::types::SubmessageFlag;
 
-use super::SubmessageHeader;
+use crate::{
+    psm::RtpsUdpPsm,
+    submessage_elements::{Count, EntityId, FragmentNumber, SequenceNumber},
+    submessage_header::SubmessageHeader,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct HeartbeatFrag;

@@ -1,12 +1,18 @@
-use rust_rtps_pim::messages::{submessages::DataSubmessage, types::SubmessageKindPIM, Submessage};
+use rust_rtps_pim::messages::{
+    submessages::DataSubmessage,
+    types::{SubmessageFlag, SubmessageKindPIM},
+    Submessage,
+};
 
-use crate::{EntityId, ParameterList, RtpsUdpPsm, SequenceNumber, SerializedData, SubmessageFlag};
-
-use super::SubmessageHeader;
+use crate::{
+    psm::RtpsUdpPsm,
+    submessage_elements::{EntityId, ParameterList, SequenceNumber, SerializedData},
+    submessage_header::SubmessageHeader
+};
 
 #[derive(Debug, PartialEq)]
 pub struct DataSubmesage<'a> {
-    header: SubmessageHeader,
+    pub(crate) header: SubmessageHeader,
     extra_flags: u16,
     octets_to_inline_qos: u16,
     reader_id: EntityId,
@@ -227,6 +233,8 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesage<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::submessage_elements::Parameter;
+
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
     use rust_serde_cdr::{
@@ -294,8 +302,8 @@ mod tests {
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
         let writer_sn = SequenceNumber::new(5);
-        let param1 = crate::Parameter::new(6, vec![10, 11, 12, 13].into());
-        let param2 = crate::Parameter::new(7, vec![20, 21, 22, 23].into());
+        let param1 = Parameter::new(6, vec![10, 11, 12, 13].into());
+        let param2 = Parameter::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = ParameterList {
             parameter: vec![param1, param2].into(),
         };
@@ -459,8 +467,8 @@ mod tests {
         let reader_id = EntityId([1, 2, 3, 4]);
         let writer_id = EntityId([6, 7, 8, 9]);
         let writer_sn = SequenceNumber::new(5);
-        let param1 = crate::Parameter::new(6, vec![10, 11, 12, 13].into());
-        let param2 = crate::Parameter::new(7, vec![20, 21, 22, 23].into());
+        let param1 = Parameter::new(6, vec![10, 11, 12, 13].into());
+        let param2 = Parameter::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = ParameterList {
             parameter: vec![param1, param2].into(),
         };
