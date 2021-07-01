@@ -1,6 +1,6 @@
 use rust_rtps_pim::{
     behavior::{
-        stateless_writer::{best_effort_send_unsent_data, RTPSReaderLocator},
+        stateless_writer::{BestEffortBehavior, RTPSReaderLocator},
         types::DurationPIM,
     },
     messages::{
@@ -58,7 +58,7 @@ pub fn send_data<PSM, HistoryCache, ReaderLocator>(
     PSM::GapSubmessageType: GapSubmessage<PSM>,
     PSM::ParameterListSubmessageElementType: Clone,
     HistoryCache: RTPSHistoryCache,
-    ReaderLocator: RTPSReaderLocator,
+    ReaderLocator: RTPSReaderLocator + BestEffortBehavior,
     <HistoryCache as RTPSHistoryCache>::CacheChange: RTPSCacheChange<PSM>,
 {
     for reader_locator in reader_locators {
@@ -66,8 +66,7 @@ pub fn send_data<PSM, HistoryCache, ReaderLocator>(
         let mut gap_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
 
         let mut submessages = vec![];
-        best_effort_send_unsent_data(
-            reader_locator,
+        reader_locator.best_effort_send_unsent_data(
             &last_change_sequence_number,
             writer_cache,
             |data_submessage| data_submessage_list.push(RtpsSubmessageType::Data(data_submessage)),
@@ -89,12 +88,97 @@ pub fn send_data<PSM, HistoryCache, ReaderLocator>(
 mod tests {
     use std::marker::PhantomData;
 
-    use rust_rtps_pim::{messages::Submessage, structure::types::Locator};
+    use rust_rtps_pim::{
+        messages::Submessage,
+        structure::types::{Locator, LOCATOR_INVALID},
+    };
 
     use super::*;
 
     #[test]
     fn send_data_message() {
+        impl BestEffortBehavior for MockReaderLocator {
+            fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
+                &mut self,
+                last_change_sequence_number: &SequenceNumber,
+                writer_cache: &'a HistoryCache,
+                mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
+                mut send_gap: impl FnMut(<PSM as GapSubmessagePIM>::GapSubmessageType),
+            ) where
+                PSM: GapSubmessagePIM
+                    + DataSubmessagePIM<'a, PSM>
+                    + ParameterListSubmessageElementPIM
+                    + EntityIdSubmessageElementPIM
+                    + SequenceNumberSubmessageElementPIM
+                    + SerializedDataSubmessageElementPIM<'a>
+                    + DataSubmessagePIM<'a, PSM>
+                    + RtpsSubmessageHeaderPIM
+                    + SequenceNumberSetSubmessageElementPIM
+                    + GapSubmessagePIM,
+                HistoryCache: RTPSHistoryCache,
+                HistoryCache::CacheChange: RTPSCacheChange<PSM> + 'a,
+                <HistoryCache::CacheChange as RTPSCacheChange<PSM>>::DataType: 'a,
+                PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
+                PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
+                PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>,
+                PSM::DataSubmessageType: DataSubmessage<'a, PSM>,
+                PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
+                PSM::GapSubmessageType: GapSubmessage<PSM>,
+                PSM::ParameterListSubmessageElementType: Clone,
+            {
+            }
+        }
+
+        struct MockTransport<PSM>(PhantomData<PSM>);
+
+        impl<PSM> Transport<PSM> for MockTransport<PSM> {
+            fn write<'a>(
+                &mut self,
+                message: &[RtpsSubmessageType<'a, PSM>],
+                _destination_locator: &Locator,
+            ) where
+                PSM: AckNackSubmessagePIM
+                    + DataSubmessagePIM<'a, PSM>
+                    + DataFragSubmessagePIM<'a>
+                    + GapSubmessagePIM
+                    + HeartbeatSubmessagePIM
+                    + HeartbeatFragSubmessagePIM
+                    + InfoDestinationSubmessagePIM
+                    + InfoReplySubmessagePIM
+                    + InfoSourceSubmessagePIM
+                    + InfoTimestampSubmessagePIM
+                    + NackFragSubmessagePIM
+                    + PadSubmessagePIM
+                    + RtpsSubmessageHeaderPIM
+                    + EntityIdSubmessageElementPIM
+                    + SequenceNumberSubmessageElementPIM
+                    + ParameterListSubmessageElementPIM
+                    + SerializedDataSubmessageElementPIM<'a>,
+            {
+                assert!(message.is_empty())
+            }
+
+            fn read<'a>(
+                &'a self,
+            ) -> Option<(
+                PSM::RTPSMessageType,
+                rust_rtps_pim::structure::types::Locator,
+            )>
+            where
+                PSM: rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>,
+            {
+                todo!()
+            }
+
+            fn unicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
+                todo!()
+            }
+
+            fn multicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
+                todo!()
+            }
+        }
+
         let mut transport: MockTransport<MockPSM> = MockTransport(PhantomData);
         let writer_cache = MockHistoryCache;
         let mut reader_locators = [MockReaderLocator];
@@ -374,56 +458,6 @@ mod tests {
         }
     }
 
-    struct MockTransport<PSM>(PhantomData<PSM>);
-
-    impl<PSM> Transport<PSM> for MockTransport<PSM> {
-        fn write<'a>(
-            &mut self,
-            message: &[RtpsSubmessageType<'a, PSM>],
-            destination_locator: &Locator,
-        ) where
-            PSM: AckNackSubmessagePIM
-                + DataSubmessagePIM<'a, PSM>
-                + DataFragSubmessagePIM<'a>
-                + GapSubmessagePIM
-                + HeartbeatSubmessagePIM
-                + HeartbeatFragSubmessagePIM
-                + InfoDestinationSubmessagePIM
-                + InfoReplySubmessagePIM
-                + InfoSourceSubmessagePIM
-                + InfoTimestampSubmessagePIM
-                + NackFragSubmessagePIM
-                + PadSubmessagePIM
-                + RtpsSubmessageHeaderPIM
-                + EntityIdSubmessageElementPIM
-                + SequenceNumberSubmessageElementPIM
-                + ParameterListSubmessageElementPIM
-                + SerializedDataSubmessageElementPIM<'a>,
-        {
-            todo!()
-        }
-
-        fn read<'a>(
-            &'a self,
-        ) -> Option<(
-            PSM::RTPSMessageType,
-            rust_rtps_pim::structure::types::Locator,
-        )>
-        where
-            PSM: rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>,
-        {
-            todo!()
-        }
-
-        fn unicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
-            todo!()
-        }
-
-        fn multicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
-            todo!()
-        }
-    }
-
     struct MockHistoryCache;
 
     impl RTPSHistoryCache for MockHistoryCache {
@@ -497,7 +531,7 @@ mod tests {
         type SequenceNumberVector = Vec<SequenceNumber>;
 
         fn locator(&self) -> &Locator {
-            todo!()
+            &LOCATOR_INVALID
         }
 
         fn expects_inline_qos(&self) -> bool {
