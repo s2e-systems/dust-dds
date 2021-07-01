@@ -170,7 +170,7 @@ impl AckNackSubmessagePIM for RtpsUdpPsm {
     type AckNackSubmessageType = submessages::ack_nack::AckNack;
 }
 
-impl<'a> DataSubmessagePIM<'a> for RtpsUdpPsm {
+impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
     type DataSubmessageType = submessages::data::DataSubmesage<'a>;
 }
 

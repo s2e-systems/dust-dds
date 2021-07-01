@@ -1,12 +1,27 @@
-use rust_rtps_pim::{behavior::{
+use rust_rtps_pim::{
+    behavior::{
         stateless_writer::{BestEffortBehavior, RTPSReaderLocator},
         types::DurationPIM,
-    }, messages::{RtpsSubmessageHeaderPIM, submessage_elements::{
+    },
+    messages::{
+        submessage_elements::{
             EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
             ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
             SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
             SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM,
-        }, submessages::{AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType}, types::ProtocolIdPIM}, structure::{types::SequenceNumber, RTPSCacheChange, RTPSHistoryCache}};
+        },
+        submessages::{
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessage,
+            GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
+            InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
+            InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
+            RtpsSubmessageType,
+        },
+        types::ProtocolIdPIM,
+        RtpsSubmessageHeaderPIM,
+    },
+    structure::{types::SequenceNumber, RTPSCacheChange, RTPSHistoryCache},
+};
 
 use crate::transport::TransportWrite;
 
@@ -19,7 +34,7 @@ pub fn send_data<PSM, HistoryCache, ReaderLocator>(
     PSM: DurationPIM
         + ParameterListSubmessageElementPIM
         + AckNackSubmessagePIM
-        + for<'a> DataSubmessagePIM<'a>
+        + for<'a> DataSubmessagePIM<'a, PSM>
         + for<'a> DataFragSubmessagePIM<'a>
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
@@ -41,7 +56,6 @@ pub fn send_data<PSM, HistoryCache, ReaderLocator>(
     PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
     PSM::GapSubmessageType: GapSubmessage<PSM>,
     PSM::ParameterListSubmessageElementType: Clone,
-    for<'a> <PSM as DataSubmessagePIM<'a>>::DataSubmessageType: DataSubmessage<'a, PSM>,
     HistoryCache: RTPSHistoryCache,
     ReaderLocator: RTPSReaderLocator + BestEffortBehavior,
     <HistoryCache as RTPSHistoryCache>::CacheChange: RTPSCacheChange<PSM>,
@@ -90,15 +104,16 @@ mod tests {
                 &mut self,
                 _last_change_sequence_number: &SequenceNumber,
                 _writer_cache: &'a HistoryCache,
-                mut _send_data: impl FnMut(<PSM as DataSubmessagePIM<'a>>::DataSubmessageType),
+                mut _send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
                 mut _send_gap: impl FnMut(<PSM as GapSubmessagePIM>::GapSubmessageType),
             ) where
                 PSM: GapSubmessagePIM
-                    + DataSubmessagePIM<'a>
+                    + DataSubmessagePIM<'a, PSM>
                     + ParameterListSubmessageElementPIM
                     + EntityIdSubmessageElementPIM
                     + SequenceNumberSubmessageElementPIM
                     + SerializedDataSubmessageElementPIM<'a>
+                    + DataSubmessagePIM<'a, PSM>
                     + RtpsSubmessageHeaderPIM
                     + SequenceNumberSetSubmessageElementPIM
                     + GapSubmessagePIM,
@@ -125,7 +140,7 @@ mod tests {
                 _destination_locator: &Locator,
             ) where
                 PSM: AckNackSubmessagePIM
-                    + DataSubmessagePIM<'a>
+                    + DataSubmessagePIM<'a, PSM>
                     + DataFragSubmessagePIM<'a>
                     + GapSubmessagePIM
                     + HeartbeatSubmessagePIM
@@ -172,7 +187,14 @@ mod tests {
         type AckNackSubmessageType = ();
     }
 
-    impl<'a> DataSubmessagePIM<'a> for MockPSM {
+    impl<'a, PSM> DataSubmessagePIM<'a, PSM> for MockPSM
+    where
+        PSM: RtpsSubmessageHeaderPIM
+            + EntityIdSubmessageElementPIM
+            + SequenceNumberSubmessageElementPIM
+            + ParameterListSubmessageElementPIM
+            + SerializedDataSubmessageElementPIM<'a>,
+    {
         type DataSubmessageType = MockDataSubmessage;
     }
 

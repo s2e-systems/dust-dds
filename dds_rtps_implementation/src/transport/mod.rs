@@ -20,7 +20,7 @@ pub trait TransportWrite<PSM> {
     fn write<'a>(&mut self, message: &[RtpsSubmessageType<'a, PSM>], destination_locator: &Locator)
     where
         PSM: AckNackSubmessagePIM
-            + DataSubmessagePIM<'a>
+            + DataSubmessagePIM<'a, PSM>
             + DataFragSubmessagePIM<'a>
             + GapSubmessagePIM
             + HeartbeatSubmessagePIM

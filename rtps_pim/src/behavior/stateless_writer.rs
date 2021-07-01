@@ -59,20 +59,21 @@ pub trait RTPSStatelessWriter {
     fn unsent_changes_reset(&mut self);
 }
 
-pub trait BestEffortBehavior: RTPSReaderLocator {
+pub trait BestEffortBehavior : RTPSReaderLocator {
     fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
         &mut self,
         last_change_sequence_number: &SequenceNumber,
         writer_cache: &'a HistoryCache,
-        mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a>>::DataSubmessageType),
+        mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
         mut send_gap: impl FnMut(<PSM as GapSubmessagePIM>::GapSubmessageType),
     ) where
         PSM: GapSubmessagePIM
-            + DataSubmessagePIM<'a>
+            + DataSubmessagePIM<'a, PSM>
             + ParameterListSubmessageElementPIM
             + EntityIdSubmessageElementPIM
             + SequenceNumberSubmessageElementPIM
             + SerializedDataSubmessageElementPIM<'a>
+            + DataSubmessagePIM<'a, PSM>
             + RtpsSubmessageHeaderPIM
             + SequenceNumberSetSubmessageElementPIM
             + GapSubmessagePIM,
