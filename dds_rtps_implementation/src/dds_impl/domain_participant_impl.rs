@@ -13,13 +13,30 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::{behavior::{types::DurationPIM, RTPSWriter}, messages::{RtpsSubmessageHeaderPIM, submessage_elements::{EntityIdSubmessageElementPIM, EntityIdSubmessageElementType, ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM, SerializedDataSubmessageElementType}, submessages::{AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM}, types::ProtocolIdPIM}, structure::types::GUID};
-
-// use rust_rtps_pim::structure::RTPSEntity;
+use rust_rtps_pim::{
+    behavior::{types::DurationPIM, RTPSWriter},
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
+            ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
+            SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
+            SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM,
+        },
+        submessages::{
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessage,
+            GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
+            InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
+            InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
+        },
+        types::ProtocolIdPIM,
+        RtpsSubmessageHeaderPIM,
+    },
+    structure::types::GUID,
+};
 
 use crate::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
-    transport::Transport,
+    transport::TransportWrite,
     utils::{message_sender::send_data, shared_object::RtpsShared},
 };
 
@@ -34,49 +51,49 @@ where
 {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
-    transport: Arc<Mutex<dyn Transport<PSM>>>,
+    transport: Arc<Mutex<dyn TransportWrite<PSM>>>,
 }
 
 impl<PSM> DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM
+    PSM: DurationPIM + ParameterListSubmessageElementPIM,
 {
-    pub fn new<T>(
-        guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        transport: T,
-    ) -> Self where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
-    PSM::DurationType: Send + Sync,
-    PSM::ParameterListSubmessageElementType: Send + Sync,
-    PSM: DurationPIM + ParameterListSubmessageElementPIM
-    + AckNackSubmessagePIM
-    + for<'a> DataSubmessagePIM<'a, PSM>
-    + for<'a> DataFragSubmessagePIM<'a>
-    + GapSubmessagePIM
-    + HeartbeatSubmessagePIM
-    + HeartbeatFragSubmessagePIM
-    + InfoDestinationSubmessagePIM
-    + InfoReplySubmessagePIM
-    + InfoSourceSubmessagePIM
-    + InfoTimestampSubmessagePIM
-    + NackFragSubmessagePIM
-    + PadSubmessagePIM
-    + EntityIdSubmessageElementPIM
-    + SequenceNumberSubmessageElementPIM
-    + for<'a> SerializedDataSubmessageElementPIM<'a>
-    + RtpsSubmessageHeaderPIM
-    + SequenceNumberSetSubmessageElementPIM
-    + ProtocolIdPIM + 'static,
-    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
-    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
-    PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
-    PSM::GapSubmessageType: GapSubmessage<PSM>,
-    PSM::ParameterListSubmessageElementType: Clone + Send + Sync,
-    PSM::DurationType: Send + Sync,
-    GUID: Send + Sync,
-    PSM::DurationType: Send + Sync,
-    PSM::ParameterListSubmessageElementType: Send + Sync,
-    T: Transport<PSM> + Send + Sync+ 'static,
+    pub fn new<T>(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix, transport: T) -> Self
+    where
+        PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
+        PSM::DurationType: Send + Sync,
+        PSM::ParameterListSubmessageElementType: Send + Sync,
+        PSM: DurationPIM
+            + ParameterListSubmessageElementPIM
+            + AckNackSubmessagePIM
+            + for<'a> DataSubmessagePIM<'a, PSM>
+            + for<'a> DataFragSubmessagePIM<'a>
+            + GapSubmessagePIM
+            + HeartbeatSubmessagePIM
+            + HeartbeatFragSubmessagePIM
+            + InfoDestinationSubmessagePIM
+            + InfoReplySubmessagePIM
+            + InfoSourceSubmessagePIM
+            + InfoTimestampSubmessagePIM
+            + NackFragSubmessagePIM
+            + PadSubmessagePIM
+            + EntityIdSubmessageElementPIM
+            + SequenceNumberSubmessageElementPIM
+            + for<'a> SerializedDataSubmessageElementPIM<'a>
+            + RtpsSubmessageHeaderPIM
+            + SequenceNumberSetSubmessageElementPIM
+            + ProtocolIdPIM
+            + 'static,
+        PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
+        PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
+        PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
+        PSM::GapSubmessageType: GapSubmessage<PSM>,
+        PSM::ParameterListSubmessageElementType: Clone + Send + Sync,
+        PSM::DurationType: Send + Sync,
+        GUID: Send + Sync,
+        PSM::DurationType: Send + Sync,
+        PSM::ParameterListSubmessageElementType: Send + Sync,
+        T: TransportWrite<PSM> + Send + Sync + 'static,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         let transport_impl = Arc::new(Mutex::new(transport));
@@ -211,7 +228,7 @@ where
 impl<'t, T: 'static, PSM> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
     for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,// + 'static,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM, // + 'static,
 {
     type TopicType = TopicImpl<'t, T>;
 
@@ -380,7 +397,6 @@ where
     fn get_status_changes(&self) -> StatusMask {
         todo!()
     }
-
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()

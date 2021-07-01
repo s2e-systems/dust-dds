@@ -9,11 +9,10 @@ use rust_rtps_pim::{
             ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
             SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
             SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM,
-            SerializedDataSubmessageElementType,
         },
         submessages::{
-            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
-            GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessage,
+            GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
             InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
             InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
             RtpsSubmessageType,
@@ -24,13 +23,13 @@ use rust_rtps_pim::{
     structure::{types::SequenceNumber, RTPSCacheChange, RTPSHistoryCache},
 };
 
-use crate::transport::Transport;
+use crate::transport::TransportWrite;
 
 pub fn send_data<PSM, HistoryCache, ReaderLocator>(
     writer_cache: &HistoryCache,
     reader_locators: &mut [ReaderLocator],
     last_change_sequence_number: SequenceNumber,
-    transport: &mut dyn Transport<PSM>,
+    transport: &mut dyn TransportWrite<PSM>,
 ) where
     PSM: DurationPIM
         + ParameterListSubmessageElementPIM
@@ -89,7 +88,10 @@ mod tests {
     use std::marker::PhantomData;
 
     use rust_rtps_pim::{
-        messages::Submessage,
+        messages::{
+            submessage_elements::SerializedDataSubmessageElementType, submessages::DataSubmessage,
+            Submessage,
+        },
         structure::types::{Locator, LOCATOR_INVALID},
     };
 
@@ -100,10 +102,10 @@ mod tests {
         impl BestEffortBehavior for MockReaderLocator {
             fn best_effort_send_unsent_data<'a, PSM, HistoryCache>(
                 &mut self,
-                last_change_sequence_number: &SequenceNumber,
-                writer_cache: &'a HistoryCache,
-                mut send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
-                mut send_gap: impl FnMut(<PSM as GapSubmessagePIM>::GapSubmessageType),
+                _last_change_sequence_number: &SequenceNumber,
+                _writer_cache: &'a HistoryCache,
+                mut _send_data: impl FnMut(<PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType),
+                mut _send_gap: impl FnMut(<PSM as GapSubmessagePIM>::GapSubmessageType),
             ) where
                 PSM: GapSubmessagePIM
                     + DataSubmessagePIM<'a, PSM>
@@ -131,7 +133,7 @@ mod tests {
 
         struct MockTransport<PSM>(PhantomData<PSM>);
 
-        impl<PSM> Transport<PSM> for MockTransport<PSM> {
+        impl<PSM> TransportWrite<PSM> for MockTransport<PSM> {
             fn write<'a>(
                 &mut self,
                 message: &[RtpsSubmessageType<'a, PSM>],
@@ -156,26 +158,6 @@ mod tests {
                     + SerializedDataSubmessageElementPIM<'a>,
             {
                 assert!(message.is_empty())
-            }
-
-            fn read<'a>(
-                &'a self,
-            ) -> Option<(
-                PSM::RTPSMessageType,
-                rust_rtps_pim::structure::types::Locator,
-            )>
-            where
-                PSM: rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>,
-            {
-                todo!()
-            }
-
-            fn unicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
-                todo!()
-            }
-
-            fn multicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
-                todo!()
             }
         }
 
@@ -284,7 +266,7 @@ mod tests {
 
     struct MockEntityId;
     impl EntityIdSubmessageElementType for MockEntityId {
-        fn new(value: &rust_rtps_pim::structure::types::EntityId) -> Self {
+        fn new(_value: &rust_rtps_pim::structure::types::EntityId) -> Self {
             todo!()
         }
 
@@ -296,7 +278,7 @@ mod tests {
     struct MockSequenceNumber;
 
     impl SequenceNumberSubmessageElementType for MockSequenceNumber {
-        fn new(value: SequenceNumber) -> Self {
+        fn new(_value: SequenceNumber) -> Self {
             todo!()
         }
 
@@ -307,7 +289,7 @@ mod tests {
 
     struct MockSerializedData;
     impl<'a> SerializedDataSubmessageElementType<'a> for MockSerializedData {
-        fn new(value: &'a [u8]) -> Self {
+        fn new(_value: &'a [u8]) -> Self {
             todo!()
         }
 
@@ -321,7 +303,7 @@ mod tests {
     impl SequenceNumberSetSubmessageElementType for MockSequenceNumberSet {
         type IntoIter = std::vec::IntoIter<SequenceNumber>;
 
-        fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
+        fn new(_base: SequenceNumber, _set: &[SequenceNumber]) -> Self {
             todo!()
         }
 
@@ -345,16 +327,16 @@ mod tests {
             + SerializedDataSubmessageElementPIM<'a>,
     {
         fn new(
-            endianness_flag: rust_rtps_pim::messages::types::SubmessageFlag,
-            inline_qos_flag: rust_rtps_pim::messages::types::SubmessageFlag,
-            data_flag: rust_rtps_pim::messages::types::SubmessageFlag,
-            key_flag: rust_rtps_pim::messages::types::SubmessageFlag,
-            non_standard_payload_flag: rust_rtps_pim::messages::types::SubmessageFlag,
-            reader_id: PSM::EntityIdSubmessageElementType,
-            writer_id: PSM::EntityIdSubmessageElementType,
-            writer_sn: PSM::SequenceNumberSubmessageElementType,
-            inline_qos: PSM::ParameterListSubmessageElementType,
-            serialized_payload: PSM::SerializedDataSubmessageElementType,
+            _endianness_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            _inline_qos_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            _data_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            _key_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            _non_standard_payload_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            _reader_id: PSM::EntityIdSubmessageElementType,
+            _writer_id: PSM::EntityIdSubmessageElementType,
+            _writer_sn: PSM::SequenceNumberSubmessageElementType,
+            _inline_qos: PSM::ParameterListSubmessageElementType,
+            _serialized_payload: PSM::SerializedDataSubmessageElementType,
         ) -> Self {
             todo!()
         }
@@ -419,11 +401,11 @@ mod tests {
             + SequenceNumberSetSubmessageElementPIM,
     {
         fn new(
-            endianness_flag: rust_rtps_pim::messages::types::SubmessageFlag,
-            reader_id: PSM::EntityIdSubmessageElementType,
-            writer_id: PSM::EntityIdSubmessageElementType,
-            gap_start: PSM::SequenceNumberSubmessageElementType,
-            gap_list: PSM::SequenceNumberSetSubmessageElementType,
+            _endianness_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            _reader_id: PSM::EntityIdSubmessageElementType,
+            _writer_id: PSM::EntityIdSubmessageElementType,
+            _gap_start: PSM::SequenceNumberSubmessageElementType,
+            _gap_list: PSM::SequenceNumberSetSubmessageElementType,
         ) -> Self {
             todo!()
         }
@@ -470,15 +452,15 @@ mod tests {
             todo!()
         }
 
-        fn add_change(&mut self, change: Self::CacheChange) {
+        fn add_change(&mut self, _change: Self::CacheChange) {
             todo!()
         }
 
-        fn remove_change(&mut self, seq_num: &SequenceNumber) {
+        fn remove_change(&mut self, _seq_num: &SequenceNumber) {
             todo!()
         }
 
-        fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChange> {
+        fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChange> {
             todo!()
         }
 
@@ -544,7 +526,7 @@ mod tests {
 
         fn next_unsent_change(
             &mut self,
-            last_change_sequence_number: &SequenceNumber,
+            _last_change_sequence_number: &SequenceNumber,
         ) -> Option<SequenceNumber> {
             todo!()
         }
@@ -555,15 +537,15 @@ mod tests {
 
         fn requested_changes_set(
             &mut self,
-            req_seq_num_set: &[SequenceNumber],
-            last_change_sequence_number: &SequenceNumber,
+            _req_seq_num_set: &[SequenceNumber],
+            _last_change_sequence_number: &SequenceNumber,
         ) {
             todo!()
         }
 
         fn unsent_changes(
             &self,
-            last_change_sequence_number: SequenceNumber,
+            _last_change_sequence_number: SequenceNumber,
         ) -> Self::SequenceNumberVector {
             todo!()
         }
