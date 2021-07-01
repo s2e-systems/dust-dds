@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, atomic::{self, AtomicBool}};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -52,6 +52,7 @@ where
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
     transport: Arc<Mutex<dyn TransportWrite<PSM>>>,
+    is_enabled: Arc<AtomicBool>,
 }
 
 impl<PSM> DomainParticipantImpl<PSM>
@@ -99,22 +100,27 @@ where
         let transport_impl = Arc::new(Mutex::new(transport));
         let rtps_participant = rtps_participant_impl.clone();
         let transport = transport_impl.clone();
+        let is_enabled = Arc::new(AtomicBool::new(false));
+        let is_enabled_thread = is_enabled.clone();
         std::thread::spawn(move || {
             loop {
-                if let Some(rtps_participant) = rtps_participant.try_lock() {
-                    let writer_group = rtps_participant.writer_groups()[0].lock();
-                    let mut writer = writer_group.writer_list()[0].lock();
-                    let _last_change_sequence_number = *writer.last_change_sequence_number();
-                    let (writer_cache, reader_locators) = writer.writer_cache_and_reader_locators();
-                    send_data(
-                        writer_cache,
-                        reader_locators,
-                        0,
-                        &mut *transport.lock().unwrap(),
-                    );
-                    // rtps_participant.send_data::<UDPHeartbeatMessage>();
-                    // rtps_participant.receive_data();
-                    // rtps_participant.run_listeners();
+                if is_enabled_thread.load(atomic::Ordering::Relaxed) {
+                    if let Some(rtps_participant) = rtps_participant.try_lock() {
+                        let writer_group = rtps_participant.writer_groups()[0].lock();
+                        let mut writer = writer_group.writer_list()[0].lock();
+                        let last_change_sequence_number = *writer.last_change_sequence_number();
+                        let (writer_cache, reader_locators) =
+                            writer.writer_cache_and_reader_locators();
+                        send_data(
+                            writer_cache,
+                            reader_locators,
+                            last_change_sequence_number,
+                            &mut *transport.lock().unwrap(),
+                        );
+                        // rtps_participant.send_data::<UDPHeartbeatMessage>();
+                        // rtps_participant.receive_data();
+                        // rtps_participant.run_listeners();
+                    }
                 }
             }
         });
@@ -123,6 +129,7 @@ where
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
             rtps_participant_impl,
             transport: transport_impl,
+            is_enabled,
         }
     }
 }
@@ -406,7 +413,7 @@ where
     }
 
     fn enable(&self) -> DDSResult<()> {
-        // todo!()
+        self.is_enabled.store(true, atomic::Ordering::Release);
         Ok(())
     }
 }
