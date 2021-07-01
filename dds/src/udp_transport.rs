@@ -22,7 +22,7 @@ impl TransportWrite<RtpsUdpPsm> for UdpTransport {
         _destination_locator: &Locator,
     ) where
         RtpsUdpPsm: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
-            + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a, RtpsUdpPsm>
+            + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a>
             + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM<'a>
             + rust_rtps_pim::messages::submessages::GapSubmessagePIM
             + rust_rtps_pim::messages::submessages::HeartbeatSubmessagePIM

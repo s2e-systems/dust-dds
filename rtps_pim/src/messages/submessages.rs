@@ -19,7 +19,7 @@ use super::{
 pub enum RtpsSubmessageType<'a, PSM>
 where
     PSM: AckNackSubmessagePIM
-        + DataSubmessagePIM<'a, PSM>
+        + DataSubmessagePIM<'a>
         + DataFragSubmessagePIM<'a>
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
@@ -77,15 +77,8 @@ where
     fn count(&self) -> &PSM::CountSubmessageElementType;
 }
 
-pub trait DataSubmessagePIM<'a, PSM>
-where
-    PSM: RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
-        + SequenceNumberSubmessageElementPIM
-        + ParameterListSubmessageElementPIM
-        + SerializedDataSubmessageElementPIM<'a>
-{
-    type DataSubmessageType: DataSubmessage<'a, PSM>;
+pub trait DataSubmessagePIM<'a> {
+    type DataSubmessageType;
 }
 
 pub trait DataSubmessage<'a, PSM>: Submessage<PSM>
@@ -94,7 +87,7 @@ where
         + EntityIdSubmessageElementPIM
         + SequenceNumberSubmessageElementPIM
         + ParameterListSubmessageElementPIM
-        + SerializedDataSubmessageElementPIM<'a>
+        + SerializedDataSubmessageElementPIM<'a>,
 {
     fn new(
         endianness_flag: SubmessageFlag,

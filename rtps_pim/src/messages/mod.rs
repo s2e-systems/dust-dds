@@ -54,7 +54,7 @@ where
     PSM: ProtocolIdPIM
         + RtpsMessageHeaderPIM
         + AckNackSubmessagePIM
-        + DataSubmessagePIM<'a, PSM>
+        + DataSubmessagePIM<'a>
         + DataFragSubmessagePIM<'a>
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM

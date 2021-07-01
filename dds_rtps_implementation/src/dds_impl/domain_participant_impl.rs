@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex, atomic::{self, AtomicBool}};
+use std::sync::{
+    atomic::{self, AtomicBool},
+    Arc, Mutex,
+};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -23,8 +26,8 @@ use rust_rtps_pim::{
             SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM,
         },
         submessages::{
-            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessage,
-            GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
+            GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
             InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
             InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
         },
@@ -67,7 +70,7 @@ where
         PSM: DurationPIM
             + ParameterListSubmessageElementPIM
             + AckNackSubmessagePIM
-            + for<'a> DataSubmessagePIM<'a, PSM>
+            + for<'a> DataSubmessagePIM<'a>
             + for<'a> DataFragSubmessagePIM<'a>
             + GapSubmessagePIM
             + HeartbeatSubmessagePIM
