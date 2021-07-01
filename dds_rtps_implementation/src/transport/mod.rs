@@ -1,6 +1,6 @@
 use rust_rtps_pim::{messages::RTPSMessagePIM, messages::{RtpsSubmessageHeaderPIM, submessage_elements::{EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM, SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM}, submessages::{AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType}}, structure::types::Locator};
 
-pub trait Transport<PSM>: Send + Sync
+pub trait Transport<PSM>
 {
     fn write<'a>(
         &mut self,
@@ -9,7 +9,7 @@ pub trait Transport<PSM>: Send + Sync
     ) where
     PSM: AckNackSubmessagePIM
     + DataSubmessagePIM<'a, PSM>
-    + DataFragSubmessagePIM<'a, PSM>
+    + DataFragSubmessagePIM<'a>
     + GapSubmessagePIM
     + HeartbeatSubmessagePIM
     + HeartbeatFragSubmessagePIM

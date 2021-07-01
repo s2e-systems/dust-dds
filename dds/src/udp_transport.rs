@@ -45,7 +45,7 @@ impl Transport<RtpsUdpPsm> for UdpTransport {
     ) where
     RtpsUdpPsm: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
     + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a, RtpsUdpPsm>
-    + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM<'a, RtpsUdpPsm>
+    + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM<'a>
     + rust_rtps_pim::messages::submessages::GapSubmessagePIM
     + rust_rtps_pim::messages::submessages::HeartbeatSubmessagePIM
     + rust_rtps_pim::messages::submessages::HeartbeatFragSubmessagePIM

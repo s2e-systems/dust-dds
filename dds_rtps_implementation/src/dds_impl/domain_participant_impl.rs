@@ -41,9 +41,9 @@ impl<PSM> DomainParticipantImpl<PSM>
 where
     PSM: DurationPIM + ParameterListSubmessageElementPIM
 {
-    pub fn new(
+    pub fn new<T>(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        transport: impl Transport<PSM> + 'static,
+        transport: T,
     ) -> Self where
     PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
     PSM::DurationType: Send + Sync,
@@ -51,7 +51,7 @@ where
     PSM: DurationPIM + ParameterListSubmessageElementPIM
     + AckNackSubmessagePIM
     + for<'a> DataSubmessagePIM<'a, PSM>
-    + for<'a> DataFragSubmessagePIM<'a, PSM>
+    + for<'a> DataFragSubmessagePIM<'a>
     + GapSubmessagePIM
     + HeartbeatSubmessagePIM
     + HeartbeatFragSubmessagePIM
@@ -76,6 +76,7 @@ where
     GUID: Send + Sync,
     PSM::DurationType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
+    T: Transport<PSM> + Send + Sync+ 'static,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         let transport_impl = Arc::new(Mutex::new(transport));

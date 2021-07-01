@@ -23,7 +23,7 @@ pub struct DataSubmesage<'a> {
 }
 
 impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
-    for DataSubmesage<'_>
+    for DataSubmesage<'a>
 {
     fn new(
         endianness_flag: SubmessageFlag,
@@ -36,7 +36,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
         writer_sn: SequenceNumber,
         inline_qos: ParameterList,
         serialized_payload: SerializedData<'a>,
-    ) -> DataSubmesage<'a> {
+    ) -> Self {
         let flags = [
             endianness_flag,
             inline_qos_flag,

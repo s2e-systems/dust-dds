@@ -55,7 +55,7 @@ where
         + RtpsMessageHeaderPIM
         + AckNackSubmessagePIM
         + DataSubmessagePIM<'a, PSM>
-        + DataFragSubmessagePIM<'a, PSM>
+        + DataFragSubmessagePIM<'a>
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
         + HeartbeatFragSubmessagePIM

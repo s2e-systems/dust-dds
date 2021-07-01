@@ -36,7 +36,7 @@ pub fn send_data<PSM, HistoryCache, ReaderLocator>(
         + ParameterListSubmessageElementPIM
         + AckNackSubmessagePIM
         + for<'a> DataSubmessagePIM<'a, PSM>
-        + for<'a> DataFragSubmessagePIM<'a, PSM>
+        + for<'a> DataFragSubmessagePIM<'a>
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
         + HeartbeatFragSubmessagePIM
@@ -52,13 +52,13 @@ pub fn send_data<PSM, HistoryCache, ReaderLocator>(
         + RtpsSubmessageHeaderPIM
         + SequenceNumberSetSubmessageElementPIM
         + ProtocolIdPIM,
-    HistoryCache: RTPSHistoryCache,
-    ReaderLocator: RTPSReaderLocator,
     PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
     PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
     PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
     PSM::GapSubmessageType: GapSubmessage<PSM>,
     PSM::ParameterListSubmessageElementType: Clone,
+    HistoryCache: RTPSHistoryCache,
+    ReaderLocator: RTPSReaderLocator,
     <HistoryCache as RTPSHistoryCache>::CacheChange: RTPSCacheChange<PSM>,
 {
     for reader_locator in reader_locators {
@@ -85,524 +85,453 @@ pub fn send_data<PSM, HistoryCache, ReaderLocator>(
     }
 }
 
-// // #[cfg(test)]
-// // mod tests {
-// //     use rust_rtps_pim::{
-// //         messages::{
-// //             submessage_elements::{ParameterListSubmessageElementType, ParameterType},
-// //             submessages::{NackFragSubmessage, PadSubmessage},
-// //             RtpsMessageHeaderType, RtpsSubmessageHeaderType, Submessage,
-// //         },
-// //         structure::{
-// //             types::{GUIDType, LocatorType},
-// //             RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
-// //         },
-// //     };
-
-// //     use crate::rtps_impl::rtps_history_cache_impl::RTPSHistoryCacheImplTrait;
-
-// //     use super::*;
-
-// //     struct MockPSM;
-
-// //     // impl SequenceNumberPIM for MockPSM {
-// //     //     type SequenceNumberType = i64;
-// //     //     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumberType = -1;
-// //     // }
-
-// //     impl LocatorPIM for MockPSM {
-// //         type LocatorType = MockLocator;
-
-// //         const LOCATOR_INVALID: Self::LocatorType = MockLocator;
-
-// //         const LOCATOR_KIND_INVALID:
-// //             <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
-// //             [0; 4];
-
-// //         const LOCATOR_KIND_RESERVED:
-// //             <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
-// //             [0; 4];
-
-// //         const LOCATOR_KIND_UDPv4:
-// //             <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
-// //             [0; 4];
-
-// //         const LOCATOR_KIND_UDPv6:
-// //             <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorKind =
-// //             [0; 4];
-
-// //         const LOCATOR_PORT_INVALID:
-// //             <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorPort =
-// //             [0; 4];
-
-// //         const LOCATOR_ADDRESS_INVALID:
-// //             <Self::LocatorType as rust_rtps_pim::structure::types::LocatorType>::LocatorAddress =
-// //             [0; 16];
-// //     }
-
-// //     // impl ParameterListSubmessageElementPIM for MockPSM {
-// //     //     type ParameterListSubmessageElementType = MockParameterList;
-// //     // }
-
-// //     // impl ParameterIdPIM for MockPSM {
-// //     //     type ParameterIdType = ();
-// //     // }
-
-// //     // impl GUIDPIM for MockPSM {
-// //     //     type GUIDType = MockGuid;
-// //     //     const GUID_UNKNOWN: Self::GUIDType = MockGuid;
-// //     // }
-
-// //     // impl GuidPrefixPIM for MockPSM {
-// //     //     type GuidPrefixType = [u8; 12];
-
-// //     //     const GUIDPREFIX_UNKNOWN: Self::GuidPrefixType = [0; 12];
-// //     // }
-
-// //     // impl EntityIdPIM for MockPSM {
-// //     //     type EntityIdType = [u8; 4];
-
-// //     //     const ENTITYID_UNKNOWN: Self::EntityIdType = [0; 4];
-
-// //     //     const ENTITYID_PARTICIPANT: Self::EntityIdType = [0; 4];
-// //     // }
-
-// //     // impl InstanceHandlePIM for MockPSM {
-// //     //     type InstanceHandleType = ();
-// //     // }
-
-// //     // impl DataPIM for MockPSM {
-// //     //     type DataType = Vec<u8>;
-// //     // }
-
-// //     // impl DurationPIM for MockPSM {
-// //     //     type DurationType = ();
-// //     // }
-
-// //     // impl ProtocolIdPIM for MockPSM {
-// //     //     type ProtocolIdType = ();
-// //     //     const PROTOCOL_RTPS: Self::ProtocolIdType = ();
-// //     // }
-
-// //     // impl ProtocolVersionPIM for MockPSM {
-// //     //     type ProtocolVersionType = ();
-
-// //     //     const PROTOCOLVERSION: Self::ProtocolVersionType = ();
-// //     //     const PROTOCOLVERSION_1_0: Self::ProtocolVersionType = ();
-// //     //     const PROTOCOLVERSION_1_1: Self::ProtocolVersionType = ();
-// //     //     const PROTOCOLVERSION_2_0: Self::ProtocolVersionType = ();
-// //     //     const PROTOCOLVERSION_2_1: Self::ProtocolVersionType = ();
-// //     //     const PROTOCOLVERSION_2_2: Self::ProtocolVersionType = ();
-// //     //     const PROTOCOLVERSION_2_3: Self::ProtocolVersionType = ();
-// //     //     const PROTOCOLVERSION_2_4: Self::ProtocolVersionType = ();
-// //     // }
-
-// //     // impl<'a> RTPSMessagePIM<'a, Self> for MockPSM {
-// //     //     type RTPSMessageType = MockRtpsMessage;
-// //     // }
-
-// //     // impl RtpsMessageHeaderPIM for MockPSM {
-// //     //     type RtpsMessageHeaderType = MockRtpsMessageHeader;
-// //     // }
-
-// //     // impl VendorIdPIM for MockPSM {
-// //     //     type VendorIdType = ();
-// //     //     const VENDOR_ID_UNKNOWN: Self::VendorIdType = ();
-// //     // }
-
-// //     // impl CountPIM for MockPSM {
-// //     //     type CountType = ();
-// //     // }
-
-// //     // impl SubmessageKindPIM for MockPSM {
-// //     //     type SubmessageKindType = ();
-
-// //     //     const DATA: Self::SubmessageKindType = ();
-// //     //     const GAP: Self::SubmessageKindType = ();
-// //     //     const HEARTBEAT: Self::SubmessageKindType = ();
-// //     //     const ACKNACK: Self::SubmessageKindType = ();
-// //     //     const PAD: Self::SubmessageKindType = ();
-// //     //     const INFO_TS: Self::SubmessageKindType = ();
-// //     //     const INFO_REPLY: Self::SubmessageKindType = ();
-// //     //     const INFO_DST: Self::SubmessageKindType = ();
-// //     //     const INFO_SRC: Self::SubmessageKindType = ();
-// //     //     const DATA_FRAG: Self::SubmessageKindType = ();
-// //     //     const NACK_FRAG: Self::SubmessageKindType = ();
-// //     //     const HEARTBEAT_FRAG: Self::SubmessageKindType = ();
-// //     // }
-
-// //     // impl RtpsSubmessageHeaderPIM for MockPSM {
-// //     //     type RtpsSubmessageHeaderType = MockRtpsSubmessageHeader;
-// //     // }
-
-// //     // impl CountSubmessageElementPIM for MockPSM {
-// //     //     type CountSubmessageElementType = MockCountSubmessageElement;
-// //     // }
-
-// //     // impl NackFragSubmessagePIM for MockPSM {
-// //     //     type NackFragSubmessageType = MockNackFragSubmessage;
-// //     // }
-
-// //     // impl PadSubmessagePIM for MockPSM {
-// //     //     type PadSubmessageType = MockPadSubmessage;
-// //     // }
-
-// //     // struct MockRtpsSubmessageHeader;
-// //     // struct MockCountSubmessageElement;
-
-// //     // impl RtpsSubmessageHeaderType<MockPSM> for MockRtpsSubmessageHeader {}
-
-// //     // struct MockNackFragSubmessage;
-
-// //     // impl Submessage<MockPSM> for MockNackFragSubmessage {}
-// //     // impl NackFragSubmessage<MockPSM> for MockNackFragSubmessage {}
-
-// //     // struct MockPadSubmessage;
-
-// //     // impl Submessage<MockPSM> for MockPadSubmessage {}
-// //     // impl PadSubmessage<MockPSM> for MockPadSubmessage {}
-
-// //     struct MockRtpsMessageHeader;
-
-// //     impl RtpsMessageHeaderType<MockPSM> for MockRtpsMessageHeader {
-// //         fn protocol(&self) -> &() {
-// //             todo!()
-// //         }
-
-// //         fn version(&self) -> &() {
-// //             todo!()
-// //         }
-
-// //         fn vendor_id(&self) -> &() {
-// //             todo!()
-// //         }
-
-// //         fn guid_prefix(&self) -> &[u8; 12] {
-// //             todo!()
-// //         }
-// //     }
-
-// //     struct MockRtpsMessage;
-
-// //     impl<'a> RTPSMessage<'a, MockPSM> for MockRtpsMessage {
-// //         fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, MockPSM>>>(
-// //             protocol: (),
-// //             version: (),
-// //             vendor_id: (),
-// //             guid_prefix: [u8; 12],
-// //             submessages: T,
-// //         ) -> Self {
-// //             todo!()
-// //         }
-
-// //         fn header(&self) -> MockRtpsMessageHeader {
-// //             todo!()
-// //         }
-
-// //         fn submessages(&self) -> &[RtpsSubmessageType<'a, MockPSM>] {
-// //             todo!()
-// //         }
-// //     }
-
-// //     // struct MockParameterList;
-
-// //     // impl ParameterListSubmessageElementType<MockPSM> for MockParameterList {
-// //     //     type Parameter = MockParameter;
-
-// //     //     fn new(parameter: &[Self::Parameter]) -> Self {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn parameter(&self) -> &[Self::Parameter] {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     // struct MockParameter;
-
-// //     // impl ParameterType<MockPSM> for MockParameter {
-// //     //     fn parameter_id(&self) -> () {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn length(&self) -> i16 {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn value(&self) -> &[u8] {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     // struct MockGuid;
-
-// //     // impl From<[u8; 16]> for MockGuid {
-// //     //     fn from(_: [u8; 16]) -> Self {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     // impl From<MockGuid> for [u8; 16] {
-// //     //     fn from(_: MockGuid) -> Self {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     // impl GUIDType<MockPSM> for MockGuid {
-// //     //     fn new(prefix: [u8; 12], entity_id: [u8; 4]) -> Self {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn prefix(&self) -> &[u8; 12] {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn entity_id(&self) -> &[u8; 4] {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     struct MockLocator;
-
-// //     impl LocatorType for MockLocator {
-// //         type LocatorKind = [u8; 4];
-// //         type LocatorPort = [u8; 4];
-// //         type LocatorAddress = [u8; 16];
-
-// //         fn kind(&self) -> &Self::LocatorKind {
-// //             todo!()
-// //         }
-
-// //         fn port(&self) -> &Self::LocatorPort {
-// //             todo!()
-// //         }
-
-// //         fn address(&self) -> &Self::LocatorAddress {
-// //             todo!()
-// //         }
-// //     }
-
-// //     // struct MockReaderLocator;
-
-// //     // impl RTPSReaderLocator<MockPSM> for MockReaderLocator {
-// //     //     type SequenceNumberVector = Vec<i64>;
-
-// //     //     fn locator(&self) -> &MockLocator {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn expects_inline_qos(&self) -> bool {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn next_requested_change(&mut self) -> Option<i64> {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn next_unsent_change(&mut self, last_change_sequence_number: &i64) -> Option<i64> {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn requested_changes(&self) -> Self::SequenceNumberVector {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn requested_changes_set(
-// //     //         &mut self,
-// //     //         req_seq_num_set: &[i64],
-// //     //         last_change_sequence_number: &i64,
-// //     //     ) {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn unsent_changes(&self, last_change_sequence_number: i64) -> Self::SequenceNumberVector {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     // struct MockCacheChange;
-
-// //     // impl RTPSCacheChange<MockPSM> for MockCacheChange {
-// //     //     fn kind(&self) -> rust_rtps_pim::structure::types::ChangeKind {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn writer_guid(&self) -> &MockGuid {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn instance_handle(&self) -> &() {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn sequence_number(&self) -> &i64 {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn data_value(&self) -> &Vec<u8> {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn inline_qos(&self) -> &MockParameterList {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     // struct MockHistoryCache;
-
-// //     // impl RTPSHistoryCache<MockPSM> for MockHistoryCache {
-// //     //     type CacheChange = MockCacheChange;
-
-// //     //     fn new() -> Self
-// //     //     where
-// //     //         Self: Sized,
-// //     //     {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn add_change(&mut self, change: Self::CacheChange) {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn remove_change(&mut self, seq_num: &i64) {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn get_change(&self, seq_num: &i64) -> Option<&Self::CacheChange> {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn get_seq_num_min(&self) -> Option<&i64> {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn get_seq_num_max(&self) -> Option<&i64> {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     struct MockStatelessWriter;
-
-// //     // impl RTPSStatelessWriter<MockPSM> for MockStatelessWriter {
-// //     //     type ReaderLocatorPIM = MockReaderLocator;
-
-// //     //     fn reader_locators(&mut self) -> (&mut [Self::ReaderLocatorPIM], &Self::HistoryCacheType) {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM) {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn reader_locator_remove(&mut self, a_locator: &MockLocator) {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn unsent_changes_reset(&mut self) {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     // impl RTPSWriter<MockPSM> for MockStatelessWriter {
-// //     //     type HistoryCacheType = MockHistoryCache;
-
-// //     //     fn push_mode(&self) -> bool {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn heartbeat_period(&self) -> &() {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn nack_response_delay(&self) -> &() {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn nack_suppression_duration(&self) -> &() {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn last_change_sequence_number(&self) -> &i64 {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn data_max_size_serialized(&self) -> i32 {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn writer_cache(&self) -> &Self::HistoryCacheType {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn new_change(
-// //     //     &mut self,
-// //     //     _kind: rust_rtps_pim::structure::types::ChangeKind,
-// //     //     _data: Vec<u8>,
-// //     //     _inline_qos: MockParameterList,
-// //     //     _handle: (),
-// //     //     ) -> <Self::HistoryCacheType as rust_rtps_pim::structure::RTPSHistoryCache<MockPSM>>::CacheChange{
-// //     //         MockCacheChange
-// //     //     }
-// //     // }
-
-// //     // impl RTPSEndpoint<MockPSM> for MockStatelessWriter {
-// //     //     fn topic_kind(&self) -> &rust_rtps_pim::structure::types::TopicKind {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn reliability_level(&self) -> &rust_rtps_pim::structure::types::ReliabilityKind {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn unicast_locator_list(&self) -> &[MockLocator] {
-// //     //         todo!()
-// //     //     }
-
-// //     //     fn multicast_locator_list(&self) -> &[MockLocator] {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     // impl RTPSEntity<MockPSM> for MockStatelessWriter {
-// //     //     fn guid(&self) -> &MockGuid {
-// //     //         todo!()
-// //     //     }
-// //     // }
-
-// //     struct MockTransport;
-
-// //     impl Transport<MockPSM> for MockTransport {
-// //         fn write<'a>(&mut self, message: &MockRtpsMessage, destination_locator: &MockLocator)
-// //         where
-// //             MockPSM: RTPSMessagePIM<'a, MockPSM>,
-// //         {
-// //             todo!()
-// //         }
-
-// //         fn read<'a>(&'a self) -> Option<(MockRtpsMessage, MockLocator)>
-// //         where
-// //             MockPSM: RTPSMessagePIM<'a, MockPSM>,
-// //         {
-// //             todo!()
-// //         }
-
-// //         fn unicast_locator_list(&self) -> &[MockLocator] {
-// //             todo!()
-// //         }
-
-// //         fn multicast_locator_list(&self) -> &[MockLocator] {
-// //             todo!()
-// //         }
-// //     }
-
-// //     #[test]
-// //     fn send_data_message() {
-// //         let mut writer = MockStatelessWriter;
-// //         let mut transport = MockTransport;
-// //         //send_data(&mut writer, &mut transport);
-// //     }
-// // }
+#[cfg(test)]
+mod tests {
+    use std::marker::PhantomData;
+
+    use rust_rtps_pim::{messages::Submessage, structure::types::Locator};
+
+    use super::*;
+
+    #[test]
+    fn send_data_message() {
+        let mut transport: MockTransport<MockPSM> = MockTransport(PhantomData);
+        let writer_cache = MockHistoryCache;
+        let mut reader_locators = [MockReaderLocator];
+        let last_change_sequence_number = 0;
+        send_data(
+            &writer_cache,
+            &mut reader_locators,
+            last_change_sequence_number,
+            &mut transport,
+        );
+    }
+
+    struct MockPSM;
+
+    impl DurationPIM for MockPSM {
+        type DurationType = ();
+    }
+
+    impl ParameterListSubmessageElementPIM for MockPSM {
+        type ParameterListSubmessageElementType = ();
+    }
+
+    impl AckNackSubmessagePIM for MockPSM {
+        type AckNackSubmessageType = ();
+    }
+
+    impl<'a, PSM> DataSubmessagePIM<'a, PSM> for MockPSM
+    where
+        PSM: RtpsSubmessageHeaderPIM
+            + EntityIdSubmessageElementPIM
+            + SequenceNumberSubmessageElementPIM
+            + ParameterListSubmessageElementPIM
+            + SerializedDataSubmessageElementPIM<'a>,
+    {
+        type DataSubmessageType = MockDataSubmessage;
+    }
+
+    impl<'a> DataFragSubmessagePIM<'a> for MockPSM {
+        type DataFragSubmessageType = ();
+    }
+
+    impl GapSubmessagePIM for MockPSM {
+        type GapSubmessageType = MockGapSubmessage;
+    }
+
+    impl HeartbeatSubmessagePIM for MockPSM {
+        type HeartbeatSubmessageType = ();
+    }
+
+    impl HeartbeatFragSubmessagePIM for MockPSM {
+        type HeartbeatFragSubmessageType = ();
+    }
+
+    impl InfoDestinationSubmessagePIM for MockPSM {
+        type InfoDestinationSubmessageType = ();
+    }
+
+    impl InfoReplySubmessagePIM for MockPSM {
+        type InfoReplySubmessageType = ();
+    }
+
+    impl InfoSourceSubmessagePIM for MockPSM {
+        type InfoSourceSubmessageType = ();
+    }
+
+    impl InfoTimestampSubmessagePIM for MockPSM {
+        type InfoTimestampSubmessageType = ();
+    }
+
+    impl NackFragSubmessagePIM for MockPSM {
+        type NackFragSubmessageType = ();
+    }
+
+    impl PadSubmessagePIM for MockPSM {
+        type PadSubmessageType = ();
+    }
+
+    impl EntityIdSubmessageElementPIM for MockPSM {
+        type EntityIdSubmessageElementType = MockEntityId;
+    }
+
+    impl SequenceNumberSubmessageElementPIM for MockPSM {
+        type SequenceNumberSubmessageElementType = MockSequenceNumber;
+    }
+
+    impl<'a> SerializedDataSubmessageElementPIM<'a> for MockPSM {
+        type SerializedDataSubmessageElementType = MockSerializedData;
+    }
+
+    impl RtpsSubmessageHeaderPIM for MockPSM {
+        type RtpsSubmessageHeaderType = ();
+    }
+
+    impl SequenceNumberSetSubmessageElementPIM for MockPSM {
+        type SequenceNumberSetSubmessageElementType = MockSequenceNumberSet;
+    }
+
+    impl ProtocolIdPIM for MockPSM {
+        type ProtocolIdType = ();
+
+        const PROTOCOL_RTPS: Self::ProtocolIdType = ();
+    }
+
+    struct MockEntityId;
+    impl EntityIdSubmessageElementType for MockEntityId {
+        fn new(value: &rust_rtps_pim::structure::types::EntityId) -> Self {
+            todo!()
+        }
+
+        fn value(&self) -> &rust_rtps_pim::structure::types::EntityId {
+            todo!()
+        }
+    }
+
+    struct MockSequenceNumber;
+
+    impl SequenceNumberSubmessageElementType for MockSequenceNumber {
+        fn new(value: SequenceNumber) -> Self {
+            todo!()
+        }
+
+        fn value(&self) -> SequenceNumber {
+            todo!()
+        }
+    }
+
+    struct MockSerializedData;
+    impl<'a> SerializedDataSubmessageElementType<'a> for MockSerializedData {
+        fn new(value: &'a [u8]) -> Self {
+            todo!()
+        }
+
+        fn value(&self) -> &[u8] {
+            todo!()
+        }
+    }
+
+    struct MockSequenceNumberSet;
+
+    impl SequenceNumberSetSubmessageElementType for MockSequenceNumberSet {
+        type IntoIter = std::vec::IntoIter<SequenceNumber>;
+
+        fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
+            todo!()
+        }
+
+        fn base(&self) -> SequenceNumber {
+            todo!()
+        }
+
+        fn set(&self) -> Self::IntoIter {
+            todo!()
+        }
+    }
+
+    struct MockDataSubmessage;
+
+    impl<'a, PSM> DataSubmessage<'a, PSM> for MockDataSubmessage
+    where
+        PSM: RtpsSubmessageHeaderPIM
+            + EntityIdSubmessageElementPIM
+            + SequenceNumberSubmessageElementPIM
+            + ParameterListSubmessageElementPIM
+            + SerializedDataSubmessageElementPIM<'a>,
+    {
+        fn new(
+            endianness_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            inline_qos_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            data_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            key_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            non_standard_payload_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            reader_id: PSM::EntityIdSubmessageElementType,
+            writer_id: PSM::EntityIdSubmessageElementType,
+            writer_sn: PSM::SequenceNumberSubmessageElementType,
+            inline_qos: PSM::ParameterListSubmessageElementType,
+            serialized_payload: PSM::SerializedDataSubmessageElementType,
+        ) -> Self {
+            todo!()
+        }
+
+        fn endianness_flag(&self) -> rust_rtps_pim::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn inline_qos_flag(&self) -> rust_rtps_pim::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn data_flag(&self) -> rust_rtps_pim::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn key_flag(&self) -> rust_rtps_pim::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn non_standard_payload_flag(&self) -> rust_rtps_pim::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType {
+            todo!()
+        }
+
+        fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType {
+            todo!()
+        }
+
+        fn writer_sn(&self) -> &PSM::SequenceNumberSubmessageElementType {
+            todo!()
+        }
+
+        fn inline_qos(&self) -> &PSM::ParameterListSubmessageElementType {
+            todo!()
+        }
+
+        fn serialized_payload(&'a self) -> &'a PSM::SerializedDataSubmessageElementType {
+            todo!()
+        }
+    }
+
+    impl<PSM> Submessage<PSM> for MockDataSubmessage
+    where
+        PSM: RtpsSubmessageHeaderPIM,
+    {
+        fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType {
+            todo!()
+        }
+    }
+
+    struct MockGapSubmessage;
+
+    impl<PSM> GapSubmessage<PSM> for MockGapSubmessage
+    where
+        PSM: RtpsSubmessageHeaderPIM
+            + EntityIdSubmessageElementPIM
+            + SequenceNumberSubmessageElementPIM
+            + SequenceNumberSetSubmessageElementPIM,
+    {
+        fn new(
+            endianness_flag: rust_rtps_pim::messages::types::SubmessageFlag,
+            reader_id: PSM::EntityIdSubmessageElementType,
+            writer_id: PSM::EntityIdSubmessageElementType,
+            gap_start: PSM::SequenceNumberSubmessageElementType,
+            gap_list: PSM::SequenceNumberSetSubmessageElementType,
+        ) -> Self {
+            todo!()
+        }
+
+        fn endianness_flag(&self) -> rust_rtps_pim::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType {
+            todo!()
+        }
+
+        fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType {
+            todo!()
+        }
+
+        fn gap_start(&self) -> &PSM::SequenceNumberSubmessageElementType {
+            todo!()
+        }
+
+        fn gap_list(&self) -> &PSM::SequenceNumberSetSubmessageElementType {
+            todo!()
+        }
+    }
+
+    impl<PSM> Submessage<PSM> for MockGapSubmessage
+    where
+        PSM: RtpsSubmessageHeaderPIM,
+    {
+        fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType {
+            todo!()
+        }
+    }
+
+    struct MockTransport<PSM>(PhantomData<PSM>);
+
+    impl<PSM> Transport<PSM> for MockTransport<PSM> {
+        fn write<'a>(
+            &mut self,
+            message: &[RtpsSubmessageType<'a, PSM>],
+            destination_locator: &Locator,
+        ) where
+            PSM: AckNackSubmessagePIM
+                + DataSubmessagePIM<'a, PSM>
+                + DataFragSubmessagePIM<'a>
+                + GapSubmessagePIM
+                + HeartbeatSubmessagePIM
+                + HeartbeatFragSubmessagePIM
+                + InfoDestinationSubmessagePIM
+                + InfoReplySubmessagePIM
+                + InfoSourceSubmessagePIM
+                + InfoTimestampSubmessagePIM
+                + NackFragSubmessagePIM
+                + PadSubmessagePIM
+                + RtpsSubmessageHeaderPIM
+                + EntityIdSubmessageElementPIM
+                + SequenceNumberSubmessageElementPIM
+                + ParameterListSubmessageElementPIM
+                + SerializedDataSubmessageElementPIM<'a>,
+        {
+            todo!()
+        }
+
+        fn read<'a>(
+            &'a self,
+        ) -> Option<(
+            PSM::RTPSMessageType,
+            rust_rtps_pim::structure::types::Locator,
+        )>
+        where
+            PSM: rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>,
+        {
+            todo!()
+        }
+
+        fn unicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
+            todo!()
+        }
+
+        fn multicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
+            todo!()
+        }
+    }
+
+    struct MockHistoryCache;
+
+    impl RTPSHistoryCache for MockHistoryCache {
+        type CacheChange = MockCacheChange;
+
+        fn new() -> Self
+        where
+            Self: Sized,
+        {
+            todo!()
+        }
+
+        fn add_change(&mut self, change: Self::CacheChange) {
+            todo!()
+        }
+
+        fn remove_change(&mut self, seq_num: &SequenceNumber) {
+            todo!()
+        }
+
+        fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChange> {
+            todo!()
+        }
+
+        fn get_seq_num_min(&self) -> Option<&SequenceNumber> {
+            todo!()
+        }
+
+        fn get_seq_num_max(&self) -> Option<&SequenceNumber> {
+            todo!()
+        }
+    }
+
+    struct MockCacheChange;
+
+    impl<PSM> RTPSCacheChange<PSM> for MockCacheChange
+    where
+        PSM: ParameterListSubmessageElementPIM,
+    {
+        type DataType = Vec<u8>;
+        type InstanceHandleType = ();
+
+        fn kind(&self) -> rust_rtps_pim::structure::types::ChangeKind {
+            todo!()
+        }
+
+        fn writer_guid(&self) -> &rust_rtps_pim::structure::types::GUID {
+            todo!()
+        }
+
+        fn instance_handle(&self) -> &Self::InstanceHandleType {
+            todo!()
+        }
+
+        fn sequence_number(&self) -> &SequenceNumber {
+            todo!()
+        }
+
+        fn data_value(&self) -> &Self::DataType {
+            todo!()
+        }
+
+        fn inline_qos(&self) -> &PSM::ParameterListSubmessageElementType {
+            todo!()
+        }
+    }
+
+    struct MockReaderLocator;
+
+    impl RTPSReaderLocator for MockReaderLocator {
+        type SequenceNumberVector = Vec<SequenceNumber>;
+
+        fn locator(&self) -> &Locator {
+            todo!()
+        }
+
+        fn expects_inline_qos(&self) -> bool {
+            todo!()
+        }
+
+        fn next_requested_change(&mut self) -> Option<SequenceNumber> {
+            todo!()
+        }
+
+        fn next_unsent_change(
+            &mut self,
+            last_change_sequence_number: &SequenceNumber,
+        ) -> Option<SequenceNumber> {
+            todo!()
+        }
+
+        fn requested_changes(&self) -> Self::SequenceNumberVector {
+            todo!()
+        }
+
+        fn requested_changes_set(
+            &mut self,
+            req_seq_num_set: &[SequenceNumber],
+            last_change_sequence_number: &SequenceNumber,
+        ) {
+            todo!()
+        }
+
+        fn unsent_changes(
+            &self,
+            last_change_sequence_number: SequenceNumber,
+        ) -> Self::SequenceNumberVector {
+            todo!()
+        }
+    }
+}

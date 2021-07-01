@@ -20,7 +20,7 @@ pub enum RtpsSubmessageType<'a, PSM>
 where
     PSM: AckNackSubmessagePIM
         + DataSubmessagePIM<'a, PSM>
-        + DataFragSubmessagePIM<'a, PSM>
+        + DataFragSubmessagePIM<'a>
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
         + HeartbeatFragSubmessagePIM
@@ -84,7 +84,6 @@ where
         + SequenceNumberSubmessageElementPIM
         + ParameterListSubmessageElementPIM
         + SerializedDataSubmessageElementPIM<'a>
-        + DataSubmessagePIM<'a, PSM>,
 {
     type DataSubmessageType: DataSubmessage<'a, PSM>;
 }
@@ -96,7 +95,6 @@ where
         + SequenceNumberSubmessageElementPIM
         + ParameterListSubmessageElementPIM
         + SerializedDataSubmessageElementPIM<'a>
-        + DataSubmessagePIM<'a, PSM>,
 {
     fn new(
         endianness_flag: SubmessageFlag,
@@ -109,7 +107,7 @@ where
         writer_sn: PSM::SequenceNumberSubmessageElementType,
         inline_qos: PSM::ParameterListSubmessageElementType,
         serialized_payload: PSM::SerializedDataSubmessageElementType,
-    ) -> <PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType;
+    ) -> Self;
     fn endianness_flag(&self) -> SubmessageFlag;
     fn inline_qos_flag(&self) -> SubmessageFlag;
     fn data_flag(&self) -> SubmessageFlag;
@@ -122,7 +120,7 @@ where
     fn serialized_payload(&'a self) -> &'a PSM::SerializedDataSubmessageElementType;
 }
 
-pub trait DataFragSubmessagePIM<'a, PSM> {
+pub trait DataFragSubmessagePIM<'a> {
     type DataFragSubmessageType;
 }
 

@@ -174,7 +174,7 @@ impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
     type DataSubmessageType = submessages::data::DataSubmesage<'a>;
 }
 
-impl<'a> DataFragSubmessagePIM<'a, Self> for RtpsUdpPsm {
+impl<'a> DataFragSubmessagePIM<'a> for RtpsUdpPsm {
     type DataFragSubmessageType = submessages::data_frag::DataFrag<'a>;
 }
 
