@@ -13,17 +13,14 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::{
-    behavior::{types::DurationPIM, RTPSWriter},
-    messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::GUID,
-};
+use rust_rtps_pim::{behavior::{types::DurationPIM, RTPSWriter}, messages::{RtpsSubmessageHeaderPIM, submessage_elements::{EntityIdSubmessageElementPIM, EntityIdSubmessageElementType, ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM, SerializedDataSubmessageElementType}, submessages::{AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM, GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM}, types::ProtocolIdPIM}, structure::types::GUID};
 
 // use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::{
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, transport::Transport,
-    utils::shared_object::RtpsShared,
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
+    transport::Transport,
+    utils::{message_sender::send_data, shared_object::RtpsShared},
 };
 
 use super::{
@@ -42,7 +39,7 @@ where
 
 impl<PSM> DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM
 {
     pub fn new(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
@@ -54,12 +51,42 @@ where
             transport: Arc::new(Mutex::new(transport)),
         }
     }
+
+    fn do_the_thread_thing(&self) {}
 }
 
 impl<'p, PSM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
     for DomainParticipantImpl<PSM>
 where
     PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
+    PSM::DurationType: Send + Sync,
+    PSM::ParameterListSubmessageElementType: Send + Sync,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM
+    + AckNackSubmessagePIM
+    + for<'a> DataSubmessagePIM<'a, PSM>
+    + for<'a> DataFragSubmessagePIM<'a, PSM>
+    + GapSubmessagePIM
+    + HeartbeatSubmessagePIM
+    + HeartbeatFragSubmessagePIM
+    + InfoDestinationSubmessagePIM
+    + InfoReplySubmessagePIM
+    + InfoSourceSubmessagePIM
+    + InfoTimestampSubmessagePIM
+    + NackFragSubmessagePIM
+    + PadSubmessagePIM
+    + EntityIdSubmessageElementPIM
+    + SequenceNumberSubmessageElementPIM
+    + for<'a> SerializedDataSubmessageElementPIM<'a>
+    + RtpsSubmessageHeaderPIM
+    + SequenceNumberSetSubmessageElementPIM
+    + ProtocolIdPIM + 'static,
+    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
+    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
+    PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
+    PSM::GapSubmessageType: GapSubmessage<PSM>,
+    PSM::ParameterListSubmessageElementType: Clone + Send + Sync,
+    PSM::DurationType: Send + Sync,
+    GUID: Send + Sync,
     PSM::DurationType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
 {
@@ -186,7 +213,31 @@ where
 
 impl<PSM> rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM
+    + AckNackSubmessagePIM
+    + for<'a> DataSubmessagePIM<'a, PSM>
+    + for<'a> DataFragSubmessagePIM<'a, PSM>
+    + GapSubmessagePIM
+    + HeartbeatSubmessagePIM
+    + HeartbeatFragSubmessagePIM
+    + InfoDestinationSubmessagePIM
+    + InfoReplySubmessagePIM
+    + InfoSourceSubmessagePIM
+    + InfoTimestampSubmessagePIM
+    + NackFragSubmessagePIM
+    + PadSubmessagePIM
+    + EntityIdSubmessageElementPIM
+    + SequenceNumberSubmessageElementPIM
+    + for<'a> SerializedDataSubmessageElementPIM<'a>
+    + RtpsSubmessageHeaderPIM
+    + SequenceNumberSetSubmessageElementPIM
+    + ProtocolIdPIM + 'static,
+    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
+    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
+    PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
+    PSM::GapSubmessageType: GapSubmessage<PSM>,
+    PSM::ParameterListSubmessageElementType: Clone + Send + Sync,
+    PSM::DurationType: Send + Sync,
     GUID: Send + Sync,
     PSM::DurationType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
@@ -300,9 +351,33 @@ where
 
 impl<PSM> Entity for DomainParticipantImpl<PSM>
 where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
     PSM::DurationType: Send + Sync,
     PSM::ParameterListSubmessageElementType: Send + Sync,
+    PSM: DurationPIM + ParameterListSubmessageElementPIM
+        + AckNackSubmessagePIM
+        + for<'a> DataSubmessagePIM<'a, PSM>
+        + for<'a> DataFragSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM
+        + HeartbeatSubmessagePIM
+        + HeartbeatFragSubmessagePIM
+        + InfoDestinationSubmessagePIM
+        + InfoReplySubmessagePIM
+        + InfoSourceSubmessagePIM
+        + InfoTimestampSubmessagePIM
+        + NackFragSubmessagePIM
+        + PadSubmessagePIM
+        + EntityIdSubmessageElementPIM
+        + SequenceNumberSubmessageElementPIM
+        + for<'a> SerializedDataSubmessageElementPIM<'a>
+        + RtpsSubmessageHeaderPIM
+        + SequenceNumberSetSubmessageElementPIM
+        + ProtocolIdPIM + 'static,
+        PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
+        PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
+        PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
+        PSM::GapSubmessageType: GapSubmessage<PSM>,
+        PSM::ParameterListSubmessageElementType: Clone + Send + Sync,
+        PSM::DurationType: Send + Sync,
 {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
@@ -337,22 +412,31 @@ where
         todo!()
     }
 
+
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+        todo!()
+        // Ok(crate::utils::instance_handle_from_guid(
+        //     &self.rtps_participant_impl.lock().guid(),
+        // ))
+    }
+
     fn enable(&self) -> DDSResult<()> {
+
         let rtps_participant = self.rtps_participant_impl.clone();
-        let _transport = self.transport.clone();
+        let transport = self.transport.clone();
         std::thread::spawn(move || {
             loop {
                 if let Some(rtps_participant) = rtps_participant.try_lock() {
                     let writer_group = rtps_participant.writer_groups()[0].lock();
                     let mut writer = writer_group.writer_list()[0].lock();
                     let _last_change_sequence_number = *writer.last_change_sequence_number();
-                    let (_writer_cache, _reader_locators) =
-                        writer.writer_cache_and_reader_locators();
-                    todo!()
-                    // send_data(
-                    //     rtps_participant.as_ref(),
-                    //     transport.lock().unwrap().deref_mut(),
-                    // );
+                    let (writer_cache, reader_locators) = writer.writer_cache_and_reader_locators();
+                    send_data(
+                        writer_cache,
+                        reader_locators,
+                        0,
+                        &mut *transport.lock().unwrap(),
+                    );
                     // rtps_participant.send_data::<UDPHeartbeatMessage>();
                     // rtps_participant.receive_data();
                     // rtps_participant.run_listeners();
@@ -360,14 +444,6 @@ where
             }
         });
         Ok(())
-        // self.0.lock().unwrap().enable()
-    }
-
-    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        todo!()
-        // Ok(crate::utils::instance_handle_from_guid(
-        //     &self.rtps_participant_impl.lock().guid(),
-        // ))
     }
 }
 

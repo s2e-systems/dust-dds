@@ -4,15 +4,12 @@ pub mod types;
 
 use crate::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
 
-use self::{
-    submessages::{
+use self::{submessage_elements::{EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM, SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM}, submessages::{
         AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
         HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
         InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
         NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
-    },
-    types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM},
-};
+    }, types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM}};
 
 pub trait RtpsMessageHeaderPIM {
     type RtpsMessageHeaderType;
@@ -67,7 +64,12 @@ where
         + InfoSourceSubmessagePIM
         + InfoTimestampSubmessagePIM
         + NackFragSubmessagePIM
-        + PadSubmessagePIM,
+        + PadSubmessagePIM
+        + RtpsSubmessageHeaderPIM
+        + EntityIdSubmessageElementPIM
+        + SequenceNumberSubmessageElementPIM
+        + ParameterListSubmessageElementPIM
+        + SerializedDataSubmessageElementPIM<'a>,
 {
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
         protocol: PSM::ProtocolIdType,

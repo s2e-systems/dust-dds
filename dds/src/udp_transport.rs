@@ -16,15 +16,7 @@ impl UdpTransport {
 }
 
 impl Transport<RtpsUdpPsm> for UdpTransport {
-    fn write<'a>(
-        &mut self,
-        _message: &<RtpsUdpPsm as RTPSMessagePIM<'a, RtpsUdpPsm>>::RTPSMessageType,
-        _destination_locator: &Locator,
-    ) where
-        RtpsUdpPsm: rust_rtps_pim::messages::RTPSMessagePIM<'a, RtpsUdpPsm>,
-    {
-        todo!()
-    }
+
 
     fn read<'a>(
         &self,
@@ -43,6 +35,26 @@ impl Transport<RtpsUdpPsm> for UdpTransport {
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
+        todo!()
+    }
+
+    fn write<'a>(
+        &mut self,
+        _message: &[rust_rtps_pim::messages::submessages::RtpsSubmessageType<'a, RtpsUdpPsm>],
+        _destination_locator: &Locator,
+    ) where
+    RtpsUdpPsm: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
+    + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a, RtpsUdpPsm>
+    + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM<'a, RtpsUdpPsm>
+    + rust_rtps_pim::messages::submessages::GapSubmessagePIM
+    + rust_rtps_pim::messages::submessages::HeartbeatSubmessagePIM
+    + rust_rtps_pim::messages::submessages::HeartbeatFragSubmessagePIM
+    + rust_rtps_pim::messages::submessages::InfoDestinationSubmessagePIM
+    + rust_rtps_pim::messages::submessages::InfoReplySubmessagePIM
+    + rust_rtps_pim::messages::submessages::InfoSourceSubmessagePIM
+    + rust_rtps_pim::messages::submessages::InfoTimestampSubmessagePIM
+    + rust_rtps_pim::messages::submessages::NackFragSubmessagePIM
+    + rust_rtps_pim::messages::submessages::PadSubmessagePIM {
         todo!()
     }
 }

@@ -1,13 +1,29 @@
-use rust_rtps_pim::{messages::RTPSMessagePIM, structure::types::Locator};
+use rust_rtps_pim::{messages::RTPSMessagePIM, messages::{RtpsSubmessageHeaderPIM, submessage_elements::{EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM, SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM}, submessages::{AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType}}, structure::types::Locator};
 
 pub trait Transport<PSM>: Send + Sync
 {
     fn write<'a>(
         &mut self,
-        message: &<PSM as RTPSMessagePIM<'a, PSM>>::RTPSMessageType,
+        message: &[RtpsSubmessageType<'a, PSM>],
         destination_locator: &Locator,
     ) where
-        PSM: RTPSMessagePIM<'a, PSM>;
+    PSM: AckNackSubmessagePIM
+    + DataSubmessagePIM<'a, PSM>
+    + DataFragSubmessagePIM<'a, PSM>
+    + GapSubmessagePIM
+    + HeartbeatSubmessagePIM
+    + HeartbeatFragSubmessagePIM
+    + InfoDestinationSubmessagePIM
+    + InfoReplySubmessagePIM
+    + InfoSourceSubmessagePIM
+    + InfoTimestampSubmessagePIM
+    + NackFragSubmessagePIM
+    + PadSubmessagePIM
+    + RtpsSubmessageHeaderPIM
+    + EntityIdSubmessageElementPIM
+    + SequenceNumberSubmessageElementPIM
+    + ParameterListSubmessageElementPIM
+    + SerializedDataSubmessageElementPIM<'a>;
 
     fn read<'a>(&'a self) -> Option<(PSM::RTPSMessageType, Locator)>
     where

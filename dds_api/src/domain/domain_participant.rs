@@ -13,7 +13,7 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub trait SubscriberFactory<'s>: DomainParticipant {
+pub trait SubscriberFactory<'s> {
     type SubscriberType: Subscriber;
 
     fn create_subscriber(
@@ -27,7 +27,7 @@ pub trait SubscriberFactory<'s>: DomainParticipant {
 
     fn get_builtin_subscriber(&'s self) -> Self::SubscriberType;
 }
-pub trait TopicFactory<'t, T: 'static>: DomainParticipant {
+pub trait TopicFactory<'t, T: 'static> {
     type TopicType: Topic<T>;
 
     fn create_topic(
@@ -43,7 +43,7 @@ pub trait TopicFactory<'t, T: 'static>: DomainParticipant {
     fn find_topic(&'t self, topic_name: &'t str, timeout: Duration) -> Option<Self::TopicType>;
 }
 
-pub trait PublisherFactory<'p>: DomainParticipant {
+pub trait PublisherFactory<'p> {
     type PublisherType: Publisher;
 
     fn create_publisher(

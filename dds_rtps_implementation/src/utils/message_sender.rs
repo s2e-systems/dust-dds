@@ -1,120 +1,89 @@
-// use rust_rtps_pim::{behavior::{RTPSWriter, stateless_writer::{best_effort_send_unsent_data, RTPSReaderLocator, RTPSStatelessWriter}, types::DurationPIM}, messages::{
-//         submessage_elements::{
-//             EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
-//             ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
-//             SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
-//             SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM,
-//             SerializedDataSubmessageElementType,
-//         },
-//         submessages::{
-//             AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
-//             GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
-//             InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
-//             InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
-//             RtpsSubmessageType,
-//         },
-//         types::ProtocolIdPIM,
-//         RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
-//     }, structure::{
-//         types::{
-//             DataPIM, EntityIdPIM, GUIDType, GuidPrefixPIM, InstanceHandlePIM, LocatorPIM,
-//             ProtocolVersionPIM, SequenceNumberPIM, VendorIdPIM, GUIDPIM,
-//         },
-//         RTPSCacheChange, RTPSHistoryCache,
-//     }};
+use rust_rtps_pim::{
+    behavior::{
+        stateless_writer::{best_effort_send_unsent_data, RTPSReaderLocator},
+        types::DurationPIM,
+    },
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
+            ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
+            SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
+            SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM,
+            SerializedDataSubmessageElementType,
+        },
+        submessages::{
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
+            GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
+            InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
+            InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
+            RtpsSubmessageType,
+        },
+        types::ProtocolIdPIM,
+        RtpsSubmessageHeaderPIM,
+    },
+    structure::{types::SequenceNumber, RTPSCacheChange, RTPSHistoryCache},
+};
 
-// use crate::transport::Transport;
+use crate::transport::Transport;
 
-// pub fn send_data<PSM, StatelessWriter>(
-//     writer: &mut StatelessWriter,
-//     transport: &mut dyn Transport<PSM>,
-// ) where
-//     PSM: SequenceNumberPIM
-//         + LocatorPIM
-//         + DurationPIM
-//         + GUIDPIM
-//         + DataPIM
-//         + ParameterListSubmessageElementPIM
-//         + InstanceHandlePIM
-//         + AckNackSubmessagePIM
-//         + for<'a> DataSubmessagePIM<'a, PSM>
-//         + for<'a> DataFragSubmessagePIM<'a, PSM>
-//         + GapSubmessagePIM
-//         + HeartbeatSubmessagePIM
-//         + HeartbeatFragSubmessagePIM
-//         + InfoDestinationSubmessagePIM
-//         + InfoReplySubmessagePIM
-//         + InfoSourceSubmessagePIM
-//         + InfoTimestampSubmessagePIM
-//         + NackFragSubmessagePIM
-//         + PadSubmessagePIM
-//         + EntityIdSubmessageElementPIM
-//         + EntityIdPIM
-//         + GuidPrefixPIM
-//         + SequenceNumberSubmessageElementPIM
-//         + for<'a> SerializedDataSubmessageElementPIM<'a>
-//         + RtpsSubmessageHeaderPIM
-//         + SequenceNumberSetSubmessageElementPIM
-//         + ProtocolIdPIM
-//         + ProtocolVersionPIM
-//         + VendorIdPIM
-//         + for<'a> RTPSMessagePIM<'a, PSM>
-//         + RtpsMessageHeaderPIM,
-//     StatelessWriter: RTPSStatelessWriter<PSM> + RTPSWriter<PSM>,
-//     StatelessWriter::ReaderLocatorPIM: RTPSReaderLocator<PSM>,
-//     PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType<PSM>,
-//     GUID: GUIDType<PSM>,
-//     PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType<PSM>,
-//     for<'a> <PSM as SerializedDataSubmessageElementPIM<'a>>::SerializedDataSubmessageElementType:
-//         SerializedDataSubmessageElementType<'a>,
-//     for<'a> <PSM as DataSubmessagePIM<'a, PSM>>::DataSubmessageType: DataSubmessage<'a, PSM>,
-//     PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType<PSM>,
-//     PSM::GapSubmessageType: GapSubmessage<PSM>,
-//     PSM::ParameterListSubmessageElementType: Clone,
-//     <StatelessWriter::HistoryCacheType as RTPSHistoryCache<PSM>>::CacheChange: RTPSCacheChange<PSM>,
-//     for<'a> <PSM as RTPSMessagePIM<'a, PSM>>::RTPSMessageType: RTPSMessage<'a, PSM>,
-//     SequenceNumber: Copy,
-// {
-//     // for writer_group in &rtps_participant_impl.rtps_writer_groups {
-//     // let writer_group_lock = writer_group.lock();
-//     // let writer_list = rtps_writer_group_impl.writer_list();
-//     // for writer in writer_list {
-//     let last_change_sequence_number = *writer.last_change_sequence_number();
-//     let (reader_locators, writer_cache) = writer.reader_locators();
-//     for reader_locator in reader_locators {
-//         let mut data_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
-//         let mut gap_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
+pub fn send_data<PSM, HistoryCache, ReaderLocator>(
+    writer_cache: &HistoryCache,
+    reader_locators: &mut [ReaderLocator],
+    last_change_sequence_number: SequenceNumber,
+    transport: &mut dyn Transport<PSM>,
+) where
+    PSM: DurationPIM
+        + ParameterListSubmessageElementPIM
+        + AckNackSubmessagePIM
+        + for<'a> DataSubmessagePIM<'a, PSM>
+        + for<'a> DataFragSubmessagePIM<'a, PSM>
+        + GapSubmessagePIM
+        + HeartbeatSubmessagePIM
+        + HeartbeatFragSubmessagePIM
+        + InfoDestinationSubmessagePIM
+        + InfoReplySubmessagePIM
+        + InfoSourceSubmessagePIM
+        + InfoTimestampSubmessagePIM
+        + NackFragSubmessagePIM
+        + PadSubmessagePIM
+        + EntityIdSubmessageElementPIM
+        + SequenceNumberSubmessageElementPIM
+        + for<'a> SerializedDataSubmessageElementPIM<'a>
+        + RtpsSubmessageHeaderPIM
+        + SequenceNumberSetSubmessageElementPIM
+        + ProtocolIdPIM,
+    HistoryCache: RTPSHistoryCache,
+    ReaderLocator: RTPSReaderLocator,
+    PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
+    PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
+    PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
+    PSM::GapSubmessageType: GapSubmessage<PSM>,
+    PSM::ParameterListSubmessageElementType: Clone,
+    <HistoryCache as RTPSHistoryCache>::CacheChange: RTPSCacheChange<PSM>,
+{
+    for reader_locator in reader_locators {
+        let mut data_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
+        let mut gap_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
 
-//         // let mut submessages = vec![];
-//         best_effort_send_unsent_data(
-//             reader_locator,
-//             &last_change_sequence_number,
-//             writer_cache,
-//             |data_submessage| data_submessage_list.push(RtpsSubmessageType::Data(data_submessage)),
-//             |gap_submessage| gap_submessage_list.push(RtpsSubmessageType::Gap(gap_submessage)),
-//         );
+        let mut submessages = vec![];
+        best_effort_send_unsent_data(
+            reader_locator,
+            &last_change_sequence_number,
+            writer_cache,
+            |data_submessage| data_submessage_list.push(RtpsSubmessageType::Data(data_submessage)),
+            |gap_submessage| gap_submessage_list.push(RtpsSubmessageType::Gap(gap_submessage)),
+        );
 
-//         let protocol = PSM::PROTOCOL_RTPS;
-//         // let version = rtps_participant_impl.protocol_version();
-//         // let vendor_id = rtps_participant_impl.vendor_id();
-//         // let guid_prefix = rtps_participant_impl.guid().prefix();
-//         // for data_submessage in &data_submessage_list {
-//         //     submessages.push(RtpsSubmessageType::Data(data_submessage))
-//         // }
-//         // for gap_submessage in &gap_submessage_list {
-//         //     submessages.push(gap_submessage);
-//         // }
+        for data_submessage in data_submessage_list {
+            submessages.push(data_submessage)
+        }
+        for gap_submessage in gap_submessage_list {
+            submessages.push(gap_submessage);
+        }
 
-//         let message = PSM::RTPSMessageType::new(
-//             protocol,
-//             PSM::PROTOCOLVERSION_2_4,
-//             PSM::VENDOR_ID_UNKNOWN,
-//             PSM::GUIDPREFIX_UNKNOWN,
-//             data_submessage_list,
-//         );
-//         transport.write(&message, reader_locator.locator());
-//     }
-// }
+        transport.write(&submessages, reader_locator.locator());
+    }
+}
 
 // // #[cfg(test)]
 // // mod tests {

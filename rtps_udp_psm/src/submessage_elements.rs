@@ -322,7 +322,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageE
     for SerializedData<'a>
 {
     fn new(value: &'a [u8]) -> Self {
-        Self(value.into())
+        Self(value)
     }
 
     fn value(&self) -> &[u8] {

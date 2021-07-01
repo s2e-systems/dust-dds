@@ -29,7 +29,12 @@ where
         + InfoSourceSubmessagePIM
         + InfoTimestampSubmessagePIM
         + NackFragSubmessagePIM
-        + PadSubmessagePIM,
+        + PadSubmessagePIM
+        + RtpsSubmessageHeaderPIM
+        + EntityIdSubmessageElementPIM
+        + SequenceNumberSubmessageElementPIM
+        + ParameterListSubmessageElementPIM
+        + SerializedDataSubmessageElementPIM<'a>,
 {
     AckNack(PSM::AckNackSubmessageType),
     Data(PSM::DataSubmessageType),
@@ -72,8 +77,16 @@ where
     fn count(&self) -> &PSM::CountSubmessageElementType;
 }
 
-pub trait DataSubmessagePIM<'a, PSM> {
-    type DataSubmessageType;
+pub trait DataSubmessagePIM<'a, PSM>
+where
+    PSM: RtpsSubmessageHeaderPIM
+        + EntityIdSubmessageElementPIM
+        + SequenceNumberSubmessageElementPIM
+        + ParameterListSubmessageElementPIM
+        + SerializedDataSubmessageElementPIM<'a>
+        + DataSubmessagePIM<'a, PSM>,
+{
+    type DataSubmessageType: DataSubmessage<'a, PSM>;
 }
 
 pub trait DataSubmessage<'a, PSM>: Submessage<PSM>
