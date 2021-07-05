@@ -1,3 +1,5 @@
+use std::net::UdpSocket;
+
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
@@ -65,11 +67,11 @@ impl DomainParticipantFactory {
         //     spdp_locator_list: vec![Locator::new_udpv4(7400, [239, 255, 0, 0])],
         // };
         let guid_prefix = [1; 12];
+        let socket = UdpSocket::bind("192.168.1.142:30000").unwrap();
 
         // let transport = UdpTransport::new();
-
-        let participant =
-            DomainParticipant::UdpRtps(DomainParticipantImpl::new(guid_prefix.into()));
+        let domain_participant = DomainParticipantImpl::new(guid_prefix.into(), socket);
+        let participant = DomainParticipant::Rtps(domain_participant);
 
         // let domain_participant_impl =
         // DomainParticipantImpl::new(guid_prefix.into()); // domain_id, qos.clone(), a_listener, mask, configuration

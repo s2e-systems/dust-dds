@@ -4,7 +4,7 @@ use rust_dds_rtps_implementation::dds_impl::{
 };
 
 pub enum DomainParticipant {
-    UdpRtps(DomainParticipantImpl),
+    Rtps(DomainParticipantImpl),
 }
 
 impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for DomainParticipant {
@@ -18,14 +18,18 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
         >,
         mask: rust_dds_api::dcps_psm::StatusMask,
     ) -> Option<Self::PublisherType> {
-        todo!()
+        match self {
+            DomainParticipant::Rtps(dp) => dp.create_publisher(qos, a_listener, mask),
+        }
     }
 
     fn delete_publisher(
         &self,
         a_publisher: &Self::PublisherType,
     ) -> rust_dds_api::return_type::DDSResult<()> {
-        todo!()
+        match self {
+            DomainParticipant::Rtps(dp) => dp.delete_publisher(a_publisher),
+        }
     }
 }
 
@@ -244,7 +248,9 @@ impl rust_dds_api::infrastructure::entity::Entity for DomainParticipant {
     }
 
     fn enable(&self) -> rust_dds_api::return_type::DDSResult<()> {
-        todo!()
+        match self {
+            DomainParticipant::Rtps(dp) => dp.enable(),
+        }
     }
 
     fn get_instance_handle(

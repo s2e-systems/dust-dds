@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{self, AtomicBool},
-    Arc, Mutex,
+use std::{
+    net::UdpSocket,
+    sync::{
+        atomic::{self, AtomicBool},
+        Arc, Mutex,
+    },
 };
 
 use rust_dds_api::{
@@ -33,41 +36,51 @@ pub struct DomainParticipantImpl {
 }
 
 impl DomainParticipantImpl {
-    pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
+    pub fn new(
+        guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
+        socket: UdpSocket,
+    ) -> Self {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         // let transport_impl = Arc::new(Mutex::new(transport));
         // let rtps_participant = rtps_participant_impl.clone();
         // let transport = transport_impl.clone();
         let is_enabled = Arc::new(AtomicBool::new(false));
-        // let is_enabled_thread = is_enabled.clone();
-        // std::thread::spawn(move || {
-        //     loop {
-        //         if is_enabled_thread.load(atomic::Ordering::Relaxed) {
-        //             if let Some(rtps_participant) = rtps_participant.try_lock() {
-        //                 let writer_group = rtps_participant.writer_groups()[0].lock();
-        //                 let mut writer = writer_group.writer_list()[0].lock();
-        //                 let last_change_sequence_number = *writer.last_change_sequence_number();
-        //                 let (writer_cache, reader_locators) =
-        //                     writer.writer_cache_and_reader_locators();
-        //                 send_data(
-        //                     writer_cache,
-        //                     reader_locators,
-        //                     last_change_sequence_number,
-        //                     &mut *transport.lock().unwrap(),
-        //                 );
-        //                 // rtps_participant.send_data::<UDPHeartbeatMessage>();
-        //                 // rtps_participant.receive_data();
-        //                 // rtps_participant.run_listeners();
-        //             }
-        //         }
-        //     }
-        // });
+        let is_enabled_thread = is_enabled.clone();
+        std::thread::spawn(move || {
+            loop {
+                if is_enabled_thread.load(atomic::Ordering::Relaxed) {
+                    socket.send_to(&[1, 2, 3, 4], "192.168.1.1:7400").ok();
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                }
+                //             if let Some(rtps_participant) = rtps_participant.try_lock() {
+                //                 let writer_group = rtps_participant.writer_groups()[0].lock();
+                //                 let mut writer = writer_group.writer_list()[0].lock();
+                //                 let last_change_sequence_number = *writer.last_change_sequence_number();
+                //                 let (writer_cache, reader_locators) =
+                //                     writer.writer_cache_and_reader_locators();
+                //                 send_data(
+                //                     writer_cache,
+                //                     reader_locators,
+                //                     last_change_sequence_number,
+                //                     &mut *transport.lock().unwrap(),
+                //                 );
+                //                 // rtps_participant.send_data::<UDPHeartbeatMessage>();
+                //                 // rtps_participant.receive_data();
+                //                 // rtps_participant.run_listeners();
+                //             }
+                //         }
+            }
+        });
 
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
             rtps_participant_impl,
             is_enabled,
         }
+    }
+
+    pub fn is_enabled(&self) -> &Arc<AtomicBool> {
+        &self.is_enabled
     }
 }
 
