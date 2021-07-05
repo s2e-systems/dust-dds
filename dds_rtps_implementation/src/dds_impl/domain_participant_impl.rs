@@ -19,10 +19,13 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use rust_rtps_pim::{behavior::RTPSWriter, structure::types::SequenceNumber};
 
 use crate::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
 };
+
+use rust_rtps_pim::behavior::stateless_writer::{BestEffortBehavior, RTPSReaderLocator};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -36,34 +39,36 @@ pub struct DomainParticipantImpl {
 }
 
 impl DomainParticipantImpl {
-    pub fn new(
+    pub fn new<PSM>(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
         socket: UdpSocket,
     ) -> Self {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         // let transport_impl = Arc::new(Mutex::new(transport));
-        // let rtps_participant = rtps_participant_impl.clone();
-        // let transport = transport_impl.clone();
+        let rtps_participant = rtps_participant_impl.clone();
         let is_enabled = Arc::new(AtomicBool::new(false));
         let is_enabled_thread = is_enabled.clone();
         std::thread::spawn(move || {
             loop {
                 if is_enabled_thread.load(atomic::Ordering::Relaxed) {
-                    socket.send_to(&[1, 2, 3, 4], "192.168.1.1:7400").ok();
-                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    if let Some(rtps_participant) = rtps_participant.try_lock() {
+                        let writer_group = rtps_participant.writer_groups()[0].lock();
+                        let mut writer = writer_group.writer_list()[0].lock();
+                        let last_change_sequence_number = *writer.last_change_sequence_number();
+                        let (writer_cache, reader_locators) =
+                            writer.writer_cache_and_reader_locators();
+
+                        // send_data(
+                        //     writer_cache,
+                        //     reader_locators,
+                        //     last_change_sequence_number,
+                        //     // &mut *transport.lock().unwrap(),
+                        // );
+                        socket.send_to(&[1, 2, 3, 4], "192.168.1.1:7400").ok();
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
                 }
-                //             if let Some(rtps_participant) = rtps_participant.try_lock() {
-                //                 let writer_group = rtps_participant.writer_groups()[0].lock();
-                //                 let mut writer = writer_group.writer_list()[0].lock();
-                //                 let last_change_sequence_number = *writer.last_change_sequence_number();
-                //                 let (writer_cache, reader_locators) =
-                //                     writer.writer_cache_and_reader_locators();
-                //                 send_data(
-                //                     writer_cache,
-                //                     reader_locators,
-                //                     last_change_sequence_number,
-                //                     &mut *transport.lock().unwrap(),
-                //                 );
+
                 //                 // rtps_participant.send_data::<UDPHeartbeatMessage>();
                 //                 // rtps_participant.receive_data();
                 //                 // rtps_participant.run_listeners();

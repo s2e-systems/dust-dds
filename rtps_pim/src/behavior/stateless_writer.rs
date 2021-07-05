@@ -84,7 +84,6 @@ pub trait BestEffortBehavior : RTPSReaderLocator {
         PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
         PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
         PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>,
-        PSM::DataSubmessageType: DataSubmessage<'a, PSM>,
         PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
         PSM::GapSubmessageType: GapSubmessage<PSM>,
     {
