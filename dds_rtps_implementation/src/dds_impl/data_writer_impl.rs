@@ -10,27 +10,18 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::topic::Topic,
 };
-use rust_rtps_pim::{
-    behavior::types::DurationPIM, messages::submessage_elements::ParameterListSubmessageElementPIM,
-};
 
-pub struct DataWriterImpl<'dw, T: 'static, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+pub struct DataWriterImpl<'dw, T: 'static> {
     publisher: &'dw dyn Publisher,
     topic: &'dw dyn Topic<T>,
-    rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
+    rtps_writer_impl: RtpsWeak<RTPSWriterImpl>,
 }
 
-impl<'dw, T: 'static, PSM> DataWriterImpl<'dw, T, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
     pub fn new(
         publisher: &'dw dyn Publisher,
         topic: &'dw dyn Topic<T>,
-        rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
+        rtps_writer_impl: RtpsWeak<RTPSWriterImpl>,
     ) -> Self {
         Self {
             publisher,
@@ -40,10 +31,8 @@ where
     }
 }
 
-impl<'dw, T: 'static, PSM> rust_dds_api::publication::data_writer::DataWriter<T>
-    for DataWriterImpl<'dw, T, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
+impl<'dw, T: 'static> rust_dds_api::publication::data_writer::DataWriter<T>
+    for DataWriterImpl<'dw, T>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -174,11 +163,7 @@ where
     }
 }
 
-impl<'dw, T: 'static, PSM> rust_dds_api::infrastructure::entity::Entity
-    for DataWriterImpl<'dw, T, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl<'dw, T: 'static> rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, T> {
     type Qos = DataWriterQos;
     type Listener = &'static dyn DataWriterListener<DataPIM = T>;
 
@@ -219,10 +204,8 @@ where
     }
 }
 
-impl<'dw, T: 'static, PSM> rust_dds_api::publication::data_writer::AnyDataWriter
-    for DataWriterImpl<'dw, T, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
+impl<'dw, T: 'static> rust_dds_api::publication::data_writer::AnyDataWriter
+    for DataWriterImpl<'dw, T>
 {
 }
 

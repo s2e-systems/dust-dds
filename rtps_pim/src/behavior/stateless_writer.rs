@@ -78,15 +78,15 @@ pub trait BestEffortBehavior : RTPSReaderLocator {
             + SequenceNumberSetSubmessageElementPIM
             + GapSubmessagePIM,
         HistoryCache: RTPSHistoryCache,
-        HistoryCache::CacheChange: RTPSCacheChange<PSM> + 'a,
-        <HistoryCache::CacheChange as RTPSCacheChange<PSM>>::DataType: 'a,
+        HistoryCache::CacheChange: RTPSCacheChange + 'a,
+        <HistoryCache::CacheChange as RTPSCacheChange>::DataType: 'a,
+        <HistoryCache::CacheChange as RTPSCacheChange>::InlineQosType: Clone + Into<PSM::ParameterListSubmessageElementType>,
         PSM::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
         PSM::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
         PSM::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>,
         PSM::DataSubmessageType: DataSubmessage<'a, PSM>,
         PSM::SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType,
         PSM::GapSubmessageType: GapSubmessage<PSM>,
-        PSM::ParameterListSubmessageElementType: Clone,
     {
         while let Some(seq_num) = self.next_unsent_change(&last_change_sequence_number) {
             if let Some(change) = writer_cache.get_change(&seq_num) {
@@ -105,7 +105,7 @@ pub trait BestEffortBehavior : RTPSReaderLocator {
                     PSM::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
                 let writer_sn =
                     PSM::SequenceNumberSubmessageElementType::new(*change.sequence_number());
-                let inline_qos = change.inline_qos().clone();
+                let inline_qos = change.inline_qos().clone().into();
                 let data = change.data_value().as_ref();
                 let serialized_payload =
                     PSM::SerializedDataSubmessageElementType::new(data.as_ref());

@@ -13,10 +13,7 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::{
-    behavior::types::DurationPIM, messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::RTPSEntity,
-};
+use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::{
     rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl,
@@ -32,23 +29,17 @@ const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
 const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
 const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
-pub struct PublisherImpl<'p, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+pub struct PublisherImpl<'p> {
     participant: &'p dyn DomainParticipant,
-    writer_factory: Mutex<WriterFactory<PSM>>,
+    writer_factory: Mutex<WriterFactory>,
     default_datawriter_qos: Mutex<DataWriterQos>,
-    rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<PSM>>,
+    rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl>,
 }
 
-impl<'p, PSM> PublisherImpl<'p, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl<'p> PublisherImpl<'p> {
     pub fn new(
         participant: &'p dyn DomainParticipant,
-        rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
+        rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl>,
     ) -> Self {
         let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
@@ -60,13 +51,9 @@ where
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: 'static, PSM> DataWriterFactory<'dw, 't, T>
-    for PublisherImpl<'p, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM + 'static,
-{
+impl<'dw, 'p: 'dw, 't: 'dw, T: 'static> DataWriterFactory<'dw, 't, T> for PublisherImpl<'p> {
     type TopicType = TopicImpl<'t, T>;
-    type DataWriterType = DataWriterImpl<'dw, T, PSM>;
+    type DataWriterType = DataWriterImpl<'dw, T>;
 
     fn create_datawriter(
         &'dw self,
@@ -110,10 +97,7 @@ where
     }
 }
 
-impl<'p, PSM> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl<'p> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p> {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
@@ -167,9 +151,7 @@ where
     }
 }
 
-impl<'p, PSM> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p, PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
+impl<'p> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p>
 {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;

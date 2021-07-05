@@ -1,3 +1,3 @@
 use super::RTPSEntity;
 
-pub trait RTPSGroup<PSM>: RTPSEntity {}
+pub trait RTPSGroup: RTPSEntity {}

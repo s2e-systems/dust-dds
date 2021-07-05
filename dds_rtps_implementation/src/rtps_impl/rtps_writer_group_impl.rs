@@ -4,30 +4,21 @@ use rust_dds_api::{
     publication::publisher_listener::PublisherListener,
     return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::types::DurationPIM, messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::GUID,
-};
+use rust_rtps_pim::structure::types::GUID;
 
 use crate::utils::shared_object::RtpsShared;
 
 use super::rtps_writer_impl::RTPSWriterImpl;
 
-pub struct RTPSWriterGroupImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+pub struct RTPSWriterGroupImpl {
     guid: GUID,
     qos: PublisherQos,
     listener: Option<&'static dyn PublisherListener>,
     status_mask: StatusMask,
-    writer_list: Vec<RtpsShared<RTPSWriterImpl<PSM>>>,
+    writer_list: Vec<RtpsShared<RTPSWriterImpl>>,
 }
 
-impl<PSM> RTPSWriterGroupImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl RTPSWriterGroupImpl {
     pub fn new(
         guid: GUID,
         qos: PublisherQos,
@@ -43,11 +34,11 @@ where
         }
     }
 
-    pub fn writer_list(&self) -> &[RtpsShared<RTPSWriterImpl<PSM>>] {
+    pub fn writer_list(&self) -> &[RtpsShared<RTPSWriterImpl>] {
         &self.writer_list
     }
 
-    pub fn add_writer(&mut self, writer: RtpsShared<RTPSWriterImpl<PSM>>) {
+    pub fn add_writer(&mut self, writer: RtpsShared<RTPSWriterImpl>) {
         self.writer_list.push(writer)
     }
 
@@ -63,15 +54,9 @@ where
     }
 }
 
-impl<PSM> rust_rtps_pim::structure::RTPSGroup<PSM> for RTPSWriterGroupImpl<PSM> where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM
-{
-}
+impl rust_rtps_pim::structure::RTPSGroup for RTPSWriterGroupImpl {}
 
-impl<PSM> rust_rtps_pim::structure::RTPSEntity for RTPSWriterGroupImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl rust_rtps_pim::structure::RTPSEntity for RTPSWriterGroupImpl {
     fn guid(&self) -> &GUID {
         &self.guid
     }

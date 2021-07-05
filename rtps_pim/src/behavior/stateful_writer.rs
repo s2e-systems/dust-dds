@@ -19,7 +19,7 @@ pub trait RTPSReaderProxy {
     fn unacked_changes(&self) -> Self::SequenceNumberVector;
 }
 
-pub trait RTPSStatefulWriter<PSM> {
+pub trait RTPSStatefulWriter {
     type ReaderProxyType;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType];
@@ -35,20 +35,13 @@ pub trait RTPSStatefulWriter<PSM> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        behavior::types::DurationPIM,
-        messages::submessage_elements::{
-            ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ParameterType,
-        },
+    use crate::messages::submessage_elements::{
+        ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ParameterType,
     };
 
     use super::*;
 
     struct MockPSM;
-
-    impl DurationPIM for MockPSM {
-        type DurationType = i64;
-    }
 
     impl ParameterListSubmessageElementPIM for MockPSM {
         type ParameterListSubmessageElementType = MockParameterList;

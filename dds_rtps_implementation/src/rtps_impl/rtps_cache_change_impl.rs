@@ -1,33 +1,24 @@
-use rust_rtps_pim::{
-    messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::{
-        types::{ChangeKind, SequenceNumber, GUID},
-        RTPSCacheChange,
-    },
+use rust_rtps_pim::structure::{
+    types::{ChangeKind, SequenceNumber, GUID},
+    RTPSCacheChange,
 };
-pub struct RTPSCacheChangeImpl<PSM>
-where
-    PSM: ParameterListSubmessageElementPIM,
-{
+pub struct RTPSCacheChangeImpl {
     kind: ChangeKind,
     writer_guid: GUID,
-    instance_handle: <Self as RTPSCacheChange<PSM>>::InstanceHandleType,
+    instance_handle: <Self as RTPSCacheChange>::InstanceHandleType,
     sequence_number: SequenceNumber,
-    data: <Self as RTPSCacheChange<PSM>>::DataType,
-    inline_qos: PSM::ParameterListSubmessageElementType,
+    data: <Self as RTPSCacheChange>::DataType,
+    inline_qos: <Self as RTPSCacheChange>::InlineQosType,
 }
 
-impl<PSM> RTPSCacheChangeImpl<PSM>
-where
-    PSM: ParameterListSubmessageElementPIM,
-{
+impl RTPSCacheChangeImpl {
     pub fn new(
         kind: ChangeKind,
         writer_guid: GUID,
-        instance_handle: <Self as RTPSCacheChange<PSM>>::InstanceHandleType,
+        instance_handle: <Self as RTPSCacheChange>::InstanceHandleType,
         sequence_number: SequenceNumber,
-        data: <Self as RTPSCacheChange<PSM>>::DataType,
-        inline_qos: PSM::ParameterListSubmessageElementType,
+        data: <Self as RTPSCacheChange>::DataType,
+        inline_qos: <Self as RTPSCacheChange>::InlineQosType,
     ) -> Self {
         Self {
             kind,
@@ -40,12 +31,10 @@ where
     }
 }
 
-impl<PSM> rust_rtps_pim::structure::RTPSCacheChange<PSM> for RTPSCacheChangeImpl<PSM>
-where
-    PSM: ParameterListSubmessageElementPIM,
-{
+impl rust_rtps_pim::structure::RTPSCacheChange for RTPSCacheChangeImpl {
     type DataType = Vec<u8>;
     type InstanceHandleType = i32;
+    type InlineQosType = ();
 
     fn kind(&self) -> ChangeKind {
         self.kind
@@ -55,7 +44,7 @@ where
         &self.writer_guid
     }
 
-    fn instance_handle(&self) -> &<Self as RTPSCacheChange<PSM>>::InstanceHandleType {
+    fn instance_handle(&self) -> &<Self as RTPSCacheChange>::InstanceHandleType {
         &self.instance_handle
     }
 
@@ -67,7 +56,7 @@ where
         &self.data
     }
 
-    fn inline_qos(&self) -> &PSM::ParameterListSubmessageElementType {
+    fn inline_qos(&self) -> &Self::InlineQosType {
         &self.inline_qos
     }
 }

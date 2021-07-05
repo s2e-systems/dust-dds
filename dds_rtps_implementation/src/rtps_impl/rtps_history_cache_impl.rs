@@ -1,22 +1,13 @@
-use rust_rtps_pim::{
-    messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::{types::SequenceNumber, RTPSCacheChange, RTPSHistoryCache},
-};
+use rust_rtps_pim::structure::{types::SequenceNumber, RTPSCacheChange, RTPSHistoryCache};
 
 use super::rtps_cache_change_impl::RTPSCacheChangeImpl;
 
-pub struct RTPSHistoryCacheImpl<PSM>
-where
-    PSM: ParameterListSubmessageElementPIM,
-{
-    changes: Vec<RTPSCacheChangeImpl<PSM>>,
+pub struct RTPSHistoryCacheImpl {
+    changes: Vec<RTPSCacheChangeImpl>,
 }
 
-impl<PSM> RTPSHistoryCache for RTPSHistoryCacheImpl<PSM>
-where
-    PSM: ParameterListSubmessageElementPIM,
-{
-    type CacheChange = RTPSCacheChangeImpl<PSM>;
+impl RTPSHistoryCache for RTPSHistoryCacheImpl {
+    type CacheChange = RTPSCacheChangeImpl;
 
     fn new() -> Self
     where
@@ -55,53 +46,17 @@ mod tests {
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
     use super::*;
-    struct MockPSM;
-
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM for MockPSM {
-        type ParameterListSubmessageElementType = MockParameterList;
-    }
-
-    pub struct MockParameterList;
-
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<MockPSM>
-        for MockParameterList
-    {
-        type Parameter = MockParameter;
-
-        fn new(_parameter: &[MockParameter]) -> Self {
-            todo!()
-        }
-
-        fn parameter(&self) -> &[MockParameter] {
-            todo!()
-        }
-    }
-
-    pub struct MockParameter;
-    impl rust_rtps_pim::messages::submessage_elements::ParameterType for MockParameter {
-        fn parameter_id(&self) -> u16 {
-            todo!()
-        }
-
-        fn length(&self) -> i16 {
-            todo!()
-        }
-
-        fn value(&self) -> &[u8] {
-            todo!()
-        }
-    }
 
     #[test]
     fn add_change() {
-        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
         let change = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             1,
             vec![],
-            MockParameterList,
+            (),
         );
         hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
@@ -109,14 +64,14 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
         let change = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             1,
             vec![],
-            MockParameterList,
+            (),
         );
         hc.add_change(change);
         hc.remove_change(&1);
@@ -125,14 +80,14 @@ mod tests {
 
     #[test]
     fn get_change() {
-        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
         let change = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             1,
             vec![],
-            MockParameterList,
+            (),
         );
         hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
@@ -141,14 +96,14 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
         let change1 = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             1,
             vec![],
-            MockParameterList,
+            (),
         );
         let change2 = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
@@ -156,7 +111,7 @@ mod tests {
             0,
             2,
             vec![],
-            MockParameterList,
+            (),
         );
         hc.add_change(change1);
         hc.add_change(change2);
@@ -165,14 +120,14 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc: RTPSHistoryCacheImpl<MockPSM> = RTPSHistoryCacheImpl::new();
+        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
         let change1 = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             1,
             vec![],
-            MockParameterList,
+            (),
         );
         let change2 = RTPSCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
@@ -180,7 +135,7 @@ mod tests {
             0,
             2,
             vec![],
-            MockParameterList,
+            (),
         );
         hc.add_change(change1);
         hc.add_change(change2);

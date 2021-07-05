@@ -4,7 +4,8 @@ use rust_dds_api::{
     infrastructure::qos::DomainParticipantQos,
 };
 use rust_dds_rtps_implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
-use rust_rtps_udp_psm::psm::RtpsUdpPsm;
+
+use crate::domain_participant::DomainParticipant;
 
 // use crate::udp_transport::UdpTransport;
 
@@ -43,7 +44,7 @@ impl DomainParticipantFactory {
         _qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<DomainParticipantImpl<RtpsUdpPsm>> {
+    ) -> Option<DomainParticipant> {
         // let interface = "Wi-Fi";
         // let unicast_locator = Locator::new(0, 7400, [1; 16]);
         // let multicast_locator = Locator::new(0, 7400, [2; 16]);
@@ -68,7 +69,7 @@ impl DomainParticipantFactory {
         // let transport = UdpTransport::new();
 
         let participant =
-            DomainParticipantImpl::new(guid_prefix.into());
+            DomainParticipant::UdpRtps(DomainParticipantImpl::new(guid_prefix.into()));
 
         // let domain_participant_impl =
         // DomainParticipantImpl::new(guid_prefix.into()); // domain_id, qos.clone(), a_listener, mask, configuration

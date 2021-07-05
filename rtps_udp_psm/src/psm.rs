@@ -1,5 +1,5 @@
 use rust_rtps_pim::{
-    behavior::types::{DurationPIM, ParticipantMessageDataPIM},
+    behavior::types::ParticipantMessageDataPIM,
     messages::{
         submessage_elements::{
             CountSubmessageElementPIM, EntityIdSubmessageElementPIM,
@@ -22,11 +22,17 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::{message::RTPSMessageC, message_header::{ProtocolId, RTPSMessageHeader}, submessage_elements::{
-        Count, Duration, EntityId, FragmentNumber, FragmentNumberSet, GroupDigest, GuidPrefix,
-        LocatorList, Long, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet,
-        SerializedData, Time, ULong, UShort, VendorId,
-    }, submessage_header::SubmessageHeader, submessages};
+use crate::{
+    message::RTPSMessageC,
+    message_header::{ProtocolId, RTPSMessageHeader},
+    submessage_elements::{
+        Count, EntityId, FragmentNumber, FragmentNumberSet, GroupDigest, GuidPrefix, LocatorList,
+        Long, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet, SerializedData,
+        Time, ULong, UShort, VendorId,
+    },
+    submessage_header::SubmessageHeader,
+    submessages,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsUdpPsm;
@@ -80,10 +86,6 @@ impl CountPIM for RtpsUdpPsm {
 
 impl GroupDigestPIM for RtpsUdpPsm {
     type GroupDigestType = GroupDigest;
-}
-
-impl DurationPIM for RtpsUdpPsm {
-    type DurationType = Duration;
 }
 
 impl ParticipantMessageDataPIM for RtpsUdpPsm {

@@ -1,10 +1,3 @@
-use crate::{
-    behavior::RTPSReader, messages::submessage_elements::ParameterListSubmessageElementPIM,
-};
+use crate::behavior::RTPSReader;
 
-use super::types::DurationPIM;
-
-pub trait RTPSStatelessReader<PSM: DurationPIM + ParameterListSubmessageElementPIM>:
-    RTPSReader<PSM>
-{
-}
+pub trait RTPSStatelessReader: RTPSReader {}

@@ -1,35 +1,25 @@
-use std::marker::PhantomData;
-
 use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::types::DurationPIM, messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::types::GUID,
-};
+use rust_rtps_pim::structure::types::GUID;
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 
-pub struct WriterGroupFactory<PSM> {
+pub struct WriterGroupFactory {
     guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
     publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    phantom: PhantomData<PSM>,
 }
 
-impl<PSM> WriterGroupFactory<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl WriterGroupFactory {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         Self {
             guid_prefix,
             publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
-            phantom: PhantomData,
         }
     }
 
@@ -38,7 +28,7 @@ where
         qos: Option<PublisherQos>,
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
-    ) -> DDSResult<RTPSWriterGroupImpl<PSM>> {
+    ) -> DDSResult<RTPSWriterGroupImpl> {
         let qos = qos.unwrap_or(self.default_publisher_qos.clone());
         let guid_prefix = self.guid_prefix.clone();
 

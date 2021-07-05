@@ -2,10 +2,8 @@ use rust_rtps_pim::{
     behavior::{
         stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
-        types::DurationPIM,
         RTPSWriter,
     },
-    messages::submessage_elements::ParameterListSubmessageElementPIM,
     structure::{
         types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
         RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
@@ -17,30 +15,24 @@ use super::{
     rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_reader_proxy_impl::RTPSReaderProxyImpl,
 };
 
-pub struct RTPSWriterImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+pub struct RTPSWriterImpl {
     guid: GUID,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
     push_mode: bool,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
-    heartbeat_period: PSM::DurationType,
-    nack_response_delay: PSM::DurationType,
-    nack_suppression_duration: PSM::DurationType,
+    heartbeat_period: <Self as RTPSWriter>::DurationType,
+    nack_response_delay: <Self as RTPSWriter>::DurationType,
+    nack_suppression_duration: <Self as RTPSWriter>::DurationType,
     last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: i32,
     reader_locators: Vec<RTPSReaderLocatorImpl>,
     matched_readers: Vec<RTPSReaderProxyImpl>,
-    writer_cache: RTPSHistoryCacheImpl<PSM>,
+    writer_cache: RTPSHistoryCacheImpl,
 }
 
-impl<PSM> RTPSWriterImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl RTPSWriterImpl {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -48,9 +40,9 @@ where
         push_mode: bool,
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        heartbeat_period: PSM::DurationType,
-        nack_response_delay: PSM::DurationType,
-        nack_suppression_duration: PSM::DurationType,
+        heartbeat_period: <Self as RTPSWriter>::DurationType,
+        nack_response_delay: <Self as RTPSWriter>::DurationType,
+        nack_suppression_duration: <Self as RTPSWriter>::DurationType,
         data_max_size_serialized: i32,
     ) -> Self
     where
@@ -76,41 +68,34 @@ where
 
     pub fn writer_cache_and_reader_locators(
         &mut self,
-    ) -> (&RTPSHistoryCacheImpl<PSM>, &mut Vec<RTPSReaderLocatorImpl>) {
+    ) -> (&RTPSHistoryCacheImpl, &mut Vec<RTPSReaderLocatorImpl>) {
         (&self.writer_cache, &mut self.reader_locators)
     }
 }
 
-impl<PSM> RTPSEntity for RTPSWriterImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl RTPSEntity for RTPSWriterImpl {
     fn guid(&self) -> &GUID {
         &self.guid
     }
 }
 
-impl<PSM> RTPSWriter<PSM> for RTPSWriterImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-    SequenceNumber: Ord + Copy,
-    GUID: Copy,
-{
-    type HistoryCacheType = RTPSHistoryCacheImpl<PSM>;
+impl RTPSWriter for RTPSWriterImpl {
+    type HistoryCacheType = RTPSHistoryCacheImpl;
+    type DurationType = i64;
 
     fn push_mode(&self) -> bool {
         self.push_mode
     }
 
-    fn heartbeat_period(&self) -> &PSM::DurationType {
+    fn heartbeat_period(&self) -> &Self::DurationType {
         &self.heartbeat_period
     }
 
-    fn nack_response_delay(&self) -> &PSM::DurationType {
+    fn nack_response_delay(&self) -> &Self::DurationType {
         &self.nack_response_delay
     }
 
-    fn nack_suppression_duration(&self) -> &PSM::DurationType {
+    fn nack_suppression_duration(&self) -> &Self::DurationType {
         &self.nack_suppression_duration
     }
 
@@ -122,24 +107,23 @@ where
         self.data_max_size_serialized
     }
 
-    fn writer_cache(&self) -> &RTPSHistoryCacheImpl<PSM> {
+    fn writer_cache(&self) -> &RTPSHistoryCacheImpl {
         &self.writer_cache
     }
 
-    fn writer_cache_mut(&mut self) -> &mut RTPSHistoryCacheImpl<PSM> {
+    fn writer_cache_mut(&mut self) -> &mut RTPSHistoryCacheImpl {
         &mut self.writer_cache
     }
 
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange<PSM>>::DataType,
-        inline_qos: PSM::ParameterListSubmessageElementType,
-        handle:  <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange<PSM>>::InstanceHandleType,
+        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::DataType,
+        inline_qos: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InlineQosType,
+        handle:  <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
-        <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange<PSM>,
-        PSM: ParameterListSubmessageElementPIM,
+        <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RTPSCacheChangeImpl::new(
@@ -153,10 +137,7 @@ where
     }
 }
 
-impl<PSM> RTPSEndpoint for RTPSWriterImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl RTPSEndpoint for RTPSWriterImpl {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
     }
@@ -174,11 +155,7 @@ where
     }
 }
 
-impl<PSM> RTPSStatelessWriter for RTPSWriterImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-    Locator: PartialEq,
-{
+impl RTPSStatelessWriter for RTPSWriterImpl {
     type ReaderLocatorPIM = RTPSReaderLocatorImpl;
 
     fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorPIM] {
@@ -198,10 +175,7 @@ where
     }
 }
 
-impl<PSM> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl RTPSStatefulWriter for RTPSWriterImpl {
     type ReaderProxyType = RTPSReaderProxyImpl;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType] {
@@ -234,47 +208,6 @@ mod tests {
 
     use super::*;
 
-    struct MockPSM;
-
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementPIM for MockPSM {
-        type ParameterListSubmessageElementType = MockParameterList;
-    }
-
-    pub struct MockParameterList;
-
-    impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<MockPSM>
-        for MockParameterList
-    {
-        type Parameter = MockParameter;
-
-        fn new(_parameter: &[MockParameter]) -> Self {
-            todo!()
-        }
-
-        fn parameter(&self) -> &[MockParameter] {
-            todo!()
-        }
-    }
-
-    pub struct MockParameter;
-    impl rust_rtps_pim::messages::submessage_elements::ParameterType for MockParameter {
-        fn parameter_id(&self) -> u16 {
-            todo!()
-        }
-
-        fn length(&self) -> i16 {
-            todo!()
-        }
-
-        fn value(&self) -> &[u8] {
-            todo!()
-        }
-    }
-
-    impl rust_rtps_pim::behavior::types::DurationPIM for MockPSM {
-        type DurationType = i64;
-    }
-
     #[test]
     fn new_change() {
         let push_mode = true;
@@ -286,7 +219,7 @@ mod tests {
         let nack_response_delay = 0;
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
-        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
@@ -298,8 +231,8 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        let change1 = writer.new_change(ChangeKind::Alive, vec![], MockParameterList, 0);
-        let change2 = writer.new_change(ChangeKind::Alive, vec![], MockParameterList, 0);
+        let change1 = writer.new_change(ChangeKind::Alive, vec![], (), 0);
+        let change2 = writer.new_change(ChangeKind::Alive, vec![], (), 0);
 
         assert_eq!(change1.sequence_number(), &1);
         assert_eq!(change2.sequence_number(), &2);
@@ -316,7 +249,7 @@ mod tests {
         let nack_response_delay = 0;
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
-        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
@@ -349,7 +282,7 @@ mod tests {
         let nack_response_delay = 0;
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
-        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
@@ -384,7 +317,7 @@ mod tests {
         let nack_response_delay = 0;
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
-        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
@@ -416,7 +349,7 @@ mod tests {
         let nack_response_delay = 0;
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
-        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
@@ -451,7 +384,7 @@ mod tests {
         let nack_response_delay = 0;
         let nack_suppression_duration = 0;
         let data_max_size_serialized = i32::MAX;
-        let mut writer: RTPSWriterImpl<MockPSM> = RTPSWriterImpl::new(
+        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,

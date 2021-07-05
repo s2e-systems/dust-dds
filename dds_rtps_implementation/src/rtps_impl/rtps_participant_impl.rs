@@ -1,29 +1,19 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
-use rust_rtps_pim::{
-    behavior::types::DurationPIM,
-    messages::submessage_elements::ParameterListSubmessageElementPIM,
-    structure::{
-        types::{Locator, ProtocolVersion, VendorId, GUID},
-        RTPSEntity,
-    },
+use rust_rtps_pim::structure::{
+    types::{Locator, ProtocolVersion, VendorId, GUID},
+    RTPSEntity,
 };
 
 use crate::utils::shared_object::RtpsShared;
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
-pub struct RTPSParticipantImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+pub struct RTPSParticipantImpl {
     guid: GUID,
-    rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
+    rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl>>,
 }
 
-impl<PSM> RTPSParticipantImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl RTPSParticipantImpl {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         let guid = GUID::new(
             guid_prefix,
@@ -36,11 +26,11 @@ where
         }
     }
 
-    pub fn writer_groups(&self) -> &[RtpsShared<RTPSWriterGroupImpl<PSM>>] {
+    pub fn writer_groups(&self) -> &[RtpsShared<RTPSWriterGroupImpl>] {
         &self.rtps_writer_groups
     }
 
-    pub fn add_writer_group(&mut self, writer_group: RtpsShared<RTPSWriterGroupImpl<PSM>>) {
+    pub fn add_writer_group(&mut self, writer_group: RtpsShared<RTPSWriterGroupImpl>) {
         self.rtps_writer_groups.push(writer_group)
     }
 
@@ -70,10 +60,7 @@ where
     // }
 }
 
-impl<PSM> rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
     fn protocol_version(&self) -> &ProtocolVersion {
         todo!()
     }
@@ -91,10 +78,7 @@ where
     }
 }
 
-impl<PSM> RTPSEntity for RTPSParticipantImpl<PSM>
-where
-    PSM: DurationPIM + ParameterListSubmessageElementPIM,
-{
+impl RTPSEntity for RTPSParticipantImpl {
     fn guid(&self) -> &GUID {
         &self.guid
     }
