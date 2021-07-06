@@ -13,7 +13,7 @@ pub struct RTPSMessageHeader {
     pub(crate) guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
 }
 
-impl rust_rtps_pim::messages::RtpsMessageHeaderType<RtpsUdpPsm> for RTPSMessageHeader {
+impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType<RtpsUdpPsm> for RTPSMessageHeader {
     fn protocol(&self) -> &ProtocolId {
         &self.protocol
     }

@@ -170,8 +170,9 @@ pub trait SerializedDataSubmessageElementPIM<'a> {
 }
 
 pub trait SerializedDataSubmessageElementType<'a> {
-    fn new(value: &'a [u8]) -> Self;
-    fn value(&self) -> &[u8];
+    type Value;
+    fn new(value: Self::Value) -> Self;
+    fn value(&self) -> &Self::Value;
 }
 
 pub trait SerializedDataFragmentSubmessageElementPIM<'a> {

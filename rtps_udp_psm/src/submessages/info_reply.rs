@@ -7,7 +7,7 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct InfoReply;
 
-impl rust_rtps_pim::messages::submessages::InfoReplySubmessage<RtpsUdpPsm> for InfoReply {
+impl<'a> rust_rtps_pim::messages::submessages::InfoReplySubmessage<RtpsUdpPsm> for InfoReply {
     fn new(
         _endianness_flag: SubmessageFlag,
         _multicast_flag: SubmessageFlag,

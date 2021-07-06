@@ -62,16 +62,17 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a>
             submessage_length,
         };
 
-        DataSubmesage {
-            header,
-            extra_flags: 0b_0000_0000_0000_0000,
-            octets_to_inline_qos: 16,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        }
+        todo!()
+        // DataSubmesage {
+        //     header,
+        //     extra_flags: 0b_0000_0000_0000_0000,
+        //     octets_to_inline_qos: 16,
+        //     reader_id,
+        //     writer_id,
+        //     writer_sn,
+        //     inline_qos,
+        //     serialized_payload,
+        // }
     }
 
     fn endianness_flag(&self) -> SubmessageFlag {
@@ -110,7 +111,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a>
         todo!()
     }
 
-    fn serialized_payload(&'a self) -> &'a SerializedData<'a> {
+    fn serialized_payload(&self) -> &SerializedData<'a> {
         &self.serialized_payload
     }
 

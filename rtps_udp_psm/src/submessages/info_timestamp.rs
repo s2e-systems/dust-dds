@@ -5,7 +5,7 @@ use crate::{psm::RtpsUdpPsm, submessage_elements::Time, submessage_header::Subme
 #[derive(Debug, PartialEq)]
 pub struct InfoTimestamp;
 
-impl rust_rtps_pim::messages::submessages::InfoTimestampSubmessage<RtpsUdpPsm> for InfoTimestamp {
+impl<'a> rust_rtps_pim::messages::submessages::InfoTimestampSubmessage<RtpsUdpPsm> for InfoTimestamp {
     fn new(
         _endianness_flag: SubmessageFlag,
         _invalidate_flag: SubmessageFlag,

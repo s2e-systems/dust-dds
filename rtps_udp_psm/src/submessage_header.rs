@@ -18,7 +18,7 @@ impl PartialEq for SubmessageHeader {
     }
 }
 
-impl rust_rtps_pim::messages::RtpsSubmessageHeaderType<RtpsUdpPsm> for SubmessageHeader {
+impl<'a> rust_rtps_pim::messages::RtpsSubmessageHeaderType<RtpsUdpPsm> for SubmessageHeader {
     fn submessage_id(&self) -> SubmessageKind {
         self.submessage_id.into()
     }

@@ -4,12 +4,19 @@ pub mod types;
 
 use crate::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
 
-use self::{submessage_elements::{EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM, SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM}, submessages::{
+use self::{
+    submessage_elements::{
+        EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM,
+        SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM,
+    },
+    submessages::{
         AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
         HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
         InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
         NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
-    }, types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM}};
+    },
+    types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM},
+};
 
 pub trait RtpsMessageHeaderPIM {
     type RtpsMessageHeaderType;
@@ -34,14 +41,30 @@ where
     fn submessage_length(&self) -> u16;
 }
 
-pub trait Submessage
-{
+pub trait Submessage {
     type RtpsSubmessageHeaderType;
     fn submessage_header(&self) -> Self::RtpsSubmessageHeaderType;
 }
 
-pub trait RTPSMessagePIM<'a, PSM> {
-    type RTPSMessageType;
+pub trait RTPSMessagePIM<'a, PSM>
+where
+    PSM: ProtocolIdPIM
+        + RtpsMessageHeaderPIM
+        + AckNackSubmessagePIM
+        + DataSubmessagePIM<'a>
+        + DataFragSubmessagePIM<'a>
+        + GapSubmessagePIM
+        + HeartbeatSubmessagePIM
+        + HeartbeatFragSubmessagePIM
+        + InfoDestinationSubmessagePIM
+        + InfoReplySubmessagePIM
+        + InfoSourceSubmessagePIM
+        + InfoTimestampSubmessagePIM
+        + NackFragSubmessagePIM
+        + PadSubmessagePIM,
+
+{
+    type RTPSMessageType: RTPSMessage<'a, PSM>;
 }
 
 pub trait RTPSMessage<'a, PSM>
@@ -59,7 +82,7 @@ where
         + InfoSourceSubmessagePIM
         + InfoTimestampSubmessagePIM
         + NackFragSubmessagePIM
-        + PadSubmessagePIM
+        + PadSubmessagePIM,
 {
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
         protocol: PSM::ProtocolIdType,

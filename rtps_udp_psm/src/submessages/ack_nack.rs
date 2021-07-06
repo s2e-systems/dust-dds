@@ -4,7 +4,7 @@ use rust_rtps_pim::messages::{types::SubmessageFlag, Submessage};
 #[derive(Debug, PartialEq)]
 pub struct AckNack {}
 
-impl rust_rtps_pim::messages::submessages::AckNackSubmessage<RtpsUdpPsm> for AckNack {
+impl<'a> rust_rtps_pim::messages::submessages::AckNackSubmessage<RtpsUdpPsm> for AckNack {
     fn new(
         _endianness_flag: SubmessageFlag,
         _final_flag: SubmessageFlag,

@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use rust_rtps_pim::{
     behavior::types::ParticipantMessageDataPIM,
     messages::{
@@ -36,18 +38,18 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct RtpsUdpPsm;
 
-impl ProtocolIdPIM for RtpsUdpPsm {
+impl<'a> ProtocolIdPIM for RtpsUdpPsm {
     type ProtocolIdType = ProtocolId;
     const PROTOCOL_RTPS: Self::ProtocolIdType = [b'R', b'T', b'P', b'S'];
 }
 
-impl ParameterListSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> ParameterListSubmessageElementPIM for RtpsUdpPsm {
     type ParameterListSubmessageElementType = ParameterList;
 }
 
 pub(crate) type SubmessageKind = u8;
 
-impl SubmessageKindPIM for RtpsUdpPsm {
+impl<'a> SubmessageKindPIM for RtpsUdpPsm {
     type SubmessageKindType = SubmessageKind;
     const DATA: Self::SubmessageKindType = 0x15;
     const GAP: Self::SubmessageKindType = 0x08;
@@ -63,7 +65,7 @@ impl SubmessageKindPIM for RtpsUdpPsm {
     const HEARTBEAT_FRAG: Self::SubmessageKindType = 0x13;
 }
 
-impl TimePIM for RtpsUdpPsm {
+impl<'a> TimePIM for RtpsUdpPsm {
     type TimeType = Time;
     const TIME_ZERO: Self::TimeType = Time {
         seconds: 0,
@@ -79,67 +81,67 @@ impl TimePIM for RtpsUdpPsm {
     };
 }
 
-impl CountPIM for RtpsUdpPsm {
+impl<'a> CountPIM for RtpsUdpPsm {
     type CountType = Count;
 }
 
-impl GroupDigestPIM for RtpsUdpPsm {
+impl<'a> GroupDigestPIM for RtpsUdpPsm {
     type GroupDigestType = GroupDigest;
 }
 
-impl ParticipantMessageDataPIM for RtpsUdpPsm {
+impl<'a> ParticipantMessageDataPIM for RtpsUdpPsm {
     type ParticipantMessageDataType = ();
 }
 
-impl UShortSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> UShortSubmessageElementPIM for RtpsUdpPsm {
     type UShortSubmessageElementType = UShort;
 }
 
-impl ULongSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> ULongSubmessageElementPIM for RtpsUdpPsm {
     type ULongSubmessageElementType = ULong;
 }
 
-impl LongSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> LongSubmessageElementPIM for RtpsUdpPsm {
     type LongSubmessageElementType = Long;
 }
 
-impl EntityIdSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> EntityIdSubmessageElementPIM for RtpsUdpPsm {
     type EntityIdSubmessageElementType = EntityId;
 }
 
-impl GuidPrefixSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> GuidPrefixSubmessageElementPIM for RtpsUdpPsm {
     type GuidPrefixSubmessageElementType = GuidPrefix;
 }
 
-impl SequenceNumberSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> SequenceNumberSubmessageElementPIM for RtpsUdpPsm {
     type SequenceNumberSubmessageElementType = SequenceNumber;
 }
 
-impl SequenceNumberSetSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> SequenceNumberSetSubmessageElementPIM for RtpsUdpPsm {
     type SequenceNumberSetSubmessageElementType = SequenceNumberSet;
 }
 
-impl FragmentNumberSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> FragmentNumberSubmessageElementPIM for RtpsUdpPsm {
     type FragmentNumberSubmessageElementType = FragmentNumber;
 }
 
-impl FragmentNumberSetSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> FragmentNumberSetSubmessageElementPIM for RtpsUdpPsm {
     type FragmentNumberSetSubmessageElementType = FragmentNumberSet;
 }
 
-impl VendorIdSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> VendorIdSubmessageElementPIM for RtpsUdpPsm {
     type VendorIdSubmessageElementType = VendorId;
 }
 
-impl LocatorListSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> LocatorListSubmessageElementPIM for RtpsUdpPsm {
     type LocatorListSubmessageElementType = LocatorList;
 }
 
-impl ProtocolVersionSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> ProtocolVersionSubmessageElementPIM for RtpsUdpPsm {
     type ProtocolVersionSubmessageElementType = ProtocolVersion;
 }
 
-impl TimestampSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> TimestampSubmessageElementPIM for RtpsUdpPsm {
     type TimestampSubmessageElementType = Time;
 }
 
@@ -151,7 +153,7 @@ impl<'a> SerializedDataFragmentSubmessageElementPIM<'a> for RtpsUdpPsm {
     type SerializedDataFragmentSubmessageElementType = SerializedData<'a>;
 }
 
-impl CountSubmessageElementPIM for RtpsUdpPsm {
+impl<'a> CountSubmessageElementPIM for RtpsUdpPsm {
     type CountSubmessageElementType = Count;
 }
 
@@ -159,11 +161,11 @@ impl<'a> RTPSMessagePIM<'a, Self> for RtpsUdpPsm {
     type RTPSMessageType = RTPSMessageC<'a>;
 }
 
-impl RtpsMessageHeaderPIM for RtpsUdpPsm {
+impl<'a> RtpsMessageHeaderPIM for RtpsUdpPsm {
     type RtpsMessageHeaderType = RTPSMessageHeader;
 }
 
-impl AckNackSubmessagePIM for RtpsUdpPsm {
+impl<'a> AckNackSubmessagePIM for RtpsUdpPsm {
     type AckNackSubmessageType = submessages::ack_nack::AckNack;
 }
 
@@ -175,38 +177,38 @@ impl<'a> DataFragSubmessagePIM<'a> for RtpsUdpPsm {
     type DataFragSubmessageType = submessages::data_frag::DataFrag<'a>;
 }
 
-impl GapSubmessagePIM for RtpsUdpPsm {
+impl<'a> GapSubmessagePIM for RtpsUdpPsm {
     type GapSubmessageType = submessages::gap::GapSubmessage;
 }
 
-impl HeartbeatSubmessagePIM for RtpsUdpPsm {
+impl<'a> HeartbeatSubmessagePIM for RtpsUdpPsm {
     type HeartbeatSubmessageType = submessages::heartbeat::HeartbeatSubmessage;
 }
 
-impl HeartbeatFragSubmessagePIM for RtpsUdpPsm {
+impl<'a> HeartbeatFragSubmessagePIM for RtpsUdpPsm {
     type HeartbeatFragSubmessageType = submessages::heartbeat_frag::HeartbeatFrag;
 }
 
-impl InfoDestinationSubmessagePIM for RtpsUdpPsm {
+impl<'a> InfoDestinationSubmessagePIM for RtpsUdpPsm {
     type InfoDestinationSubmessageType = submessages::info_destination::InfoDestination;
 }
 
-impl InfoReplySubmessagePIM for RtpsUdpPsm {
+impl<'a> InfoReplySubmessagePIM for RtpsUdpPsm {
     type InfoReplySubmessageType = submessages::info_reply::InfoReply;
 }
 
-impl InfoSourceSubmessagePIM for RtpsUdpPsm {
+impl<'a> InfoSourceSubmessagePIM for RtpsUdpPsm {
     type InfoSourceSubmessageType = submessages::info_source::InfoSource;
 }
 
-impl InfoTimestampSubmessagePIM for RtpsUdpPsm {
+impl<'a> InfoTimestampSubmessagePIM for RtpsUdpPsm {
     type InfoTimestampSubmessageType = submessages::info_timestamp::InfoTimestamp;
 }
 
-impl NackFragSubmessagePIM for RtpsUdpPsm {
+impl<'a> NackFragSubmessagePIM for RtpsUdpPsm {
     type NackFragSubmessageType = submessages::nack_frag::NackFrag;
 }
 
-impl PadSubmessagePIM for RtpsUdpPsm {
+impl<'a> PadSubmessagePIM for RtpsUdpPsm {
     type PadSubmessageType = submessages::pad::Pad;
 }

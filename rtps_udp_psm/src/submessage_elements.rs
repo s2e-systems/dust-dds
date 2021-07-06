@@ -318,16 +318,20 @@ impl<'a> SerializedData<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElementType<'a>
+impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElementType<'_>
     for SerializedData<'a>
 {
-    fn new(value: &'a [u8]) -> Self {
+    type Value = &'a [u8];
+
+    fn new(value: Self::Value) -> Self {
         Self(value)
     }
 
-    fn value(&self) -> &[u8] {
-        self.0
+    fn value(&self) -> &Self::Value {
+        &self.0
     }
+
+
 }
 
 impl<'a> serde::Serialize for SerializedData<'a> {
@@ -369,7 +373,7 @@ pub struct Time {
     pub fraction: u32,
 }
 
-impl rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType<RtpsUdpPsm>
+impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType<RtpsUdpPsm>
     for Time
 {
     fn new(value: &Time) -> Self {
@@ -384,7 +388,7 @@ impl rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementTyp
 #[derive(Debug, PartialEq, Clone, Copy, serde::Serialize)]
 pub struct Count(pub(crate) i32);
 
-impl rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType<RtpsUdpPsm>
+impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType<RtpsUdpPsm>
     for Count
 {
     fn new(value: &Count) -> Self {

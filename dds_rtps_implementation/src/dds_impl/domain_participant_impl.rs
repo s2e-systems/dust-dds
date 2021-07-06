@@ -22,6 +22,7 @@ use rust_rtps_pim::{
         submessage_elements::{
             EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM,
             SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM,
+            SerializedDataSubmessageElementType,
         },
         submessages::{
             AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
@@ -31,7 +32,7 @@ use rust_rtps_pim::{
             RtpsSubmessageType,
         },
         types::ProtocolIdPIM,
-        RTPSMessage, RtpsMessageHeaderPIM,
+        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM,
     },
     structure::types::{Locator, ProtocolVersion},
 };
@@ -60,27 +61,21 @@ impl DomainParticipantImpl {
         mut transport: impl TransportWrite<PSM> + Send + 'static,
     ) -> Self
     where
-        for<'a> PSM: rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>,
-        for<'a> <PSM as rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>>::RTPSMessageType:
-            RTPSMessage<'a, PSM>,
-        PSM: ProtocolIdPIM,
-        PSM: RtpsMessageHeaderPIM,
-        PSM: AckNackSubmessagePIM,
-        for<'a> PSM: DataSubmessagePIM<'a>,
-        for<'a> PSM: DataFragSubmessagePIM<'a>,
-        PSM: GapSubmessagePIM,
-        PSM: HeartbeatSubmessagePIM,
-        PSM: HeartbeatFragSubmessagePIM,
-        PSM: InfoDestinationSubmessagePIM,
-        PSM: InfoReplySubmessagePIM,
-        PSM: InfoSourceSubmessagePIM,
-        PSM: InfoTimestampSubmessagePIM,
-        PSM: NackFragSubmessagePIM,
-        PSM: PadSubmessagePIM,
-        for<'a> <PSM as DataSubmessagePIM<'a>>::DataSubmessageType: DataSubmessage<'a>,
-        PSM::GapSubmessageType: GapSubmessage,
-        for<'a> <<PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::ParameterListSubmessageElementType:
-            From<()>,
+        for<'a> PSM: AckNackSubmessagePIM
+            + DataSubmessagePIM<'a>
+            + DataFragSubmessagePIM<'a>
+            + GapSubmessagePIM
+            + HeartbeatSubmessagePIM
+            + HeartbeatFragSubmessagePIM
+            + InfoDestinationSubmessagePIM
+            + InfoReplySubmessagePIM
+            + InfoSourceSubmessagePIM
+            + InfoTimestampSubmessagePIM
+            + NackFragSubmessagePIM
+            + PadSubmessagePIM
+            + RTPSMessagePIM<'a, PSM>
+            + ProtocolIdPIM
+            + RtpsMessageHeaderPIM,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         // let transport_impl = Arc::new(Mutex::new(transport));
@@ -97,8 +92,10 @@ impl DomainParticipantImpl {
                         let (writer_cache, reader_locators) =
                             writer.writer_cache_and_reader_locators();
                         for reader_locator in reader_locators {
-                            let mut data_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
-                            // let mut gap_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
+                            let mut data_submessage_list: Vec<RtpsSubmessageType<PSM>> = vec![];
+                            let mut gap_submessage_list: Vec<RtpsSubmessageType<PSM>> = vec![];
+
+                            let mut submessages = vec![];
 
                             reader_locator.best_effort_send_unsent_data(
                                 &last_change_sequence_number,
@@ -108,10 +105,29 @@ impl DomainParticipantImpl {
                                         .push(RtpsSubmessageType::Data(data_submessage))
                                 },
                                 |gap_submessage: PSM::GapSubmessageType| {
-                                    // gap_submessage_list
-                                    //     .push(RtpsSubmessageType::Gap(gap_submessage))
+                                    gap_submessage_list
+                                        .push(RtpsSubmessageType::Gap(gap_submessage))
                                 },
                             );
+
+                            for data_submessage in data_submessage_list {
+                                submessages.push(data_submessage)
+                            }
+                            for gap_submessage in gap_submessage_list {
+                                submessages.push(gap_submessage);
+                            }
+
+                            let message = PSM::RTPSMessageType::new(
+                                PSM::PROTOCOL_RTPS,
+                                ProtocolVersion { major: 2, minor: 4 },
+                                [0, 0],
+                                guid_prefix,
+                                submessages,
+                            );
+                            let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
+                            transport.write(&message, &destination_locator);
+                            std::thread::sleep(std::time::Duration::from_millis(500));
+
                         }
                         // send_data(
                         //     writer_cache,
@@ -120,16 +136,7 @@ impl DomainParticipantImpl {
                         //     // &mut *transport.lock().unwrap(),
                         // );
                         // socket.send_to(&[1, 2, 3, 4], "192.168.1.1:7400").ok();
-                        let message = PSM::RTPSMessageType::new(
-                            PSM::PROTOCOL_RTPS,
-                            ProtocolVersion { major: 2, minor: 4 },
-                            [0, 0],
-                            guid_prefix,
-                            std::iter::empty(),
-                        );
-                        let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
-                        transport.write(&message, &destination_locator);
-                        std::thread::sleep(std::time::Duration::from_millis(500));
+
                     }
                 }
 

@@ -66,7 +66,7 @@ pub trait DataSubmessage<'a>: Submessage {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type ParameterListSubmessageElementType: ParameterListSubmessageElementType;
-    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>;
+    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a, Value=&'a [u8]>;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -89,7 +89,7 @@ pub trait DataSubmessage<'a>: Submessage {
     fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
     fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
     fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType;
-    fn serialized_payload(&'a self) -> &'a Self::SerializedDataSubmessageElementType;
+    fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
 }
 
 pub trait DataFragSubmessagePIM<'a> {
@@ -137,7 +137,7 @@ where
 }
 
 pub trait GapSubmessagePIM {
-    type GapSubmessageType;
+    type GapSubmessageType: GapSubmessage;
 }
 
 pub trait GapSubmessage: Submessage
