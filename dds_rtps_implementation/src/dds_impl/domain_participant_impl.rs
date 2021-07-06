@@ -73,7 +73,7 @@ impl DomainParticipantImpl {
             + InfoTimestampSubmessagePIM
             + NackFragSubmessagePIM
             + PadSubmessagePIM
-            + RTPSMessagePIM<'a, PSM>
+            + RTPSMessagePIM<'a>
             + ProtocolIdPIM
             + RtpsMessageHeaderPIM,
     {

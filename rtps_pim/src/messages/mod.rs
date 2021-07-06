@@ -5,10 +5,6 @@ pub mod types;
 use crate::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
 
 use self::{
-    submessage_elements::{
-        EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM,
-        SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM,
-    },
     submessages::{
         AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
         HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
@@ -46,53 +42,49 @@ pub trait Submessage {
     fn submessage_header(&self) -> Self::RtpsSubmessageHeaderType;
 }
 
-pub trait RTPSMessagePIM<'a, PSM>
-where
-    PSM: ProtocolIdPIM
-        + RtpsMessageHeaderPIM
-        + AckNackSubmessagePIM
-        + DataSubmessagePIM<'a>
-        + DataFragSubmessagePIM<'a>
-        + GapSubmessagePIM
-        + HeartbeatSubmessagePIM
-        + HeartbeatFragSubmessagePIM
-        + InfoDestinationSubmessagePIM
-        + InfoReplySubmessagePIM
-        + InfoSourceSubmessagePIM
-        + InfoTimestampSubmessagePIM
-        + NackFragSubmessagePIM
-        + PadSubmessagePIM,
-
-{
-    type RTPSMessageType: RTPSMessage<'a, PSM>;
+pub trait RTPSMessagePIM<'a> {
+    type RTPSMessageType: RTPSMessage<'a>;
 }
 
-pub trait RTPSMessage<'a, PSM>
-where
-    PSM: ProtocolIdPIM
-        + RtpsMessageHeaderPIM
-        + AckNackSubmessagePIM
-        + DataSubmessagePIM<'a>
-        + DataFragSubmessagePIM<'a>
-        + GapSubmessagePIM
-        + HeartbeatSubmessagePIM
-        + HeartbeatFragSubmessagePIM
-        + InfoDestinationSubmessagePIM
-        + InfoReplySubmessagePIM
-        + InfoSourceSubmessagePIM
-        + InfoTimestampSubmessagePIM
-        + NackFragSubmessagePIM
-        + PadSubmessagePIM,
-{
-    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
+pub trait RTPSMessage<'a> {
+    type RtpsMessageHeaderType;
+
+    fn new<PSM, T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
         protocol: PSM::ProtocolIdType,
         version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
         submessages: T,
-    ) -> Self;
+    ) -> Self
+    where
+        PSM: ProtocolIdPIM
+            + AckNackSubmessagePIM
+            + DataSubmessagePIM<'a>
+            + DataFragSubmessagePIM<'a>
+            + GapSubmessagePIM
+            + HeartbeatSubmessagePIM
+            + HeartbeatFragSubmessagePIM
+            + InfoDestinationSubmessagePIM
+            + InfoReplySubmessagePIM
+            + InfoSourceSubmessagePIM
+            + InfoTimestampSubmessagePIM
+            + NackFragSubmessagePIM
+            + PadSubmessagePIM;
 
-    fn header(&self) -> PSM::RtpsMessageHeaderType;
+    fn header(&self) -> Self::RtpsMessageHeaderType;
 
-    fn submessages(&self) -> &[RtpsSubmessageType<'a, PSM>];
+    fn submessages<PSM>(&self) -> &[RtpsSubmessageType<'a, PSM>]
+    where
+        PSM: AckNackSubmessagePIM
+            + DataSubmessagePIM<'a>
+            + DataFragSubmessagePIM<'a>
+            + GapSubmessagePIM
+            + HeartbeatSubmessagePIM
+            + HeartbeatFragSubmessagePIM
+            + InfoDestinationSubmessagePIM
+            + InfoReplySubmessagePIM
+            + InfoSourceSubmessagePIM
+            + InfoTimestampSubmessagePIM
+            + NackFragSubmessagePIM
+            + PadSubmessagePIM;
 }

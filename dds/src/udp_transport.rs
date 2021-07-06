@@ -18,20 +18,23 @@ impl UdpTransport {
 impl TransportWrite<RtpsUdpPsm> for UdpTransport {
     fn write<'a>(
         &mut self,
-        _message: &<RtpsUdpPsm as RTPSMessagePIM<'a, RtpsUdpPsm>>::RTPSMessageType,
+        _message: &<RtpsUdpPsm as RTPSMessagePIM<'a>>::RTPSMessageType,
         _destination_locator: &Locator,
     ) where
-        RtpsUdpPsm: RTPSMessagePIM<'a, RtpsUdpPsm>,
+        RtpsUdpPsm: RTPSMessagePIM<'a>,
     {
         todo!()
     }
 }
 
-// impl<'a> TransportRead<RtpsUdpPsm<'a>> for UdpTransport {
-//     fn read(&self) -> Option<(<RtpsUdpPsm as RTPSMessagePIM>::RTPSMessageType, Locator)> {
-//         todo!()
-//     }
-// }
+impl TransportRead<RtpsUdpPsm> for UdpTransport {
+    fn read<'a>(&self) -> Option<(<RtpsUdpPsm as RTPSMessagePIM<'a>>::RTPSMessageType, Locator)>
+    where
+        RtpsUdpPsm: RTPSMessagePIM<'a>,
+    {
+        todo!()
+    }
+}
 
 impl TransportLocator for UdpTransport {
     fn unicast_locator_list(&self) -> &[Locator] {

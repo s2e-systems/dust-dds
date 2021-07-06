@@ -1,11 +1,7 @@
 use rust_rtps_pim::messages::submessages::RtpsSubmessageType;
 use serde::ser::SerializeStruct;
 
-use crate::{
-    message_header::{ProtocolId, RTPSMessageHeader},
-    psm::RtpsUdpPsm,
-    submessage_elements::Octet,
-};
+use crate::{message_header::RTPSMessageHeader, psm::RtpsUdpPsm, submessage_elements::Octet};
 
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageC<'a> {
@@ -13,14 +9,31 @@ pub struct RTPSMessageC<'a> {
     submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'a> {
-    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, RtpsUdpPsm>>>(
-        _protocol: ProtocolId,
+impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'a> {
+    type RtpsMessageHeaderType = RTPSMessageHeader;
+
+    fn new<PSM, T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
+        _protocol: PSM::ProtocolIdType,
         _version: rust_rtps_pim::structure::types::ProtocolVersion,
         _vendor_id: rust_rtps_pim::structure::types::VendorId,
         _guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
         _submessages: T,
-    ) -> Self {
+    ) -> Self
+    where
+        PSM: rust_rtps_pim::messages::types::ProtocolIdPIM
+            + rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
+            + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a>
+            + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM<'a>
+            + rust_rtps_pim::messages::submessages::GapSubmessagePIM
+            + rust_rtps_pim::messages::submessages::HeartbeatSubmessagePIM
+            + rust_rtps_pim::messages::submessages::HeartbeatFragSubmessagePIM
+            + rust_rtps_pim::messages::submessages::InfoDestinationSubmessagePIM
+            + rust_rtps_pim::messages::submessages::InfoReplySubmessagePIM
+            + rust_rtps_pim::messages::submessages::InfoSourceSubmessagePIM
+            + rust_rtps_pim::messages::submessages::InfoTimestampSubmessagePIM
+            + rust_rtps_pim::messages::submessages::NackFragSubmessagePIM
+            + rust_rtps_pim::messages::submessages::PadSubmessagePIM,
+    {
         todo!()
     }
 
@@ -28,7 +41,21 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'
         self.header
     }
 
-    fn submessages(&self) -> &[RtpsSubmessageType<'a, RtpsUdpPsm>] {
+    fn submessages<PSM>(&self) -> &[RtpsSubmessageType<'a, PSM>]
+    where
+        PSM: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
+            + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a>
+            + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM<'a>
+            + rust_rtps_pim::messages::submessages::GapSubmessagePIM
+            + rust_rtps_pim::messages::submessages::HeartbeatSubmessagePIM
+            + rust_rtps_pim::messages::submessages::HeartbeatFragSubmessagePIM
+            + rust_rtps_pim::messages::submessages::InfoDestinationSubmessagePIM
+            + rust_rtps_pim::messages::submessages::InfoReplySubmessagePIM
+            + rust_rtps_pim::messages::submessages::InfoSourceSubmessagePIM
+            + rust_rtps_pim::messages::submessages::InfoTimestampSubmessagePIM
+            + rust_rtps_pim::messages::submessages::NackFragSubmessagePIM
+            + rust_rtps_pim::messages::submessages::PadSubmessagePIM,
+    {
         // &self.submessages
         todo!()
     }
@@ -126,7 +153,13 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for RTPSMessageC<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{submessage_elements::{EntityId, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet, SerializedData, VendorId}, submessages};
+    use crate::{
+        submessage_elements::{
+            EntityId, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet,
+            SerializedData, VendorId,
+        },
+        submessages,
+    };
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
         submessage_elements::SequenceNumberSubmessageElementType,

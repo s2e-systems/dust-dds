@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use rust_rtps_pim::{
     behavior::types::ParticipantMessageDataPIM,
     messages::{
@@ -157,7 +155,7 @@ impl<'a> CountSubmessageElementPIM for RtpsUdpPsm {
     type CountSubmessageElementType = Count;
 }
 
-impl<'a> RTPSMessagePIM<'a, Self> for RtpsUdpPsm {
+impl<'a> RTPSMessagePIM<'a> for RtpsUdpPsm {
     type RTPSMessageType = RTPSMessageC<'a>;
 }
 
