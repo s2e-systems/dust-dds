@@ -76,7 +76,7 @@ impl<'a> serde::Serialize for RTPSMessageC<'a> {
     where
         S: serde::Serializer,
     {
-        let len = self.submessages.len();
+        let len = self.submessages.len() + 1;
         let mut state = serializer.serialize_struct("RTPSMessage", len)?;
         state.serialize_field("header", &self.header)?;
         for submessage in &self.submessages {
@@ -187,12 +187,16 @@ mod tests {
     }
 
     #[test]
-    fn serialize_rtps_message_header() {
-        let value = RTPSMessageHeader {
+    fn serialize_rtps_message_no_submessage() {
+        let header = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionC { major: 2, minor: 3 },
             vendor_id: VendorId([9, 8]),
             guid_prefix: GuidPrefix([3; 12]),
+        };
+        let value = RTPSMessageC {
+            header,
+            submessages: vec![],
         };
         #[rustfmt::skip]
         assert_eq!(serialize(value), vec![
@@ -202,25 +206,6 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
         ]);
-    }
-
-    #[test]
-    fn deserialize_rtps_message_header() {
-        let expected = RTPSMessageHeader {
-            protocol: b"RTPS".to_owned(),
-            version: ProtocolVersionC { major: 2, minor: 3 },
-            vendor_id: VendorId([9, 8]),
-            guid_prefix: GuidPrefix([3; 12]),
-        };
-        #[rustfmt::skip]
-        let result = deserialize(&[
-            b'R', b'T', b'P', b'S', // Protocol
-            2, 3, 9, 8, // ProtocolVersion | VendorId
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-            3, 3, 3, 3, // GuidPrefix
-        ]);
-        assert_eq!(expected, result);
     }
 
     #[test]
@@ -390,4 +375,22 @@ mod tests {
         ]);
         assert_eq!(result, expected);
     }
+
+    #[test]
+    fn serialize_rtps_message_no_submessage_json() {
+        let header = RTPSMessageHeader {
+            protocol: b"RTPS".to_owned(),
+            version: ProtocolVersionC { major: 2, minor: 3 },
+            vendor_id: VendorId([9, 8]),
+            guid_prefix: GuidPrefix([3; 12]),
+        };
+        let value = RTPSMessageC {
+            header,
+            submessages: vec![],
+        };
+        assert_eq!(serde_json::ser::to_string(&value).unwrap(),
+        r#"{"header":{"protocol":[82,84,80,83],"version":{"major":2,"minor":3},"vendor_id":[9,8],"guid_prefix":[3,3,3,3,3,3,3,3,3,3,3,3]}}"#
+        );
+    }
+
 }

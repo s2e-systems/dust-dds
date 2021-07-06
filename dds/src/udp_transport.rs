@@ -33,14 +33,15 @@ impl<'a> TransportWrite<'a> for UdpTransport {
     type RTPSMessageType = RTPSMessageC<'a>;
 
     fn write(&mut self, message: &Self::RTPSMessageType, destination_locator: &Locator) {
-        //let s = serde_json::ser::to_string_pretty(message).unwrap();
+        let json_vec = serde_json::ser::to_string(message).unwrap();
+        let json_string = std::str::from_utf8(json_vec.as_ref()).unwrap();
+        println!("{:?}", json_string);
+
         let writer = Vec::<u8>::new();
         let mut serializer = RtpsMessageSerializer {
                 writer,
             };
         message.serialize(&mut serializer).unwrap();
-        let s = std::str::from_utf8(serializer.writer.as_ref()).unwrap();
-        println!("{:?}", s);
         self.socket.send_to(serializer.writer.as_slice(), "192.168.1.1:7400").unwrap();
     }
 }

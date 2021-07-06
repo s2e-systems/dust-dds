@@ -97,4 +97,18 @@ mod tests {
         ]);
         assert_eq!(expected, result);
     }
+
+    #[test]
+    fn serialize_rtps_message_header_json() {
+        let value = RTPSMessageHeader {
+            protocol: b"RTPS".to_owned(),
+            version: ProtocolVersionC { major: 2, minor: 3 },
+            vendor_id: VendorId([9, 8]),
+            guid_prefix: GuidPrefix([3; 12]),
+        };
+        #[rustfmt::skip]
+        assert_eq!(serde_json::ser::to_string(&value).unwrap(),
+        r#"{"protocol":[82,84,80,83],"version":{"major":2,"minor":3},"vendor_id":[9,8],"guid_prefix":[3,3,3,3,3,3,3,3,3,3,3,3]}"#
+        );
+    }
 }

@@ -62,17 +62,16 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a>
             submessage_length,
         };
 
-        todo!()
-        // DataSubmesage {
-        //     header,
-        //     extra_flags: 0b_0000_0000_0000_0000,
-        //     octets_to_inline_qos: 16,
-        //     reader_id,
-        //     writer_id,
-        //     writer_sn,
-        //     inline_qos,
-        //     serialized_payload,
-        // }
+        DataSubmesage {
+            header,
+            extra_flags: 0b_0000_0000_0000_0000,
+            octets_to_inline_qos: 16,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        }
     }
 
     fn endianness_flag(&self) -> SubmessageFlag {
@@ -509,5 +508,38 @@ mod tests {
             9, 9, 9,    // Following data
         ]);
         assert_eq!(expected, result);
+    }
+
+
+    #[test]
+    fn serialize_no_inline_qos_no_serialized_payload_json() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityId([1, 2, 3, 4]);
+        let writer_id = EntityId([6, 7, 8, 9]);
+        let writer_sn = SequenceNumber::new(5);
+        let inline_qos = ParameterList {
+            parameter: vec![].into(),
+        };
+        let data = [];
+        let serialized_payload = SerializedData(data[..].into());
+        let submessage = DataSubmesage::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        );
+        assert_eq!(serde_json::ser::to_string(&submessage).unwrap(),
+        r#"{"header":{"submessage_id":21,"flags":1,"submessage_length":20},"extra_flags":0,"octets_to_inline_qos":16,"reader_id":[1,2,3,4],"writer_id":[6,7,8,9],"writer_sn":{"high":0,"low":5}}"#
+        );
     }
 }
