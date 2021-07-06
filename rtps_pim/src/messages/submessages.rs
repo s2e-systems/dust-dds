@@ -328,7 +328,7 @@ where
 }
 
 pub trait PadSubmessagePIM {
-    type PadSubmessageType;
+    type PadSubmessageType: PadSubmessage;
 }
 
 pub trait PadSubmessage: Submessage {}

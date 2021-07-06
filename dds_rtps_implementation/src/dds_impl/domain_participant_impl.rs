@@ -20,9 +20,10 @@ use rust_rtps_pim::{
     behavior::RTPSWriter,
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM,
-            SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM,
-            SerializedDataSubmessageElementType,
+            EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
+            ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementType,
+            SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType,
+            SerializedDataSubmessageElementPIM, SerializedDataSubmessageElementType,
         },
         submessages::{
             AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
@@ -34,7 +35,7 @@ use rust_rtps_pim::{
         types::ProtocolIdPIM,
         RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM,
     },
-    structure::types::{Locator, ProtocolVersion},
+    structure::types::{Locator, ProtocolVersion, ENTITYID_UNKNOWN},
 };
 
 use crate::{
@@ -86,49 +87,58 @@ impl DomainParticipantImpl {
             loop {
                 if is_enabled_thread.load(atomic::Ordering::Relaxed) {
                     if let Some(rtps_participant) = rtps_participant.try_lock() {
-                        let writer_group = rtps_participant.writer_groups()[0].lock();
-                        let mut writer = writer_group.writer_list()[0].lock();
-                        let last_change_sequence_number = *writer.last_change_sequence_number();
-                        let (writer_cache, reader_locators) =
-                            writer.writer_cache_and_reader_locators();
-                        for reader_locator in reader_locators {
-                            let mut data_submessage_list: Vec<RtpsSubmessageType<PSM>> = vec![];
-                            let mut gap_submessage_list: Vec<RtpsSubmessageType<PSM>> = vec![];
+                        // let writer_group = rtps_participant.writer_groups()[0].lock();
+                        // let mut writer = writer_group.writer_list()[0].lock();
+                        // let last_change_sequence_number = *writer.last_change_sequence_number();
+                        // let (writer_cache, reader_locators) =
+                        //     writer.writer_cache_and_reader_locators();
+                        // for reader_locator in reader_locators {
+                        //     let mut data_submessage_list: Vec<RtpsSubmessageType<PSM>> = vec![];
+                        //     let mut gap_submessage_list: Vec<RtpsSubmessageType<PSM>> = vec![];
 
-                            let mut submessages = vec![];
+                        //     let mut submessages = vec![];
 
-                            reader_locator.best_effort_send_unsent_data(
-                                &last_change_sequence_number,
-                                writer_cache,
-                                |data_submessage: PSM::DataSubmessageType| {
-                                    data_submessage_list
-                                        .push(RtpsSubmessageType::Data(data_submessage))
-                                },
-                                |gap_submessage: PSM::GapSubmessageType| {
-                                    gap_submessage_list
-                                        .push(RtpsSubmessageType::Gap(gap_submessage))
-                                },
-                            );
+                        //     reader_locator.best_effort_send_unsent_data(
+                        //         &last_change_sequence_number,
+                        //         writer_cache,
+                        //         |data_submessage: PSM::DataSubmessageType| {
+                        //             data_submessage_list
+                        //                 .push(RtpsSubmessageType::Data(data_submessage))
+                        //         },
+                        //         |gap_submessage: PSM::GapSubmessageType| {
+                        //             gap_submessage_list
+                        //                 .push(RtpsSubmessageType::Gap(gap_submessage))
+                        //         },
+                        //     );
 
-                            for data_submessage in data_submessage_list {
-                                submessages.push(data_submessage)
-                            }
-                            for gap_submessage in gap_submessage_list {
-                                submessages.push(gap_submessage);
-                            }
+                        //     for data_submessage in data_submessage_list {
+                        //         submessages.push(data_submessage)
+                        //     }
+                        //     for gap_submessage in gap_submessage_list {
+                        //         submessages.push(gap_submessage);
+                        //     }
 
-                            let message = PSM::RTPSMessageType::new(
-                                PSM::PROTOCOL_RTPS,
-                                ProtocolVersion { major: 2, minor: 4 },
-                                [0, 0],
-                                guid_prefix,
-                                submessages,
-                            );
-                            let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
-                            transport.write(&message, &destination_locator);
-                            std::thread::sleep(std::time::Duration::from_millis(500));
+                        let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+                        let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+                        let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);
+                        let gap_list =  <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSetSubmessageElementType::new(10, &[]);
+                        let submessages: Vec<RtpsSubmessageType<'_, PSM>> =
+                            vec![RtpsSubmessageType::Gap(PSM::GapSubmessageType::new(
+                                true, reader_id, writer_id, gap_start, gap_list,
+                            ))];
 
-                        }
+                        let message = PSM::RTPSMessageType::new(
+                            PSM::PROTOCOL_RTPS,
+                            ProtocolVersion { major: 2, minor: 4 },
+                            [0, 0],
+                            guid_prefix,
+                            submessages,
+                        );
+                        let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
+                        transport.write(&message, &destination_locator);
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+
+                        // }
                         // send_data(
                         //     writer_cache,
                         //     reader_locators,
@@ -136,7 +146,6 @@ impl DomainParticipantImpl {
                         //     // &mut *transport.lock().unwrap(),
                         // );
                         // socket.send_to(&[1, 2, 3, 4], "192.168.1.1:7400").ok();
-
                     }
                 }
 
