@@ -1,7 +1,7 @@
-use rust_rtps_pim::messages::submessages::RtpsSubmessageType;
+use rust_rtps_pim::messages::{RtpsMessageHeaderType, submessages::RtpsSubmessageType};
 use serde::ser::SerializeStruct;
 
-use crate::{message_header::RTPSMessageHeader, psm::RtpsUdpPsm, submessage_elements::Octet};
+use crate::{message_header::{ProtocolId, RTPSMessageHeader}, psm::RtpsUdpPsm, submessage_elements::{GuidPrefix, Octet, ProtocolVersionC, VendorId}};
 
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageC<'a> {
@@ -11,17 +11,18 @@ pub struct RTPSMessageC<'a> {
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'a> {
     type RtpsMessageHeaderType = RTPSMessageHeader;
+    type PSM = RtpsUdpPsm;
 
-    fn new<PSM, T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
-        _protocol: PSM::ProtocolIdType,
-        _version: rust_rtps_pim::structure::types::ProtocolVersion,
-        _vendor_id: rust_rtps_pim::structure::types::VendorId,
-        _guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        _submessages: T,
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
+        // protocol: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolIdType,
+        // version: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolVersionType,
+        // vendor_id: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::VendorIdType,
+        // guid_prefix: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::GuidPrefixType,
+        submessages: T,
     ) -> Self
     where
-        PSM: rust_rtps_pim::messages::types::ProtocolIdPIM
-            + rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
+        Self::RtpsMessageHeaderType: RtpsMessageHeaderType,
+        Self::PSM: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
             + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a>
             + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM<'a>
             + rust_rtps_pim::messages::submessages::GapSubmessagePIM
@@ -34,7 +35,16 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'a> {
             + rust_rtps_pim::messages::submessages::NackFragSubmessagePIM
             + rust_rtps_pim::messages::submessages::PadSubmessagePIM,
     {
-        todo!()
+        let header = RTPSMessageHeader{
+            protocol: b"RTPS".to_owned(),
+            version: ProtocolVersionC{major: 1, minor: 0},
+            vendor_id: VendorId([2,3]),
+            guid_prefix: GuidPrefix([3;12]),
+        };
+        Self {
+            header,
+            submessages: submessages.into_iter().collect()
+        }
     }
 
     fn header(&self) -> RTPSMessageHeader {
@@ -153,13 +163,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for RTPSMessageC<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        submessage_elements::{
-            EntityId, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet,
-            SerializedData, VendorId,
-        },
-        submessages,
-    };
+    use crate::{submessage_elements::{EntityId, GuidPrefix, ParameterList, ProtocolVersionC, SequenceNumber, SequenceNumberSet, SerializedData, VendorId}, submessages};
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
         submessage_elements::SequenceNumberSubmessageElementType,
@@ -186,9 +190,9 @@ mod tests {
     fn serialize_rtps_message_header() {
         let value = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
-            version: ProtocolVersion { major: 2, minor: 3 },
+            version: ProtocolVersionC { major: 2, minor: 3 },
             vendor_id: VendorId([9, 8]),
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
         #[rustfmt::skip]
         assert_eq!(serialize(value), vec![
@@ -204,9 +208,9 @@ mod tests {
     fn deserialize_rtps_message_header() {
         let expected = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
-            version: ProtocolVersion { major: 2, minor: 3 },
+            version: ProtocolVersionC { major: 2, minor: 3 },
             vendor_id: VendorId([9, 8]),
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
         #[rustfmt::skip]
         let result = deserialize(&[
@@ -223,9 +227,9 @@ mod tests {
     fn serialize_rtps_message() {
         let header = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
-            version: ProtocolVersion { major: 2, minor: 3 },
+            version: ProtocolVersionC { major: 2, minor: 3 },
             vendor_id: VendorId([9, 8]),
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
         let endianness_flag = true;
         let reader_id = EntityId([1, 2, 3, 4]);
@@ -294,9 +298,9 @@ mod tests {
     fn deserialize_rtps_message_no_submessage() {
         let header = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
-            version: ProtocolVersion { major: 2, minor: 3 },
+            version: ProtocolVersionC { major: 2, minor: 3 },
             vendor_id: VendorId([9, 8]),
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
 
         let expected = RTPSMessageC {
@@ -318,9 +322,9 @@ mod tests {
     fn deserialize_rtps_message() {
         let header = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
-            version: ProtocolVersion { major: 2, minor: 3 },
+            version: ProtocolVersionC { major: 2, minor: 3 },
             vendor_id: VendorId([9, 8]),
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
 
         let endianness_flag = true;

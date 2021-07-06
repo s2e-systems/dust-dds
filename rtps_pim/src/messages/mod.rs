@@ -2,7 +2,7 @@ pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
 
-use crate::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
+use crate::structure::types::{GuidPrefix, VendorId};
 
 use self::{
     submessages::{
@@ -11,21 +11,25 @@ use self::{
         InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
         NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
     },
-    types::{ProtocolIdPIM, SubmessageFlag, SubmessageKindPIM},
+    types::{SubmessageFlag, SubmessageKindPIM},
 };
 
 pub trait RtpsMessageHeaderPIM {
     type RtpsMessageHeaderType;
 }
 
-pub trait RtpsMessageHeaderType<PSM>
-where
-    PSM: ProtocolIdPIM,
-{
-    fn protocol(&self) -> &PSM::ProtocolIdType;
-    fn version(&self) -> &ProtocolVersion;
-    fn vendor_id(&self) -> &VendorId;
-    fn guid_prefix(&self) -> &GuidPrefix;
+pub trait RtpsMessageHeaderType {
+    type ProtocolIdType;
+    type ProtocolVersionType;
+    type VendorIdType;
+    type GuidPrefixType;
+
+    const PROTOCOL_RTPS: Self::ProtocolIdType;
+
+    fn protocol(&self) -> &Self::ProtocolIdType;
+    fn version(&self) -> &Self::ProtocolVersionType;
+    fn vendor_id(&self) -> &Self::VendorIdType;
+    fn guid_prefix(&self) -> &Self::GuidPrefixType;
 }
 
 pub trait RtpsSubmessageHeaderType<PSM>
@@ -47,18 +51,9 @@ pub trait RTPSMessagePIM<'a> {
 }
 
 pub trait RTPSMessage<'a> {
-    type RtpsMessageHeaderType;
-
-    fn new<PSM, T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
-        protocol: PSM::ProtocolIdType,
-        version: ProtocolVersion,
-        vendor_id: VendorId,
-        guid_prefix: GuidPrefix,
-        submessages: T,
-    ) -> Self
-    where
-        PSM: ProtocolIdPIM
-            + AckNackSubmessagePIM
+    type RtpsMessageHeaderType: RtpsMessageHeaderType;
+    type PSM:
+            AckNackSubmessagePIM
             + DataSubmessagePIM<'a>
             + DataFragSubmessagePIM<'a>
             + GapSubmessagePIM
@@ -70,6 +65,15 @@ pub trait RTPSMessage<'a> {
             + InfoTimestampSubmessagePIM
             + NackFragSubmessagePIM
             + PadSubmessagePIM;
+
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
+        // protocol: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolIdType,
+        // version: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolVersionType,
+        // vendor_id: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::VendorIdType,
+        // guid_prefix: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::GuidPrefixType,
+        submessages: T,
+    ) -> Self;
+
 
     fn header(&self) -> Self::RtpsMessageHeaderType;
 

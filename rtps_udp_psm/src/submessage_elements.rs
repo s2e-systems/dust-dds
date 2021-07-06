@@ -292,19 +292,28 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
 pub type InstanceHandle = i32;
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ProtocolVersion {
+pub struct ProtocolVersionC {
     pub major: u8,
     pub minor: u8,
 }
 
 impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType
-    for ProtocolVersion
+    for ProtocolVersionC
 {
-    fn new(_value: &rust_rtps_pim::structure::types::ProtocolVersion) -> Self {
+    type ProtocolVersionType = ProtocolVersionC;
+
+    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType = Self{major: 1, minor: 0};
+    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType = Self{major: 1, minor: 1};
+    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType = Self{major: 2, minor: 0};
+    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType = Self{major: 2, minor: 1};
+    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType = Self{major: 2, minor: 2};
+    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType = Self{major: 2, minor: 3};
+    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType = Self{major: 2, minor: 4};
+    fn new(value: &Self::ProtocolVersionType) -> Self {
         todo!()
     }
 
-    fn value(&self) -> &rust_rtps_pim::structure::types::ProtocolVersion {
+    fn value(&self) -> &Self::ProtocolVersionType {
         todo!()
     }
 }

@@ -1,6 +1,6 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::structure::{
-    types::{Locator, ProtocolVersion, VendorId, GUID},
+    types::{Locator, VendorId, GUID},
     RTPSEntity,
 };
 
@@ -61,7 +61,9 @@ impl RTPSParticipantImpl {
 }
 
 impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
-    fn protocol_version(&self) -> &ProtocolVersion {
+    type ProtocolVersionType = ();
+
+    fn protocol_version(&self) -> &Self::ProtocolVersionType {
         todo!()
     }
 
@@ -76,6 +78,7 @@ impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
     fn default_multicast_locator_list(&self) -> &[Locator] {
         todo!()
     }
+
 }
 
 impl RTPSEntity for RTPSParticipantImpl {

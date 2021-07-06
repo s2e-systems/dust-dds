@@ -58,20 +58,8 @@ impl Locator {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct ProtocolVersion {
-    pub major: u8,
-    pub minor: u8,
-}
-
 // pub const PROTOCOLVERSION: ProtocolVersion1
-pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion { major: 1, minor: 0 };
-pub const PROTOCOLVERSION_1_1: ProtocolVersion = ProtocolVersion { major: 1, minor: 1 };
-pub const PROTOCOLVERSION_2_0: ProtocolVersion = ProtocolVersion { major: 2, minor: 0 };
-pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion { major: 2, minor: 1 };
-pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, minor: 2 };
-pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
-pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
+
 
 pub type VendorId = [u8; 2];
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];

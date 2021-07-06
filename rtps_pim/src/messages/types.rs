@@ -2,10 +2,6 @@
 /// Table 8.13 - Types used to define RTPS messages
 ///
 
-pub trait ProtocolIdPIM {
-    type ProtocolIdType;
-    const PROTOCOL_RTPS: Self::ProtocolIdType;
-}
 
 pub type SubmessageFlag = bool;
 

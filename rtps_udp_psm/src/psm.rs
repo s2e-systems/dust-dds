@@ -17,29 +17,15 @@ use rust_rtps_pim::{
             InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
             NackFragSubmessagePIM, PadSubmessagePIM,
         },
-        types::{CountPIM, GroupDigestPIM, ProtocolIdPIM, SubmessageKindPIM, TimePIM},
+        types::{CountPIM, GroupDigestPIM, SubmessageKindPIM, TimePIM},
         RTPSMessagePIM, RtpsMessageHeaderPIM,
     },
 };
 
-use crate::{
-    message::RTPSMessageC,
-    message_header::{ProtocolId, RTPSMessageHeader},
-    submessage_elements::{
-        Count, EntityId, FragmentNumber, FragmentNumberSet, GroupDigest, GuidPrefix, LocatorList,
-        Long, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet, SerializedData,
-        Time, ULong, UShort, VendorId,
-    },
-    submessages,
-};
+use crate::{message::RTPSMessageC, message_header::{ProtocolId, RTPSMessageHeader}, submessage_elements::{Count, EntityId, FragmentNumber, FragmentNumberSet, GroupDigest, GuidPrefix, LocatorList, Long, ParameterList, ProtocolVersionC, SequenceNumber, SequenceNumberSet, SerializedData, Time, ULong, UShort, VendorId}, submessages};
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsUdpPsm;
-
-impl<'a> ProtocolIdPIM for RtpsUdpPsm {
-    type ProtocolIdType = ProtocolId;
-    const PROTOCOL_RTPS: Self::ProtocolIdType = [b'R', b'T', b'P', b'S'];
-}
 
 impl<'a> ParameterListSubmessageElementPIM for RtpsUdpPsm {
     type ParameterListSubmessageElementType = ParameterList;
@@ -136,7 +122,7 @@ impl<'a> LocatorListSubmessageElementPIM for RtpsUdpPsm {
 }
 
 impl<'a> ProtocolVersionSubmessageElementPIM for RtpsUdpPsm {
-    type ProtocolVersionSubmessageElementType = ProtocolVersion;
+    type ProtocolVersionSubmessageElementType = ProtocolVersionC;
 }
 
 impl<'a> TimestampSubmessageElementPIM for RtpsUdpPsm {

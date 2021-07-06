@@ -6,7 +6,6 @@ use rust_rtps_pim::{
             InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
             NackFragSubmessagePIM, PadSubmessagePIM,
         },
-        types::ProtocolIdPIM,
         RTPSMessagePIM, RtpsMessageHeaderPIM,
     },
     structure::types::Locator,

@@ -3,7 +3,7 @@
 /// 8.3.5 RTPS SubmessageElements
 ///
 use crate::structure::types::{
-    EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId,
+    EntityId, GuidPrefix, Locator, SequenceNumber, VendorId,
 };
 
 use super::types::{CountPIM, FragmentNumber, GroupDigestPIM, ParameterId, TimePIM};
@@ -76,8 +76,17 @@ pub trait ProtocolVersionSubmessageElementPIM {
 }
 
 pub trait ProtocolVersionSubmessageElementType {
-    fn new(value: &ProtocolVersion) -> Self;
-    fn value(&self) -> &ProtocolVersion;
+    type ProtocolVersionType;
+    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType;
+    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType;
+
+    fn new(value: &Self::ProtocolVersionType) -> Self;
+    fn value(&self) -> &Self::ProtocolVersionType;
 }
 
 pub trait SequenceNumberSubmessageElementPIM {

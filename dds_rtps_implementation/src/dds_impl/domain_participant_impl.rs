@@ -16,27 +16,18 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::{
-    behavior::RTPSWriter,
-    messages::{
-        submessage_elements::{
+use rust_rtps_pim::{behavior::RTPSWriter, messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsMessageHeaderType, submessage_elements::{
             EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
             ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementType,
             SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType,
             SerializedDataSubmessageElementPIM, SerializedDataSubmessageElementType,
-        },
-        submessages::{
+        }, submessages::{
             AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
             GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
             InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
             InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
             RtpsSubmessageType,
-        },
-        types::ProtocolIdPIM,
-        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM,
-    },
-    structure::types::{Locator, ProtocolVersion, ENTITYID_UNKNOWN},
-};
+        }}, structure::{RTPSParticipant, types::{Locator, ENTITYID_UNKNOWN}}};
 
 use crate::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl, transport::TransportWrite,
@@ -75,7 +66,6 @@ impl DomainParticipantImpl {
             + NackFragSubmessagePIM
             + PadSubmessagePIM
             + RTPSMessagePIM<'a>
-            + ProtocolIdPIM
             + RtpsMessageHeaderPIM,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
@@ -122,16 +112,13 @@ impl DomainParticipantImpl {
                         let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                         let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);
                         let gap_list =  <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSetSubmessageElementType::new(10, &[]);
-                        let submessages: Vec<RtpsSubmessageType<'_, PSM>> =
-                            vec![RtpsSubmessageType::Gap(PSM::GapSubmessageType::new(
-                                true, reader_id, writer_id, gap_start, gap_list,
-                            ))];
+                        let submessages = vec![];
 
                         let message = PSM::RTPSMessageType::new(
-                            PSM::PROTOCOL_RTPS,
-                            ProtocolVersion { major: 2, minor: 4 },
-                            [0, 0],
-                            guid_prefix,
+                            // protocol,
+                            // protocol_version,
+                            // vendor_id,
+                            // guid_prefix,
                             submessages,
                         );
                         let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
