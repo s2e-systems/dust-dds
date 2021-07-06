@@ -841,7 +841,7 @@ mod tests {
             bitmap: [0; 8],
         };
         assert_eq!(sequence_number_set.base(), 2);
-        assert!(sequence_number_set.set().eq(vec![]));
+        assert!(sequence_number_set.set().eq(Vec::<i64>::new()));
 
         let sequence_number_set = SequenceNumberSet {
             base: SequenceNumber::new(2),
