@@ -1,20 +1,13 @@
-use rust_rtps_pim::{
-    messages::{
-        submessages::{
+use rust_rtps_pim::{messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, submessages::{
             AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
             HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
             InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
             NackFragSubmessagePIM, PadSubmessagePIM,
-        },
-        RTPSMessagePIM, RtpsMessageHeaderPIM,
-    },
-    structure::types::Locator,
-};
+        }}, structure::types::Locator};
 
-pub trait TransportWrite<PSM> {
-    fn write<'a>(&mut self, message: &PSM::RTPSMessageType, destination_locator: &Locator)
-    where
-        PSM: RTPSMessagePIM<'a>;
+pub trait TransportWrite<'a> {
+    type RTPSMessageType: RTPSMessage<'a>;
+    fn write(&mut self, message: &Self::RTPSMessageType, destination_locator: &Locator);
 }
 
 pub trait TransportRead<PSM> {

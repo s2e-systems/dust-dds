@@ -48,25 +48,12 @@ pub struct DomainParticipantImpl {
 }
 
 impl DomainParticipantImpl {
-    pub fn new<PSM>(
+    pub fn new<Transport>(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        mut transport: impl TransportWrite<PSM> + Send + 'static,
+        mut transport: Transport,
     ) -> Self
     where
-        for<'a> PSM: AckNackSubmessagePIM
-            + DataSubmessagePIM<'a>
-            + DataFragSubmessagePIM<'a>
-            + GapSubmessagePIM
-            + HeartbeatSubmessagePIM
-            + HeartbeatFragSubmessagePIM
-            + InfoDestinationSubmessagePIM
-            + InfoReplySubmessagePIM
-            + InfoSourceSubmessagePIM
-            + InfoTimestampSubmessagePIM
-            + NackFragSubmessagePIM
-            + PadSubmessagePIM
-            + RTPSMessagePIM<'a>
-            + RtpsMessageHeaderPIM,
+        for<'a> Transport: TransportWrite<'a> + Send + 'static,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         // let transport_impl = Arc::new(Mutex::new(transport));
@@ -108,13 +95,13 @@ impl DomainParticipantImpl {
                         //         submessages.push(gap_submessage);
                         //     }
 
-                        let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-                        let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-                        let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);
-                        let gap_list =  <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSetSubmessageElementType::new(10, &[]);
+                        // let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+                        // let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+                        // let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);
+                        // let gap_list =  <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSetSubmessageElementType::new(10, &[]);
                         let submessages = vec![];
 
-                        let message = PSM::RTPSMessageType::new(
+                        let message = Transport::RTPSMessageType::new(
                             // protocol,
                             // protocol_version,
                             // vendor_id,

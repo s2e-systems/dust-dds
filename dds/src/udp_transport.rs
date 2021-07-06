@@ -1,29 +1,47 @@
+use std::net::UdpSocket;
+
 use rust_dds_rtps_implementation::transport::{TransportLocator, TransportRead, TransportWrite};
 use rust_rtps_pim::{messages::RTPSMessagePIM, structure::types::Locator};
-use rust_rtps_udp_psm::psm::RtpsUdpPsm;
+use rust_rtps_udp_psm::{message::RTPSMessageC, psm::RtpsUdpPsm};
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
+use serde::ser::Serialize;
 
 pub struct UdpTransport {
-    serializer: RtpsMessageSerializer<Vec<u8>>,
+    socket: UdpSocket,
 }
 
 impl UdpTransport {
     pub fn new() -> Self {
         Self {
-            serializer: RtpsMessageSerializer { writer: Vec::new() },
+            socket: UdpSocket::bind("192.168.1.12:32454").unwrap(),
         }
     }
 }
 
-impl TransportWrite<RtpsUdpPsm> for UdpTransport {
-    fn write<'a>(
-        &mut self,
-        _message: &<RtpsUdpPsm as RTPSMessagePIM<'a>>::RTPSMessageType,
-        _destination_locator: &Locator,
-    ) where
-        RtpsUdpPsm: RTPSMessagePIM<'a>,
-    {
-        todo!()
+
+
+// fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
+//     let mut serializer = RtpsMessageSerializer {
+//         writer: Vec::<u8>::new(),
+//     };
+//     value.serialize(&mut serializer).unwrap();
+//     serializer.writer
+// }
+
+
+impl<'a> TransportWrite<'a> for UdpTransport {
+    type RTPSMessageType = RTPSMessageC<'a>;
+
+    fn write(&mut self, message: &Self::RTPSMessageType, destination_locator: &Locator) {
+        //let s = serde_json::ser::to_string_pretty(message).unwrap();
+        let writer = Vec::<u8>::new();
+        let mut serializer = RtpsMessageSerializer {
+                writer,
+            };
+        message.serialize(&mut serializer).unwrap();
+        let s = std::str::from_utf8(serializer.writer.as_ref()).unwrap();
+        println!("{:?}", s);
+        self.socket.send_to(serializer.writer.as_slice(), "192.168.1.1:7400").unwrap();
     }
 }
 

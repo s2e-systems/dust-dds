@@ -37,7 +37,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'a> {
     {
         let header = RTPSMessageHeader{
             protocol: b"RTPS".to_owned(),
-            version: ProtocolVersionC{major: 1, minor: 0},
+            version: ProtocolVersionC{major: 2, minor: 4},
             vendor_id: VendorId([2,3]),
             guid_prefix: GuidPrefix([3;12]),
         };
