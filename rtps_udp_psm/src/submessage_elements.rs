@@ -623,7 +623,7 @@ impl ParameterList {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<RtpsUdpPsm>
+impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType
     for ParameterList
 {
     type Parameter = Parameter;
@@ -635,6 +635,12 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElemen
 
     fn parameter(&self) -> &[Self::Parameter] {
         &self.parameter
+    }
+
+    fn empty() -> Self{
+        ParameterList {
+            parameter: Vec::new(),
+        }
     }
 }
 

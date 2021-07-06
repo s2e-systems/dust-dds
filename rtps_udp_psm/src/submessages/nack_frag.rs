@@ -45,7 +45,8 @@ impl rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm> for Na
     }
 }
 
-impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for NackFrag {
+impl rust_rtps_pim::messages::Submessage for NackFrag {
+    type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

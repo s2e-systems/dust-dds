@@ -36,7 +36,8 @@ impl rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm> for 
     }
 }
 
-impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for InfoSource {
+impl rust_rtps_pim::messages::Submessage for InfoSource {
+    type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

@@ -22,9 +22,14 @@ pub struct DataSubmesage<'a> {
     serialized_payload: SerializedData<'a>,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
+impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a>
     for DataSubmesage<'a>
 {
+    type EntityIdSubmessageElementType = EntityId;
+    type SequenceNumberSubmessageElementType = SequenceNumber;
+    type ParameterListSubmessageElementType = ParameterList;
+    type SerializedDataSubmessageElementType = SerializedData<'a>;
+
     fn new(
         endianness_flag: SubmessageFlag,
         inline_qos_flag: SubmessageFlag,
@@ -108,9 +113,11 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a, RtpsUdpPsm>
     fn serialized_payload(&'a self) -> &'a SerializedData<'a> {
         &self.serialized_payload
     }
+
 }
 
-impl<'a> Submessage<RtpsUdpPsm> for DataSubmesage<'_> {
+impl<'a> Submessage for DataSubmesage<'a> {
+    type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

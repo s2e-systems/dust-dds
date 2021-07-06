@@ -23,7 +23,8 @@ impl rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdpPsm>
     }
 }
 
-impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for InfoDestination {
+impl rust_rtps_pim::messages::Submessage for InfoDestination {
+    type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

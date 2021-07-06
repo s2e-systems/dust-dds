@@ -24,13 +24,14 @@ use rust_rtps_pim::{
             SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM,
         },
         submessages::{
-            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
-            HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
-            InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
-            NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
+            GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
+            InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
+            InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
+            RtpsSubmessageType,
         },
         types::ProtocolIdPIM,
-        RTPSMessage, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
+        RTPSMessage, RtpsMessageHeaderPIM,
     },
     structure::types::{Locator, ProtocolVersion},
 };
@@ -54,33 +55,32 @@ pub struct DomainParticipantImpl {
 }
 
 impl DomainParticipantImpl {
-    pub fn new<'a, PSM>(
+    pub fn new<PSM>(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
         mut transport: impl TransportWrite<PSM> + Send + 'static,
     ) -> Self
     where
-        PSM: rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>
-            + ProtocolIdPIM
-            + RtpsMessageHeaderPIM
-            + AckNackSubmessagePIM
-            + GapSubmessagePIM
-            + HeartbeatSubmessagePIM
-            + HeartbeatFragSubmessagePIM
-            + InfoDestinationSubmessagePIM
-            + InfoReplySubmessagePIM
-            + InfoSourceSubmessagePIM
-            + InfoTimestampSubmessagePIM
-            + NackFragSubmessagePIM
-            + PadSubmessagePIM
-            + RtpsSubmessageHeaderPIM
-            + EntityIdSubmessageElementPIM
-            + SequenceNumberSubmessageElementPIM
-            + ParameterListSubmessageElementPIM
-            + DataSubmessagePIM<'a, PSM>
-            + DataFragSubmessagePIM<'a>
-            + SerializedDataSubmessageElementPIM<'a>,
-        <PSM as rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>>::RTPSMessageType:
+        for<'a> PSM: rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>,
+        for<'a> <PSM as rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>>::RTPSMessageType:
             RTPSMessage<'a, PSM>,
+        PSM: ProtocolIdPIM,
+        PSM: RtpsMessageHeaderPIM,
+        PSM: AckNackSubmessagePIM,
+        for<'a> PSM: DataSubmessagePIM<'a>,
+        for<'a> PSM: DataFragSubmessagePIM<'a>,
+        PSM: GapSubmessagePIM,
+        PSM: HeartbeatSubmessagePIM,
+        PSM: HeartbeatFragSubmessagePIM,
+        PSM: InfoDestinationSubmessagePIM,
+        PSM: InfoReplySubmessagePIM,
+        PSM: InfoSourceSubmessagePIM,
+        PSM: InfoTimestampSubmessagePIM,
+        PSM: NackFragSubmessagePIM,
+        PSM: PadSubmessagePIM,
+        for<'a> <PSM as DataSubmessagePIM<'a>>::DataSubmessageType: DataSubmessage<'a>,
+        PSM::GapSubmessageType: GapSubmessage,
+        for<'a> <<PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::ParameterListSubmessageElementType:
+            From<()>,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         // let transport_impl = Arc::new(Mutex::new(transport));
@@ -96,7 +96,23 @@ impl DomainParticipantImpl {
                         let last_change_sequence_number = *writer.last_change_sequence_number();
                         let (writer_cache, reader_locators) =
                             writer.writer_cache_and_reader_locators();
+                        for reader_locator in reader_locators {
+                            let mut data_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
+                            // let mut gap_submessage_list: Vec<RtpsSubmessageType<'_, PSM>> = vec![];
 
+                            reader_locator.best_effort_send_unsent_data(
+                                &last_change_sequence_number,
+                                writer_cache,
+                                |data_submessage: PSM::DataSubmessageType| {
+                                    data_submessage_list
+                                        .push(RtpsSubmessageType::Data(data_submessage))
+                                },
+                                |gap_submessage: PSM::GapSubmessageType| {
+                                    // gap_submessage_list
+                                    //     .push(RtpsSubmessageType::Gap(gap_submessage))
+                                },
+                            );
+                        }
                         // send_data(
                         //     writer_cache,
                         //     reader_locators,

@@ -41,7 +41,8 @@ impl rust_rtps_pim::messages::submessages::AckNackSubmessage<RtpsUdpPsm> for Ack
     }
 }
 
-impl Submessage<RtpsUdpPsm> for AckNack {
+impl Submessage for AckNack {
+    type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

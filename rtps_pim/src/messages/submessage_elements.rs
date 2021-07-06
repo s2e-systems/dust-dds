@@ -139,10 +139,11 @@ pub trait ParameterListSubmessageElementPIM {
     type ParameterListSubmessageElementType;
 }
 
-pub trait ParameterListSubmessageElementType<PSM> {
+pub trait ParameterListSubmessageElementType {
     type Parameter;
 
     fn new(parameter: &[Self::Parameter]) -> Self;
+    fn empty() -> Self;
     fn parameter(&self) -> &[Self::Parameter];
 }
 

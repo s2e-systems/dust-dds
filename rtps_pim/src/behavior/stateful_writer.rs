@@ -49,7 +49,7 @@ mod tests {
 
     struct MockParameterList;
 
-    impl ParameterListSubmessageElementType<MockPSM> for MockParameterList {
+    impl ParameterListSubmessageElementType for MockParameterList {
         type Parameter = MockParameter;
 
         fn new(_parameter: &[Self::Parameter]) -> Self {
@@ -57,6 +57,10 @@ mod tests {
         }
 
         fn parameter(&self) -> &[Self::Parameter] {
+            todo!()
+        }
+
+        fn empty() -> Self {
             todo!()
         }
     }

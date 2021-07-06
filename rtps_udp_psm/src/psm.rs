@@ -18,7 +18,7 @@ use rust_rtps_pim::{
             NackFragSubmessagePIM, PadSubmessagePIM,
         },
         types::{CountPIM, GroupDigestPIM, ProtocolIdPIM, SubmessageKindPIM, TimePIM},
-        RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
+        RTPSMessagePIM, RtpsMessageHeaderPIM,
     },
 };
 
@@ -30,7 +30,6 @@ use crate::{
         Long, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet, SerializedData,
         Time, ULong, UShort, VendorId,
     },
-    submessage_header::SubmessageHeader,
     submessages,
 };
 
@@ -164,15 +163,11 @@ impl RtpsMessageHeaderPIM for RtpsUdpPsm {
     type RtpsMessageHeaderType = RTPSMessageHeader;
 }
 
-impl RtpsSubmessageHeaderPIM for RtpsUdpPsm {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-}
-
 impl AckNackSubmessagePIM for RtpsUdpPsm {
     type AckNackSubmessageType = submessages::ack_nack::AckNack;
 }
 
-impl<'a> DataSubmessagePIM<'a, Self> for RtpsUdpPsm {
+impl<'a> DataSubmessagePIM<'a> for RtpsUdpPsm {
     type DataSubmessageType = submessages::data::DataSubmesage<'a>;
 }
 

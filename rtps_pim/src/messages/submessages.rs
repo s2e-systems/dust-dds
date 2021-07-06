@@ -1,25 +1,12 @@
 use crate::messages::Submessage;
 
-use super::{
-    submessage_elements::{
-        CountSubmessageElementPIM, EntityIdSubmessageElementPIM,
-        FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM,
-        GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
-        ParameterListSubmessageElementPIM, ProtocolVersionSubmessageElementPIM,
-        SequenceNumberSetSubmessageElementPIM, SequenceNumberSubmessageElementPIM,
-        SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementPIM,
-        TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM,
-        VendorIdSubmessageElementPIM,
-    },
-    types::SubmessageFlag,
-    RtpsSubmessageHeaderPIM,
-};
+use super::{submessage_elements::{CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType, FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM, GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM, ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ProtocolVersionSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType, SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementType, TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM}, types::SubmessageFlag};
 
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessageType<'a, PSM>
 where
     PSM: AckNackSubmessagePIM
-        + DataSubmessagePIM<'a, PSM>
+        + DataSubmessagePIM<'a>
         + DataFragSubmessagePIM<'a>
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
@@ -29,12 +16,7 @@ where
         + InfoSourceSubmessagePIM
         + InfoTimestampSubmessagePIM
         + NackFragSubmessagePIM
-        + PadSubmessagePIM
-        + RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
-        + SequenceNumberSubmessageElementPIM
-        + ParameterListSubmessageElementPIM
-        + SerializedDataSubmessageElementPIM<'a>,
+        + PadSubmessagePIM,
 {
     AckNack(PSM::AckNackSubmessageType),
     Data(PSM::DataSubmessageType),
@@ -54,10 +36,9 @@ pub trait AckNackSubmessagePIM {
     type AckNackSubmessageType;
 }
 
-pub trait AckNackSubmessage<PSM>: Submessage<PSM>
+pub trait AckNackSubmessage<PSM>: Submessage
 where
-    PSM: RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
+    PSM: EntityIdSubmessageElementPIM
         + SequenceNumberSetSubmessageElementPIM
         + CountSubmessageElementPIM,
 {
@@ -77,57 +58,47 @@ where
     fn count(&self) -> &PSM::CountSubmessageElementType;
 }
 
-pub trait DataSubmessagePIM<'a, PSM>
-where
-    PSM: RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
-        + SequenceNumberSubmessageElementPIM
-        + ParameterListSubmessageElementPIM
-        + SerializedDataSubmessageElementPIM<'a>
-{
-    type DataSubmessageType: DataSubmessage<'a, PSM>;
+pub trait DataSubmessagePIM<'a> {
+    type DataSubmessageType: DataSubmessage<'a>;
 }
 
-pub trait DataSubmessage<'a, PSM>: Submessage<PSM>
-where
-    PSM: RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
-        + SequenceNumberSubmessageElementPIM
-        + ParameterListSubmessageElementPIM
-        + SerializedDataSubmessageElementPIM<'a>
-{
+pub trait DataSubmessage<'a>: Submessage {
+    type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
+    type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
+    type ParameterListSubmessageElementType: ParameterListSubmessageElementType;
+    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>;
+
     fn new(
         endianness_flag: SubmessageFlag,
         inline_qos_flag: SubmessageFlag,
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: PSM::EntityIdSubmessageElementType,
-        writer_id: PSM::EntityIdSubmessageElementType,
-        writer_sn: PSM::SequenceNumberSubmessageElementType,
-        inline_qos: PSM::ParameterListSubmessageElementType,
-        serialized_payload: PSM::SerializedDataSubmessageElementType,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        writer_sn: Self::SequenceNumberSubmessageElementType,
+        inline_qos: Self::ParameterListSubmessageElementType,
+        serialized_payload: Self::SerializedDataSubmessageElementType,
     ) -> Self;
     fn endianness_flag(&self) -> SubmessageFlag;
     fn inline_qos_flag(&self) -> SubmessageFlag;
     fn data_flag(&self) -> SubmessageFlag;
     fn key_flag(&self) -> SubmessageFlag;
     fn non_standard_payload_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType;
-    fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
-    fn writer_sn(&self) -> &PSM::SequenceNumberSubmessageElementType;
-    fn inline_qos(&self) -> &PSM::ParameterListSubmessageElementType;
-    fn serialized_payload(&'a self) -> &'a PSM::SerializedDataSubmessageElementType;
+    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
+    fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType;
+    fn serialized_payload(&'a self) -> &'a Self::SerializedDataSubmessageElementType;
 }
 
 pub trait DataFragSubmessagePIM<'a> {
     type DataFragSubmessageType;
 }
 
-pub trait DataFragSubmessage<'a, PSM>: Submessage<PSM>
+pub trait DataFragSubmessage<'a, PSM>: Submessage
 where
-    PSM: RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
+    PSM: EntityIdSubmessageElementPIM
         + SequenceNumberSubmessageElementPIM
         + FragmentNumberSubmessageElementPIM
         + UShortSubmessageElementPIM
@@ -169,25 +140,24 @@ pub trait GapSubmessagePIM {
     type GapSubmessageType;
 }
 
-pub trait GapSubmessage<PSM>: Submessage<PSM>
-where
-    PSM: RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
-        + SequenceNumberSubmessageElementPIM
-        + SequenceNumberSetSubmessageElementPIM,
+pub trait GapSubmessage: Submessage
 {
+    type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
+    type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
+    type SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType;
+
     fn new(
         endianness_flag: SubmessageFlag,
-        reader_id: PSM::EntityIdSubmessageElementType,
-        writer_id: PSM::EntityIdSubmessageElementType,
-        gap_start: PSM::SequenceNumberSubmessageElementType,
-        gap_list: PSM::SequenceNumberSetSubmessageElementType,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        gap_start: Self::SequenceNumberSubmessageElementType,
+        gap_list: Self::SequenceNumberSetSubmessageElementType,
     ) -> Self;
     fn endianness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &PSM::EntityIdSubmessageElementType;
-    fn writer_id(&self) -> &PSM::EntityIdSubmessageElementType;
-    fn gap_start(&self) -> &PSM::SequenceNumberSubmessageElementType;
-    fn gap_list(&self) -> &PSM::SequenceNumberSetSubmessageElementType;
+    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn gap_start(&self) -> &Self::SequenceNumberSubmessageElementType;
+    fn gap_list(&self) -> &Self::SequenceNumberSetSubmessageElementType;
     // gap_start_gsn: submessage_elements::SequenceNumber,
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
@@ -196,10 +166,9 @@ pub trait HeartbeatSubmessagePIM {
     type HeartbeatSubmessageType;
 }
 
-pub trait HeartbeatSubmessage<PSM>: Submessage<PSM>
+pub trait HeartbeatSubmessage<PSM>: Submessage
 where
-    PSM: RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
+    PSM: EntityIdSubmessageElementPIM
         + SequenceNumberSubmessageElementPIM
         + CountSubmessageElementPIM,
 {
@@ -232,10 +201,9 @@ pub trait HeartbeatFragSubmessagePIM {
     type HeartbeatFragSubmessageType;
 }
 
-pub trait HeartbeatFragSubmessage<PSM>: Submessage<PSM>
+pub trait HeartbeatFragSubmessage<PSM>: Submessage
 where
-    PSM: RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
+    PSM: EntityIdSubmessageElementPIM
         + SequenceNumberSubmessageElementPIM
         + FragmentNumberSubmessageElementPIM
         + CountSubmessageElementPIM,
@@ -260,9 +228,9 @@ pub trait InfoDestinationSubmessagePIM {
     type InfoDestinationSubmessageType;
 }
 
-pub trait InfoDestinationSubmessage<PSM>: Submessage<PSM>
+pub trait InfoDestinationSubmessage<PSM>: Submessage
 where
-    PSM: RtpsSubmessageHeaderPIM + GuidPrefixSubmessageElementPIM,
+    PSM: GuidPrefixSubmessageElementPIM,
 {
     fn new(
         endianness_flag: SubmessageFlag,
@@ -276,9 +244,9 @@ pub trait InfoReplySubmessagePIM {
     type InfoReplySubmessageType;
 }
 
-pub trait InfoReplySubmessage<PSM>: Submessage<PSM>
+pub trait InfoReplySubmessage<PSM>: Submessage
 where
-    PSM: RtpsSubmessageHeaderPIM + LocatorListSubmessageElementPIM,
+    PSM: LocatorListSubmessageElementPIM,
 {
     fn new(
         endianness_flag: SubmessageFlag,
@@ -296,10 +264,9 @@ pub trait InfoSourceSubmessagePIM {
     type InfoSourceSubmessageType;
 }
 
-pub trait InfoSourceSubmessage<PSM>: Submessage<PSM>
+pub trait InfoSourceSubmessage<PSM>: Submessage
 where
-    PSM: RtpsSubmessageHeaderPIM
-        + ProtocolVersionSubmessageElementPIM
+    PSM: ProtocolVersionSubmessageElementPIM
         + VendorIdSubmessageElementPIM
         + GuidPrefixSubmessageElementPIM,
 {
@@ -319,9 +286,9 @@ pub trait InfoTimestampSubmessagePIM {
     type InfoTimestampSubmessageType;
 }
 
-pub trait InfoTimestampSubmessage<PSM>: Submessage<PSM>
+pub trait InfoTimestampSubmessage<PSM>: Submessage
 where
-    PSM: RtpsSubmessageHeaderPIM + TimestampSubmessageElementPIM,
+    PSM: TimestampSubmessageElementPIM,
 {
     fn new(
         endianness_flag: SubmessageFlag,
@@ -337,10 +304,9 @@ pub trait NackFragSubmessagePIM {
     type NackFragSubmessageType;
 }
 
-pub trait NackFragSubmessage<PSM>: Submessage<PSM>
+pub trait NackFragSubmessage<PSM>: Submessage
 where
-    PSM: RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
+    PSM: EntityIdSubmessageElementPIM
         + SequenceNumberSubmessageElementPIM
         + FragmentNumberSetSubmessageElementPIM
         + CountSubmessageElementPIM,
@@ -365,8 +331,4 @@ pub trait PadSubmessagePIM {
     type PadSubmessageType;
 }
 
-pub trait PadSubmessage<PSM>: Submessage<PSM>
-where
-    PSM: RtpsSubmessageHeaderPIM,
-{
-}
+pub trait PadSubmessage: Submessage {}

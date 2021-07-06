@@ -27,7 +27,8 @@ impl rust_rtps_pim::messages::submessages::InfoTimestampSubmessage<RtpsUdpPsm> f
     }
 }
 
-impl rust_rtps_pim::messages::Submessage<RtpsUdpPsm> for InfoTimestamp {
+impl rust_rtps_pim::messages::Submessage for InfoTimestamp {
+    type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }

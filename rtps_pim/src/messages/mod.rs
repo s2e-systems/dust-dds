@@ -25,10 +25,6 @@ where
     fn guid_prefix(&self) -> &GuidPrefix;
 }
 
-pub trait RtpsSubmessageHeaderPIM {
-    type RtpsSubmessageHeaderType;
-}
-
 pub trait RtpsSubmessageHeaderType<PSM>
 where
     PSM: SubmessageKindPIM,
@@ -38,11 +34,10 @@ where
     fn submessage_length(&self) -> u16;
 }
 
-pub trait Submessage<PSM>
-where
-    PSM: RtpsSubmessageHeaderPIM,
+pub trait Submessage
 {
-    fn submessage_header(&self) -> PSM::RtpsSubmessageHeaderType;
+    type RtpsSubmessageHeaderType;
+    fn submessage_header(&self) -> Self::RtpsSubmessageHeaderType;
 }
 
 pub trait RTPSMessagePIM<'a, PSM> {
@@ -54,7 +49,7 @@ where
     PSM: ProtocolIdPIM
         + RtpsMessageHeaderPIM
         + AckNackSubmessagePIM
-        + DataSubmessagePIM<'a, PSM>
+        + DataSubmessagePIM<'a>
         + DataFragSubmessagePIM<'a>
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
@@ -65,11 +60,6 @@ where
         + InfoTimestampSubmessagePIM
         + NackFragSubmessagePIM
         + PadSubmessagePIM
-        + RtpsSubmessageHeaderPIM
-        + EntityIdSubmessageElementPIM
-        + SequenceNumberSubmessageElementPIM
-        + ParameterListSubmessageElementPIM
-        + SerializedDataSubmessageElementPIM<'a>,
 {
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, PSM>>>(
         protocol: PSM::ProtocolIdType,

@@ -13,7 +13,7 @@ pub struct RTPSMessageC<'a> {
     submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'a> {
+impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'_> {
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, RtpsUdpPsm>>>(
         _protocol: ProtocolId,
         _version: rust_rtps_pim::structure::types::ProtocolVersion,
@@ -29,7 +29,8 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a, RtpsUdpPsm> for RTPSMessageC<'
     }
 
     fn submessages(&self) -> &[RtpsSubmessageType<'a, RtpsUdpPsm>] {
-        &self.submessages
+        // &self.submessages
+        todo!()
     }
 }
 
