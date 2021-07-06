@@ -1,9 +1,6 @@
-use std::{
-    net::UdpSocket,
-    sync::{
-        atomic::{self, AtomicBool},
-        Arc, Mutex,
-    },
+use std::sync::{
+    atomic::{self, AtomicBool},
+    Arc, Mutex,
 };
 
 use rust_dds_api::{
@@ -19,10 +16,28 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::{behavior::RTPSWriter, structure::types::SequenceNumber};
+use rust_rtps_pim::{
+    behavior::RTPSWriter,
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElementPIM, ParameterListSubmessageElementPIM,
+            SequenceNumberSubmessageElementPIM, SerializedDataSubmessageElementPIM,
+        },
+        submessages::{
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
+            HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
+            InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
+            NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
+        },
+        types::ProtocolIdPIM,
+        RTPSMessage, RtpsMessageHeaderPIM, RtpsSubmessageHeaderPIM,
+    },
+    structure::types::{Locator, ProtocolVersion},
+};
 
 use crate::{
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, transport::TransportWrite,
+    utils::shared_object::RtpsShared,
 };
 
 use rust_rtps_pim::behavior::stateless_writer::{BestEffortBehavior, RTPSReaderLocator};
@@ -39,10 +54,34 @@ pub struct DomainParticipantImpl {
 }
 
 impl DomainParticipantImpl {
-    pub fn new<PSM>(
+    pub fn new<'a, PSM>(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        socket: UdpSocket,
-    ) -> Self {
+        mut transport: impl TransportWrite<PSM> + Send + 'static,
+    ) -> Self
+    where
+        PSM: rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>
+            + ProtocolIdPIM
+            + RtpsMessageHeaderPIM
+            + AckNackSubmessagePIM
+            + GapSubmessagePIM
+            + HeartbeatSubmessagePIM
+            + HeartbeatFragSubmessagePIM
+            + InfoDestinationSubmessagePIM
+            + InfoReplySubmessagePIM
+            + InfoSourceSubmessagePIM
+            + InfoTimestampSubmessagePIM
+            + NackFragSubmessagePIM
+            + PadSubmessagePIM
+            + RtpsSubmessageHeaderPIM
+            + EntityIdSubmessageElementPIM
+            + SequenceNumberSubmessageElementPIM
+            + ParameterListSubmessageElementPIM
+            + DataSubmessagePIM<'a, PSM>
+            + DataFragSubmessagePIM<'a>
+            + SerializedDataSubmessageElementPIM<'a>,
+        <PSM as rust_rtps_pim::messages::RTPSMessagePIM<'a, PSM>>::RTPSMessageType:
+            RTPSMessage<'a, PSM>,
+    {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         // let transport_impl = Arc::new(Mutex::new(transport));
         let rtps_participant = rtps_participant_impl.clone();
@@ -64,7 +103,16 @@ impl DomainParticipantImpl {
                         //     last_change_sequence_number,
                         //     // &mut *transport.lock().unwrap(),
                         // );
-                        socket.send_to(&[1, 2, 3, 4], "192.168.1.1:7400").ok();
+                        // socket.send_to(&[1, 2, 3, 4], "192.168.1.1:7400").ok();
+                        let message = PSM::RTPSMessageType::new(
+                            PSM::PROTOCOL_RTPS,
+                            ProtocolVersion { major: 2, minor: 4 },
+                            [0, 0],
+                            guid_prefix,
+                            std::iter::empty(),
+                        );
+                        let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
+                        transport.write(&message, &destination_locator);
                         std::thread::sleep(std::time::Duration::from_millis(500));
                     }
                 }
