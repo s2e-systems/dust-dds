@@ -16,7 +16,7 @@ pub struct HeartbeatSubmessage {
     count: Count,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm> for HeartbeatSubmessage {
+impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm<'a>> for HeartbeatSubmessage {
     fn new(
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,

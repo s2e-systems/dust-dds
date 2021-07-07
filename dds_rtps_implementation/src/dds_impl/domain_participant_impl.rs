@@ -72,8 +72,8 @@ impl DomainParticipantImpl {
                         let (writer_cache, reader_locators) =
                             writer.writer_cache_and_reader_locators();
                         for reader_locator in reader_locators {
-                            let mut data_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::PSM>> = vec![];
-                            let mut gap_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::PSM>> = vec![];
+                            let mut data_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM>> = vec![];
+                            let mut gap_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM>> = vec![];
 
                             let mut submessages = vec![];
 
@@ -84,7 +84,7 @@ impl DomainParticipantImpl {
                                     data_submessage_list
                                         .push(RtpsSubmessageType::Data(data_submessage))
                                 },
-                                |gap_submessage: <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::PSM as GapSubmessagePIM>::GapSubmessageType| {
+                                |gap_submessage: <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM as GapSubmessagePIM>::GapSubmessageType| {
                                     gap_submessage_list
                                         .push(RtpsSubmessageType::Gap(gap_submessage))
                                 },
@@ -96,7 +96,7 @@ impl DomainParticipantImpl {
                             for gap_submessage in gap_submessage_list {
                                 submessages.push(gap_submessage);
                             }
-                            let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::RtpsMessageHeaderType::new();
+                            let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new();
                             // let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                             // let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                             // let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);

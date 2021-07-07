@@ -7,7 +7,7 @@ use rust_rtps_pim::messages::{
 use crate::{
     psm::RtpsUdpPsm,
     submessage_elements::{EntityId, ParameterList, SequenceNumber, SerializedData},
-    submessage_header::SubmessageHeader
+    submessage_header::SubmessageHeader,
 };
 
 #[derive(Debug, PartialEq)]
@@ -22,9 +22,7 @@ pub struct DataSubmesage<'a> {
     serialized_payload: SerializedData<'a>,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a>
-    for DataSubmesage<'a>
-{
+impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage for DataSubmesage<'a> {
     type EntityIdSubmessageElementType = EntityId;
     type SequenceNumberSubmessageElementType = SequenceNumber;
     type ParameterListSubmessageElementType = ParameterList;
@@ -113,7 +111,6 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a>
     fn serialized_payload(&self) -> &SerializedData<'a> {
         &self.serialized_payload
     }
-
 }
 
 impl<'a> Submessage for DataSubmesage<'a> {
@@ -510,7 +507,6 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload_json() {
         let endianness_flag = true;
@@ -538,8 +534,9 @@ mod tests {
             inline_qos,
             serialized_payload,
         );
-        assert_eq!(serde_json::ser::to_string(&submessage).unwrap(),
-        r#"{"header":{"submessage_id":21,"flags":1,"submessage_length":20},"extra_flags":0,"octets_to_inline_qos":16,"reader_id":[1,2,3,4],"writer_id":[6,7,8,9],"writer_sn":{"high":0,"low":5}}"#
+        assert_eq!(
+            serde_json::ser::to_string(&submessage).unwrap(),
+            r#"{"header":{"submessage_id":21,"flags":1,"submessage_length":20},"extra_flags":0,"octets_to_inline_qos":16,"reader_id":[1,2,3,4],"writer_id":[6,7,8,9],"writer_sn":{"high":0,"low":5}}"#
         );
     }
 }

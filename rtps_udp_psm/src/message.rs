@@ -1,28 +1,32 @@
-use rust_rtps_pim::messages::{RtpsMessageHeaderType, submessages::RtpsSubmessageType};
+use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeaderType};
 use serde::ser::SerializeStruct;
 
-use crate::{message_header::{ProtocolId, RTPSMessageHeader}, psm::RtpsUdpPsm, submessage_elements::{GuidPrefix, Octet, ProtocolVersionC, VendorId}};
+use crate::{
+    message_header::{ProtocolId, RTPSMessageHeader},
+    psm::RtpsUdpPsm,
+    submessage_elements::{GuidPrefix, Octet, ProtocolVersionC, VendorId},
+};
 
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageC<'a> {
     header: RTPSMessageHeader,
-    submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
+    submessages: Vec<RtpsSubmessageType<RtpsUdpPsm<'a>>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'_> {
+impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageC<'a> {
     type RtpsMessageHeaderType = RTPSMessageHeader;
-    type PSM = RtpsUdpPsm;
+    type PSM = RtpsUdpPsm<'a>;
     type Constructed = RTPSMessageC<'a>;
 
-    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<Self::PSM>>>(
         header: Self::RtpsMessageHeaderType,
         submessages: T,
     ) -> Self::Constructed
     where
         Self::RtpsMessageHeaderType: RtpsMessageHeaderType,
         Self::PSM: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
-            + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a>
-            + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM<'a>
+            + rust_rtps_pim::messages::submessages::DataSubmessagePIM
+            + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM
             + rust_rtps_pim::messages::submessages::GapSubmessagePIM
             + rust_rtps_pim::messages::submessages::HeartbeatSubmessagePIM
             + rust_rtps_pim::messages::submessages::HeartbeatFragSubmessagePIM
@@ -35,7 +39,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'_> {
     {
         RTPSMessageC {
             header,
-            submessages: submessages.into_iter().collect()
+            submessages: submessages.into_iter().collect(),
         }
     }
 
@@ -43,7 +47,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'_> {
         self.header
     }
 
-    fn submessages(&self) -> &[RtpsSubmessageType<'a, Self::PSM>] {
+    fn submessages(&self) -> &[RtpsSubmessageType<Self::PSM>] {
         // &self.submessages
         todo!()
     }
@@ -141,7 +145,13 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for RTPSMessageC<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{submessage_elements::{EntityId, GuidPrefix, ParameterList, ProtocolVersionC, SequenceNumber, SequenceNumberSet, SerializedData, VendorId}, submessages};
+    use crate::{
+        submessage_elements::{
+            EntityId, GuidPrefix, ParameterList, ProtocolVersionC, SequenceNumber,
+            SequenceNumberSet, SerializedData, VendorId,
+        },
+        submessages,
+    };
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
         submessage_elements::SequenceNumberSubmessageElementType,
@@ -366,9 +376,9 @@ mod tests {
             header,
             submessages: vec![],
         };
-        assert_eq!(serde_json::ser::to_string(&value).unwrap(),
-        r#"{"header":{"protocol":[82,84,80,83],"version":{"major":2,"minor":3},"vendor_id":[9,8],"guid_prefix":[3,3,3,3,3,3,3,3,3,3,3,3]}}"#
+        assert_eq!(
+            serde_json::ser::to_string(&value).unwrap(),
+            r#"{"header":{"protocol":[82,84,80,83],"version":{"major":2,"minor":3},"vendor_id":[9,8],"guid_prefix":[3,3,3,3,3,3,3,3,3,3,3,3]}}"#
         );
     }
-
 }

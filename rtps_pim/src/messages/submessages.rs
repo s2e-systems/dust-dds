@@ -3,11 +3,11 @@ use crate::messages::Submessage;
 use super::{submessage_elements::{CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType, FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM, GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM, ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ProtocolVersionSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType, SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementType, TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM}, types::SubmessageFlag};
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageType<'a, PSM>
+pub enum RtpsSubmessageType<PSM>
 where
     PSM: AckNackSubmessagePIM
-        + DataSubmessagePIM<'a>
-        + DataFragSubmessagePIM<'a>
+        + DataSubmessagePIM
+        + DataFragSubmessagePIM
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
         + HeartbeatFragSubmessagePIM
@@ -58,15 +58,15 @@ where
     fn count(&self) -> &PSM::CountSubmessageElementType;
 }
 
-pub trait DataSubmessagePIM<'a> {
-    type DataSubmessageType: DataSubmessage<'a>;
+pub trait DataSubmessagePIM {
+    type DataSubmessageType: DataSubmessage;
 }
 
-pub trait DataSubmessage<'a>: Submessage {
+pub trait DataSubmessage: Submessage {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type ParameterListSubmessageElementType: ParameterListSubmessageElementType;
-    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<Value=&'a [u8]>;
+    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -92,11 +92,11 @@ pub trait DataSubmessage<'a>: Submessage {
     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
 }
 
-pub trait DataFragSubmessagePIM<'a> {
+pub trait DataFragSubmessagePIM {
     type DataFragSubmessageType;
 }
 
-pub trait DataFragSubmessage<'a, PSM>: Submessage
+pub trait DataFragSubmessage<PSM>: Submessage
 where
     PSM: EntityIdSubmessageElementPIM
         + SequenceNumberSubmessageElementPIM
@@ -104,7 +104,7 @@ where
         + UShortSubmessageElementPIM
         + ULongSubmessageElementPIM
         + ParameterListSubmessageElementPIM
-        + SerializedDataFragmentSubmessageElementPIM<'a>,
+        + SerializedDataFragmentSubmessageElementPIM,
 {
     fn new(
         endianness_flag: SubmessageFlag,

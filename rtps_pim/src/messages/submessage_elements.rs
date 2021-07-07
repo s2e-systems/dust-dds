@@ -2,9 +2,7 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-use crate::structure::types::{
-    EntityId, GuidPrefix, Locator, SequenceNumber, VendorId,
-};
+use crate::structure::types::{EntityId, GuidPrefix, Locator, SequenceNumber, VendorId};
 
 use super::types::{CountPIM, FragmentNumber, GroupDigestPIM, ParameterId, TimePIM};
 
@@ -174,22 +172,23 @@ pub trait LocatorListSubmessageElementType {
     fn value(&self) -> &[Locator];
 }
 
-pub trait SerializedDataSubmessageElementPIM<'a> {
+pub trait SerializedDataSubmessageElementPIM {
     type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType;
 }
 
 pub trait SerializedDataSubmessageElementType {
     type Value;
-    fn new(value: Self::Value) -> Self;
+    fn new<T: Into<Self::Value>>(value: T) -> Self;
     fn value(&self) -> &Self::Value;
 }
 
-pub trait SerializedDataFragmentSubmessageElementPIM<'a> {
+pub trait SerializedDataFragmentSubmessageElementPIM {
     type SerializedDataFragmentSubmessageElementType;
 }
 
-pub trait SerializedDataFragmentSubmessageElementType<'a> {
-    fn new(value: &'a [u8]) -> Self;
+pub trait SerializedDataFragmentSubmessageElementType {
+    type Value;
+    fn new<T: Into<Self::Value>>(value: T) -> Self;
     fn value(&self) -> &[u8];
 }
 

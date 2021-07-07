@@ -53,15 +53,15 @@ pub trait Submessage {
     fn submessage_header(&self) -> Self::RtpsSubmessageHeaderType;
 }
 
-pub trait RTPSMessagePIM<'a> {
-    type RTPSMessageType: RTPSMessage<'a>;
+pub trait RTPSMessagePIM {
+    type RTPSMessageType: RTPSMessage;
 }
 
-pub trait RTPSMessage<'a> {
+pub trait RTPSMessage {
     type RtpsMessageHeaderType: RtpsMessageHeaderType;
     type PSM: AckNackSubmessagePIM
-        + DataSubmessagePIM<'a>
-        + DataFragSubmessagePIM<'a>
+        + DataSubmessagePIM
+        + DataFragSubmessagePIM
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
         + HeartbeatFragSubmessagePIM
@@ -73,11 +73,11 @@ pub trait RTPSMessage<'a> {
         + PadSubmessagePIM;
     type Constructed;
 
-    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(header: Self::RtpsMessageHeaderType, submessages: T) -> Self::Constructed;
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<Self::PSM>>>(header: Self::RtpsMessageHeaderType, submessages: T) -> Self::Constructed;
 
     fn header(&self) -> Self::RtpsMessageHeaderType;
 
-    fn submessages(&self) -> &[RtpsSubmessageType<'a, Self::PSM>];
+    fn submessages(&self) -> &[RtpsSubmessageType<Self::PSM>];
 }
 
 // #[cfg(test)]

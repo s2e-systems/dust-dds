@@ -67,7 +67,7 @@ pub trait BestEffortBehavior: RTPSReaderLocator {
         HistoryCache: RTPSHistoryCache,
         HistoryCache::CacheChange: RTPSCacheChange, // + 'a,
         // <HistoryCache::CacheChange as RTPSCacheChange>::DataType: 'a,
-        Data: DataSubmessage<'a>,
+        Data: DataSubmessage,
         // <HistoryCache::CacheChange as RTPSCacheChange>::InlineQosType:
         // Clone + Into<Data::ParameterListSubmessageElementType>,
         Gap: GapSubmessage,

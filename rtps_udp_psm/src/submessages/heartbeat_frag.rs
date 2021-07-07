@@ -9,7 +9,7 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct HeartbeatFrag;
 
-impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPsm> for HeartbeatFrag {
+impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPsm<'a>> for HeartbeatFrag {
     fn new(
         _endianness_flag: SubmessageFlag,
         _reader_id: EntityId,

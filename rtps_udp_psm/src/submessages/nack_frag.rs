@@ -8,7 +8,7 @@ use rust_rtps_pim::messages::types::SubmessageFlag;
 #[derive(Debug, PartialEq)]
 pub struct NackFrag;
 
-impl<'a> rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm> for NackFrag {
+impl<'a> rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm<'a>> for NackFrag {
     fn new(
         _endianness_flag: SubmessageFlag,
         _reader_id: EntityId,

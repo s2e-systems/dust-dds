@@ -7,7 +7,7 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct InfoDestination;
 
-impl<'a> rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdpPsm>
+impl<'a> rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdpPsm<'a>>
     for InfoDestination
 {
     fn new(_endianness_flag: SubmessageFlag, _guid_prefix: GuidPrefix) -> Self {

@@ -1,7 +1,6 @@
-use serde::ser::SerializeStruct;
-use rust_rtps_pim::messages::types::SubmessageFlag;
 use crate::psm::RtpsUdpPsm;
-
+use rust_rtps_pim::messages::types::SubmessageFlag;
+use serde::ser::SerializeStruct;
 
 #[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Octet(pub(crate) u8);
@@ -38,7 +37,6 @@ impl From<u8> for Octet {
         Self(value)
     }
 }
-
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UShort(pub(crate) u16);
@@ -151,7 +149,9 @@ impl From<i64> for SequenceNumber {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType for SequenceNumber {
+impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType
+    for SequenceNumber
+{
     fn new(value: rust_rtps_pim::structure::types::SequenceNumber) -> Self {
         value.into()
     }
@@ -247,7 +247,9 @@ impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType for SequenceNumberSet {
+impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType
+    for SequenceNumberSet
+{
     type IntoIter = std::vec::IntoIter<rust_rtps_pim::structure::types::SequenceNumber>;
 
     fn new(
@@ -281,7 +283,9 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
             if (self.bitmap[delta_n / 32] & (1 << (31 - delta_n % 32)))
                 == (1 << (31 - delta_n % 32))
             {
-                let seq_num = Into::<rust_rtps_pim::structure::types::SequenceNumber>::into(self.base) + delta_n as rust_rtps_pim::structure::types::SequenceNumber;
+                let seq_num =
+                    Into::<rust_rtps_pim::structure::types::SequenceNumber>::into(self.base)
+                        + delta_n as rust_rtps_pim::structure::types::SequenceNumber;
                 set.push(seq_num);
             }
         }
@@ -302,13 +306,13 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElem
 {
     type ProtocolVersionType = ProtocolVersionC;
 
-    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType = Self{major: 1, minor: 0};
-    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType = Self{major: 1, minor: 1};
-    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType = Self{major: 2, minor: 0};
-    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType = Self{major: 2, minor: 1};
-    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType = Self{major: 2, minor: 2};
-    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType = Self{major: 2, minor: 3};
-    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType = Self{major: 2, minor: 4};
+    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType = Self { major: 1, minor: 0 };
+    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType = Self { major: 1, minor: 1 };
+    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType = Self { major: 2, minor: 0 };
+    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType = Self { major: 2, minor: 1 };
+    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType = Self { major: 2, minor: 2 };
+    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType = Self { major: 2, minor: 3 };
+    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType = Self { major: 2, minor: 4 };
     fn new(value: &Self::ProtocolVersionType) -> Self {
         todo!()
     }
@@ -332,15 +336,13 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageE
 {
     type Value = &'a [u8];
 
-    fn new(value: Self::Value) -> Self {
-        Self(value)
+    fn new<T: Into<Self::Value>>(value: T) -> Self {
+        Self(value.into())
     }
 
     fn value(&self) -> &Self::Value {
         &self.0
     }
-
-
 }
 
 impl<'a> serde::Serialize for SerializedData<'a> {
@@ -350,10 +352,12 @@ impl<'a> serde::Serialize for SerializedData<'a> {
 }
 
 impl<'a>
-    rust_rtps_pim::messages::submessage_elements::SerializedDataFragmentSubmessageElementType<'a>
+    rust_rtps_pim::messages::submessage_elements::SerializedDataFragmentSubmessageElementType
     for SerializedData<'a>
 {
-    fn new(value: &'a [u8]) -> Self {
+    type Value = &'a [u8];
+
+    fn new<T: Into<Self::Value>>(value: T) -> Self {
         Self(value.into())
     }
 
@@ -375,14 +379,13 @@ impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType
     }
 }
 
-
 #[derive(Clone, Copy)]
 pub struct Time {
     pub seconds: u32,
     pub fraction: u32,
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType<RtpsUdpPsm>
+impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType<RtpsUdpPsm<'a>>
     for Time
 {
     fn new(value: &Time) -> Self {
@@ -397,7 +400,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElemen
 #[derive(Debug, PartialEq, Clone, Copy, serde::Serialize)]
 pub struct Count(pub(crate) i32);
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType<RtpsUdpPsm>
+impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType<RtpsUdpPsm<'a>>
     for Count
 {
     fn new(value: &Count) -> Self {
@@ -650,7 +653,7 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElemen
         &self.parameter
     }
 
-    fn empty() -> Self{
+    fn empty() -> Self {
         ParameterList {
             parameter: Vec::new(),
         }
@@ -672,16 +675,11 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_rtps_pim::messages::{
-        submessage_elements::{
-            SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
-        },
+    use rust_rtps_pim::messages::submessage_elements::{
+        SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
     };
     use rust_serde_cdr::{
         deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
@@ -820,15 +818,32 @@ mod tests {
         let expected = SequenceNumberSet {
             base: SequenceNumber::new(2),
             num_bits: ULong(1),
-            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0],
+            bitmap: [
+                0b_10000000_00000000_00000000_00000000_u32 as i32,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
         };
         assert_eq!(SequenceNumberSet::new(2, &[2]), expected);
-
 
         let expected = SequenceNumberSet {
             base: SequenceNumber::new(2),
             num_bits: ULong(256),
-            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0b_00000000_00000000_00000000_00000001],
+            bitmap: [
+                0b_10000000_00000000_00000000_00000000_u32 as i32,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0b_00000000_00000000_00000000_00000001,
+            ],
         };
         assert_eq!(SequenceNumberSet::new(2, &[2, 257]), expected);
     }
@@ -846,7 +861,16 @@ mod tests {
         let sequence_number_set = SequenceNumberSet {
             base: SequenceNumber::new(2),
             num_bits: ULong(100),
-            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0],
+            bitmap: [
+                0b_10000000_00000000_00000000_00000000_u32 as i32,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
         };
         assert_eq!(sequence_number_set.base(), 2);
         assert!(sequence_number_set.set().eq(vec![2]));
@@ -854,12 +878,20 @@ mod tests {
         let sequence_number_set = SequenceNumberSet {
             base: SequenceNumber::new(2),
             num_bits: ULong(256),
-            bitmap: [0b_10000000_00000000_00000000_00000000_u32 as i32, 0, 0, 0, 0, 0, 0, 0b_00000000_00000000_00000000_00000001],
+            bitmap: [
+                0b_10000000_00000000_00000000_00000000_u32 as i32,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0b_00000000_00000000_00000000_00000001,
+            ],
         };
         assert_eq!(sequence_number_set.base(), 2);
         assert!(sequence_number_set.set().eq(vec![2, 257]));
     }
-
 
     #[test]
     fn serialize_sequence_number_max_gap() {
