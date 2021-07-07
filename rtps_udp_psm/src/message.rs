@@ -17,10 +17,6 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'_> {
 
     fn new(
         header: Self::RtpsMessageHeaderType,
-        // protocol: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolIdType,
-        // version: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolVersionType,
-        // vendor_id: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::VendorIdType,
-        // guid_prefix: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::GuidPrefixType,
         submessages: Self::SubmessageVectorType,
     ) -> Self::Constructed
     where
@@ -38,17 +34,10 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'_> {
             + rust_rtps_pim::messages::submessages::NackFragSubmessagePIM
             + rust_rtps_pim::messages::submessages::PadSubmessagePIM,
     {
-        // let header = RTPSMessageHeader{
-        //     protocol: b"RTPS".to_owned(),
-        //     version: ProtocolVersionC{major: 2, minor: 4},
-        //     vendor_id: VendorId([2,3]),
-        //     guid_prefix: GuidPrefix([3;12]),
-        // };
-        // Self {
-        //     header,
-        //     submessages: submessages.into_iter().collect()
-        // }
-        todo!()
+        RTPSMessageC {
+            header,
+            submessages: submessages.into_iter().collect()
+        }
     }
 
     fn header(&self) -> RTPSMessageHeader {

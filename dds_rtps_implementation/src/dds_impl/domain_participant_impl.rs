@@ -72,57 +72,47 @@ impl DomainParticipantImpl {
                         let (writer_cache, reader_locators) =
                             writer.writer_cache_and_reader_locators();
                         for reader_locator in reader_locators {
-                            // let mut data_submessage_list = vec![];
-                            // let mut gap_submessage_list = vec![];
+                            let mut data_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::PSM>> = vec![];
+                            let mut gap_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::PSM>> = vec![];
 
-                            // let mut submessages = vec![];
+                            let mut submessages = vec![];
 
                             reader_locator.best_effort_send_unsent_data(
                                 &last_change_sequence_number,
                                 writer_cache,
-                                |data_submessage: <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::PSM as DataSubmessagePIM<'_>>::DataSubmessageType| {
-                                    // data_submessage_list
-                                    //     .push(RtpsSubmessageType::Data(data_submessage))
+                                |data_submessage| {
+                                    data_submessage_list
+                                        .push(RtpsSubmessageType::Data(data_submessage))
                                 },
                                 |gap_submessage: <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::PSM as GapSubmessagePIM>::GapSubmessageType| {
-                                    // gap_submessage_list
-                                    //     .push(RtpsSubmessageType::Gap(gap_submessage))
+                                    gap_submessage_list
+                                        .push(RtpsSubmessageType::Gap(gap_submessage))
                                 },
                             );
 
-                            // for data_submessage in data_submessage_list {
-                            //     submessages.push(data_submessage)
-                            // }
-                            // for gap_submessage in gap_submessage_list {
-                            //     submessages.push(gap_submessage);
-                            // }
+                            for data_submessage in data_submessage_list {
+                                submessages.push(data_submessage)
                             }
-                        let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::RtpsMessageHeaderType::new();
-                        // let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-                        // let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-                        // let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);
-                        // let gap_list =  <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSetSubmessageElementType::new(10, &[]);
-                        // let submessages = vec![];
+                            for gap_submessage in gap_submessage_list {
+                                submessages.push(gap_submessage);
+                            }
+                            let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::RtpsMessageHeaderType::new();
+                            // let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+                            // let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+                            // let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);
+                            // let gap_list =  <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSetSubmessageElementType::new(10, &[]);
+                            // let submessages = vec![];
 
-                        // let message = Transport::RTPSMessageType::new(
-                        //     // protocol,
-                        //     // protocol_version,
-                        //     // vendor_id,
-                        //     // guid_prefix,
-                        //     submessages,
-                        // );
-                        // let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
-                        // transport.write(&message, &destination_locator);
+                            // let message = Transport::RTPSMessageType::new(
+                            //     header,
+                            //     submessages,
+                            // );
+                            // let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
+                            // transport.write(&message, &destination_locator);
+                        }
+
+
                         std::thread::sleep(std::time::Duration::from_millis(500));
-
-                        // }
-                        // send_data(
-                        //     writer_cache,
-                        //     reader_locators,
-                        //     last_change_sequence_number,
-                        //     // &mut *transport.lock().unwrap(),
-                        // );
-                        // socket.send_to(&[1, 2, 3, 4], "192.168.1.1:7400").ok();
                     }
                 }
 
