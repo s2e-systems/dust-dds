@@ -175,10 +175,10 @@ pub trait LocatorListSubmessageElementType {
 }
 
 pub trait SerializedDataSubmessageElementPIM<'a> {
-    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>;
+    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType;
 }
 
-pub trait SerializedDataSubmessageElementType<'a> {
+pub trait SerializedDataSubmessageElementType {
     type Value;
     fn new(value: Self::Value) -> Self;
     fn value(&self) -> &Self::Value;

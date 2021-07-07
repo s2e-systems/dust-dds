@@ -71,7 +71,7 @@ pub trait BestEffortBehavior: RTPSReaderLocator {
         // <HistoryCache::CacheChange as RTPSCacheChange>::InlineQosType:
         // Clone + Into<Data::ParameterListSubmessageElementType>,
         Gap: GapSubmessage,
-        Data::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a, Value= &'a [u8]>,
+        Data::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<Value= &'a [u8]>,
         Data::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
         Data::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
         Data::ParameterListSubmessageElementType: ParameterListSubmessageElementType

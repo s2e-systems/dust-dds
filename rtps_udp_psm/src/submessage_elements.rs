@@ -327,7 +327,7 @@ impl<'a> SerializedData<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElementType<'_>
+impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElementType
     for SerializedData<'a>
 {
     type Value = &'a [u8];
