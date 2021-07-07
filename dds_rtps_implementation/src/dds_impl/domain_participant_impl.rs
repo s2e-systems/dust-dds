@@ -103,12 +103,12 @@ impl DomainParticipantImpl {
                             // let gap_list =  <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSetSubmessageElementType::new(10, &[]);
                             // let submessages = vec![];
 
-                            // let message = Transport::RTPSMessageType::new(
-                            //     header,
-                            //     submessages,
-                            // );
-                            // let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
-                            // transport.write(&message, &destination_locator);
+                            let message = Transport::RTPSMessageType::new(
+                                header,
+                                submessages,
+                            );
+                            let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
+                            transport.write(&message, &destination_locator);
                         }
 
 
