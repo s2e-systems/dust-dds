@@ -1,4 +1,4 @@
-use std::net::UdpSocket;
+use std::{marker::PhantomData, net::UdpSocket};
 
 use rust_dds_rtps_implementation::transport::{TransportLocator, TransportRead, TransportWrite};
 use rust_rtps_pim::{messages::RTPSMessagePIM, structure::types::Locator};
@@ -6,14 +6,16 @@ use rust_rtps_udp_psm::{message::RTPSMessageC, psm::RtpsUdpPsm};
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
 use serde::ser::Serialize;
 
-pub struct UdpTransport {
+pub struct UdpTransport<'a> {
     socket: UdpSocket,
+    phantom: std::marker::PhantomData<&'a()>
 }
 
-impl UdpTransport {
+impl<'a> UdpTransport<'a> {
     pub fn new() -> Self {
         Self {
             socket: UdpSocket::bind("192.168.1.12:32454").unwrap(),
+            phantom: PhantomData
         }
     }
 }
@@ -29,7 +31,7 @@ impl UdpTransport {
 // }
 
 
-impl<'a> TransportWrite<'a> for UdpTransport {
+impl<'a> TransportWrite for UdpTransport<'a> {
     type RTPSMessageType = RTPSMessageC<'a>;
 
     fn write(&mut self, message: &Self::RTPSMessageType, destination_locator: &Locator) {
@@ -46,16 +48,16 @@ impl<'a> TransportWrite<'a> for UdpTransport {
     }
 }
 
-impl TransportRead<RtpsUdpPsm> for UdpTransport {
-    fn read<'a>(&self) -> Option<(<RtpsUdpPsm as RTPSMessagePIM<'a>>::RTPSMessageType, Locator)>
+impl<'a> TransportRead<RtpsUdpPsm> for UdpTransport<'a> {
+    fn read<'b>(&self) -> Option<(<RtpsUdpPsm as RTPSMessagePIM<'b>>::RTPSMessageType, Locator)>
     where
-        RtpsUdpPsm: RTPSMessagePIM<'a>,
+        RtpsUdpPsm: RTPSMessagePIM<'b>,
     {
         todo!()
     }
 }
 
-impl TransportLocator for UdpTransport {
+impl<'a> TransportLocator for UdpTransport<'a> {
     fn unicast_locator_list(&self) -> &[Locator] {
         todo!()
     }

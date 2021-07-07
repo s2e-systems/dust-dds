@@ -72,6 +72,9 @@ pub trait BestEffortBehavior: RTPSReaderLocator {
         // Clone + Into<Data::ParameterListSubmessageElementType>,
         Gap: GapSubmessage,
         Data::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a, Value= &'a [u8]>,
+        Data::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
+        Data::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
+        Data::ParameterListSubmessageElementType: ParameterListSubmessageElementType
     {
         while let Some(seq_num) = self.next_unsent_change(&last_change_sequence_number) {
             if let Some(change) = writer_cache.get_change(&seq_num) {

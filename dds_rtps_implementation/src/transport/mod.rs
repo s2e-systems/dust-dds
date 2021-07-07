@@ -5,8 +5,8 @@ use rust_rtps_pim::{messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM
             NackFragSubmessagePIM, PadSubmessagePIM,
         }}, structure::types::Locator};
 
-pub trait TransportWrite<'a> {
-    type RTPSMessageType: RTPSMessage<'a>;
+pub trait TransportWrite {
+    type RTPSMessageType: for<'a> RTPSMessage<'a>;
     fn write(&mut self, message: &Self::RTPSMessageType, destination_locator: &Locator);
 }
 

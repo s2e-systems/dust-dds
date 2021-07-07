@@ -37,6 +37,15 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeader {
         todo!()
     }
 
+    fn new(
+        // protocol: Self::ProtocolIdType,
+        // version: Self::ProtocolVersionType,
+        // vendor_id: Self::VendorIdType,
+        // guid_prefix: Self::GuidPrefixType,
+    ) -> Self {
+        todo!()
+    }
+
 }
 
 

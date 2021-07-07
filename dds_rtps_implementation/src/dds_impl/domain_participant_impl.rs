@@ -16,12 +16,7 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::{behavior::RTPSWriter, messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsMessageHeaderType, submessage_elements::{
-            EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
-            ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementType,
-            SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType,
-            SerializedDataSubmessageElementPIM, SerializedDataSubmessageElementType,
-        }, submessages::{
+use rust_rtps_pim::{behavior::RTPSWriter, messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsMessageHeaderType, submessage_elements::{EntityIdSubmessageElementPIM, EntityIdSubmessageElementType, ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType, SerializedDataSubmessageElementPIM, SerializedDataSubmessageElementType}, submessages::{
             AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
             GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
             InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
@@ -43,7 +38,7 @@ use super::{
 
 pub struct DomainParticipantImpl {
     writer_group_factory: Mutex<WriterGroupFactory>,
-    rtps_participant_impl: RtpsShared<RTPSParticipantImpl>,
+    // rtps_participant_impl: RtpsShared<RTPSParticipantImpl>,
     is_enabled: Arc<AtomicBool>,
 }
 
@@ -53,7 +48,14 @@ impl DomainParticipantImpl {
         mut transport: Transport,
     ) -> Self
     where
-        for<'a> Transport: TransportWrite<'a> + Send + 'static,
+        Transport: TransportWrite + Send + 'static,
+        // for<'a> <Transport as  TransportWrite>::RTPSMessageType: RTPSMessage<'a>,
+        // for<'a> <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::RtpsMessageHeaderType: RtpsMessageHeaderType,
+        // for<'a> <<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::SerializedDataSubmessageElementType : SerializedDataSubmessageElementType<'a, Value=&'a[u8]>,
+        // for<'a> <<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
+        // for<'a> <<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
+        // for<'a> <<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::ParameterListSubmessageElementType: ParameterListSubmessageElementType,
+        // for<'a> <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as GapSubmessagePIM>::GapSubmessageType: GapSubmessage,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         // let transport_impl = Arc::new(Mutex::new(transport));
@@ -64,52 +66,53 @@ impl DomainParticipantImpl {
             loop {
                 if is_enabled_thread.load(atomic::Ordering::Relaxed) {
                     if let Some(rtps_participant) = rtps_participant.try_lock() {
-                        // let writer_group = rtps_participant.writer_groups()[0].lock();
-                        // let mut writer = writer_group.writer_list()[0].lock();
-                        // let last_change_sequence_number = *writer.last_change_sequence_number();
-                        // let (writer_cache, reader_locators) =
-                        //     writer.writer_cache_and_reader_locators();
-                        // for reader_locator in reader_locators {
-                        //     let mut data_submessage_list: Vec<RtpsSubmessageType<PSM>> = vec![];
-                        //     let mut gap_submessage_list: Vec<RtpsSubmessageType<PSM>> = vec![];
+                        let writer_group = rtps_participant.writer_groups()[0].lock();
+                        let mut writer = writer_group.writer_list()[0].lock();
+                        let last_change_sequence_number = *writer.last_change_sequence_number();
+                        let (writer_cache, reader_locators) =
+                            writer.writer_cache_and_reader_locators();
+                        for reader_locator in reader_locators {
+                            // let mut data_submessage_list = vec![];
+                            // let mut gap_submessage_list = vec![];
 
-                        //     let mut submessages = vec![];
+                            // let mut submessages = vec![];
 
-                        //     reader_locator.best_effort_send_unsent_data(
-                        //         &last_change_sequence_number,
-                        //         writer_cache,
-                        //         |data_submessage: PSM::DataSubmessageType| {
-                        //             data_submessage_list
-                        //                 .push(RtpsSubmessageType::Data(data_submessage))
-                        //         },
-                        //         |gap_submessage: PSM::GapSubmessageType| {
-                        //             gap_submessage_list
-                        //                 .push(RtpsSubmessageType::Gap(gap_submessage))
-                        //         },
-                        //     );
+                            reader_locator.best_effort_send_unsent_data(
+                                &last_change_sequence_number,
+                                writer_cache,
+                                |data_submessage: <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::PSM as DataSubmessagePIM<'_>>::DataSubmessageType| {
+                                    // data_submessage_list
+                                    //     .push(RtpsSubmessageType::Data(data_submessage))
+                                },
+                                |gap_submessage: <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::PSM as GapSubmessagePIM>::GapSubmessageType| {
+                                    // gap_submessage_list
+                                    //     .push(RtpsSubmessageType::Gap(gap_submessage))
+                                },
+                            );
 
-                        //     for data_submessage in data_submessage_list {
-                        //         submessages.push(data_submessage)
-                        //     }
-                        //     for gap_submessage in gap_submessage_list {
-                        //         submessages.push(gap_submessage);
-                        //     }
-
+                            // for data_submessage in data_submessage_list {
+                            //     submessages.push(data_submessage)
+                            // }
+                            // for gap_submessage in gap_submessage_list {
+                            //     submessages.push(gap_submessage);
+                            // }
+                            }
+                        let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'_>>::RtpsMessageHeaderType::new();
                         // let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                         // let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                         // let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);
                         // let gap_list =  <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSetSubmessageElementType::new(10, &[]);
-                        let submessages = vec![];
+                        // let submessages = vec![];
 
-                        let message = Transport::RTPSMessageType::new(
-                            // protocol,
-                            // protocol_version,
-                            // vendor_id,
-                            // guid_prefix,
-                            submessages,
-                        );
-                        let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
-                        transport.write(&message, &destination_locator);
+                        // let message = Transport::RTPSMessageType::new(
+                        //     // protocol,
+                        //     // protocol_version,
+                        //     // vendor_id,
+                        //     // guid_prefix,
+                        //     submessages,
+                        // );
+                        // let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
+                        // transport.write(&message, &destination_locator);
                         std::thread::sleep(std::time::Duration::from_millis(500));
 
                         // }
@@ -133,7 +136,7 @@ impl DomainParticipantImpl {
 
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
-            rtps_participant_impl,
+            // rtps_participant_impl,
             is_enabled,
         }
     }
@@ -158,22 +161,23 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
             .create_writer_group(qos, a_listener, mask)
             .ok()?;
         let writer_group_shared = RtpsShared::new(writer_group);
-        self.rtps_participant_impl
-            .lock()
-            .add_writer_group(writer_group_shared.clone());
+        // self.rtps_participant_impl
+        //     .lock()
+        //     .add_writer_group(writer_group_shared.clone());
         Some(PublisherImpl::new(self, &writer_group_shared))
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        if std::ptr::eq(a_publisher.get_participant(), self) {
-            self.rtps_participant_impl
-                .lock()
-                .delete_writer_group(a_publisher.get_instance_handle()?)
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
-            ))
-        }
+        // if std::ptr::eq(a_publisher.get_participant(), self) {
+        //     self.rtps_participant_impl
+        //         .lock()
+        //         .delete_writer_group(a_publisher.get_instance_handle()?)
+        // } else {
+        //     Err(DDSError::PreconditionNotMet(
+        //         "Publisher can only be deleted from its parent participant",
+        //     ))
+        // }
+        todo!()
     }
 }
 

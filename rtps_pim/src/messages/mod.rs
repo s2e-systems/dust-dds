@@ -26,6 +26,13 @@ pub trait RtpsMessageHeaderType {
 
     const PROTOCOL_RTPS: Self::ProtocolIdType;
 
+    fn new(
+        // protocol: Self::ProtocolIdType,
+        // version: Self::ProtocolVersionType,
+        // vendor_id: Self::VendorIdType,
+        // guid_prefix: Self::GuidPrefixType,
+    ) -> Self;
+
     fn protocol(&self) -> &Self::ProtocolIdType;
     fn version(&self) -> &Self::ProtocolVersionType;
     fn vendor_id(&self) -> &Self::VendorIdType;
@@ -52,43 +59,227 @@ pub trait RTPSMessagePIM<'a> {
 
 pub trait RTPSMessage<'a> {
     type RtpsMessageHeaderType: RtpsMessageHeaderType;
-    type PSM:
-            AckNackSubmessagePIM
-            + DataSubmessagePIM<'a>
-            + DataFragSubmessagePIM<'a>
-            + GapSubmessagePIM
-            + HeartbeatSubmessagePIM
-            + HeartbeatFragSubmessagePIM
-            + InfoDestinationSubmessagePIM
-            + InfoReplySubmessagePIM
-            + InfoSourceSubmessagePIM
-            + InfoTimestampSubmessagePIM
-            + NackFragSubmessagePIM
-            + PadSubmessagePIM;
+    type PSM: AckNackSubmessagePIM
+        + DataSubmessagePIM<'a>
+        + DataFragSubmessagePIM<'a>
+        + GapSubmessagePIM
+        + HeartbeatSubmessagePIM
+        + HeartbeatFragSubmessagePIM
+        + InfoDestinationSubmessagePIM
+        + InfoReplySubmessagePIM
+        + InfoSourceSubmessagePIM
+        + InfoTimestampSubmessagePIM
+        + NackFragSubmessagePIM
+        + PadSubmessagePIM;
+    type SubmessageVectorType: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>;
+    type Constructed;
 
-    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
-        // protocol: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolIdType,
-        // version: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolVersionType,
-        // vendor_id: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::VendorIdType,
-        // guid_prefix: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::GuidPrefixType,
-        submessages: T,
-    ) -> Self;
-
+    fn new(header: Self::RtpsMessageHeaderType, submessages: Self::SubmessageVectorType) -> Self::Constructed;
 
     fn header(&self) -> Self::RtpsMessageHeaderType;
 
-    fn submessages<PSM>(&self) -> &[RtpsSubmessageType<'a, PSM>]
-    where
-        PSM: AckNackSubmessagePIM
-            + DataSubmessagePIM<'a>
-            + DataFragSubmessagePIM<'a>
-            + GapSubmessagePIM
-            + HeartbeatSubmessagePIM
-            + HeartbeatFragSubmessagePIM
-            + InfoDestinationSubmessagePIM
-            + InfoReplySubmessagePIM
-            + InfoSourceSubmessagePIM
-            + InfoTimestampSubmessagePIM
-            + NackFragSubmessagePIM
-            + PadSubmessagePIM;
+    fn submessages(&self) -> &[RtpsSubmessageType<'a, Self::PSM>];
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::submessages::DataSubmessage;
+//     use super::*;
+
+//     struct MockEntityIdSubmessageElement;
+
+//     struct MockSequenceNumberSubmessageElement;
+//     struct MockParameterListSubmessageElement;
+//     struct MockSerializedDataSubmessageElement;
+//     struct MockDataSubmessage;
+
+//     impl Submessage for MockDataSubmessage {
+//         type RtpsSubmessageHeaderType = ();
+//         fn submessage_header(&self) -> Self::RtpsSubmessageHeaderType {
+//             todo!()
+//         }
+//     }
+//     impl<'a> DataSubmessage<'a> for MockDataSubmessage {
+//         type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
+//         type SequenceNumberSubmessageElementType = MockSequenceNumberSubmessageElement;
+//         type ParameterListSubmessageElementType = MockParameterListSubmessageElement;
+//         type SerializedDataSubmessageElementType = MockSerializedDataSubmessageElement;
+
+//         fn new(
+//             _endianness_flag: SubmessageFlag,
+//             _inline_qos_flag: SubmessageFlag,
+//             _data_flag: SubmessageFlag,
+//             _key_flag: SubmessageFlag,
+//             _non_standard_payload_flag: SubmessageFlag,
+//             _reader_id: Self::EntityIdSubmessageElementType,
+//             _writer_id: Self::EntityIdSubmessageElementType,
+//             _writer_sn: Self::SequenceNumberSubmessageElementType,
+//             _inline_qos: Self::ParameterListSubmessageElementType,
+//             _serialized_payload: Self::SerializedDataSubmessageElementType,
+//         ) -> Self {
+//             todo!()
+//         }
+
+//         fn endianness_flag(&self) -> SubmessageFlag {
+//             todo!()
+//         }
+
+//         fn inline_qos_flag(&self) -> SubmessageFlag {
+//             todo!()
+//         }
+
+//         fn data_flag(&self) -> SubmessageFlag {
+//             todo!()
+//         }
+
+//         fn key_flag(&self) -> SubmessageFlag {
+//             todo!()
+//         }
+
+//         fn non_standard_payload_flag(&self) -> SubmessageFlag {
+//             todo!()
+//         }
+
+//         fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
+//             todo!()
+//         }
+
+//         fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
+//             todo!()
+//         }
+
+//         fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
+//             todo!()
+//         }
+
+//         fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
+//             todo!()
+//         }
+
+//         fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
+//             todo!()
+//         }
+//     }
+
+//     struct MockPSM;
+//     impl AckNackSubmessagePIM for MockPSM {
+//         type AckNackSubmessageType = ();
+//     }
+//     impl<'a> DataSubmessagePIM<'a> for MockPSM {
+//         type DataSubmessageType = MockDataSubmessage;
+//     }
+//     impl<'a> DataFragSubmessagePIM<'a> for MockPSM {
+//         type DataFragSubmessageType = ();
+//     }
+//     impl GapSubmessagePIM for MockPSM {
+//         type GapSubmessageType = ();
+//     }
+//     impl HeartbeatSubmessagePIM for MockPSM {
+//         type HeartbeatSubmessageType = ();
+//     }
+//     impl HeartbeatFragSubmessagePIM for MockPSM {
+//         type HeartbeatFragSubmessageType = ();
+//     }
+//     impl InfoDestinationSubmessagePIM for MockPSM {
+//         type InfoDestinationSubmessageType = ();
+//     }
+//     impl InfoReplySubmessagePIM for MockPSM {
+//         type InfoReplySubmessageType = ();
+//     }
+//     impl InfoSourceSubmessagePIM for MockPSM {
+//         type InfoSourceSubmessageType = ();
+//     }
+//     impl InfoTimestampSubmessagePIM for MockPSM {
+//         type InfoTimestampSubmessageType = ();
+//     }
+//     impl NackFragSubmessagePIM for MockPSM {
+//         type NackFragSubmessageType = ();
+//     }
+//     impl PadSubmessagePIM for MockPSM {
+//         type PadSubmessageType = ();
+//     }
+
+//     struct MockRTPSMessage<'a> {
+//         header: MockRtpsMessageHeader,
+//         submessages: Option<RtpsSubmessageType<'a, MockPSM>>,
+//     }
+//     impl<'a> RTPSMessage<'a> for MockRTPSMessage<'a> {
+//         type RtpsMessageHeaderType = MockRtpsMessageHeader;
+//         type PSM = MockPSM;
+//         type SubmessageVectorType = Option<RtpsSubmessageType<'a, Self::PSM>>;
+
+//         fn new(
+//             header: Self::RtpsMessageHeaderType,
+//             // protocol: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolIdType,
+//             // version: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolVersionType,
+//             // vendor_id: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::VendorIdType,
+//             // guid_prefix: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::GuidPrefixType,
+//             submessages: Self::SubmessageVectorType,
+//         ) -> Self {
+//             Self {
+//                 header,
+//                 submessages,
+//             }
+//         }
+
+//         fn header(&self) -> Self::RtpsMessageHeaderType {
+//             todo!()
+//         }
+
+//         fn submessages(&self) -> &[RtpsSubmessageType<'a, Self::PSM>] {
+//             todo!()
+//         }
+//     }
+
+//     #[test]
+//     fn constructor() {
+//         let header = MockRtpsMessageHeader::new();
+//         let submessages = None;
+//         let message = MockRTPSMessage::new(header, submessages);
+//     }
+
+//     struct MockRtpsMessageHeader{
+//         protocol: (),
+//         version: (),
+//         vendor_id: (),
+//         guid_prefix: (),
+//     }
+//     impl RtpsMessageHeaderType for MockRtpsMessageHeader {
+//         type ProtocolIdType = ();
+//         type ProtocolVersionType = ();
+//         type VendorIdType = ();
+//         type GuidPrefixType = ();
+
+//         const PROTOCOL_RTPS: Self::ProtocolIdType = ();
+
+//         fn new(
+//         // protocol: Self::ProtocolIdType,
+//         // version: Self::ProtocolVersionType,
+//         // vendor_id: Self::VendorIdType,
+//         // guid_prefix: Self::GuidPrefixType,
+//     ) -> Self {
+//         Self {
+//             protocol: (),
+//             version: (),
+//             vendor_id: (),
+//             guid_prefix: (),
+//         }
+//     }
+
+//         fn protocol(&self) -> &Self::ProtocolIdType {
+//         todo!()
+//     }
+
+//         fn version(&self) -> &Self::ProtocolVersionType {
+//         todo!()
+//     }
+
+//         fn vendor_id(&self) -> &Self::VendorIdType {
+//         todo!()
+//     }
+
+//         fn guid_prefix(&self) -> &Self::GuidPrefixType {
+//         todo!()
+//     }
+//     }
+// }

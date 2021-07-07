@@ -9,17 +9,20 @@ pub struct RTPSMessageC<'a> {
     submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'a> {
+impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'_> {
     type RtpsMessageHeaderType = RTPSMessageHeader;
     type PSM = RtpsUdpPsm;
+    type SubmessageVectorType = Vec<RtpsSubmessageType<'a, Self::PSM>>;
+    type Constructed = RTPSMessageC<'a>;
 
-    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
+    fn new(
+        header: Self::RtpsMessageHeaderType,
         // protocol: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolIdType,
         // version: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::ProtocolVersionType,
         // vendor_id: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::VendorIdType,
         // guid_prefix: <Self::RtpsMessageHeaderType as RtpsMessageHeaderType>::GuidPrefixType,
-        submessages: T,
-    ) -> Self
+        submessages: Self::SubmessageVectorType,
+    ) -> Self::Constructed
     where
         Self::RtpsMessageHeaderType: RtpsMessageHeaderType,
         Self::PSM: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
@@ -35,37 +38,24 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'a> {
             + rust_rtps_pim::messages::submessages::NackFragSubmessagePIM
             + rust_rtps_pim::messages::submessages::PadSubmessagePIM,
     {
-        let header = RTPSMessageHeader{
-            protocol: b"RTPS".to_owned(),
-            version: ProtocolVersionC{major: 2, minor: 4},
-            vendor_id: VendorId([2,3]),
-            guid_prefix: GuidPrefix([3;12]),
-        };
-        Self {
-            header,
-            submessages: submessages.into_iter().collect()
-        }
+        // let header = RTPSMessageHeader{
+        //     protocol: b"RTPS".to_owned(),
+        //     version: ProtocolVersionC{major: 2, minor: 4},
+        //     vendor_id: VendorId([2,3]),
+        //     guid_prefix: GuidPrefix([3;12]),
+        // };
+        // Self {
+        //     header,
+        //     submessages: submessages.into_iter().collect()
+        // }
+        todo!()
     }
 
     fn header(&self) -> RTPSMessageHeader {
         self.header
     }
 
-    fn submessages<PSM>(&self) -> &[RtpsSubmessageType<'a, PSM>]
-    where
-        PSM: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
-            + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a>
-            + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM<'a>
-            + rust_rtps_pim::messages::submessages::GapSubmessagePIM
-            + rust_rtps_pim::messages::submessages::HeartbeatSubmessagePIM
-            + rust_rtps_pim::messages::submessages::HeartbeatFragSubmessagePIM
-            + rust_rtps_pim::messages::submessages::InfoDestinationSubmessagePIM
-            + rust_rtps_pim::messages::submessages::InfoReplySubmessagePIM
-            + rust_rtps_pim::messages::submessages::InfoSourceSubmessagePIM
-            + rust_rtps_pim::messages::submessages::InfoTimestampSubmessagePIM
-            + rust_rtps_pim::messages::submessages::NackFragSubmessagePIM
-            + rust_rtps_pim::messages::submessages::PadSubmessagePIM,
-    {
+    fn submessages(&self) -> &[RtpsSubmessageType<'a, Self::PSM>] {
         // &self.submessages
         todo!()
     }
