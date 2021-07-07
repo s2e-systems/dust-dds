@@ -34,7 +34,7 @@ impl<'a> UdpTransport<'a> {
 impl<'a> TransportWrite for UdpTransport<'a> {
     type RTPSMessageType = RTPSMessageC<'a>;
 
-    fn write(&mut self, message: &Self::RTPSMessageType, destination_locator: &Locator) {
+    fn write<'b>(&mut self, message: &RTPSMessageC<'b>, destination_locator: &Locator) {
         let json_vec = serde_json::ser::to_string(message).unwrap();
         let json_string = std::str::from_utf8(json_vec.as_ref()).unwrap();
         println!("{:?}", json_string);

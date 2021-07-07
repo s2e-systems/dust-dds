@@ -7,7 +7,7 @@ use rust_rtps_pim::{messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM
 
 pub trait TransportWrite {
     type RTPSMessageType: for<'a> RTPSMessage<'a>;
-    fn write(&mut self, message: &Self::RTPSMessageType, destination_locator: &Locator);
+    fn write<'a>(&mut self, message: &<Self::RTPSMessageType as RTPSMessage<'a>>::Constructed, destination_locator: &Locator);
 }
 
 pub trait TransportRead<PSM> {
