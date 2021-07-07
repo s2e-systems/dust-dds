@@ -57,10 +57,10 @@ pub trait RTPSStatelessWriter {
 }
 
 pub trait BestEffortBehavior: RTPSReaderLocator {
-    fn best_effort_send_unsent_data<'a, HistoryCache, Data, Gap>(
+    fn best_effort_send_unsent_data<'a, 'b: 'a, HistoryCache, Data, Gap>(
         &mut self,
         last_change_sequence_number: &SequenceNumber,
-        writer_cache: &'a HistoryCache,
+        writer_cache: &'b HistoryCache,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
@@ -71,10 +71,11 @@ pub trait BestEffortBehavior: RTPSReaderLocator {
         // <HistoryCache::CacheChange as RTPSCacheChange>::InlineQosType:
         // Clone + Into<Data::ParameterListSubmessageElementType>,
         Gap: GapSubmessage,
-        Data::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<Value= &'a [u8]>,
+        Data::SerializedDataSubmessageElementType:
+            SerializedDataSubmessageElementType<Value = &'a [u8]>,
         Data::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
         Data::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
-        Data::ParameterListSubmessageElementType: ParameterListSubmessageElementType
+        Data::ParameterListSubmessageElementType: ParameterListSubmessageElementType,
     {
         while let Some(seq_num) = self.next_unsent_change(&last_change_sequence_number) {
             if let Some(change) = writer_cache.get_change(&seq_num) {

@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, net::UdpSocket};
 
-use rust_dds_rtps_implementation::transport::{TransportLocator, TransportRead, TransportWrite};
+use rust_dds_rtps_implementation::transport::{TransportLocator, TransportWrite};
 use rust_rtps_pim::{messages::RTPSMessagePIM, structure::types::Locator};
 use rust_rtps_udp_psm::{message::RTPSMessageC, psm::RtpsUdpPsm};
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
@@ -48,14 +48,14 @@ impl<'a> TransportWrite for UdpTransport<'a> {
     }
 }
 
-impl<'a> TransportRead<RtpsUdpPsm> for UdpTransport<'a> {
-    fn read<'b>(&self) -> Option<(<RtpsUdpPsm as RTPSMessagePIM<'b>>::RTPSMessageType, Locator)>
-    where
-        RtpsUdpPsm: RTPSMessagePIM<'b>,
-    {
-        todo!()
-    }
-}
+// impl<'a> TransportRead<RtpsUdpPsm<'a>> for UdpTransport<'a> {
+//     fn read<'b>(&self) -> Option<(<RtpsUdpPsm as RTPSMessagePIM<'b>>::RTPSMessageType, Locator)>
+//     where
+//         RtpsUdpPsm: RTPSMessagePIM<'b>,
+//     {
+//         todo!()
+//     }
+// }
 
 impl<'a> TransportLocator for UdpTransport<'a> {
     fn unicast_locator_list(&self) -> &[Locator] {
