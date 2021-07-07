@@ -71,10 +71,9 @@ pub trait RTPSMessage<'a> {
         + InfoTimestampSubmessagePIM
         + NackFragSubmessagePIM
         + PadSubmessagePIM;
-    type SubmessageVectorType: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>;
     type Constructed;
 
-    fn new(header: Self::RtpsMessageHeaderType, submessages: Self::SubmessageVectorType) -> Self::Constructed;
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(header: Self::RtpsMessageHeaderType, submessages: T) -> Self::Constructed;
 
     fn header(&self) -> Self::RtpsMessageHeaderType;
 

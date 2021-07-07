@@ -12,12 +12,11 @@ pub struct RTPSMessageC<'a> {
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'_> {
     type RtpsMessageHeaderType = RTPSMessageHeader;
     type PSM = RtpsUdpPsm;
-    type SubmessageVectorType = Vec<RtpsSubmessageType<'a, Self::PSM>>;
     type Constructed = RTPSMessageC<'a>;
 
-    fn new(
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
         header: Self::RtpsMessageHeaderType,
-        submessages: Self::SubmessageVectorType,
+        submessages: T,
     ) -> Self::Constructed
     where
         Self::RtpsMessageHeaderType: RtpsMessageHeaderType,
