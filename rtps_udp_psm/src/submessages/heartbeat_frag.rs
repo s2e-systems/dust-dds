@@ -2,21 +2,21 @@ use rust_rtps_pim::messages::types::SubmessageFlag;
 
 use crate::{
     psm::RtpsUdpPsm,
-    submessage_elements::{Count, EntityId, FragmentNumber, SequenceNumber},
+    submessage_elements::{CountUdp, EntityIdUdp, FragmentNumberUdp, SequenceNumberUdp},
     submessage_header::SubmessageHeader,
 };
 
 #[derive(Debug, PartialEq)]
-pub struct HeartbeatFrag;
+pub struct HeartbeatFragUdp;
 
-impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPsm<'a>> for HeartbeatFrag {
+impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPsm<'a>> for HeartbeatFragUdp {
     fn new(
         _endianness_flag: SubmessageFlag,
-        _reader_id: EntityId,
-        _writer_id: EntityId,
-        _writer_sn: SequenceNumber,
-        _last_fragment_num: FragmentNumber,
-        _count: Count,
+        _reader_id: EntityIdUdp,
+        _writer_id: EntityIdUdp,
+        _writer_sn: SequenceNumberUdp,
+        _last_fragment_num: FragmentNumberUdp,
+        _count: CountUdp,
     ) -> Self {
         todo!()
     }
@@ -25,28 +25,28 @@ impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPs
         todo!()
     }
 
-    fn reader_id(&self) -> &EntityId {
+    fn reader_id(&self) -> &EntityIdUdp {
         todo!()
     }
 
-    fn writer_id(&self) -> &EntityId {
+    fn writer_id(&self) -> &EntityIdUdp {
         todo!()
     }
 
-    fn writer_sn(&self) -> &SequenceNumber {
+    fn writer_sn(&self) -> &SequenceNumberUdp {
         todo!()
     }
 
-    fn last_fragment_num(&self) -> &FragmentNumber {
+    fn last_fragment_num(&self) -> &FragmentNumberUdp {
         todo!()
     }
 
-    fn count(&self) -> &Count {
+    fn count(&self) -> &CountUdp {
         todo!()
     }
 }
 
-impl rust_rtps_pim::messages::Submessage for HeartbeatFrag {
+impl rust_rtps_pim::messages::Submessage for HeartbeatFragUdp {
     type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()

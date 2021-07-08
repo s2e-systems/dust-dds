@@ -39,9 +39,9 @@ impl From<u8> for Octet {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct UShort(pub(crate) u16);
+pub struct UShortUdp(pub(crate) u16);
 
-impl rust_rtps_pim::messages::submessage_elements::UShortSubmessageElementType for UShort {
+impl rust_rtps_pim::messages::submessage_elements::UShortSubmessageElementType for UShortUdp {
     fn new(value: u16) -> Self {
         Self(value)
     }
@@ -52,9 +52,9 @@ impl rust_rtps_pim::messages::submessage_elements::UShortSubmessageElementType f
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
-pub struct Long(pub(crate) i32);
+pub struct LongUdp(pub(crate) i32);
 
-impl rust_rtps_pim::messages::submessage_elements::LongSubmessageElementType for Long {
+impl rust_rtps_pim::messages::submessage_elements::LongSubmessageElementType for LongUdp {
     fn new(value: i32) -> Self {
         Self(value)
     }
@@ -64,13 +64,13 @@ impl rust_rtps_pim::messages::submessage_elements::LongSubmessageElementType for
     }
 }
 
-impl From<[u8; 4]> for Long {
+impl From<[u8; 4]> for LongUdp {
     fn from(value: [u8; 4]) -> Self {
         Self(i32::from_le_bytes(value))
     }
 }
 
-impl Into<[u8; 4]> for Long {
+impl Into<[u8; 4]> for LongUdp {
     fn into(self) -> [u8; 4] {
         self.0.to_le_bytes()
     }
@@ -79,9 +79,9 @@ impl Into<[u8; 4]> for Long {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
-pub struct ULong(pub(crate) u32);
+pub struct ULongUdp(pub(crate) u32);
 
-impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType for ULong {
+impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType for ULongUdp {
     fn new(value: u32) -> Self {
         Self(value)
     }
@@ -91,22 +91,22 @@ impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType fo
     }
 }
 
-impl From<[u8; 4]> for ULong {
+impl From<[u8; 4]> for ULongUdp {
     fn from(value: [u8; 4]) -> Self {
         Self(u32::from_le_bytes(value))
     }
 }
 
-impl Into<[u8; 4]> for ULong {
+impl Into<[u8; 4]> for ULongUdp {
     fn into(self) -> [u8; 4] {
         self.0.to_le_bytes()
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
-pub struct GuidPrefix(pub(crate) [u8; 12]);
+pub struct GuidPrefixUdp(pub(crate) [u8; 12]);
 
-impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementType for GuidPrefix {
+impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementType for GuidPrefixUdp {
     fn new(value: &rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         Self(value.clone())
     }
@@ -117,9 +117,9 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementTy
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct EntityId(pub(crate) rust_rtps_pim::structure::types::EntityId);
+pub struct EntityIdUdp(pub(crate) rust_rtps_pim::structure::types::EntityId);
 
-impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType for EntityId {
+impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType for EntityIdUdp {
     fn new(value: &rust_rtps_pim::structure::types::EntityId) -> Self {
         Self(value.clone())
     }
@@ -130,17 +130,17 @@ impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct SequenceNumber {
+pub struct SequenceNumberUdp {
     pub(crate) high: i32,
     pub(crate) low: u32,
 }
 
-impl From<SequenceNumber> for i64 {
-    fn from(value: SequenceNumber) -> Self {
+impl From<SequenceNumberUdp> for i64 {
+    fn from(value: SequenceNumberUdp) -> Self {
         ((value.high as i64) << 32) + value.low as i64
     }
 }
-impl From<i64> for SequenceNumber {
+impl From<i64> for SequenceNumberUdp {
     fn from(value: i64) -> Self {
         Self {
             high: (value >> 32) as i32,
@@ -150,7 +150,7 @@ impl From<i64> for SequenceNumber {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType
-    for SequenceNumber
+    for SequenceNumberUdp
 {
     fn new(value: rust_rtps_pim::structure::types::SequenceNumber) -> Self {
         value.into()
@@ -162,20 +162,20 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageEleme
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct SequenceNumberSet {
-    base: SequenceNumber,
-    num_bits: ULong,
+pub struct SequenceNumberSetUdp {
+    base: SequenceNumberUdp,
+    num_bits: ULongUdp,
     bitmap: [i32; 8],
 }
 
-impl SequenceNumberSet {
+impl SequenceNumberSetUdp {
     pub fn len(&self) -> u16 {
         let number_of_bitmap_elements = ((self.num_bits.0 + 31) / 32) as usize; // aka "M"
         12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */ as u16
     }
 }
 
-impl serde::Serialize for SequenceNumberSet {
+impl serde::Serialize for SequenceNumberSetUdp {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let len = 2 + self.bitmap.len();
 
@@ -203,7 +203,7 @@ impl serde::Serialize for SequenceNumberSet {
 struct SequenceNumberSetVisitor;
 
 impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
-    type Value = SequenceNumberSet;
+    type Value = SequenceNumberSetUdp;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("SequenceNumberSet Submessage Element")
@@ -213,10 +213,10 @@ impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        let base: SequenceNumber = seq
+        let base: SequenceNumberUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let num_bits: ULong = seq
+        let num_bits: ULongUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
         let num_bitmaps = (num_bits.0 + 31) / 32; //In standard refered to as "M"
@@ -227,7 +227,7 @@ impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
                 .ok_or_else(|| serde::de::Error::invalid_length(i + 2, &self))?;
             bitmap[i] = bitmap_i;
         }
-        Ok(SequenceNumberSet {
+        Ok(SequenceNumberSetUdp {
             base,
             num_bits,
             bitmap,
@@ -235,7 +235,7 @@ impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
+impl<'de> serde::Deserialize<'de> for SequenceNumberSetUdp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -248,7 +248,7 @@ impl<'de> serde::Deserialize<'de> for SequenceNumberSet {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType
-    for SequenceNumberSet
+    for SequenceNumberSetUdp
 {
     type IntoIter = std::vec::IntoIter<rust_rtps_pim::structure::types::SequenceNumber>;
 
@@ -268,7 +268,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
         }
         Self {
             base: base.into(),
-            num_bits: ULong(num_bits),
+            num_bits: ULongUdp(num_bits),
             bitmap,
         }
     }
@@ -293,18 +293,18 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
     }
 }
 
-pub type InstanceHandle = i32;
+pub type InstanceHandleUdp = i32;
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ProtocolVersionC {
+pub struct ProtocolVersionUdp {
     pub major: u8,
     pub minor: u8,
 }
 
 impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType
-    for ProtocolVersionC
+    for ProtocolVersionUdp
 {
-    type ProtocolVersionType = ProtocolVersionC;
+    type ProtocolVersionType = ProtocolVersionUdp;
 
     const PROTOCOLVERSION_1_0: Self::ProtocolVersionType = Self { major: 1, minor: 0 };
     const PROTOCOLVERSION_1_1: Self::ProtocolVersionType = Self { major: 1, minor: 1 };
@@ -323,22 +323,22 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElem
 }
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct SerializedData<'a>(pub &'a [u8]);
+pub struct SerializedDataUdp<'a>(pub &'a [u8]);
 
-impl<'a> SerializedData<'a> {
+impl<'a> SerializedDataUdp<'a> {
     pub fn len(&self) -> u16 {
         self.0.len() as u16
     }
 }
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElementType<'a>
-    for SerializedData<'_>
+    for SerializedDataUdp<'_>
 {
     type Value = &'a [u8];
-    type Constructed = SerializedData<'a>;
+    type Constructed = SerializedDataUdp<'a>;
 
     fn new(value: &Self::Value) -> Self::Constructed {
-        SerializedData(value)
+        SerializedDataUdp(value)
     }
 
     fn value(&self) -> &Self::Value {
@@ -347,7 +347,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageE
     }
 }
 
-impl<'a> serde::Serialize for SerializedData<'a> {
+impl<'a> serde::Serialize for SerializedDataUdp<'a> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_bytes(self.0)
     }
@@ -355,7 +355,7 @@ impl<'a> serde::Serialize for SerializedData<'a> {
 
 impl<'a>
     rust_rtps_pim::messages::submessage_elements::SerializedDataFragmentSubmessageElementType
-    for SerializedData<'a>
+    for SerializedDataUdp<'a>
 {
     type Value = &'a [u8];
 
@@ -369,9 +369,9 @@ impl<'a>
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct VendorIdC(pub(crate) [u8; 2]);
+pub struct VendorIdUdp(pub(crate) [u8; 2]);
 
-impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType for VendorIdC {
+impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType for VendorIdUdp {
     fn new(value: &rust_rtps_pim::structure::types::VendorId) -> Self {
         Self(value.clone())
     }
@@ -382,43 +382,43 @@ impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType
 }
 
 #[derive(Clone, Copy)]
-pub struct Time {
+pub struct TimeUdp {
     pub seconds: u32,
     pub fraction: u32,
 }
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType<RtpsUdpPsm<'a>>
-    for Time
+    for TimeUdp
 {
-    fn new(value: &Time) -> Self {
+    fn new(value: &TimeUdp) -> Self {
         value.clone()
     }
 
-    fn value(&self) -> &Time {
+    fn value(&self) -> &TimeUdp {
         self
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, serde::Serialize)]
-pub struct Count(pub(crate) i32);
+pub struct CountUdp(pub(crate) i32);
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType<RtpsUdpPsm<'a>>
-    for Count
+    for CountUdp
 {
-    fn new(value: &Count) -> Self {
+    fn new(value: &CountUdp) -> Self {
         value.clone()
     }
 
-    fn value(&self) -> &Count {
+    fn value(&self) -> &CountUdp {
         self
     }
 }
 
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
-pub struct FragmentNumber(pub(crate) u32);
+pub struct FragmentNumberUdp(pub(crate) u32);
 
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSubmessageElementType
-    for FragmentNumber
+    for FragmentNumberUdp
 {
     fn new(value: &rust_rtps_pim::messages::types::FragmentNumber) -> Self {
         Self(value.clone())
@@ -429,22 +429,22 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSubmessageEleme
     }
 }
 
-impl From<u32> for FragmentNumber {
+impl From<u32> for FragmentNumberUdp {
     fn from(_: u32) -> Self {
         todo!()
     }
 }
 
-impl Into<u32> for FragmentNumber {
+impl Into<u32> for FragmentNumberUdp {
     fn into(self) -> u32 {
         todo!()
     }
 }
 
-pub struct FragmentNumberSet(Vec<FragmentNumber>);
+pub struct FragmentNumberSetUdp(Vec<FragmentNumberUdp>);
 
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElementType
-    for FragmentNumberSet
+    for FragmentNumberSetUdp
 {
     fn new(
         _base: &rust_rtps_pim::messages::types::FragmentNumber,
@@ -463,37 +463,37 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageEl
     }
 }
 
-pub type GroupDigest = [u8; 4];
+pub type GroupDigestUdp = [u8; 4];
 
 #[derive(Clone, Copy)]
-pub struct Duration {
+pub struct DurationUdp {
     pub seconds: i32,
     pub fraction: u32,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Vector(Vec<u8>);
-impl serde::Serialize for Vector {
+pub struct VectorUdp(Vec<u8>);
+impl serde::Serialize for VectorUdp {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_bytes(self.0.as_slice())
     }
 }
 
-impl From<Vec<u8>> for Vector {
+impl From<Vec<u8>> for VectorUdp {
     fn from(value: Vec<u8>) -> Self {
         Self(value)
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Parameter {
+pub struct ParameterUdp {
     pub parameter_id: rust_rtps_pim::messages::types::ParameterId,
     pub length: i16,
-    pub value: Vector,
+    pub value: VectorUdp,
 }
 
-impl Parameter {
-    pub fn new(parameter_id: rust_rtps_pim::messages::types::ParameterId, value: Vector) -> Self {
+impl ParameterUdp {
+    pub fn new(parameter_id: rust_rtps_pim::messages::types::ParameterId, value: VectorUdp) -> Self {
         Self {
             parameter_id,
             length: value.0.len() as i16,
@@ -506,7 +506,7 @@ impl Parameter {
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::ParameterType for Parameter {
+impl rust_rtps_pim::messages::submessage_elements::ParameterType for ParameterUdp {
     fn parameter_id(&self) -> rust_rtps_pim::messages::types::ParameterId {
         self.parameter_id
     }
@@ -520,7 +520,7 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterType for Parameter {
     }
 }
 
-impl serde::Serialize for Parameter {
+impl serde::Serialize for ParameterUdp {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -536,7 +536,7 @@ impl serde::Serialize for Parameter {
 struct ParameterVisitor;
 
 impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
-    type Value = Parameter;
+    type Value = ParameterUdp;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("Parameter of the ParameterList Submessage Element")
@@ -559,11 +559,11 @@ impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
                     .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?,
             );
         }
-        Ok(Parameter::new(paramter_id, data.into()))
+        Ok(ParameterUdp::new(paramter_id, data.into()))
     }
 }
 
-impl<'de> serde::Deserialize<'de> for Parameter {
+impl<'de> serde::Deserialize<'de> for ParameterUdp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -573,17 +573,17 @@ impl<'de> serde::Deserialize<'de> for Parameter {
     }
 }
 const PID_SENTINEL: rust_rtps_pim::messages::types::ParameterId = 1;
-static SENTINEL: Parameter = Parameter {
+static SENTINEL: ParameterUdp = ParameterUdp {
     parameter_id: PID_SENTINEL,
     length: 0,
-    value: Vector(vec![]),
+    value: VectorUdp(vec![]),
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ParameterList {
-    pub(crate) parameter: Vec<Parameter>,
+pub struct ParameterListUdp {
+    pub(crate) parameter: Vec<ParameterUdp>,
 }
-impl serde::Serialize for ParameterList {
+impl serde::Serialize for ParameterListUdp {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let len = self.parameter.len();
         let mut state = serializer.serialize_struct("ParameterList", len)?;
@@ -598,7 +598,7 @@ impl serde::Serialize for ParameterList {
 struct ParameterListVisitor;
 
 impl<'de> serde::de::Visitor<'de> for ParameterListVisitor {
-    type Value = ParameterList;
+    type Value = ParameterListUdp;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("ParameterList Submessage Element")
@@ -610,11 +610,11 @@ impl<'de> serde::de::Visitor<'de> for ParameterListVisitor {
     {
         let mut parameters = vec![];
         for _ in 0..seq.size_hint().unwrap() {
-            let parameter: Parameter = seq
+            let parameter: ParameterUdp = seq
                 .next_element()?
                 .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
             if parameter == SENTINEL {
-                return Ok(ParameterList {
+                return Ok(ParameterListUdp {
                     parameter: parameters.into(),
                 });
             } else {
@@ -625,7 +625,7 @@ impl<'de> serde::de::Visitor<'de> for ParameterListVisitor {
     }
 }
 
-impl<'de, 'a> serde::Deserialize<'de> for ParameterList {
+impl<'de, 'a> serde::Deserialize<'de> for ParameterListUdp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -635,16 +635,16 @@ impl<'de, 'a> serde::Deserialize<'de> for ParameterList {
     }
 }
 
-impl ParameterList {
+impl ParameterListUdp {
     pub fn len(&self) -> u16 {
         self.parameter.iter().map(|p| p.len()).sum()
     }
 }
 
 impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType
-    for ParameterList
+    for ParameterListUdp
 {
-    type Parameter = Parameter;
+    type Parameter = ParameterUdp;
 
     fn new(_parameter: &[Self::Parameter]) -> Self {
         //let vec: Vec<Parameter> = parameter.iter().map(|x| x.clone()).collect();
@@ -656,16 +656,16 @@ impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElemen
     }
 
     fn empty() -> Self {
-        ParameterList {
+        ParameterListUdp {
             parameter: Vec::new(),
         }
     }
 }
 
-pub struct LocatorList(Vec<rust_rtps_pim::structure::types::Locator>);
+pub struct LocatorListUdp(Vec<rust_rtps_pim::structure::types::Locator>);
 
 impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementType
-    for LocatorList
+    for LocatorListUdp
 {
     fn new(_value: &[rust_rtps_pim::structure::types::Locator]) -> Self {
         // Self(value)
@@ -743,7 +743,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(2, vec![5, 6, 7, 8].into());
+        let parameter = ParameterUdp::new(2, vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
         assert_eq!(serialize(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -753,10 +753,10 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter = ParameterList {
+        let parameter = ParameterListUdp {
             parameter: vec![
-                Parameter::new(2, vec![51, 61, 71, 81].into()),
-                Parameter::new(3, vec![52, 62, 72, 82].into()),
+                ParameterUdp::new(2, vec![51, 61, 71, 81].into()),
+                ParameterUdp::new(3, vec![52, 62, 72, 82].into()),
             ]
             .into(),
         };
@@ -772,7 +772,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = Parameter::new(0x02, vec![5, 6, 7, 8].into());
+        let expected = ParameterUdp::new(0x02, vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
         let result = deserialize(&[
             0x02, 0x00, 4, 0, // Parameter | length
@@ -783,15 +783,15 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_list() {
-        let expected = ParameterList {
+        let expected = ParameterListUdp {
             parameter: vec![
-                Parameter::new(0x02, vec![15, 16, 17, 18].into()),
-                Parameter::new(0x03, vec![25, 26, 27, 28].into()),
+                ParameterUdp::new(0x02, vec![15, 16, 17, 18].into()),
+                ParameterUdp::new(0x03, vec![25, 26, 27, 28].into()),
             ]
             .into(),
         };
         #[rustfmt::skip]
-        let result: ParameterList = deserialize(&[
+        let result: ParameterListUdp = deserialize(&[
             0x02, 0x00, 4, 0, // Parameter ID | length
             15, 16, 17, 18,        // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -804,22 +804,22 @@ mod tests {
 
     #[test]
     fn serialize_serialized_data() {
-        let data = SerializedData(&[1, 2]);
+        let data = SerializedDataUdp(&[1, 2]);
         assert_eq!(serialize(data), vec![1, 2]);
     }
 
     #[test]
     fn sequence_number_set_submessage_element_type_constructor() {
-        let expected = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            num_bits: ULong(0),
+        let expected = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(2),
+            num_bits: ULongUdp(0),
             bitmap: [0; 8],
         };
-        assert_eq!(SequenceNumberSet::new(2, &[]), expected);
+        assert_eq!(SequenceNumberSetUdp::new(2, &[]), expected);
 
-        let expected = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            num_bits: ULong(1),
+        let expected = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(2),
+            num_bits: ULongUdp(1),
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
                 0,
@@ -831,11 +831,11 @@ mod tests {
                 0,
             ],
         };
-        assert_eq!(SequenceNumberSet::new(2, &[2]), expected);
+        assert_eq!(SequenceNumberSetUdp::new(2, &[2]), expected);
 
-        let expected = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            num_bits: ULong(256),
+        let expected = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(2),
+            num_bits: ULongUdp(256),
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
                 0,
@@ -847,22 +847,22 @@ mod tests {
                 0b_00000000_00000000_00000000_00000001,
             ],
         };
-        assert_eq!(SequenceNumberSet::new(2, &[2, 257]), expected);
+        assert_eq!(SequenceNumberSetUdp::new(2, &[2, 257]), expected);
     }
 
     #[test]
     fn sequence_number_set_submessage_element_type_getters() {
-        let sequence_number_set = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            num_bits: ULong(0),
+        let sequence_number_set = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(2),
+            num_bits: ULongUdp(0),
             bitmap: [0; 8],
         };
         assert_eq!(sequence_number_set.base(), 2);
         assert!(sequence_number_set.set().eq(Vec::<i64>::new()));
 
-        let sequence_number_set = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            num_bits: ULong(100),
+        let sequence_number_set = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(2),
+            num_bits: ULongUdp(100),
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
                 0,
@@ -877,9 +877,9 @@ mod tests {
         assert_eq!(sequence_number_set.base(), 2);
         assert!(sequence_number_set.set().eq(vec![2]));
 
-        let sequence_number_set = SequenceNumberSet {
-            base: SequenceNumber::new(2),
-            num_bits: ULong(256),
+        let sequence_number_set = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(2),
+            num_bits: ULongUdp(256),
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
                 0,
@@ -897,7 +897,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number_max_gap() {
-        let sequence_number_set = SequenceNumberSet::new(2, &[2, 257]);
+        let sequence_number_set = SequenceNumberSetUdp::new(2, &[2, 257]);
         #[rustfmt::skip]
         assert_eq!(serialize(sequence_number_set), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -916,7 +916,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number_set_empty() {
-        let sequence_number_set = SequenceNumberSet::new(2, &[]);
+        let sequence_number_set = SequenceNumberSetUdp::new(2, &[]);
         #[rustfmt::skip]
         assert_eq!(serialize(sequence_number_set), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -927,7 +927,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_empty() {
-        let expected = SequenceNumberSet::new(2, &[]);
+        let expected = SequenceNumberSetUdp::new(2, &[]);
         #[rustfmt::skip]
         let result = deserialize(&[
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -939,7 +939,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
-        let expected = SequenceNumberSet::new(2, &[2, 257]);
+        let expected = SequenceNumberSetUdp::new(2, &[2, 257]);
         #[rustfmt::skip]
         let result = deserialize(&[
             0, 0, 0, 0, // bitmapBase: high (long)

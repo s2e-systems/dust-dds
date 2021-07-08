@@ -2,30 +2,30 @@ use rust_rtps_pim::messages::types::{SubmessageFlag, SubmessageKindPIM};
 
 use crate::{
     psm::RtpsUdpPsm,
-    submessage_elements::{EntityId, SequenceNumber, SequenceNumberSet},
+    submessage_elements::{EntityIdUdp, SequenceNumberUdp, SequenceNumberSetUdp},
     submessage_header::SubmessageHeader
 };
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct GapSubmessage {
+pub struct GapSubmessageUdp {
     pub header: SubmessageHeader,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    gap_start: SequenceNumber,
-    gap_list: SequenceNumberSet,
+    reader_id: EntityIdUdp,
+    writer_id: EntityIdUdp,
+    gap_start: SequenceNumberUdp,
+    gap_list: SequenceNumberSetUdp,
 }
 
-impl rust_rtps_pim::messages::submessages::GapSubmessage for GapSubmessage {
-    type EntityIdSubmessageElementType = EntityId;
-    type SequenceNumberSubmessageElementType = SequenceNumber;
-    type SequenceNumberSetSubmessageElementType = SequenceNumberSet;
+impl rust_rtps_pim::messages::submessages::GapSubmessage for GapSubmessageUdp {
+    type EntityIdSubmessageElementType = EntityIdUdp;
+    type SequenceNumberSubmessageElementType = SequenceNumberUdp;
+    type SequenceNumberSetSubmessageElementType = SequenceNumberSetUdp;
 
     fn new(
         endianness_flag: SubmessageFlag,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        gap_start: SequenceNumber,
-        gap_list: SequenceNumberSet,
+        reader_id: EntityIdUdp,
+        writer_id: EntityIdUdp,
+        gap_start: SequenceNumberUdp,
+        gap_list: SequenceNumberSetUdp,
     ) -> Self {
         let flags = [endianness_flag].into();
 
@@ -49,24 +49,24 @@ impl rust_rtps_pim::messages::submessages::GapSubmessage for GapSubmessage {
         self.header.flags.is_bit_set(0)
     }
 
-    fn reader_id(&self) -> &EntityId {
+    fn reader_id(&self) -> &EntityIdUdp {
         &self.reader_id
     }
 
-    fn writer_id(&self) -> &EntityId {
+    fn writer_id(&self) -> &EntityIdUdp {
         &self.writer_id
     }
 
-    fn gap_start(&self) -> &SequenceNumber {
+    fn gap_start(&self) -> &SequenceNumberUdp {
         &self.gap_start
     }
 
-    fn gap_list(&self) -> &SequenceNumberSet {
+    fn gap_list(&self) -> &SequenceNumberSetUdp {
         &self.gap_list
     }
 }
 
-impl rust_rtps_pim::messages::Submessage for GapSubmessage {
+impl rust_rtps_pim::messages::Submessage for GapSubmessageUdp {
     type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
@@ -99,11 +99,11 @@ mod tests {
     #[test]
     fn serialize_gap() {
         let endianness_flag = true;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let gap_start = SequenceNumber::new(5);
-        let gap_list = SequenceNumberSet::new(10, &[]);
-        let submessage: GapSubmessage = rust_rtps_pim::messages::submessages::GapSubmessage::new(
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let gap_start = SequenceNumberUdp::new(5);
+        let gap_list = SequenceNumberSetUdp::new(10, &[]);
+        let submessage: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessage::new(
             endianness_flag,
             reader_id,
             writer_id,
@@ -127,11 +127,11 @@ mod tests {
     #[test]
     fn deserialize_gap() {
         let endianness_flag = true;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let gap_start = SequenceNumber::new(5);
-        let gap_list = SequenceNumberSet::new(10, &[]);
-        let expected: GapSubmessage = rust_rtps_pim::messages::submessages::GapSubmessage::new(
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let gap_start = SequenceNumberUdp::new(5);
+        let gap_list = SequenceNumberSetUdp::new(10, &[]);
+        let expected: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessage::new(
             endianness_flag,
             reader_id,
             writer_id,

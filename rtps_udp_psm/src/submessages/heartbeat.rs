@@ -2,30 +2,30 @@ use rust_rtps_pim::messages::types::{SubmessageFlag, SubmessageKindPIM};
 
 use crate::{
     psm::RtpsUdpPsm,
-    submessage_elements::{Count, EntityId, SequenceNumber},
+    submessage_elements::{CountUdp, EntityIdUdp, SequenceNumberUdp},
     submessage_header::SubmessageHeader,
 };
 
 #[derive(Debug, PartialEq, serde::Serialize)]
-pub struct HeartbeatSubmessage {
+pub struct HeartbeatSubmessageUdp {
     pub header: SubmessageHeader,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    first_sn: SequenceNumber,
-    last_sn: SequenceNumber,
-    count: Count,
+    reader_id: EntityIdUdp,
+    writer_id: EntityIdUdp,
+    first_sn: SequenceNumberUdp,
+    last_sn: SequenceNumberUdp,
+    count: CountUdp,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm<'a>> for HeartbeatSubmessage {
+impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm<'a>> for HeartbeatSubmessageUdp {
     fn new(
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        first_sn: SequenceNumber,
-        last_sn: SequenceNumber,
-        count: Count,
+        reader_id: EntityIdUdp,
+        writer_id: EntityIdUdp,
+        first_sn: SequenceNumberUdp,
+        last_sn: SequenceNumberUdp,
+        count: CountUdp,
     ) -> Self {
         let flags = [endianness_flag, final_flag, liveliness_flag].into();
         let submessage_length = 28;
@@ -56,28 +56,28 @@ impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm<'a
         self.header.flags.is_bit_set(2)
     }
 
-    fn reader_id(&self) -> &EntityId {
+    fn reader_id(&self) -> &EntityIdUdp {
         &self.reader_id
     }
 
-    fn writer_id(&self) -> &EntityId {
+    fn writer_id(&self) -> &EntityIdUdp {
         &self.writer_id
     }
 
-    fn first_sn(&self) -> &SequenceNumber {
+    fn first_sn(&self) -> &SequenceNumberUdp {
         &self.first_sn
     }
 
-    fn last_sn(&self) -> &SequenceNumber {
+    fn last_sn(&self) -> &SequenceNumberUdp {
         &self.last_sn
     }
 
-    fn count(&self) -> &Count {
+    fn count(&self) -> &CountUdp {
         &self.count
     }
 }
 
-impl rust_rtps_pim::messages::Submessage for HeartbeatSubmessage {
+impl rust_rtps_pim::messages::Submessage for HeartbeatSubmessageUdp {
     type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
@@ -102,12 +102,12 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let first_sn = SequenceNumber::new(1);
-        let last_sn = SequenceNumber::new(3);
-        let count = Count(5);
-        let submessage: HeartbeatSubmessage =
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let first_sn = SequenceNumberUdp::new(1);
+        let last_sn = SequenceNumberUdp::new(3);
+        let count = CountUdp(5);
+        let submessage: HeartbeatSubmessageUdp =
             rust_rtps_pim::messages::submessages::HeartbeatSubmessage::new(
                 endianness_flag,
                 final_flag,

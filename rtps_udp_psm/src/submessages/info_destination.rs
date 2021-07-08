@@ -1,16 +1,16 @@
 use rust_rtps_pim::messages::types::SubmessageFlag;
 
 use crate::{
-    psm::RtpsUdpPsm, submessage_elements::GuidPrefix, submessage_header::SubmessageHeader,
+    psm::RtpsUdpPsm, submessage_elements::GuidPrefixUdp, submessage_header::SubmessageHeader,
 };
 
 #[derive(Debug, PartialEq)]
-pub struct InfoDestination;
+pub struct InfoDestinationUdp;
 
 impl<'a> rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdpPsm<'a>>
-    for InfoDestination
+    for InfoDestinationUdp
 {
-    fn new(_endianness_flag: SubmessageFlag, _guid_prefix: GuidPrefix) -> Self {
+    fn new(_endianness_flag: SubmessageFlag, _guid_prefix: GuidPrefixUdp) -> Self {
         todo!()
     }
 
@@ -18,12 +18,12 @@ impl<'a> rust_rtps_pim::messages::submessages::InfoDestinationSubmessage<RtpsUdp
         todo!()
     }
 
-    fn guid_prefix(&self) -> &GuidPrefix {
+    fn guid_prefix(&self) -> &GuidPrefixUdp {
         todo!()
     }
 }
 
-impl rust_rtps_pim::messages::Submessage for InfoDestination {
+impl rust_rtps_pim::messages::Submessage for InfoDestinationUdp {
     type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()

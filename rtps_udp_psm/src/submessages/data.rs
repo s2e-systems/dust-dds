@@ -6,27 +6,27 @@ use rust_rtps_pim::messages::{
 
 use crate::{
     psm::RtpsUdpPsm,
-    submessage_elements::{EntityId, ParameterList, SequenceNumber, SerializedData},
+    submessage_elements::{EntityIdUdp, ParameterListUdp, SequenceNumberUdp, SerializedDataUdp},
     submessage_header::SubmessageHeader,
 };
 
 #[derive(Debug, PartialEq)]
-pub struct DataSubmesage<'a> {
+pub struct DataSubmesageUdp<'a> {
     pub(crate) header: SubmessageHeader,
     extra_flags: u16,
     octets_to_inline_qos: u16,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    inline_qos: ParameterList,
-    serialized_payload: SerializedData<'a>,
+    reader_id: EntityIdUdp,
+    writer_id: EntityIdUdp,
+    writer_sn: SequenceNumberUdp,
+    inline_qos: ParameterListUdp,
+    serialized_payload: SerializedDataUdp<'a>,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmesage<'a> {
-    type EntityIdSubmessageElementType = EntityId;
-    type SequenceNumberSubmessageElementType = SequenceNumber;
-    type ParameterListSubmessageElementType = ParameterList;
-    type SerializedDataSubmessageElementType = SerializedData<'a>;
+impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmesageUdp<'a> {
+    type EntityIdSubmessageElementType = EntityIdUdp;
+    type SequenceNumberSubmessageElementType = SequenceNumberUdp;
+    type ParameterListSubmessageElementType = ParameterListUdp;
+    type SerializedDataSubmessageElementType = SerializedDataUdp<'a>;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -34,11 +34,11 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        writer_sn: SequenceNumber,
-        inline_qos: ParameterList,
-        serialized_payload: SerializedData<'a>,
+        reader_id: EntityIdUdp,
+        writer_id: EntityIdUdp,
+        writer_sn: SequenceNumberUdp,
+        inline_qos: ParameterListUdp,
+        serialized_payload: SerializedDataUdp<'a>,
     ) -> Self {
         let flags = [
             endianness_flag,
@@ -60,7 +60,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
             submessage_length,
         };
 
-        DataSubmesage {
+        DataSubmesageUdp {
             header,
             extra_flags: 0b_0000_0000_0000_0000,
             octets_to_inline_qos: 16,
@@ -92,35 +92,35 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
         self.header.flags.is_bit_set(4)
     }
 
-    fn reader_id(&self) -> &EntityId {
+    fn reader_id(&self) -> &EntityIdUdp {
         &self.reader_id
     }
 
-    fn writer_id(&self) -> &EntityId {
+    fn writer_id(&self) -> &EntityIdUdp {
         &self.writer_id
     }
 
-    fn writer_sn(&self) -> &SequenceNumber {
+    fn writer_sn(&self) -> &SequenceNumberUdp {
         &self.writer_sn
     }
 
-    fn inline_qos(&self) -> &ParameterList {
+    fn inline_qos(&self) -> &ParameterListUdp {
         todo!()
     }
 
-    fn serialized_payload(&self) -> &SerializedData<'a> {
+    fn serialized_payload(&self) -> &SerializedDataUdp<'a> {
         &self.serialized_payload
     }
 }
 
-impl<'a> Submessage for DataSubmesage<'a> {
+impl<'a> Submessage for DataSubmesageUdp<'a> {
     type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
     }
 }
 
-impl<'a> serde::Serialize for DataSubmesage<'a> {
+impl<'a> serde::Serialize for DataSubmesageUdp<'a> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
 
@@ -151,7 +151,7 @@ impl<'a> serde::Serialize for DataSubmesage<'a> {
 struct DataSubmesageVisitor<'a>(std::marker::PhantomData<&'a ()>);
 
 impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
-    type Value = DataSubmesage<'a>;
+    type Value = DataSubmesageUdp<'a>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("DataSubmesage")
@@ -174,32 +174,32 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
         let octets_to_inline_qos: u16 = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
-        let reader_id: EntityId = seq
+        let reader_id: EntityIdUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
-        let writer_id: EntityId = seq
+        let writer_id: EntityIdUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
-        let writer_sn: SequenceNumber = seq
+        let writer_sn: SequenceNumberUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
-        let inline_qos: ParameterList = if inline_qos_flag {
+        let inline_qos: ParameterListUdp = if inline_qos_flag {
             seq.next_element()?
                 .ok_or_else(|| serde::de::Error::invalid_length(6, &self))?
         } else {
-            ParameterList { parameter: vec![] }
+            ParameterListUdp { parameter: vec![] }
         };
-        let serialized_payload: SerializedData = if data_flag || key_flag {
+        let serialized_payload: SerializedDataUdp = if data_flag || key_flag {
             let serialized_payload_length =
                 (header.submessage_length - octets_to_inline_qos - 4 - inline_qos.len()) as usize;
             let data: &[u8] = seq
                 .next_element()?
                 .ok_or_else(|| serde::de::Error::invalid_length(7, &self))?;
-            SerializedData(&data[..serialized_payload_length])
+            SerializedDataUdp(&data[..serialized_payload_length])
         } else {
-            SerializedData(&[])
+            SerializedDataUdp(&[])
         };
-        Ok(DataSubmesage {
+        Ok(DataSubmesageUdp {
             header,
             extra_flags,
             octets_to_inline_qos,
@@ -212,7 +212,7 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
     }
 }
 
-impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesage<'a> {
+impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesageUdp<'a> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -237,7 +237,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesage<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::submessage_elements::Parameter;
+    use crate::submessage_elements::ParameterUdp;
 
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
@@ -264,15 +264,15 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterList {
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let writer_sn = SequenceNumberUdp::new(5);
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [];
-        let serialized_payload = SerializedData(data[..].into());
-        let submessage = DataSubmesage::new(
+        let serialized_payload = SerializedDataUdp(data[..].into());
+        let submessage = DataSubmesageUdp::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -303,17 +303,17 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber::new(5);
-        let param1 = Parameter::new(6, vec![10, 11, 12, 13].into());
-        let param2 = Parameter::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = ParameterList {
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let writer_sn = SequenceNumberUdp::new(5);
+        let param1 = ParameterUdp::new(6, vec![10, 11, 12, 13].into());
+        let param2 = ParameterUdp::new(7, vec![20, 21, 22, 23].into());
+        let inline_qos = ParameterListUdp {
             parameter: vec![param1, param2].into(),
         };
         let data = [];
-        let serialized_payload = SerializedData(data[..].into());
-        let submessage = DataSubmesage::new(
+        let serialized_payload = SerializedDataUdp(data[..].into());
+        let submessage = DataSubmesageUdp::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -349,15 +349,15 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterList {
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let writer_sn = SequenceNumberUdp::new(5);
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [1_u8, 2, 3, 4];
-        let serialized_payload = SerializedData(data[..].into());
-        let submessage = DataSubmesage::new(
+        let serialized_payload = SerializedDataUdp(data[..].into());
+        let submessage = DataSubmesageUdp::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -389,14 +389,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterList {
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let writer_sn = SequenceNumberUdp::new(5);
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
-        let serialized_payload = SerializedData([][..].into());
-        let expected = DataSubmesage::new(
+        let serialized_payload = SerializedDataUdp([][..].into());
+        let expected = DataSubmesageUdp::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -427,15 +427,15 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterList {
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let writer_sn = SequenceNumberUdp::new(5);
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [1, 2, 3, 4];
-        let serialized_payload = SerializedData(data[..].into());
-        let expected = DataSubmesage::new(
+        let serialized_payload = SerializedDataUdp(data[..].into());
+        let expected = DataSubmesageUdp::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -468,16 +468,16 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber::new(5);
-        let param1 = Parameter::new(6, vec![10, 11, 12, 13].into());
-        let param2 = Parameter::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = ParameterList {
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let writer_sn = SequenceNumberUdp::new(5);
+        let param1 = ParameterUdp::new(6, vec![10, 11, 12, 13].into());
+        let param2 = ParameterUdp::new(7, vec![20, 21, 22, 23].into());
+        let inline_qos = ParameterListUdp {
             parameter: vec![param1, param2].into(),
         };
-        let serialized_payload = SerializedData([][..].into());
-        let expected = DataSubmesage::new(
+        let serialized_payload = SerializedDataUdp([][..].into());
+        let expected = DataSubmesageUdp::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -514,15 +514,15 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityId([1, 2, 3, 4]);
-        let writer_id = EntityId([6, 7, 8, 9]);
-        let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterList {
+        let reader_id = EntityIdUdp([1, 2, 3, 4]);
+        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let writer_sn = SequenceNumberUdp::new(5);
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [];
-        let serialized_payload = SerializedData(data[..].into());
-        let submessage = DataSubmesage::new(
+        let serialized_payload = SerializedDataUdp(data[..].into());
+        let submessage = DataSubmesageUdp::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,

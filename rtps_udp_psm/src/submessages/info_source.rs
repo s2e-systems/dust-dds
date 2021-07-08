@@ -2,19 +2,19 @@ use rust_rtps_pim::messages::types::SubmessageFlag;
 
 use crate::{
     psm::RtpsUdpPsm,
-    submessage_elements::{GuidPrefix, ProtocolVersionC, VendorIdC},
+    submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp},
     submessage_header::SubmessageHeader,
 };
 
 #[derive(Debug, PartialEq)]
-pub struct InfoSource;
+pub struct InfoSourceUdp;
 
-impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm<'a>> for InfoSource {
+impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm<'a>> for InfoSourceUdp {
     fn new(
         _endianness_flag: SubmessageFlag,
-        _protocol_version: ProtocolVersionC,
-        _vendor_id: VendorIdC,
-        _guid_prefix: GuidPrefix,
+        _protocol_version: ProtocolVersionUdp,
+        _vendor_id: VendorIdUdp,
+        _guid_prefix: GuidPrefixUdp,
     ) -> Self {
         todo!()
     }
@@ -23,20 +23,20 @@ impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm<'
         todo!()
     }
 
-    fn protocol_version(&self) -> &ProtocolVersionC {
+    fn protocol_version(&self) -> &ProtocolVersionUdp {
         todo!()
     }
 
-    fn vendor_id(&self) -> &VendorIdC {
+    fn vendor_id(&self) -> &VendorIdUdp {
         todo!()
     }
 
-    fn guid_prefix(&self) -> &GuidPrefix {
+    fn guid_prefix(&self) -> &GuidPrefixUdp {
         todo!()
     }
 }
 
-impl rust_rtps_pim::messages::Submessage for InfoSource {
+impl rust_rtps_pim::messages::Submessage for InfoSourceUdp {
     type RtpsSubmessageHeaderType = SubmessageHeader;
     fn submessage_header(&self) -> SubmessageHeader {
         todo!()
