@@ -72,7 +72,7 @@ where
 }
 
 pub trait DataSubmessagePIM<'a> {
-    type DataSubmessageType: DataSubmessage<'a>;
+    type DataSubmessageType;
 }
 
 pub trait DataSubmessage<'a>: Submessage {
@@ -153,7 +153,7 @@ where
 }
 
 pub trait GapSubmessagePIM {
-    type GapSubmessageType: GapSubmessage;
+    type GapSubmessageType;
 }
 
 pub trait GapSubmessage: Submessage {
