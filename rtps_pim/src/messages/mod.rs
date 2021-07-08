@@ -28,15 +28,15 @@ pub trait RtpsMessageHeaderType {
 
     fn new(
         // protocol: Self::ProtocolIdType,
-        // version: Self::ProtocolVersionType,
+        version: &Self::ProtocolVersionType,
         // vendor_id: Self::VendorIdType,
         // guid_prefix: Self::GuidPrefixType,
     ) -> Self;
 
-    fn protocol(&self) -> &Self::ProtocolIdType;
-    fn version(&self) -> &Self::ProtocolVersionType;
-    fn vendor_id(&self) -> &Self::VendorIdType;
-    fn guid_prefix(&self) -> &Self::GuidPrefixType;
+    fn protocol(&self) -> Self::ProtocolIdType;
+    fn version(&self) -> Self::ProtocolVersionType;
+    fn vendor_id(&self) -> Self::VendorIdType;
+    fn guid_prefix(&self) -> Self::GuidPrefixType;
 }
 
 pub trait RtpsSubmessageHeaderType<PSM>

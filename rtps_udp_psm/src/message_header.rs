@@ -1,4 +1,7 @@
-use crate::{psm::RtpsUdpPsm, submessage_elements::{GuidPrefix, ProtocolVersionC, VendorId}};
+use crate::{
+    psm::RtpsUdpPsm,
+    submessage_elements::{GuidPrefix, ProtocolVersionC, VendorId},
+};
 
 pub type ProtocolId = [u8; 4];
 
@@ -11,51 +14,53 @@ pub struct RTPSMessageHeader {
 }
 
 impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeader {
-
     type ProtocolIdType = ProtocolId;
-    type ProtocolVersionType = ProtocolVersionC;
+    type ProtocolVersionType = ();
     type VendorIdType = VendorId;
     type GuidPrefixType = GuidPrefix;
     const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
 
-    fn protocol(&self) -> &ProtocolId {
-        &self.protocol
+    fn protocol(&self) -> ProtocolId {
+        self.protocol
     }
 
-    fn version(&self) -> &Self::ProtocolVersionType {
+    fn version(&self) -> Self::ProtocolVersionType {
         // &self.version
         todo!()
     }
 
-    fn vendor_id(&self) -> &Self::VendorIdType {
+    fn vendor_id(&self) -> Self::VendorIdType {
         // &self.vendor_id
         todo!()
     }
 
-    fn guid_prefix(&self) -> &Self::GuidPrefixType {
+    fn guid_prefix(&self) -> Self::GuidPrefixType {
         //&self.guid_prefix
         todo!()
     }
 
     fn new(
         // protocol: Self::ProtocolIdType,
-        // version: Self::ProtocolVersionType,
+        version: &Self::ProtocolVersionType,
         // vendor_id: Self::VendorIdType,
         // guid_prefix: Self::GuidPrefixType,
     ) -> Self {
-        todo!()
+        Self {
+            protocol: Self::PROTOCOL_RTPS,
+            version: ProtocolVersionC { major: 2, minor: 4 },
+            vendor_id: VendorId([1, 1]),
+            guid_prefix: GuidPrefix([1; 12]),
+        }
     }
-
 }
-
-
 
 #[cfg(test)]
 mod tests {
-    use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer};
+    use rust_serde_cdr::{
+        deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
+    };
 
     use super::*;
-
 
     fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
         let mut serializer = RtpsMessageSerializer {

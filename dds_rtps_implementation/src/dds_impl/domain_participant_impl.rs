@@ -60,20 +60,15 @@ pub struct DomainParticipantImpl {
 }
 
 impl DomainParticipantImpl {
-    pub fn new<'a, Transport>(
+    pub fn new<Transport>(
         guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
         mut transport: Transport,
     ) -> Self
     where
         Transport: TransportWrite + Send + 'static,
-        <<<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage>::PSM as DataSubmessagePIM>::DataSubmessageType as DataSubmessage>::SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<Value= &'a [u8]>
-    // for<'a> <Transport as  TransportWrite>::RTPSMessageType: RTPSMessage<'a>,
-    // for<'a> <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::RtpsMessageHeaderType: RtpsMessageHeaderType,
-    // for<'a> <<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::SerializedDataSubmessageElementType : SerializedDataSubmessageElementType<'a, Value=&'a[u8]>,
-    // for<'a> <<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
-    // for<'a> <<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
-    // for<'a> <<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::ParameterListSubmessageElementType: ParameterListSubmessageElementType,
-    // for<'a> <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as GapSubmessagePIM>::GapSubmessageType: GapSubmessage,
+        <Transport::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType: RtpsMessageHeaderType<
+            ProtocolVersionType = <RTPSParticipantImpl as RTPSParticipant>::ProtocolVersionType,
+        >,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         // let transport_impl = Arc::new(Mutex::new(transport));
@@ -84,14 +79,14 @@ impl DomainParticipantImpl {
             loop {
                 if is_enabled_thread.load(atomic::Ordering::Relaxed) {
                     if let Some(rtps_participant) = rtps_participant.try_lock() {
-                        let writer_group = rtps_participant.writer_groups()[0].lock();
-                        let mut writer = writer_group.writer_list()[0].lock();
-                        let last_change_sequence_number = *writer.last_change_sequence_number();
-                        let (writer_cache, reader_locators) =
-                            writer.writer_cache_and_reader_locators();
-                        for reader_locator in reader_locators {
-                            let mut data_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM>> = vec![];
-                            let mut gap_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM>> = vec![];
+                        // let writer_group = rtps_participant.writer_groups()[0].lock();
+                        // let mut writer = writer_group.writer_list()[0].lock();
+                        // let last_change_sequence_number = *writer.last_change_sequence_number();
+                        // let (writer_cache, reader_locators) =
+                        //     writer.writer_cache_and_reader_locators();
+                        // for reader_locator in reader_locators {
+                        //     let mut data_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM>> = vec![];
+                        //     let mut gap_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM>> = vec![];
 
                             // let mut submessages = vec![];
 
@@ -114,17 +109,17 @@ impl DomainParticipantImpl {
                             // for gap_submessage in gap_submessage_list {
                             //     submessages.push(gap_submessage);
                             // }
-                            // let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new();
+                            let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new(rtps_participant.protocol_version());
                             // // let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                             // // let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                             // // let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);
                             // // let gap_list =  <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSetSubmessageElementType::new(10, &[]);
-                            // // let submessages = vec![];
+                            let submessages = vec![];
 
-                            // let message = Transport::RTPSMessageType::new(header, submessages);
-                            // let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
-                            // transport.write(&message, &destination_locator);
-                        }
+                            let message = Transport::RTPSMessageType::new(header, submessages);
+                            let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
+                            transport.write(&message, &destination_locator);
+                        // }
 
                         std::thread::sleep(std::time::Duration::from_millis(500));
                     }
