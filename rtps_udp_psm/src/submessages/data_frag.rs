@@ -1,9 +1,9 @@
 use rust_rtps_pim::messages::types::SubmessageFlag;
 
 use crate::{
-    psm::RtpsUdpPsm,
     submessage_elements::{
-        EntityIdUdp, FragmentNumberUdp, ParameterListUdp, SequenceNumberUdp, SerializedDataUdp, ULongUdp, UShortUdp,
+        EntityIdUdp, FragmentNumberUdp, ParameterListUdp, SequenceNumberUdp, SerializedDataUdp,
+        ULongUdp, UShortUdp,
     },
     submessage_header::SubmessageHeader,
 };
@@ -13,7 +13,15 @@ pub struct DataFragUdp<'a> {
     pub serialized_data: SerializedDataUdp<'a>,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage<RtpsUdpPsm<'a>> for DataFragUdp<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage for DataFragUdp<'a> {
+    type EntityIdSubmessageElementType = EntityIdUdp;
+    type SequenceNumberSubmessageElementType = SequenceNumberUdp;
+    type FragmentNumberSubmessageElementType = FragmentNumberUdp;
+    type UShortSubmessageElementType = UShortUdp;
+    type ULongSubmessageElementType = ULongUdp;
+    type ParameterListSubmessageElementType = ParameterListUdp;
+    type SerializedDataFragmentSubmessageElementType = SerializedDataUdp<'a>;
+
     fn new(
         _endianness_flag: SubmessageFlag,
         _inline_qos_flag: SubmessageFlag,

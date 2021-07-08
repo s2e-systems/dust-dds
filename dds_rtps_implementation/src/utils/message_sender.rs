@@ -1,18 +1,10 @@
 use rust_rtps_pim::{
     behavior::stateless_writer::{BestEffortBehavior, RTPSReaderLocator},
     messages::{
-        submessages::{
-            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
-            HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
-            InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
-            NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
-        },
+        submessages::{RtpsSubmessagePIM, RtpsSubmessageType},
         RTPSMessage,
     },
-    structure::{
-        types::{Locator, SequenceNumber},
-        RTPSCacheChange, RTPSHistoryCache,
-    },
+    structure::{types::SequenceNumber, RTPSCacheChange, RTPSHistoryCache},
 };
 
 use crate::transport::TransportWrite;
@@ -23,19 +15,7 @@ pub fn create_messages<'a, PSM, HistoryCache, ReaderLocator>(
     last_change_sequence_number: SequenceNumber,
 ) -> Vec<RtpsSubmessageType<'a, PSM>>
 where
-    PSM: AckNackSubmessagePIM
-        + DataSubmessagePIM<'a>
-        + DataFragSubmessagePIM
-        + GapSubmessagePIM
-        + HeartbeatSubmessagePIM
-        + HeartbeatFragSubmessagePIM
-        + InfoDestinationSubmessagePIM
-        + InfoReplySubmessagePIM
-        + InfoSourceSubmessagePIM
-        + InfoTimestampSubmessagePIM
-        + NackFragSubmessagePIM
-        + PadSubmessagePIM,
-
+    PSM: RtpsSubmessagePIM<'a>,
     HistoryCache: RTPSHistoryCache,
     <HistoryCache as rust_rtps_pim::structure::RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     ReaderLocator:
@@ -50,9 +30,7 @@ where
         &last_change_sequence_number,
         writer_cache,
         |data_submessage| data_submessage_list.push(RtpsSubmessageType::Data(data_submessage)),
-        |gap_submessage: <PSM as GapSubmessagePIM>::GapSubmessageType| {
-            gap_submessage_list.push(RtpsSubmessageType::Gap(gap_submessage))
-        },
+        |gap_submessage| gap_submessage_list.push(RtpsSubmessageType::Gap(gap_submessage)),
     );
 
     for data_submessage in data_submessage_list {
@@ -74,7 +52,7 @@ pub fn send_data<HistoryCache, ReaderLocator, Transport>(
     HistoryCache: RTPSHistoryCache,
     <HistoryCache as rust_rtps_pim::structure::RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     ReaderLocator: RTPSReaderLocator,
-    for<'a> ReaderLocator: BestEffortBehavior<'a, HistoryCache, <<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType, <<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as GapSubmessagePIM>::GapSubmessageType>,
+    for<'a> ReaderLocator: BestEffortBehavior<'a, HistoryCache, <<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::DataSubmessageType, <<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::GapSubmessageType>,
     Transport: TransportWrite,
 {
     for reader_locator in reader_locators {
@@ -133,17 +111,17 @@ mod tests {
             todo!()
         }
 
-        fn add_change(&mut self, change: Self::CacheChange) {
+        fn add_change(&mut self, _change: Self::CacheChange) {
             todo!()
         }
 
-        fn remove_change(&mut self, seq_num: &rust_rtps_pim::structure::types::SequenceNumber) {
+        fn remove_change(&mut self, _seq_num: &rust_rtps_pim::structure::types::SequenceNumber) {
             todo!()
         }
 
         fn get_change(
             &self,
-            seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
+            _seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
         ) -> Option<&Self::CacheChange> {
             todo!()
         }
@@ -160,41 +138,18 @@ mod tests {
     #[derive(Debug, PartialEq)]
     struct MockPSM;
 
-    impl AckNackSubmessagePIM for MockPSM {
+    impl<'a> RtpsSubmessagePIM<'a> for MockPSM {
         type AckNackSubmessageType = ();
-    }
-
-    impl<'a> DataSubmessagePIM<'a> for MockPSM {
         type DataSubmessageType = ();
-    }
-    impl DataFragSubmessagePIM for MockPSM {
         type DataFragSubmessageType = ();
-    }
-    impl GapSubmessagePIM for MockPSM {
         type GapSubmessageType = u8;
-    }
-    impl HeartbeatSubmessagePIM for MockPSM {
         type HeartbeatSubmessageType = ();
-    }
-    impl HeartbeatFragSubmessagePIM for MockPSM {
         type HeartbeatFragSubmessageType = ();
-    }
-    impl InfoDestinationSubmessagePIM for MockPSM {
         type InfoDestinationSubmessageType = ();
-    }
-    impl InfoReplySubmessagePIM for MockPSM {
         type InfoReplySubmessageType = ();
-    }
-    impl InfoSourceSubmessagePIM for MockPSM {
         type InfoSourceSubmessageType = ();
-    }
-    impl InfoTimestampSubmessagePIM for MockPSM {
         type InfoTimestampSubmessageType = ();
-    }
-    impl NackFragSubmessagePIM for MockPSM {
         type NackFragSubmessageType = ();
-    }
-    impl PadSubmessagePIM for MockPSM {
         type PadSubmessageType = ();
     }
 

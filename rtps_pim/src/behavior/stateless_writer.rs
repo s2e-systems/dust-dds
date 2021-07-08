@@ -1,13 +1,11 @@
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
-            ParameterListSubmessageElementType, SequenceNumberSetSubmessageElementPIM,
+            EntityIdSubmessageElementType, ParameterListSubmessageElementType,
             SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
             SerializedDataSubmessageElementType,
         },
-        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage},
-        types::{CountPIM, SubmessageKindPIM},
+        submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
         types::{ChangeKind, Locator, SequenceNumber, ENTITYID_UNKNOWN},
@@ -138,30 +136,27 @@ pub fn reliable_send_unsent_data(
     }
 }
 
-pub fn reliable_receive_acknack<
-    PSM: SubmessageKindPIM
-        + CountPIM
-        + EntityIdSubmessageElementPIM
-        + SequenceNumberSetSubmessageElementPIM
-        + CountSubmessageElementPIM,
->(
-    _reader_locator: &mut impl RTPSReaderLocator,
-    _acknack: &impl AckNackSubmessage<PSM>,
-    _last_change_sequence_number: &SequenceNumber,
-) {
-    // reader_locator
-    //     .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
-    todo!()
-}
+// pub fn reliable_receive_acknack<
+//     PSM: SubmessageKindPIM
+//         + CountPIM
+// >(
+//     _reader_locator: &mut impl RTPSReaderLocator,
+//     _acknack: &impl AckNackSubmessage,
+//     _last_change_sequence_number: &SequenceNumber,
+// ) {
+//     // reader_locator
+//     //     .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
+//     todo!()
+// }
 
-pub fn reliable_after_nack_response_delay(
-    reader_locator: &mut impl RTPSReaderLocator,
-    mut send: impl FnMut(SequenceNumber),
-) {
-    while let Some(seq_num) = reader_locator.next_requested_change() {
-        send(seq_num)
-    }
-}
+// pub fn reliable_after_nack_response_delay(
+//     reader_locator: &mut impl RTPSReaderLocator,
+//     mut send: impl FnMut(SequenceNumber),
+// ) {
+//     while let Some(seq_num) = reader_locator.next_requested_change() {
+//         send(seq_num)
+//     }
+// }
 
 // #[cfg(test)]
 // mod tests {

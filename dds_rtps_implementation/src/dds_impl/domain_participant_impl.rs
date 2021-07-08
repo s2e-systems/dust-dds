@@ -16,18 +16,10 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::{
-    behavior::RTPSWriter,
-    messages::{
-        submessages::{GapSubmessagePIM, RtpsSubmessageType},
-        RTPSMessage, RtpsMessageHeaderType,
-    },
-    structure::{types::Locator, RTPSEntity, RTPSParticipant},
-};
+use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::{
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, transport::TransportWrite,
-    utils::shared_object::RtpsShared,
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
 };
 
 use super::{

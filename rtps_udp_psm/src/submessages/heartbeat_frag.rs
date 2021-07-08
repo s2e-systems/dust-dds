@@ -1,7 +1,6 @@
 use rust_rtps_pim::messages::types::SubmessageFlag;
 
 use crate::{
-    psm::RtpsUdpPsm,
     submessage_elements::{CountUdp, EntityIdUdp, FragmentNumberUdp, SequenceNumberUdp},
     submessage_header::SubmessageHeader,
 };
@@ -9,7 +8,12 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct HeartbeatFragUdp;
 
-impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage<RtpsUdpPsm<'a>> for HeartbeatFragUdp {
+impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage for HeartbeatFragUdp {
+    type EntityIdSubmessageElementType = EntityIdUdp;
+    type SequenceNumberSubmessageElementType = SequenceNumberUdp;
+    type FragmentNumberSubmessageElementType = FragmentNumberUdp;
+    type CountSubmessageElementType = CountUdp;
+
     fn new(
         _endianness_flag: SubmessageFlag,
         _reader_id: EntityIdUdp,

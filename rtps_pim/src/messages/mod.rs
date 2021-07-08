@@ -4,19 +4,7 @@ pub mod types;
 
 use crate::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
 
-use self::{
-    submessages::{
-        AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
-        HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
-        InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
-        NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
-    },
-    types::{SubmessageFlag, SubmessageKindPIM},
-};
-
-pub trait RtpsMessageHeaderPIM {
-    type RtpsMessageHeaderType;
-}
+use self::{submessages::{RtpsSubmessageType, RtpsSubmessagePIM}, types::{SubmessageFlag, SubmessageKindPIM}};
 
 pub trait RtpsMessageHeaderType {
     type ProtocolIdType;
@@ -50,24 +38,9 @@ pub trait Submessage {
     fn submessage_header(&self) -> Self::RtpsSubmessageHeaderType;
 }
 
-pub trait RTPSMessagePIM<'a> {
-    type RTPSMessageType: RTPSMessage<'a>;
-}
-
 pub trait RTPSMessage<'a> {
     type RtpsMessageHeaderType: RtpsMessageHeaderType;
-    type PSM: AckNackSubmessagePIM
-        + DataSubmessagePIM<'a>
-        + DataFragSubmessagePIM
-        + GapSubmessagePIM
-        + HeartbeatSubmessagePIM
-        + HeartbeatFragSubmessagePIM
-        + InfoDestinationSubmessagePIM
-        + InfoReplySubmessagePIM
-        + InfoSourceSubmessagePIM
-        + InfoTimestampSubmessagePIM
-        + NackFragSubmessagePIM
-        + PadSubmessagePIM;
+    type PSM: RtpsSubmessagePIM<'a>;
     type Constructed;
 
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(

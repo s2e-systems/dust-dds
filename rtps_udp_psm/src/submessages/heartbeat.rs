@@ -16,7 +16,11 @@ pub struct HeartbeatSubmessageUdp {
     count: CountUdp,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage<RtpsUdpPsm<'a>> for HeartbeatSubmessageUdp {
+impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage for HeartbeatSubmessageUdp {
+    type EntityIdSubmessageElementType = EntityIdUdp;
+    type SequenceNumberSubmessageElementType = SequenceNumberUdp;
+    type CountSubmessageElementType = CountUdp;
+
     fn new(
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,

@@ -20,18 +20,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageUdp<'_> {
     ) -> Self::Constructed
     where
         Self::RtpsMessageHeaderType: RtpsMessageHeaderType,
-        Self::PSM: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
-            + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a>
-            + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM
-            + rust_rtps_pim::messages::submessages::GapSubmessagePIM
-            + rust_rtps_pim::messages::submessages::HeartbeatSubmessagePIM
-            + rust_rtps_pim::messages::submessages::HeartbeatFragSubmessagePIM
-            + rust_rtps_pim::messages::submessages::InfoDestinationSubmessagePIM
-            + rust_rtps_pim::messages::submessages::InfoReplySubmessagePIM
-            + rust_rtps_pim::messages::submessages::InfoSourceSubmessagePIM
-            + rust_rtps_pim::messages::submessages::InfoTimestampSubmessagePIM
-            + rust_rtps_pim::messages::submessages::NackFragSubmessagePIM
-            + rust_rtps_pim::messages::submessages::PadSubmessagePIM,
+        Self::PSM: rust_rtps_pim::messages::submessages::RtpsSubmessagePIM<'a>,
     {
         RTPSMessageUdp {
             header: header.clone(),
