@@ -369,9 +369,9 @@ impl<'a>
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct VendorId(pub(crate) [u8; 2]);
+pub struct VendorIdC(pub(crate) [u8; 2]);
 
-impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType for VendorId {
+impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType for VendorIdC {
     fn new(value: &rust_rtps_pim::structure::types::VendorId) -> Self {
         Self(value.clone())
     }

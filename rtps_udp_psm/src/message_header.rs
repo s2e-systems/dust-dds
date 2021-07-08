@@ -1,4 +1,6 @@
-use crate::submessage_elements::{GuidPrefix, ProtocolVersionC, VendorId};
+use rust_rtps_pim::structure::types::{ProtocolVersion, VendorId};
+
+use crate::submessage_elements::{GuidPrefix, ProtocolVersionC, VendorIdC};
 
 pub type ProtocolId = [u8; 4];
 
@@ -6,14 +8,14 @@ pub type ProtocolId = [u8; 4];
 pub struct RTPSMessageHeader {
     pub(crate) protocol: ProtocolId,
     pub(crate) version: ProtocolVersionC,
-    pub(crate) vendor_id: VendorId,
+    pub(crate) vendor_id: VendorIdC,
     pub(crate) guid_prefix: GuidPrefix,
 }
 
 impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeader {
     type ProtocolIdType = ProtocolId;
-    type ProtocolVersionType = ();
-    type VendorIdType = ();
+    type ProtocolVersionType = ProtocolVersion;
+    type VendorIdType = VendorId;
     type GuidPrefixType = rust_rtps_pim::structure::types::GuidPrefix;
     const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
 
@@ -44,7 +46,7 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeader {
         Self {
             protocol: Self::PROTOCOL_RTPS,
             version: ProtocolVersionC { major: 2, minor: 4 },
-            vendor_id: VendorId([1, 1]),
+            vendor_id: VendorIdC([1, 1]),
             guid_prefix: GuidPrefix([1; 12]),
         }
     }
@@ -76,7 +78,7 @@ mod tests {
         let value = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionC { major: 2, minor: 3 },
-            vendor_id: VendorId([9, 8]),
+            vendor_id: VendorIdC([9, 8]),
             guid_prefix: GuidPrefix([3; 12]),
         };
         #[rustfmt::skip]
@@ -94,7 +96,7 @@ mod tests {
         let expected = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionC { major: 2, minor: 3 },
-            vendor_id: VendorId([9, 8]),
+            vendor_id: VendorIdC([9, 8]),
             guid_prefix: GuidPrefix([3; 12]),
         };
         #[rustfmt::skip]
@@ -113,7 +115,7 @@ mod tests {
         let value = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionC { major: 2, minor: 3 },
-            vendor_id: VendorId([9, 8]),
+            vendor_id: VendorIdC([9, 8]),
             guid_prefix: GuidPrefix([3; 12]),
         };
         #[rustfmt::skip]

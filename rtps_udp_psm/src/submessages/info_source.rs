@@ -2,7 +2,7 @@ use rust_rtps_pim::messages::types::SubmessageFlag;
 
 use crate::{
     psm::RtpsUdpPsm,
-    submessage_elements::{GuidPrefix, ProtocolVersionC, VendorId},
+    submessage_elements::{GuidPrefix, ProtocolVersionC, VendorIdC},
     submessage_header::SubmessageHeader,
 };
 
@@ -13,7 +13,7 @@ impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm<'
     fn new(
         _endianness_flag: SubmessageFlag,
         _protocol_version: ProtocolVersionC,
-        _vendor_id: VendorId,
+        _vendor_id: VendorIdC,
         _guid_prefix: GuidPrefix,
     ) -> Self {
         todo!()
@@ -27,7 +27,7 @@ impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessage<RtpsUdpPsm<'
         todo!()
     }
 
-    fn vendor_id(&self) -> &VendorId {
+    fn vendor_id(&self) -> &VendorIdC {
         todo!()
     }
 

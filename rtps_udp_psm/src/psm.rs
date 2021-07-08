@@ -28,7 +28,7 @@ use crate::{
     submessage_elements::{
         Count, EntityId, FragmentNumber, FragmentNumberSet, GroupDigest, GuidPrefix, LocatorList,
         Long, ParameterList, ProtocolVersionC, SequenceNumber, SequenceNumberSet, SerializedData,
-        Time, ULong, UShort, VendorId,
+        Time, ULong, UShort, VendorIdC,
     },
     submessages,
 };
@@ -123,7 +123,7 @@ impl<'a> FragmentNumberSetSubmessageElementPIM for RtpsUdpPsm<'a>{
 }
 
 impl<'a> VendorIdSubmessageElementPIM for RtpsUdpPsm<'a>{
-    type VendorIdSubmessageElementType = VendorId;
+    type VendorIdSubmessageElementType = VendorIdC;
 }
 
 impl<'a> LocatorListSubmessageElementPIM for RtpsUdpPsm<'a>{

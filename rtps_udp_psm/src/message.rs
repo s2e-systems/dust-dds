@@ -4,7 +4,7 @@ use serde::ser::SerializeStruct;
 use crate::{
     message_header::{ProtocolId, RTPSMessageHeader},
     psm::RtpsUdpPsm,
-    submessage_elements::{GuidPrefix, Octet, ProtocolVersionC, VendorId},
+    submessage_elements::{GuidPrefix, Octet, ProtocolVersionC, VendorIdC},
 };
 
 #[derive(Debug, PartialEq)]
@@ -148,7 +148,7 @@ mod tests {
     use crate::{
         submessage_elements::{
             EntityId, GuidPrefix, ParameterList, ProtocolVersionC, SequenceNumber,
-            SequenceNumberSet, SerializedData, VendorId,
+            SequenceNumberSet, SerializedData, VendorIdC,
         },
         submessages,
     };
@@ -179,7 +179,7 @@ mod tests {
         let header = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionC { major: 2, minor: 3 },
-            vendor_id: VendorId([9, 8]),
+            vendor_id: VendorIdC([9, 8]),
             guid_prefix: GuidPrefix([3; 12]),
         };
         let value = RTPSMessageC {
@@ -201,7 +201,7 @@ mod tests {
         let header = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionC { major: 2, minor: 3 },
-            vendor_id: VendorId([9, 8]),
+            vendor_id: VendorIdC([9, 8]),
             guid_prefix: GuidPrefix([3; 12]),
         };
         let endianness_flag = true;
@@ -272,7 +272,7 @@ mod tests {
         let header = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionC { major: 2, minor: 3 },
-            vendor_id: VendorId([9, 8]),
+            vendor_id: VendorIdC([9, 8]),
             guid_prefix: GuidPrefix([3; 12]),
         };
 
@@ -296,7 +296,7 @@ mod tests {
         let header = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionC { major: 2, minor: 3 },
-            vendor_id: VendorId([9, 8]),
+            vendor_id: VendorIdC([9, 8]),
             guid_prefix: GuidPrefix([3; 12]),
         };
 
@@ -369,7 +369,7 @@ mod tests {
         let header = RTPSMessageHeader {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionC { major: 2, minor: 3 },
-            vendor_id: VendorId([9, 8]),
+            vendor_id: VendorIdC([9, 8]),
             guid_prefix: GuidPrefix([3; 12]),
         };
         let value = RTPSMessageC {

@@ -1,8 +1,7 @@
+use std::u8;
+
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
-use rust_rtps_pim::structure::{
-    types::{Locator, VendorId, GUID},
-    RTPSEntity,
-};
+use rust_rtps_pim::structure::{RTPSEntity, types::{GUID, Locator, ProtocolVersion, VendorId}};
 
 use crate::utils::shared_object::RtpsShared;
 
@@ -61,11 +60,11 @@ impl RTPSParticipantImpl {
 }
 
 impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
-    type ProtocolVersionType = ();
-    type VendorIdType = ();
+    type ProtocolVersionType = ProtocolVersion;
+    type VendorIdType = VendorId;
 
     fn protocol_version(&self) -> &Self::ProtocolVersionType {
-        &()
+        todo!()
     }
 
     fn vendor_id(&self) -> &Self::VendorIdType {
