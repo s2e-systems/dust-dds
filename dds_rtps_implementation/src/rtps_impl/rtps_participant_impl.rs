@@ -62,12 +62,13 @@ impl RTPSParticipantImpl {
 
 impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
     type ProtocolVersionType = ();
+    type VendorIdType = ();
 
     fn protocol_version(&self) -> &Self::ProtocolVersionType {
         &()
     }
 
-    fn vendor_id(&self) -> &VendorId {
+    fn vendor_id(&self) -> &Self::VendorIdType {
         todo!()
     }
 

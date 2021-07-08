@@ -68,10 +68,10 @@ impl DomainParticipantImpl {
     ) -> Self
     where
         Transport: TransportWrite + Send + 'static,
-        <Transport as TransportWrite>::RtpsMessageHeaderType : RtpsMessageHeaderType<
+        <Transport as TransportWrite>::RtpsMessageHeaderType: RtpsMessageHeaderType<
             ProtocolVersionType = <RTPSParticipantImpl as RTPSParticipant>::ProtocolVersionType,
+            VendorIdType = <RTPSParticipantImpl as RTPSParticipant>::VendorIdType,
         >,
-        for<'a> <<<Transport::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType as DataSubmessage<'a>>::SerializedDataSubmessageElementType : SerializedDataSubmessageElementType<'a, Value = &'a [u8]>,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         // let transport_impl = Arc::new(Mutex::new(transport));
@@ -112,7 +112,10 @@ impl DomainParticipantImpl {
                             for gap_submessage in gap_submessage_list {
                                 submessages.push(gap_submessage);
                             }
-                            let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new(rtps_participant.protocol_version());
+
+                            let protocol_version = rtps_participant.protocol_version();
+                            let vendor_id = rtps_participant.vendor_id();
+                            let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new(protocol_version, vendor_id);
                             // // let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                             // // let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                             // // let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);

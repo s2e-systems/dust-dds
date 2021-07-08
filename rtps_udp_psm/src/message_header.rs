@@ -16,7 +16,7 @@ pub struct RTPSMessageHeader {
 impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeader {
     type ProtocolIdType = ProtocolId;
     type ProtocolVersionType = ();
-    type VendorIdType = VendorId;
+    type VendorIdType = ();
     type GuidPrefixType = GuidPrefix;
     const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
 
@@ -42,7 +42,7 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeader {
     fn new(
         // protocol: Self::ProtocolIdType,
         version: &Self::ProtocolVersionType,
-        // vendor_id: Self::VendorIdType,
+        vendor_id: &Self::VendorIdType,
         // guid_prefix: Self::GuidPrefixType,
     ) -> Self {
         Self {

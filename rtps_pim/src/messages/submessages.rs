@@ -1,6 +1,19 @@
 use crate::messages::Submessage;
 
-use super::{submessage_elements::{CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType, FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM, GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM, ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ProtocolVersionSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType, SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementType, TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM}, types::SubmessageFlag};
+use super::{
+    submessage_elements::{
+        CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
+        FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM,
+        GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM,
+        ParameterListSubmessageElementPIM, ParameterListSubmessageElementType,
+        ProtocolVersionSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
+        SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
+        SequenceNumberSubmessageElementType, SerializedDataFragmentSubmessageElementPIM,
+        SerializedDataSubmessageElementType, TimestampSubmessageElementPIM,
+        ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM,
+    },
+    types::SubmessageFlag,
+};
 
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessageType<'a, PSM>
@@ -66,7 +79,10 @@ pub trait DataSubmessage<'a>: Submessage {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type ParameterListSubmessageElementType: ParameterListSubmessageElementType;
-    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>;
+    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<
+        'a,
+        Value = &'a [u8],
+    >;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -140,8 +156,7 @@ pub trait GapSubmessagePIM {
     type GapSubmessageType: GapSubmessage;
 }
 
-pub trait GapSubmessage: Submessage
-{
+pub trait GapSubmessage: Submessage {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType;
