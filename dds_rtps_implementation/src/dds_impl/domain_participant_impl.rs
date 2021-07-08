@@ -36,7 +36,7 @@ use rust_rtps_pim::{
     },
     structure::{
         types::{Locator, ENTITYID_UNKNOWN},
-        RTPSCacheChange, RTPSParticipant,
+        RTPSCacheChange, RTPSEntity, RTPSParticipant,
     },
 };
 
@@ -71,6 +71,7 @@ impl DomainParticipantImpl {
         <Transport as TransportWrite>::RtpsMessageHeaderType: RtpsMessageHeaderType<
             ProtocolVersionType = <RTPSParticipantImpl as RTPSParticipant>::ProtocolVersionType,
             VendorIdType = <RTPSParticipantImpl as RTPSParticipant>::VendorIdType,
+            GuidPrefixType = rust_rtps_pim::structure::types::GuidPrefix,
         >,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
@@ -115,7 +116,8 @@ impl DomainParticipantImpl {
 
                             let protocol_version = rtps_participant.protocol_version();
                             let vendor_id = rtps_participant.vendor_id();
-                            let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new(protocol_version, vendor_id);
+                            let guid_prefix = rtps_participant.guid().prefix();
+                            let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new(protocol_version, vendor_id, guid_prefix);
                             // // let reader_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                             // // let writer_id = <PSM::GapSubmessageType as GapSubmessage>::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                             // // let gap_start = <PSM::GapSubmessageType as GapSubmessage>::SequenceNumberSubmessageElementType::new(10);

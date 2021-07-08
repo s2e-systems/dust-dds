@@ -1,7 +1,4 @@
-use crate::{
-    psm::RtpsUdpPsm,
-    submessage_elements::{GuidPrefix, ProtocolVersionC, VendorId},
-};
+use crate::submessage_elements::{GuidPrefix, ProtocolVersionC, VendorId};
 
 pub type ProtocolId = [u8; 4];
 
@@ -17,7 +14,7 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeader {
     type ProtocolIdType = ProtocolId;
     type ProtocolVersionType = ();
     type VendorIdType = ();
-    type GuidPrefixType = GuidPrefix;
+    type GuidPrefixType = rust_rtps_pim::structure::types::GuidPrefix;
     const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
 
     fn protocol(&self) -> ProtocolId {
@@ -40,10 +37,9 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeader {
     }
 
     fn new(
-        // protocol: Self::ProtocolIdType,
         version: &Self::ProtocolVersionType,
         vendor_id: &Self::VendorIdType,
-        // guid_prefix: Self::GuidPrefixType,
+        guid_prefix: &Self::GuidPrefixType,
     ) -> Self {
         Self {
             protocol: Self::PROTOCOL_RTPS,

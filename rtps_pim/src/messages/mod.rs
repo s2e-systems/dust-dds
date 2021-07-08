@@ -30,7 +30,7 @@ pub trait RtpsMessageHeaderType {
         // protocol: Self::ProtocolIdType,
         version: &Self::ProtocolVersionType,
         vendor_id: &Self::VendorIdType,
-        // guid_prefix: Self::GuidPrefixType,
+        guid_prefix: &Self::GuidPrefixType,
     ) -> Self;
 
     fn protocol(&self) -> Self::ProtocolIdType;
