@@ -15,7 +15,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageUdp<'_> {
     type Constructed = RTPSMessageUdp<'a>;
 
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
-        header: Self::RtpsMessageHeaderType,
+        header: &Self::RtpsMessageHeaderType,
         submessages: T,
     ) -> Self::Constructed
     where
@@ -34,7 +34,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageUdp<'_> {
             + rust_rtps_pim::messages::submessages::PadSubmessagePIM,
     {
         RTPSMessageUdp {
-            header,
+            header: header.clone(),
             submessages: submessages.into_iter().collect(),
         }
     }

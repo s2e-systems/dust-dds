@@ -14,7 +14,7 @@ pub struct UdpTransport<'a> {
 impl<'a> UdpTransport<'a> {
     pub fn new() -> Self {
         Self {
-            socket: UdpSocket::bind("192.168.1.142:32454").unwrap(),
+            socket: UdpSocket::bind("localhost:32454").unwrap(),
             phantom: PhantomData,
         }
     }

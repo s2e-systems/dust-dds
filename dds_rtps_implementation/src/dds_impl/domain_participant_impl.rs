@@ -30,7 +30,6 @@ use crate::{
     utils::shared_object::RtpsShared,
 };
 
-use rust_rtps_pim::behavior::stateless_writer::BestEffortBehavior;
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -51,13 +50,21 @@ impl DomainParticipantImpl {
     where
         Transport: TransportWrite + Send + 'static,
     {
-        let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
-        let rtps_participant = rtps_participant_impl.clone();
+        let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
         let is_enabled = Arc::new(AtomicBool::new(false));
         let is_enabled_thread = is_enabled.clone();
+
+
+        let rtps_participant_impl = RtpsShared::new(rtps_participant);
+        let rtps_participant_shared = rtps_participant_impl.clone();
+
         std::thread::spawn(move || loop {
             if is_enabled_thread.load(atomic::Ordering::Relaxed) {
-                if let Some(rtps_participant) = rtps_participant.try_lock() {
+                if let Some(rtps_participant) = rtps_participant_shared.try_lock() {
+                    let protocol_version = rtps_participant.protocol_version();
+                    let vendor_id = rtps_participant.vendor_id();
+                    let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new(protocol_version, vendor_id, rtps_participant.guid().prefix());
+
                     for writer_group in rtps_participant.writer_groups() {
                         let writer_group = writer_group.lock();
                         for writer in writer_group.writer_list() {
@@ -65,41 +72,9 @@ impl DomainParticipantImpl {
                             let last_change_sequence_number = *writer.last_change_sequence_number();
                             let (writer_cache, reader_locators) =
                                 writer.writer_cache_and_reader_locators();
-                            for reader_locator in reader_locators {
-                                let mut data_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM>> = vec![];
-                                let mut gap_submessage_list: Vec<RtpsSubmessageType<<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM>> = vec![];
 
-                                let mut submessages = vec![];
+                            crate::utils::message_sender::send_data(writer_cache, reader_locators, last_change_sequence_number, &mut transport, &header);
 
-                                reader_locator.best_effort_send_unsent_data(
-                                &last_change_sequence_number,
-                                writer_cache,
-                                |data_submessage| {
-                                    data_submessage_list
-                                        .push(RtpsSubmessageType::Data(data_submessage))
-                                },
-                                |gap_submessage: <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM as GapSubmessagePIM>::GapSubmessageType| {
-                                    gap_submessage_list
-                                        .push(RtpsSubmessageType::Gap(gap_submessage))
-                                },
-                            );
-
-                                for data_submessage in data_submessage_list {
-                                    submessages.push(data_submessage)
-                                }
-                                for gap_submessage in gap_submessage_list {
-                                    submessages.push(gap_submessage);
-                                }
-
-                                let protocol_version = rtps_participant.protocol_version();
-                                let vendor_id = rtps_participant.vendor_id();
-                                let guid_prefix = rtps_participant.guid().prefix();
-                                let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new(protocol_version, vendor_id, guid_prefix);
-
-                                let message = Transport::RTPSMessageType::new(header, submessages);
-                                let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
-                                transport.write(&message, &destination_locator);
-                            }
 
                             std::thread::sleep(std::time::Duration::from_millis(500));
                         }
@@ -135,9 +110,9 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
             .create_writer_group(qos, a_listener, mask)
             .ok()?;
         let writer_group_shared = RtpsShared::new(writer_group);
-        // self.rtps_participant_impl
-        //     .lock()
-        //     .add_writer_group(writer_group_shared.clone());
+        self.rtps_participant_impl
+            .lock()
+            .add_writer_group(writer_group_shared.clone());
         Some(PublisherImpl::new(self, &writer_group_shared))
     }
 
