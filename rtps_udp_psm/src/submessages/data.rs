@@ -22,7 +22,7 @@ pub struct DataSubmesage<'a> {
     serialized_payload: SerializedData<'a>,
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage for DataSubmesage<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmesage<'a> {
     type EntityIdSubmessageElementType = EntityId;
     type SequenceNumberSubmessageElementType = SequenceNumber;
     type ParameterListSubmessageElementType = ParameterList;

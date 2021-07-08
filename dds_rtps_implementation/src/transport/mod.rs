@@ -1,4 +1,4 @@
-use rust_rtps_pim::{messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, submessages::{
+use rust_rtps_pim::{messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsMessageHeaderType, submessages::{
             AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
             HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
             InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
@@ -6,8 +6,9 @@ use rust_rtps_pim::{messages::{RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM
         }}, structure::types::Locator};
 
 pub trait TransportWrite {
-    type RTPSMessageType: RTPSMessage;
-    fn write<'a>(&mut self, message: &<Self::RTPSMessageType as RTPSMessage>::Constructed, destination_locator: &Locator);
+    type RtpsMessageHeaderType: RtpsMessageHeaderType;
+    type RTPSMessageType: for<'a> RTPSMessage<'a, RtpsMessageHeaderType=Self::RtpsMessageHeaderType>;
+    fn write<'a>(&mut self, message: &<Self::RTPSMessageType as RTPSMessage<'a>>::Constructed, destination_locator: &Locator);
 }
 
 // pub trait TransportRead<PSM> {

@@ -331,17 +331,19 @@ impl<'a> SerializedData<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElementType
-    for SerializedData<'a>
+impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElementType<'a>
+    for SerializedData<'_>
 {
     type Value = &'a [u8];
+    type Constructed = SerializedData<'a>;
 
-    fn new<T: Into<Self::Value>>(value: T) -> Self {
-        Self(value.into())
+    fn new(value: &Self::Value) -> Self::Constructed {
+        SerializedData(value)
     }
 
     fn value(&self) -> &Self::Value {
-        &self.0
+        todo!()
+        // &self.0
     }
 }
 

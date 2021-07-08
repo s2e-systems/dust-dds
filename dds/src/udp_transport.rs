@@ -1,8 +1,8 @@
 use std::{marker::PhantomData, net::UdpSocket};
 
 use rust_dds_rtps_implementation::transport::{TransportLocator, TransportWrite};
-use rust_rtps_pim::{messages::RTPSMessagePIM, structure::types::Locator};
-use rust_rtps_udp_psm::{message::RTPSMessageC, psm::RtpsUdpPsm};
+use rust_rtps_pim::{messages::{RTPSMessagePIM, RtpsMessageHeaderType}, structure::types::Locator};
+use rust_rtps_udp_psm::{message::RTPSMessageC, message_header::RTPSMessageHeader, psm::RtpsUdpPsm};
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
 use serde::ser::Serialize;
 
@@ -32,6 +32,7 @@ impl<'a> UdpTransport<'a> {
 
 
 impl<'a> TransportWrite for UdpTransport<'a> {
+    type RtpsMessageHeaderType = RTPSMessageHeader;
     type RTPSMessageType = RTPSMessageC<'a>;
 
     fn write<'b>(&mut self, message: &RTPSMessageC<'b>, destination_locator: &Locator) {

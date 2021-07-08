@@ -5,7 +5,7 @@ use crate::{
             ParameterListSubmessageElementPIM, ParameterListSubmessageElementType,
             SequenceNumberSetSubmessageElementPIM, SequenceNumberSetSubmessageElementType,
             SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType,
-            SerializedDataSubmessageElementPIM, SerializedDataSubmessageElementType,
+            SerializedDataSubmessageElementType,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage},
         types::{CountPIM, SubmessageKindPIM},
@@ -57,22 +57,19 @@ pub trait RTPSStatelessWriter {
 }
 
 pub trait BestEffortBehavior: RTPSReaderLocator {
-    fn best_effort_send_unsent_data<'a, 'b: 'a, HistoryCache, Data, Gap>(
+    fn best_effort_send_unsent_data<'a, HistoryCache, Data, Gap>(
         &mut self,
         last_change_sequence_number: &SequenceNumber,
-        writer_cache: &'b HistoryCache,
+        writer_cache: &'a HistoryCache,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
         HistoryCache: RTPSHistoryCache,
-        HistoryCache::CacheChange: RTPSCacheChange, // + 'a,
-        // <HistoryCache::CacheChange as RTPSCacheChange>::DataType: 'a,
-        Data: DataSubmessage,
-        // <HistoryCache::CacheChange as RTPSCacheChange>::InlineQosType:
-        // Clone + Into<Data::ParameterListSubmessageElementType>,
+        HistoryCache::CacheChange: RTPSCacheChange,
+        Data: DataSubmessage<'a> ,
         Gap: GapSubmessage,
         Data::SerializedDataSubmessageElementType:
-            SerializedDataSubmessageElementType<Value = &'a [u8]>,
+            SerializedDataSubmessageElementType<'a, Value = &'a [u8]>,
         Data::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
         Data::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
         Data::ParameterListSubmessageElementType: ParameterListSubmessageElementType,
@@ -97,7 +94,7 @@ pub trait BestEffortBehavior: RTPSReaderLocator {
                 let inline_qos = Data::ParameterListSubmessageElementType::empty(); // change.inline_qos().clone().into();
                 let data = change.data_value().as_ref();
                 let serialized_payload =
-                    Data::SerializedDataSubmessageElementType::new(data.as_ref());
+                    Data::SerializedDataSubmessageElementType::new(&data);
                 let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,

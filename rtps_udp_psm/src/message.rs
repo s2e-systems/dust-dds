@@ -10,22 +10,22 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageC<'a> {
     header: RTPSMessageHeader,
-    submessages: Vec<RtpsSubmessageType<RtpsUdpPsm<'a>>>,
+    submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm<'a>>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageC<'a> {
+impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageC<'_> {
     type RtpsMessageHeaderType = RTPSMessageHeader;
     type PSM = RtpsUdpPsm<'a>;
     type Constructed = RTPSMessageC<'a>;
 
-    fn new<T: IntoIterator<Item = RtpsSubmessageType<Self::PSM>>>(
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
         header: Self::RtpsMessageHeaderType,
         submessages: T,
     ) -> Self::Constructed
     where
         Self::RtpsMessageHeaderType: RtpsMessageHeaderType,
         Self::PSM: rust_rtps_pim::messages::submessages::AckNackSubmessagePIM
-            + rust_rtps_pim::messages::submessages::DataSubmessagePIM
+            + rust_rtps_pim::messages::submessages::DataSubmessagePIM<'a>
             + rust_rtps_pim::messages::submessages::DataFragSubmessagePIM
             + rust_rtps_pim::messages::submessages::GapSubmessagePIM
             + rust_rtps_pim::messages::submessages::HeartbeatSubmessagePIM
@@ -47,7 +47,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageC<'a> {
         self.header
     }
 
-    fn submessages(&self) -> &[RtpsSubmessageType<Self::PSM>] {
+    fn submessages(&self) -> &[RtpsSubmessageType<'a, Self::PSM>] {
         // &self.submessages
         todo!()
     }

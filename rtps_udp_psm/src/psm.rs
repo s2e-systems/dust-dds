@@ -8,7 +8,7 @@ use rust_rtps_pim::{
             LongSubmessageElementPIM, ParameterListSubmessageElementPIM,
             ProtocolVersionSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
             SequenceNumberSubmessageElementPIM, SerializedDataFragmentSubmessageElementPIM,
-            SerializedDataSubmessageElementPIM, TimestampSubmessageElementPIM,
+            TimestampSubmessageElementPIM,
             ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM,
         },
         submessages::{
@@ -138,9 +138,9 @@ impl<'a> TimestampSubmessageElementPIM for RtpsUdpPsm<'a>{
     type TimestampSubmessageElementType = Time;
 }
 
-impl<'a> SerializedDataSubmessageElementPIM for RtpsUdpPsm<'a>{
-    type SerializedDataSubmessageElementType = SerializedData<'a>;
-}
+// impl<'a> SerializedDataSubmessageElementPIM for RtpsUdpPsm<'a>{
+//     type SerializedDataSubmessageElementType = SerializedData<'a>;
+// }
 
 impl<'a> SerializedDataFragmentSubmessageElementPIM for RtpsUdpPsm<'a>{
     type SerializedDataFragmentSubmessageElementType = SerializedData<'a>;
@@ -150,7 +150,7 @@ impl<'a> CountSubmessageElementPIM for RtpsUdpPsm<'a>{
     type CountSubmessageElementType = Count;
 }
 
-impl<'a> RTPSMessagePIM for RtpsUdpPsm<'a> {
+impl<'a> RTPSMessagePIM<'a> for RtpsUdpPsm<'a> {
     type RTPSMessageType = RTPSMessageC<'a>;
 }
 
@@ -162,7 +162,7 @@ impl<'a> AckNackSubmessagePIM for RtpsUdpPsm<'a>{
     type AckNackSubmessageType = submessages::ack_nack::AckNack;
 }
 
-impl<'a> DataSubmessagePIM for RtpsUdpPsm<'a> {
+impl<'a> DataSubmessagePIM<'a> for RtpsUdpPsm<'a> {
     type DataSubmessageType = submessages::data::DataSubmesage<'a>;
 }
 

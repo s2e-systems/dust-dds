@@ -3,10 +3,10 @@ use crate::messages::Submessage;
 use super::{submessage_elements::{CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType, FragmentNumberSetSubmessageElementPIM, FragmentNumberSubmessageElementPIM, GuidPrefixSubmessageElementPIM, LocatorListSubmessageElementPIM, ParameterListSubmessageElementPIM, ParameterListSubmessageElementType, ProtocolVersionSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType, SerializedDataFragmentSubmessageElementPIM, SerializedDataSubmessageElementType, TimestampSubmessageElementPIM, ULongSubmessageElementPIM, UShortSubmessageElementPIM, VendorIdSubmessageElementPIM}, types::SubmessageFlag};
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageType<PSM>
+pub enum RtpsSubmessageType<'a, PSM>
 where
     PSM: AckNackSubmessagePIM
-        + DataSubmessagePIM
+        + DataSubmessagePIM<'a>
         + DataFragSubmessagePIM
         + GapSubmessagePIM
         + HeartbeatSubmessagePIM
@@ -58,15 +58,15 @@ where
     fn count(&self) -> &PSM::CountSubmessageElementType;
 }
 
-pub trait DataSubmessagePIM {
-    type DataSubmessageType: DataSubmessage;
+pub trait DataSubmessagePIM<'a> {
+    type DataSubmessageType: DataSubmessage<'a>;
 }
 
-pub trait DataSubmessage: Submessage {
+pub trait DataSubmessage<'a>: Submessage {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type ParameterListSubmessageElementType: ParameterListSubmessageElementType;
-    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType;
+    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -78,7 +78,7 @@ pub trait DataSubmessage: Submessage {
         writer_id: Self::EntityIdSubmessageElementType,
         writer_sn: Self::SequenceNumberSubmessageElementType,
         inline_qos: Self::ParameterListSubmessageElementType,
-        serialized_payload: Self::SerializedDataSubmessageElementType,
+        serialized_payload: <Self::SerializedDataSubmessageElementType as SerializedDataSubmessageElementType<'a>>::Constructed,
     ) -> Self;
     fn endianness_flag(&self) -> SubmessageFlag;
     fn inline_qos_flag(&self) -> SubmessageFlag;
