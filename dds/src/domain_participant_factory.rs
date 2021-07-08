@@ -1,9 +1,23 @@
+use std::sync::{
+    atomic::{self, AtomicBool},
+    Arc,
+};
+
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::DomainParticipantQos,
 };
-use rust_dds_rtps_implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
+use rust_dds_rtps_implementation::{
+    dds_impl::domain_participant_impl::DomainParticipantImpl,
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
+};
+use rust_rtps_pim::{
+    behavior::RTPSWriter,
+    messages::RtpsMessageHeaderType,
+    structure::{RTPSEntity, RTPSParticipant},
+};
+use rust_rtps_udp_psm::message_header::RTPSMessageHeaderUdp;
 
 use crate::udp_transport::UdpTransport;
 
@@ -66,8 +80,50 @@ impl DomainParticipantFactory {
         // };
         let guid_prefix = [3; 12];
 
-        let transport = UdpTransport::new();
-        let domain_participant = DomainParticipantImpl::new(guid_prefix.into(), transport);
+        let mut transport = UdpTransport::new();
+
+        let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
+        let is_enabled = Arc::new(AtomicBool::new(false));
+        let is_enabled_thread = is_enabled.clone();
+
+        let rtps_participant_impl = RtpsShared::new(rtps_participant);
+        let rtps_participant_shared = rtps_participant_impl.clone();
+
+        std::thread::spawn(move || loop {
+            if is_enabled_thread.load(atomic::Ordering::Relaxed) {
+                if let Some(rtps_participant) = rtps_participant_shared.try_lock() {
+                    let protocol_version = rtps_participant.protocol_version();
+                    let vendor_id = rtps_participant.vendor_id();
+                    let header = RTPSMessageHeaderUdp::new(
+                        protocol_version,
+                        vendor_id,
+                        rtps_participant.guid().prefix(),
+                    );
+
+                    for writer_group in rtps_participant.writer_groups() {
+                        let writer_group = writer_group.lock();
+                        for writer in writer_group.writer_list() {
+                            let mut writer = writer.lock();
+                            let last_change_sequence_number = *writer.last_change_sequence_number();
+                            let (writer_cache, reader_locators) =
+                                writer.writer_cache_and_reader_locators();
+
+                            rust_dds_rtps_implementation::utils::message_sender::send_data(
+                                writer_cache,
+                                reader_locators,
+                                last_change_sequence_number,
+                                &mut transport,
+                                &header,
+                            );
+
+                            std::thread::sleep(std::time::Duration::from_millis(500));
+                        }
+                    }
+                }
+            }
+        });
+
+        let domain_participant = DomainParticipantImpl::new(rtps_participant_impl, is_enabled);
         // let participant = DomainParticipant::Rtps(domain_participant);
 
         // let domain_participant_impl =

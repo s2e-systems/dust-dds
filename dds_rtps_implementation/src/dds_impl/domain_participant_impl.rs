@@ -30,7 +30,6 @@ use crate::{
     utils::shared_object::RtpsShared,
 };
 
-
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
     writer_group_factory::WriterGroupFactory,
@@ -43,45 +42,11 @@ pub struct DomainParticipantImpl {
 }
 
 impl DomainParticipantImpl {
-    pub fn new<Transport>(
-        guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        mut transport: Transport,
-    ) -> Self
-    where
-        Transport: TransportWrite + Send + 'static,
-    {
-        let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
-        let is_enabled = Arc::new(AtomicBool::new(false));
-        let is_enabled_thread = is_enabled.clone();
-
-
-        let rtps_participant_impl = RtpsShared::new(rtps_participant);
-        let rtps_participant_shared = rtps_participant_impl.clone();
-
-        std::thread::spawn(move || loop {
-            if is_enabled_thread.load(atomic::Ordering::Relaxed) {
-                if let Some(rtps_participant) = rtps_participant_shared.try_lock() {
-                    let protocol_version = rtps_participant.protocol_version();
-                    let vendor_id = rtps_participant.vendor_id();
-                    let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new(protocol_version, vendor_id, rtps_participant.guid().prefix());
-
-                    for writer_group in rtps_participant.writer_groups() {
-                        let writer_group = writer_group.lock();
-                        for writer in writer_group.writer_list() {
-                            let mut writer = writer.lock();
-                            let last_change_sequence_number = *writer.last_change_sequence_number();
-                            let (writer_cache, reader_locators) =
-                                writer.writer_cache_and_reader_locators();
-
-                            crate::utils::message_sender::send_data(writer_cache, reader_locators, last_change_sequence_number, &mut transport, &header);
-
-                            std::thread::sleep(std::time::Duration::from_millis(500));
-                        }
-                    }
-                }
-            }
-        });
-
+    pub fn new(
+        rtps_participant_impl: RtpsShared<RTPSParticipantImpl>,
+        is_enabled: Arc<AtomicBool>,
+    ) -> Self {
+        let guid_prefix = *rtps_participant_impl.lock().guid().prefix();
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
             rtps_participant_impl,
