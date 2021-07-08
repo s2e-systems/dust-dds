@@ -2,6 +2,8 @@ pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
 
+use crate::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
+
 use self::{
     submessages::{
         AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
@@ -18,23 +20,20 @@ pub trait RtpsMessageHeaderPIM {
 
 pub trait RtpsMessageHeaderType {
     type ProtocolIdType;
-    type ProtocolVersionType;
-    type VendorIdType;
-    type GuidPrefixType;
 
     const PROTOCOL_RTPS: Self::ProtocolIdType;
 
     fn new(
         // protocol: Self::ProtocolIdType,
-        version: &Self::ProtocolVersionType,
-        vendor_id: &Self::VendorIdType,
-        guid_prefix: &Self::GuidPrefixType,
+        version: &ProtocolVersion,
+        vendor_id: &VendorId,
+        guid_prefix: &GuidPrefix,
     ) -> Self;
 
     fn protocol(&self) -> Self::ProtocolIdType;
-    fn version(&self) -> Self::ProtocolVersionType;
-    fn vendor_id(&self) -> Self::VendorIdType;
-    fn guid_prefix(&self) -> Self::GuidPrefixType;
+    fn version(&self) -> ProtocolVersion;
+    fn vendor_id(&self) -> VendorId;
+    fn guid_prefix(&self) -> GuidPrefix;
 }
 
 pub trait RtpsSubmessageHeaderType<PSM>

@@ -50,11 +50,6 @@ impl DomainParticipantImpl {
     ) -> Self
     where
         Transport: TransportWrite + Send + 'static,
-        <Transport as TransportWrite>::RtpsMessageHeaderType: RtpsMessageHeaderType<
-            ProtocolVersionType = <RTPSParticipantImpl as RTPSParticipant>::ProtocolVersionType,
-            VendorIdType = <RTPSParticipantImpl as RTPSParticipant>::VendorIdType,
-            GuidPrefixType = rust_rtps_pim::structure::types::GuidPrefix,
-        >,
     {
         let rtps_participant_impl = RtpsShared::new(RTPSParticipantImpl::new(guid_prefix));
         let rtps_participant = rtps_participant_impl.clone();

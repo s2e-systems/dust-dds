@@ -1,4 +1,4 @@
-use rust_rtps_pim::structure::types::{ProtocolVersion, VendorId};
+use rust_rtps_pim::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
 
 use crate::submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp};
 
@@ -14,38 +14,34 @@ pub struct RTPSMessageHeaderUdp {
 
 impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeaderUdp {
     type ProtocolIdType = ProtocolId;
-    type ProtocolVersionType = ProtocolVersion;
-    type VendorIdType = VendorId;
-    type GuidPrefixType = rust_rtps_pim::structure::types::GuidPrefix;
     const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
 
     fn protocol(&self) -> ProtocolId {
         self.protocol
     }
 
-    fn version(&self) -> Self::ProtocolVersionType {
+    fn version(&self) -> ProtocolVersion {
         // &self.version
         todo!()
     }
 
-    fn vendor_id(&self) -> Self::VendorIdType {
+    fn vendor_id(&self) -> VendorId {
         // &self.vendor_id
         todo!()
     }
 
-    fn guid_prefix(&self) -> Self::GuidPrefixType {
+    fn guid_prefix(&self) -> GuidPrefix {
         //&self.guid_prefix
         todo!()
     }
 
-    fn new(
-        version: &Self::ProtocolVersionType,
-        vendor_id: &Self::VendorIdType,
-        guid_prefix: &Self::GuidPrefixType,
-    ) -> Self {
+    fn new(version: &ProtocolVersion, vendor_id: &VendorId, guid_prefix: &GuidPrefix) -> Self {
         Self {
             protocol: Self::PROTOCOL_RTPS,
-            version: ProtocolVersionUdp { major: version.major, minor: version.minor },
+            version: ProtocolVersionUdp {
+                major: version.major,
+                minor: version.minor,
+            },
             vendor_id: VendorIdUdp(vendor_id.clone()),
             guid_prefix: GuidPrefixUdp(guid_prefix.clone()),
         }
