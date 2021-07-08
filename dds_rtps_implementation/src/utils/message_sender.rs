@@ -1,7 +1,12 @@
 use rust_rtps_pim::{
     behavior::stateless_writer::BestEffortBehavior,
     messages::{
-        submessages::{GapSubmessagePIM, RtpsSubmessageType},
+        submessages::{
+            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
+            HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM, InfoDestinationSubmessagePIM,
+            InfoReplySubmessagePIM, InfoSourceSubmessagePIM, InfoTimestampSubmessagePIM,
+            NackFragSubmessagePIM, PadSubmessagePIM, RtpsSubmessageType,
+        },
         RTPSMessage,
     },
     structure::{
@@ -11,6 +16,52 @@ use rust_rtps_pim::{
 };
 
 use crate::transport::TransportWrite;
+
+pub fn create_messages<'a, PSM, HistoryCache, ReaderLocator>(
+    writer_cache: &'a HistoryCache,
+    reader_locator: &mut ReaderLocator,
+    last_change_sequence_number: SequenceNumber,
+) -> Vec<RtpsSubmessageType<'a, PSM>>
+where
+    PSM: AckNackSubmessagePIM
+        + DataSubmessagePIM<'a>
+        + DataFragSubmessagePIM
+        + GapSubmessagePIM
+        + HeartbeatSubmessagePIM
+        + HeartbeatFragSubmessagePIM
+        + InfoDestinationSubmessagePIM
+        + InfoReplySubmessagePIM
+        + InfoSourceSubmessagePIM
+        + InfoTimestampSubmessagePIM
+        + NackFragSubmessagePIM
+        + PadSubmessagePIM,
+
+        HistoryCache: RTPSHistoryCache,
+        <HistoryCache as rust_rtps_pim::structure::RTPSHistoryCache>::CacheChange: RTPSCacheChange,
+    ReaderLocator: BestEffortBehavior,
+{
+    let mut data_submessage_list: Vec<RtpsSubmessageType<'a, PSM>> = vec![];
+    let mut gap_submessage_list: Vec<RtpsSubmessageType<'a, PSM>> = vec![];
+
+    let mut submessages = vec![];
+
+    reader_locator.best_effort_send_unsent_data(
+        &last_change_sequence_number,
+        writer_cache,
+        |data_submessage| data_submessage_list.push(RtpsSubmessageType::Data(data_submessage)),
+        |gap_submessage: <PSM as GapSubmessagePIM>::GapSubmessageType| {
+            gap_submessage_list.push(RtpsSubmessageType::Gap(gap_submessage))
+        },
+    );
+
+    for data_submessage in data_submessage_list {
+        submessages.push(data_submessage)
+    }
+    for gap_submessage in gap_submessage_list {
+        submessages.push(gap_submessage);
+    }
+    submessages
+}
 
 pub fn send_data<HistoryCache, ReaderLocator, Transport>(
     writer_cache: &HistoryCache,
@@ -25,42 +76,9 @@ pub fn send_data<HistoryCache, ReaderLocator, Transport>(
     Transport: TransportWrite,
 {
     for reader_locator in reader_locators {
-        let mut data_submessage_list: Vec<
-            RtpsSubmessageType<
-                <<Transport as TransportWrite>::RTPSMessageType as RTPSMessage>::PSM,
-            >,
-        > = vec![];
-        let mut gap_submessage_list: Vec<
-            RtpsSubmessageType<
-                <<Transport as TransportWrite>::RTPSMessageType as RTPSMessage>::PSM,
-            >,
-        > = vec![];
-
-        let mut submessages = vec![];
-
-        reader_locator.best_effort_send_unsent_data(
-                                &last_change_sequence_number,
-                                writer_cache,
-                                |data_submessage| {
-                                    data_submessage_list
-                                        .push(RtpsSubmessageType::Data(data_submessage))
-                                },
-                                |gap_submessage: <<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::PSM as GapSubmessagePIM>::GapSubmessageType| {
-                                    gap_submessage_list
-                                        .push(RtpsSubmessageType::Gap(gap_submessage))
-                                },
-                            );
-
-        for data_submessage in data_submessage_list {
-            submessages.push(data_submessage)
-        }
-        for gap_submessage in gap_submessage_list {
-            submessages.push(gap_submessage);
-        }
-
+        let submessages = create_messages(writer_cache, reader_locator, last_change_sequence_number);
         let message = Transport::RTPSMessageType::new(header, submessages);
-        let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
-        transport.write(&message, &destination_locator);
+        transport.write(&message, reader_locator.locator());
     }
 }
 
