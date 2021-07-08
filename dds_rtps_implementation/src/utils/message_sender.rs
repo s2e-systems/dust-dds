@@ -1,19 +1,14 @@
-use rust_rtps_pim::{behavior::stateless_writer::{BestEffortBehavior, RTPSReaderLocator}, messages::{
-        submessage_elements::{
-            EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
-            ParameterListSubmessageElementPIM, SequenceNumberSetSubmessageElementPIM,
-            SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
-            SequenceNumberSubmessageElementType,
-        },
-        submessages::{
-            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessage,
-            GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
-            InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
-            InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
-            RtpsSubmessageType,
-        },
+use rust_rtps_pim::{
+    behavior::stateless_writer::BestEffortBehavior,
+    messages::{
+        submessages::{GapSubmessagePIM, RtpsSubmessageType},
         RTPSMessage,
-    }, structure::{RTPSCacheChange, RTPSHistoryCache, types::{Locator, SequenceNumber}}};
+    },
+    structure::{
+        types::{Locator, SequenceNumber},
+        RTPSCacheChange, RTPSHistoryCache,
+    },
+};
 
 use crate::transport::TransportWrite;
 
@@ -22,7 +17,7 @@ pub fn send_data<HistoryCache, ReaderLocator, Transport>(
     reader_locators: &mut [ReaderLocator],
     last_change_sequence_number: SequenceNumber,
     transport: &mut Transport,
-    header: &<<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType,
+    header: &<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType,
 ) where
     HistoryCache: RTPSHistoryCache,
     <HistoryCache as rust_rtps_pim::structure::RTPSHistoryCache>::CacheChange: RTPSCacheChange,
@@ -63,11 +58,6 @@ pub fn send_data<HistoryCache, ReaderLocator, Transport>(
             submessages.push(gap_submessage);
         }
 
-        // let protocol_version = rtps_participant.protocol_version();
-        // let vendor_id = rtps_participant.vendor_id();
-        // let guid_prefix = rtps_participant.guid().prefix();
-        // let header = <<Transport as  TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType::new(protocol_version, vendor_id, guid_prefix);
-
         let message = Transport::RTPSMessageType::new(header, submessages);
         let destination_locator = Locator::new([0; 4], [1; 4], [0; 16]);
         transport.write(&message, &destination_locator);
@@ -75,4 +65,66 @@ pub fn send_data<HistoryCache, ReaderLocator, Transport>(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use rust_rtps_pim::structure::RTPSHistoryCache;
+
+    use crate::transport::TransportWrite;
+
+    struct MockCacheChange;
+    struct MockHistoryCache;
+    impl RTPSHistoryCache for MockHistoryCache {
+        type CacheChange = MockCacheChange;
+
+        fn new() -> Self
+        where
+            Self: Sized,
+        {
+            todo!()
+        }
+
+        fn add_change(&mut self, change: Self::CacheChange) {
+            todo!()
+        }
+
+        fn remove_change(&mut self, seq_num: &rust_rtps_pim::structure::types::SequenceNumber) {
+            todo!()
+        }
+
+        fn get_change(
+            &self,
+            seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
+        ) -> Option<&Self::CacheChange> {
+            todo!()
+        }
+
+        fn get_seq_num_min(&self) -> Option<&rust_rtps_pim::structure::types::SequenceNumber> {
+            todo!()
+        }
+
+        fn get_seq_num_max(&self) -> Option<&rust_rtps_pim::structure::types::SequenceNumber> {
+            todo!()
+        }
+    }
+
+    // struct MockTransport;
+    // impl TransportWrite for MockTransport {
+    //     type RtpsMessageHeaderType = ();
+    //     type RTPSMessageType = ();
+
+    //     fn write<'a>(
+    //     &mut self,
+    //     message: &rust_rtps_pim::messages::RTPSMessage::Constructed,
+    //     destination_locator: &rust_rtps_pim::structure::types::Locator,
+    // ) {
+    //     todo!()
+    // }
+    // }
+
+    #[test]
+    fn send_data_happy() {
+        let writer_cache = MockHistoryCache;
+        let reader_locators = [0];
+        let last_change_sequence_number = 1_i64;
+        // let transport = MockTransport;
+    }
+}
