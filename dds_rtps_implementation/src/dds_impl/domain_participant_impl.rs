@@ -19,36 +19,18 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::RTPSWriter,
     messages::{
-        submessage_elements::{
-            EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
-            ParameterListSubmessageElementPIM, ParameterListSubmessageElementType,
-            SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementPIM,
-            SequenceNumberSubmessageElementType, SerializedDataSubmessageElementType,
-        },
-        submessages::{
-            AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessage, DataSubmessagePIM,
-            GapSubmessage, GapSubmessagePIM, HeartbeatFragSubmessagePIM, HeartbeatSubmessagePIM,
-            InfoDestinationSubmessagePIM, InfoReplySubmessagePIM, InfoSourceSubmessagePIM,
-            InfoTimestampSubmessagePIM, NackFragSubmessagePIM, PadSubmessagePIM,
-            RtpsSubmessageType,
-        },
-        RTPSMessage, RTPSMessagePIM, RtpsMessageHeaderPIM, RtpsMessageHeaderType,
+        submessages::{GapSubmessagePIM, RtpsSubmessageType},
+        RTPSMessage, RtpsMessageHeaderType,
     },
-    structure::{
-        types::{Locator, ENTITYID_UNKNOWN},
-        RTPSCacheChange, RTPSEntity, RTPSParticipant,
-    },
+    structure::{types::Locator, RTPSEntity, RTPSParticipant},
 };
 
 use crate::{
-    rtps_impl::{
-        rtps_cache_change_impl::RTPSCacheChangeImpl, rtps_participant_impl::RTPSParticipantImpl,
-    },
-    transport::TransportWrite,
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, transport::TransportWrite,
     utils::shared_object::RtpsShared,
 };
 
-use rust_rtps_pim::behavior::stateless_writer::{BestEffortBehavior, RTPSReaderLocator};
+use rust_rtps_pim::behavior::stateless_writer::BestEffortBehavior;
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -57,7 +39,7 @@ use super::{
 
 pub struct DomainParticipantImpl {
     writer_group_factory: Mutex<WriterGroupFactory>,
-    // rtps_participant_impl: RtpsShared<RTPSParticipantImpl>,
+    rtps_participant_impl: RtpsShared<RTPSParticipantImpl>,
     is_enabled: Arc<AtomicBool>,
 }
 
@@ -132,18 +114,12 @@ impl DomainParticipantImpl {
                         std::thread::sleep(std::time::Duration::from_millis(500));
                     }
                 }
-
-                //                 // rtps_participant.send_data::<UDPHeartbeatMessage>();
-                //                 // rtps_participant.receive_data();
-                //                 // rtps_participant.run_listeners();
-                //             }
-                //         }
             }
         });
 
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
-            // rtps_participant_impl,
+            rtps_participant_impl,
             is_enabled,
         }
     }
@@ -175,16 +151,15 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        // if std::ptr::eq(a_publisher.get_participant(), self) {
-        //     self.rtps_participant_impl
-        //         .lock()
-        //         .delete_writer_group(a_publisher.get_instance_handle()?)
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Publisher can only be deleted from its parent participant",
-        //     ))
-        // }
-        todo!()
+        if std::ptr::eq(a_publisher.get_participant(), self) {
+            self.rtps_participant_impl
+                .lock()
+                .delete_writer_group(a_publisher.get_instance_handle()?)
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
+        }
     }
 }
 

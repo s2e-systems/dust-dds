@@ -45,9 +45,9 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeaderUdp
     ) -> Self {
         Self {
             protocol: Self::PROTOCOL_RTPS,
-            version: ProtocolVersionUdp { major: 2, minor: 4 },
-            vendor_id: VendorIdUdp([1, 1]),
-            guid_prefix: GuidPrefixUdp([1; 12]),
+            version: ProtocolVersionUdp { major: version.major, minor: version.minor },
+            vendor_id: VendorIdUdp(vendor_id.clone()),
+            guid_prefix: GuidPrefixUdp(guid_prefix.clone()),
         }
     }
 }

@@ -1,5 +1,3 @@
-use std::u8;
-
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::structure::{RTPSEntity, types::{GUID, Locator, ProtocolVersion, VendorId}};
 

@@ -313,7 +313,7 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElem
     const PROTOCOLVERSION_2_2: Self::ProtocolVersionType = Self { major: 2, minor: 2 };
     const PROTOCOLVERSION_2_3: Self::ProtocolVersionType = Self { major: 2, minor: 3 };
     const PROTOCOLVERSION_2_4: Self::ProtocolVersionType = Self { major: 2, minor: 4 };
-    fn new(value: &Self::ProtocolVersionType) -> Self {
+    fn new(_value: &Self::ProtocolVersionType) -> Self {
         todo!()
     }
 

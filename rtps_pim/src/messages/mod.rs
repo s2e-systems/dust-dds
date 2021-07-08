@@ -2,8 +2,6 @@ pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
 
-use crate::structure::types::{GuidPrefix, VendorId};
-
 use self::{
     submessages::{
         AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
@@ -73,7 +71,10 @@ pub trait RTPSMessage<'a> {
         + PadSubmessagePIM;
     type Constructed;
 
-    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(header: Self::RtpsMessageHeaderType, submessages: T) -> Self::Constructed;
+    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
+        header: Self::RtpsMessageHeaderType,
+        submessages: T,
+    ) -> Self::Constructed;
 
     fn header(&self) -> Self::RtpsMessageHeaderType;
 

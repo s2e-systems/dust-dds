@@ -2,9 +2,8 @@ use crate::{
     messages::{
         submessage_elements::{
             CountSubmessageElementPIM, EntityIdSubmessageElementPIM, EntityIdSubmessageElementType,
-            ParameterListSubmessageElementPIM, ParameterListSubmessageElementType,
-            SequenceNumberSetSubmessageElementPIM, SequenceNumberSetSubmessageElementType,
-            SequenceNumberSubmessageElementPIM, SequenceNumberSubmessageElementType,
+            ParameterListSubmessageElementType, SequenceNumberSetSubmessageElementPIM,
+            SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
             SerializedDataSubmessageElementType,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage},
@@ -66,7 +65,7 @@ pub trait BestEffortBehavior: RTPSReaderLocator {
     ) where
         HistoryCache: RTPSHistoryCache,
         HistoryCache::CacheChange: RTPSCacheChange,
-        Data: DataSubmessage<'a> ,
+        Data: DataSubmessage<'a>,
         Gap: GapSubmessage,
         Data::SerializedDataSubmessageElementType:
             SerializedDataSubmessageElementType<'a, Value = &'a [u8]>,
@@ -93,8 +92,7 @@ pub trait BestEffortBehavior: RTPSReaderLocator {
                     Data::SequenceNumberSubmessageElementType::new(*change.sequence_number());
                 let inline_qos = Data::ParameterListSubmessageElementType::empty(); // change.inline_qos().clone().into();
                 let data = change.data_value().as_ref();
-                let serialized_payload =
-                    Data::SerializedDataSubmessageElementType::new(&data);
+                let serialized_payload = Data::SerializedDataSubmessageElementType::new(&data);
                 let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,

@@ -1,11 +1,7 @@
 use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeaderType};
 use serde::ser::SerializeStruct;
 
-use crate::{
-    message_header::{ProtocolId, RTPSMessageHeaderUdp},
-    psm::RtpsUdpPsm,
-    submessage_elements::{GuidPrefixUdp, Octet, ProtocolVersionUdp, VendorIdUdp},
-};
+use crate::{message_header::RTPSMessageHeaderUdp, psm::RtpsUdpPsm, submessage_elements::Octet};
 
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageUdp<'a> {
@@ -147,8 +143,8 @@ mod tests {
     use super::*;
     use crate::{
         submessage_elements::{
-            EntityIdUdp, GuidPrefixUdp, ParameterListUdp, ProtocolVersionUdp, SequenceNumberUdp,
-            SequenceNumberSetUdp, SerializedDataUdp, VendorIdUdp,
+            EntityIdUdp, GuidPrefixUdp, ParameterListUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
+            SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
         },
         submessages,
     };
