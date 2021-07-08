@@ -64,7 +64,7 @@ impl DomainParticipantFactory {
         //     },
         //     spdp_locator_list: vec![Locator::new_udpv4(7400, [239, 255, 0, 0])],
         // };
-        let guid_prefix = [1; 12];
+        let guid_prefix = [3; 12];
 
         let transport = UdpTransport::new();
         let domain_participant = DomainParticipantImpl::new(guid_prefix.into(), transport);

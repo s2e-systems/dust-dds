@@ -1,5 +1,8 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
-use rust_rtps_pim::structure::{RTPSEntity, types::{GUID, Locator, ProtocolVersion, VendorId}};
+use rust_rtps_pim::structure::{
+    types::{Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
+    RTPSEntity,
+};
 
 use crate::utils::shared_object::RtpsShared;
 
@@ -7,6 +10,8 @@ use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 pub struct RTPSParticipantImpl {
     guid: GUID,
+    protocol_version: ProtocolVersion,
+    vendor_id: VendorId,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl>>,
 }
 
@@ -19,6 +24,8 @@ impl RTPSParticipantImpl {
 
         Self {
             guid,
+            protocol_version: PROTOCOLVERSION_2_4,
+            vendor_id: [99, 99],
             rtps_writer_groups: Vec::new(),
         }
     }
@@ -62,11 +69,11 @@ impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
     type VendorIdType = VendorId;
 
     fn protocol_version(&self) -> &Self::ProtocolVersionType {
-        todo!()
+        &self.protocol_version
     }
 
     fn vendor_id(&self) -> &Self::VendorIdType {
-        todo!()
+        &self.vendor_id
     }
 
     fn default_unicast_locator_list(&self) -> &[Locator] {
@@ -76,7 +83,6 @@ impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
     fn default_multicast_locator_list(&self) -> &[Locator] {
         todo!()
     }
-
 }
 
 impl RTPSEntity for RTPSParticipantImpl {
