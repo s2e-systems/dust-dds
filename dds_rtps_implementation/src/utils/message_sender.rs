@@ -1,5 +1,5 @@
 use rust_rtps_pim::{
-    behavior::stateless_writer::BestEffortBehavior,
+    behavior::stateless_writer::{RTPSReaderLocator, BestEffortBehavior},
     messages::{
         submessages::{
             AckNackSubmessagePIM, DataFragSubmessagePIM, DataSubmessagePIM, GapSubmessagePIM,
@@ -38,7 +38,7 @@ where
 
         HistoryCache: RTPSHistoryCache,
         <HistoryCache as rust_rtps_pim::structure::RTPSHistoryCache>::CacheChange: RTPSCacheChange,
-    ReaderLocator: BestEffortBehavior,
+    ReaderLocator: BestEffortBehavior<'a, HistoryCache, PSM::DataSubmessageType, PSM::GapSubmessageType>,
 {
     let mut data_submessage_list: Vec<RtpsSubmessageType<'a, PSM>> = vec![];
     let mut gap_submessage_list: Vec<RtpsSubmessageType<'a, PSM>> = vec![];
@@ -72,7 +72,8 @@ pub fn send_data<HistoryCache, ReaderLocator, Transport>(
 ) where
     HistoryCache: RTPSHistoryCache,
     <HistoryCache as rust_rtps_pim::structure::RTPSHistoryCache>::CacheChange: RTPSCacheChange,
-    ReaderLocator: BestEffortBehavior,
+    ReaderLocator: RTPSReaderLocator,
+    for<'a> ReaderLocator: BestEffortBehavior<'a, HistoryCache, <<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as DataSubmessagePIM<'a>>::DataSubmessageType, <<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as GapSubmessagePIM>::GapSubmessageType>,
     Transport: TransportWrite,
 {
     for reader_locator in reader_locators {

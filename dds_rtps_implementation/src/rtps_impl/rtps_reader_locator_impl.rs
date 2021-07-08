@@ -82,8 +82,6 @@ impl RTPSReaderLocator for RTPSReaderLocatorImpl {
     }
 }
 
-impl rust_rtps_pim::behavior::stateless_writer::BestEffortBehavior for RTPSReaderLocatorImpl {}
-
 #[cfg(test)]
 mod tests {
     use rust_rtps_pim::structure::types::LOCATOR_INVALID;

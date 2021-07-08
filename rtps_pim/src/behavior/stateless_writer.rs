@@ -55,24 +55,31 @@ pub trait RTPSStatelessWriter {
     fn unsent_changes_reset(&mut self);
 }
 
-pub trait BestEffortBehavior: RTPSReaderLocator {
-    fn best_effort_send_unsent_data<'a, HistoryCache, Data, Gap>(
+pub trait BestEffortBehavior<'a, HistoryCache, Data, Gap> {
+    fn best_effort_send_unsent_data(
+        &mut self,
+        last_change_sequence_number: &SequenceNumber,
+        writer_cache: &'a HistoryCache,
+        send_data: impl FnMut(Data),
+        send_gap: impl FnMut(Gap),
+    );
+}
+
+impl<'a, HistoryCache, Data, Gap, T> BestEffortBehavior<'a, HistoryCache, Data, Gap> for T
+where
+    T: RTPSReaderLocator,
+    HistoryCache: RTPSHistoryCache,
+    HistoryCache::CacheChange: RTPSCacheChange,
+    Data: DataSubmessage<'a>,
+    Gap: GapSubmessage,
+{
+    fn best_effort_send_unsent_data(
         &mut self,
         last_change_sequence_number: &SequenceNumber,
         writer_cache: &'a HistoryCache,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
-    ) where
-        HistoryCache: RTPSHistoryCache,
-        HistoryCache::CacheChange: RTPSCacheChange,
-        Data: DataSubmessage<'a>,
-        Gap: GapSubmessage,
-        Data::SerializedDataSubmessageElementType:
-            SerializedDataSubmessageElementType<'a, Value = &'a [u8]>,
-        Data::EntityIdSubmessageElementType: EntityIdSubmessageElementType,
-        Data::SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType,
-        Data::ParameterListSubmessageElementType: ParameterListSubmessageElementType,
-    {
+    ) {
         while let Some(seq_num) = self.next_unsent_change(&last_change_sequence_number) {
             if let Some(change) = writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;

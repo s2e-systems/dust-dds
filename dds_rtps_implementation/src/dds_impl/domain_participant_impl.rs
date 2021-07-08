@@ -75,7 +75,6 @@ impl DomainParticipantImpl {
 
                             crate::utils::message_sender::send_data(writer_cache, reader_locators, last_change_sequence_number, &mut transport, &header);
 
-
                             std::thread::sleep(std::time::Duration::from_millis(500));
                         }
                     }
