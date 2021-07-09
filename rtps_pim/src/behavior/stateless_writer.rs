@@ -44,11 +44,11 @@ pub trait RTPSReaderLocator {
 }
 
 pub trait RTPSStatelessWriter {
-    type ReaderLocatorPIM;
+    type ReaderLocatorType;
 
-    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorPIM];
+    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorType];
 
-    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM);
+    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType);
 
     fn reader_locator_remove(&mut self, a_locator: &Locator);
 
@@ -58,7 +58,7 @@ pub trait RTPSStatelessWriter {
         &mut self,
     ) -> (
         &<Self as RTPSWriter>::HistoryCacheType,
-        &mut [Self::ReaderLocatorPIM],
+        &mut [Self::ReaderLocatorType],
     )
     where
         Self: RTPSWriter;
@@ -146,28 +146,6 @@ pub fn reliable_send_unsent_data(
         send(seq_num)
     }
 }
-
-// pub fn reliable_receive_acknack<
-//     PSM: SubmessageKindPIM
-//         + CountPIM
-// >(
-//     _reader_locator: &mut impl RTPSReaderLocator,
-//     _acknack: &impl AckNackSubmessage,
-//     _last_change_sequence_number: &SequenceNumber,
-// ) {
-//     // reader_locator
-//     //     .requested_changes_set(acknack.reader_sn_state().set(), last_change_sequence_number);
-//     todo!()
-// }
-
-// pub fn reliable_after_nack_response_delay(
-//     reader_locator: &mut impl RTPSReaderLocator,
-//     mut send: impl FnMut(SequenceNumber),
-// ) {
-//     while let Some(seq_num) = reader_locator.next_requested_change() {
-//         send(seq_num)
-//     }
-// }
 
 // #[cfg(test)]
 // mod tests {

@@ -70,7 +70,7 @@ impl<Transport, T> StatelessWriterMessageSender<Transport> for T
 where
     T: RTPSStatelessWriter + RTPSWriter,
     Transport: TransportWrite,
-    T::ReaderLocatorPIM: for<'a> BestEffortBehavior<'a, T::HistoryCacheType, <<Transport::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::DataSubmessageType, <<Transport::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::GapSubmessageType> + RTPSReaderLocator,
+    T::ReaderLocatorType: for<'a> BestEffortBehavior<'a, T::HistoryCacheType, <<Transport::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::DataSubmessageType, <<Transport::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::GapSubmessageType> + RTPSReaderLocator,
 {
     fn send_data(
         &mut self,

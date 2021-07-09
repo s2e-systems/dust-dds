@@ -150,13 +150,13 @@ impl RTPSEndpoint for RTPSWriterImpl {
 }
 
 impl RTPSStatelessWriter for RTPSWriterImpl {
-    type ReaderLocatorPIM = RTPSReaderLocatorImpl;
+    type ReaderLocatorType = RTPSReaderLocatorImpl;
 
-    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorPIM] {
+    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorType] {
         &mut self.reader_locators
     }
 
-    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorPIM) {
+    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
         self.reader_locators.push(a_locator)
     }
 
@@ -172,7 +172,7 @@ impl RTPSStatelessWriter for RTPSWriterImpl {
         &mut self,
     ) -> (
         &<Self as RTPSWriter>::HistoryCacheType,
-        &mut [Self::ReaderLocatorPIM],
+        &mut [Self::ReaderLocatorType],
     )
     where
         Self: RTPSWriter,

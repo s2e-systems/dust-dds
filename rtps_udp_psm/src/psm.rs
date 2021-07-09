@@ -24,19 +24,3 @@ impl<'a> RtpsSubmessagePIM<'a> for RtpsUdpPsm {
     type NackFragSubmessageType = NackFragUdp;
     type PadSubmessageType = PadUdp;
 }
-
-// impl<'a> SubmessageKindPIM for RtpsUdpPsm<'a> {
-//     type SubmessageKindType = SubmessageKind;
-//     const DATA: Self::SubmessageKindType = 0x15;
-//     const GAP: Self::SubmessageKindType = 0x08;
-//     const HEARTBEAT: Self::SubmessageKindType = 0x07;
-//     const ACKNACK: Self::SubmessageKindType = 0x06;
-//     const PAD: Self::SubmessageKindType = 0x01;
-//     const INFO_TS: Self::SubmessageKindType = 0x09;
-//     const INFO_REPLY: Self::SubmessageKindType = 0x0f;
-//     const INFO_DST: Self::SubmessageKindType = 0x0e;
-//     const INFO_SRC: Self::SubmessageKindType = 0x0c;
-//     const DATA_FRAG: Self::SubmessageKindType = 0x16;
-//     const NACK_FRAG: Self::SubmessageKindType = 0x12;
-//     const HEARTBEAT_FRAG: Self::SubmessageKindType = 0x13;
-// }
