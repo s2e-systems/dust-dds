@@ -10,18 +10,16 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
+    utils::{message_sender::StatelessWriterMessageSender, shared_object::RtpsShared},
 };
 use rust_rtps_pim::{
-    behavior::{stateless_writer::RTPSStatelessWriter, RTPSWriter},
     messages::RtpsMessageHeaderType,
     structure::{RTPSEntity, RTPSParticipant},
 };
 use rust_rtps_udp_psm::message_header::RTPSMessageHeaderUdp;
 
 use crate::udp_transport::UdpTransport;
-
-// use crate::udp_transport::UdpTransport;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -104,17 +102,7 @@ impl DomainParticipantFactory {
                         let writer_group = writer_group.lock();
                         for writer in writer_group.writer_list() {
                             let mut writer = writer.lock();
-                            let last_change_sequence_number = *writer.last_change_sequence_number();
-                            let (writer_cache, reader_locators) =
-                                writer.writer_cache_and_reader_locators();
-
-                            rust_dds_rtps_implementation::utils::message_sender::send_data(
-                                writer_cache,
-                                reader_locators,
-                                last_change_sequence_number,
-                                &mut transport,
-                                &header,
-                            );
+                            writer.send_data(&header, &mut transport);
 
                             std::thread::sleep(std::time::Duration::from_millis(500));
                         }
