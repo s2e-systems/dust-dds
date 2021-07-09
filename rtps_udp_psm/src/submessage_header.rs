@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::types::{SubmessageFlag, SubmessageKind};
+use rust_rtps_pim::messages::types::SubmessageKind;
 
 use crate::submessage_elements::Octet;
 
@@ -22,37 +22,22 @@ impl From<SubmessageKind> for Octet {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct SubmessageHeader {
+pub struct SubmessageHeaderUdp {
     pub(crate) submessage_id: Octet,
     pub(crate) flags: Octet,
     pub(crate) submessage_length: u16,
 }
 
-impl PartialEq for SubmessageHeader {
+impl PartialEq for SubmessageHeaderUdp {
     fn eq(&self, other: &Self) -> bool {
         self.flags == other.flags && self.submessage_length == other.submessage_length
-    }
-}
-
-impl<'a> rust_rtps_pim::messages::RtpsSubmessageHeaderType for SubmessageHeader {
-    fn submessage_id(&self) -> SubmessageKind {
-        // self.submessage_id.into()
-        todo!()
-    }
-
-    fn flags(&self) -> [SubmessageFlag; 8] {
-        self.flags.into()
-    }
-
-    fn submessage_length(&self) -> u16 {
-        self.submessage_length
     }
 }
 
 struct SubmessageHeaderVisitor;
 
 impl<'de> serde::de::Visitor<'de> for SubmessageHeaderVisitor {
-    type Value = SubmessageHeader;
+    type Value = SubmessageHeaderUdp;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("SubmessageHeaderVisitor")
@@ -68,7 +53,7 @@ impl<'de> serde::de::Visitor<'de> for SubmessageHeaderVisitor {
         let submessage_length: u16 = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        Ok(SubmessageHeader {
+        Ok(SubmessageHeaderUdp {
             submessage_id: 0.into(),
             flags,
             submessage_length,
@@ -76,7 +61,7 @@ impl<'de> serde::de::Visitor<'de> for SubmessageHeaderVisitor {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for SubmessageHeader {
+impl<'de> serde::Deserialize<'de> for SubmessageHeaderUdp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

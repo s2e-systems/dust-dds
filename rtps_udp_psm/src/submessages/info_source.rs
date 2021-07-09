@@ -1,9 +1,6 @@
-use rust_rtps_pim::messages::types::SubmessageFlag;
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
-use crate::{
-    submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp},
-    submessage_header::SubmessageHeader,
-};
+use crate::submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp};
 
 #[derive(Debug, PartialEq)]
 pub struct InfoSourceUdp;
@@ -40,8 +37,7 @@ impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessage for InfoSour
 }
 
 impl rust_rtps_pim::messages::Submessage for InfoSourceUdp {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }

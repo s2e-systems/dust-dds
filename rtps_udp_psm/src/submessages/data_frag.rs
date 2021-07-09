@@ -1,11 +1,8 @@
-use rust_rtps_pim::messages::types::SubmessageFlag;
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
-use crate::{
-    submessage_elements::{
-        EntityIdUdp, FragmentNumberUdp, ParameterListUdp, SequenceNumberUdp, SerializedDataUdp,
-        ULongUdp, UShortUdp,
-    },
-    submessage_header::SubmessageHeader,
+use crate::submessage_elements::{
+    EntityIdUdp, FragmentNumberUdp, ParameterListUdp, SequenceNumberUdp, SerializedDataUdp,
+    ULongUdp, UShortUdp,
 };
 
 #[derive(Debug, PartialEq)]
@@ -94,8 +91,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage for DataFragUd
 }
 
 impl<'a> rust_rtps_pim::messages::Submessage for DataFragUdp<'a> {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }

@@ -1,13 +1,16 @@
-use rust_rtps_pim::messages::types::{SubmessageFlag, SubmessageKind};
+use rust_rtps_pim::messages::{
+    types::{SubmessageFlag, SubmessageKind},
+    RtpsSubmessageHeader,
+};
 
 use crate::{
     submessage_elements::{EntityIdUdp, SequenceNumberSetUdp, SequenceNumberUdp},
-    submessage_header::SubmessageHeader,
+    submessage_header::SubmessageHeaderUdp,
 };
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GapSubmessageUdp {
-    pub header: SubmessageHeader,
+    pub header: SubmessageHeaderUdp,
     reader_id: EntityIdUdp,
     writer_id: EntityIdUdp,
     gap_start: SequenceNumberUdp,
@@ -30,7 +33,7 @@ impl rust_rtps_pim::messages::submessages::GapSubmessage for GapSubmessageUdp {
 
         let submessage_length = 16 + gap_list.len();
 
-        let header = SubmessageHeader {
+        let header = SubmessageHeaderUdp {
             submessage_id: SubmessageKind::GAP.into(),
             flags,
             submessage_length,
@@ -66,8 +69,7 @@ impl rust_rtps_pim::messages::submessages::GapSubmessage for GapSubmessageUdp {
 }
 
 impl rust_rtps_pim::messages::Submessage for GapSubmessageUdp {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }

@@ -1,13 +1,16 @@
-use rust_rtps_pim::messages::types::{SubmessageFlag, SubmessageKind};
+use rust_rtps_pim::messages::{
+    types::{SubmessageFlag, SubmessageKind},
+    RtpsSubmessageHeader,
+};
 
 use crate::{
     submessage_elements::{CountUdp, EntityIdUdp, SequenceNumberUdp},
-    submessage_header::SubmessageHeader,
+    submessage_header::SubmessageHeaderUdp,
 };
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct HeartbeatSubmessageUdp {
-    pub header: SubmessageHeader,
+    pub header: SubmessageHeaderUdp,
     reader_id: EntityIdUdp,
     writer_id: EntityIdUdp,
     first_sn: SequenceNumberUdp,
@@ -32,7 +35,7 @@ impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage for Heartbeat
     ) -> Self {
         let flags = [endianness_flag, final_flag, liveliness_flag].into();
         let submessage_length = 28;
-        let header = SubmessageHeader {
+        let header = SubmessageHeaderUdp {
             submessage_id: SubmessageKind::HEARTBEAT.into(),
             flags,
             submessage_length,
@@ -81,8 +84,7 @@ impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage for Heartbeat
 }
 
 impl rust_rtps_pim::messages::Submessage for HeartbeatSubmessageUdp {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }

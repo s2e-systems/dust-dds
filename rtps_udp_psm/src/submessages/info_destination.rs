@@ -1,7 +1,6 @@
-use rust_rtps_pim::messages::types::SubmessageFlag;
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
-use crate::{submessage_elements::GuidPrefixUdp, submessage_header::SubmessageHeader,
-};
+use crate::submessage_elements::GuidPrefixUdp;
 
 #[derive(Debug, PartialEq)]
 pub struct InfoDestinationUdp;
@@ -22,8 +21,7 @@ impl<'a> rust_rtps_pim::messages::submessages::InfoDestinationSubmessage for Inf
 }
 
 impl rust_rtps_pim::messages::Submessage for InfoDestinationUdp {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }

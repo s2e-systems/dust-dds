@@ -15,16 +15,14 @@ pub struct RtpsMessageHeader {
     pub vendor_id: VendorId,
     pub guid_prefix: GuidPrefix,
 }
-
-pub trait RtpsSubmessageHeaderType {
-    fn submessage_id(&self) -> SubmessageKind;
-    fn flags(&self) -> [SubmessageFlag; 8];
-    fn submessage_length(&self) -> u16;
+pub struct RtpsSubmessageHeader {
+    pub submessage_id: SubmessageKind,
+    pub flags: [SubmessageFlag; 8],
+    pub submessage_length: u16,
 }
 
 pub trait Submessage {
-    type RtpsSubmessageHeaderType;
-    fn submessage_header(&self) -> Self::RtpsSubmessageHeaderType;
+    fn submessage_header(&self) -> RtpsSubmessageHeader;
 }
 
 pub trait RTPSMessage<'a> {

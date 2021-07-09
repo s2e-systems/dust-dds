@@ -1,17 +1,13 @@
-use rust_rtps_pim::messages::{
-    submessages::DataSubmessage,
-    types::{SubmessageFlag, SubmessageKind},
-    Submessage,
-};
+use rust_rtps_pim::messages::{RtpsSubmessageHeader, Submessage, submessages::DataSubmessage, types::{SubmessageFlag, SubmessageKind}};
 
 use crate::{
     submessage_elements::{EntityIdUdp, ParameterListUdp, SequenceNumberUdp, SerializedDataUdp},
-    submessage_header::SubmessageHeader,
+    submessage_header::SubmessageHeaderUdp,
 };
 
 #[derive(Debug, PartialEq)]
 pub struct DataSubmesageUdp<'a> {
-    pub(crate) header: SubmessageHeader,
+    pub(crate) header: SubmessageHeaderUdp,
     extra_flags: u16,
     octets_to_inline_qos: u16,
     reader_id: EntityIdUdp,
@@ -53,7 +49,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
             inline_qos.len()
         };
         let submessage_length = 20 + inline_qos_len + serialized_payload.len();
-        let header = SubmessageHeader {
+        let header = SubmessageHeaderUdp {
             submessage_id: SubmessageKind::DATA.into(),
             flags,
             submessage_length,
@@ -113,8 +109,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
 }
 
 impl<'a> Submessage for DataSubmesageUdp<'a> {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }
@@ -160,7 +155,7 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        let header: SubmessageHeader = seq
+        let header: SubmessageHeaderUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
         let inline_qos_flag = header.flags.is_bit_set(1);

@@ -1,8 +1,5 @@
-use crate::{
-    submessage_elements::{CountUdp, EntityIdUdp, SequenceNumberSetUdp},
-    submessage_header::SubmessageHeader,
-};
-use rust_rtps_pim::messages::{types::SubmessageFlag, Submessage};
+use crate::submessage_elements::{CountUdp, EntityIdUdp, SequenceNumberSetUdp};
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader, Submessage};
 
 #[derive(Debug, PartialEq)]
 pub struct AckNackUdp {}
@@ -49,8 +46,7 @@ impl<'a> rust_rtps_pim::messages::submessages::AckNackSubmessage for AckNackUdp 
 }
 
 impl Submessage for AckNackUdp {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }

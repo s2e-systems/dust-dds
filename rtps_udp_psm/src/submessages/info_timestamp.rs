@@ -1,6 +1,6 @@
-use rust_rtps_pim::messages::types::SubmessageFlag;
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
-use crate::{submessage_elements::TimeUdp, submessage_header::SubmessageHeader};
+use crate::submessage_elements::TimeUdp;
 
 #[derive(Debug, PartialEq)]
 pub struct InfoTimestampUdp;
@@ -30,8 +30,7 @@ impl<'a> rust_rtps_pim::messages::submessages::InfoTimestampSubmessage for InfoT
 }
 
 impl rust_rtps_pim::messages::Submessage for InfoTimestampUdp {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }

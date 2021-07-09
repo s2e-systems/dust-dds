@@ -1,6 +1,5 @@
-use rust_rtps_pim::messages::types::SubmessageFlag;
-
-use crate::{submessage_elements::LocatorListUdp, submessage_header::SubmessageHeader};
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
+use crate::submessage_elements::LocatorListUdp;
 
 #[derive(Debug, PartialEq)]
 pub struct InfoReplyUdp;
@@ -35,8 +34,7 @@ impl<'a> rust_rtps_pim::messages::submessages::InfoReplySubmessage for InfoReply
 }
 
 impl rust_rtps_pim::messages::Submessage for InfoReplyUdp {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }

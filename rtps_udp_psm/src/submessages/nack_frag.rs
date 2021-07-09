@@ -1,8 +1,5 @@
-use crate::{
-    submessage_elements::{CountUdp, EntityIdUdp, FragmentNumberSetUdp, SequenceNumberUdp},
-    submessage_header::SubmessageHeader,
-};
-use rust_rtps_pim::messages::types::SubmessageFlag;
+use crate::submessage_elements::{CountUdp, EntityIdUdp, FragmentNumberSetUdp, SequenceNumberUdp};
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
 #[derive(Debug, PartialEq)]
 pub struct NackFragUdp;
@@ -50,8 +47,7 @@ impl<'a> rust_rtps_pim::messages::submessages::NackFragSubmessage for NackFragUd
 }
 
 impl rust_rtps_pim::messages::Submessage for NackFragUdp {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }

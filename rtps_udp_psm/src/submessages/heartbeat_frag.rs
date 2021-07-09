@@ -1,9 +1,6 @@
-use rust_rtps_pim::messages::types::SubmessageFlag;
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
-use crate::{
-    submessage_elements::{CountUdp, EntityIdUdp, FragmentNumberUdp, SequenceNumberUdp},
-    submessage_header::SubmessageHeader,
-};
+use crate::submessage_elements::{CountUdp, EntityIdUdp, FragmentNumberUdp, SequenceNumberUdp};
 
 #[derive(Debug, PartialEq)]
 pub struct HeartbeatFragUdp;
@@ -51,8 +48,7 @@ impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage for Heart
 }
 
 impl rust_rtps_pim::messages::Submessage for HeartbeatFragUdp {
-    type RtpsSubmessageHeaderType = SubmessageHeader;
-    fn submessage_header(&self) -> SubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         todo!()
     }
 }
