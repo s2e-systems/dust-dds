@@ -148,13 +148,10 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for RTPSMessageUdp<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        submessage_elements::{
-            EntityIdUdp, GuidPrefixUdp, ParameterListUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
+    use crate::{parameter_list::ParameterListUdp, submessage_elements::{
+            EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
             SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
-        },
-        submessages,
-    };
+        }, submessages};
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
         submessage_elements::SequenceNumberSubmessageElementType,

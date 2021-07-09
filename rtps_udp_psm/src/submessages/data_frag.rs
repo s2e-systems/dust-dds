@@ -1,8 +1,10 @@
 use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
-use crate::submessage_elements::{
-    EntityIdUdp, FragmentNumberUdp, ParameterListUdp, SequenceNumberUdp, SerializedDataUdp,
-    ULongUdp, UShortUdp,
+use crate::{
+    parameter_list::ParameterListUdp,
+    submessage_elements::{
+        EntityIdUdp, FragmentNumberUdp, SequenceNumberUdp, SerializedDataUdp, ULongUdp, UShortUdp,
+    },
 };
 
 #[derive(Debug, PartialEq)]

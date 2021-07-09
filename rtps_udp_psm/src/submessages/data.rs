@@ -1,7 +1,12 @@
-use rust_rtps_pim::messages::{RtpsSubmessageHeader, Submessage, submessages::DataSubmessage, types::{SubmessageFlag, SubmessageKind}};
+use rust_rtps_pim::messages::{
+    submessages::DataSubmessage,
+    types::{SubmessageFlag, SubmessageKind},
+    RtpsSubmessageHeader, Submessage,
+};
 
 use crate::{
-    submessage_elements::{EntityIdUdp, ParameterListUdp, SequenceNumberUdp, SerializedDataUdp},
+    parameter_list::ParameterListUdp,
+    submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp},
     submessage_header::SubmessageHeaderUdp,
 };
 
@@ -231,12 +236,11 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesageUdp<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::submessage_elements::ParameterUdp;
+
+    use crate::parameter_list::ParameterUdp;
 
     use super::*;
-    use rust_rtps_pim::messages::{
-        submessage_elements::SequenceNumberSubmessageElementType, types::ParameterId,
-    };
+    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
     use rust_serde_cdr::{
         deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
     };
