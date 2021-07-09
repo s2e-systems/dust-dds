@@ -9,4 +9,4 @@ pub mod stateful_reader;
 pub mod stateless_reader;
 
 pub use reader::RTPSReader;
-pub use writer::RTPSWriter;
+pub use writer::{RTPSWriter, RTPSWriterOperations};

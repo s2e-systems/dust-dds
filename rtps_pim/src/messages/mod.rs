@@ -27,12 +27,11 @@ pub trait Submessage {
 
 pub trait RTPSMessage<'a> {
     type PSM: RtpsSubmessagePIM<'a>;
-    type Constructed;
 
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
         header: &RtpsMessageHeader,
         submessages: T,
-    ) -> Self::Constructed;
+    ) -> Self;
 
     fn header(&self) -> RtpsMessageHeader;
 

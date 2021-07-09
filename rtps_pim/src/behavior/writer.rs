@@ -6,7 +6,7 @@ use crate::structure::{
 use super::types::Duration;
 
 pub trait RTPSWriter {
-    type HistoryCacheType: RTPSHistoryCache;
+    type HistoryCacheType;
 
     fn push_mode(&self) -> bool;
     fn heartbeat_period(&self) -> &Duration;
@@ -16,7 +16,9 @@ pub trait RTPSWriter {
     fn data_max_size_serialized(&self) -> i32;
     fn writer_cache(&self) -> &Self::HistoryCacheType;
     fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
+}
 
+pub trait RTPSWriterOperations: RTPSWriter {
     fn new_change(
         &mut self,
         kind: ChangeKind,
@@ -25,5 +27,6 @@ pub trait RTPSWriter {
         handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
+        Self::HistoryCacheType: RTPSHistoryCache,
         <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange;
 }

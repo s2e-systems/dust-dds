@@ -1,6 +1,5 @@
 use std::{marker::PhantomData, net::UdpSocket};
 
-use rust_dds_rtps_implementation::transport::{TransportLocator, TransportWrite};
 use rust_rtps_pim::structure::types::Locator;
 use rust_rtps_udp_psm::message::RTPSMessageUdp;
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
@@ -20,8 +19,8 @@ impl<'a> UdpTransport<'a> {
     }
 }
 
-impl<'a> TransportWrite for UdpTransport<'a> {
-    type RTPSMessageType = RTPSMessageUdp<'a>;
+impl<'a> /*TransportWrite for*/ UdpTransport<'a> {
+    // type RTPSMessageType = RTPSMessageUdp<'a>;
 
     fn write<'b>(&mut self, message: &RTPSMessageUdp<'b>, destination_locator: &Locator) {
         let json_vec = serde_json::ser::to_string(message).unwrap();
@@ -37,12 +36,12 @@ impl<'a> TransportWrite for UdpTransport<'a> {
     }
 }
 
-impl<'a> TransportLocator for UdpTransport<'a> {
-    fn unicast_locator_list(&self) -> &[Locator] {
-        todo!()
-    }
+// impl<'a> TransportLocator for UdpTransport<'a> {
+//     fn unicast_locator_list(&self) -> &[Locator] {
+//         todo!()
+//     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
-        todo!()
-    }
-}
+//     fn multicast_locator_list(&self) -> &[Locator] {
+//         todo!()
+//     }
+// }

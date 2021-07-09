@@ -3,7 +3,7 @@ use rust_rtps_pim::{
         stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
         types::Duration,
-        RTPSWriter,
+        RTPSWriter, RTPSWriterOperations
     },
     structure::{
         types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
@@ -108,7 +108,9 @@ impl RTPSWriter for RTPSWriterImpl {
     fn writer_cache_mut(&mut self) -> &mut RTPSHistoryCacheImpl {
         &mut self.writer_cache
     }
+}
 
+impl RTPSWriterOperations for RTPSWriterImpl {
     fn new_change(
         &mut self,
         kind: ChangeKind,
@@ -117,6 +119,7 @@ impl RTPSWriter for RTPSWriterImpl {
         handle:  <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
+        Self::HistoryCacheType: RTPSHistoryCache,
         <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;

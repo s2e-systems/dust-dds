@@ -1,27 +1,32 @@
-use rust_rtps_pim::{behavior::{
+use rust_rtps_pim::{
+    behavior::{
         stateless_writer::{BestEffortBehavior, RTPSReaderLocator, RTPSStatelessWriter},
         RTPSWriter,
-    }, messages::{RTPSMessage, RtpsMessageHeader, submessages::{RtpsSubmessagePIM, RtpsSubmessageType}}, structure::types::SequenceNumber};
+    },
+    messages::{
+        submessages::{RtpsSubmessagePIM, RtpsSubmessageType},
+        RTPSMessage, RtpsMessageHeader,
+    },
+    structure::types::{Locator, SequenceNumber},
+};
 
-use crate::transport::TransportWrite;
-
-pub trait ReaderLocatorMessageSender<'a, PSM, HistoryCache>
+pub trait ReaderLocatorMessageSender<'a, HistoryCache, PSM>
 where
     PSM: RtpsSubmessagePIM<'a>,
 {
-    fn create_messages(
+    fn create_submessages(
         &mut self,
         writer_cache: &'a HistoryCache,
         last_change_sequence_number: SequenceNumber,
     ) -> Vec<RtpsSubmessageType<'a, PSM>>;
 }
 
-impl<'a, PSM, HistoryCache, T> ReaderLocatorMessageSender<'a, PSM, HistoryCache> for T
+impl<'a, HistoryCache, PSM, T> ReaderLocatorMessageSender<'a, HistoryCache, PSM> for T
 where
     PSM: RtpsSubmessagePIM<'a>,
-    T: BestEffortBehavior<'a, HistoryCache, PSM::DataSubmessageType, PSM::GapSubmessageType>,
+    T: BestEffortBehavior<'a, HistoryCache, PSM::DataSubmessageType, PSM::GapSubmessageType> + 'a,
 {
-    fn create_messages(
+    fn create_submessages(
         &mut self,
         writer_cache: &'a HistoryCache,
         last_change_sequence_number: SequenceNumber,
@@ -48,56 +53,48 @@ where
     }
 }
 
-pub trait StatelessWriterMessageSender<Transport>
-where
-    Transport: TransportWrite,
-{
-    fn send_data(
-        &mut self,
-        header: &RtpsMessageHeader,
-        transport: &mut Transport,
-    );
+pub trait StatelessWriterMessageSender<Message> {
+    fn create_messages(&mut self, header: &RtpsMessageHeader) -> Vec<(Message, Locator)>;
 }
 
-impl<Transport, T> StatelessWriterMessageSender<Transport> for T
+impl<Message, T> StatelessWriterMessageSender<Message> for T
 where
     T: RTPSStatelessWriter + RTPSWriter,
-    Transport: TransportWrite,
-    T::ReaderLocatorType: for<'a> BestEffortBehavior<'a, T::HistoryCacheType, <<Transport::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::DataSubmessageType, <<Transport::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::GapSubmessageType> + RTPSReaderLocator,
+    T::ReaderLocatorType: RTPSReaderLocator,
+    T::ReaderLocatorType: for<'a> ReaderLocatorMessageSender<
+        'a,
+        T::HistoryCacheType,
+        <Message as RTPSMessage<'a>>::PSM,
+    >,
+    Message: for<'a> RTPSMessage<'a>,
 {
-    fn send_data(
-        &mut self,
-        header: &RtpsMessageHeader,
-        transport: &mut Transport,
-    ) {
+    fn create_messages(&mut self, header: &RtpsMessageHeader) -> Vec<(Message, Locator)> {
+        let mut messages = vec![];
         let last_change_sequence_number = *self.last_change_sequence_number();
         let (writer_cache, reader_locators) = self.writer_cache_and_reader_locators();
         for reader_locator in reader_locators {
             let submessages =
-                reader_locator.create_messages(writer_cache, last_change_sequence_number);
-            let message = Transport::RTPSMessageType::new(header, submessages);
-            transport.write(&message, reader_locator.locator());
+                reader_locator.create_submessages(writer_cache, last_change_sequence_number);
+            messages.push((Message::new(header, submessages), *reader_locator.locator()))
         }
+        messages
     }
 }
-
-// pub fn send_data<HistoryCache, ReaderLocator, Transport>(
-//     writer_cache: &HistoryCache,
-//     reader_locators: &mut [ReaderLocator],
-//     last_change_sequence_number: SequenceNumber,
-//     transport: &mut Transport,
-//     header: &<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType,
-// ) where
-//     HistoryCache: RTPSHistoryCache,
-//     <HistoryCache as rust_rtps_pim::structure::RTPSHistoryCache>::CacheChange: RTPSCacheChange,
-//     ReaderLocator: RTPSReaderLocator,
-//     for<'a> ReaderLocator: BestEffortBehavior<'a, HistoryCache, <<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::DataSubmessageType, <<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage<'a>>::PSM as RtpsSubmessagePIM<'a>>::GapSubmessageType>,
-//     Transport: TransportWrite,
+// impl<T> StatelessWriterMessageSender for T
+// where
+//     T: RTPSStatelessWriter + RTPSWriter,
+//     T::ReaderLocatorType:
+//         RTPSReaderLocator + for<'a> ReaderLocatorMessageSender<'a, T::HistoryCacheType>,
 // {
-//     for reader_locator in reader_locators {
-//         let submessages = reader_locator.create_messages(writer_cache, last_change_sequence_number);
-//         let message = Transport::RTPSMessageType::new(header, submessages);
-//         transport.write(&message, reader_locator.locator());
+//     fn send_data(&mut self, header: &RtpsMessageHeader, transport: &mut Transport) {
+//         let last_change_sequence_number = *self.last_change_sequence_number();
+//         let (writer_cache, reader_locators) = self.writer_cache_and_reader_locators();
+//         for reader_locator in reader_locators {
+//             let submessages =
+//                 reader_locator.create_messages(writer_cache, last_change_sequence_number);
+//             let message = Transport::RTPSMessageType::new(header, submessages);
+//             transport.write(&message, reader_locator.locator());
+//         }
 //     }
 // }
 
@@ -106,13 +103,18 @@ mod tests {
     use super::*;
 
     #[derive(Debug, PartialEq)]
+    struct MockDataSubmessage;
+    #[derive(Debug, PartialEq)]
+    struct MockGapSubmessage;
+
+    #[derive(Debug, PartialEq)]
     struct MockPSM;
 
     impl<'a> RtpsSubmessagePIM<'a> for MockPSM {
         type AckNackSubmessageType = ();
-        type DataSubmessageType = ();
+        type DataSubmessageType = MockDataSubmessage;
         type DataFragSubmessageType = ();
-        type GapSubmessageType = u8;
+        type GapSubmessageType = MockGapSubmessage;
         type HeartbeatSubmessageType = ();
         type HeartbeatFragSubmessageType = ();
         type InfoDestinationSubmessageType = ();
@@ -124,37 +126,39 @@ mod tests {
     }
 
     #[test]
-    fn send_data_happy() {
+    fn reader_locator_send_data_happy() {
         struct MockReaderLocator;
-        impl<'a, HistoryCache> BestEffortBehavior<'a, HistoryCache, (), u8> for MockReaderLocator {
+        impl<'a, HistoryCache>
+            BestEffortBehavior<'a, HistoryCache, MockDataSubmessage, MockGapSubmessage>
+            for MockReaderLocator
+        {
             fn best_effort_send_unsent_data(
                 &mut self,
                 _last_change_sequence_number: &SequenceNumber,
                 _writer_cache: &'a HistoryCache,
-                mut send_data: impl FnMut(()),
-                mut send_gap: impl FnMut(u8),
+                mut send_data: impl FnMut(MockDataSubmessage),
+                mut send_gap: impl FnMut(MockGapSubmessage),
             ) {
-                send_data(());
-                send_data(());
-                send_data(());
-                send_gap(1);
-                send_gap(2);
+                send_data(MockDataSubmessage);
+                send_data(MockDataSubmessage);
+                send_data(MockDataSubmessage);
+                send_gap(MockGapSubmessage);
+                send_gap(MockGapSubmessage);
             }
         }
         let mut reader_locator = MockReaderLocator;
         let last_change_sequence_number = 1_i64;
         let submessages: Vec<RtpsSubmessageType<MockPSM>> =
-            reader_locator.create_messages(&(), last_change_sequence_number);
+            reader_locator.create_submessages(&(), last_change_sequence_number);
         assert_eq!(
             submessages,
             vec![
-                RtpsSubmessageType::Data(()),
-                RtpsSubmessageType::Data(()),
-                RtpsSubmessageType::Data(()),
-                RtpsSubmessageType::Gap(1),
-                RtpsSubmessageType::Gap(2),
+                RtpsSubmessageType::Data(MockDataSubmessage),
+                RtpsSubmessageType::Data(MockDataSubmessage),
+                RtpsSubmessageType::Data(MockDataSubmessage),
+                RtpsSubmessageType::Gap(MockGapSubmessage),
+                RtpsSubmessageType::Gap(MockGapSubmessage),
             ]
         )
-        // let transport = MockTransport;
     }
 }

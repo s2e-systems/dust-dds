@@ -15,8 +15,9 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     messages::RtpsMessageHeader,
-    structure::{RTPSEntity, RTPSParticipant},
+    structure::{types::Locator, RTPSEntity, RTPSParticipant},
 };
+use rust_rtps_udp_psm::message::RTPSMessageUdp;
 
 use crate::udp_transport::UdpTransport;
 
@@ -102,7 +103,8 @@ impl DomainParticipantFactory {
                         let writer_group = writer_group.lock();
                         for writer in writer_group.writer_list() {
                             let mut writer = writer.lock();
-                            writer.send_data(&header, &mut transport);
+                            let message_list: Vec<(RTPSMessageUdp, Locator)> =
+                                writer.create_messages(&header);
 
                             std::thread::sleep(std::time::Duration::from_millis(500));
                         }
