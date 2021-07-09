@@ -9,18 +9,11 @@ use self::{
     types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };
 
-pub trait RtpsMessageHeaderType {
-    fn new(
-        protocol: ProtocolId,
-        version: &ProtocolVersion,
-        vendor_id: &VendorId,
-        guid_prefix: &GuidPrefix,
-    ) -> Self;
-
-    fn protocol(&self) -> ProtocolId;
-    fn version(&self) -> ProtocolVersion;
-    fn vendor_id(&self) -> VendorId;
-    fn guid_prefix(&self) -> GuidPrefix;
+pub struct RtpsMessageHeader {
+    pub protocol: ProtocolId,
+    pub version: ProtocolVersion,
+    pub vendor_id: VendorId,
+    pub guid_prefix: GuidPrefix,
 }
 
 pub trait RtpsSubmessageHeaderType {
@@ -35,16 +28,15 @@ pub trait Submessage {
 }
 
 pub trait RTPSMessage<'a> {
-    type RtpsMessageHeaderType: RtpsMessageHeaderType;
     type PSM: RtpsSubmessagePIM<'a>;
     type Constructed;
 
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
-        header: &Self::RtpsMessageHeaderType,
+        header: &RtpsMessageHeader,
         submessages: T,
     ) -> Self::Constructed;
 
-    fn header(&self) -> Self::RtpsMessageHeaderType;
+    fn header(&self) -> RtpsMessageHeader;
 
     fn submessages(&self) -> &[RtpsSubmessageType<'a, Self::PSM>];
 }

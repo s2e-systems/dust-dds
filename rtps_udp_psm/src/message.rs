@@ -1,7 +1,14 @@
-use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeaderType};
+use rust_rtps_pim::{
+    messages::{submessages::RtpsSubmessageType, RtpsMessageHeader},
+    structure::types::ProtocolVersion,
+};
 use serde::ser::SerializeStruct;
 
-use crate::{message_header::RTPSMessageHeaderUdp, psm::RtpsUdpPsm, submessage_elements::Octet};
+use crate::{
+    message_header::RTPSMessageHeaderUdp,
+    psm::RtpsUdpPsm,
+    submessage_elements::{GuidPrefixUdp, Octet, ProtocolVersionUdp, VendorIdUdp},
+};
 
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageUdp<'a> {
@@ -10,26 +17,41 @@ pub struct RTPSMessageUdp<'a> {
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageUdp<'_> {
-    type RtpsMessageHeaderType = RTPSMessageHeaderUdp;
     type PSM = RtpsUdpPsm;
     type Constructed = RTPSMessageUdp<'a>;
 
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
-        header: &Self::RtpsMessageHeaderType,
+        header: &RtpsMessageHeader,
         submessages: T,
     ) -> Self::Constructed
     where
-        Self::RtpsMessageHeaderType: RtpsMessageHeaderType,
         Self::PSM: rust_rtps_pim::messages::submessages::RtpsSubmessagePIM<'a>,
     {
+        let header = RTPSMessageHeaderUdp {
+            protocol: [b'R', b'T', b'P', b's'],
+            version: ProtocolVersionUdp {
+                major: header.version.major,
+                minor: header.version.minor,
+            },
+            vendor_id: VendorIdUdp(header.vendor_id),
+            guid_prefix: GuidPrefixUdp(header.guid_prefix),
+        };
         RTPSMessageUdp {
-            header: header.clone(),
+            header,
             submessages: submessages.into_iter().collect(),
         }
     }
 
-    fn header(&self) -> RTPSMessageHeaderUdp {
-        self.header
+    fn header(&self) -> RtpsMessageHeader {
+        RtpsMessageHeader {
+            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+            version: ProtocolVersion {
+                major: self.header.version.major,
+                minor: self.header.version.minor,
+            },
+            vendor_id: self.header.vendor_id.0,
+            guid_prefix: self.header.guid_prefix.0,
+        }
     }
 
     fn submessages(&self) -> &[RtpsSubmessageType<'a, Self::PSM>] {

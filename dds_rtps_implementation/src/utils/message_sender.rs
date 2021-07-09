@@ -1,14 +1,7 @@
-use rust_rtps_pim::{
-    behavior::{
+use rust_rtps_pim::{behavior::{
         stateless_writer::{BestEffortBehavior, RTPSReaderLocator, RTPSStatelessWriter},
         RTPSWriter,
-    },
-    messages::{
-        submessages::{RtpsSubmessagePIM, RtpsSubmessageType},
-        RTPSMessage,
-    },
-    structure::types::SequenceNumber,
-};
+    }, messages::{RTPSMessage, RtpsMessageHeader, submessages::{RtpsSubmessagePIM, RtpsSubmessageType}}, structure::types::SequenceNumber};
 
 use crate::transport::TransportWrite;
 
@@ -61,7 +54,7 @@ where
 {
     fn send_data(
         &mut self,
-        header: &<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType,
+        header: &RtpsMessageHeader,
         transport: &mut Transport,
     );
 }
@@ -74,7 +67,7 @@ where
 {
     fn send_data(
         &mut self,
-        header: &<<Transport as TransportWrite>::RTPSMessageType as RTPSMessage>::RtpsMessageHeaderType,
+        header: &RtpsMessageHeader,
         transport: &mut Transport,
     ) {
         let last_change_sequence_number = *self.last_change_sequence_number();

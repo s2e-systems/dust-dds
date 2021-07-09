@@ -1,14 +1,7 @@
-use rust_rtps_pim::{
-    messages::{ RTPSMessage, RtpsMessageHeaderType},
-    structure::types::Locator,
-};
+use rust_rtps_pim::{messages::RTPSMessage, structure::types::Locator};
 
 pub trait TransportWrite {
-    type RtpsMessageHeaderType: RtpsMessageHeaderType;
-    type RTPSMessageType: for<'a> RTPSMessage<
-        'a,
-        RtpsMessageHeaderType = Self::RtpsMessageHeaderType,
-    >;
+    type RTPSMessageType: for<'a> RTPSMessage<'a>;
     fn write<'a>(
         &mut self,
         message: &<Self::RTPSMessageType as RTPSMessage<'a>>::Constructed,

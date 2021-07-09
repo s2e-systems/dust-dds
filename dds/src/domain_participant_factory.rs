@@ -14,10 +14,9 @@ use rust_dds_rtps_implementation::{
     utils::{message_sender::StatelessWriterMessageSender, shared_object::RtpsShared},
 };
 use rust_rtps_pim::{
-    messages::RtpsMessageHeaderType,
+    messages::RtpsMessageHeader,
     structure::{RTPSEntity, RTPSParticipant},
 };
-use rust_rtps_udp_psm::message_header::RTPSMessageHeaderUdp;
 
 use crate::udp_transport::UdpTransport;
 
@@ -92,12 +91,12 @@ impl DomainParticipantFactory {
                 if let Some(rtps_participant) = rtps_participant_shared.try_lock() {
                     let protocol_version = rtps_participant.protocol_version();
                     let vendor_id = rtps_participant.vendor_id();
-                    let header = RTPSMessageHeaderUdp::new(
-                        rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                        protocol_version,
-                        vendor_id,
-                        rtps_participant.guid().prefix(),
-                    );
+                    let header = RtpsMessageHeader {
+                        protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                        version: *protocol_version,
+                        vendor_id: *vendor_id,
+                        guid_prefix: *rtps_participant.guid().prefix(),
+                    };
 
                     for writer_group in rtps_participant.writer_groups() {
                         let writer_group = writer_group.lock();
