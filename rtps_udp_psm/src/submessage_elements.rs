@@ -44,12 +44,12 @@ impl From<u8> for Octet {
 pub struct UShortUdp(pub(crate) u16);
 
 impl rust_rtps_pim::messages::submessage_elements::UShortSubmessageElementType for UShortUdp {
-    fn new(value: u16) -> Self {
-        Self(value)
+    fn new(value: &u16) -> Self {
+        Self(*value)
     }
 
-    fn value(&self) -> &u16 {
-        &self.0
+    fn value(&self) -> u16 {
+        self.0
     }
 }
 
@@ -57,12 +57,12 @@ impl rust_rtps_pim::messages::submessage_elements::UShortSubmessageElementType f
 pub struct LongUdp(pub(crate) i32);
 
 impl rust_rtps_pim::messages::submessage_elements::LongSubmessageElementType for LongUdp {
-    fn new(value: i32) -> Self {
-        Self(value)
+    fn new(value: &i32) -> Self {
+        Self(*value)
     }
 
-    fn value(&self) -> &i32 {
-        &self.0
+    fn value(&self) -> i32 {
+        self.0
     }
 }
 
@@ -84,12 +84,12 @@ impl Into<[u8; 4]> for LongUdp {
 pub struct ULongUdp(pub(crate) u32);
 
 impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType for ULongUdp {
-    fn new(value: u32) -> Self {
-        Self(value)
+    fn new(value: &u32) -> Self {
+        Self(*value)
     }
 
-    fn value(&self) -> &u32 {
-        &self.0
+    fn value(&self) -> u32 {
+        self.0
     }
 }
 
@@ -115,8 +115,8 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementTy
         Self(value.clone())
     }
 
-    fn value(&self) -> &rust_rtps_pim::structure::types::GuidPrefix {
-        &self.0
+    fn value(&self) -> rust_rtps_pim::structure::types::GuidPrefix {
+        self.0
     }
 }
 
@@ -128,8 +128,8 @@ impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType
         Self(value.clone())
     }
 
-    fn value(&self) -> &rust_rtps_pim::structure::types::EntityId {
-        &self.0
+    fn value(&self) -> rust_rtps_pim::structure::types::EntityId {
+        self.0
     }
 }
 
@@ -144,11 +144,11 @@ impl From<SequenceNumberUdp> for i64 {
         ((value.high as i64) << 32) + value.low as i64
     }
 }
-impl From<i64> for SequenceNumberUdp {
-    fn from(value: i64) -> Self {
+impl From<&i64> for SequenceNumberUdp {
+    fn from(value: &i64) -> Self {
         Self {
             high: (value >> 32) as i32,
-            low: value as u32,
+            low: *value as u32,
         }
     }
 }
@@ -156,7 +156,7 @@ impl From<i64> for SequenceNumberUdp {
 impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType
     for SequenceNumberUdp
 {
-    fn new(value: rust_rtps_pim::structure::types::SequenceNumber) -> Self {
+    fn new(value: &rust_rtps_pim::structure::types::SequenceNumber) -> Self {
         value.into()
     }
 
@@ -257,7 +257,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
     type IntoIter = std::vec::IntoIter<rust_rtps_pim::structure::types::SequenceNumber>;
 
     fn new(
-        base: rust_rtps_pim::structure::types::SequenceNumber,
+        base: &rust_rtps_pim::structure::types::SequenceNumber,
         set: &[rust_rtps_pim::structure::types::SequenceNumber],
     ) -> Self {
         let mut bitmap = [0; 8];
@@ -370,8 +370,8 @@ impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType
         Self(value.clone())
     }
 
-    fn value(&self) -> &rust_rtps_pim::structure::types::VendorId {
-        &self.0
+    fn value(&self) -> rust_rtps_pim::structure::types::VendorId {
+        self.0
     }
 }
 
@@ -415,13 +415,11 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSubmessageEleme
     for FragmentNumberUdp
 {
     fn new(value: &FragmentNumber) -> Self {
-        // Self(value.clone())
-        todo!()
+        Self(value.0)
     }
 
-    fn value(&self) -> &FragmentNumber {
-        // &self.0
-        todo!()
+    fn value(&self) -> FragmentNumber {
+        FragmentNumber(self.0)
     }
 }
 
@@ -442,16 +440,17 @@ pub struct FragmentNumberSetUdp(Vec<FragmentNumberUdp>);
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElementType
     for FragmentNumberSetUdp
 {
+    type IntoIter = Vec<FragmentNumber>;
     fn new(_base: &FragmentNumber, _set: &[FragmentNumber]) -> Self {
         todo!()
     }
 
-    fn base(&self) -> &FragmentNumber {
+    fn base(&self) -> FragmentNumber {
         // &0
         todo!()
     }
 
-    fn set(&self) -> &[FragmentNumber] {
+    fn set(&self) -> Self::IntoIter {
         todo!()
         // self
     }
@@ -668,13 +667,15 @@ pub struct LocatorListUdp(Vec<rust_rtps_pim::structure::types::Locator>);
 impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementType
     for LocatorListUdp
 {
+    type IntoIter = Vec<rust_rtps_pim::structure::types::Locator>;
+
     fn new(_value: &[rust_rtps_pim::structure::types::Locator]) -> Self {
         // Self(value)
         todo!()
     }
 
-    fn value(&self) -> &[rust_rtps_pim::structure::types::Locator] {
-        &self.0
+    fn value(&self) -> Self::IntoIter {
+        self.0.clone()
     }
 }
 
@@ -812,14 +813,14 @@ mod tests {
     #[test]
     fn sequence_number_set_submessage_element_type_constructor() {
         let expected = SequenceNumberSetUdp {
-            base: SequenceNumberUdp::new(2),
+            base: SequenceNumberUdp::new(&2),
             num_bits: ULongUdp(0),
             bitmap: [0; 8],
         };
-        assert_eq!(SequenceNumberSetUdp::new(2, &[]), expected);
+        assert_eq!(SequenceNumberSetUdp::new(&2, &[]), expected);
 
         let expected = SequenceNumberSetUdp {
-            base: SequenceNumberUdp::new(2),
+            base: SequenceNumberUdp::new(&2),
             num_bits: ULongUdp(1),
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
@@ -832,10 +833,10 @@ mod tests {
                 0,
             ],
         };
-        assert_eq!(SequenceNumberSetUdp::new(2, &[2]), expected);
+        assert_eq!(SequenceNumberSetUdp::new(&2, &[2]), expected);
 
         let expected = SequenceNumberSetUdp {
-            base: SequenceNumberUdp::new(2),
+            base: SequenceNumberUdp::new(&2),
             num_bits: ULongUdp(256),
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
@@ -848,13 +849,13 @@ mod tests {
                 0b_00000000_00000000_00000000_00000001,
             ],
         };
-        assert_eq!(SequenceNumberSetUdp::new(2, &[2, 257]), expected);
+        assert_eq!(SequenceNumberSetUdp::new(&2, &[2, 257]), expected);
     }
 
     #[test]
     fn sequence_number_set_submessage_element_type_getters() {
         let sequence_number_set = SequenceNumberSetUdp {
-            base: SequenceNumberUdp::new(2),
+            base: SequenceNumberUdp::new(&2),
             num_bits: ULongUdp(0),
             bitmap: [0; 8],
         };
@@ -862,7 +863,7 @@ mod tests {
         assert!(sequence_number_set.set().eq(Vec::<i64>::new()));
 
         let sequence_number_set = SequenceNumberSetUdp {
-            base: SequenceNumberUdp::new(2),
+            base: SequenceNumberUdp::new(&2),
             num_bits: ULongUdp(100),
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
@@ -879,7 +880,7 @@ mod tests {
         assert!(sequence_number_set.set().eq(vec![2]));
 
         let sequence_number_set = SequenceNumberSetUdp {
-            base: SequenceNumberUdp::new(2),
+            base: SequenceNumberUdp::new(&2),
             num_bits: ULongUdp(256),
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
@@ -898,7 +899,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number_max_gap() {
-        let sequence_number_set = SequenceNumberSetUdp::new(2, &[2, 257]);
+        let sequence_number_set = SequenceNumberSetUdp::new(&2, &[2, 257]);
         #[rustfmt::skip]
         assert_eq!(serialize(sequence_number_set), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -917,7 +918,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number_set_empty() {
-        let sequence_number_set = SequenceNumberSetUdp::new(2, &[]);
+        let sequence_number_set = SequenceNumberSetUdp::new(&2, &[]);
         #[rustfmt::skip]
         assert_eq!(serialize(sequence_number_set), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -928,7 +929,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_empty() {
-        let expected = SequenceNumberSetUdp::new(2, &[]);
+        let expected = SequenceNumberSetUdp::new(&2, &[]);
         #[rustfmt::skip]
         let result = deserialize(&[
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -940,7 +941,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
-        let expected = SequenceNumberSetUdp::new(2, &[2, 257]);
+        let expected = SequenceNumberSetUdp::new(&2, &[2, 257]);
         #[rustfmt::skip]
         let result = deserialize(&[
             0, 0, 0, 0, // bitmapBase: high (long)

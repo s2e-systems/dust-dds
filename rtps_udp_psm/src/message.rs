@@ -192,8 +192,8 @@ mod tests {
         let endianness_flag = true;
         let reader_id = EntityIdUdp([1, 2, 3, 4]);
         let writer_id = EntityIdUdp([6, 7, 8, 9]);
-        let gap_start = SequenceNumberUdp::new(5);
-        let gap_list = SequenceNumberSetUdp::new(10, &[]);
+        let gap_start = SequenceNumberUdp::new(&5);
+        let gap_list = SequenceNumberSetUdp::new(&10, &[]);
         let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
             endianness_flag,
             reader_id,
@@ -206,7 +206,7 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let writer_sn = SequenceNumberUdp::new(5);
+        let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
@@ -288,8 +288,8 @@ mod tests {
         let endianness_flag = true;
         let reader_id = EntityIdUdp([1, 2, 3, 4]);
         let writer_id = EntityIdUdp([6, 7, 8, 9]);
-        let gap_start = SequenceNumberUdp::new(5);
-        let gap_list = SequenceNumberSetUdp::new(10, &[]);
+        let gap_start = SequenceNumberUdp::new(&5);
+        let gap_list = SequenceNumberSetUdp::new(&10, &[]);
         let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
             endianness_flag,
             reader_id,
@@ -302,7 +302,7 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let writer_sn = SequenceNumberUdp::new(5);
+        let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };

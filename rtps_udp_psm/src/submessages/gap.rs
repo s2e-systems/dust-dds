@@ -100,8 +100,8 @@ mod tests {
         let endianness_flag = true;
         let reader_id = EntityIdUdp([1, 2, 3, 4]);
         let writer_id = EntityIdUdp([6, 7, 8, 9]);
-        let gap_start = SequenceNumberUdp::new(5);
-        let gap_list = SequenceNumberSetUdp::new(10, &[]);
+        let gap_start = SequenceNumberUdp::new(&5);
+        let gap_list = SequenceNumberSetUdp::new(&10, &[]);
         let submessage: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessage::new(
             endianness_flag,
             reader_id,
@@ -128,8 +128,8 @@ mod tests {
         let endianness_flag = true;
         let reader_id = EntityIdUdp([1, 2, 3, 4]);
         let writer_id = EntityIdUdp([6, 7, 8, 9]);
-        let gap_start = SequenceNumberUdp::new(5);
-        let gap_list = SequenceNumberSetUdp::new(10, &[]);
+        let gap_start = SequenceNumberUdp::new(&5);
+        let gap_list = SequenceNumberSetUdp::new(&10, &[]);
         let expected: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessage::new(
             endianness_flag,
             reader_id,

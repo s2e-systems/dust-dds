@@ -107,8 +107,8 @@ mod tests {
         let liveliness_flag = false;
         let reader_id = EntityIdUdp([1, 2, 3, 4]);
         let writer_id = EntityIdUdp([6, 7, 8, 9]);
-        let first_sn = SequenceNumberUdp::new(1);
-        let last_sn = SequenceNumberUdp::new(3);
+        let first_sn = SequenceNumberUdp::new(&1);
+        let last_sn = SequenceNumberUdp::new(&3);
         let count = CountUdp(5);
         let submessage: HeartbeatSubmessageUdp =
             rust_rtps_pim::messages::submessages::HeartbeatSubmessage::new(

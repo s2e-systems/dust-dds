@@ -105,7 +105,7 @@ where
                 let writer_id =
                     Data::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
                 let writer_sn =
-                    Data::SequenceNumberSubmessageElementType::new(*change.sequence_number());
+                    Data::SequenceNumberSubmessageElementType::new(change.sequence_number());
                 let inline_qos = Data::ParameterListSubmessageElementType::empty(); // change.inline_qos().clone().into();
                 let data = change.data_value().as_ref();
                 let serialized_payload = Data::SerializedDataSubmessageElementType::new(&data);
@@ -126,9 +126,9 @@ where
                 let endianness_flag = true;
                 let reader_id = Gap::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
                 let writer_id = Gap::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-                let gap_start = Gap::SequenceNumberSubmessageElementType::new(seq_num);
+                let gap_start = Gap::SequenceNumberSubmessageElementType::new(&seq_num);
                 let set = &[];
-                let gap_list = Gap::SequenceNumberSetSubmessageElementType::new(seq_num, set);
+                let gap_list = Gap::SequenceNumberSetSubmessageElementType::new(&seq_num, set);
                 let gap_submessage =
                     Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
                 send_gap(gap_submessage)
