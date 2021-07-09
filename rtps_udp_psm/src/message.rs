@@ -6,12 +6,12 @@ use crate::{message_header::RTPSMessageHeaderUdp, psm::RtpsUdpPsm, submessage_el
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageUdp<'a> {
     header: RTPSMessageHeaderUdp,
-    submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm<'a>>>,
+    submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
 }
 
 impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageUdp<'_> {
     type RtpsMessageHeaderType = RTPSMessageHeaderUdp;
-    type PSM = RtpsUdpPsm<'a>;
+    type PSM = RtpsUdpPsm;
     type Constructed = RTPSMessageUdp<'a>;
 
     fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(

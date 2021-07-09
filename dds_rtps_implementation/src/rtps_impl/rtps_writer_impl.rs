@@ -2,6 +2,7 @@ use rust_rtps_pim::{
     behavior::{
         stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
+        types::Duration,
         RTPSWriter,
     },
     structure::{
@@ -22,9 +23,9 @@ pub struct RTPSWriterImpl {
     push_mode: bool,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
-    heartbeat_period: <Self as RTPSWriter>::DurationType,
-    nack_response_delay: <Self as RTPSWriter>::DurationType,
-    nack_suppression_duration: <Self as RTPSWriter>::DurationType,
+    heartbeat_period: Duration,
+    nack_response_delay: Duration,
+    nack_suppression_duration: Duration,
     last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: i32,
     reader_locators: Vec<RTPSReaderLocatorImpl>,
@@ -40,9 +41,9 @@ impl RTPSWriterImpl {
         push_mode: bool,
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        heartbeat_period: <Self as RTPSWriter>::DurationType,
-        nack_response_delay: <Self as RTPSWriter>::DurationType,
-        nack_suppression_duration: <Self as RTPSWriter>::DurationType,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
         data_max_size_serialized: i32,
     ) -> Self
     where
@@ -75,21 +76,20 @@ impl RTPSEntity for RTPSWriterImpl {
 
 impl RTPSWriter for RTPSWriterImpl {
     type HistoryCacheType = RTPSHistoryCacheImpl;
-    type DurationType = i64;
 
     fn push_mode(&self) -> bool {
         self.push_mode
     }
 
-    fn heartbeat_period(&self) -> &Self::DurationType {
+    fn heartbeat_period(&self) -> &Duration {
         &self.heartbeat_period
     }
 
-    fn nack_response_delay(&self) -> &Self::DurationType {
+    fn nack_response_delay(&self) -> &Duration {
         &self.nack_response_delay
     }
 
-    fn nack_suppression_duration(&self) -> &Self::DurationType {
+    fn nack_suppression_duration(&self) -> &Duration {
         &self.nack_suppression_duration
     }
 
@@ -221,9 +221,9 @@ mod tests {
         let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = vec![];
         let multicast_locator_list = vec![];
-        let heartbeat_period = 0;
-        let nack_response_delay = 0;
-        let nack_suppression_duration = 0;
+        let heartbeat_period = Duration(0);
+        let nack_response_delay = Duration(0);
+        let nack_suppression_duration = Duration(0);
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
@@ -251,9 +251,9 @@ mod tests {
         let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = vec![];
         let multicast_locator_list = vec![];
-        let heartbeat_period = 0;
-        let nack_response_delay = 0;
-        let nack_suppression_duration = 0;
+        let heartbeat_period = Duration(0);
+        let nack_response_delay = Duration(0);
+        let nack_suppression_duration = Duration(0);
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
@@ -284,9 +284,9 @@ mod tests {
         let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = vec![];
         let multicast_locator_list = vec![];
-        let heartbeat_period = 0;
-        let nack_response_delay = 0;
-        let nack_suppression_duration = 0;
+        let heartbeat_period = Duration(0);
+        let nack_response_delay = Duration(0);
+        let nack_suppression_duration = Duration(0);
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
@@ -319,9 +319,9 @@ mod tests {
         let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = vec![];
         let multicast_locator_list = vec![];
-        let heartbeat_period = 0;
-        let nack_response_delay = 0;
-        let nack_suppression_duration = 0;
+        let heartbeat_period = Duration(0);
+        let nack_response_delay = Duration(0);
+        let nack_suppression_duration = Duration(0);
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
@@ -351,9 +351,9 @@ mod tests {
         let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = vec![];
         let multicast_locator_list = vec![];
-        let heartbeat_period = 0;
-        let nack_response_delay = 0;
-        let nack_suppression_duration = 0;
+        let heartbeat_period = Duration(0);
+        let nack_response_delay = Duration(0);
+        let nack_suppression_duration = Duration(0);
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
@@ -386,9 +386,9 @@ mod tests {
         let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = vec![];
         let multicast_locator_list = vec![];
-        let heartbeat_period = 0;
-        let nack_response_delay = 0;
-        let nack_suppression_duration = 0;
+        let heartbeat_period = Duration(0);
+        let nack_response_delay = Duration(0);
+        let nack_suppression_duration = Duration(0);
         let data_max_size_serialized = i32::MAX;
         let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
