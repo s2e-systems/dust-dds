@@ -1,11 +1,13 @@
 use rust_rtps_pim::messages::types::SubmessageFlag;
 
-use crate::{psm::RtpsUdpPsm, submessage_elements::TimeUdp, submessage_header::SubmessageHeader};
+use crate::{submessage_elements::TimeUdp, submessage_header::SubmessageHeader};
 
 #[derive(Debug, PartialEq)]
 pub struct InfoTimestampUdp;
 
-impl<'a> rust_rtps_pim::messages::submessages::InfoTimestampSubmessage<RtpsUdpPsm<'a>> for InfoTimestampUdp {
+impl<'a> rust_rtps_pim::messages::submessages::InfoTimestampSubmessage for InfoTimestampUdp {
+    type TimestampSubmessageElementType = TimeUdp;
+
     fn new(
         _endianness_flag: SubmessageFlag,
         _invalidate_flag: SubmessageFlag,

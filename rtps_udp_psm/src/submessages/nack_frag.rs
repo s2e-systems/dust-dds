@@ -1,5 +1,4 @@
 use crate::{
-    psm::RtpsUdpPsm,
     submessage_elements::{CountUdp, EntityIdUdp, FragmentNumberSetUdp, SequenceNumberUdp},
     submessage_header::SubmessageHeader,
 };
@@ -8,7 +7,12 @@ use rust_rtps_pim::messages::types::SubmessageFlag;
 #[derive(Debug, PartialEq)]
 pub struct NackFragUdp;
 
-impl<'a> rust_rtps_pim::messages::submessages::NackFragSubmessage<RtpsUdpPsm<'a>> for NackFragUdp {
+impl<'a> rust_rtps_pim::messages::submessages::NackFragSubmessage for NackFragUdp {
+    type EntityIdSubmessageElementType = EntityIdUdp;
+    type SequenceNumberSubmessageElementType = SequenceNumberUdp;
+    type FragmentNumberSetSubmessageElementType = FragmentNumberSetUdp;
+    type CountSubmessageElementType = CountUdp;
+
     fn new(
         _endianness_flag: SubmessageFlag,
         _reader_id: EntityIdUdp,

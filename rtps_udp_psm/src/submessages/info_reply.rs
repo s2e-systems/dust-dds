@@ -1,13 +1,13 @@
 use rust_rtps_pim::messages::types::SubmessageFlag;
 
-use crate::{
-    psm::RtpsUdpPsm, submessage_elements::LocatorListUdp, submessage_header::SubmessageHeader,
-};
+use crate::{submessage_elements::LocatorListUdp, submessage_header::SubmessageHeader};
 
 #[derive(Debug, PartialEq)]
 pub struct InfoReplyUdp;
 
-impl<'a> rust_rtps_pim::messages::submessages::InfoReplySubmessage<RtpsUdpPsm<'a>> for InfoReplyUdp {
+impl<'a> rust_rtps_pim::messages::submessages::InfoReplySubmessage for InfoReplyUdp {
+    type LocatorListSubmessageElementType = LocatorListUdp;
+
     fn new(
         _endianness_flag: SubmessageFlag,
         _multicast_flag: SubmessageFlag,
