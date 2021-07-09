@@ -53,29 +53,29 @@ where
     }
 }
 
-pub trait StatelessWriterMessageSender<Message> {
-    fn create_messages(&mut self, header: &RtpsMessageHeader) -> Vec<(Message, Locator)>;
+pub trait StatelessWriterMessageSender<Message, Sender> {
+    fn create_messages(self, header: &RtpsMessageHeader, send_message: Sender) -> Vec<Message>;
 }
 
-impl<Message, T> StatelessWriterMessageSender<Message> for T
+impl<'a, Message, Sender, PSM, T> StatelessWriterMessageSender<Message, Sender> for &'a mut T
 where
     T: RTPSStatelessWriter + RTPSWriter,
+    Sender: Fn(Message, &'a Locator),
+    PSM: RtpsSubmessagePIM<'a>,
     T::ReaderLocatorType: RTPSReaderLocator,
-    T::ReaderLocatorType: for<'a> ReaderLocatorMessageSender<
-        'a,
-        T::HistoryCacheType,
-        <Message as RTPSMessage<'a>>::PSM,
-    >,
-    Message: for<'a> RTPSMessage<'a>,
+    T::ReaderLocatorType: ReaderLocatorMessageSender<'a, T::HistoryCacheType, PSM>,
+    Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
 {
-    fn create_messages(&mut self, header: &RtpsMessageHeader) -> Vec<(Message, Locator)> {
+    fn create_messages(self, header: &RtpsMessageHeader, send_message: Sender) -> Vec<Message> {
         let mut messages = vec![];
         let last_change_sequence_number = *self.last_change_sequence_number();
         let (writer_cache, reader_locators) = self.writer_cache_and_reader_locators();
         for reader_locator in reader_locators {
             let submessages =
                 reader_locator.create_submessages(writer_cache, last_change_sequence_number);
-            messages.push((Message::new(header, submessages), *reader_locator.locator()))
+            let message = Message::new(header, submessages);
+            messages.push(message);
+            // send_message(message, reader_locator.locator())
         }
         messages
     }

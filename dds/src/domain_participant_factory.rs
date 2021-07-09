@@ -103,8 +103,8 @@ impl DomainParticipantFactory {
                         let writer_group = writer_group.lock();
                         for writer in writer_group.writer_list() {
                             let mut writer = writer.lock();
-                            let message_list: Vec<(RTPSMessageUdp, Locator)> =
-                                writer.create_messages(&header);
+                            let messages = writer.create_messages(&header, |message: RTPSMessageUdp, _| println!("{:?}", message));
+
 
                             std::thread::sleep(std::time::Duration::from_millis(500));
                         }

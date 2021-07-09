@@ -16,16 +16,13 @@ pub struct RTPSMessageUdp<'a> {
     submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageUdp<'a> {
-    type PSM = RtpsUdpPsm;
+impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageUdp<'a> {
+    type SubmessageType = RtpsSubmessageType<'a, RtpsUdpPsm>;
 
-    fn new<T: IntoIterator<Item = RtpsSubmessageType<'a, Self::PSM>>>(
+    fn new<T: IntoIterator<Item = Self::SubmessageType>>(
         header: &RtpsMessageHeader,
         submessages: T,
-    ) -> Self
-    where
-        Self::PSM: rust_rtps_pim::messages::submessages::RtpsSubmessagePIM<'a>,
-    {
+    ) -> Self {
         let header = RTPSMessageHeaderUdp {
             protocol: [b'R', b'T', b'P', b's'],
             version: ProtocolVersionUdp {
@@ -53,7 +50,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage<'a> for RTPSMessageUdp<'a> {
         }
     }
 
-    fn submessages(&self) -> &[RtpsSubmessageType<'a, Self::PSM>] {
+    fn submessages(&self) -> &[Self::SubmessageType] {
         // &self.submessages
         todo!()
     }
