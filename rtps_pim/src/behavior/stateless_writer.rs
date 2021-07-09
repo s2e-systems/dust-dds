@@ -13,6 +13,8 @@ use crate::{
     },
 };
 
+use super::RTPSWriter;
+
 pub trait RTPSReaderLocator {
     type SequenceNumberVector;
 
@@ -51,6 +53,15 @@ pub trait RTPSStatelessWriter {
     fn reader_locator_remove(&mut self, a_locator: &Locator);
 
     fn unsent_changes_reset(&mut self);
+
+    fn writer_cache_and_reader_locators(
+        &mut self,
+    ) -> (
+        &<Self as RTPSWriter>::HistoryCacheType,
+        &mut [Self::ReaderLocatorPIM],
+    )
+    where
+        Self: RTPSWriter;
 }
 
 pub trait BestEffortBehavior<'a, HistoryCache, Data, Gap> {

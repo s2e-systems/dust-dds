@@ -65,12 +65,6 @@ impl RTPSWriterImpl {
             writer_cache: RTPSHistoryCacheImpl::new(),
         }
     }
-
-    pub fn writer_cache_and_reader_locators(
-        &mut self,
-    ) -> (&RTPSHistoryCacheImpl, &mut Vec<RTPSReaderLocatorImpl>) {
-        (&self.writer_cache, &mut self.reader_locators)
-    }
 }
 
 impl RTPSEntity for RTPSWriterImpl {
@@ -172,6 +166,18 @@ impl RTPSStatelessWriter for RTPSWriterImpl {
 
     fn unsent_changes_reset(&mut self) {
         todo!()
+    }
+
+    fn writer_cache_and_reader_locators(
+        &mut self,
+    ) -> (
+        &<Self as RTPSWriter>::HistoryCacheType,
+        &mut [Self::ReaderLocatorPIM],
+    )
+    where
+        Self: RTPSWriter,
+    {
+        (&self.writer_cache, &mut self.reader_locators)
     }
 }
 

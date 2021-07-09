@@ -13,7 +13,7 @@ use rust_dds_rtps_implementation::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
-    behavior::RTPSWriter,
+    behavior::{stateless_writer::RTPSStatelessWriter, RTPSWriter},
     messages::RtpsMessageHeaderType,
     structure::{RTPSEntity, RTPSParticipant},
 };

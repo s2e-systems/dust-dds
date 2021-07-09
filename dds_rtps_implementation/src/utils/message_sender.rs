@@ -9,37 +9,53 @@ use rust_rtps_pim::{
 
 use crate::transport::TransportWrite;
 
-pub fn create_messages<'a, PSM, HistoryCache, ReaderLocator>(
-    writer_cache: &'a HistoryCache,
-    reader_locator: &mut ReaderLocator,
-    last_change_sequence_number: SequenceNumber,
-) -> Vec<RtpsSubmessageType<'a, PSM>>
+pub trait ReaderLocatorMessageSender<'a, PSM, HistoryCache>
 where
     PSM: RtpsSubmessagePIM<'a>,
-    HistoryCache: RTPSHistoryCache,
-    <HistoryCache as rust_rtps_pim::structure::RTPSHistoryCache>::CacheChange: RTPSCacheChange,
-    ReaderLocator:
-        BestEffortBehavior<'a, HistoryCache, PSM::DataSubmessageType, PSM::GapSubmessageType>,
 {
-    let mut data_submessage_list: Vec<RtpsSubmessageType<'a, PSM>> = vec![];
-    let mut gap_submessage_list: Vec<RtpsSubmessageType<'a, PSM>> = vec![];
+    fn create_messages(
+        &mut self,
+        writer_cache: &'a HistoryCache,
+        last_change_sequence_number: SequenceNumber,
+    ) -> Vec<RtpsSubmessageType<'a, PSM>>;
+}
 
-    let mut submessages = vec![];
+impl<'a, PSM, HistoryCache, T> ReaderLocatorMessageSender<'a, PSM, HistoryCache> for T
+where
+    PSM: RtpsSubmessagePIM<'a>,
+    T: BestEffortBehavior<'a, HistoryCache, PSM::DataSubmessageType, PSM::GapSubmessageType>,
+{
+    fn create_messages(
+        &mut self,
+        writer_cache: &'a HistoryCache,
+        last_change_sequence_number: SequenceNumber,
+    ) -> Vec<RtpsSubmessageType<'a, PSM>> {
+        let mut data_submessage_list: Vec<RtpsSubmessageType<'a, PSM>> = vec![];
+        let mut gap_submessage_list: Vec<RtpsSubmessageType<'a, PSM>> = vec![];
 
-    reader_locator.best_effort_send_unsent_data(
-        &last_change_sequence_number,
-        writer_cache,
-        |data_submessage| data_submessage_list.push(RtpsSubmessageType::Data(data_submessage)),
-        |gap_submessage| gap_submessage_list.push(RtpsSubmessageType::Gap(gap_submessage)),
-    );
+        let mut submessages = vec![];
 
-    for data_submessage in data_submessage_list {
-        submessages.push(data_submessage)
+        self.best_effort_send_unsent_data(
+            &last_change_sequence_number,
+            writer_cache,
+            |data_submessage| data_submessage_list.push(RtpsSubmessageType::Data(data_submessage)),
+            |gap_submessage| gap_submessage_list.push(RtpsSubmessageType::Gap(gap_submessage)),
+        );
+
+        for data_submessage in data_submessage_list {
+            submessages.push(data_submessage)
+        }
+        for gap_submessage in gap_submessage_list {
+            submessages.push(gap_submessage);
+        }
+        submessages
     }
-    for gap_submessage in gap_submessage_list {
-        submessages.push(gap_submessage);
+}
+
+pub trait StatelessWriterMessageSender {
+    fn send_data(&self) {
+
     }
-    submessages
 }
 
 pub fn send_data<HistoryCache, ReaderLocator, Transport>(
@@ -56,8 +72,7 @@ pub fn send_data<HistoryCache, ReaderLocator, Transport>(
     Transport: TransportWrite,
 {
     for reader_locator in reader_locators {
-        let submessages =
-            create_messages(writer_cache, reader_locator, last_change_sequence_number);
+        let submessages = reader_locator.create_messages(writer_cache, last_change_sequence_number);
         let message = Transport::RTPSMessageType::new(header, submessages);
         transport.write(&message, reader_locator.locator());
     }
@@ -175,11 +190,8 @@ mod tests {
         let writer_cache = MockHistoryCache;
         let mut reader_locator = MockReaderLocator;
         let last_change_sequence_number = 1_i64;
-        let submessages = create_messages::<MockPSM, _, _>(
-            &writer_cache,
-            &mut reader_locator,
-            last_change_sequence_number,
-        );
+        let submessages: Vec<RtpsSubmessageType<MockPSM>> =
+            reader_locator.create_messages(&writer_cache, last_change_sequence_number);
         assert_eq!(
             submessages,
             vec![
