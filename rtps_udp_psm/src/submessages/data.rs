@@ -302,8 +302,8 @@ mod tests {
         let reader_id = EntityIdUdp([1, 2, 3, 4]);
         let writer_id = EntityIdUdp([6, 7, 8, 9]);
         let writer_sn = SequenceNumberUdp::new(&5);
-        let param1 = ParameterUdp::new(ParameterId(6), vec![10, 11, 12, 13].into());
-        let param2 = ParameterUdp::new(ParameterId(7), vec![20, 21, 22, 23].into());
+        let param1 = ParameterUdp::new(6, vec![10, 11, 12, 13].into());
+        let param2 = ParameterUdp::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = ParameterListUdp {
             parameter: vec![param1, param2].into(),
         };
@@ -467,8 +467,8 @@ mod tests {
         let reader_id = EntityIdUdp([1, 2, 3, 4]);
         let writer_id = EntityIdUdp([6, 7, 8, 9]);
         let writer_sn = SequenceNumberUdp::new(&5);
-        let param1 = ParameterUdp::new(ParameterId(6), vec![10, 11, 12, 13].into());
-        let param2 = ParameterUdp::new(ParameterId(7), vec![20, 21, 22, 23].into());
+        let param1 = ParameterUdp::new(6, vec![10, 11, 12, 13].into());
+        let param2 = ParameterUdp::new(7, vec![20, 21, 22, 23].into());
         let inline_qos = ParameterListUdp {
             parameter: vec![param1, param2].into(),
         };

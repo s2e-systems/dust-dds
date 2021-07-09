@@ -487,11 +487,11 @@ pub struct ParameterUdp {
 
 impl ParameterUdp {
     pub fn new(
-        parameter_id: rust_rtps_pim::messages::types::ParameterId,
+        parameter_id: u16,
         value: VectorUdp,
     ) -> Self {
         Self {
-            parameter_id: parameter_id.0,
+            parameter_id,
             length: value.0.len() as i16,
             value,
         }
@@ -499,20 +499,6 @@ impl ParameterUdp {
 
     pub fn len(&self) -> u16 {
         4 + self.value.0.len() as u16
-    }
-}
-
-impl rust_rtps_pim::messages::submessage_elements::ParameterType for ParameterUdp {
-    fn parameter_id(&self) -> rust_rtps_pim::messages::types::ParameterId {
-        ParameterId(self.parameter_id)
-    }
-
-    fn length(&self) -> i16 {
-        self.length
-    }
-
-    fn value(&self) -> &[u8] {
-        &self.value.0
     }
 }
 
@@ -637,28 +623,25 @@ impl<'de, 'a> serde::Deserialize<'de> for ParameterListUdp {
 
 impl ParameterListUdp {
     pub fn len(&self) -> u16 {
-        self.parameter.iter().map(|p| p.len()).sum()
+        //self.parameter.iter().map(|p| p.len()).sum()
+        todo!()
     }
 }
 
-impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType
+impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<'a>
     for ParameterListUdp
 {
-    type Parameter = ParameterUdp;
+    type IntoIter = Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'a>>;
 
-    fn new(_parameter: &[Self::Parameter]) -> Self {
-        //let vec: Vec<Parameter> = parameter.iter().map(|x| x.clone()).collect();
+    fn new(parameter: &[rust_rtps_pim::messages::submessage_elements::Parameter]) -> Self {
+        // Self {
+        //     parameter: parameter.into_iter().cloned().collect(),
+        // }
         todo!()
     }
 
-    fn parameter(&self) -> &[Self::Parameter] {
-        &self.parameter
-    }
-
-    fn empty() -> Self {
-        ParameterListUdp {
-            parameter: Vec::new(),
-        }
+    fn parameter(&self) -> Self::IntoIter {
+        todo!()
     }
 }
 
@@ -745,7 +728,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = ParameterUdp::new(ParameterId(2), vec![5, 6, 7, 8].into());
+        let parameter = ParameterUdp::new(2, vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
         assert_eq!(serialize(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -757,8 +740,8 @@ mod tests {
     fn serialize_parameter_list() {
         let parameter = ParameterListUdp {
             parameter: vec![
-                ParameterUdp::new(ParameterId(2), vec![51, 61, 71, 81].into()),
-                ParameterUdp::new(ParameterId(3), vec![52, 62, 72, 82].into()),
+                ParameterUdp::new(2, vec![51, 61, 71, 81].into()),
+                ParameterUdp::new(3, vec![52, 62, 72, 82].into()),
             ]
             .into(),
         };
@@ -774,7 +757,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = ParameterUdp::new(ParameterId(0x02), vec![5, 6, 7, 8].into());
+        let expected = ParameterUdp::new(0x02, vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
         let result = deserialize(&[
             0x02, 0x00, 4, 0, // Parameter | length
@@ -787,8 +770,8 @@ mod tests {
     fn deserialize_parameter_list() {
         let expected = ParameterListUdp {
             parameter: vec![
-                ParameterUdp::new(ParameterId(0x02), vec![15, 16, 17, 18].into()),
-                ParameterUdp::new(ParameterId(0x03), vec![25, 26, 27, 28].into()),
+                ParameterUdp::new(0x02, vec![15, 16, 17, 18].into()),
+                ParameterUdp::new(0x03, vec![25, 26, 27, 28].into()),
             ]
             .into(),
         };

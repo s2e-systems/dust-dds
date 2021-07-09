@@ -67,7 +67,7 @@ pub trait AckNackSubmessage: Submessage {
 pub trait DataSubmessage<'a>: Submessage {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
-    type ParameterListSubmessageElementType: ParameterListSubmessageElementType;
+    type ParameterListSubmessageElementType: ParameterListSubmessageElementType<'a>;
     type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<
         'a,
         Value = &'a [u8],

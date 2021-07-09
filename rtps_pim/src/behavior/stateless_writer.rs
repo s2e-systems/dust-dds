@@ -112,7 +112,7 @@ where
                         Data::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
                     let writer_sn =
                         Data::SequenceNumberSubmessageElementType::new(change.sequence_number());
-                    let inline_qos = Data::ParameterListSubmessageElementType::empty(); // change.inline_qos().clone().into();
+                    let inline_qos = Data::ParameterListSubmessageElementType::new(&[]);//change.inline_qos().clone();
                     let data = change.data_value().as_ref();
                     let serialized_payload = Data::SerializedDataSubmessageElementType::new(&data);
                     let data_submessage = Data::new(
