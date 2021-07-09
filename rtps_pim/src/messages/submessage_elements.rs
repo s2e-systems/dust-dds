@@ -2,9 +2,11 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-use crate::structure::types::{EntityId, GuidPrefix, Locator, SequenceNumber, VendorId};
+use crate::structure::types::{
+    EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId,
+};
 
-use super::types::{CountPIM, FragmentNumber, GroupDigestPIM, ParameterId, TimePIM};
+use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
 
 pub trait UShortSubmessageElementType {
     fn new(value: u16) -> Self;
@@ -42,17 +44,8 @@ pub trait VendorIdSubmessageElementType {
 }
 
 pub trait ProtocolVersionSubmessageElementType {
-    type ProtocolVersionType;
-    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType;
-    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType;
-
-    fn new(value: &Self::ProtocolVersionType) -> Self;
-    fn value(&self) -> &Self::ProtocolVersionType;
+    fn new(value: &ProtocolVersion) -> Self;
+    fn value(&self) -> ProtocolVersion;
 }
 
 pub trait SequenceNumberSubmessageElementType {
@@ -79,9 +72,9 @@ pub trait FragmentNumberSetSubmessageElementType {
     fn set(&self) -> &[FragmentNumber];
 }
 
-pub trait TimestampSubmessageElementType<PSM: TimePIM> {
-    fn new(value: &PSM::TimeType) -> Self;
-    fn value(&self) -> &PSM::TimeType;
+pub trait TimestampSubmessageElementType {
+    fn new(value: &Time) -> Self;
+    fn value(&self) -> Time;
 }
 
 pub trait ParameterType {
@@ -98,19 +91,15 @@ pub trait ParameterListSubmessageElementType {
     fn parameter(&self) -> &[Self::Parameter];
 }
 
-pub trait CountSubmessageElementType<PSM: CountPIM> {
-    fn new(value: &PSM::CountType) -> Self;
-    fn value(&self) -> &PSM::CountType;
+pub trait CountSubmessageElementType {
+    fn new(value: &Count) -> Self;
+    fn value(&self) -> Count;
 }
 
 pub trait LocatorListSubmessageElementType {
     fn new(value: &[Locator]) -> Self;
     fn value(&self) -> &[Locator];
 }
-
-// pub trait SerializedDataSubmessageElementPIM {
-//     type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType;
-// }
 
 pub trait SerializedDataSubmessageElementType<'a> {
     type Value: ?Sized;
@@ -125,7 +114,7 @@ pub trait SerializedDataFragmentSubmessageElementType {
     fn value(&self) -> &[u8];
 }
 
-pub trait GroupDigestSubmessageElementType<PSM: GroupDigestPIM> {
-    fn new(value: &PSM::GroupDigestType) -> Self;
-    fn value(&self) -> PSM::GroupDigestType;
+pub trait GroupDigestSubmessageElementType {
+    fn new(value: &GroupDigest) -> Self;
+    fn value(&self) -> GroupDigest;
 }

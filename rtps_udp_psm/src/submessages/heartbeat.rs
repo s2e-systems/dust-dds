@@ -1,7 +1,6 @@
-use rust_rtps_pim::messages::types::{SubmessageFlag, SubmessageKindPIM};
+use rust_rtps_pim::messages::types::{SubmessageFlag, SubmessageKind};
 
 use crate::{
-    psm::RtpsUdpPsm,
     submessage_elements::{CountUdp, EntityIdUdp, SequenceNumberUdp},
     submessage_header::SubmessageHeader,
 };
@@ -34,7 +33,7 @@ impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage for Heartbeat
         let flags = [endianness_flag, final_flag, liveliness_flag].into();
         let submessage_length = 28;
         let header = SubmessageHeader {
-            submessage_id: RtpsUdpPsm::HEARTBEAT.into(),
+            submessage_id: SubmessageKind::HEARTBEAT.into(),
             flags,
             submessage_length,
         };

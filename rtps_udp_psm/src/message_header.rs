@@ -1,23 +1,43 @@
-use rust_rtps_pim::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
+use rust_rtps_pim::{
+    messages::types::ProtocolId,
+    structure::types::{GuidPrefix, ProtocolVersion, VendorId},
+};
 
 use crate::submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp};
 
-pub type ProtocolId = [u8; 4];
+pub type ProtocolIdUdp = [u8; 4];
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RTPSMessageHeaderUdp {
-    pub(crate) protocol: ProtocolId,
+    pub(crate) protocol: ProtocolIdUdp,
     pub(crate) version: ProtocolVersionUdp,
     pub(crate) vendor_id: VendorIdUdp,
     pub(crate) guid_prefix: GuidPrefixUdp,
 }
 
 impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeaderUdp {
-    type ProtocolIdType = ProtocolId;
-    const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
+    fn new(
+        protocol: ProtocolId,
+        version: &ProtocolVersion,
+        vendor_id: &VendorId,
+        guid_prefix: &GuidPrefix,
+    ) -> Self {
+        let protocol = match protocol {
+            ProtocolId::PROTOCOL_RTPS => [b'R', b'T', b'P', b'S'],
+        };
+        Self {
+            protocol,
+            version: ProtocolVersionUdp {
+                major: version.major,
+                minor: version.minor,
+            },
+            vendor_id: VendorIdUdp(vendor_id.clone()),
+            guid_prefix: GuidPrefixUdp(guid_prefix.clone()),
+        }
+    }
 
     fn protocol(&self) -> ProtocolId {
-        self.protocol
+        ProtocolId::PROTOCOL_RTPS
     }
 
     fn version(&self) -> ProtocolVersion {
@@ -33,18 +53,6 @@ impl<'a> rust_rtps_pim::messages::RtpsMessageHeaderType for RTPSMessageHeaderUdp
     fn guid_prefix(&self) -> GuidPrefix {
         //&self.guid_prefix
         todo!()
-    }
-
-    fn new(version: &ProtocolVersion, vendor_id: &VendorId, guid_prefix: &GuidPrefix) -> Self {
-        Self {
-            protocol: Self::PROTOCOL_RTPS,
-            version: ProtocolVersionUdp {
-                major: version.major,
-                minor: version.minor,
-            },
-            vendor_id: VendorIdUdp(vendor_id.clone()),
-            guid_prefix: GuidPrefixUdp(guid_prefix.clone()),
-        }
     }
 }
 

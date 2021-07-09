@@ -93,6 +93,7 @@ impl DomainParticipantFactory {
                     let protocol_version = rtps_participant.protocol_version();
                     let vendor_id = rtps_participant.vendor_id();
                     let header = RTPSMessageHeaderUdp::new(
+                        rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
                         protocol_version,
                         vendor_id,
                         rtps_participant.guid().prefix(),

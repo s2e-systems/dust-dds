@@ -1,5 +1,7 @@
-use crate::psm::RtpsUdpPsm;
-use rust_rtps_pim::messages::types::SubmessageFlag;
+use rust_rtps_pim::{
+    messages::types::{Count, FragmentNumber, ParameterId, SubmessageFlag, Time},
+    structure::types::ProtocolVersion,
+};
 use serde::ser::SerializeStruct;
 
 #[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
@@ -106,7 +108,9 @@ impl Into<[u8; 4]> for ULongUdp {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct GuidPrefixUdp(pub(crate) [u8; 12]);
 
-impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementType for GuidPrefixUdp {
+impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementType
+    for GuidPrefixUdp
+{
     fn new(value: &rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         Self(value.clone())
     }
@@ -304,20 +308,11 @@ pub struct ProtocolVersionUdp {
 impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType
     for ProtocolVersionUdp
 {
-    type ProtocolVersionType = ProtocolVersionUdp;
-
-    const PROTOCOLVERSION_1_0: Self::ProtocolVersionType = Self { major: 1, minor: 0 };
-    const PROTOCOLVERSION_1_1: Self::ProtocolVersionType = Self { major: 1, minor: 1 };
-    const PROTOCOLVERSION_2_0: Self::ProtocolVersionType = Self { major: 2, minor: 0 };
-    const PROTOCOLVERSION_2_1: Self::ProtocolVersionType = Self { major: 2, minor: 1 };
-    const PROTOCOLVERSION_2_2: Self::ProtocolVersionType = Self { major: 2, minor: 2 };
-    const PROTOCOLVERSION_2_3: Self::ProtocolVersionType = Self { major: 2, minor: 3 };
-    const PROTOCOLVERSION_2_4: Self::ProtocolVersionType = Self { major: 2, minor: 4 };
-    fn new(_value: &Self::ProtocolVersionType) -> Self {
+    fn new(_value: &ProtocolVersion) -> Self {
         todo!()
     }
 
-    fn value(&self) -> &Self::ProtocolVersionType {
+    fn value(&self) -> ProtocolVersion {
         todo!()
     }
 }
@@ -353,8 +348,7 @@ impl<'a> serde::Serialize for SerializedDataUdp<'a> {
     }
 }
 
-impl<'a>
-    rust_rtps_pim::messages::submessage_elements::SerializedDataFragmentSubmessageElementType
+impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragmentSubmessageElementType
     for SerializedDataUdp<'a>
 {
     type Value = &'a [u8];
@@ -387,30 +381,30 @@ pub struct TimeUdp {
     pub fraction: u32,
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType<RtpsUdpPsm<'a>>
-    for TimeUdp
-{
-    fn new(value: &TimeUdp) -> Self {
-        value.clone()
+impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType for TimeUdp {
+    fn new(value: &Time) -> Self {
+        // value.clone()
+        todo!()
     }
 
-    fn value(&self) -> &TimeUdp {
-        self
+    fn value(&self) -> Time {
+        // self
+        todo!()
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, serde::Serialize)]
 pub struct CountUdp(pub(crate) i32);
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType<RtpsUdpPsm<'a>>
-    for CountUdp
-{
-    fn new(value: &CountUdp) -> Self {
-        value.clone()
+impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType for CountUdp {
+    fn new(value: &Count) -> Self {
+        // value.clone()
+        todo!()
     }
 
-    fn value(&self) -> &CountUdp {
-        self
+    fn value(&self) -> Count {
+        // self
+        todo!()
     }
 }
 
@@ -420,12 +414,14 @@ pub struct FragmentNumberUdp(pub(crate) u32);
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSubmessageElementType
     for FragmentNumberUdp
 {
-    fn new(value: &rust_rtps_pim::messages::types::FragmentNumber) -> Self {
-        Self(value.clone())
+    fn new(value: &FragmentNumber) -> Self {
+        // Self(value.clone())
+        todo!()
     }
 
-    fn value(&self) -> &rust_rtps_pim::messages::types::FragmentNumber {
-        &self.0
+    fn value(&self) -> &FragmentNumber {
+        // &self.0
+        todo!()
     }
 }
 
@@ -446,18 +442,16 @@ pub struct FragmentNumberSetUdp(Vec<FragmentNumberUdp>);
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElementType
     for FragmentNumberSetUdp
 {
-    fn new(
-        _base: &rust_rtps_pim::messages::types::FragmentNumber,
-        _set: &[rust_rtps_pim::messages::types::FragmentNumber],
-    ) -> Self {
+    fn new(_base: &FragmentNumber, _set: &[FragmentNumber]) -> Self {
         todo!()
     }
 
-    fn base(&self) -> &rust_rtps_pim::messages::types::FragmentNumber {
-        &0
+    fn base(&self) -> &FragmentNumber {
+        // &0
+        todo!()
     }
 
-    fn set(&self) -> &[rust_rtps_pim::messages::types::FragmentNumber] {
+    fn set(&self) -> &[FragmentNumber] {
         todo!()
         // self
     }
@@ -487,15 +481,18 @@ impl From<Vec<u8>> for VectorUdp {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParameterUdp {
-    pub parameter_id: rust_rtps_pim::messages::types::ParameterId,
+    pub parameter_id: u16,
     pub length: i16,
     pub value: VectorUdp,
 }
 
 impl ParameterUdp {
-    pub fn new(parameter_id: rust_rtps_pim::messages::types::ParameterId, value: VectorUdp) -> Self {
+    pub fn new(
+        parameter_id: rust_rtps_pim::messages::types::ParameterId,
+        value: VectorUdp,
+    ) -> Self {
         Self {
-            parameter_id,
+            parameter_id: parameter_id.0,
             length: value.0.len() as i16,
             value,
         }
@@ -508,7 +505,7 @@ impl ParameterUdp {
 
 impl rust_rtps_pim::messages::submessage_elements::ParameterType for ParameterUdp {
     fn parameter_id(&self) -> rust_rtps_pim::messages::types::ParameterId {
-        self.parameter_id
+        ParameterId(self.parameter_id)
     }
 
     fn length(&self) -> i16 {
@@ -546,20 +543,24 @@ impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        let paramter_id: rust_rtps_pim::messages::types::ParameterId = seq
+        let parameter_id: u16 = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let data_length: u16 = seq
+        let length: i16 = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
         let mut data = vec![];
-        for _ in 0..data_length {
+        for _ in 0..length {
             data.push(
                 seq.next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?,
             );
         }
-        Ok(ParameterUdp::new(paramter_id, data.into()))
+        Ok(ParameterUdp {
+            parameter_id,
+            length,
+            value: data.into(),
+        })
     }
 }
 
@@ -572,7 +573,7 @@ impl<'de> serde::Deserialize<'de> for ParameterUdp {
         deserializer.deserialize_tuple(MAX_BYTES, ParameterVisitor {})
     }
 }
-const PID_SENTINEL: rust_rtps_pim::messages::types::ParameterId = 1;
+const PID_SENTINEL: u16 = 1;
 static SENTINEL: ParameterUdp = ParameterUdp {
     parameter_id: PID_SENTINEL,
     length: 0,
@@ -743,7 +744,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = ParameterUdp::new(2, vec![5, 6, 7, 8].into());
+        let parameter = ParameterUdp::new(ParameterId(2), vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
         assert_eq!(serialize(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -755,8 +756,8 @@ mod tests {
     fn serialize_parameter_list() {
         let parameter = ParameterListUdp {
             parameter: vec![
-                ParameterUdp::new(2, vec![51, 61, 71, 81].into()),
-                ParameterUdp::new(3, vec![52, 62, 72, 82].into()),
+                ParameterUdp::new(ParameterId(2), vec![51, 61, 71, 81].into()),
+                ParameterUdp::new(ParameterId(3), vec![52, 62, 72, 82].into()),
             ]
             .into(),
         };
@@ -772,7 +773,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = ParameterUdp::new(0x02, vec![5, 6, 7, 8].into());
+        let expected = ParameterUdp::new(ParameterId(0x02), vec![5, 6, 7, 8].into());
         #[rustfmt::skip]
         let result = deserialize(&[
             0x02, 0x00, 4, 0, // Parameter | length
@@ -785,8 +786,8 @@ mod tests {
     fn deserialize_parameter_list() {
         let expected = ParameterListUdp {
             parameter: vec![
-                ParameterUdp::new(0x02, vec![15, 16, 17, 18].into()),
-                ParameterUdp::new(0x03, vec![25, 26, 27, 28].into()),
+                ParameterUdp::new(ParameterId(0x02), vec![15, 16, 17, 18].into()),
+                ParameterUdp::new(ParameterId(0x03), vec![25, 26, 27, 28].into()),
             ]
             .into(),
         };
