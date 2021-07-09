@@ -1,5 +1,5 @@
 use rust_rtps_pim::{
-    messages::types::{Count, FragmentNumber, ParameterId, SubmessageFlag, Time},
+    messages::types::{Count, FragmentNumber, SubmessageFlag, Time},
     structure::types::ProtocolVersion,
 };
 use serde::ser::SerializeStruct;
@@ -382,13 +382,11 @@ pub struct TimeUdp {
 }
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType for TimeUdp {
-    fn new(value: &Time) -> Self {
-        // value.clone()
+    fn new(_value: &Time) -> Self {
         todo!()
     }
 
     fn value(&self) -> Time {
-        // self
         todo!()
     }
 }
@@ -397,8 +395,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElemen
 pub struct CountUdp(pub(crate) i32);
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType for CountUdp {
-    fn new(value: &Count) -> Self {
-        // value.clone()
+    fn new(_value: &Count) -> Self {
         todo!()
     }
 
@@ -462,204 +459,6 @@ pub type GroupDigestUdp = [u8; 4];
 pub struct DurationUdp {
     pub seconds: i32,
     pub fraction: u32,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct VectorUdp(Vec<u8>);
-impl serde::Serialize for VectorUdp {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_bytes(self.0.as_slice())
-    }
-}
-
-impl From<Vec<u8>> for VectorUdp {
-    fn from(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ParameterUdp {
-    pub parameter_id: u16,
-    pub length: i16,
-    pub value: VectorUdp,
-}
-
-impl ParameterUdp {
-    pub fn new(
-        parameter_id: rust_rtps_pim::messages::types::ParameterId,
-        value: VectorUdp,
-    ) -> Self {
-        Self {
-            parameter_id: parameter_id.0,
-            length: value.0.len() as i16,
-            value,
-        }
-    }
-
-    pub fn len(&self) -> u16 {
-        4 + self.value.0.len() as u16
-    }
-}
-
-impl rust_rtps_pim::messages::submessage_elements::ParameterType for ParameterUdp {
-    fn parameter_id(&self) -> rust_rtps_pim::messages::types::ParameterId {
-        ParameterId(self.parameter_id)
-    }
-
-    fn length(&self) -> i16 {
-        self.length
-    }
-
-    fn value(&self) -> &[u8] {
-        &self.value.0
-    }
-}
-
-impl serde::Serialize for ParameterUdp {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("Parameter", 3)?;
-        state.serialize_field("ParameterId", &self.parameter_id)?;
-        state.serialize_field("length", &self.length)?;
-        state.serialize_field("value", &self.value)?;
-        state.end()
-    }
-}
-
-struct ParameterVisitor;
-
-impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
-    type Value = ParameterUdp;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("Parameter of the ParameterList Submessage Element")
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
-    {
-        let parameter_id: u16 = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let length: i16 = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        let mut data = vec![];
-        for _ in 0..length {
-            data.push(
-                seq.next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?,
-            );
-        }
-        Ok(ParameterUdp {
-            parameter_id,
-            length,
-            value: data.into(),
-        })
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for ParameterUdp {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const MAX_BYTES: usize = 2 ^ 16;
-        deserializer.deserialize_tuple(MAX_BYTES, ParameterVisitor {})
-    }
-}
-const PID_SENTINEL: u16 = 1;
-static SENTINEL: ParameterUdp = ParameterUdp {
-    parameter_id: PID_SENTINEL,
-    length: 0,
-    value: VectorUdp(vec![]),
-};
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ParameterListUdp {
-    pub(crate) parameter: Vec<ParameterUdp>,
-}
-impl serde::Serialize for ParameterListUdp {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let len = self.parameter.len();
-        let mut state = serializer.serialize_struct("ParameterList", len)?;
-        for parameter in &self.parameter {
-            state.serialize_field("parameter", &parameter)?;
-        }
-        state.serialize_field("sentinel", &SENTINEL)?;
-        state.end()
-    }
-}
-
-struct ParameterListVisitor;
-
-impl<'de> serde::de::Visitor<'de> for ParameterListVisitor {
-    type Value = ParameterListUdp;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("ParameterList Submessage Element")
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
-    {
-        let mut parameters = vec![];
-        for _ in 0..seq.size_hint().unwrap() {
-            let parameter: ParameterUdp = seq
-                .next_element()?
-                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-            if parameter == SENTINEL {
-                return Ok(ParameterListUdp {
-                    parameter: parameters.into(),
-                });
-            } else {
-                parameters.push(parameter);
-            }
-        }
-        todo!()
-    }
-}
-
-impl<'de, 'a> serde::Deserialize<'de> for ParameterListUdp {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const MAX_PARAMETERS: usize = 2 ^ 16;
-        deserializer.deserialize_tuple(MAX_PARAMETERS, ParameterListVisitor {})
-    }
-}
-
-impl ParameterListUdp {
-    pub fn len(&self) -> u16 {
-        self.parameter.iter().map(|p| p.len()).sum()
-    }
-}
-
-impl rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType
-    for ParameterListUdp
-{
-    type Parameter = ParameterUdp;
-
-    fn new(_parameter: &[Self::Parameter]) -> Self {
-        //let vec: Vec<Parameter> = parameter.iter().map(|x| x.clone()).collect();
-        todo!()
-    }
-
-    fn parameter(&self) -> &[Self::Parameter] {
-        &self.parameter
-    }
-
-    fn empty() -> Self {
-        ParameterListUdp {
-            parameter: Vec::new(),
-        }
-    }
 }
 
 pub struct LocatorListUdp(Vec<rust_rtps_pim::structure::types::Locator>);
@@ -741,67 +540,6 @@ mod tests {
     fn deserialize_octet() {
         let result: Octet = deserialize(&[5]);
         assert_eq!(result, Octet(5));
-    }
-
-    #[test]
-    fn serialize_parameter() {
-        let parameter = ParameterUdp::new(ParameterId(2), vec![5, 6, 7, 8].into());
-        #[rustfmt::skip]
-        assert_eq!(serialize(parameter), vec![
-            0x02, 0x00, 4, 0, // Parameter | length
-            5, 6, 7, 8,       // value
-        ]);
-    }
-
-    #[test]
-    fn serialize_parameter_list() {
-        let parameter = ParameterListUdp {
-            parameter: vec![
-                ParameterUdp::new(ParameterId(2), vec![51, 61, 71, 81].into()),
-                ParameterUdp::new(ParameterId(3), vec![52, 62, 72, 82].into()),
-            ]
-            .into(),
-        };
-        #[rustfmt::skip]
-        assert_eq!(serialize(parameter), vec![
-            0x02, 0x00, 4, 0, // Parameter ID | length
-            51, 61, 71, 81,   // value
-            0x03, 0x00, 4, 0, // Parameter ID | length
-            52, 62, 72, 82,   // value
-            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
-        ]);
-    }
-
-    #[test]
-    fn deserialize_parameter() {
-        let expected = ParameterUdp::new(ParameterId(0x02), vec![5, 6, 7, 8].into());
-        #[rustfmt::skip]
-        let result = deserialize(&[
-            0x02, 0x00, 4, 0, // Parameter | length
-            5, 6, 7, 8,       // value
-        ]);
-        assert_eq!(expected, result);
-    }
-
-    #[test]
-    fn deserialize_parameter_list() {
-        let expected = ParameterListUdp {
-            parameter: vec![
-                ParameterUdp::new(ParameterId(0x02), vec![15, 16, 17, 18].into()),
-                ParameterUdp::new(ParameterId(0x03), vec![25, 26, 27, 28].into()),
-            ]
-            .into(),
-        };
-        #[rustfmt::skip]
-        let result: ParameterListUdp = deserialize(&[
-            0x02, 0x00, 4, 0, // Parameter ID | length
-            15, 16, 17, 18,        // value
-            0x03, 0x00, 4, 0, // Parameter ID | length
-            25, 26, 27, 28,        // value
-            0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
-            9, 9, 9,    // Following data
-        ]);
-        assert_eq!(expected, result);
     }
 
     #[test]
