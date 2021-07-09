@@ -10,8 +10,7 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
-    utils::{message_sender::StatelessWriterMessageSender, shared_object::RtpsShared},
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
     messages::RtpsMessageHeader,
@@ -103,8 +102,7 @@ impl DomainParticipantFactory {
                         let writer_group = writer_group.lock();
                         for writer in writer_group.writer_list() {
                             let mut writer = writer.lock();
-                            let messages = writer.create_messages(&header, |message: RTPSMessageUdp, _| println!("{:?}", message));
-
+                            // let messages = writer.create_messages(&header, |message: RTPSMessageUdp, _| println!("{:?}", message));
 
                             std::thread::sleep(std::time::Duration::from_millis(500));
                         }

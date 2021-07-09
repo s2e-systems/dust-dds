@@ -64,74 +64,81 @@ pub trait RTPSStatelessWriter {
         Self: RTPSWriter;
 }
 
-pub trait BestEffortBehavior<'a, HistoryCache, Data, Gap> {
+pub trait BestEffortBehavior<Data, Gap> {
+    type ReaderLocator;
+
     fn best_effort_send_unsent_data(
-        &mut self,
-        last_change_sequence_number: &SequenceNumber,
-        writer_cache: &'a HistoryCache,
-        send_data: impl FnMut(Data),
-        send_gap: impl FnMut(Gap),
+        self,
+        send_data: impl FnMut(&Self::ReaderLocator, Data),
+        send_gap: impl FnMut(&Self::ReaderLocator, Gap),
     );
 }
 
-impl<'a, HistoryCache, Data, Gap, T> BestEffortBehavior<'a, HistoryCache, Data, Gap> for T
+impl<'a, Data, Gap, T> BestEffortBehavior<Data, Gap> for &'a mut T
 where
-    T: RTPSReaderLocator,
-    HistoryCache: RTPSHistoryCache,
-    HistoryCache::CacheChange: RTPSCacheChange,
+    T: RTPSWriter + RTPSStatelessWriter,
+    T::ReaderLocatorType: RTPSReaderLocator,
+    T::HistoryCacheType: RTPSHistoryCache,
+    <T::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     Data: DataSubmessage<'a>,
     Gap: GapSubmessage,
 {
+    type ReaderLocator = T::ReaderLocatorType;
+
     fn best_effort_send_unsent_data(
-        &mut self,
-        last_change_sequence_number: &SequenceNumber,
-        writer_cache: &'a HistoryCache,
-        mut send_data: impl FnMut(Data),
-        mut send_gap: impl FnMut(Gap),
+        self,
+        mut send_data: impl FnMut(&Self::ReaderLocator, Data),
+        mut send_gap: impl FnMut(&Self::ReaderLocator, Gap),
     ) {
-        while let Some(seq_num) = self.next_unsent_change(&last_change_sequence_number) {
-            if let Some(change) = writer_cache.get_change(&seq_num) {
-                let endianness_flag = true;
-                let inline_qos_flag = true;
-                let (data_flag, key_flag) = match change.kind() {
-                    ChangeKind::Alive => (true, false),
-                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                        (false, true)
-                    }
-                    _ => todo!(),
-                };
-                let non_standard_payload_flag = false;
-                let reader_id = Data::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-                let writer_id =
-                    Data::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
-                let writer_sn =
-                    Data::SequenceNumberSubmessageElementType::new(change.sequence_number());
-                let inline_qos = Data::ParameterListSubmessageElementType::empty(); // change.inline_qos().clone().into();
-                let data = change.data_value().as_ref();
-                let serialized_payload = Data::SerializedDataSubmessageElementType::new(&data);
-                let data_submessage = Data::new(
-                    endianness_flag,
-                    inline_qos_flag,
-                    data_flag,
-                    key_flag,
-                    non_standard_payload_flag,
-                    reader_id,
-                    writer_id,
-                    writer_sn,
-                    inline_qos,
-                    serialized_payload,
-                );
-                send_data(data_submessage)
-            } else {
-                let endianness_flag = true;
-                let reader_id = Gap::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-                let writer_id = Gap::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-                let gap_start = Gap::SequenceNumberSubmessageElementType::new(&seq_num);
-                let set = &[];
-                let gap_list = Gap::SequenceNumberSetSubmessageElementType::new(&seq_num, set);
-                let gap_submessage =
-                    Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
-                send_gap(gap_submessage)
+        let last_change_sequence_number = *self.last_change_sequence_number();
+        let (writer_cache, reader_locators) = self.writer_cache_and_reader_locators();
+        for reader_locator in reader_locators {
+            while let Some(seq_num) =
+                reader_locator.next_unsent_change(&last_change_sequence_number)
+            {
+                if let Some(change) = writer_cache.get_change(&seq_num) {
+                    let endianness_flag = true;
+                    let inline_qos_flag = true;
+                    let (data_flag, key_flag) = match change.kind() {
+                        ChangeKind::Alive => (true, false),
+                        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
+                            (false, true)
+                        }
+                        _ => todo!(),
+                    };
+                    let non_standard_payload_flag = false;
+                    let reader_id = Data::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+                    let writer_id =
+                        Data::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
+                    let writer_sn =
+                        Data::SequenceNumberSubmessageElementType::new(change.sequence_number());
+                    let inline_qos = Data::ParameterListSubmessageElementType::empty(); // change.inline_qos().clone().into();
+                    let data = change.data_value().as_ref();
+                    let serialized_payload = Data::SerializedDataSubmessageElementType::new(&data);
+                    let data_submessage = Data::new(
+                        endianness_flag,
+                        inline_qos_flag,
+                        data_flag,
+                        key_flag,
+                        non_standard_payload_flag,
+                        reader_id,
+                        writer_id,
+                        writer_sn,
+                        inline_qos,
+                        serialized_payload,
+                    );
+                    send_data(reader_locator, data_submessage)
+                } else {
+                    let endianness_flag = true;
+                    let reader_id = Gap::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+                    let writer_id = Gap::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
+                    let gap_start = Gap::SequenceNumberSubmessageElementType::new(&seq_num);
+                    let set = &[];
+                    let gap_list = Gap::SequenceNumberSetSubmessageElementType::new(&seq_num, set);
+                    let gap_submessage =
+                        Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+                    send_gap(reader_locator, gap_submessage)
+                }
             }
         }
     }
