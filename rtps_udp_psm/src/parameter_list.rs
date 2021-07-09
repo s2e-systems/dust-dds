@@ -1,7 +1,7 @@
 use rust_rtps_pim::messages::types::ParameterId;
 use serde::ser::SerializeStruct;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct VectorUdp(Vec<u8>);
 impl serde::Serialize for VectorUdp {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -9,13 +9,8 @@ impl serde::Serialize for VectorUdp {
     }
 }
 
-impl From<Vec<u8>> for VectorUdp {
-    fn from(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-}
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct ParameterUdp {
     pub parameter_id: u16,
     pub length: i16,
@@ -23,11 +18,11 @@ pub struct ParameterUdp {
 }
 
 impl ParameterUdp {
-    pub fn new(parameter_id: u16, value: VectorUdp) -> Self {
+    pub fn new(parameter_id: u16, value: Vec<u8>) -> Self {
         Self {
             parameter_id,
-            length: value.0.len() as i16,
-            value,
+            length: value.len() as i16,
+            value: VectorUdp(value),
         }
     }
 
@@ -78,7 +73,7 @@ impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
         Ok(ParameterUdp {
             parameter_id,
             length,
-            value: data.into(),
+            value: VectorUdp(data),
         })
     }
 }
@@ -99,7 +94,7 @@ static SENTINEL: ParameterUdp = ParameterUdp {
     value: VectorUdp(vec![]),
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct ParameterListUdp {
     pub(crate) parameter: Vec<ParameterUdp>,
 }
@@ -218,7 +213,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = ParameterUdp::new(2, vec![5, 6, 7, 8].into());
+        let parameter = ParameterUdp::new(2, vec![5, 6, 7, 8]);
         #[rustfmt::skip]
         assert_eq!(serialize(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -230,8 +225,8 @@ mod tests {
     fn serialize_parameter_list() {
         let parameter = ParameterListUdp {
             parameter: vec![
-                ParameterUdp::new(2, vec![51, 61, 71, 81].into()),
-                ParameterUdp::new(3, vec![52, 62, 72, 82].into()),
+                ParameterUdp::new(2, vec![51, 61, 71, 81]),
+                ParameterUdp::new(3, vec![52, 62, 72, 82]),
             ]
             .into(),
         };
@@ -247,7 +242,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = ParameterUdp::new(0x02, vec![5, 6, 7, 8].into());
+        let expected = ParameterUdp::new(0x02, vec![5, 6, 7, 8]);
         #[rustfmt::skip]
         let result = deserialize(&[
             0x02, 0x00, 4, 0, // Parameter | length
@@ -260,8 +255,8 @@ mod tests {
     fn deserialize_parameter_list() {
         let expected = ParameterListUdp {
             parameter: vec![
-                ParameterUdp::new(0x02, vec![15, 16, 17, 18].into()),
-                ParameterUdp::new(0x03, vec![25, 26, 27, 28].into()),
+                ParameterUdp::new(0x02, vec![15, 16, 17, 18]),
+                ParameterUdp::new(0x03, vec![25, 26, 27, 28]),
             ]
             .into(),
         };
