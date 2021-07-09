@@ -79,16 +79,16 @@ pub trait TimestampSubmessageElementType {
 }
 
 pub struct Parameter<'a> {
-    parameter_id: ParameterId,
-    length: i16,
-    value: &'a [u8],
+    pub parameter_id: ParameterId,
+    pub length: i16,
+    pub value: &'a [u8],
 }
 
 pub trait ParameterListSubmessageElementType<'a> {
     type IntoIter: IntoIterator<Item=Parameter<'a>>;
 
     fn new(parameter: &[Parameter]) -> Self;
-    fn parameter(&self) -> Self::IntoIter;
+    fn parameter(&'a self) -> Self::IntoIter;
 }
 
 pub trait CountSubmessageElementType {

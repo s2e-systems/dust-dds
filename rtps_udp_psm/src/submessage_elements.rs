@@ -623,8 +623,7 @@ impl<'de, 'a> serde::Deserialize<'de> for ParameterListUdp {
 
 impl ParameterListUdp {
     pub fn len(&self) -> u16 {
-        //self.parameter.iter().map(|p| p.len()).sum()
-        todo!()
+        self.parameter.iter().map(|p| p.len()).sum()
     }
 }
 
@@ -634,14 +633,26 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageEl
     type IntoIter = Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'a>>;
 
     fn new(parameter: &[rust_rtps_pim::messages::submessage_elements::Parameter]) -> Self {
-        // Self {
-        //     parameter: parameter.into_iter().cloned().collect(),
-        // }
-        todo!()
+        let mut parameter_list = vec![];
+        for parameter_i in parameter {
+            let parameter_i_udp = ParameterUdp{
+                parameter_id: parameter_i.parameter_id.0,
+                length: parameter_i.length,
+                value: VectorUdp(parameter_i.value.iter().cloned().collect()),
+            };
+            parameter_list.push(parameter_i_udp);
+        }
+        Self {
+            parameter: parameter_list,
+        }
     }
 
-    fn parameter(&self) -> Self::IntoIter {
-        todo!()
+    fn parameter(&'a self) -> Self::IntoIter {
+        self.parameter.iter().map(|x|rust_rtps_pim::messages::submessage_elements::Parameter{
+            parameter_id: ParameterId(x.parameter_id),
+            length: x.value.0.len() as i16,
+            value: x.value.0.as_ref(),
+        }).collect()
     }
 }
 
