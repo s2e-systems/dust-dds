@@ -18,7 +18,10 @@ use rust_rtps_pim::{
         submessages::{RtpsSubmessagePIM, RtpsSubmessageType},
         RTPSMessage, RtpsMessageHeader,
     },
-    structure::{types::LOCATOR_INVALID, RTPSEntity, RTPSParticipant},
+    structure::{
+        types::{Locator, LOCATOR_INVALID},
+        RTPSEntity, RTPSParticipant,
+    },
 };
 use rust_rtps_udp_psm::{
     message::RTPSMessageUdp, psm::RtpsUdpPsm, submessages::gap::GapSubmessageUdp,
@@ -108,8 +111,12 @@ impl DomainParticipantFactory {
                         let writer_group = writer_group.lock();
                         for writer in writer_group.writer_list() {
                             let mut writer = writer.lock();
-
-                            // let messages = writer.create_messages(&header, |message: RTPSMessageUdp, _| println!("{:?}", message));
+                            let destined_submessages =
+                                create_submessages::<RtpsUdpPsm, _>(&mut *writer);
+                            for (dst_locator, submessages) in destined_submessages {
+                                let message = RTPSMessageUdp::new(&header, submessages);
+                                transport.write(&message, &dst_locator);
+                            }
 
                             std::thread::sleep(std::time::Duration::from_millis(500));
                         }
@@ -135,7 +142,9 @@ impl DomainParticipantFactory {
     // pub fn delete_participant(_a_participant: impl DomainParticipant) {}
 }
 
-pub fn message_send<'a, PSM, Behavior>(writer: Behavior) -> Vec<RtpsSubmessageType<'a, PSM>>
+pub fn create_submessages<'a, PSM, Behavior>(
+    writer: Behavior,
+) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)>
 where
     PSM: RtpsSubmessagePIM<'a>,
     Behavior: StatelessWriterBehavior<PSM::DataSubmessageType, PSM::GapSubmessageType>,
@@ -156,11 +165,7 @@ where
             );
         },
     );
-    data_submessages
-
-    // let message = RTPSMessageUdp::new(&header, data_submessages);
-
-    // transport.write(&message, &dst_locator);
+    vec![(dst_locator, data_submessages)]
 }
 
 #[cfg(test)]
@@ -188,45 +193,11 @@ mod tests {
     struct MockReaderLocator;
 
     impl RTPSReaderLocator for MockReaderLocator {
-        type SequenceNumberVector = Vec<i64>;
-
         fn locator(&self) -> &rust_rtps_pim::structure::types::Locator {
             &LOCATOR_INVALID
         }
 
         fn expects_inline_qos(&self) -> bool {
-            todo!()
-        }
-
-        fn next_requested_change(
-            &mut self,
-        ) -> Option<rust_rtps_pim::structure::types::SequenceNumber> {
-            todo!()
-        }
-
-        fn next_unsent_change(
-            &mut self,
-            last_change_sequence_number: &rust_rtps_pim::structure::types::SequenceNumber,
-        ) -> Option<rust_rtps_pim::structure::types::SequenceNumber> {
-            todo!()
-        }
-
-        fn requested_changes(&self) -> Self::SequenceNumberVector {
-            todo!()
-        }
-
-        fn requested_changes_set(
-            &mut self,
-            req_seq_num_set: &[rust_rtps_pim::structure::types::SequenceNumber],
-            last_change_sequence_number: &rust_rtps_pim::structure::types::SequenceNumber,
-        ) {
-            todo!()
-        }
-
-        fn unsent_changes(
-            &self,
-            last_change_sequence_number: rust_rtps_pim::structure::types::SequenceNumber,
-        ) -> Self::SequenceNumberVector {
             todo!()
         }
     }
@@ -249,7 +220,13 @@ mod tests {
         }
 
         let writer = MockBehavior;
-        let submessages = message_send::<MockPSM, _>(writer);
-        assert_eq!(submessages, vec![RtpsSubmessageType::Data(0), RtpsSubmessageType::Data(2)]);
+        let destined_submessages = create_submessages::<MockPSM, _>(writer);
+        let (dst_locator, submessages) = &destined_submessages[0];
+
+        assert_eq!(dst_locator, &LOCATOR_INVALID);
+        assert_eq!(
+            submessages,
+            &vec![RtpsSubmessageType::Data(0), RtpsSubmessageType::Data(2)]
+        );
     }
 }

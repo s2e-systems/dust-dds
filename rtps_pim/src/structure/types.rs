@@ -26,7 +26,7 @@ pub const LOCATOR_KIND_UDPv6: LocatorKind = [0, 0, 0, 2];
 pub const LOCATOR_PORT_INVALID: LocatorPort = [0; 4];
 pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = [0; 16];
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Locator {
     kind: LocatorKind,
     port: LocatorPort,

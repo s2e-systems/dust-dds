@@ -1,20 +1,28 @@
-use crate::{messages::{
+use crate::{
+    messages::{
         submessage_elements::{
             EntityIdSubmessageElementType, ParameterListSubmessageElementType,
             SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
             SerializedDataSubmessageElementType,
         },
         submessages::{DataSubmessage, GapSubmessage},
-    }, structure::{RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache, types::{ChangeKind, ENTITYID_UNKNOWN, Locator, ReliabilityKind, SequenceNumber}}};
+    },
+    structure::{
+        types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
+        RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache,
+    },
+};
 
 use super::RTPSWriter;
 
 pub trait RTPSReaderLocator {
-    type SequenceNumberVector;
-
     fn locator(&self) -> &Locator;
 
     fn expects_inline_qos(&self) -> bool;
+}
+
+pub trait RTPSReaderLocatorOperations {
+    type SequenceNumberVector;
 
     fn next_requested_change(&mut self) -> Option<SequenceNumber>;
 
@@ -71,7 +79,7 @@ pub trait StatelessWriterBehavior<Data, Gap> {
 impl<'a, Data, Gap, T> StatelessWriterBehavior<Data, Gap> for &'a mut T
 where
     T: RTPSStatelessWriter + RTPSWriter + RTPSEndpoint,
-    T::ReaderLocatorType: RTPSReaderLocator,
+    T::ReaderLocatorType: RTPSReaderLocatorOperations,
     T::HistoryCacheType: RTPSHistoryCache,
     <T::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     Data: DataSubmessage<'a>,
@@ -88,8 +96,14 @@ where
         let last_change_sequence_number = *self.last_change_sequence_number();
         let (writer_cache, reader_locators) = self.writer_cache_and_reader_locators();
         for reader_locator in reader_locators {
-            match reliability_level  {
-                ReliabilityKind::BestEffort => best_effort_send_unsent_data(reader_locator, writer_cache, &last_change_sequence_number, &mut send_data, &mut send_gap),
+            match reliability_level {
+                ReliabilityKind::BestEffort => best_effort_send_unsent_data(
+                    reader_locator,
+                    writer_cache,
+                    &last_change_sequence_number,
+                    &mut send_data,
+                    &mut send_gap,
+                ),
                 ReliabilityKind::Reliable => todo!(),
             }
         }
@@ -103,7 +117,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
     send_data: &mut impl FnMut(&ReaderLocator, Data),
     send_gap: &mut impl FnMut(&ReaderLocator, Gap),
 ) where
-    ReaderLocator: RTPSReaderLocator,
+    ReaderLocator: RTPSReaderLocatorOperations,
     WriterCache: RTPSHistoryCache,
     <WriterCache as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     Data: DataSubmessage<'a>,
@@ -155,7 +169,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
 }
 
 pub fn reliable_send_unsent_data(
-    reader_locator: &mut impl RTPSReaderLocator,
+    reader_locator: &mut impl RTPSReaderLocatorOperations,
     last_change_sequence_number: SequenceNumber,
     mut send: impl FnMut(SequenceNumber),
 ) {
