@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use rust_rtps_pim::{
     messages::{submessages::RtpsSubmessageType, RtpsMessageHeader},
     structure::types::ProtocolVersion,
@@ -108,18 +110,22 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for RTPSMessageVisitor<'a> {
 
         for _ in 0..seq.size_hint().unwrap() {
             let submessage_id_result: Result<Option<Octet>, _> = seq.next_element();
-            let submessage_id: u8 = match submessage_id_result {
+            let submessage_id: Octet = match submessage_id_result {
                 Ok(submessage_id) => submessage_id
-                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?
-                    .into(),
-                Err(_) => break,
+                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?,
+                Err(_) => break, // No more submessages
             };
-            let typed_submessage = match submessage_id {
-                0x08 => RtpsSubmessageType::Gap(
+            let submessage_kind_result = submessage_id.try_into();
+            let submessage_kind = match submessage_kind_result {
+                Ok(submessage_kind) => submessage_kind,
+                Err(_) => break, // Unknown message
+            };
+            let typed_submessage = match submessage_kind {
+                rust_rtps_pim::messages::types::SubmessageKind::GAP => RtpsSubmessageType::Gap(
                     seq.next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?,
                 ),
-                0x15 => RtpsSubmessageType::Data(
+                rust_rtps_pim::messages::types::SubmessageKind::DATA => RtpsSubmessageType::Data(
                     seq.next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?,
                 ),
