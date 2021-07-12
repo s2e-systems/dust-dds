@@ -17,12 +17,14 @@ use rust_dds_rtps_implementation::{
     utils::{message_sender::create_submessages, shared_object::RtpsShared},
 };
 use rust_rtps_pim::{
-    behavior::{stateless_writer::RTPSStatelessWriter, types::Duration},
+    behavior::{
+        stateless_writer::RTPSStatelessWriter, types::Duration, RTPSWriter, RTPSWriterOperations,
+    },
     discovery::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
     messages::{RTPSMessage, RtpsMessageHeader},
     structure::{
-        types::{LOCATOR_KIND_UDPv4, Locator, GUID},
-        RTPSEntity, RTPSParticipant,
+        types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator, GUID},
+        RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
 use rust_rtps_udp_psm::{message::RTPSMessageUdp, psm::RtpsUdpPsm};
@@ -98,9 +100,9 @@ impl DomainParticipantFactory {
             spdp_discovery_writer_guid,
             rust_rtps_pim::structure::types::TopicKind::WithKey,
             rust_rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
             true,
-            vec![],
-            vec![],
             Duration(0),
             Duration(0),
             Duration(0),
@@ -116,6 +118,9 @@ impl DomainParticipantFactory {
             false,
         );
         spdp_discovery_writer.reader_locator_add(spdp_discovery_writer_locator);
+
+        let cc = spdp_discovery_writer.new_change(ChangeKind::Alive, vec![1, 2, 3, 4], (), 1);
+        spdp_discovery_writer.writer_cache_mut().add_change(cc);
 
         rtps_participant
             .builtin_writer_group

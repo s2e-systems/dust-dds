@@ -1,5 +1,5 @@
 use crate::structure::{
-    types::{ChangeKind, SequenceNumber},
+    types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
     RTPSCacheChange, RTPSHistoryCache,
 };
 
@@ -18,7 +18,20 @@ pub trait RTPSWriter {
     fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
 }
 
-pub trait RTPSWriterOperations: RTPSWriter {
+pub trait RTPSWriterOperations {
+    fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_size_serialized: i32,
+    ) -> Self;
+
     fn new_change(
         &mut self,
         kind: ChangeKind,
@@ -27,6 +40,7 @@ pub trait RTPSWriterOperations: RTPSWriter {
         handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
+        Self: RTPSWriter,
         Self::HistoryCacheType: RTPSHistoryCache,
         <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange;
 }

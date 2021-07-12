@@ -33,41 +33,6 @@ pub struct RTPSWriterImpl {
     writer_cache: RTPSHistoryCacheImpl,
 }
 
-impl RTPSWriterImpl {
-    pub fn new(
-        guid: GUID,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        push_mode: bool,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
-        data_max_size_serialized: i32,
-    ) -> Self
-    where
-        SequenceNumber: PartialEq + Ord,
-    {
-        Self {
-            guid,
-            topic_kind,
-            reliability_level,
-            push_mode,
-            unicast_locator_list,
-            multicast_locator_list,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-            last_change_sequence_number: 0.into(),
-            reader_locators: Vec::new(),
-            matched_readers: Vec::new(),
-            writer_cache: RTPSHistoryCacheImpl::new(),
-        }
-    }
-}
-
 impl RTPSEntity for RTPSWriterImpl {
     fn guid(&self) -> &GUID {
         &self.guid
@@ -111,16 +76,47 @@ impl RTPSWriter for RTPSWriterImpl {
 }
 
 impl RTPSWriterOperations for RTPSWriterImpl {
+    fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_size_serialized: i32,
+    ) -> Self {
+        Self {
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
+            multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+            last_change_sequence_number: 0.into(),
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
+            writer_cache: RTPSHistoryCacheImpl::new(),
+        }
+    }
+
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::DataType,
-        inline_qos: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InlineQosType,
-        handle:  <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
-    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
+        data: <<<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::DataType,
+        inline_qos: <<<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InlineQosType,
+        handle:  <<<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
+    ) -> <<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
-        Self::HistoryCacheType: RTPSHistoryCache,
-        <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
+        Self: RTPSWriter,
+        <Self as RTPSWriter>::HistoryCacheType: RTPSHistoryCache,
+        <<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RTPSCacheChangeImpl::new(
@@ -235,9 +231,9 @@ mod tests {
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
+            &unicast_locator_list,
+            &multicast_locator_list,
             push_mode,
-            unicast_locator_list,
-            multicast_locator_list,
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
@@ -265,9 +261,9 @@ mod tests {
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
+            &unicast_locator_list,
+            &multicast_locator_list,
             push_mode,
-            unicast_locator_list,
-            multicast_locator_list,
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
@@ -298,9 +294,9 @@ mod tests {
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
+            &unicast_locator_list,
+            &multicast_locator_list,
             push_mode,
-            unicast_locator_list,
-            multicast_locator_list,
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
@@ -333,9 +329,9 @@ mod tests {
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
+            &unicast_locator_list,
+            &multicast_locator_list,
             push_mode,
-            unicast_locator_list,
-            multicast_locator_list,
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
@@ -395,9 +391,9 @@ mod tests {
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
+            &unicast_locator_list,
+            &multicast_locator_list,
             push_mode,
-            unicast_locator_list,
-            multicast_locator_list,
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
@@ -460,9 +456,9 @@ mod tests {
             GUID_UNKNOWN,
             topic_kind,
             reliability_level,
+            &unicast_locator_list,
+            &multicast_locator_list,
             push_mode,
-            unicast_locator_list,
-            multicast_locator_list,
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
