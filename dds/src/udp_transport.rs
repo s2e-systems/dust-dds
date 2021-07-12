@@ -1,24 +1,22 @@
-use std::{marker::PhantomData, net::UdpSocket};
+use std::net::UdpSocket;
 
 use rust_rtps_pim::structure::types::Locator;
 use rust_rtps_udp_psm::message::RTPSMessageUdp;
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
 use serde::ser::Serialize;
 
-pub struct UdpTransport<'a> {
+pub struct UdpTransport {
     socket: UdpSocket,
-    phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a> UdpTransport<'a> {
+impl UdpTransport {
     pub fn new() -> Self {
         Self {
             socket: UdpSocket::bind("localhost:52344").unwrap(),
-            phantom: PhantomData,
         }
     }
 
-    pub fn write<'b>(&mut self, message: &RTPSMessageUdp<'b>, _destination_locator: &Locator) {
+    pub fn write<'a>(&mut self, message: &RTPSMessageUdp<'a>, _destination_locator: &Locator) {
         let json_vec = serde_json::ser::to_string(message).unwrap();
         let json_string = std::str::from_utf8(json_vec.as_ref()).unwrap();
         println!("{:?}", json_string);
