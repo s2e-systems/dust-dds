@@ -1,6 +1,6 @@
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
+        stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter, RTPSStatefulWriterOperations},
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter, RTPSStatelessWriterOperations},
         types::Duration,
         RTPSWriter, RTPSWriterOperations,
@@ -27,7 +27,7 @@ pub struct RTPSWriterImpl {
     nack_response_delay: Duration,
     nack_suppression_duration: Duration,
     last_change_sequence_number: SequenceNumber,
-    data_max_size_serialized: i32,
+    data_max_size_serialized: Option<i32>,
     reader_locators: Vec<RTPSReaderLocatorImpl>,
     matched_readers: Vec<RTPSReaderProxyImpl>,
     writer_cache: RTPSHistoryCacheImpl,
@@ -62,8 +62,8 @@ impl RTPSWriter for RTPSWriterImpl {
         &self.last_change_sequence_number
     }
 
-    fn data_max_size_serialized(&self) -> i32 {
-        self.data_max_size_serialized
+    fn data_max_size_serialized(&self) -> &Option<i32> {
+        &self.data_max_size_serialized
     }
 
     fn writer_cache(&self) -> &RTPSHistoryCacheImpl {
@@ -86,7 +86,7 @@ impl RTPSWriterOperations for RTPSWriterImpl {
         heartbeat_period: Duration,
         nack_response_delay: Duration,
         nack_suppression_duration: Duration,
-        data_max_size_serialized: i32,
+        data_max_size_serialized: Option<i32>,
     ) -> Self {
         Self {
             guid,
@@ -169,6 +169,32 @@ impl RTPSStatelessWriter for RTPSWriterImpl {
 }
 
 impl RTPSStatelessWriterOperations for RTPSWriterImpl {
+    fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_size_serialized: Option<i32>,
+    ) -> Self {
+        <Self as RTPSWriterOperations>::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        )
+    }
+
     fn reader_locator_add(&mut self, a_locator: Locator, expects_inline_qos: bool) {
         self.reader_locators
             .push(RTPSReaderLocatorImpl::new(a_locator, expects_inline_qos));
@@ -189,8 +215,13 @@ impl RTPSStatefulWriter for RTPSWriterImpl {
     fn matched_readers(&self) -> &[Self::ReaderProxyType] {
         &self.matched_readers
     }
+}
 
-    fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType) {
+impl RTPSStatefulWriterOperations for RTPSWriterImpl {
+    fn matched_reader_add(&mut self, a_reader_proxy: <Self as RTPSStatefulWriter>::ReaderProxyType)
+    where
+        Self: RTPSStatefulWriter,
+    {
         self.matched_readers.push(a_reader_proxy)
     }
 
@@ -199,7 +230,10 @@ impl RTPSStatefulWriter for RTPSWriterImpl {
             .retain(|x| x.remote_reader_guid() != reader_proxy_guid)
     }
 
-    fn matched_reader_lookup(&self, a_reader_guid: &GUID) -> Option<&Self::ReaderProxyType> {
+    fn matched_reader_lookup(
+        &self,
+        a_reader_guid: &GUID,
+    ) -> Option<&<Self as RTPSStatefulWriter>::ReaderProxyType> {
         self.matched_readers
             .iter()
             .find(|&x| x.remote_reader_guid() == a_reader_guid)
@@ -212,15 +246,22 @@ impl RTPSStatefulWriter for RTPSWriterImpl {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::{
-        types::{EntityId, GUID_UNKNOWN},
-        RTPSCacheChange,
+    use rust_rtps_pim::{
+        behavior::types::Duration,
+        structure::{
+            types::{
+                ChangeKind, EntityId, Locator, ReliabilityKind, TopicKind, GUID, GUID_UNKNOWN,
+            },
+            RTPSCacheChange,
+        },
     };
 
-    use super::*;
+    use super::RTPSWriterImpl;
 
     #[test]
     fn new_change() {
+        use super::RTPSWriterOperations;
+
         let push_mode = true;
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
@@ -229,7 +270,7 @@ mod tests {
         let heartbeat_period = Duration(0);
         let nack_response_delay = Duration(0);
         let nack_suppression_duration = Duration(0);
-        let data_max_size_serialized = i32::MAX;
+        let data_max_size_serialized = None;
         let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
             topic_kind,
@@ -251,6 +292,7 @@ mod tests {
 
     #[test]
     fn reader_locator_add() {
+        use super::{RTPSStatelessWriter, RTPSStatelessWriterOperations};
         let push_mode = true;
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
@@ -259,7 +301,7 @@ mod tests {
         let heartbeat_period = Duration(0);
         let nack_response_delay = Duration(0);
         let nack_suppression_duration = Duration(0);
-        let data_max_size_serialized = i32::MAX;
+        let data_max_size_serialized = None;
         let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
             topic_kind,
@@ -282,6 +324,7 @@ mod tests {
 
     #[test]
     fn reader_locator_remove() {
+        use super::{RTPSStatelessWriter, RTPSStatelessWriterOperations};
         let push_mode = true;
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
@@ -290,7 +333,7 @@ mod tests {
         let heartbeat_period = Duration(0);
         let nack_response_delay = Duration(0);
         let nack_suppression_duration = Duration(0);
-        let data_max_size_serialized = i32::MAX;
+        let data_max_size_serialized = None;
         let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
             GUID_UNKNOWN,
             topic_kind,
@@ -315,6 +358,7 @@ mod tests {
 
     #[test]
     fn matched_reader_add() {
+        use super::{RTPSStatefulWriterOperations};
         let push_mode = true;
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;

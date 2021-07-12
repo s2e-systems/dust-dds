@@ -1,12 +1,6 @@
 pub mod types;
 
-pub mod stateful_writer;
-pub mod stateless_writer;
-mod writer;
+pub mod writer;
+pub mod stateless_writer_behavior;
 
-mod reader;
-pub mod stateful_reader;
-pub mod stateless_reader;
-
-pub use reader::RTPSReader;
-pub use writer::{RTPSWriter, RTPSWriterOperations};
+pub mod reader;

@@ -1,4 +1,8 @@
 use crate::{
+    behavior::writer::{
+        reader_locator::RTPSReaderLocatorOperations, stateless_writer::RTPSStatelessWriter,
+        writer::RTPSWriter,
+    },
     messages::{
         submessage_elements::{
             EntityIdSubmessageElementType, ParameterListSubmessageElementType,
@@ -8,65 +12,10 @@ use crate::{
         submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
-        types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{ChangeKind, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
         RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache,
     },
 };
-
-use super::RTPSWriter;
-
-pub trait RTPSReaderLocator {
-    fn locator(&self) -> &Locator;
-
-    fn expects_inline_qos(&self) -> bool;
-}
-
-pub trait RTPSReaderLocatorOperations {
-    type SequenceNumberVector;
-
-    fn next_requested_change(&mut self) -> Option<SequenceNumber>;
-
-    fn next_unsent_change(
-        &mut self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Option<SequenceNumber>;
-
-    fn requested_changes(&self) -> Self::SequenceNumberVector;
-
-    fn requested_changes_set(
-        &mut self,
-        req_seq_num_set: &[SequenceNumber],
-        last_change_sequence_number: &SequenceNumber,
-    );
-
-    fn unsent_changes(
-        &self,
-        last_change_sequence_number: SequenceNumber,
-    ) -> Self::SequenceNumberVector;
-}
-
-pub trait RTPSStatelessWriter {
-    type ReaderLocatorType;
-
-    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorType];
-
-    fn writer_cache_and_reader_locators(
-        &mut self,
-    ) -> (
-        &<Self as RTPSWriter>::HistoryCacheType,
-        &mut [Self::ReaderLocatorType],
-    )
-    where
-        Self: RTPSWriter;
-}
-
-pub trait RTPSStatelessWriterOperations {
-    fn reader_locator_add(&mut self, a_locator: Locator, expects_inline_qos: bool);
-
-    fn reader_locator_remove(&mut self, a_locator: &Locator);
-
-    fn unsent_changes_reset(&mut self);
-}
 
 pub trait StatelessWriterBehavior<Data, Gap> {
     type ReaderLocator;

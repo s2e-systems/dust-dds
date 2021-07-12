@@ -1,9 +1,10 @@
-use crate::structure::{
-    types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
-    RTPSCacheChange, RTPSHistoryCache,
+use crate::{
+    behavior::types::Duration,
+    structure::{
+        types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
+        RTPSCacheChange, RTPSHistoryCache,
+    },
 };
-
-use super::types::Duration;
 
 pub trait RTPSWriter {
     type HistoryCacheType;
@@ -13,7 +14,7 @@ pub trait RTPSWriter {
     fn nack_response_delay(&self) -> &Duration;
     fn nack_suppression_duration(&self) -> &Duration;
     fn last_change_sequence_number(&self) -> &SequenceNumber;
-    fn data_max_size_serialized(&self) -> i32;
+    fn data_max_size_serialized(&self) -> &Option<i32>;
     fn writer_cache(&self) -> &Self::HistoryCacheType;
     fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
 }
@@ -29,7 +30,7 @@ pub trait RTPSWriterOperations {
         heartbeat_period: Duration,
         nack_response_delay: Duration,
         nack_suppression_duration: Duration,
-        data_max_size_serialized: i32,
+        data_max_size_serialized: Option<i32>,
     ) -> Self;
 
     fn new_change(
