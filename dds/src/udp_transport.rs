@@ -17,12 +17,8 @@ impl<'a> UdpTransport<'a> {
             phantom: PhantomData,
         }
     }
-}
 
-impl<'a> /*TransportWrite for*/ UdpTransport<'a> {
-    // type RTPSMessageType = RTPSMessageUdp<'a>;
-
-    fn write<'b>(&mut self, message: &RTPSMessageUdp<'b>, destination_locator: &Locator) {
+    pub fn write<'b>(&mut self, message: &RTPSMessageUdp<'b>, destination_locator: &Locator) {
         let json_vec = serde_json::ser::to_string(message).unwrap();
         let json_string = std::str::from_utf8(json_vec.as_ref()).unwrap();
         println!("{:?}", json_string);
@@ -35,13 +31,3 @@ impl<'a> /*TransportWrite for*/ UdpTransport<'a> {
             .unwrap();
     }
 }
-
-// impl<'a> TransportLocator for UdpTransport<'a> {
-//     fn unicast_locator_list(&self) -> &[Locator] {
-//         todo!()
-//     }
-
-//     fn multicast_locator_list(&self) -> &[Locator] {
-//         todo!()
-//     }
-// }

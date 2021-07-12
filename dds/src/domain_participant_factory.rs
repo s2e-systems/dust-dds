@@ -13,10 +13,13 @@ use rust_dds_rtps_implementation::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
-    messages::RtpsMessageHeader,
-    structure::{types::Locator, RTPSEntity, RTPSParticipant},
+    behavior::stateless_writer::{RTPSReaderLocator, StatelessWriterBehavior},
+    messages::{submessages::RtpsSubmessageType, RTPSMessage, RtpsMessageHeader},
+    structure::{types::LOCATOR_INVALID, RTPSEntity, RTPSParticipant},
 };
-use rust_rtps_udp_psm::message::RTPSMessageUdp;
+use rust_rtps_udp_psm::{
+    message::RTPSMessageUdp, psm::RtpsUdpPsm, submessages::gap::GapSubmessageUdp,
+};
 
 use crate::udp_transport::UdpTransport;
 
@@ -102,6 +105,27 @@ impl DomainParticipantFactory {
                         let writer_group = writer_group.lock();
                         for writer in writer_group.writer_list() {
                             let mut writer = writer.lock();
+                            let mut dst_locator = LOCATOR_INVALID;
+                            let mut data_submessages = vec![];
+                            let mut gap_submessages = vec![];
+                            writer.send_unsent_data(
+                                |reader_locator, data| {
+                                    dst_locator = *reader_locator.locator();
+                                    data_submessages
+                                        .push(RtpsSubmessageType::<RtpsUdpPsm>::Data(data));
+                                },
+                                |_reader_locator, gap: GapSubmessageUdp| {
+                                    gap_submessages.push(
+                                        // *reader_locator.locator(),
+                                        RtpsSubmessageType::<RtpsUdpPsm>::Gap(gap),
+                                    );
+                                },
+                            );
+
+                            let message = RTPSMessageUdp::new(&header, data_submessages);
+
+                            transport.write(&message, &dst_locator);
+
                             // let messages = writer.create_messages(&header, |message: RTPSMessageUdp, _| println!("{:?}", message));
 
                             std::thread::sleep(std::time::Duration::from_millis(500));
