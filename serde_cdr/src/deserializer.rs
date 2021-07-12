@@ -444,9 +444,9 @@ mod tests {
         assert_eq!(result, CustomStruct{data_length: 2, data: vec![4, 5]});
     }
 
-    struct ReferenceStructVisitor<'a>(std::marker::PhantomData<&'a ()>);
+    struct ReferenceStructVisitor;
 
-    impl<'a, 'de: 'a> serde::de::Visitor<'de> for ReferenceStructVisitor<'a> {
+    impl<'a> serde::de::Visitor<'a> for ReferenceStructVisitor {
         type Value = ReferenceStruct<'a>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -454,7 +454,7 @@ mod tests {
         }
 
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where A: serde::de::SeqAccess<'de>,
+            where A: serde::de::SeqAccess<'a>,
         {
             let length: u8 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
             let data: &[u8] = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
@@ -471,7 +471,7 @@ mod tests {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
             D: serde::Deserializer<'de> {
-                deserializer.deserialize_tuple(2, ReferenceStructVisitor(std::marker::PhantomData))
+                deserializer.deserialize_tuple(2, ReferenceStructVisitor)
         }
     }
 
