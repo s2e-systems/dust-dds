@@ -3,7 +3,7 @@ use rust_rtps_pim::{
         stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
         types::Duration,
-        RTPSWriter, RTPSWriterOperations
+        RTPSWriter, RTPSWriterOperations,
     },
     structure::{
         types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
@@ -371,15 +371,17 @@ mod tests {
             data_max_size_serialized,
         );
 
+        let reader_proxy_guid1 = GUID::new([1; 12], [1; 4]);
         let reader_proxy1 =
-            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(reader_proxy_guid1, [0; 4], vec![], vec![], false, true);
+        let reader_proxy_guid2 = GUID::new([2; 12], [2; 4]);
         let reader_proxy2 =
-            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(reader_proxy_guid2, [0; 4], vec![], vec![], false, true);
         writer.matched_reader_add(reader_proxy1);
         writer.matched_reader_add(reader_proxy2);
-        writer.matched_reader_remove(&GUID_UNKNOWN);
+        writer.matched_reader_remove(&reader_proxy_guid2);
 
-        assert_eq!(writer.matched_readers().len(), 2)
+        assert_eq!(writer.matched_readers().len(), 1)
     }
 
     #[test]
@@ -406,14 +408,16 @@ mod tests {
             data_max_size_serialized,
         );
 
+        let reader_proxy_guid1 = GUID::new([1; 12], [1; 4]);
         let reader_proxy1 =
-            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(reader_proxy_guid1, [0; 4], vec![], vec![], false, true);
+        let reader_proxy_guid2 = GUID::new([2; 12], [2; 4]);
         let reader_proxy2 =
-            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
+            RTPSReaderProxyImpl::new(reader_proxy_guid2, [0; 4], vec![], vec![], false, true);
         writer.matched_reader_add(reader_proxy1);
         writer.matched_reader_add(reader_proxy2);
 
-        assert!(writer.matched_reader_lookup(&GUID_UNKNOWN).is_some());
+        assert!(writer.matched_reader_lookup(&reader_proxy_guid1).is_some());
         assert!(writer.matched_reader_lookup(&GUID_UNKNOWN).is_none());
     }
 }
