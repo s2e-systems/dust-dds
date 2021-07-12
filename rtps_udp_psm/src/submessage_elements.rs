@@ -153,8 +153,24 @@ impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType
 }
 
 impl From<EntityKind> for Octet {
-    fn from(_: EntityKind) -> Self {
-        todo!()
+    fn from(value: EntityKind) -> Self {
+        match value {
+            EntityKind::UserDefinedUnknown => Octet(0x00),
+            EntityKind::BuiltInUnknown => Octet(0xc0),
+            EntityKind::BuiltInParticipant => Octet(0xc1),
+            EntityKind::UserDefinedWriterWithKey => Octet(0x02),
+            EntityKind::BuiltInWriterWithKey => Octet(0xc2),
+            EntityKind::UserDefinedWriterNoKey => Octet(0x03),
+            EntityKind::BuiltInWriterNoKey => Octet(0xc3),
+            EntityKind::UserDefinedReaderWithKey => Octet(0x07),
+            EntityKind::BuiltInReaderWithKey => Octet(0xc7),
+            EntityKind::UserDefinedReaderNoKey => Octet(0x04),
+            EntityKind::BuiltInReaderNoKey => Octet(0xc4),
+            EntityKind::UserDefinedWriterGroup => Octet(0x08),
+            EntityKind::BuiltInWriterGroup => Octet(0xc8),
+            EntityKind::UserDefinedReaderGroup => Octet(0x09),
+            EntityKind::BuiltInReaderGroup => Octet(0xc9),
+        }
     }
 }
 

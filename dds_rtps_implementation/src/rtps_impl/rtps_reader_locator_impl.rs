@@ -9,6 +9,12 @@ pub struct RTPSReaderLocatorImpl {
     requested_changes: Vec<SequenceNumber>,
 }
 
+impl RTPSReaderLocatorImpl {
+    pub fn unsent_changes_reset(&mut self) {
+        self.last_sent_sequence_number = 0;
+    }
+}
+
 impl RTPSReaderLocator for RTPSReaderLocatorImpl {
     fn locator(&self) -> &Locator {
         &self.locator

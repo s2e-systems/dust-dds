@@ -208,7 +208,9 @@ impl RTPSStatelessWriterOperations for RTPSWriterImpl {
     }
 
     fn unsent_changes_reset(&mut self) {
-        todo!()
+        for reader_locator in &mut self.reader_locators {
+            reader_locator.unsent_changes_reset();
+        }
     }
 }
 
