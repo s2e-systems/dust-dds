@@ -10,15 +10,13 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::{
-        rtps_participant_impl::RTPSParticipantImpl,
-        rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_writer_impl::RTPSWriterImpl,
-    },
+    rtps_impl::{rtps_participant_impl::RTPSParticipantImpl, rtps_writer_impl::RTPSWriterImpl},
     utils::{message_sender::create_submessages, shared_object::RtpsShared},
 };
 use rust_rtps_pim::{
     behavior::{
-        stateless_writer::RTPSStatelessWriter, types::Duration, RTPSWriter, RTPSWriterOperations,
+        stateless_writer::RTPSStatelessWriterOperations, types::Duration, RTPSWriter,
+        RTPSWriterOperations,
     },
     discovery::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
     messages::{RTPSMessage, RtpsMessageHeader},
@@ -109,7 +107,7 @@ impl DomainParticipantFactory {
             i32::MAX,
         );
 
-        let spdp_discovery_writer_locator = RTPSReaderLocatorImpl::new(
+        spdp_discovery_writer.reader_locator_add(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
                 [0, 0, 100, 200],
@@ -117,7 +115,6 @@ impl DomainParticipantFactory {
             ),
             false,
         );
-        spdp_discovery_writer.reader_locator_add(spdp_discovery_writer_locator);
 
         let cc = spdp_discovery_writer.new_change(ChangeKind::Alive, vec![1, 2, 3, 4], (), 1);
         spdp_discovery_writer.writer_cache_mut().add_change(cc);

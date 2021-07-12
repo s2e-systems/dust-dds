@@ -50,12 +50,6 @@ pub trait RTPSStatelessWriter {
 
     fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorType];
 
-    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType);
-
-    fn reader_locator_remove(&mut self, a_locator: &Locator);
-
-    fn unsent_changes_reset(&mut self);
-
     fn writer_cache_and_reader_locators(
         &mut self,
     ) -> (
@@ -64,6 +58,14 @@ pub trait RTPSStatelessWriter {
     )
     where
         Self: RTPSWriter;
+}
+
+pub trait RTPSStatelessWriterOperations {
+    fn reader_locator_add(&mut self, a_locator: Locator, expects_inline_qos: bool);
+
+    fn reader_locator_remove(&mut self, a_locator: &Locator);
+
+    fn unsent_changes_reset(&mut self);
 }
 
 pub trait StatelessWriterBehavior<Data, Gap> {

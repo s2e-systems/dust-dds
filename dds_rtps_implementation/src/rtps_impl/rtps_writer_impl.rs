@@ -1,7 +1,7 @@
 use rust_rtps_pim::{
     behavior::{
         stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
-        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
+        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter, RTPSStatelessWriterOperations},
         types::Duration,
         RTPSWriter, RTPSWriterOperations,
     },
@@ -155,18 +155,6 @@ impl RTPSStatelessWriter for RTPSWriterImpl {
         &mut self.reader_locators
     }
 
-    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
-        self.reader_locators.push(a_locator)
-    }
-
-    fn reader_locator_remove(&mut self, a_locator: &Locator) {
-        self.reader_locators.retain(|x| x.locator() != a_locator)
-    }
-
-    fn unsent_changes_reset(&mut self) {
-        todo!()
-    }
-
     fn writer_cache_and_reader_locators(
         &mut self,
     ) -> (
@@ -177,6 +165,21 @@ impl RTPSStatelessWriter for RTPSWriterImpl {
         Self: RTPSWriter,
     {
         (&self.writer_cache, &mut self.reader_locators)
+    }
+}
+
+impl RTPSStatelessWriterOperations for RTPSWriterImpl {
+    fn reader_locator_add(&mut self, a_locator: Locator, expects_inline_qos: bool) {
+        self.reader_locators
+            .push(RTPSReaderLocatorImpl::new(a_locator, expects_inline_qos));
+    }
+
+    fn reader_locator_remove(&mut self, a_locator: &Locator) {
+        self.reader_locators.retain(|x| x.locator() != a_locator)
+    }
+
+    fn unsent_changes_reset(&mut self) {
+        todo!()
     }
 }
 
@@ -269,12 +272,10 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        let reader_locator1 =
-            RTPSReaderLocatorImpl::new(Locator::new([1; 4], [1; 4], [1; 16]), false);
-        let reader_locator2 =
-            RTPSReaderLocatorImpl::new(Locator::new([2; 4], [2; 4], [2; 16]), false);
-        writer.reader_locator_add(reader_locator1);
-        writer.reader_locator_add(reader_locator2);
+        let reader_locator1 = Locator::new([1; 4], [1; 4], [1; 16]);
+        let reader_locator2 = Locator::new([2; 4], [2; 4], [2; 16]);
+        writer.reader_locator_add(reader_locator1, false);
+        writer.reader_locator_add(reader_locator2, false);
 
         assert_eq!(writer.reader_locators().len(), 2)
     }
@@ -303,12 +304,10 @@ mod tests {
             data_max_size_serialized,
         );
 
-        let reader_locator1 =
-            RTPSReaderLocatorImpl::new(Locator::new([1; 4], [1; 4], [1; 16]), false);
-        let reader_locator2 =
-            RTPSReaderLocatorImpl::new(Locator::new([2; 4], [2; 4], [2; 16]), false);
-        writer.reader_locator_add(reader_locator1);
-        writer.reader_locator_add(reader_locator2);
+        let reader_locator1 = Locator::new([1; 4], [1; 4], [1; 16]);
+        let reader_locator2 = Locator::new([2; 4], [2; 4], [2; 16]);
+        writer.reader_locator_add(reader_locator1, false);
+        writer.reader_locator_add(reader_locator2, false);
         writer.reader_locator_remove(&Locator::new([1; 4], [1; 4], [1; 16]));
 
         assert_eq!(writer.reader_locators().len(), 1)
