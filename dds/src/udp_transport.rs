@@ -66,18 +66,19 @@ mod tests{
             vendor_id: VENDOR_ID_S2E,
             guid_prefix: [3; 12],
         };
-        let message: RTPSMessageUdp = RTPSMessageUdp::new(&header, vec![]);
+
         let mut transport = UdpTransport::new();
         let destination_locator = LOCATOR_INVALID;
+
+        let message: RTPSMessageUdp = RTPSMessageUdp::new(&header, vec![]);
         transport.write(&message, &destination_locator);
+        let (_locator, received_message1) = transport.read();
+        assert_eq!(message, received_message1);
+
+        let message: RTPSMessageUdp = RTPSMessageUdp::new(&header, vec![]);
         transport.write(&message, &destination_locator);
-        {
-            let (_locator, received_message1) = transport.read();
-            assert_eq!(message, received_message1);
-        }
-        // {
-        //     let (_locator, received_message2) = transport.read();
-        //     assert_eq!(message, received_message2);
-        // }
+        let (_locator, received_message2) = transport.read();
+        assert_eq!(message, received_message2);
+
     }
 }
