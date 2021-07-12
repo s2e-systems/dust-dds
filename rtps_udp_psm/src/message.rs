@@ -26,7 +26,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageUdp<'a> {
         submessages: T,
     ) -> Self {
         let header = RTPSMessageHeaderUdp {
-            protocol: [b'R', b'T', b'P', b's'],
+            protocol: [b'R', b'T', b'P', b'S'],
             version: ProtocolVersionUdp {
                 major: header.version.major,
                 minor: header.version.minor,
