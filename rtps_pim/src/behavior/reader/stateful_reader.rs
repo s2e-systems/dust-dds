@@ -1,32 +1,30 @@
 use crate::{
-    behavior::RTPSReader,
-    structure::types::{EntityId, Locator, SequenceNumber, GUID},
+    behavior::types::Duration,
+    structure::types::{Locator, ReliabilityKind, TopicKind, GUID},
 };
 
-pub trait RTPSWriterProxy {
-    type SequenceNumberVector: IntoIterator<Item = SequenceNumber>;
-
-    fn remote_writer_guid(&self) -> &GUID;
-    fn remote_group_entity_id(&self) -> &EntityId;
-    fn unicast_locator_list(&self) -> &[Locator];
-    fn multicast_locator_list(&self) -> &[Locator];
-    fn data_max_size_serialized(&self) -> i32;
-
-    fn available_changes_max(&self) -> &SequenceNumber;
-    fn irrelevant_change_set(&mut self, a_seq_num: &SequenceNumber);
-    fn lost_changes_update(&mut self, first_available_seq_num: &SequenceNumber);
-    fn missing_changes(&self) -> Self::SequenceNumberVector;
-    fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber);
-    fn received_change_set(&mut self, a_seq_num: SequenceNumber);
-}
-
-pub trait RTPSStatefulReader:
-    RTPSReader
-{
+pub trait RTPSStatefulReader {
     type WriterProxyType;
 
     fn matched_writers(&self) -> &[Self::WriterProxyType];
-    fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType);
+}
+
+pub trait RTPSStatefulReaderOperations {
+    fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        heartbeat_response_delay: Duration,
+        heartbeat_supression_duration: Duration,
+        expects_inline_qos: bool,
+    ) -> Self;
+    fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType)
+    where
+        Self: RTPSStatefulReader;
     fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID);
-    fn matched_writer_lookup(&self, a_writer_guid: GUID) -> Option<&Self::WriterProxyType>;
+    fn matched_writer_lookup(&self, a_writer_guid: &GUID) -> Option<&Self::WriterProxyType>
+    where
+        Self: RTPSStatefulReader;
 }
