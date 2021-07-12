@@ -1,6 +1,6 @@
 use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
 use rust_rtps_pim::structure::{
-    types::{Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
+    types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
     RTPSEntity,
 };
 
@@ -13,6 +13,7 @@ pub struct RTPSParticipantImpl {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl>>,
+    pub builtin_writer_group: RtpsShared<RTPSWriterGroupImpl>,
 }
 
 impl RTPSParticipantImpl {
@@ -22,11 +23,26 @@ impl RTPSParticipantImpl {
             rust_rtps_pim::structure::types::ENTITYID_PARTICIPANT,
         );
 
+        let builtin_writer_group_guid = GUID::new(
+            guid_prefix,
+            EntityId {
+                entity_key: [0, 0, 0],
+                entity_kind: rust_rtps_pim::structure::types::EntityKind::BuiltInWriterGroup,
+            },
+        );
+        let builtin_writer_group = RtpsShared::new(RTPSWriterGroupImpl::new(
+            builtin_writer_group_guid,
+            rust_dds_api::infrastructure::qos::PublisherQos::default(),
+            None,
+            0,
+        ));
+
         Self {
             guid,
             protocol_version: PROTOCOLVERSION_2_4,
             vendor_id: [99, 99],
             rtps_writer_groups: Vec::new(),
+            builtin_writer_group,
         }
     }
 

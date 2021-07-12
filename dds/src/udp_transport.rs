@@ -13,7 +13,7 @@ pub struct UdpTransport<'a> {
 impl<'a> UdpTransport<'a> {
     pub fn new() -> Self {
         Self {
-            socket: UdpSocket::bind("localhost:32454").unwrap(),
+            socket: UdpSocket::bind("localhost:52344").unwrap(),
             phantom: PhantomData,
         }
     }

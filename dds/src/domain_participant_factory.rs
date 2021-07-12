@@ -10,10 +10,21 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::{rtps_participant_impl::RTPSParticipantImpl, rtps_writer_impl::RTPSWriterImpl},
-    utils::shared_object::RtpsShared,
+    rtps_impl::{
+        rtps_participant_impl::RTPSParticipantImpl,
+        rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_writer_impl::RTPSWriterImpl,
+    },
+    utils::{message_sender::create_submessages, shared_object::RtpsShared},
 };
-use rust_rtps_pim::{behavior::{stateless_writer::RTPSStatelessWriter, types::Duration}, discovery::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, messages::{RTPSMessage, RtpsMessageHeader}, structure::{types::GUID, RTPSEntity, RTPSParticipant}};
+use rust_rtps_pim::{
+    behavior::{stateless_writer::RTPSStatelessWriter, types::Duration},
+    discovery::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+    messages::{RTPSMessage, RtpsMessageHeader},
+    structure::{
+        types::{LOCATOR_KIND_UDPv4, Locator, GUID},
+        RTPSEntity, RTPSParticipant,
+    },
+};
 use rust_rtps_udp_psm::{message::RTPSMessageUdp, psm::RtpsUdpPsm};
 
 use crate::udp_transport::UdpTransport;
@@ -81,12 +92,9 @@ impl DomainParticipantFactory {
         let is_enabled = Arc::new(AtomicBool::new(false));
         let is_enabled_thread = is_enabled.clone();
 
-        let rtps_participant_impl = RtpsShared::new(rtps_participant);
-        let rtps_participant_shared = rtps_participant_impl.clone();
-
         let spdp_discovery_writer_guid =
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
-        let spdp_discovery_writer = RTPSWriterImpl::new(
+        let mut spdp_discovery_writer = RTPSWriterImpl::new(
             spdp_discovery_writer_guid,
             rust_rtps_pim::structure::types::TopicKind::WithKey,
             rust_rtps_pim::structure::types::ReliabilityKind::BestEffort,
@@ -98,6 +106,24 @@ impl DomainParticipantFactory {
             Duration(0),
             i32::MAX,
         );
+
+        let spdp_discovery_writer_locator = RTPSReaderLocatorImpl::new(
+            Locator::new(
+                LOCATOR_KIND_UDPv4,
+                [0, 0, 100, 200],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+            ),
+            false,
+        );
+        spdp_discovery_writer.reader_locator_add(spdp_discovery_writer_locator);
+
+        rtps_participant
+            .builtin_writer_group
+            .lock()
+            .add_writer(RtpsShared::new(spdp_discovery_writer));
+
+        let rtps_participant_impl = RtpsShared::new(rtps_participant);
+        let rtps_participant_shared = rtps_participant_impl.clone();
 
         std::thread::spawn(move || loop {
             if is_enabled_thread.load(atomic::Ordering::Relaxed) {
@@ -111,21 +137,21 @@ impl DomainParticipantFactory {
                         guid_prefix: *rtps_participant.guid().prefix(),
                     };
 
-                    for writer_group in rtps_participant.writer_groups() {
-                        let writer_group = writer_group.lock();
-                        for writer in writer_group.writer_list() {
-                            let mut writer = writer.lock();
-                            let destined_submessages =
-                                rust_dds_rtps_implementation::utils::message_sender::create_submessages::<RtpsUdpPsm, _>(&mut *writer);
-                            for (dst_locator, submessages) in destined_submessages {
-                                let message = RTPSMessageUdp::new(&header, submessages);
-                                transport.write(&message, &dst_locator);
-                            }
-
-                            std::thread::sleep(std::time::Duration::from_millis(500));
+                    // for writer_group in rtps_participant.writer_groups() {
+                    let writer_group = rtps_participant.builtin_writer_group.lock();
+                    for writer in writer_group.writer_list() {
+                        let mut writer = writer.lock();
+                        let destined_submessages =
+                            create_submessages::<RtpsUdpPsm, _>(&mut *writer);
+                        for (dst_locator, submessages) in destined_submessages {
+                            let message = RTPSMessageUdp::new(&header, submessages);
+                            transport.write(&message, &dst_locator);
                         }
+
+                        std::thread::sleep(std::time::Duration::from_millis(500));
                     }
                 }
+                // }
             }
         });
 
