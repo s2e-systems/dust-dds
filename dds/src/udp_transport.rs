@@ -25,7 +25,7 @@ impl UdpTransport {
         let mut serializer = RtpsMessageSerializer { writer };
         message.serialize(&mut serializer).unwrap();
         self.socket
-            .send_to(serializer.writer.as_slice(), "192.168.1.1:7400")
+            .send_to(serializer.writer.as_slice(), "localhost:7400")
             .unwrap();
     }
 }
