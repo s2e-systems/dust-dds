@@ -1,7 +1,7 @@
-use std::sync::{
+use std::{cell::{Cell, RefCell}, sync::{
     atomic::{self, AtomicBool},
     Arc,
-};
+}};
 
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
@@ -151,21 +151,20 @@ where
     Behavior::ReaderLocator: RTPSReaderLocator,
 {
     let mut dst_locator = LOCATOR_INVALID;
-    let mut data_submessages = vec![];
-    let mut gap_submessages = vec![];
+    let submessages = RefCell::new(Vec::new());
     writer.send_unsent_data(
         |reader_locator, data| {
             dst_locator = *reader_locator.locator();
-            data_submessages.push(RtpsSubmessageType::<PSM>::Data(data));
+            submessages.borrow_mut().push(RtpsSubmessageType::<PSM>::Data(data));
         },
         |_reader_locator, gap| {
-            gap_submessages.push(
+            submessages.borrow_mut().push(
                 // *reader_locator.locator(),
                 RtpsSubmessageType::<PSM>::Gap(gap),
             );
         },
     );
-    vec![(dst_locator, data_submessages)]
+    vec![(dst_locator, submessages.take())]
 }
 
 #[cfg(test)]
