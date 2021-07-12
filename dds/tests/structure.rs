@@ -1,4 +1,6 @@
-use rust_dds::{DDSError, domain::domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity};
+use rust_dds::{
+    domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
+};
 
 // struct TestType;
 // impl DDSType for TestType {

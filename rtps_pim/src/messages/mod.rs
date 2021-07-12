@@ -4,10 +4,7 @@ pub mod types;
 
 use crate::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
 
-use self::{
-    submessages::{RtpsSubmessagePIM, RtpsSubmessageType},
-    types::{ProtocolId, SubmessageFlag, SubmessageKind},
-};
+use self::types::{ProtocolId, SubmessageFlag, SubmessageKind};
 
 pub struct RtpsMessageHeader {
     pub protocol: ProtocolId,
