@@ -10,12 +10,10 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
+    rtps_impl::{rtps_participant_impl::RTPSParticipantImpl, rtps_writer_impl::RTPSWriterImpl},
+    utils::shared_object::RtpsShared,
 };
-use rust_rtps_pim::{
-    messages::{RTPSMessage, RtpsMessageHeader},
-    structure::{RTPSEntity, RTPSParticipant},
-};
+use rust_rtps_pim::{behavior::{stateless_writer::RTPSStatelessWriter, types::Duration}, discovery::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, messages::{RTPSMessage, RtpsMessageHeader}, structure::{types::GUID, RTPSEntity, RTPSParticipant}};
 use rust_rtps_udp_psm::{message::RTPSMessageUdp, psm::RtpsUdpPsm};
 
 use crate::udp_transport::UdpTransport;
@@ -85,6 +83,21 @@ impl DomainParticipantFactory {
 
         let rtps_participant_impl = RtpsShared::new(rtps_participant);
         let rtps_participant_shared = rtps_participant_impl.clone();
+
+        let spdp_discovery_writer_guid =
+            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
+        let spdp_discovery_writer = RTPSWriterImpl::new(
+            spdp_discovery_writer_guid,
+            rust_rtps_pim::structure::types::TopicKind::WithKey,
+            rust_rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            true,
+            vec![],
+            vec![],
+            Duration(0),
+            Duration(0),
+            Duration(0),
+            i32::MAX,
+        );
 
         std::thread::spawn(move || loop {
             if is_enabled_thread.load(atomic::Ordering::Relaxed) {

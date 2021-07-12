@@ -91,6 +91,8 @@ impl rust_rtps_pim::messages::Submessage for HeartbeatSubmessageUdp {
 
 #[cfg(test)]
 mod tests {
+    use crate::submessage_elements::Octet;
+
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
     use rust_serde_cdr::serializer::RtpsMessageSerializer;
@@ -107,8 +109,14 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let first_sn = SequenceNumberUdp::new(&1);
         let last_sn = SequenceNumberUdp::new(&3);
         let count = CountUdp(5);

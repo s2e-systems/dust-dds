@@ -2,11 +2,9 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
-use rust_rtps_pim::structure::types::GUID;
+use rust_rtps_pim::structure::types::{EntityId, GUID};
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
-
-const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 
 pub struct WriterGroupFactory {
     guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
@@ -33,13 +31,10 @@ impl WriterGroupFactory {
         let guid_prefix = self.guid_prefix.clone();
 
         self.publisher_counter += 1;
-        let entity_id = [
-            self.publisher_counter,
-            0,
-            0,
-            ENTITYKIND_USER_DEFINED_WRITER_GROUP,
-        ]
-        .into();
+        let entity_id = EntityId {
+            entity_key: [self.publisher_counter, 0, 0],
+            entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedWriterGroup,
+        };
         let guid = GUID::new(guid_prefix, entity_id);
         Ok(RTPSWriterGroupImpl::new(guid, qos, a_listener, mask))
     }

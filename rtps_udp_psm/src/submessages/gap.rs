@@ -76,6 +76,8 @@ impl rust_rtps_pim::messages::Submessage for GapSubmessageUdp {
 
 #[cfg(test)]
 mod tests {
+    use crate::submessage_elements::Octet;
+
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::{
         SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
@@ -100,8 +102,14 @@ mod tests {
     #[test]
     fn serialize_gap() {
         let endianness_flag = true;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
         let submessage: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessage::new(
@@ -128,8 +136,14 @@ mod tests {
     #[test]
     fn deserialize_gap() {
         let endianness_flag = true;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
         let expected: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessage::new(

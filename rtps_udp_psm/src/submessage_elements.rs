@@ -1,6 +1,8 @@
+use std::convert::{TryFrom, TryInto};
+
 use rust_rtps_pim::{
     messages::types::{Count, FragmentNumber, SubmessageFlag, Time},
-    structure::types::ProtocolVersion,
+    structure::types::{EntityKind, ProtocolVersion},
 };
 use serde::ser::SerializeStruct;
 
@@ -121,15 +123,46 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementTy
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct EntityIdUdp(pub(crate) rust_rtps_pim::structure::types::EntityId);
+pub struct EntityIdUdp {
+    pub(crate) entity_key: [Octet; 3],
+    pub(crate) entity_kind: Octet,
+}
 
 impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType for EntityIdUdp {
     fn new(value: &rust_rtps_pim::structure::types::EntityId) -> Self {
-        Self(value.clone())
+        Self {
+            entity_key: [
+                Octet(value.entity_key[0]),
+                Octet(value.entity_key[1]),
+                Octet(value.entity_key[2]),
+            ],
+            entity_kind: value.entity_kind.into(),
+        }
     }
 
     fn value(&self) -> rust_rtps_pim::structure::types::EntityId {
-        self.0
+        rust_rtps_pim::structure::types::EntityId {
+            entity_key: [
+                self.entity_key[0].0,
+                self.entity_key[1].0,
+                self.entity_key[2].0,
+            ],
+            entity_kind: self.entity_kind.try_into().unwrap(),
+        }
+    }
+}
+
+impl From<EntityKind> for Octet {
+    fn from(_: EntityKind) -> Self {
+        todo!()
+    }
+}
+
+impl TryFrom<Octet> for EntityKind {
+    type Error = ();
+
+    fn try_from(_value: Octet) -> Result<Self, Self::Error> {
+        todo!()
     }
 }
 

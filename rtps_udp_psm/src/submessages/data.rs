@@ -237,7 +237,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesageUdp<'a> {
 #[cfg(test)]
 mod tests {
 
-    use crate::parameter_list::ParameterUdp;
+    use crate::{parameter_list::ParameterUdp, submessage_elements::Octet};
 
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
@@ -264,8 +264,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
@@ -303,8 +309,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let param1 = ParameterUdp::new(6, vec![10, 11, 12, 13].into());
         let param2 = ParameterUdp::new(7, vec![20, 21, 22, 23].into());
@@ -349,8 +361,14 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
@@ -389,8 +407,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
@@ -427,8 +451,14 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
@@ -468,8 +498,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let param1 = ParameterUdp::new(6, vec![10, 11, 12, 13].into());
         let param2 = ParameterUdp::new(7, vec![20, 21, 22, 23].into());
@@ -514,8 +550,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
@@ -536,7 +578,7 @@ mod tests {
         );
         assert_eq!(
             serde_json::ser::to_string(&submessage).unwrap(),
-            r#"{"header":{"submessage_id":21,"flags":1,"submessage_length":20},"extra_flags":0,"octets_to_inline_qos":16,"reader_id":[1,2,3,4],"writer_id":[6,7,8,9],"writer_sn":{"high":0,"low":5}}"#
+            r#"{"header":{"submessage_id":21,"flags":1,"submessage_length":20},"extra_flags":0,"octets_to_inline_qos":16,"reader_id":{"entity_key":[1,2,3],"entity_kind":4},"writer_id":{"entity_key":[6,7,8],"entity_kind":9},"writer_sn":{"high":0,"low":5}}"#
         );
     }
 }

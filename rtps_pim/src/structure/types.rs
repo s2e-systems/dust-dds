@@ -6,9 +6,40 @@
 pub type GuidPrefix = [u8; 12];
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
-pub type EntityId = [u8; 4];
-pub const ENTITYID_UNKNOWN: EntityId = [0; 4];
-pub const ENTITYID_PARTICIPANT: EntityId = [0, 0, 0x01, 0xc1];
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum EntityKind {
+    UserDefinedUnknown,
+    BuiltInUnknown,
+    BuiltInParticipant,
+    UserDefinedWriterWithKey,
+    BuiltInWriterWithKey,
+    UserDefinedWriterNoKey,
+    BuiltInWriterNoKey,
+    UserDefinedReaderWithKey,
+    BuiltInReaderWithKey,
+    UserDefinedReaderNoKey,
+    BuiltInReaderNoKey,
+    UserDefinedWriterGroup,
+    BuiltInWriterGroup,
+    UserDefinedReaderGroup,
+    BuiltInReaderGroup,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct EntityId {
+    pub entity_key: [u8; 3],
+    pub entity_kind: EntityKind,
+}
+
+pub const ENTITYID_UNKNOWN: EntityId = EntityId {
+    entity_key: [0; 3],
+    entity_kind: EntityKind::UserDefinedUnknown,
+};
+
+pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
+    entity_key: [0, 0, 0x01],
+    entity_kind: EntityKind::BuiltInParticipant,
+};
 
 pub type SequenceNumber = i64;
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
@@ -72,7 +103,6 @@ pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion { major: 2, min
 pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, minor: 2 };
 pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
 pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
-
 
 pub type VendorId = [u8; 2];
 pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];

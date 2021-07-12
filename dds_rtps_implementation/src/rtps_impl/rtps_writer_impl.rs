@@ -213,7 +213,10 @@ impl RTPSStatefulWriter for RTPSWriterImpl {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::{types::GUID_UNKNOWN, RTPSCacheChange};
+    use rust_rtps_pim::structure::{
+        types::{EntityId, GUID_UNKNOWN},
+        RTPSCacheChange,
+    };
 
     use super::*;
 
@@ -338,10 +341,40 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        let reader_proxy1 =
-            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
-        let reader_proxy2 =
-            RTPSReaderProxyImpl::new(GUID_UNKNOWN, [0; 4], vec![], vec![], false, true);
+        let unknown_remote_group_entity_id = EntityId {
+            entity_key: [0; 3],
+            entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
+        };
+        let reader_proxy_guid1 = GUID::new(
+            [1; 12],
+            EntityId {
+                entity_key: [1; 3],
+                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
+            },
+        );
+        let reader_proxy1 = RTPSReaderProxyImpl::new(
+            reader_proxy_guid1,
+            unknown_remote_group_entity_id,
+            vec![],
+            vec![],
+            false,
+            true,
+        );
+        let reader_proxy_guid2 = GUID::new(
+            [2; 12],
+            EntityId {
+                entity_key: [2; 3],
+                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
+            },
+        );
+        let reader_proxy2 = RTPSReaderProxyImpl::new(
+            reader_proxy_guid2,
+            unknown_remote_group_entity_id,
+            vec![],
+            vec![],
+            false,
+            true,
+        );
         writer.matched_reader_add(reader_proxy1);
         writer.matched_reader_add(reader_proxy2);
         assert_eq!(writer.matched_readers().len(), 2)
@@ -371,12 +404,40 @@ mod tests {
             data_max_size_serialized,
         );
 
-        let reader_proxy_guid1 = GUID::new([1; 12], [1; 4]);
-        let reader_proxy1 =
-            RTPSReaderProxyImpl::new(reader_proxy_guid1, [0; 4], vec![], vec![], false, true);
-        let reader_proxy_guid2 = GUID::new([2; 12], [2; 4]);
-        let reader_proxy2 =
-            RTPSReaderProxyImpl::new(reader_proxy_guid2, [0; 4], vec![], vec![], false, true);
+        let unknown_remote_group_entity_id = EntityId {
+            entity_key: [0; 3],
+            entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
+        };
+        let reader_proxy_guid1 = GUID::new(
+            [1; 12],
+            EntityId {
+                entity_key: [1; 3],
+                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
+            },
+        );
+        let reader_proxy1 = RTPSReaderProxyImpl::new(
+            reader_proxy_guid1,
+            unknown_remote_group_entity_id,
+            vec![],
+            vec![],
+            false,
+            true,
+        );
+        let reader_proxy_guid2 = GUID::new(
+            [2; 12],
+            EntityId {
+                entity_key: [2; 3],
+                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
+            },
+        );
+        let reader_proxy2 = RTPSReaderProxyImpl::new(
+            reader_proxy_guid2,
+            unknown_remote_group_entity_id,
+            vec![],
+            vec![],
+            false,
+            true,
+        );
         writer.matched_reader_add(reader_proxy1);
         writer.matched_reader_add(reader_proxy2);
         writer.matched_reader_remove(&reader_proxy_guid2);
@@ -408,12 +469,40 @@ mod tests {
             data_max_size_serialized,
         );
 
-        let reader_proxy_guid1 = GUID::new([1; 12], [1; 4]);
-        let reader_proxy1 =
-            RTPSReaderProxyImpl::new(reader_proxy_guid1, [0; 4], vec![], vec![], false, true);
-        let reader_proxy_guid2 = GUID::new([2; 12], [2; 4]);
-        let reader_proxy2 =
-            RTPSReaderProxyImpl::new(reader_proxy_guid2, [0; 4], vec![], vec![], false, true);
+        let unknown_remote_group_entity_id = EntityId {
+            entity_key: [0; 3],
+            entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
+        };
+        let reader_proxy_guid1 = GUID::new(
+            [1; 12],
+            EntityId {
+                entity_key: [1; 3],
+                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
+            },
+        );
+        let reader_proxy1 = RTPSReaderProxyImpl::new(
+            reader_proxy_guid1,
+            unknown_remote_group_entity_id,
+            vec![],
+            vec![],
+            false,
+            true,
+        );
+        let reader_proxy_guid2 = GUID::new(
+            [2; 12],
+            EntityId {
+                entity_key: [2; 3],
+                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
+            },
+        );
+        let reader_proxy2 = RTPSReaderProxyImpl::new(
+            reader_proxy_guid2,
+            unknown_remote_group_entity_id,
+            vec![],
+            vec![],
+            false,
+            true,
+        );
         writer.matched_reader_add(reader_proxy1);
         writer.matched_reader_add(reader_proxy2);
 

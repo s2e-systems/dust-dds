@@ -111,8 +111,9 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for RTPSMessageVisitor<'a> {
         for _ in 0..seq.size_hint().unwrap() {
             let submessage_id_result: Result<Option<Octet>, _> = seq.next_element();
             let submessage_id: Octet = match submessage_id_result {
-                Ok(submessage_id) => submessage_id
-                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?,
+                Ok(submessage_id) => {
+                    submessage_id.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?
+                }
                 Err(_) => break, // No more submessages
             };
             let submessage_kind_result = submessage_id.try_into();
@@ -154,10 +155,14 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for RTPSMessageUdp<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{parameter_list::ParameterListUdp, submessage_elements::{
+    use crate::{
+        parameter_list::ParameterListUdp,
+        submessage_elements::{
             EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
             SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
-        }, submessages};
+        },
+        submessages,
+    };
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
         submessage_elements::SequenceNumberSubmessageElementType,
@@ -211,8 +216,14 @@ mod tests {
             guid_prefix: GuidPrefixUdp([3; 12]),
         };
         let endianness_flag = true;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
         let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
@@ -307,8 +318,14 @@ mod tests {
         };
 
         let endianness_flag = true;
-        let reader_id = EntityIdUdp([1, 2, 3, 4]);
-        let writer_id = EntityIdUdp([6, 7, 8, 9]);
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
         let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
