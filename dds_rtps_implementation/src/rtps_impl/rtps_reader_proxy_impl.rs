@@ -1,4 +1,7 @@
-use rust_rtps_pim::structure::types::{EntityId, Locator, SequenceNumber, GUID};
+use rust_rtps_pim::{
+    behavior::writer::reader_proxy::{RTPSReaderProxy, RTPSReaderProxyOperations},
+    structure::types::{EntityId, Locator, SequenceNumber, GUID},
+};
 
 pub struct RTPSReaderProxyImpl {
     remote_reader_guid: GUID,
@@ -10,30 +13,7 @@ pub struct RTPSReaderProxyImpl {
     last_sent_sequence_number: SequenceNumber,
 }
 
-impl RTPSReaderProxyImpl {
-    pub fn new(
-        remote_reader_guid: GUID,
-        remote_group_entity_id: EntityId,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-        expects_inline_qos: bool,
-        is_active: bool,
-    ) -> Self {
-        Self {
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-            last_sent_sequence_number: 0.into(),
-        }
-    }
-}
-
-impl rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy for RTPSReaderProxyImpl {
-    type SequenceNumberVector = Vec<SequenceNumber>;
-
+impl RTPSReaderProxy for RTPSReaderProxyImpl {
     fn remote_reader_guid(&self) -> &GUID {
         &self.remote_reader_guid
     }
@@ -56,6 +36,29 @@ impl rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy for RTPSReaderPro
 
     fn is_active(&self) -> bool {
         self.is_active
+    }
+}
+
+impl RTPSReaderProxyOperations for RTPSReaderProxyImpl {
+    type SequenceNumberVector = Vec<SequenceNumber>;
+
+    fn new(
+        remote_reader_guid: GUID,
+        remote_group_entity_id: EntityId,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        expects_inline_qos: bool,
+        is_active: bool,
+    ) -> Self {
+        Self {
+            remote_reader_guid,
+            remote_group_entity_id,
+            unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
+            multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
+            expects_inline_qos,
+            is_active,
+            last_sent_sequence_number: 0.into(),
+        }
     }
 
     fn acked_changes_set(&mut self, _committed_seq_num: SequenceNumber) {

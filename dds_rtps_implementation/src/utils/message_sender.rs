@@ -1,7 +1,10 @@
 use std::cell::RefCell;
 
 use rust_rtps_pim::{
-    behavior::stateless_writer::{RTPSReaderLocator, StatelessWriterBehavior},
+    behavior::{
+        stateless_writer_behavior::StatelessWriterBehavior,
+        writer::reader_locator::RTPSReaderLocator,
+    },
     messages::submessages::{RtpsSubmessagePIM, RtpsSubmessageType},
     structure::types::{Locator, LOCATOR_INVALID},
 };

@@ -1,9 +1,13 @@
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter, RTPSStatefulWriterOperations},
-        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter, RTPSStatelessWriterOperations},
         types::Duration,
-        RTPSWriter, RTPSWriterOperations,
+        writer::{
+            reader_locator::RTPSReaderLocator,
+            reader_proxy::RTPSReaderProxy,
+            stateful_writer::{RTPSStatefulWriter, RTPSStatefulWriterOperations},
+            stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
+            writer::{RTPSWriter, RTPSWriterOperations},
+        },
     },
     structure::{
         types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
@@ -195,9 +199,8 @@ impl RTPSStatelessWriterOperations for RTPSWriterImpl {
         )
     }
 
-    fn reader_locator_add(&mut self, a_locator: Locator, expects_inline_qos: bool) {
-        self.reader_locators
-            .push(RTPSReaderLocatorImpl::new(a_locator, expects_inline_qos));
+    fn reader_locator_add(&mut self, a_locator: <Self as RTPSStatelessWriter>::ReaderLocatorType) {
+        self.reader_locators.push(a_locator);
     }
 
     fn reader_locator_remove(&mut self, a_locator: &Locator) {
@@ -218,6 +221,32 @@ impl RTPSStatefulWriter for RTPSWriterImpl {
 }
 
 impl RTPSStatefulWriterOperations for RTPSWriterImpl {
+    fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_size_serialized: Option<i32>,
+    ) -> Self {
+        <Self as RTPSWriterOperations>::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        )
+    }
+
     fn matched_reader_add(&mut self, a_reader_proxy: <Self as RTPSStatefulWriter>::ReaderProxyType)
     where
         Self: RTPSStatefulWriter,
@@ -247,42 +276,50 @@ impl RTPSStatefulWriterOperations for RTPSWriterImpl {
 #[cfg(test)]
 mod tests {
     use rust_rtps_pim::{
-        behavior::types::Duration,
+        behavior::{
+            types::Duration,
+            writer::{
+                reader_locator::RTPSReaderLocatorOperations,
+                reader_proxy::RTPSReaderProxyOperations,
+                stateful_writer::{RTPSStatefulWriter, RTPSStatefulWriterOperations},
+                stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
+                writer::RTPSWriterOperations,
+            },
+        },
         structure::{
             types::{
                 ChangeKind, EntityId, Locator, ReliabilityKind, TopicKind, GUID, GUID_UNKNOWN,
             },
-            RTPSCacheChange,
+            RTPSCacheChange, RTPSHistoryCache,
         },
+    };
+
+    use crate::rtps_impl::{
+        rtps_history_cache_impl::RTPSHistoryCacheImpl,
+        rtps_reader_locator_impl::RTPSReaderLocatorImpl,
+        rtps_reader_proxy_impl::RTPSReaderProxyImpl,
     };
 
     use super::RTPSWriterImpl;
 
     #[test]
     fn new_change() {
-        use super::RTPSWriterOperations;
-
-        let push_mode = true;
-        let topic_kind = TopicKind::WithKey;
-        let reliability_level = ReliabilityKind::BestEffort;
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
-        let heartbeat_period = Duration(0);
-        let nack_response_delay = Duration(0);
-        let nack_suppression_duration = Duration(0);
-        let data_max_size_serialized = None;
-        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
-            GUID_UNKNOWN,
-            topic_kind,
-            reliability_level,
-            &unicast_locator_list,
-            &multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
+        let mut writer = RTPSWriterImpl {
+            guid: GUID_UNKNOWN,
+            topic_kind: TopicKind::WithKey,
+            reliability_level: ReliabilityKind::BestEffort,
+            push_mode: true,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            heartbeat_period: Duration(0),
+            nack_response_delay: Duration(0),
+            nack_suppression_duration: Duration(0),
+            last_change_sequence_number: 0,
+            data_max_size_serialized: None,
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
+            writer_cache: RTPSHistoryCacheImpl::new(),
+        };
         let change1 = writer.new_change(ChangeKind::Alive, vec![], (), 0);
         let change2 = writer.new_change(ChangeKind::Alive, vec![], (), 0);
 
@@ -292,65 +329,57 @@ mod tests {
 
     #[test]
     fn reader_locator_add() {
-        use super::{RTPSStatelessWriter, RTPSStatelessWriterOperations};
-        let push_mode = true;
-        let topic_kind = TopicKind::WithKey;
-        let reliability_level = ReliabilityKind::BestEffort;
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
-        let heartbeat_period = Duration(0);
-        let nack_response_delay = Duration(0);
-        let nack_suppression_duration = Duration(0);
-        let data_max_size_serialized = None;
-        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
-            GUID_UNKNOWN,
-            topic_kind,
-            reliability_level,
-            &unicast_locator_list,
-            &multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
-        let reader_locator1 = Locator::new([1; 4], [1; 4], [1; 16]);
-        let reader_locator2 = Locator::new([2; 4], [2; 4], [2; 16]);
-        writer.reader_locator_add(reader_locator1, false);
-        writer.reader_locator_add(reader_locator2, false);
+        let mut writer = RTPSWriterImpl {
+            guid: GUID_UNKNOWN,
+            topic_kind: TopicKind::WithKey,
+            reliability_level: ReliabilityKind::BestEffort,
+            push_mode: true,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            heartbeat_period: Duration(0),
+            nack_response_delay: Duration(0),
+            nack_suppression_duration: Duration(0),
+            last_change_sequence_number: 0,
+            data_max_size_serialized: None,
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
+            writer_cache: RTPSHistoryCacheImpl::new(),
+        };
+        let reader_locator1 =
+            RTPSReaderLocatorImpl::new(Locator::new([1; 4], [1; 4], [1; 16]), false);
+        let reader_locator2 =
+            RTPSReaderLocatorImpl::new(Locator::new([2; 4], [2; 4], [2; 16]), false);
+        writer.reader_locator_add(reader_locator1);
+        writer.reader_locator_add(reader_locator2);
 
         assert_eq!(writer.reader_locators().len(), 2)
     }
 
     #[test]
     fn reader_locator_remove() {
-        use super::{RTPSStatelessWriter, RTPSStatelessWriterOperations};
-        let push_mode = true;
-        let topic_kind = TopicKind::WithKey;
-        let reliability_level = ReliabilityKind::BestEffort;
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
-        let heartbeat_period = Duration(0);
-        let nack_response_delay = Duration(0);
-        let nack_suppression_duration = Duration(0);
-        let data_max_size_serialized = None;
-        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
-            GUID_UNKNOWN,
-            topic_kind,
-            reliability_level,
-            &unicast_locator_list,
-            &multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
+        let mut writer = RTPSWriterImpl {
+            guid: GUID_UNKNOWN,
+            topic_kind: TopicKind::WithKey,
+            reliability_level: ReliabilityKind::BestEffort,
+            push_mode: true,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            heartbeat_period: Duration(0),
+            nack_response_delay: Duration(0),
+            nack_suppression_duration: Duration(0),
+            last_change_sequence_number: 0,
+            data_max_size_serialized: None,
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
+            writer_cache: RTPSHistoryCacheImpl::new(),
+        };
 
-        let reader_locator1 = Locator::new([1; 4], [1; 4], [1; 16]);
-        let reader_locator2 = Locator::new([2; 4], [2; 4], [2; 16]);
-        writer.reader_locator_add(reader_locator1, false);
-        writer.reader_locator_add(reader_locator2, false);
+        let reader_locator1 =
+            RTPSReaderLocatorImpl::new(Locator::new([1; 4], [1; 4], [1; 16]), false);
+        let reader_locator2 =
+            RTPSReaderLocatorImpl::new(Locator::new([2; 4], [2; 4], [2; 16]), false);
+        writer.reader_locator_add(reader_locator1);
+        writer.reader_locator_add(reader_locator2);
         writer.reader_locator_remove(&Locator::new([1; 4], [1; 4], [1; 16]));
 
         assert_eq!(writer.reader_locators().len(), 1)
@@ -358,28 +387,22 @@ mod tests {
 
     #[test]
     fn matched_reader_add() {
-        use super::{RTPSStatefulWriterOperations};
-        let push_mode = true;
-        let topic_kind = TopicKind::WithKey;
-        let reliability_level = ReliabilityKind::BestEffort;
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
-        let heartbeat_period = Duration(0);
-        let nack_response_delay = Duration(0);
-        let nack_suppression_duration = Duration(0);
-        let data_max_size_serialized = i32::MAX;
-        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
-            GUID_UNKNOWN,
-            topic_kind,
-            reliability_level,
-            &unicast_locator_list,
-            &multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
+        let mut writer = RTPSWriterImpl {
+            guid: GUID_UNKNOWN,
+            topic_kind: TopicKind::WithKey,
+            reliability_level: ReliabilityKind::BestEffort,
+            push_mode: true,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            heartbeat_period: Duration(0),
+            nack_response_delay: Duration(0),
+            nack_suppression_duration: Duration(0),
+            last_change_sequence_number: 0,
+            data_max_size_serialized: None,
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
+            writer_cache: RTPSHistoryCacheImpl::new(),
+        };
         let unknown_remote_group_entity_id = EntityId {
             entity_key: [0; 3],
             entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
@@ -394,8 +417,8 @@ mod tests {
         let reader_proxy1 = RTPSReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
-            vec![],
-            vec![],
+            &[],
+            &[],
             false,
             true,
         );
@@ -409,8 +432,8 @@ mod tests {
         let reader_proxy2 = RTPSReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
-            vec![],
-            vec![],
+            &[],
+            &[],
             false,
             true,
         );
@@ -421,27 +444,22 @@ mod tests {
 
     #[test]
     fn matched_reader_remove() {
-        let push_mode = true;
-        let topic_kind = TopicKind::WithKey;
-        let reliability_level = ReliabilityKind::BestEffort;
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
-        let heartbeat_period = Duration(0);
-        let nack_response_delay = Duration(0);
-        let nack_suppression_duration = Duration(0);
-        let data_max_size_serialized = i32::MAX;
-        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
-            GUID_UNKNOWN,
-            topic_kind,
-            reliability_level,
-            &unicast_locator_list,
-            &multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
+        let mut writer = RTPSWriterImpl {
+            guid: GUID_UNKNOWN,
+            topic_kind: TopicKind::WithKey,
+            reliability_level: ReliabilityKind::BestEffort,
+            push_mode: true,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            heartbeat_period: Duration(0),
+            nack_response_delay: Duration(0),
+            nack_suppression_duration: Duration(0),
+            last_change_sequence_number: 0,
+            data_max_size_serialized: None,
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
+            writer_cache: RTPSHistoryCacheImpl::new(),
+        };
 
         let unknown_remote_group_entity_id = EntityId {
             entity_key: [0; 3],
@@ -457,8 +475,8 @@ mod tests {
         let reader_proxy1 = RTPSReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
-            vec![],
-            vec![],
+            &[],
+            &[],
             false,
             true,
         );
@@ -472,8 +490,8 @@ mod tests {
         let reader_proxy2 = RTPSReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
-            vec![],
-            vec![],
+            &[],
+            &[],
             false,
             true,
         );
@@ -486,27 +504,22 @@ mod tests {
 
     #[test]
     fn matched_reader_lookup() {
-        let push_mode = true;
-        let topic_kind = TopicKind::WithKey;
-        let reliability_level = ReliabilityKind::BestEffort;
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
-        let heartbeat_period = Duration(0);
-        let nack_response_delay = Duration(0);
-        let nack_suppression_duration = Duration(0);
-        let data_max_size_serialized = i32::MAX;
-        let mut writer: RTPSWriterImpl = RTPSWriterImpl::new(
-            GUID_UNKNOWN,
-            topic_kind,
-            reliability_level,
-            &unicast_locator_list,
-            &multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
+        let mut writer = RTPSWriterImpl {
+            guid: GUID_UNKNOWN,
+            topic_kind: TopicKind::WithKey,
+            reliability_level: ReliabilityKind::BestEffort,
+            push_mode: true,
+            unicast_locator_list: vec![],
+            multicast_locator_list: vec![],
+            heartbeat_period: Duration(0),
+            nack_response_delay: Duration(0),
+            nack_suppression_duration: Duration(0),
+            last_change_sequence_number: 0,
+            data_max_size_serialized: None,
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
+            writer_cache: RTPSHistoryCacheImpl::new(),
+        };
 
         let unknown_remote_group_entity_id = EntityId {
             entity_key: [0; 3],
@@ -522,8 +535,8 @@ mod tests {
         let reader_proxy1 = RTPSReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
-            vec![],
-            vec![],
+            &[],
+            &[],
             false,
             true,
         );
@@ -537,8 +550,8 @@ mod tests {
         let reader_proxy2 = RTPSReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
-            vec![],
-            vec![],
+            &[],
+            &[],
             false,
             true,
         );

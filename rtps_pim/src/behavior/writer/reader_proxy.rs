@@ -9,7 +9,7 @@ pub trait RTPSReaderProxy {
     fn is_active(&self) -> bool;
 }
 
-trait RTPSReaderProxyOperations {
+pub trait RTPSReaderProxyOperations {
     type SequenceNumberVector;
 
     fn new(

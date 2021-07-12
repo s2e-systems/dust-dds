@@ -1,5 +1,5 @@
 use rust_rtps_pim::{
-    behavior::stateless_writer::{RTPSReaderLocator, RTPSReaderLocatorOperations},
+    behavior::writer::reader_locator::{RTPSReaderLocator, RTPSReaderLocatorOperations},
     structure::types::{Locator, SequenceNumber},
 };
 pub struct RTPSReaderLocatorImpl {
@@ -7,17 +7,6 @@ pub struct RTPSReaderLocatorImpl {
     expects_inline_qos: bool,
     last_sent_sequence_number: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
-}
-
-impl RTPSReaderLocatorImpl {
-    pub fn new(locator: Locator, expects_inline_qos: bool) -> Self {
-        Self {
-            locator,
-            expects_inline_qos,
-            last_sent_sequence_number: 0.into(),
-            requested_changes: Vec::new(),
-        }
-    }
 }
 
 impl RTPSReaderLocator for RTPSReaderLocatorImpl {
@@ -32,6 +21,15 @@ impl RTPSReaderLocator for RTPSReaderLocatorImpl {
 
 impl RTPSReaderLocatorOperations for RTPSReaderLocatorImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
+
+    fn new(locator: Locator, expects_inline_qos: bool) -> Self {
+        Self {
+            locator,
+            expects_inline_qos,
+            last_sent_sequence_number: 0.into(),
+            requested_changes: Vec::new(),
+        }
+    }
 
     fn next_requested_change(&mut self) -> Option<SequenceNumber> {
         if let Some(requested_change) = self.requested_changes.iter().min().cloned() {
