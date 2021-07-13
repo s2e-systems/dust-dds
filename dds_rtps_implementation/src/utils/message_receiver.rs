@@ -1,14 +1,17 @@
 use rust_rtps_pim::{
     behavior::stateless_reader_behavior::StatelessReaderBehavior,
     messages::{
-        submessages::{DataSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
-        types::TIME_INVALID,
+        submessage_elements::TimestampSubmessageElementType,
+        submessages::{
+            DataSubmessage, InfoTimestampSubmessage, RtpsSubmessagePIM, RtpsSubmessageType,
+        },
+        types::{Time, TIME_INVALID},
         RTPSMessage,
     },
     structure::{
         types::{
-            Locator, GUIDPREFIX_UNKNOWN, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID,
-            PROTOCOLVERSION_2_4, VENDOR_ID_UNKNOWN,
+            GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
+            LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
         RTPSEntity,
     },
@@ -16,55 +19,171 @@ use rust_rtps_pim::{
 
 use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
 
-pub fn message_receiver<'a, PSM>(
-    participant: &RTPSParticipantImpl,
-    message: &impl RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
-    source_locator: Locator,
-) where
-    PSM: RtpsSubmessagePIM<'a>,
-    PSM::DataSubmessageType: DataSubmessage<'a>,
-{
-    let mut source_version = PROTOCOLVERSION_2_4;
-    let mut source_vendor_id = VENDOR_ID_UNKNOWN;
-    let mut source_guid_prefix = GUIDPREFIX_UNKNOWN;
-    let dest_guid_prefix = *participant.guid().prefix();
-    let unicast_reply_locator_list = vec![Locator::new(
-        *source_locator.kind(),
-        LOCATOR_PORT_INVALID,
-        *source_locator.address(),
-    )];
-    let multicast_reply_locator_list = vec![Locator::new(
-        *source_locator.kind(),
-        LOCATOR_PORT_INVALID,
-        LOCATOR_ADDRESS_INVALID,
-    )];
-    let have_timestamp = false;
-    let timestamp = TIME_INVALID;
+pub struct MessageReceiver {
+    source_version: ProtocolVersion,
+    source_vendor_id: VendorId,
+    source_guid_prefix: GuidPrefix,
+    dest_guid_prefix: GuidPrefix,
+    unicast_reply_locator_list: Vec<Locator>,
+    multicast_reply_locator_list: Vec<Locator>,
+    have_timestamp: bool,
+    timestamp: Time,
+}
 
-    source_version = message.header().version;
-    source_vendor_id = message.header().vendor_id;
-    source_guid_prefix = message.header().guid_prefix;
-
-    for submessage in message.submessages() {
-        match submessage {
-            RtpsSubmessageType::AckNack(_) => todo!(),
-            RtpsSubmessageType::Data(data_submessage) => {
-                let reader_group = participant.builtin_reader_group.lock();
-                for reader in reader_group.reader_list() {
-                    let mut reader = reader.lock();
-                    reader.receive_data(source_guid_prefix, data_submessage);
-                }
-            }
-            RtpsSubmessageType::DataFrag(_) => todo!(),
-            RtpsSubmessageType::Gap(_) => todo!(),
-            RtpsSubmessageType::Heartbeat(_) => todo!(),
-            RtpsSubmessageType::HeartbeatFrag(_) => todo!(),
-            RtpsSubmessageType::InfoDestination(_) => todo!(),
-            RtpsSubmessageType::InfoReply(_) => todo!(),
-            RtpsSubmessageType::InfoSource(_) => todo!(),
-            RtpsSubmessageType::InfoTimestamp(_) => todo!(),
-            RtpsSubmessageType::NackFrag(_) => todo!(),
-            RtpsSubmessageType::Pad(_) => todo!(),
+impl MessageReceiver {
+    pub fn new() -> Self {
+        Self {
+            source_version: PROTOCOLVERSION,
+            source_vendor_id: VENDOR_ID_UNKNOWN,
+            source_guid_prefix: GUIDPREFIX_UNKNOWN,
+            dest_guid_prefix: GUIDPREFIX_UNKNOWN,
+            unicast_reply_locator_list: Vec::new(),
+            multicast_reply_locator_list: Vec::new(),
+            have_timestamp: false,
+            timestamp: TIME_INVALID,
         }
+    }
+
+    pub fn process_message<'a, PSM, Message>(
+        mut self,
+        participant: &RTPSParticipantImpl,
+        source_locator: Locator,
+        message: Message,
+    ) where
+        PSM: RtpsSubmessagePIM<'a>,
+        Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
+        PSM::DataSubmessageType: DataSubmessage<'a>,
+        PSM::InfoTimestampSubmessageType: InfoTimestampSubmessage,
+    {
+        self.dest_guid_prefix = *participant.guid().prefix();
+        self.source_version = message.header().version;
+        self.source_vendor_id = message.header().vendor_id;
+        self.source_guid_prefix = message.header().guid_prefix;
+        self.unicast_reply_locator_list.push(Locator::new(
+            *source_locator.kind(),
+            LOCATOR_PORT_INVALID,
+            *source_locator.address(),
+        ));
+        self.multicast_reply_locator_list.push(Locator::new(
+            *source_locator.kind(),
+            LOCATOR_PORT_INVALID,
+            LOCATOR_ADDRESS_INVALID,
+        ));
+
+        for submessage in message.submessages() {
+            match submessage {
+                RtpsSubmessageType::AckNack(_) => todo!(),
+                RtpsSubmessageType::Data(data) => self.process_data(data, participant),
+                RtpsSubmessageType::DataFrag(_) => todo!(),
+                RtpsSubmessageType::Gap(_) => todo!(),
+                RtpsSubmessageType::Heartbeat(_) => todo!(),
+                RtpsSubmessageType::HeartbeatFrag(_) => todo!(),
+                RtpsSubmessageType::InfoDestination(_) => todo!(),
+                RtpsSubmessageType::InfoReply(_) => todo!(),
+                RtpsSubmessageType::InfoSource(_) => todo!(),
+                RtpsSubmessageType::InfoTimestamp(info_timestamp) => {
+                    self.process_info_timestamp_submessage(info_timestamp)
+                }
+                RtpsSubmessageType::NackFrag(_) => todo!(),
+                RtpsSubmessageType::Pad(_) => todo!(),
+            }
+        }
+    }
+
+    fn process_data<'a, Data>(&mut self, data: &Data, participant: &RTPSParticipantImpl)
+    where
+        Data: DataSubmessage<'a>,
+    {
+        let reader_group = participant.builtin_reader_group.lock();
+        for reader in reader_group.reader_list() {
+            let mut reader = reader.lock();
+            reader.receive_data(self.source_guid_prefix, data);
+        }
+    }
+
+    fn process_info_timestamp_submessage<InfoTimestamp>(&mut self, info_timestamp: &InfoTimestamp)
+    where
+        InfoTimestamp: InfoTimestampSubmessage,
+    {
+        if info_timestamp.invalidate_flag() == false {
+            self.have_timestamp = true;
+            self.timestamp = info_timestamp.timestamp().value();
+        } else {
+            self.have_timestamp = false;
+            self.timestamp = TIME_INVALID;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rust_rtps_pim::messages::types::SubmessageFlag;
+
+    use super::*;
+
+    struct MockTimestampSubmessageElement(Time);
+
+    impl TimestampSubmessageElementType for MockTimestampSubmessageElement {
+        fn new(_value: &Time) -> Self {
+            todo!()
+        }
+
+        fn value(&self) -> Time {
+            self.0.clone()
+        }
+    }
+    struct MockInfoTimestampSubmessage {
+        invalidate_flag: SubmessageFlag,
+        timestamp: MockTimestampSubmessageElement,
+    }
+
+    impl InfoTimestampSubmessage for MockInfoTimestampSubmessage {
+        type TimestampSubmessageElementType = MockTimestampSubmessageElement;
+
+        fn new(
+            _endianness_flag: SubmessageFlag,
+            _invalidate_flag: SubmessageFlag,
+            _timestamp: Self::TimestampSubmessageElementType,
+        ) -> Self {
+            todo!()
+        }
+
+        fn endianness_flag(&self) -> SubmessageFlag {
+            todo!()
+        }
+
+        fn invalidate_flag(&self) -> SubmessageFlag {
+            self.invalidate_flag
+        }
+
+        fn timestamp(&self) -> &Self::TimestampSubmessageElementType {
+            &self.timestamp
+        }
+    }
+
+    #[test]
+    fn process_info_timestamp_submessage_valid_time() {
+        let mut message_receiver = MessageReceiver::new();
+        let info_timestamp = MockInfoTimestampSubmessage {
+            invalidate_flag: false,
+            timestamp: MockTimestampSubmessageElement(Time(100)),
+        };
+        message_receiver.process_info_timestamp_submessage(&info_timestamp);
+
+        assert_eq!(message_receiver.have_timestamp, true);
+        assert_eq!(message_receiver.timestamp, Time(100));
+    }
+
+    #[test]
+    fn process_info_timestamp_submessage_invalid_time() {
+        let mut message_receiver = MessageReceiver::new();
+        let info_timestamp = MockInfoTimestampSubmessage {
+            invalidate_flag: true,
+            timestamp: MockTimestampSubmessageElement(Time(100)),
+        };
+        message_receiver.process_info_timestamp_submessage(&info_timestamp);
+
+        assert_eq!(message_receiver.have_timestamp, false);
+        assert_eq!(message_receiver.timestamp, TIME_INVALID);
     }
 }

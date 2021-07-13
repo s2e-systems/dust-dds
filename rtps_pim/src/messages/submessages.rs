@@ -2,7 +2,7 @@ use super::{
     submessage_elements::{
         EntityIdSubmessageElementType, ParameterListSubmessageElementType,
         SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
-        SerializedDataSubmessageElementType,
+        SerializedDataSubmessageElementType, TimestampSubmessageElementType,
     },
     types::SubmessageFlag,
 };
@@ -250,7 +250,7 @@ pub trait InfoSourceSubmessage {
 }
 
 pub trait InfoTimestampSubmessage {
-    type TimestampSubmessageElementType;
+    type TimestampSubmessageElementType: TimestampSubmessageElementType;
     fn new(
         endianness_flag: SubmessageFlag,
         invalidate_flag: SubmessageFlag,

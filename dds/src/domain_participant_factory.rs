@@ -18,7 +18,7 @@ use rust_dds_rtps_implementation::{
         rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_writer_impl::RTPSWriterImpl,
     },
     utils::{
-        message_receiver::message_receiver, message_sender::create_submessages,
+        message_receiver::MessageReceiver, message_sender::create_submessages,
         shared_object::RtpsShared,
     },
 };
@@ -156,7 +156,11 @@ impl DomainParticipantFactory {
                     };
 
                     if let Some((source_locator, message)) = transport.read() {
-                        message_receiver(&rtps_participant, &message, source_locator);
+                        MessageReceiver::new().process_message(
+                            &rtps_participant,
+                            source_locator,
+                            message,
+                        );
                     }
 
                     // for writer_group in rtps_participant.writer_groups() {
