@@ -95,7 +95,7 @@ pub struct ProtocolVersion {
     pub minor: u8,
 }
 
-// pub const PROTOCOLVERSION: ProtocolVersion1
+pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
 pub const PROTOCOLVERSION_1_0: ProtocolVersion = ProtocolVersion { major: 1, minor: 0 };
 pub const PROTOCOLVERSION_1_1: ProtocolVersion = ProtocolVersion { major: 1, minor: 1 };
 pub const PROTOCOLVERSION_2_0: ProtocolVersion = ProtocolVersion { major: 2, minor: 0 };
