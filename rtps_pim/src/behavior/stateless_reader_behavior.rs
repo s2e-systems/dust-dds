@@ -14,30 +14,21 @@ use crate::{
 
 use super::reader::reader::RTPSReader;
 
-// use crate::{
-//     behavior::{cache_change_from_data, Reader},
-//     messages::{submessages::Data, RtpsSubmessage},
-//     structure::HistoryCache,
-//     types::{constants::ENTITYID_UNKNOWN, GuidPrefix},
-// };
-
-// use super::StatelessReader;
-
 pub trait StatelessReaderBehavior<Data> {
     fn receive_data(self, source_guid_prefix: GuidPrefix, data: &Data);
 }
 
-impl<'a, T, Data> StatelessReaderBehavior<Data> for &'a mut T
+impl<'a, 'b, T, Data> StatelessReaderBehavior<Data> for &'a mut T
 where
     T: RTPSReader + RTPSEntity,
     T::HistoryCacheType: RTPSHistoryCache,
     <T::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChangeOperations<
-        'a,
-        InstanceHandleType = (),
-        DataType = &'a [u8],
+        'b,
+        InstanceHandleType = i32,
+        DataType = &'b [u8],
         InlineQosType = (),
     >,
-    Data: DataSubmessage<'a>,
+    Data: DataSubmessage<'b>,
 {
     fn receive_data(self, source_guid_prefix: GuidPrefix, data: &Data) {
         let reader_id = data.reader_id().value();
@@ -49,7 +40,7 @@ where
                 _ => todo!(),
             };
             let writer_guid = GUID::new(source_guid_prefix, data.writer_id().value());
-            let instance_handle = ();
+            let instance_handle = 0;
             let sequence_number = data.writer_sn().value();
             let data = data.serialized_payload().value();
             let inline_qos = ();
@@ -81,15 +72,15 @@ mod tests {
     struct MockCacheChange {
         kind: ChangeKind,
         writer_guid: GUID,
-        instance_handle: (),
+        instance_handle: i32,
         sequence_number: SequenceNumber,
-        data_value: [u8;3],
+        data_value: [u8; 3],
         inline_qos: (),
     }
 
     impl<'a> RTPSCacheChangeOperations<'a> for MockCacheChange {
         type DataType = &'a [u8];
-        type InstanceHandleType = ();
+        type InstanceHandleType = i32;
         type InlineQosType = ();
 
         fn new(
@@ -100,7 +91,7 @@ mod tests {
             data: Self::DataType,
             inline_qos: Self::InlineQosType,
         ) -> Self {
-            let mut data_value: [u8;3] = [0;3];
+            let mut data_value: [u8; 3] = [0; 3];
             data_value.clone_from_slice(data);
             Self {
                 kind,
@@ -338,7 +329,7 @@ mod tests {
             assert_eq!(cache_change.sequence_number, message_sequence_number);
             assert_eq!(cache_change.data_value, [1, 2, 3]);
             assert_eq!(cache_change.inline_qos, ());
-            assert_eq!(cache_change.instance_handle, ());
+            assert_eq!(cache_change.instance_handle, 0);
         } else {
             panic!("Cache change not created")
         }

@@ -18,7 +18,7 @@ use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
 
 pub fn message_receiver<'a, PSM>(
     participant: &RTPSParticipantImpl,
-    message: &'a impl RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
+    message: &impl RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
     source_locator: Locator,
 ) where
     PSM: RtpsSubmessagePIM<'a>,
@@ -51,8 +51,8 @@ pub fn message_receiver<'a, PSM>(
             RtpsSubmessageType::Data(data_submessage) => {
                 let reader_group = participant.builtin_reader_group.lock();
                 for reader in reader_group.reader_list() {
-                    let reader = reader.lock();
-                    // reader.receive_data(source_guid_prefix, data_submessage);
+                    let mut reader = reader.lock();
+                    reader.receive_data(source_guid_prefix, data_submessage);
                 }
             }
             RtpsSubmessageType::DataFrag(_) => todo!(),

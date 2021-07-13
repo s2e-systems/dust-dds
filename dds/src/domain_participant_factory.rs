@@ -151,8 +151,9 @@ impl DomainParticipantFactory {
                         guid_prefix: *rtps_participant.guid().prefix(),
                     };
 
-                    let (source_locator, message) = transport.read();
-                    message_receiver(&rtps_participant, &message, source_locator);
+                    if let Some((source_locator, message)) = transport.read() {
+                        message_receiver(&rtps_participant, &message, source_locator);
+                    }
 
                     // for writer_group in rtps_participant.writer_groups() {
                     let writer_group = rtps_participant.builtin_writer_group.lock();

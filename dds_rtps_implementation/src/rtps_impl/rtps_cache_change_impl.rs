@@ -33,7 +33,7 @@ impl RTPSCacheChangeImpl {
 
 impl<'a> RTPSCacheChangeOperations<'a> for RTPSCacheChangeImpl {
     type DataType = &'a [u8];
-    type InstanceHandleType = ();
+    type InstanceHandleType = i32;
     type InlineQosType = ();
 
     fn new(
@@ -44,7 +44,14 @@ impl<'a> RTPSCacheChangeOperations<'a> for RTPSCacheChangeImpl {
         data: Self::DataType,
         inline_qos: Self::InlineQosType,
     ) -> Self {
-        todo!()
+        Self {
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data: data.into_iter().cloned().collect(),
+            inline_qos,
+        }
     }
 }
 

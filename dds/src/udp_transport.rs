@@ -34,7 +34,7 @@ impl UdpTransport {
             .unwrap();
     }
 
-    pub fn read(&mut self) -> (Locator, RTPSMessageUdp<'_>){
+    pub fn read(&mut self) -> Option<(Locator, RTPSMessageUdp<'_>)>{
         let received = self.socket.recv_from(&mut self.revceive_buffer);
 
         match received {
@@ -42,9 +42,9 @@ impl UdpTransport {
                 let mut deserializer = RtpsMessageDeserializer{reader: &self.revceive_buffer};
                 let message: RTPSMessageUdp = serde::de::Deserialize::deserialize(&mut deserializer).unwrap();
                 let locator = LOCATOR_INVALID;
-                (locator, message)
+                Some((locator, message))
             },
-            Err(_) => todo!(),
+            Err(_) => None,
         }
     }
 }
@@ -71,7 +71,7 @@ mod tests{
 
         let message1: RTPSMessageUdp = RTPSMessageUdp::new(&header, vec![]);
         transport.write(&message1, &destination_locator);
-        let (_locator, received_message1) = transport.read();
+        let (_locator, received_message1) = transport.read().unwrap();
         assert_eq!(message1, received_message1);
 
 
@@ -108,7 +108,7 @@ mod tests{
         );
         let message2: RTPSMessageUdp = RTPSMessageUdp::new(&header, vec![RtpsSubmessageType::Data(submessage)]);
         transport.write(&message2, &destination_locator);
-        let (_locator, received_message2) = transport.read();
+        let (_locator, received_message2) = transport.read().unwrap();
         assert_eq!(message2, received_message2);
 
     }
