@@ -14,7 +14,10 @@ use rust_dds_rtps_implementation::{
         rtps_participant_impl::RTPSParticipantImpl,
         rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_writer_impl::RTPSWriterImpl,
     },
-    utils::{message_sender::create_submessages, shared_object::RtpsShared},
+    utils::{
+        message_receiver::message_receiver, message_sender::create_submessages,
+        shared_object::RtpsShared,
+    },
 };
 use rust_rtps_pim::{
     behavior::{
@@ -148,6 +151,9 @@ impl DomainParticipantFactory {
                         guid_prefix: *rtps_participant.guid().prefix(),
                     };
 
+                    let (_src_locator, message) = transport.read();
+                    message_receiver(&rtps_participant, &message);
+
                     // for writer_group in rtps_participant.writer_groups() {
                     let writer_group = rtps_participant.builtin_writer_group.lock();
                     for writer in writer_group.writer_list() {
@@ -159,10 +165,9 @@ impl DomainParticipantFactory {
                             let message = RTPSMessageUdp::new(&header, submessages);
                             transport.write(&message, &dst_locator);
                         }
-
-                        std::thread::sleep(std::time::Duration::from_millis(500));
                     }
                 }
+                std::thread::sleep(std::time::Duration::from_millis(500));
                 // }
             }
         });
