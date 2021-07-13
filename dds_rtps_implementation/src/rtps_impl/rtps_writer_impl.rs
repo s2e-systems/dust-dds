@@ -348,9 +348,9 @@ mod tests {
             writer_cache: RTPSHistoryCacheImpl::new(),
         };
         let reader_locator1 =
-            RTPSReaderLocatorImpl::new(Locator::new([1; 4], [1; 4], [1; 16]), false);
+            RTPSReaderLocatorImpl::new(Locator::new([1; 4], 1, [1; 16]), false);
         let reader_locator2 =
-            RTPSReaderLocatorImpl::new(Locator::new([2; 4], [2; 4], [2; 16]), false);
+            RTPSReaderLocatorImpl::new(Locator::new([2; 4], 2, [2; 16]), false);
         writer.reader_locator_add(reader_locator1);
         writer.reader_locator_add(reader_locator2);
 
@@ -377,12 +377,12 @@ mod tests {
         };
 
         let reader_locator1 =
-            RTPSReaderLocatorImpl::new(Locator::new([1; 4], [1; 4], [1; 16]), false);
+            RTPSReaderLocatorImpl::new(Locator::new([1; 4], 1, [1; 16]), false);
         let reader_locator2 =
-            RTPSReaderLocatorImpl::new(Locator::new([2; 4], [2; 4], [2; 16]), false);
+            RTPSReaderLocatorImpl::new(Locator::new([2; 4], 2, [2; 16]), false);
         writer.reader_locator_add(reader_locator1);
         writer.reader_locator_add(reader_locator2);
-        writer.reader_locator_remove(&Locator::new([1; 4], [1; 4], [1; 16]));
+        writer.reader_locator_remove(&Locator::new([1; 4], 1, [1; 16]));
 
         assert_eq!(writer.reader_locators().len(), 1)
     }

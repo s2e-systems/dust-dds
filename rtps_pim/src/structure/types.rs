@@ -45,7 +45,7 @@ pub type SequenceNumber = i64;
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
 
 type LocatorKind = [u8; 4];
-type LocatorPort = [u8; 4];
+type LocatorPort = u32;
 type LocatorAddress = [u8; 16];
 
 pub const LOCATOR_KIND_INVALID: LocatorKind = [0xff, 0xff, 0xff, 0xff];
@@ -54,7 +54,7 @@ pub const LOCATOR_KIND_RESERVED: LocatorKind = [0; 4];
 pub const LOCATOR_KIND_UDPv4: LocatorKind = [0, 0, 0, 1];
 #[allow(non_upper_case_globals)]
 pub const LOCATOR_KIND_UDPv6: LocatorKind = [0, 0, 0, 2];
-pub const LOCATOR_PORT_INVALID: LocatorPort = [0; 4];
+pub const LOCATOR_PORT_INVALID: LocatorPort = 0;
 pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = [0; 16];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

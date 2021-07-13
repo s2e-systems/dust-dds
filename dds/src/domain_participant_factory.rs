@@ -119,7 +119,7 @@ impl DomainParticipantFactory {
         let spdp_discovery_writer_locator = RTPSReaderLocatorImpl::new(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
-                [0, 0, 100, 200],
+                7400,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
             ),
             false,
