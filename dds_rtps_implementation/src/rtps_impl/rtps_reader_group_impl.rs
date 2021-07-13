@@ -2,9 +2,9 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::SubscriberQos,
     subscription::subscriber_listener::SubscriberListener,
 };
-use rust_rtps_pim::structure::types::GUID;
+use rust_rtps_pim::structure::{types::GUID, RTPSGroup};
 
-use crate::utils::shared_object::RtpsShared;
+use crate::utils::shared_object::{RtpsLock, RtpsShared};
 
 use super::rtps_reader_impl::RTPSReaderImpl;
 
@@ -34,5 +34,13 @@ impl RTPSReaderGroupImpl {
 
     pub fn reader_list(&self) -> &[RtpsShared<RTPSReaderImpl>] {
         &self.reader_list
+    }
+}
+
+impl<'a> RTPSGroup for RtpsLock<'a, RTPSReaderGroupImpl> {
+    type Endpoints = std::vec::IntoIter<RtpsLock<'a, RTPSReaderImpl>>;
+
+    fn endpoints(&self) -> Self::Endpoints {
+        todo!()
     }
 }

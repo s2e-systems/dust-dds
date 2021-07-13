@@ -54,7 +54,13 @@ impl RTPSWriterGroupImpl {
     }
 }
 
-impl rust_rtps_pim::structure::RTPSGroup for RTPSWriterGroupImpl {}
+impl rust_rtps_pim::structure::RTPSGroup for RTPSWriterGroupImpl {
+    type Endpoints = ();
+
+    fn endpoints(&self) -> Self::Endpoints {
+        todo!()
+    }
+}
 
 impl rust_rtps_pim::structure::RTPSEntity for RTPSWriterGroupImpl {
     fn guid(&self) -> &GUID {

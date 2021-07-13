@@ -13,11 +13,9 @@ use rust_rtps_pim::{
             GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
             LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
-        RTPSEntity,
+        RTPSEntity, RTPSGroup, RTPSParticipant,
     },
 };
-
-use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -44,12 +42,17 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a, PSM, Message>(
+    pub fn process_message<'a, PSM, Message, Participant, Group, Reader>(
         mut self,
-        participant: &RTPSParticipantImpl,
+        participant: &Participant,
         source_locator: Locator,
         message: Message,
     ) where
+        Participant: RTPSEntity + RTPSParticipant,
+        Participant::ReaderGroupsType: IntoIterator<Item = Group>,
+        Group: RTPSGroup + 'a,
+        Group::Endpoints: IntoIterator<Item = Reader>,
+        Reader: StatelessReaderBehavior<PSM::DataSubmessageType> + 'a,
         PSM: RtpsSubmessagePIM<'a>,
         Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
         PSM::DataSubmessageType: DataSubmessage<'a>,
@@ -90,14 +93,22 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a, Data>(&mut self, data: &Data, participant: &RTPSParticipantImpl)
-    where
+    fn process_data<'a, Data, Participant, Group, Reader>(
+        &mut self,
+        data: &Data,
+        participant: &Participant,
+    ) where
         Data: DataSubmessage<'a>,
+        Participant: RTPSParticipant,
+        Participant::ReaderGroupsType: IntoIterator<Item = Group>,
+        Group: RTPSGroup,
+        Group::Endpoints: IntoIterator<Item = Reader>,
+        Reader: StatelessReaderBehavior<Data>,
     {
-        let reader_group = participant.builtin_reader_group.lock();
-        for reader in reader_group.reader_list() {
-            let mut reader = reader.lock();
-            reader.receive_data(self.source_guid_prefix, data);
+        for reader_group in participant.reader_groups() {
+            for mut reader in reader_group.endpoints() {
+                reader.receive_data(self.source_guid_prefix, data);
+            }
         }
     }
 

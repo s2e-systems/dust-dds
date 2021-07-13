@@ -6,7 +6,7 @@ use rust_rtps_pim::structure::{
     RTPSEntity,
 };
 
-use crate::utils::shared_object::RtpsShared;
+use crate::utils::shared_object::{RtpsLock, RtpsShared};
 
 use super::{
     rtps_reader_group_impl::RTPSReaderGroupImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
@@ -17,6 +17,7 @@ pub struct RTPSParticipantImpl {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl>>,
+    rtps_reader_groups: Vec<RtpsShared<RTPSReaderGroupImpl>>,
     pub builtin_writer_group: RtpsShared<RTPSWriterGroupImpl>,
     pub builtin_reader_group: RtpsShared<RTPSReaderGroupImpl>,
 }
@@ -61,6 +62,7 @@ impl RTPSParticipantImpl {
             protocol_version: PROTOCOLVERSION_2_4,
             vendor_id: [99, 99],
             rtps_writer_groups: Vec::new(),
+            rtps_reader_groups: Vec::new(),
             builtin_writer_group,
             builtin_reader_group,
         }
@@ -86,7 +88,31 @@ impl RTPSParticipantImpl {
     }
 }
 
-impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
+// pub struct ReaderGroupIntoIter;
+
+// impl IntoIterator for ReaderGroupIntoIter {
+//     type Item = RTPSReaderGroupImpl;
+//     type IntoIter = RtpsReaderGroupIterator;
+
+//     fn into_iter(self) -> Self::IntoIter {
+//         todo!()
+//     }
+// }
+
+// pub struct RtpsReaderGroupIterator;
+
+// impl Iterator for RTPSReaderGroupImpl {
+//     type Item = &'a mut RTPSReaderGroupImpl;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         todo!()
+//     }
+// }
+
+impl<'a> rust_rtps_pim::structure::RTPSParticipant for RtpsLock<'a, RTPSParticipantImpl> {
+    type WriterGroupsType = ();
+    type ReaderGroupsType = std::vec::IntoIter<RtpsLock<'a, RTPSReaderGroupImpl>>;
+
     fn protocol_version(&self) -> &ProtocolVersion {
         &self.protocol_version
     }
@@ -102,9 +128,18 @@ impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
     fn default_multicast_locator_list(&self) -> &[Locator] {
         todo!()
     }
+
+    fn writer_groups(&self) -> Self::WriterGroupsType {
+        todo!()
+    }
+
+    fn reader_groups(&self) -> Self::ReaderGroupsType {
+        // (&self.rtps_reader_groups).into_iter()
+        todo!()
+    }
 }
 
-impl RTPSEntity for RTPSParticipantImpl {
+impl RTPSEntity for RtpsLock<'_, RTPSParticipantImpl> {
     fn guid(&self) -> &GUID {
         &self.guid
     }

@@ -15,10 +15,10 @@ use crate::{
 use super::reader::reader::RTPSReader;
 
 pub trait StatelessReaderBehavior<Data> {
-    fn receive_data(self, source_guid_prefix: GuidPrefix, data: &Data);
+    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data);
 }
 
-impl<'a, 'b, T, Data> StatelessReaderBehavior<Data> for &'a mut T
+impl<'a, 'b, T, Data> StatelessReaderBehavior<Data> for T
 where
     T: RTPSReader + RTPSEntity,
     T::HistoryCacheType: RTPSHistoryCache,
@@ -30,7 +30,7 @@ where
     >,
     Data: DataSubmessage<'b>,
 {
-    fn receive_data(self, source_guid_prefix: GuidPrefix, data: &Data) {
+    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data) {
         let reader_id = data.reader_id().value();
         if &reader_id == self.guid().entity_id() || reader_id == ENTITYID_UNKNOWN {
             let reader_cache = self.reader_cache_mut();
