@@ -1,11 +1,8 @@
-use super::{types::Locator, RTPSEntity};
+use super::types::{Locator, ProtocolVersion, VendorId};
 
-pub trait RTPSParticipant: RTPSEntity {
-    type ProtocolVersionType;
-    type VendorIdType;
-
-    fn protocol_version(&self) -> &Self::ProtocolVersionType;
-    fn vendor_id(&self) -> &Self::VendorIdType;
+pub trait RTPSParticipant {
+    fn protocol_version(&self) -> &ProtocolVersion;
+    fn vendor_id(&self) -> &VendorId;
     fn default_unicast_locator_list(&self) -> &[Locator];
     fn default_multicast_locator_list(&self) -> &[Locator];
 }

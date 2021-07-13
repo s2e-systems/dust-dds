@@ -87,14 +87,11 @@ impl RTPSParticipantImpl {
 }
 
 impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
-    type ProtocolVersionType = ProtocolVersion;
-    type VendorIdType = VendorId;
-
-    fn protocol_version(&self) -> &Self::ProtocolVersionType {
+    fn protocol_version(&self) -> &ProtocolVersion {
         &self.protocol_version
     }
 
-    fn vendor_id(&self) -> &Self::VendorIdType {
+    fn vendor_id(&self) -> &VendorId {
         &self.vendor_id
     }
 

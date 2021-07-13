@@ -1,3 +1,1 @@
-use super::RTPSEntity;
-
-pub trait RTPSGroup: RTPSEntity {}
+pub trait RTPSGroup {}
