@@ -7,7 +7,7 @@ use rust_rtps_pim::{
 use serde::ser::SerializeStruct;
 
 #[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Octet(pub(crate) u8);
+pub struct Octet(pub u8);
 
 impl Octet {
     pub fn is_bit_set(&self, index: usize) -> bool {
@@ -124,8 +124,8 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementTy
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EntityIdUdp {
-    pub(crate) entity_key: [Octet; 3],
-    pub(crate) entity_kind: Octet,
+    pub entity_key: [Octet; 3],
+    pub entity_kind: Octet,
 }
 
 impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType for EntityIdUdp {

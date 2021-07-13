@@ -96,7 +96,7 @@ static SENTINEL: ParameterUdp = ParameterUdp {
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterListUdp {
-    pub(crate) parameter: Vec<ParameterUdp>,
+    pub parameter: Vec<ParameterUdp>,
 }
 impl serde::Serialize for ParameterListUdp {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
