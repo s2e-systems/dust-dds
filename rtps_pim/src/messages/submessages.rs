@@ -1,5 +1,3 @@
-use crate::messages::Submessage;
-
 use super::{
     submessage_elements::{
         EntityIdSubmessageElementType, ParameterListSubmessageElementType,
@@ -43,7 +41,7 @@ where
     Pad(PSM::PadSubmessageType),
 }
 
-pub trait AckNackSubmessage: Submessage {
+pub trait AckNackSubmessage {
     type EntityIdSubmessageElementType;
     type SequenceNumberSetSubmessageElementType;
     type CountSubmessageElementType;
@@ -64,7 +62,7 @@ pub trait AckNackSubmessage: Submessage {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait DataSubmessage<'a>: Submessage {
+pub trait DataSubmessage<'a> {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type ParameterListSubmessageElementType: ParameterListSubmessageElementType<'a>;
@@ -97,7 +95,7 @@ pub trait DataSubmessage<'a>: Submessage {
     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
 }
 
-pub trait DataFragSubmessage: Submessage {
+pub trait DataFragSubmessage {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type FragmentNumberSubmessageElementType;
@@ -136,7 +134,7 @@ pub trait DataFragSubmessage: Submessage {
     fn serialized_payload(&self) -> &Self::SerializedDataFragmentSubmessageElementType;
 }
 
-pub trait GapSubmessage: Submessage {
+pub trait GapSubmessage {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType;
@@ -157,7 +155,7 @@ pub trait GapSubmessage: Submessage {
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
 
-pub trait HeartbeatSubmessage: Submessage {
+pub trait HeartbeatSubmessage {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type CountSubmessageElementType;
@@ -187,7 +185,7 @@ pub trait HeartbeatSubmessage: Submessage {
     // secure_writer_set: submessage_elements::GroupDigest,
 }
 
-pub trait HeartbeatFragSubmessage: Submessage {
+pub trait HeartbeatFragSubmessage {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type FragmentNumberSubmessageElementType;
@@ -209,7 +207,7 @@ pub trait HeartbeatFragSubmessage: Submessage {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait InfoDestinationSubmessage: Submessage {
+pub trait InfoDestinationSubmessage {
     type GuidPrefixSubmessageElementType;
     fn new(
         endianness_flag: SubmessageFlag,
@@ -219,7 +217,7 @@ pub trait InfoDestinationSubmessage: Submessage {
     fn guid_prefix(&self) -> &Self::GuidPrefixSubmessageElementType;
 }
 
-pub trait InfoReplySubmessage: Submessage {
+pub trait InfoReplySubmessage {
     type LocatorListSubmessageElementType;
 
     fn new(
@@ -234,7 +232,7 @@ pub trait InfoReplySubmessage: Submessage {
     fn multicast_locator_list(&self) -> &Self::LocatorListSubmessageElementType;
 }
 
-pub trait InfoSourceSubmessage: Submessage {
+pub trait InfoSourceSubmessage {
     type ProtocolVersionSubmessageElementType;
     type VendorIdSubmessageElementType;
     type GuidPrefixSubmessageElementType;
@@ -251,7 +249,7 @@ pub trait InfoSourceSubmessage: Submessage {
     fn guid_prefix(&self) -> &Self::GuidPrefixSubmessageElementType;
 }
 
-pub trait InfoTimestampSubmessage: Submessage {
+pub trait InfoTimestampSubmessage {
     type TimestampSubmessageElementType;
     fn new(
         endianness_flag: SubmessageFlag,
@@ -263,7 +261,7 @@ pub trait InfoTimestampSubmessage: Submessage {
     fn timestamp(&self) -> &Self::TimestampSubmessageElementType;
 }
 
-pub trait NackFragSubmessage: Submessage {
+pub trait NackFragSubmessage {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type FragmentNumberSetSubmessageElementType;
@@ -285,4 +283,4 @@ pub trait NackFragSubmessage: Submessage {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait PadSubmessage: Submessage {}
+pub trait PadSubmessage {}

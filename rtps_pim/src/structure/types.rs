@@ -25,7 +25,7 @@ pub enum EntityKind {
     BuiltInReaderGroup,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct EntityId {
     pub entity_key: [u8; 3],
     pub entity_kind: EntityKind,
@@ -109,7 +109,7 @@ pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
 pub const VENDOR_ID_S2E: VendorId = [99, 99];
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct GUID {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -146,13 +146,13 @@ impl From<GUID> for [u8; 16] {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TopicKind {
     NoKey,
     WithKey,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,

@@ -13,7 +13,7 @@ pub trait RTPSCacheChange {
     fn inline_qos(&self) -> &Self::InlineQosType;
 }
 
-pub trait RTPSCacheChangeOperations {
+pub trait RTPSCacheChangeOperations<'a> {
     type DataType: AsRef<[u8]>;
     type InstanceHandleType;
     type InlineQosType;
