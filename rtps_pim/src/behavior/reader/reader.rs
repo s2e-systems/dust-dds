@@ -13,7 +13,7 @@ pub trait RTPSReader {
     fn expects_inline_qos(&self) -> bool;
 }
 
-pub trait RTPSReaderOperation {
+pub trait RTPSReaderOperations {
     fn new(
         guid: GUID,
         topic_kind: TopicKind,

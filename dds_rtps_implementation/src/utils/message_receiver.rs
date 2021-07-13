@@ -1,6 +1,7 @@
 use rust_rtps_pim::{
+    behavior::stateless_reader_behavior::StatelessReaderBehavior,
     messages::{
-        submessages::{RtpsSubmessagePIM, RtpsSubmessageType},
+        submessages::{DataSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
         types::TIME_INVALID,
         RTPSMessage,
     },
@@ -17,10 +18,11 @@ use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
 
 pub fn message_receiver<'a, PSM>(
     participant: &RTPSParticipantImpl,
-    message: &impl RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
+    message: &'a impl RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
     source_locator: Locator,
 ) where
     PSM: RtpsSubmessagePIM<'a>,
+    PSM::DataSubmessageType: DataSubmessage<'a>,
 {
     let mut source_version = PROTOCOLVERSION_2_4;
     let mut source_vendor_id = VENDOR_ID_UNKNOWN;
@@ -46,7 +48,13 @@ pub fn message_receiver<'a, PSM>(
     for submessage in message.submessages() {
         match submessage {
             RtpsSubmessageType::AckNack(_) => todo!(),
-            RtpsSubmessageType::Data(_) => todo!(),
+            RtpsSubmessageType::Data(data_submessage) => {
+                let reader_group = participant.builtin_reader_group.lock();
+                for reader in reader_group.reader_list() {
+                    let reader = reader.lock();
+                    // reader.receive_data(source_guid_prefix, data_submessage);
+                }
+            }
             RtpsSubmessageType::DataFrag(_) => todo!(),
             RtpsSubmessageType::Gap(_) => todo!(),
             RtpsSubmessageType::Heartbeat(_) => todo!(),

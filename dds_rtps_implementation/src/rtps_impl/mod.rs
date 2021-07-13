@@ -8,6 +8,7 @@ pub mod rtps_writer_group_impl;
 pub mod rtps_writer_impl;
 
 pub mod rtps_reader_group_impl;
+pub mod rtps_reader_impl;
 
 // // pub mod topic_impl;
 

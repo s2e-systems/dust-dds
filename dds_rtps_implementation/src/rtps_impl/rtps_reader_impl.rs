@@ -1,84 +1,97 @@
-use std::sync::{Arc, Mutex};
-
-use rust_dds_api::{
-    dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataReaderQos,
-    subscription::data_reader_listener::DataReaderListener,
+use rust_rtps_pim::{
+    behavior::{
+        reader::reader::{RTPSReader, RTPSReaderOperations},
+        types::Duration,
+    },
+    structure::{
+        types::{Locator, ReliabilityKind, TopicKind, GUID},
+        RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
+    },
 };
-use rust_rtps::structure::{RTPSEndpoint, RTPSEntity};
 
-use super::{mask_listener::MaskListener, topic_impl::TopicImpl};
+use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
 
-struct RtpsDataReaderListener<T: DDSType>(Box<dyn DataReaderListener<DataPIM = T>>);
-trait AnyDataReaderListener: Send + Sync {}
-
-impl<T: DDSType> AnyDataReaderListener for RtpsDataReaderListener<T> {}
-
-pub struct ReaderImpl {
-    qos: DataReaderQos,
-    mask_listener: MaskListener<Box<dyn AnyDataReaderListener>>,
-    topic: Arc<Mutex<TopicImpl>>,
+pub struct RTPSReaderImpl {
+    guid: GUID,
+    topic_kind: TopicKind,
+    reliability_level: ReliabilityKind,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    heartbeat_response_delay: Duration,
+    heartbeat_supression_duration: Duration,
+    expects_inline_qos: bool,
+    reader_cache: RTPSHistoryCacheImpl,
 }
 
-impl ReaderImpl {
-    pub fn new<T: DDSType>(
-        topic: Arc<Mutex<TopicImpl>>,
-        qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<DataPIM = T>>>,
-        status_mask: StatusMask,
+impl RTPSEntity for RTPSReaderImpl {
+    fn guid(&self) -> &GUID {
+        &self.guid
+    }
+}
+
+impl RTPSReader for RTPSReaderImpl {
+    type HistoryCacheType = RTPSHistoryCacheImpl;
+
+    fn heartbeat_response_delay(&self) -> &Duration {
+        &self.heartbeat_response_delay
+    }
+
+    fn heartbeat_supression_duration(&self) -> &Duration {
+        &self.heartbeat_supression_duration
+    }
+
+    fn reader_cache(&self) -> &Self::HistoryCacheType {
+        &self.reader_cache
+    }
+
+    fn reader_cache_mut(&mut self) -> &mut Self::HistoryCacheType {
+        &mut self.reader_cache
+    }
+
+    fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
+    }
+}
+
+impl RTPSReaderOperations for RTPSReaderImpl {
+    fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        heartbeat_response_delay: Duration,
+        heartbeat_supression_duration: Duration,
+        expects_inline_qos: bool,
     ) -> Self {
-        let listener: Option<Box<dyn AnyDataReaderListener>> = match listener {
-            Some(listener) => Some(Box::new(RtpsDataReaderListener(listener))),
-            None => None,
-        };
-        let mask_listener = MaskListener::new(listener, status_mask);
         Self {
-            qos,
-            mask_listener,
-            topic,
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
+            multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
+            heartbeat_response_delay,
+            heartbeat_supression_duration,
+            expects_inline_qos,
+            reader_cache: RTPSHistoryCacheImpl::new(),
         }
     }
 }
 
-impl RTPSEntity for ReaderImpl {
-    fn guid(&self) -> rust_rtps::types::GUID {
-        todo!()
+impl RTPSEndpoint for RTPSReaderImpl {
+    fn topic_kind(&self) -> &TopicKind {
+        &self.topic_kind
+    }
+
+    fn reliability_level(&self) -> &ReliabilityKind {
+        &self.reliability_level
+    }
+
+    fn unicast_locator_list(&self) -> &[Locator] {
+        &self.unicast_locator_list
+    }
+
+    fn multicast_locator_list(&self) -> &[Locator] {
+        &self.multicast_locator_list
     }
 }
-
-impl RTPSEndpoint for ReaderImpl {
-    fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
-        todo!()
-    }
-
-    fn multicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
-        todo!()
-    }
-
-    fn topic_kind(&self) -> rust_rtps::types::TopicKind {
-        todo!()
-    }
-
-    fn reliability_level(&self) -> rust_rtps::types::ReliabilityKind {
-        todo!()
-    }
-}
-
-// impl RTPSReader for ReaderImpl {
-//     type HistoryCacheType = HistoryCache;
-
-//     fn heartbeat_response_delay(&self) -> rust_rtps::behavior::types::Duration {
-//         todo!()
-//     }
-
-//     fn heartbeat_supression_duration(&self) -> rust_rtps::behavior::types::Duration {
-//         todo!()
-//     }
-
-//     fn reader_cache(&mut self) -> &mut HistoryCache {
-//         todo!()
-//     }
-
-//     fn expects_inline_qos(&self) -> bool {
-//         todo!()
-//     }
-// }

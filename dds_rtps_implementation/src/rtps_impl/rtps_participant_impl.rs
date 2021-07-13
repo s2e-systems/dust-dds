@@ -1,4 +1,6 @@
-use rust_dds_api::{dcps_psm::InstanceHandle, return_type::DDSResult};
+use rust_dds_api::{
+    dcps_psm::InstanceHandle, infrastructure::qos::SubscriberQos, return_type::DDSResult,
+};
 use rust_rtps_pim::structure::{
     types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
     RTPSEntity,
@@ -6,7 +8,9 @@ use rust_rtps_pim::structure::{
 
 use crate::utils::shared_object::RtpsShared;
 
-use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
+use super::{
+    rtps_reader_group_impl::RTPSReaderGroupImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
+};
 
 pub struct RTPSParticipantImpl {
     guid: GUID,
@@ -14,6 +18,7 @@ pub struct RTPSParticipantImpl {
     vendor_id: VendorId,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl>>,
     pub builtin_writer_group: RtpsShared<RTPSWriterGroupImpl>,
+    pub builtin_reader_group: RtpsShared<RTPSReaderGroupImpl>,
 }
 
 impl RTPSParticipantImpl {
@@ -37,12 +42,27 @@ impl RTPSParticipantImpl {
             0,
         ));
 
+        let builtin_reader_group_guid = GUID::new(
+            guid_prefix,
+            EntityId {
+                entity_key: [0, 0, 0],
+                entity_kind: rust_rtps_pim::structure::types::EntityKind::BuiltInReaderGroup,
+            },
+        );
+        let builtin_reader_group = RtpsShared::new(RTPSReaderGroupImpl::new(
+            builtin_reader_group_guid,
+            SubscriberQos::default(),
+            None,
+            0,
+        ));
+
         Self {
             guid,
             protocol_version: PROTOCOLVERSION_2_4,
             vendor_id: [99, 99],
             rtps_writer_groups: Vec::new(),
             builtin_writer_group,
+            builtin_reader_group,
         }
     }
 
@@ -64,20 +84,6 @@ impl RTPSParticipantImpl {
         // self.rtps_writer_groups.swap_remove(index);
         // Ok(())
     }
-
-    // pub fn send_data(&self) {
-    //     for writer_group in &self.rtps_writer_groups {
-    //         let writer_group_lock = writer_group.lock();
-    //         let writer_list = writer_group_lock.writer_list();
-    //         for writer in writer_list {
-    //             if let Some(mut writer_lock) = writer.try_lock() {
-    //                 let writer_ref = writer_lock.as_mut();
-    //                 let mut behavior = BestEffortStatelessWriterBehavior::new(writer_ref);
-    //                 behavior.send_unsent_data();
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 impl rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {

@@ -1,6 +1,6 @@
 use rust_rtps_pim::structure::{
     types::{ChangeKind, SequenceNumber, GUID},
-    RTPSCacheChange,
+    RTPSCacheChange, RTPSCacheChangeOperations,
 };
 pub struct RTPSCacheChangeImpl {
     kind: ChangeKind,
@@ -28,6 +28,23 @@ impl RTPSCacheChangeImpl {
             data,
             inline_qos,
         }
+    }
+}
+
+impl<'a> RTPSCacheChangeOperations<'a> for RTPSCacheChangeImpl {
+    type DataType = &'a [u8];
+    type InstanceHandleType = ();
+    type InlineQosType = ();
+
+    fn new(
+        kind: ChangeKind,
+        writer_guid: GUID,
+        instance_handle: Self::InstanceHandleType,
+        sequence_number: SequenceNumber,
+        data: Self::DataType,
+        inline_qos: Self::InlineQosType,
+    ) -> Self {
+        todo!()
     }
 }
 
