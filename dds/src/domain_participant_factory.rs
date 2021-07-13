@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{self, AtomicBool},
-    Arc,
+use std::{
+    net::UdpSocket,
+    sync::{
+        atomic::{self, AtomicBool},
+        Arc,
+    },
 };
 
 use rust_dds_api::{
@@ -96,7 +99,8 @@ impl DomainParticipantFactory {
         // };
         let guid_prefix = [3; 12];
 
-        let mut transport = UdpTransport::new();
+        let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+        let mut transport = UdpTransport::new(socket);
 
         let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
         let is_enabled = Arc::new(AtomicBool::new(false));

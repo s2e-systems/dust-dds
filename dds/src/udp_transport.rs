@@ -60,9 +60,9 @@ impl From<SocketAddr> for UdpLocator {
 }
 
 impl UdpTransport {
-    pub fn new() -> Self {
+    pub fn new(socket: UdpSocket) -> Self {
         Self {
-            socket: UdpSocket::bind("127.0.0.1:7400").unwrap(),
+            socket,
             receive_buffer: [0; BUFFER_SIZE],
         }
     }
@@ -159,7 +159,10 @@ mod tests {
         let locator = UdpLocator::from(socket_addr).0;
         assert_eq!(locator.kind(), &LOCATOR_KIND_UDPv4);
         assert_eq!(locator.port(), &7400);
-        assert_eq!(locator.address(), &[0,0,0,0,0,0,0,0,0,0,0,0,127,0,0,1]);
+        assert_eq!(
+            locator.address(),
+            &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1]
+        );
     }
 
     #[test]
@@ -171,7 +174,8 @@ mod tests {
             guid_prefix: [3; 12],
         };
 
-        let mut transport = UdpTransport::new();
+        let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+        let mut transport = UdpTransport::new(socket);
         let destination_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
