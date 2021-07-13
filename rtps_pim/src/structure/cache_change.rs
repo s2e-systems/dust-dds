@@ -12,3 +12,18 @@ pub trait RTPSCacheChange {
     fn data_value(&self) -> &Self::DataType;
     fn inline_qos(&self) -> &Self::InlineQosType;
 }
+
+pub trait RTPSCacheChangeOperations {
+    type DataType: AsRef<[u8]>;
+    type InstanceHandleType;
+    type InlineQosType;
+
+    fn new(
+        kind: ChangeKind,
+        writer_guid: GUID,
+        instance_handle: Self::InstanceHandleType,
+        sequence_number: SequenceNumber,
+        data: Self::DataType,
+        inline_qos: Self::InlineQosType,
+    ) -> Self;
+}

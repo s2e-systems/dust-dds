@@ -103,10 +103,9 @@ pub trait LocatorListSubmessageElementType {
 }
 
 pub trait SerializedDataSubmessageElementType<'a> {
-    type Value: ?Sized;
-    type Constructed;
-    fn new(value: &Self::Value) -> Self::Constructed;
-    fn value(&self) -> &Self::Value;
+    type Value;
+    fn new(value: &Self::Value) -> Self;
+    fn value(&self) -> Self::Value;
 }
 
 pub trait SerializedDataFragmentSubmessageElementType {

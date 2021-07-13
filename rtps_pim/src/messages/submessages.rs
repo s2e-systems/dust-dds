@@ -83,7 +83,7 @@ pub trait DataSubmessage<'a>: Submessage {
         writer_id: Self::EntityIdSubmessageElementType,
         writer_sn: Self::SequenceNumberSubmessageElementType,
         inline_qos: Self::ParameterListSubmessageElementType,
-        serialized_payload: <Self::SerializedDataSubmessageElementType as SerializedDataSubmessageElementType<'a>>::Constructed,
+        serialized_payload: Self::SerializedDataSubmessageElementType,
     ) -> Self;
     fn endianness_flag(&self) -> SubmessageFlag;
     fn inline_qos_flag(&self) -> SubmessageFlag;

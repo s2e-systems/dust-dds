@@ -9,7 +9,7 @@ mod participant;
 ///
 pub mod types;
 
-pub use cache_change::RTPSCacheChange;
+pub use cache_change::{RTPSCacheChange, RTPSCacheChangeOperations};
 pub use endpoint::RTPSEndpoint;
 pub use entity::RTPSEntity;
 pub use group::RTPSGroup;

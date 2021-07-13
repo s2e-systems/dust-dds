@@ -1,3 +1,10 @@
+use crate::{messages::{submessage_elements::{EntityIdSubmessageElementType, SequenceNumberSubmessageElementType, SerializedDataSubmessageElementType}, submessages::DataSubmessage}, structure::{
+        types::{ChangeKind, GuidPrefix, GUID},
+        RTPSCacheChangeOperations, RTPSHistoryCache,
+    }};
+
+use super::reader::reader::RTPSReader;
+
 // use crate::{
 //     behavior::{cache_change_from_data, Reader},
 //     messages::{submessages::Data, RtpsSubmessage},
@@ -6,6 +13,41 @@
 // };
 
 // use super::StatelessReader;
+
+pub trait StatelessReaderBehavior<Data> {
+    fn receive_data(self, source_guid_prefix: GuidPrefix, data: &Data);
+}
+
+impl<'a, T, Data> StatelessReaderBehavior<Data> for &'a mut T
+where
+    T: RTPSReader,
+    T::HistoryCacheType: RTPSHistoryCache,
+    <T::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChangeOperations<InstanceHandleType = (), DataType = &'a [u8], InlineQosType = ()>,
+    Data: DataSubmessage<'a>,
+{
+    fn receive_data(self, source_guid_prefix: GuidPrefix, data: &Data) {
+        let reader_cache = self.reader_cache_mut();
+        let kind = match (data.data_flag(), data.key_flag()) {
+            (true, false) => ChangeKind::Alive,
+            (false, true) => ChangeKind::NotAliveDisposed,
+            _ => todo!(),
+        };
+        let writer_guid = GUID::new(source_guid_prefix, data.writer_id().value());
+        let instance_handle = ();
+        let sequence_number = data.writer_sn().value();
+        let data = data.serialized_payload().value();
+        let inline_qos = ();
+        let a_change = RTPSCacheChangeOperations::new(
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data,
+            inline_qos,
+        );
+        reader_cache.add_change(a_change);
+    }
+}
 
 // pub struct BestEffortStatelessReaderBehavior;
 
