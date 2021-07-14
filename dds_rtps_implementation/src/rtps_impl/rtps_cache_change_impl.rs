@@ -11,26 +11,6 @@ pub struct RTPSCacheChangeImpl {
     inline_qos: <Self as RTPSCacheChange>::InlineQosType,
 }
 
-impl RTPSCacheChangeImpl {
-    pub fn new(
-        kind: ChangeKind,
-        writer_guid: GUID,
-        instance_handle: <Self as RTPSCacheChange>::InstanceHandleType,
-        sequence_number: SequenceNumber,
-        data: <Self as RTPSCacheChange>::DataType,
-        inline_qos: <Self as RTPSCacheChange>::InlineQosType,
-    ) -> Self {
-        Self {
-            kind,
-            writer_guid,
-            instance_handle,
-            sequence_number,
-            data,
-            inline_qos,
-        }
-    }
-}
-
 impl<'a> RTPSCacheChangeOperations<'a> for RTPSCacheChangeImpl {
     type DataType = &'a [u8];
     type InstanceHandleType = i32;

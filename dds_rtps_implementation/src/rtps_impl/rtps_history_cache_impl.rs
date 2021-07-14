@@ -43,7 +43,7 @@ impl RTPSHistoryCache for RTPSHistoryCacheImpl {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::types::GUID_UNKNOWN;
+    use rust_rtps_pim::structure::{types::GUID_UNKNOWN, RTPSCacheChangeOperations};
 
     use super::*;
 
@@ -55,7 +55,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            vec![],
+            &[],
             (),
         );
         hc.add_change(change);
@@ -70,7 +70,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            vec![],
+            &[],
             (),
         );
         hc.add_change(change);
@@ -86,7 +86,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            vec![],
+            &[],
             (),
         );
         hc.add_change(change);
@@ -102,7 +102,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            vec![],
+            &[],
             (),
         );
         let change2 = RTPSCacheChangeImpl::new(
@@ -110,7 +110,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             2,
-            vec![],
+            &[],
             (),
         );
         hc.add_change(change1);
@@ -126,7 +126,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            vec![],
+            &[],
             (),
         );
         let change2 = RTPSCacheChangeImpl::new(
@@ -134,7 +134,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             2,
-            vec![],
+            &[],
             (),
         );
         hc.add_change(change1);
