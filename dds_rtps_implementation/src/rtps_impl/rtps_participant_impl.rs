@@ -94,7 +94,7 @@ impl RTPSEntity for RTPSParticipantImpl {
     }
 }
 
-impl<'a> RTPSParticipant for RTPSParticipantImpl {
+impl RTPSParticipant for RTPSParticipantImpl {
     fn protocol_version(&self) -> &ProtocolVersion {
         &self.protocol_version
     }
