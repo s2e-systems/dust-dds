@@ -1,39 +1,53 @@
 use std::cell::RefCell;
 
-use rust_rtps_pim::{behavior::{
+use rust_rtps_pim::{
+    behavior::{
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::reader_locator::RTPSReaderLocator,
-    }, messages::{RTPSMessage, RtpsMessageHeader, submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType}}, structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, LOCATOR_INVALID}};
+    },
+    messages::{
+        submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
+        RTPSMessage, RtpsMessageHeader,
+    },
+    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, LOCATOR_INVALID},
+};
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
 use super::transport::TransportWrite;
 
-pub fn create_submessages<'a, PSM, StatelessWriter>(
-    writer: StatelessWriter,
-) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)>
+pub trait RtpsSubmessageSender<'a, PSM>
 where
     PSM: RtpsSubmessagePIM<'a>,
-    StatelessWriter: StatelessWriterBehavior<PSM::DataSubmessageType, PSM::GapSubmessageType>,
-    StatelessWriter::ReaderLocator: RTPSReaderLocator,
 {
-    let mut dst_locator = LOCATOR_INVALID;
-    let submessages = RefCell::new(Vec::new());
-    writer.send_unsent_data(
-        |reader_locator, data| {
-            dst_locator = *reader_locator.locator();
-            submessages
-                .borrow_mut()
-                .push(RtpsSubmessageType::<PSM>::Data(data));
-        },
-        |_reader_locator, gap| {
-            submessages.borrow_mut().push(
-                // *reader_locator.locator(),
-                RtpsSubmessageType::<PSM>::Gap(gap),
-            );
-        },
-    );
-    vec![(dst_locator, submessages.take())]
+    fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)>;
+}
+
+impl<'a, PSM, T> RtpsSubmessageSender<'a, PSM> for T
+where
+    T: StatelessWriterBehavior<'a, PSM::DataSubmessageType, PSM::GapSubmessageType>,
+    T::ReaderLocator: RTPSReaderLocator,
+    PSM: RtpsSubmessagePIM<'a>,
+{
+    fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)> {
+        let mut dst_locator = LOCATOR_INVALID;
+        let submessages = RefCell::new(Vec::new());
+        self.send_unsent_data(
+            |reader_locator, data| {
+                dst_locator = *reader_locator.locator();
+                submessages
+                    .borrow_mut()
+                    .push(RtpsSubmessageType::<PSM>::Data(data));
+            },
+            |_reader_locator, gap| {
+                submessages.borrow_mut().push(
+                    // *reader_locator.locator(),
+                    RtpsSubmessageType::<PSM>::Gap(gap),
+                );
+            },
+        );
+        vec![(dst_locator, submessages.take())]
+    }
 }
 
 pub fn send_data<'a, Transport, PSM>(
@@ -44,7 +58,7 @@ pub fn send_data<'a, Transport, PSM>(
     transport: &'a mut Transport,
 ) where
     Transport: TransportWrite<'a>,
-    Transport::Message: RTPSMessage<SubmessageType=RtpsSubmessageType<'a, PSM>>,
+    Transport::Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
     PSM: RtpsSubmessagePIM<'a>,
     PSM::DataSubmessageType: DataSubmessage<'a>,
     PSM::GapSubmessageType: GapSubmessage,
@@ -55,7 +69,7 @@ pub fn send_data<'a, Transport, PSM>(
         vendor_id,
         guid_prefix,
     };
-    let destined_submessages = create_submessages::<PSM, _>(&mut *writer);
+    let destined_submessages = writer.create_submessages();
     for (dst_locator, submessages) in destined_submessages {
         let message = Transport::Message::new(&header, submessages);
         transport.write(&message, &dst_locator);
@@ -64,6 +78,8 @@ pub fn send_data<'a, Transport, PSM>(
 
 #[cfg(test)]
 mod tests {
+    use rust_rtps_pim::messages::submessages::RtpsSubmessageType;
+
     use super::*;
 
     #[derive(PartialEq, Debug)]
@@ -100,11 +116,11 @@ mod tests {
     fn message_send_test() {
         struct MockBehavior;
 
-        impl StatelessWriterBehavior<u8, ()> for MockBehavior {
+        impl<'a> StatelessWriterBehavior<'a, u8, ()> for MockBehavior {
             type ReaderLocator = MockReaderLocator;
 
             fn send_unsent_data(
-                self,
+                &'a mut self,
                 mut send_data: impl FnMut(&Self::ReaderLocator, u8),
                 _send_gap: impl FnMut(&Self::ReaderLocator, ()),
             ) {
@@ -113,8 +129,9 @@ mod tests {
             }
         }
 
-        let writer = MockBehavior;
-        let destined_submessages = create_submessages::<MockPSM, _>(writer);
+        let mut writer = MockBehavior;
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, MockPSM>>)> =
+            writer.create_submessages();
         let (dst_locator, submessages) = &destined_submessages[0];
 
         assert_eq!(dst_locator, &LOCATOR_INVALID);

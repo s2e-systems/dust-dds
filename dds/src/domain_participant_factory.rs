@@ -19,9 +19,9 @@ use rust_dds_rtps_implementation::{
     },
     utils::{
         message_receiver::MessageReceiver,
-        message_sender::{create_submessages, send_data},
+        message_sender::{send_data},
         shared_object::RtpsShared,
-        transport::{TransportRead, TransportWrite},
+        transport::TransportRead,
     },
 };
 use rust_rtps_pim::{
@@ -34,13 +34,11 @@ use rust_rtps_pim::{
         },
     },
     discovery::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-    messages::{RTPSMessage, RtpsMessageHeader},
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator, GUID},
         RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
-use rust_rtps_udp_psm::{message::RTPSMessageUdp, psm::RtpsUdpPsm};
 
 use crate::udp_transport::UdpTransport;
 
@@ -161,7 +159,6 @@ impl DomainParticipantFactory {
                         );
                     }
 
-                    // for writer_group in rtps_participant.writer_groups() {
                     let writer_group = rtps_participant.builtin_writer_group.lock();
                     for writer in writer_group.writer_list() {
                         let mut writer = writer.lock();
@@ -175,7 +172,6 @@ impl DomainParticipantFactory {
                     }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(500));
-                // }
             }
         });
 

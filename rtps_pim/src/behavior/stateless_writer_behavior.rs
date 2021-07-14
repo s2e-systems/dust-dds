@@ -17,17 +17,17 @@ use crate::{
     },
 };
 
-pub trait StatelessWriterBehavior<Data, Gap> {
+pub trait StatelessWriterBehavior<'a, Data, Gap> {
     type ReaderLocator;
 
     fn send_unsent_data(
-        self,
+        &'a mut self,
         send_data: impl FnMut(&Self::ReaderLocator, Data),
         send_gap: impl FnMut(&Self::ReaderLocator, Gap),
     );
 }
 
-impl<'a, Data, Gap, T> StatelessWriterBehavior<Data, Gap> for &'a mut T
+impl<'a, Data, Gap, T> StatelessWriterBehavior<'a, Data, Gap> for T
 where
     T: RTPSStatelessWriter + RTPSWriter + RTPSEndpoint,
     T::ReaderLocatorType: RTPSReaderLocatorOperations,
@@ -39,7 +39,7 @@ where
     type ReaderLocator = T::ReaderLocatorType;
 
     fn send_unsent_data(
-        self,
+        &'a mut self,
         mut send_data: impl FnMut(&Self::ReaderLocator, Data),
         mut send_gap: impl FnMut(&Self::ReaderLocator, Gap),
     ) {
