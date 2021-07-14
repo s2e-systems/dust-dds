@@ -9,8 +9,6 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::utils::shared_object::RtpsLock;
-
 use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
 
 pub struct RTPSReaderImpl {

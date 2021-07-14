@@ -38,9 +38,30 @@ impl RTPSReaderGroupImpl {
 }
 
 impl<'a> RTPSGroup for &'a RTPSReaderGroupImpl {
-    type Endpoints = std::slice::IterMut<'a, RTPSReaderImpl>;
+    type Endpoints = RTPSReaderIterator<'a>;
 
     fn endpoints(self) -> Self::Endpoints {
         todo!()
+        // RTPSReaderIterator {
+        //     lock: self,
+        //     index: 0,
+        // }
+    }
+}
+
+pub struct RTPSReaderIterator<'a> {
+    lock: RtpsLock<'a, RTPSReaderGroupImpl>,
+    index: usize,
+}
+
+impl<'a> Iterator for RTPSReaderIterator<'a> {
+    type Item = RtpsLock<'a, RTPSReaderImpl>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+        // match self.0.next() {
+        //     Some(reader) => Some(reader.lock()),
+        //     None => None,
+        // }
     }
 }

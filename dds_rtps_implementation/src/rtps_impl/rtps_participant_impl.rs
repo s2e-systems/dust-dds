@@ -3,7 +3,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::structure::{
     types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
-    RTPSEntity, ReaderGroupCollection, WriterGroupCollection,
+    RTPSEntity, RTPSParticipant, ReaderGroupCollection, WriterGroupCollection,
 };
 
 use crate::utils::shared_object::{RtpsLock, RtpsShared};
@@ -88,34 +88,13 @@ impl RTPSParticipantImpl {
     }
 }
 
-// pub struct ReaderGroupIntoIter;
-
-// impl IntoIterator for ReaderGroupIntoIter {
-//     type Item = RTPSReaderGroupImpl;
-//     type IntoIter = RtpsReaderGroupIterator;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         todo!()
-//     }
-// }
-
-// pub struct RtpsReaderGroupIterator;
-
-// impl Iterator for RTPSReaderGroupImpl {
-//     type Item = &'a mut RTPSReaderGroupImpl;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         todo!()
-//     }
-// }
-
 impl RTPSEntity for RTPSParticipantImpl {
     fn guid(&self) -> &GUID {
         &self.guid
     }
 }
 
-impl<'a> rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
+impl<'a> RTPSParticipant for RTPSParticipantImpl {
     fn protocol_version(&self) -> &ProtocolVersion {
         &self.protocol_version
     }
@@ -133,11 +112,24 @@ impl<'a> rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
     }
 }
 
+pub struct ReaderGroupIterator<'a>(std::slice::Iter<'a, RtpsShared<RTPSReaderGroupImpl>>);
+
+impl<'a> Iterator for ReaderGroupIterator<'a> {
+    type Item = RtpsLock<'a, RTPSReaderGroupImpl>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.0.next() {
+            Some(reader_group) => Some(reader_group.lock()),
+            None => None,
+        }
+    }
+}
+
 impl<'a> ReaderGroupCollection for &'a RTPSParticipantImpl {
-    type ReaderGroupsType = std::slice::Iter<'a, RTPSReaderGroupImpl>;
+    type ReaderGroupsType = ReaderGroupIterator<'a>;
 
     fn reader_groups(self) -> Self::ReaderGroupsType {
-        todo!()
+        ReaderGroupIterator((&self.rtps_reader_groups).into_iter())
     }
 }
 

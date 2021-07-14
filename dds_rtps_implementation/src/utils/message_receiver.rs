@@ -15,7 +15,7 @@ use rust_rtps_pim::{
             GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
             LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
-        RTPSEntity, RTPSGroup, ReaderGroupCollection,
+        RTPSGroup,
     },
 };
 
@@ -44,25 +44,23 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a, PSM, Message, Participant, Group, ReaderItem, Reader>(
+    pub fn process_message<'a, PSM, Message, ReaderGroup, ReaderItem, Reader>(
         mut self,
-        participant: &'a Participant,
+        participant_guid_prefix: GuidPrefix,
+        reader_group: &'a ReaderGroup,
         source_locator: Locator,
         message: &'a Message,
     ) where
-        Participant: RTPSEntity,
-        &'a Participant: ReaderGroupCollection,
-        <&'a Participant as ReaderGroupCollection>::ReaderGroupsType: Iterator<Item = Group>,
-        Group: RTPSGroup + 'a,
-        Group::Endpoints: Iterator<Item = ReaderItem>,
+        &'a ReaderGroup: RTPSGroup,
+        <&'a ReaderGroup as RTPSGroup>::Endpoints: Iterator<Item = ReaderItem>,
         ReaderItem: Deref<Target = Reader> + DerefMut,
-        Reader: StatelessReaderBehavior<PSM::DataSubmessageType> + 'a,
+        Reader: StatelessReaderBehavior<PSM::DataSubmessageType>,
         PSM: RtpsSubmessagePIM<'a> + 'a,
         Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
         PSM::DataSubmessageType: DataSubmessage<'a>,
         PSM::InfoTimestampSubmessageType: InfoTimestampSubmessage,
     {
-        self.dest_guid_prefix = *participant.guid().prefix();
+        self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header().version;
         self.source_vendor_id = message.header().vendor_id;
         self.source_guid_prefix = message.header().guid_prefix;
@@ -80,7 +78,7 @@ impl MessageReceiver {
         for submessage in message.submessages() {
             match submessage {
                 RtpsSubmessageType::AckNack(_) => todo!(),
-                RtpsSubmessageType::Data(data) => self.process_data(data, participant),
+                RtpsSubmessageType::Data(data) => self.process_data(data, reader_group),
                 RtpsSubmessageType::DataFrag(_) => todo!(),
                 RtpsSubmessageType::Gap(_) => todo!(),
                 RtpsSubmessageType::Heartbeat(_) => todo!(),
@@ -97,23 +95,19 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a, Data, Participant, ReaderGroup, ReaderItem, Reader>(
+    fn process_data<'a, Data, ReaderGroup, ReaderItem, Reader>(
         &mut self,
         data: &'a Data,
-        participant: Participant,
+        reader_group: ReaderGroup,
     ) where
         Data: DataSubmessage<'a>,
-        Participant: ReaderGroupCollection,
-        Participant::ReaderGroupsType: Iterator<Item = ReaderGroup>,
         ReaderGroup: RTPSGroup,
         ReaderGroup::Endpoints: Iterator<Item = ReaderItem>,
         ReaderItem: Deref<Target = Reader> + DerefMut,
         Reader: StatelessReaderBehavior<Data>,
     {
-        for reader_group in participant.reader_groups() {
-            for mut reader in reader_group.endpoints() {
-                reader.receive_data(self.source_guid_prefix, data);
-            }
+        for mut reader in reader_group.endpoints() {
+            reader.receive_data(self.source_guid_prefix, data);
         }
     }
 
@@ -331,16 +325,6 @@ mod tests {
 
     #[test]
     fn process_data() {
-        struct MockParticipant(Option<MockReaderGroup>);
-
-        impl<'a> ReaderGroupCollection for &'a mut MockParticipant {
-            type ReaderGroupsType = core::option::IterMut<'a, MockReaderGroup>;
-
-            fn reader_groups(self) -> Self::ReaderGroupsType {
-                self.0.iter_mut()
-            }
-        }
-
         struct MockReaderGroup(Option<MockReader>);
 
         impl<'a> RTPSGroup for &'a mut MockReaderGroup {
@@ -366,9 +350,8 @@ mod tests {
         let mut message_receiver = MessageReceiver::new();
         let data = MockDataSubmessage;
         let reader = MockReader(false);
-        let reader_groups = MockReaderGroup(Some(reader));
-        let mut participant = MockParticipant(Some(reader_groups));
-        message_receiver.process_data(&data, &mut participant);
-        assert_eq!(participant.0.unwrap().0.unwrap().0, true);
+        let mut reader_groups = MockReaderGroup(Some(reader));
+        message_receiver.process_data(&data, &mut reader_groups);
+        assert_eq!(reader_groups.0.unwrap().0, true);
     }
 }
