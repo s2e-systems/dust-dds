@@ -1,10 +1,7 @@
 use rust_dds_api::{
     dcps_psm::InstanceHandle, infrastructure::qos::SubscriberQos, return_type::DDSResult,
 };
-use rust_rtps_pim::structure::{
-    types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
-    RTPSEntity,
-};
+use rust_rtps_pim::structure::{RTPSEntity, ReaderGroupCollection, WriterGroupCollection, types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4}};
 
 use crate::utils::shared_object::{RtpsLock, RtpsShared};
 
@@ -110,9 +107,6 @@ impl RTPSParticipantImpl {
 // }
 
 impl<'a> rust_rtps_pim::structure::RTPSParticipant for RtpsLock<'a, RTPSParticipantImpl> {
-    type WriterGroupsType = ();
-    type ReaderGroupsType = std::vec::IntoIter<RtpsLock<'a, RTPSReaderGroupImpl>>;
-
     fn protocol_version(&self) -> &ProtocolVersion {
         &self.protocol_version
     }
@@ -128,13 +122,20 @@ impl<'a> rust_rtps_pim::structure::RTPSParticipant for RtpsLock<'a, RTPSParticip
     fn default_multicast_locator_list(&self) -> &[Locator] {
         todo!()
     }
+}
 
-    fn writer_groups(&self) -> Self::WriterGroupsType {
+impl<'a> ReaderGroupCollection for &'a mut RTPSParticipantImpl {
+    type ReaderGroupsType = std::vec::IntoIter<RtpsLock<'a, RTPSReaderGroupImpl>>;
+
+    fn reader_groups(self) -> Self::ReaderGroupsType {
         todo!()
     }
+}
 
-    fn reader_groups(&self) -> Self::ReaderGroupsType {
-        // (&self.rtps_reader_groups).into_iter()
+impl<'a> WriterGroupCollection for &'a mut RTPSParticipantImpl {
+    type WriterGroupsType = ();
+
+    fn writer_groups(self) -> Self::WriterGroupsType {
         todo!()
     }
 }
