@@ -3,7 +3,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::structure::{
     types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
-    RTPSEntity, RTPSParticipant, ReaderGroupCollection, WriterGroupCollection,
+    RTPSEntity, RTPSParticipant,
 };
 
 use crate::utils::shared_object::{RtpsLock, RtpsShared};
@@ -122,22 +122,6 @@ impl<'a> Iterator for ReaderGroupIterator<'a> {
             Some(reader_group) => Some(reader_group.lock()),
             None => None,
         }
-    }
-}
-
-impl<'a> ReaderGroupCollection for &'a RTPSParticipantImpl {
-    type ReaderGroupsType = ReaderGroupIterator<'a>;
-
-    fn reader_groups(self) -> Self::ReaderGroupsType {
-        ReaderGroupIterator((&self.rtps_reader_groups).into_iter())
-    }
-}
-
-impl<'a> WriterGroupCollection for &'a RTPSParticipantImpl {
-    type WriterGroupsType = ();
-
-    fn writer_groups(self) -> Self::WriterGroupsType {
-        todo!()
     }
 }
 

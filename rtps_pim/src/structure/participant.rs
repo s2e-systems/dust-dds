@@ -6,13 +6,3 @@ pub trait RTPSParticipant {
     fn default_unicast_locator_list(&self) -> &[Locator];
     fn default_multicast_locator_list(&self) -> &[Locator];
 }
-
-pub trait ReaderGroupCollection {
-    type ReaderGroupsType;
-    fn reader_groups(self) -> Self::ReaderGroupsType;
-}
-
-pub trait WriterGroupCollection {
-    type WriterGroupsType;
-    fn writer_groups(self) -> Self::WriterGroupsType;
-}

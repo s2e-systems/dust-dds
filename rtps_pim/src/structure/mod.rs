@@ -14,4 +14,4 @@ pub use endpoint::RTPSEndpoint;
 pub use entity::RTPSEntity;
 pub use group::RTPSGroup;
 pub use history_cache::RTPSHistoryCache;
-pub use participant::{RTPSParticipant, ReaderGroupCollection, WriterGroupCollection};
+pub use participant::RTPSParticipant;
