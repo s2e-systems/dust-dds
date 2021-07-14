@@ -18,8 +18,10 @@ use rust_dds_rtps_implementation::{
         rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_writer_impl::RTPSWriterImpl,
     },
     utils::{
-        message_receiver::MessageReceiver, message_sender::create_submessages,
+        message_receiver::MessageReceiver,
+        message_sender::create_submessages,
         shared_object::RtpsShared,
+        transport::{TransportRead, TransportWrite},
     },
 };
 use rust_rtps_pim::{

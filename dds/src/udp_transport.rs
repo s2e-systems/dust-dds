@@ -1,5 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
+use rust_dds_rtps_implementation::utils::transport::{TransportRead, TransportWrite};
 use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
 use rust_rtps_udp_psm::message::RTPSMessageUdp;
 use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer};
@@ -66,8 +67,12 @@ impl UdpTransport {
             receive_buffer: [0; BUFFER_SIZE],
         }
     }
+}
 
-    pub fn write(&mut self, message: &RTPSMessageUdp<'_>, destination_locator: &Locator) {
+impl<'a> TransportWrite<'a> for UdpTransport {
+    type Message = RTPSMessageUdp<'a>;
+
+    fn write(&mut self, message: &Self::Message, destination_locator: &Locator) {
         let writer = Vec::<u8>::new();
         let mut serializer = RtpsMessageSerializer { writer };
         message.serialize(&mut serializer).unwrap();
@@ -78,8 +83,12 @@ impl UdpTransport {
             )
             .unwrap();
     }
+}
 
-    pub fn read(&mut self) -> Option<(Locator, RTPSMessageUdp<'_>)> {
+impl<'a> TransportRead<'a> for UdpTransport {
+    type Message = RTPSMessageUdp<'a>;
+
+    fn read(&'a mut self) -> Option<(Locator, Self::Message)> {
         let received = self.socket.recv_from(&mut self.receive_buffer);
 
         match received {
