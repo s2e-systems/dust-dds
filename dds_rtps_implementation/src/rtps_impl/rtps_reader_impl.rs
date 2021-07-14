@@ -9,8 +9,6 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::utils::shared_object::RtpsLock;
-
 use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
 
 pub struct RTPSReaderImpl {
@@ -25,13 +23,13 @@ pub struct RTPSReaderImpl {
     reader_cache: RTPSHistoryCacheImpl,
 }
 
-impl RTPSEntity for RtpsLock<'_, RTPSReaderImpl> {
+impl RTPSEntity for RTPSReaderImpl {
     fn guid(&self) -> &GUID {
         &self.guid
     }
 }
 
-impl RTPSReader for RtpsLock<'_, RTPSReaderImpl> {
+impl RTPSReader for RTPSReaderImpl {
     type HistoryCacheType = RTPSHistoryCacheImpl;
 
     fn heartbeat_response_delay(&self) -> &Duration {

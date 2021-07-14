@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use rust_rtps_pim::{
     behavior::stateless_reader_behavior::StatelessReaderBehavior,
     messages::{
@@ -13,7 +15,7 @@ use rust_rtps_pim::{
             GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
             LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
-        RTPSEntity, RTPSGroup, RTPSParticipant,
+        RTPSGroup,
     },
 };
 
@@ -42,23 +44,23 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a, PSM, Message, Participant, Group, Reader>(
+    pub fn process_message<'a, PSM, Message, ReaderGroup, ReaderItem, Reader>(
         mut self,
-        participant: &Participant,
+        participant_guid_prefix: GuidPrefix,
+        reader_group: &'a ReaderGroup,
         source_locator: Locator,
-        message: Message,
+        message: &'a Message,
     ) where
-        Participant: RTPSEntity + RTPSParticipant,
-        Participant::ReaderGroupsType: IntoIterator<Item = Group>,
-        Group: RTPSGroup + 'a,
-        Group::Endpoints: IntoIterator<Item = Reader>,
-        Reader: StatelessReaderBehavior<PSM::DataSubmessageType> + 'a,
-        PSM: RtpsSubmessagePIM<'a>,
-        Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
+        &'a ReaderGroup: RTPSGroup,
+        <&'a ReaderGroup as RTPSGroup>::Endpoints: Iterator<Item = ReaderItem>,
+        ReaderItem: Deref<Target = Reader> + DerefMut,
+        Reader: StatelessReaderBehavior<PSM::DataSubmessageType>,
+        PSM: RtpsSubmessagePIM<'a> + 'a,
+        Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
         PSM::DataSubmessageType: DataSubmessage<'a>,
         PSM::InfoTimestampSubmessageType: InfoTimestampSubmessage,
     {
-        self.dest_guid_prefix = *participant.guid().prefix();
+        self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header().version;
         self.source_vendor_id = message.header().vendor_id;
         self.source_guid_prefix = message.header().guid_prefix;
@@ -76,7 +78,7 @@ impl MessageReceiver {
         for submessage in message.submessages() {
             match submessage {
                 RtpsSubmessageType::AckNack(_) => todo!(),
-                RtpsSubmessageType::Data(data) => self.process_data(data, participant),
+                RtpsSubmessageType::Data(data) => self.process_data(data, reader_group),
                 RtpsSubmessageType::DataFrag(_) => todo!(),
                 RtpsSubmessageType::Gap(_) => todo!(),
                 RtpsSubmessageType::Heartbeat(_) => todo!(),
@@ -93,22 +95,19 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a, Data, Participant, Group, Reader>(
+    fn process_data<'a, Data, ReaderGroup, ReaderItem, Reader>(
         &mut self,
-        data: &Data,
-        participant: &Participant,
+        data: &'a Data,
+        reader_group: ReaderGroup,
     ) where
         Data: DataSubmessage<'a>,
-        Participant: RTPSParticipant,
-        Participant::ReaderGroupsType: IntoIterator<Item = Group>,
-        Group: RTPSGroup,
-        Group::Endpoints: IntoIterator<Item = Reader>,
+        ReaderGroup: RTPSGroup,
+        ReaderGroup::Endpoints: Iterator<Item = ReaderItem>,
+        ReaderItem: Deref<Target = Reader> + DerefMut,
         Reader: StatelessReaderBehavior<Data>,
     {
-        for reader_group in participant.reader_groups() {
-            for mut reader in reader_group.endpoints() {
-                reader.receive_data(self.source_guid_prefix, data);
-            }
+        for mut reader in reader_group.endpoints() {
+            reader.receive_data(self.source_guid_prefix, data);
         }
     }
 
@@ -128,9 +127,70 @@ impl MessageReceiver {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::messages::types::SubmessageFlag;
+    use rust_rtps_pim::{
+        messages::{
+            submessage_elements::{
+                EntityIdSubmessageElementType, Parameter, ParameterListSubmessageElementType,
+                SequenceNumberSubmessageElementType, SerializedDataSubmessageElementType,
+            },
+            types::SubmessageFlag,
+        },
+        structure::types::{EntityId, SequenceNumber},
+    };
 
     use super::*;
+
+    struct MockEntityIdSubmessageElement(EntityId);
+
+    impl EntityIdSubmessageElementType for MockEntityIdSubmessageElement {
+        fn new(_value: &EntityId) -> Self {
+            todo!()
+        }
+
+        fn value(&self) -> EntityId {
+            todo!()
+        }
+    }
+
+    struct MockSequenceNumberSubmessageElement(SequenceNumber);
+
+    impl SequenceNumberSubmessageElementType for MockSequenceNumberSubmessageElement {
+        fn new(_value: &SequenceNumber) -> Self {
+            todo!()
+        }
+
+        fn value(&self) -> SequenceNumber {
+            todo!()
+        }
+    }
+
+    struct MockParameterListSubmessageElement;
+
+    impl<'a> ParameterListSubmessageElementType<'a> for MockParameterListSubmessageElement {
+        type IntoIter = Option<Parameter<'a>>;
+
+        fn new(_parameter: &[Parameter]) -> Self {
+            todo!()
+        }
+
+        fn parameter(&'a self) -> Self::IntoIter {
+            todo!()
+        }
+    }
+
+    struct MockSerializedDataSubmessageElement;
+
+    impl<'a> SerializedDataSubmessageElementType<'a> for MockSerializedDataSubmessageElement {
+        type Value = &'a [u8];
+
+        fn new(_value: &Self::Value) -> Self {
+            todo!()
+        }
+
+        fn value(&self) -> Self::Value {
+            todo!()
+        }
+    }
 
     struct MockTimestampSubmessageElement(Time);
 
@@ -143,6 +203,71 @@ mod tests {
             self.0.clone()
         }
     }
+
+    struct MockDataSubmessage;
+
+    impl<'a> DataSubmessage<'a> for MockDataSubmessage {
+        type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
+        type SequenceNumberSubmessageElementType = MockSequenceNumberSubmessageElement;
+        type ParameterListSubmessageElementType = MockParameterListSubmessageElement;
+        type SerializedDataSubmessageElementType = MockSerializedDataSubmessageElement;
+
+        fn new(
+            _endianness_flag: SubmessageFlag,
+            _inline_qos_flag: SubmessageFlag,
+            _data_flag: SubmessageFlag,
+            _key_flag: SubmessageFlag,
+            _non_standard_payload_flag: SubmessageFlag,
+            _reader_id: Self::EntityIdSubmessageElementType,
+            _writer_id: Self::EntityIdSubmessageElementType,
+            _writer_sn: Self::SequenceNumberSubmessageElementType,
+            _inline_qos: Self::ParameterListSubmessageElementType,
+            _serialized_payload: Self::SerializedDataSubmessageElementType,
+        ) -> Self {
+            todo!()
+        }
+
+        fn endianness_flag(&self) -> SubmessageFlag {
+            todo!()
+        }
+
+        fn inline_qos_flag(&self) -> SubmessageFlag {
+            todo!()
+        }
+
+        fn data_flag(&self) -> SubmessageFlag {
+            todo!()
+        }
+
+        fn key_flag(&self) -> SubmessageFlag {
+            todo!()
+        }
+
+        fn non_standard_payload_flag(&self) -> SubmessageFlag {
+            todo!()
+        }
+
+        fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
+            todo!()
+        }
+
+        fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
+            todo!()
+        }
+
+        fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
+            todo!()
+        }
+
+        fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
+            todo!()
+        }
+
+        fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
+            todo!()
+        }
+    }
+
     struct MockInfoTimestampSubmessage {
         invalidate_flag: SubmessageFlag,
         timestamp: MockTimestampSubmessageElement,
@@ -196,5 +321,37 @@ mod tests {
 
         assert_eq!(message_receiver.have_timestamp, false);
         assert_eq!(message_receiver.timestamp, TIME_INVALID);
+    }
+
+    #[test]
+    fn process_data() {
+        struct MockReaderGroup(Option<MockReader>);
+
+        impl<'a> RTPSGroup for &'a mut MockReaderGroup {
+            type Endpoints = core::option::IterMut<'a, MockReader>;
+
+            fn endpoints(self) -> Self::Endpoints {
+                self.0.iter_mut()
+            }
+        }
+
+        struct MockReader(bool);
+
+        impl<'a> StatelessReaderBehavior<MockDataSubmessage> for MockReader {
+            fn receive_data(
+                &mut self,
+                _source_guid_prefix: GuidPrefix,
+                _data: &MockDataSubmessage,
+            ) {
+                self.0 = true;
+            }
+        }
+
+        let mut message_receiver = MessageReceiver::new();
+        let data = MockDataSubmessage;
+        let reader = MockReader(false);
+        let mut reader_groups = MockReaderGroup(Some(reader));
+        message_receiver.process_data(&data, &mut reader_groups);
+        assert_eq!(reader_groups.0.unwrap().0, true);
     }
 }

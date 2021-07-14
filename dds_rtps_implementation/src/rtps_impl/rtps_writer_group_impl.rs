@@ -54,10 +54,10 @@ impl RTPSWriterGroupImpl {
     }
 }
 
-impl rust_rtps_pim::structure::RTPSGroup for RTPSWriterGroupImpl {
+impl<'a> rust_rtps_pim::structure::RTPSGroup for &'a mut RTPSWriterGroupImpl {
     type Endpoints = ();
 
-    fn endpoints(&self) -> Self::Endpoints {
+    fn endpoints(self) -> Self::Endpoints {
         todo!()
     }
 }

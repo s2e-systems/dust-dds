@@ -3,7 +3,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::structure::{
     types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
-    RTPSEntity,
+    RTPSEntity, RTPSParticipant,
 };
 
 use crate::utils::shared_object::{RtpsLock, RtpsShared};
@@ -88,31 +88,13 @@ impl RTPSParticipantImpl {
     }
 }
 
-// pub struct ReaderGroupIntoIter;
+impl RTPSEntity for RTPSParticipantImpl {
+    fn guid(&self) -> &GUID {
+        &self.guid
+    }
+}
 
-// impl IntoIterator for ReaderGroupIntoIter {
-//     type Item = RTPSReaderGroupImpl;
-//     type IntoIter = RtpsReaderGroupIterator;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         todo!()
-//     }
-// }
-
-// pub struct RtpsReaderGroupIterator;
-
-// impl Iterator for RTPSReaderGroupImpl {
-//     type Item = &'a mut RTPSReaderGroupImpl;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         todo!()
-//     }
-// }
-
-impl<'a> rust_rtps_pim::structure::RTPSParticipant for RtpsLock<'a, RTPSParticipantImpl> {
-    type WriterGroupsType = ();
-    type ReaderGroupsType = std::vec::IntoIter<RtpsLock<'a, RTPSReaderGroupImpl>>;
-
+impl RTPSParticipant for RTPSParticipantImpl {
     fn protocol_version(&self) -> &ProtocolVersion {
         &self.protocol_version
     }
@@ -128,20 +110,18 @@ impl<'a> rust_rtps_pim::structure::RTPSParticipant for RtpsLock<'a, RTPSParticip
     fn default_multicast_locator_list(&self) -> &[Locator] {
         todo!()
     }
-
-    fn writer_groups(&self) -> Self::WriterGroupsType {
-        todo!()
-    }
-
-    fn reader_groups(&self) -> Self::ReaderGroupsType {
-        // (&self.rtps_reader_groups).into_iter()
-        todo!()
-    }
 }
 
-impl RTPSEntity for RtpsLock<'_, RTPSParticipantImpl> {
-    fn guid(&self) -> &GUID {
-        &self.guid
+pub struct ReaderGroupIterator<'a>(std::slice::Iter<'a, RtpsShared<RTPSReaderGroupImpl>>);
+
+impl<'a> Iterator for ReaderGroupIterator<'a> {
+    type Item = RtpsLock<'a, RTPSReaderGroupImpl>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.0.next() {
+            Some(reader_group) => Some(reader_group.lock()),
+            None => None,
+        }
     }
 }
 
