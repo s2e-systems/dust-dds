@@ -9,10 +9,10 @@ use crate::utils::shared_object::{RtpsLock, RtpsShared};
 use super::rtps_reader_impl::RTPSReaderImpl;
 
 pub struct RTPSReaderGroupImpl {
-    guid: GUID,
-    qos: SubscriberQos,
-    listener: Option<&'static dyn SubscriberListener>,
-    status_mask: StatusMask,
+    _guid: GUID,
+    _qos: SubscriberQos,
+    _listener: Option<&'static dyn SubscriberListener>,
+    _status_mask: StatusMask,
     reader_list: Vec<RtpsShared<RTPSReaderImpl>>,
 }
 
@@ -24,10 +24,10 @@ impl RTPSReaderGroupImpl {
         status_mask: StatusMask,
     ) -> Self {
         Self {
-            guid,
-            qos,
-            listener,
-            status_mask,
+            _guid: guid,
+            _qos: qos,
+            _listener: listener,
+            _status_mask: status_mask,
             reader_list: Vec::new(),
         }
     }

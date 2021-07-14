@@ -20,8 +20,8 @@ use rust_dds_api::{
 };
 
 pub struct DataReaderImpl<'dr, T: 'static> {
-    subscriber: &'dr dyn Subscriber,
-    topic: &'dr dyn TopicDescription<T>,
+    _subscriber: &'dr dyn Subscriber,
+    _topic: &'dr dyn TopicDescription<T>,
 }
 
 impl<'dr, T> rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderImpl<'dr, T> {

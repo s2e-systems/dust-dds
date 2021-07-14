@@ -12,9 +12,9 @@ use rust_dds_api::{
 };
 
 pub struct DataWriterImpl<'dw, T: 'static> {
-    publisher: &'dw dyn Publisher,
-    topic: &'dw dyn Topic<T>,
-    rtps_writer_impl: RtpsWeak<RTPSWriterImpl>,
+    _publisher: &'dw dyn Publisher,
+    _topic: &'dw dyn Topic<T>,
+    _rtps_writer_impl: RtpsWeak<RTPSWriterImpl>,
 }
 
 impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
@@ -24,9 +24,9 @@ impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
         rtps_writer_impl: RtpsWeak<RTPSWriterImpl>,
     ) -> Self {
         Self {
-            publisher,
-            topic,
-            rtps_writer_impl,
+            _publisher: publisher,
+            _topic: topic,
+            _rtps_writer_impl: rtps_writer_impl,
         }
     }
 }
@@ -221,8 +221,6 @@ mod tests {
     //     publication::{data_writer::DataWriter, publisher::Publisher},
     // };
     // use rust_rtps_udp_psm::RtpsUdpPsm;
-
-    struct MockData;
 
     // impl DDSType for MockData {
     //     fn type_name() -> &'static str {

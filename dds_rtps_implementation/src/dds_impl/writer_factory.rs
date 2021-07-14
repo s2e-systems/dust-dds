@@ -6,15 +6,15 @@ use rust_dds_api::{
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
 pub struct WriterFactory {
-    guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-    datawriter_counter: u8,
+    _guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
+    _datawriter_counter: u8,
 }
 
 impl WriterFactory {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         Self {
-            guid_prefix,
-            datawriter_counter: 0,
+            _guid_prefix: guid_prefix,
+            _datawriter_counter: 0,
         }
     }
 

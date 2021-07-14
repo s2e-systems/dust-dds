@@ -18,9 +18,7 @@ use rust_dds_rtps_implementation::{
         rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_writer_impl::RTPSWriterImpl,
     },
     utils::{
-        message_receiver::MessageReceiver,
-        message_sender::{send_data},
-        shared_object::RtpsShared,
+        message_receiver::MessageReceiver, message_sender::send_data, shared_object::RtpsShared,
         transport::TransportRead,
     },
 };
@@ -78,25 +76,6 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> Option<DomainParticipantImpl> {
-        // let interface = "Wi-Fi";
-        // let unicast_locator = Locator::new(0, 7400, [1; 16]);
-        // let multicast_locator = Locator::new(0, 7400, [2; 16]);
-        // let userdata_transport =
-        //     Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());
-        // let metatraffic_transport =
-        //     Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());
-        // let qos = qos.unwrap_or_default();
-
-        // let configuration = DomainParticipantImplConfiguration {
-        //     userdata_transport,
-        //     metatraffic_transport,
-        //     domain_tag: "",
-        //     lease_duration: Duration {
-        //         seconds: 30,
-        //         fraction: 0,
-        //     },
-        //     spdp_locator_list: vec![Locator::new_udpv4(7400, [239, 255, 0, 0])],
-        // };
         let guid_prefix = [3; 12];
 
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();

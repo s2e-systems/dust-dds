@@ -6,7 +6,7 @@ use rust_rtps_pim::structure::{
     RTPSEntity, RTPSParticipant,
 };
 
-use crate::utils::shared_object::{RtpsShared};
+use crate::utils::shared_object::RtpsShared;
 
 use super::{
     rtps_reader_group_impl::RTPSReaderGroupImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
@@ -17,7 +17,7 @@ pub struct RTPSParticipantImpl {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl>>,
-    rtps_reader_groups: Vec<RtpsShared<RTPSReaderGroupImpl>>,
+    _rtps_reader_groups: Vec<RtpsShared<RTPSReaderGroupImpl>>,
     pub builtin_writer_group: RtpsShared<RTPSWriterGroupImpl>,
     pub builtin_reader_group: RtpsShared<RTPSReaderGroupImpl>,
 }
@@ -62,7 +62,7 @@ impl RTPSParticipantImpl {
             protocol_version: PROTOCOLVERSION_2_4,
             vendor_id: [99, 99],
             rtps_writer_groups: Vec::new(),
-            rtps_reader_groups: Vec::new(),
+            _rtps_reader_groups: Vec::new(),
             builtin_writer_group,
             builtin_reader_group,
         }

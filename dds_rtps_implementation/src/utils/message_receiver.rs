@@ -55,8 +55,8 @@ impl MessageReceiver {
         <&'a ReaderGroup as RTPSGroup>::Endpoints: Iterator<Item = ReaderItem>,
         ReaderItem: Deref<Target = Reader> + DerefMut,
         Reader: StatelessReaderBehavior<PSM::DataSubmessageType>,
-        PSM: RtpsSubmessagePIM<'a> + 'a,
         Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
+        PSM: RtpsSubmessagePIM<'a> + 'a,
         PSM::DataSubmessageType: DataSubmessage<'a>,
         PSM::InfoTimestampSubmessageType: InfoTimestampSubmessage,
     {

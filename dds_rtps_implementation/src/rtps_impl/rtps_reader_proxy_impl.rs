@@ -10,7 +10,7 @@ pub struct RTPSReaderProxyImpl {
     multicast_locator_list: Vec<Locator>,
     expects_inline_qos: bool,
     is_active: bool,
-    last_sent_sequence_number: SequenceNumber,
+    _last_sent_sequence_number: SequenceNumber,
 }
 
 impl RTPSReaderProxy for RTPSReaderProxyImpl {
@@ -57,7 +57,7 @@ impl RTPSReaderProxyOperations for RTPSReaderProxyImpl {
             multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
             expects_inline_qos,
             is_active,
-            last_sent_sequence_number: 0.into(),
+            _last_sent_sequence_number: 0.into(),
         }
     }
 

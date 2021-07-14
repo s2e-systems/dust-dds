@@ -12,9 +12,9 @@ use super::rtps_writer_impl::RTPSWriterImpl;
 
 pub struct RTPSWriterGroupImpl {
     guid: GUID,
-    qos: PublisherQos,
-    listener: Option<&'static dyn PublisherListener>,
-    status_mask: StatusMask,
+    _qos: PublisherQos,
+    _listener: Option<&'static dyn PublisherListener>,
+    _status_mask: StatusMask,
     writer_list: Vec<RtpsShared<RTPSWriterImpl>>,
 }
 
@@ -27,9 +27,9 @@ impl RTPSWriterGroupImpl {
     ) -> Self {
         Self {
             guid,
-            qos,
-            listener,
-            status_mask,
+            _qos: qos,
+            _listener: listener,
+            _status_mask: status_mask,
             writer_list: Vec::new(),
         }
     }

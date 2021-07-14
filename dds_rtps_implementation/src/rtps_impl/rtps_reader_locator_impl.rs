@@ -94,8 +94,6 @@ mod tests {
 
     use super::*;
 
-    struct MockPSM;
-
     #[test]
     fn reader_locator_next_unsent_change() {
         let mut reader_locator = RTPSReaderLocatorImpl::new(LOCATOR_INVALID, false);

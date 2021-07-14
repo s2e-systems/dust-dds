@@ -24,11 +24,6 @@ use super::{
     data_writer_impl::DataWriterImpl, topic_impl::TopicImpl, writer_factory::WriterFactory,
 };
 
-const ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
-const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
-const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
-const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
-
 pub struct PublisherImpl<'p> {
     participant: &'p dyn DomainParticipant,
     writer_factory: Mutex<WriterFactory>,
@@ -147,12 +142,11 @@ impl<'p> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p> {
     }
 
     fn get_participant(&self) -> &dyn DomainParticipant {
-        todo!()
+        self.participant
     }
 }
 
-impl<'p> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p>
-{
+impl<'p> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p> {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 

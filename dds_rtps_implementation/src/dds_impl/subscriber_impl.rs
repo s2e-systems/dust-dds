@@ -23,7 +23,7 @@ use super::{data_reader_impl::DataReaderImpl, topic_impl::TopicImpl};
 
 pub struct SubscriberImpl<'s> {
     participant: &'s dyn DomainParticipant,
-    rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl>,
+    _rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl>,
 }
 
 impl<'dr, 's: 'dr, 't: 'dr, T: 'static>
