@@ -6,7 +6,7 @@ use rust_rtps_pim::structure::{
     RTPSEntity, RTPSParticipant,
 };
 
-use crate::utils::shared_object::{RtpsLock, RtpsShared};
+use crate::utils::shared_object::{RtpsShared};
 
 use super::{
     rtps_reader_group_impl::RTPSReaderGroupImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
@@ -109,19 +109,6 @@ impl RTPSParticipant for RTPSParticipantImpl {
 
     fn default_multicast_locator_list(&self) -> &[Locator] {
         todo!()
-    }
-}
-
-pub struct ReaderGroupIterator<'a>(std::slice::Iter<'a, RtpsShared<RTPSReaderGroupImpl>>);
-
-impl<'a> Iterator for ReaderGroupIterator<'a> {
-    type Item = RtpsLock<'a, RTPSReaderGroupImpl>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.0.next() {
-            Some(reader_group) => Some(reader_group.lock()),
-            None => None,
-        }
     }
 }
 
