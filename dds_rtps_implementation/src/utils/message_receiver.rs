@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use rust_rtps_pim::{
     behavior::stateless_reader_behavior::StatelessReaderBehavior,
     messages::{
@@ -42,19 +44,21 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a, PSM, Message, Participant, Group, Reader>(
+    pub fn process_message<'a, PSM, Message, Participant, Group, ReaderItem, Reader>(
         mut self,
-        participant: Participant,
+        participant: &'a Participant,
         source_locator: Locator,
-        message: Message,
+        message: &'a Message,
     ) where
-        Participant: RTPSEntity + ReaderGroupCollection + Copy,
-        Participant::ReaderGroupsType: IntoIterator<Item = Group>,
+        Participant: RTPSEntity,
+        &'a Participant: ReaderGroupCollection,
+        <&'a Participant as ReaderGroupCollection>::ReaderGroupsType: Iterator<Item = Group>,
         Group: RTPSGroup + 'a,
-        Group::Endpoints: IntoIterator<Item = Reader>,
+        Group::Endpoints: Iterator<Item = ReaderItem>,
+        ReaderItem: Deref<Target = Reader> + DerefMut,
         Reader: StatelessReaderBehavior<PSM::DataSubmessageType> + 'a,
-        PSM: RtpsSubmessagePIM<'a>,
-        Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
+        PSM: RtpsSubmessagePIM<'a> + 'a,
+        Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
         PSM::DataSubmessageType: DataSubmessage<'a>,
         PSM::InfoTimestampSubmessageType: InfoTimestampSubmessage,
     {
@@ -93,16 +97,17 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a, Data, Participant, Group, Reader>(
+    fn process_data<'a, Data, Participant, ReaderGroup, ReaderItem, Reader>(
         &mut self,
-        data: &Data,
+        data: &'a Data,
         participant: Participant,
     ) where
         Data: DataSubmessage<'a>,
         Participant: ReaderGroupCollection,
-        Participant::ReaderGroupsType: IntoIterator<Item = Group>,
-        Group: RTPSGroup,
-        Group::Endpoints: IntoIterator<Item = Reader>,
+        Participant::ReaderGroupsType: Iterator<Item = ReaderGroup>,
+        ReaderGroup: RTPSGroup,
+        ReaderGroup::Endpoints: Iterator<Item = ReaderItem>,
+        ReaderItem: Deref<Target = Reader> + DerefMut,
         Reader: StatelessReaderBehavior<Data>,
     {
         for reader_group in participant.reader_groups() {
@@ -348,7 +353,7 @@ mod tests {
 
         struct MockReader(bool);
 
-        impl<'a> StatelessReaderBehavior<MockDataSubmessage> for &'a mut MockReader {
+        impl<'a> StatelessReaderBehavior<MockDataSubmessage> for MockReader {
             fn receive_data(
                 &mut self,
                 _source_guid_prefix: GuidPrefix,

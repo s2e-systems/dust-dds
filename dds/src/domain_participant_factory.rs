@@ -157,9 +157,9 @@ impl DomainParticipantFactory {
 
                     if let Some((source_locator, message)) = transport.read() {
                         MessageReceiver::new().process_message(
-                            &rtps_participant,
+                            &*rtps_participant,
                             source_locator,
-                            message,
+                            &message,
                         );
                     }
 

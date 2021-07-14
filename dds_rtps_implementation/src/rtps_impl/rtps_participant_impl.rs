@@ -1,7 +1,10 @@
 use rust_dds_api::{
     dcps_psm::InstanceHandle, infrastructure::qos::SubscriberQos, return_type::DDSResult,
 };
-use rust_rtps_pim::structure::{RTPSEntity, ReaderGroupCollection, WriterGroupCollection, types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4}};
+use rust_rtps_pim::structure::{
+    types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
+    RTPSEntity, ReaderGroupCollection, WriterGroupCollection,
+};
 
 use crate::utils::shared_object::{RtpsLock, RtpsShared};
 
@@ -106,7 +109,13 @@ impl RTPSParticipantImpl {
 //     }
 // }
 
-impl<'a> rust_rtps_pim::structure::RTPSParticipant for RtpsLock<'a, RTPSParticipantImpl> {
+impl RTPSEntity for RTPSParticipantImpl {
+    fn guid(&self) -> &GUID {
+        &self.guid
+    }
+}
+
+impl<'a> rust_rtps_pim::structure::RTPSParticipant for RTPSParticipantImpl {
     fn protocol_version(&self) -> &ProtocolVersion {
         &self.protocol_version
     }
@@ -124,25 +133,19 @@ impl<'a> rust_rtps_pim::structure::RTPSParticipant for RtpsLock<'a, RTPSParticip
     }
 }
 
-impl<'a> ReaderGroupCollection for &'a mut RTPSParticipantImpl {
-    type ReaderGroupsType = std::vec::IntoIter<RtpsLock<'a, RTPSReaderGroupImpl>>;
+impl<'a> ReaderGroupCollection for &'a RTPSParticipantImpl {
+    type ReaderGroupsType = std::slice::Iter<'a, RTPSReaderGroupImpl>;
 
     fn reader_groups(self) -> Self::ReaderGroupsType {
         todo!()
     }
 }
 
-impl<'a> WriterGroupCollection for &'a mut RTPSParticipantImpl {
+impl<'a> WriterGroupCollection for &'a RTPSParticipantImpl {
     type WriterGroupsType = ();
 
     fn writer_groups(self) -> Self::WriterGroupsType {
         todo!()
-    }
-}
-
-impl RTPSEntity for RtpsLock<'_, RTPSParticipantImpl> {
-    fn guid(&self) -> &GUID {
-        &self.guid
     }
 }
 

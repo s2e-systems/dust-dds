@@ -37,8 +37,8 @@ impl RTPSReaderGroupImpl {
     }
 }
 
-impl<'a> RTPSGroup for RtpsLock<'a, RTPSReaderGroupImpl> {
-    type Endpoints = std::vec::IntoIter<RtpsLock<'a, RTPSReaderImpl>>;
+impl<'a> RTPSGroup for &'a RTPSReaderGroupImpl {
+    type Endpoints = std::slice::IterMut<'a, RTPSReaderImpl>;
 
     fn endpoints(self) -> Self::Endpoints {
         todo!()
