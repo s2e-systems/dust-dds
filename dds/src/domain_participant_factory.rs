@@ -19,7 +19,7 @@ use rust_dds_rtps_implementation::{
     },
     utils::{
         message_receiver::MessageReceiver,
-        message_sender::create_submessages,
+        message_sender::{create_submessages, send_data},
         shared_object::RtpsShared,
         transport::{TransportRead, TransportWrite},
     },
@@ -148,14 +148,9 @@ impl DomainParticipantFactory {
         std::thread::spawn(move || loop {
             if is_enabled_thread.load(atomic::Ordering::Relaxed) {
                 if let Some(rtps_participant) = rtps_participant_shared.try_lock() {
-                    let protocol_version = rtps_participant.protocol_version();
-                    let vendor_id = rtps_participant.vendor_id();
-                    let header = RtpsMessageHeader {
-                        protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                        version: *protocol_version,
-                        vendor_id: *vendor_id,
-                        guid_prefix: *rtps_participant.guid().prefix(),
-                    };
+                    let protocol_version = *rtps_participant.protocol_version();
+                    let vendor_id = *rtps_participant.vendor_id();
+                    let guid_prefix = *rtps_participant.guid().prefix();
 
                     if let Some((source_locator, message)) = transport.read() {
                         MessageReceiver::new().process_message(
@@ -170,13 +165,13 @@ impl DomainParticipantFactory {
                     let writer_group = rtps_participant.builtin_writer_group.lock();
                     for writer in writer_group.writer_list() {
                         let mut writer = writer.lock();
-                        writer.unsent_changes_reset();
-                        let destined_submessages =
-                            create_submessages::<RtpsUdpPsm, _>(&mut *writer);
-                        for (dst_locator, submessages) in destined_submessages {
-                            let message = RTPSMessageUdp::new(&header, submessages);
-                            transport.write(&message, &dst_locator);
-                        }
+                        send_data(
+                            protocol_version,
+                            vendor_id,
+                            guid_prefix,
+                            &mut *writer,
+                            &mut transport,
+                        );
                     }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(500));
