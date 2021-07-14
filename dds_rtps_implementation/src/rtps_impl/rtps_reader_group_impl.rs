@@ -41,27 +41,19 @@ impl<'a> RTPSGroup for &'a RTPSReaderGroupImpl {
     type Endpoints = RTPSReaderIterator<'a>;
 
     fn endpoints(self) -> Self::Endpoints {
-        todo!()
-        // RTPSReaderIterator {
-        //     lock: self,
-        //     index: 0,
-        // }
+        RTPSReaderIterator((&self.reader_list).into_iter())
     }
 }
 
-pub struct RTPSReaderIterator<'a> {
-    lock: RtpsLock<'a, RTPSReaderGroupImpl>,
-    index: usize,
-}
+pub struct RTPSReaderIterator<'a>(std::slice::Iter<'a, RtpsShared<RTPSReaderImpl>>);
 
 impl<'a> Iterator for RTPSReaderIterator<'a> {
     type Item = RtpsLock<'a, RTPSReaderImpl>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
-        // match self.0.next() {
-        //     Some(reader) => Some(reader.lock()),
-        //     None => None,
-        // }
+        match self.0.next() {
+            Some(reader) => Some(reader.lock()),
+            None => None,
+        }
     }
 }
