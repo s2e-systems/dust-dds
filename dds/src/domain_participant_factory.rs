@@ -20,13 +20,21 @@ use rust_dds_rtps_implementation::{
         transport::TransportRead,
     },
 };
-use rust_rtps_pim::{behavior::{types::Duration, writer::writer::{RTPSWriter, RTPSWriterOperations}}, discovery::{
+use rust_rtps_pim::{
+    behavior::{
+        types::Duration,
+        writer::writer::{RTPSWriter, RTPSWriterOperations},
+    },
+    discovery::{
         spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    }, messages::types::Count, structure::{
+    },
+    messages::types::Count,
+    structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
         RTPSEntity, RTPSHistoryCache, RTPSParticipant,
-    }};
+    },
+};
 use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
 
 use crate::udp_transport::UdpTransport;
@@ -91,7 +99,10 @@ impl DomainParticipantFactory {
         let mut spdp_builtin_participant_writer: RTPSWriterImpl =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
-        let lease_duration = Duration(30);
+        let lease_duration = Duration {
+            seconds: 30,
+            fraction: 0,
+        };
         let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
             &(domain_id as u32),
             &"abc",

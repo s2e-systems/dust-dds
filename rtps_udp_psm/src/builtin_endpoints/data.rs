@@ -69,8 +69,8 @@ pub struct DurationUdp {
 impl From<Duration> for DurationUdp {
     fn from(value: Duration) -> Self {
         Self {
-            seconds: ((value.0 & 0xff00) >> 32) as i32,
-            fraction: (value.0 & 0xff) as u32,
+            seconds: value.seconds,
+            fraction: value.fraction,
         }
     }
 }
@@ -322,7 +322,10 @@ mod tests {
         let builtin_endpoint_qos = BuiltinEndpointQos::new(
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );
-        let lease_duration = Duration(10);
+        let lease_duration = Duration {
+            seconds: 10,
+            fraction: 0,
+        };
 
         let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
             &domain_id,
@@ -363,6 +366,9 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
             0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
             0x02, 0x00, 0x00, 0x00, // Count(2)
+            0x02, 0x00, 0x08, 0x00, // PID_PARTICIPANT_LEASE_DURATION, Length: 8
+            0x0a, 0x00, 0x00, 0x00, // Duration{seconds:30,
+            0x00, 0x00, 0x00, 0x00, //          fraction:0}
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
         ];
 

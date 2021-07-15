@@ -1,7 +1,7 @@
 use crate::{
     behavior::{
         reader::stateless_reader::RTPSStatelessReaderOperations,
-        types::Duration,
+        types::DURATION_ZERO,
         writer::{
             reader_locator::RTPSReaderLocatorOperations,
             stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
@@ -43,9 +43,9 @@ impl SpdpBuiltinParticipantWriter {
             unicast_locator_list,
             multicast_locator_list,
             true,
-            Duration(0),
-            Duration(0),
-            Duration(0),
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
             None,
         );
 
@@ -70,8 +70,8 @@ impl SpdpBuiltinParticipantReader {
             ReliabilityKind::BestEffort,
             &[],
             &[],
-            Duration(0),
-            Duration(0),
+            DURATION_ZERO,
+            DURATION_ZERO,
             false,
         )
     }

@@ -3,9 +3,21 @@
 /// Table 8.46 - Types definitions for the Behavior Module
 ///
 
-
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct Duration(pub i64);
+pub struct Duration {
+    pub seconds: i32,
+    pub fraction: u32,
+}
+
+pub const DURATION_ZERO: Duration = Duration {
+    seconds: 0,
+    fraction: 0,
+};
+
+pub const DURATION_INFINITE: Duration = Duration {
+    seconds: 0x7fffffff,
+    fraction: 0xffffffff,
+};
 
 pub type ParticipantMessageData = ();
 
