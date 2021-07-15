@@ -22,12 +22,18 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::writer::writer::{RTPSWriter, RTPSWriterOperations},
-    discovery::spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
+    discovery::spdp::{
+        builtin_endpoints::SpdpBuiltinParticipantWriter,
+        spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
+    },
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
         RTPSHistoryCache,
     },
 };
+use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
+use rust_serde_cdr::serializer::RtpsMessageSerializer;
+use serde::Serialize;
 
 use crate::udp_transport::UdpTransport;
 
@@ -62,7 +68,7 @@ impl DomainParticipantFactory {
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_participant(
-        _domain_id: DomainId,
+        domain_id: DomainId,
         _qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
@@ -91,9 +97,17 @@ impl DomainParticipantFactory {
         let mut spdp_builtin_participant_writer: RTPSWriterImpl =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
+        let spdp_discovered_participant_data =
+            SPDPdiscoveredParticipantDataUdp::new(domain_id as u32);
+
+        let mut spdp_discovered_participant_data_serializer =
+            RtpsMessageSerializer { writer: Vec::new() };
+        spdp_discovered_participant_data
+            .serialize(&mut spdp_discovered_participant_data_serializer)
+            .unwrap();
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
-            vec![0, 0, 0, 0, 5, 6, 7],
+            spdp_discovered_participant_data_serializer.writer,
             (),
             1,
         );
