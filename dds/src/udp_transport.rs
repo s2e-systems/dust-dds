@@ -175,6 +175,26 @@ mod tests {
     }
 
     #[test]
+    fn multicast_write() {
+        let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+        socket.join_multicast_v4(&Ipv4Addr::new(239,255,0,1), &Ipv4Addr::new(127,0,0,1)).unwrap();
+        let mut transport = UdpTransport::new(socket);
+        let header = RtpsMessageHeader {
+            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+            version: PROTOCOLVERSION_2_4,
+            vendor_id: VENDOR_ID_S2E,
+            guid_prefix: [3; 12],
+        };
+        let destination_locator = Locator::new(
+            LOCATOR_KIND_UDPv4,
+            7400,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        );
+        let message1: RTPSMessageUdp = RTPSMessageUdp::new(&header, vec![]);
+        transport.write(&message1, &destination_locator);
+    }
+
+    #[test]
     fn roundtrip() {
         let header = RtpsMessageHeader {
             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
