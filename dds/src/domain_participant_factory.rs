@@ -1,5 +1,6 @@
 use std::{
     net::{Ipv4Addr, UdpSocket},
+    str::FromStr,
     sync::{
         atomic::{self, AtomicBool},
         Arc,
@@ -81,7 +82,10 @@ impl DomainParticipantFactory {
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
         socket.set_nonblocking(true).unwrap();
         socket
-            .join_multicast_v4(&Ipv4Addr::new(239, 255, 0, 1), &Ipv4Addr::new(127, 0, 0, 1))
+            .join_multicast_v4(
+                &Ipv4Addr::from_str("239.255.0.1").unwrap(),
+                &Ipv4Addr::from_str("127.0.0.1").unwrap(),
+            )
             .unwrap();
         let mut transport = UdpTransport::new(socket);
 
