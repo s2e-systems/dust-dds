@@ -32,8 +32,6 @@ use rust_rtps_pim::{
     },
 };
 use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
-use rust_serde_cdr::serializer::RtpsMessageSerializer;
-use serde::Serialize;
 
 use crate::udp_transport::UdpTransport;
 
@@ -100,14 +98,9 @@ impl DomainParticipantFactory {
         let spdp_discovered_participant_data =
             SPDPdiscoveredParticipantDataUdp::new(domain_id as u32);
 
-        let mut spdp_discovered_participant_data_serializer =
-            RtpsMessageSerializer { writer: Vec::new() };
-        spdp_discovered_participant_data
-            .serialize(&mut spdp_discovered_participant_data_serializer)
-            .unwrap();
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
-            spdp_discovered_participant_data_serializer.writer,
+            rust_serde_cdr::to_bytes(&spdp_discovered_participant_data).unwrap(),
             (),
             1,
         );

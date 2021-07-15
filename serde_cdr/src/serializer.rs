@@ -1,10 +1,19 @@
-use crate::unimplemented_compound::UnimplementedCompound;
+use crate::{error::Result, unimplemented_compound::UnimplementedCompound};
 use byteorder::{LittleEndian, WriteBytesExt};
 use serde::{
     ser::{SerializeSeq, SerializeStruct, SerializeTuple},
     Serialize, Serializer,
 };
 use std::io::Write;
+
+pub fn to_bytes<T: ?Sized>(value: &T) -> Result<Vec<u8>>
+where
+    T: Serialize,
+{
+    let mut serializer = RtpsMessageSerializer { writer: Vec::new() };
+    value.serialize(&mut serializer)?;
+    Ok(serializer.writer)
+}
 
 pub struct RtpsMessageSerializer<W> {
     pub writer: W,
@@ -22,11 +31,11 @@ impl<'a, W: Write> SerializeStruct for SerializeCompound<'a, W> {
         &mut self,
         _key: &'static str,
         value: &T,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<()> {
         value.serialize(&mut *self.ser)
     }
 
-    fn end(self) -> Result<Self::Ok, Self::Error> {
+    fn end(self) -> Result<Self::Ok> {
         Ok(())
     }
 }
@@ -35,11 +44,11 @@ impl<'a, W: Write> SerializeSeq for SerializeCompound<'a, W> {
     type Ok = ();
     type Error = crate::error::Error;
 
-    fn serialize_element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> {
+    fn serialize_element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<()> {
         value.serialize(&mut *self.ser)
     }
 
-    fn end(self) -> Result<Self::Ok, Self::Error> {
+    fn end(self) -> Result<Self::Ok> {
         Ok(())
     }
 }
@@ -48,14 +57,11 @@ impl<'a, W: Write> SerializeTuple for SerializeCompound<'a, W> {
     type Ok = ();
     type Error = crate::error::Error;
 
-    fn serialize_element<T: Serialize + ?Sized>(
-        &mut self,
-        value: &T,
-    ) -> Result<Self::Ok, Self::Error> {
+    fn serialize_element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<Self::Ok> {
         value.serialize(&mut *self.ser)
     }
 
-    fn end(self) -> Result<Self::Ok, Self::Error> {
+    fn end(self) -> Result<Self::Ok> {
         Ok(())
     }
 }
@@ -72,81 +78,81 @@ impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
     type SerializeStruct = SerializeCompound<'a, W>;
     type SerializeStructVariant = UnimplementedCompound;
 
-    fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
+    fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
         Ok(self.writer.write_u8(v as u8)?)
     }
 
-    fn serialize_i8(self, v: i8) -> Result<Self::Ok, Self::Error> {
+    fn serialize_i8(self, v: i8) -> Result<Self::Ok> {
         Ok(self.writer.write_i8(v)?)
     }
 
-    fn serialize_i16(self, v: i16) -> Result<Self::Ok, Self::Error> {
+    fn serialize_i16(self, v: i16) -> Result<Self::Ok> {
         Ok(self.writer.write_i16::<LittleEndian>(v)?)
     }
 
-    fn serialize_i32(self, v: i32) -> Result<Self::Ok, Self::Error> {
+    fn serialize_i32(self, v: i32) -> Result<Self::Ok> {
         Ok(self.writer.write_i32::<LittleEndian>(v)?)
     }
 
-    fn serialize_i64(self, v: i64) -> Result<Self::Ok, Self::Error> {
+    fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
         Ok(self.writer.write_i64::<LittleEndian>(v)?)
     }
 
-    fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
+    fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
         Ok(self.writer.write_u8(v)?)
     }
 
-    fn serialize_u16(self, v: u16) -> Result<Self::Ok, Self::Error> {
+    fn serialize_u16(self, v: u16) -> Result<Self::Ok> {
         Ok(self.writer.write_u16::<LittleEndian>(v)?)
     }
 
-    fn serialize_u32(self, v: u32) -> Result<Self::Ok, Self::Error> {
+    fn serialize_u32(self, v: u32) -> Result<Self::Ok> {
         Ok(self.writer.write_u32::<LittleEndian>(v)?)
     }
 
-    fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
+    fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
         Ok(self.writer.write_u64::<LittleEndian>(v)?)
     }
 
-    fn serialize_f32(self, v: f32) -> Result<Self::Ok, Self::Error> {
+    fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
         Ok(self.writer.write_f32::<LittleEndian>(v)?)
     }
 
-    fn serialize_f64(self, v: f64) -> Result<Self::Ok, Self::Error> {
+    fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
         Ok(self.writer.write_f64::<LittleEndian>(v)?)
     }
 
-    fn serialize_char(self, v: char) -> Result<Self::Ok, Self::Error> {
+    fn serialize_char(self, v: char) -> Result<Self::Ok> {
         self.writer.write(v.to_string().as_bytes())?;
         Ok(())
     }
 
-    fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
+    fn serialize_str(self, v: &str) -> Result<Self::Ok> {
         self.writer.write(v.as_bytes())?;
         Ok(())
     }
 
-    fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
+    fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         self.writer.write(v)?;
         Ok(())
     }
 
-    fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
+    fn serialize_none(self) -> Result<Self::Ok> {
         todo!()
     }
 
-    fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<Self::Ok, Self::Error>
+    fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<Self::Ok>
     where
         T: Serialize,
     {
         todo!()
     }
 
-    fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
+    fn serialize_unit(self) -> Result<Self::Ok> {
         todo!()
     }
 
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok, Self::Error> {
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
         todo!()
     }
 
@@ -155,15 +161,11 @@ impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
         _name: &'static str,
         _variant_index: u32,
         _variant: &'static str,
-    ) -> Result<Self::Ok, Self::Error> {
+    ) -> Result<Self::Ok> {
         todo!()
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(
-        self,
-        _name: &'static str,
-        value: &T,
-    ) -> Result<Self::Ok, Self::Error>
+    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
     where
         T: Serialize,
     {
@@ -176,28 +178,27 @@ impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
         _variant_index: u32,
         _variant: &'static str,
         _value: &T,
-    ) -> Result<Self::Ok, Self::Error>
+    ) -> Result<Self::Ok>
     where
         T: Serialize,
     {
         todo!()
     }
 
-    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-
+    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         match len {
             Some(len) => {
                 if len > std::u32::MAX as usize {
                     return Err(Self::Error::NumberOutOfRange);
                 }
                 self.serialize_u32(len as u32)?
-            },
+            }
             None => (),
         };
         Ok(SerializeCompound { ser: self })
     }
 
-    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Self::Error> {
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
         Ok(SerializeCompound { ser: self })
     }
 
@@ -205,7 +206,7 @@ impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
         self,
         _name: &'static str,
         _len: usize,
-    ) -> Result<Self::SerializeTupleStruct, Self::Error> {
+    ) -> Result<Self::SerializeTupleStruct> {
         todo!()
     }
 
@@ -215,19 +216,15 @@ impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
         _variant_index: u32,
         _variant: &'static str,
         _len: usize,
-    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
+    ) -> Result<Self::SerializeTupleVariant> {
         todo!()
     }
 
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         todo!()
     }
 
-    fn serialize_struct(
-        self,
-        _name: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStruct, Self::Error> {
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         Ok(SerializeCompound { ser: self })
     }
 
@@ -237,7 +234,7 @@ impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
         _variant_index: u32,
         _variant: &'static str,
         _len: usize,
-    ) -> Result<Self::SerializeStructVariant, Self::Error> {
+    ) -> Result<Self::SerializeStructVariant> {
         todo!()
     }
 }
@@ -255,7 +252,9 @@ mod tests {
     }
 
     fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
-        let mut serializer = RtpsMessageSerializer {writer: Vec::<u8>::new()};
+        let mut serializer = RtpsMessageSerializer {
+            writer: Vec::<u8>::new(),
+        };
         value.serialize(&mut serializer).unwrap();
         serializer.writer
     }
@@ -379,12 +378,15 @@ mod tests {
     struct ReferenceStruct<'a> {
         length: u8,
         #[serde(with = "serde_bytes")]
-        data: &'a [u8]
+        data: &'a [u8],
     }
 
     #[test]
     fn serialize_reference_struct() {
-        let value = ReferenceStruct{length: 2, data: &[3, 4]};
+        let value = ReferenceStruct {
+            length: 2,
+            data: &[3, 4],
+        };
 
         assert_eq!(serialize(value), vec![2, 3, 4]);
     }

@@ -1,3 +1,5 @@
+pub type Result<T> = core::result::Result<T, Error>;
+
 #[derive(Debug)]
 pub enum Error {
     Message(String),
@@ -24,8 +26,9 @@ impl serde::ser::Error for Error {
 }
 
 impl serde::de::Error for Error {
-    fn custom<T>(msg:T)-> Self
-        where T:std::fmt::Display
+    fn custom<T>(msg: T) -> Self
+    where
+        T: std::fmt::Display,
     {
         Error::Message(msg.to_string())
     }

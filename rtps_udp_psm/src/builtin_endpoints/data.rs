@@ -9,7 +9,7 @@ use rust_rtps_pim::{
 };
 use serde::ser::SerializeStruct;
 
-use crate::parameter_list::{ParameterListUdp, ParameterUdp};
+use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, parameter_list::{ParameterListUdp, ParameterUdp}};
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
 
@@ -19,14 +19,14 @@ pub struct SPDPdiscoveredParticipantDataUdp {
     _lease_duration: Duration,
 }
 
-impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
+impl serde::Serialize for SPDPdiscoveredParticipantDataUdp where {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         let mut parameter = Vec::new();
 
-        parameter.push(ParameterUdp::new(10, vec![1, 2, 3, 4]));
+        parameter.push(ParameterUdp::new(PID_DOMAIN_ID,  rust_serde_cdr::to_bytes(&self.participant_proxy.domain_id).unwrap() ));
 
         let mut state = serializer.serialize_struct("SPDPdiscoveredParticipantData", 2)?;
         state.serialize_field("representation", &PL_CDR_LE)?;
