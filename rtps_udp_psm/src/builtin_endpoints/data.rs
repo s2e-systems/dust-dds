@@ -27,9 +27,10 @@ use crate::{
 };
 
 use super::parameterid_list::{
-    PID_BUILTIN_ENDPOINT_SET, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
+    PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
+    PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
+    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+    PID_PROTOCOL_VERSION, PID_VENDORID,
 };
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
@@ -129,10 +130,12 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             PID_DOMAIN_ID,
             rust_serde_cdr::to_bytes(&self.participant_proxy.domain_id).unwrap(),
         ));
+
         parameter.push(ParameterUdp::new(
             PID_DOMAIN_TAG,
             rust_serde_cdr::to_bytes(&self.participant_proxy.domain_tag).unwrap(),
         ));
+
         parameter.push(ParameterUdp::new(
             PID_PROTOCOL_VERSION,
             rust_serde_cdr::to_bytes(&ProtocolVersionUdp::new(
@@ -157,6 +160,41 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             rust_serde_cdr::to_bytes(&self.participant_proxy.expects_inline_qos).unwrap(),
         ));
 
+        for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
+        {
+            let value: LocatorUdp = metatraffic_unicast_locator.into();
+            parameter.push(ParameterUdp::new(
+                PID_METATRAFFIC_UNICAST_LOCATOR,
+                rust_serde_cdr::to_bytes(&value).unwrap(),
+            ));
+        }
+
+        for metatraffic_multicast_locator in
+            &self.participant_proxy.metatraffic_multicast_locator_list
+        {
+            let value: LocatorUdp = metatraffic_multicast_locator.into();
+            parameter.push(ParameterUdp::new(
+                PID_METATRAFFIC_MULTICAST_LOCATOR,
+                rust_serde_cdr::to_bytes(&value).unwrap(),
+            ));
+        }
+
+        for default_unicast_locator in &self.participant_proxy.default_unicast_locator_list {
+            let value: LocatorUdp = default_unicast_locator.into();
+            parameter.push(ParameterUdp::new(
+                PID_DEFAULT_UNICAST_LOCATOR,
+                rust_serde_cdr::to_bytes(&value).unwrap(),
+            ));
+        }
+
+        for default_multicast_locator in &self.participant_proxy.default_multicast_locator_list {
+            let value: LocatorUdp = default_multicast_locator.into();
+            parameter.push(ParameterUdp::new(
+                PID_DEFAULT_MULTICAST_LOCATOR,
+                rust_serde_cdr::to_bytes(&value).unwrap(),
+            ));
+        }
+
         parameter.push(ParameterUdp::new(
             PID_BUILTIN_ENDPOINT_SET,
             rust_serde_cdr::to_bytes(&self.participant_proxy.available_builtin_endpoints.0)
@@ -170,16 +208,6 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             ))
             .unwrap(),
         ));
-
-        for metatraffic_multicast_locator in
-            &self.participant_proxy.metatraffic_multicast_locator_list
-        {
-            let value: LocatorUdp = metatraffic_multicast_locator.into();
-            parameter.push(ParameterUdp::new(
-                PID_METATRAFFIC_MULTICAST_LOCATOR,
-                rust_serde_cdr::to_bytes(&value).unwrap(),
-            ));
-        }
 
         let mut state = serializer.serialize_struct("SPDPdiscoveredParticipantData", 2)?;
         state.serialize_field("representation", &PL_CDR_LE)?;
