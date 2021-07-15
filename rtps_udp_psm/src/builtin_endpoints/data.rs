@@ -133,53 +133,53 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             PID_DOMAIN_TAG,
             rust_serde_cdr::to_bytes(&self.participant_proxy.domain_tag).unwrap(),
         ));
-        // parameter.push(ParameterUdp::new(
-        //     PID_PROTOCOL_VERSION,
-        //     rust_serde_cdr::to_bytes(&ProtocolVersionUdp::new(
-        //         &self.participant_proxy.protocol_version,
-        //     ))
-        //     .unwrap(),
-        // ));
+        parameter.push(ParameterUdp::new(
+            PID_PROTOCOL_VERSION,
+            rust_serde_cdr::to_bytes(&ProtocolVersionUdp::new(
+                &self.participant_proxy.protocol_version,
+            ))
+            .unwrap(),
+        ));
 
-        // let guid = GUIDUdp::new(&self.participant_proxy.guid_prefix, &ENTITYID_PARTICIPANT);
-        // parameter.push(ParameterUdp::new(
-        //     PID_PARTICIPANT_GUID,
-        //     rust_serde_cdr::to_bytes(&guid).unwrap(),
-        // ));
+        let guid = GUIDUdp::new(&self.participant_proxy.guid_prefix, &ENTITYID_PARTICIPANT);
+        parameter.push(ParameterUdp::new(
+            PID_PARTICIPANT_GUID,
+            rust_serde_cdr::to_bytes(&guid).unwrap(),
+        ));
 
-        // parameter.push(ParameterUdp::new(
-        //     PID_VENDORID,
-        //     rust_serde_cdr::to_bytes(&VendorIdUdp::new(&self.participant_proxy.vendor_id)).unwrap(),
-        // ));
+        parameter.push(ParameterUdp::new(
+            PID_VENDORID,
+            rust_serde_cdr::to_bytes(&VendorIdUdp::new(&self.participant_proxy.vendor_id)).unwrap(),
+        ));
 
-        // parameter.push(ParameterUdp::new(
-        //     PID_EXPECTS_INLINE_QOS,
-        //     rust_serde_cdr::to_bytes(&self.participant_proxy.expects_inline_qos).unwrap(),
-        // ));
+        parameter.push(ParameterUdp::new(
+            PID_EXPECTS_INLINE_QOS,
+            rust_serde_cdr::to_bytes(&self.participant_proxy.expects_inline_qos).unwrap(),
+        ));
 
-        // parameter.push(ParameterUdp::new(
-        //     PID_BUILTIN_ENDPOINT_SET,
-        //     rust_serde_cdr::to_bytes(&self.participant_proxy.available_builtin_endpoints.0)
-        //         .unwrap(),
-        // ));
+        parameter.push(ParameterUdp::new(
+            PID_BUILTIN_ENDPOINT_SET,
+            rust_serde_cdr::to_bytes(&self.participant_proxy.available_builtin_endpoints.0)
+                .unwrap(),
+        ));
 
-        // parameter.push(ParameterUdp::new(
-        //     PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-        //     rust_serde_cdr::to_bytes(&CountUdp::new(
-        //         &self.participant_proxy.manual_liveliness_count,
-        //     ))
-        //     .unwrap(),
-        // ));
+        parameter.push(ParameterUdp::new(
+            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+            rust_serde_cdr::to_bytes(&CountUdp::new(
+                &self.participant_proxy.manual_liveliness_count,
+            ))
+            .unwrap(),
+        ));
 
-        // for metatraffic_multicast_locator in
-        //     &self.participant_proxy.metatraffic_multicast_locator_list
-        // {
-        //     let value: LocatorUdp = metatraffic_multicast_locator.into();
-        //     parameter.push(ParameterUdp::new(
-        //         PID_METATRAFFIC_MULTICAST_LOCATOR,
-        //         rust_serde_cdr::to_bytes(&value).unwrap(),
-        //     ));
-        // }
+        for metatraffic_multicast_locator in
+            &self.participant_proxy.metatraffic_multicast_locator_list
+        {
+            let value: LocatorUdp = metatraffic_multicast_locator.into();
+            parameter.push(ParameterUdp::new(
+                PID_METATRAFFIC_MULTICAST_LOCATOR,
+                rust_serde_cdr::to_bytes(&value).unwrap(),
+            ));
+        }
 
         let mut state = serializer.serialize_struct("SPDPdiscoveredParticipantData", 2)?;
         state.serialize_field("representation", &PL_CDR_LE)?;
@@ -295,7 +295,22 @@ mod tests {
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
             0x14, 0x40, 0x04, 0x00, // PID_DOMAIN_TAG, Length: 4
-            b'a', b'b', b'c', 0x00,  // DomainTag('abc')
+            b'a', b'b', b'c', 0x00, // DomainTag('abc')
+            0x15, 0x00, 0x04, 0x00, // PID_PROTOCOL_VERSION, Length: 4
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion{major:2, minor:4}
+            0x50, 0x00, 0x10, 0x00, // PID_PARTICIPANT_GUID, Length: 16
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x00, 0x00, 0x01, 0xc1, // EntityId(ENTITYID_PARTICIPANT)
+            0x16, 0x00, 0x04, 0x00, // PID_VENDORID, Length:4,
+            0x09, 0x09, 0x00, 0x00, // VendorId([9,9])
+            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            0x01, 0x00, 0x00, 0x00, // True
+            0x58, 0x00, 0x04, 0x00, // PID_BUILTIN_ENDPOINT_SET, Length: 4
+            0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+            0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
+            0x02, 0x00, 0x00, 0x00, // Count(2)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
         ];
 
