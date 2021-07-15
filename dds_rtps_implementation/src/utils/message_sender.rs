@@ -9,7 +9,7 @@ use rust_rtps_pim::{
         submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
         RTPSMessage, RtpsMessageHeader,
     },
-    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, LOCATOR_INVALID},
+    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
 };
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
@@ -30,23 +30,39 @@ where
     PSM: RtpsSubmessagePIM<'a>,
 {
     fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)> {
-        let mut dst_locator = LOCATOR_INVALID;
-        let submessages = RefCell::new(Vec::new());
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)> = Vec::new();
+        let destined_submessages = RefCell::new(destined_submessages);
         self.send_unsent_data(
             |reader_locator, data| {
-                dst_locator = *reader_locator.locator();
-                submessages
-                    .borrow_mut()
-                    .push(RtpsSubmessageType::<PSM>::Data(data));
+                let mut destined_submessages_borrow = destined_submessages.borrow_mut();
+                match destined_submessages_borrow
+                    .iter_mut()
+                    .find(|(locator, _)| locator == reader_locator.locator())
+                {
+                    Some((_, submessages)) => {
+                        submessages.push(RtpsSubmessageType::<PSM>::Data(data))
+                    }
+                    None => destined_submessages_borrow.push((
+                        *reader_locator.locator(),
+                        vec![RtpsSubmessageType::<PSM>::Data(data)],
+                    )),
+                }
             },
-            |_reader_locator, gap| {
-                submessages.borrow_mut().push(
-                    // *reader_locator.locator(),
-                    RtpsSubmessageType::<PSM>::Gap(gap),
-                );
+            |reader_locator, gap| {
+                let mut destined_submessages_borrow = destined_submessages.borrow_mut();
+                match destined_submessages_borrow
+                    .iter_mut()
+                    .find(|(locator, _)| locator == reader_locator.locator())
+                {
+                    Some((_, submessages)) => submessages.push(RtpsSubmessageType::<PSM>::Gap(gap)),
+                    None => destined_submessages_borrow.push((
+                        *reader_locator.locator(),
+                        vec![RtpsSubmessageType::<PSM>::Gap(gap)],
+                    )),
+                }
             },
         );
-        vec![(dst_locator, submessages.take())]
+        destined_submessages.take()
     }
 }
 
@@ -78,7 +94,9 @@ pub fn send_data<'a, Transport, PSM>(
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::messages::submessages::RtpsSubmessageType;
+    use rust_rtps_pim::{
+        messages::submessages::RtpsSubmessageType, structure::types::LOCATOR_INVALID,
+    };
 
     use super::*;
 
