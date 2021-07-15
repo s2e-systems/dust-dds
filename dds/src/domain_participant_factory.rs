@@ -22,13 +22,7 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::writer::writer::{RTPSWriter, RTPSWriterOperations},
-    discovery::{
-        spdp::{
-            builtin_endpoints::SpdpBuiltinParticipantWriter,
-            spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
-        },
-        types::BuiltinEndpointSet,
-    },
+    discovery::{spdp::builtin_endpoints::SpdpBuiltinParticipantWriter, types::BuiltinEndpointSet},
     messages::types::Count,
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},

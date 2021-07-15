@@ -1,26 +1,11 @@
 use crate::{
     discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
     messages::types::Count,
-    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
+    structure::types::{GuidPrefix, ProtocolVersion, VendorId},
 };
 
 pub trait SPDPdiscoveredParticipantData {
     type LocatorListType;
-
-    fn new(
-        domain_id: &DomainId,
-        domain_tag: &str,
-        protocol_version: &ProtocolVersion,
-        guid_prefix: &GuidPrefix,
-        vendor_id: &VendorId,
-        expects_inline_qos: &bool,
-        metatraffic_unicast_locator_list: &[Locator],
-        metatraffic_multicast_locator_list: &[Locator],
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-        available_builtin_endpoints: &BuiltinEndpointSet,
-        manual_liveliness_count: &Count,
-    ) -> Self;
 
     fn domain_id(&self) -> DomainId;
     fn domain_tag(&self) -> &str;

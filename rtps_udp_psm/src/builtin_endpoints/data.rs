@@ -55,6 +55,38 @@ pub struct SPDPdiscoveredParticipantDataUdp {
     _lease_duration: Duration,
 }
 
+impl SPDPdiscoveredParticipantDataUdp {
+    pub fn new(
+        domain_id: &DomainId,
+        domain_tag: &str,
+        protocol_version: &ProtocolVersion,
+        guid_prefix: &GuidPrefix,
+        vendor_id: &VendorId,
+        expects_inline_qos: &bool,
+        metatraffic_unicast_locator_list: &[Locator],
+        metatraffic_multicast_locator_list: &[Locator],
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
+        available_builtin_endpoints: &BuiltinEndpointSet,
+        manual_liveliness_count: &Count,
+    ) -> Self {
+        Self {
+            participant_proxy: ParticipantProxy {
+                domain_id: *domain_id,
+                domain_tag: domain_tag.to_owned(),
+                protocol_version: *protocol_version,
+                guid_prefix: *guid_prefix,
+                vendor_id: *vendor_id,
+                expects_inline_qos: *expects_inline_qos,
+                metatraffic_multicast_locator_list: metatraffic_multicast_locator_list.to_vec(),
+                available_builtin_endpoints: *available_builtin_endpoints,
+                manual_liveliness_count: *manual_liveliness_count,
+            },
+            _lease_duration: Duration(0),
+        }
+    }
+}
+
 impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -138,36 +170,6 @@ struct ParticipantProxy {
 impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     type LocatorListType = Vec<Locator>;
 
-    fn new(
-        domain_id: &DomainId,
-        domain_tag: &str,
-        protocol_version: &ProtocolVersion,
-        guid_prefix: &GuidPrefix,
-        vendor_id: &VendorId,
-        expects_inline_qos: &bool,
-        metatraffic_unicast_locator_list: &[Locator],
-        metatraffic_multicast_locator_list: &[Locator],
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-        available_builtin_endpoints: &BuiltinEndpointSet,
-        manual_liveliness_count: &Count,
-    ) -> Self {
-        Self {
-            participant_proxy: ParticipantProxy {
-                domain_id: *domain_id,
-                domain_tag: domain_tag.to_owned(),
-                protocol_version: *protocol_version,
-                guid_prefix: *guid_prefix,
-                vendor_id: *vendor_id,
-                expects_inline_qos: *expects_inline_qos,
-                metatraffic_multicast_locator_list: metatraffic_multicast_locator_list.to_vec(),
-                available_builtin_endpoints: *available_builtin_endpoints,
-                manual_liveliness_count: *manual_liveliness_count,
-            },
-            _lease_duration: Duration(0),
-        }
-    }
-
     fn domain_id(&self) -> DomainId {
         self.participant_proxy.domain_id
     }
@@ -219,4 +221,11 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
         todo!()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
 }
