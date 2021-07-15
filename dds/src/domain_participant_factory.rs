@@ -119,7 +119,7 @@ impl DomainParticipantFactory {
         spdp_discovery_writer.reader_locator_add(spdp_discovery_writer_locator);
 
         let cc =
-            spdp_discovery_writer.new_change(ChangeKind::Alive, vec![1, 2, 3, 4, 5, 6, 7], (), 1);
+            spdp_discovery_writer.new_change(ChangeKind::Alive, vec![0, 0, 0, 0, 5, 6, 7], (), 1);
         spdp_discovery_writer.writer_cache_mut().add_change(cc);
 
         rtps_participant
