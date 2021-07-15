@@ -92,17 +92,20 @@ impl<'a> TransportRead<'a> for UdpTransport {
     type Message = RTPSMessageUdp<'a>;
 
     fn read(&'a mut self) -> Option<(Locator, Self::Message)> {
-        let received = self.socket.recv_from(&mut self.receive_buffer);
-
-        match received {
-            Ok((_bytes, source_address)) => {
-                let mut deserializer = RtpsMessageDeserializer {
-                    reader: &self.receive_buffer,
-                };
-                let message: RTPSMessageUdp =
-                    serde::de::Deserialize::deserialize(&mut deserializer).unwrap();
-                let udp_locator: UdpLocator = source_address.into();
-                Some((udp_locator.0, message))
+        match self.socket.recv_from(&mut self.receive_buffer) {
+            Ok((bytes, source_address)) => {
+                if bytes > 0 {
+                    let mut deserializer = RtpsMessageDeserializer {
+                        reader: &self.receive_buffer[0..bytes],
+                    };
+                    let message: RTPSMessageUdp =
+                        serde::de::Deserialize::deserialize(&mut deserializer)
+                            .expect("Failed to deserialize");
+                    let udp_locator: UdpLocator = source_address.into();
+                    Some((udp_locator.0, message))
+                } else {
+                    None
+                }
             }
             Err(_) => None,
         }
@@ -179,7 +182,7 @@ mod tests {
 
     #[test]
     fn multicast_write() {
-        let socket_port = 7400;
+        let socket_port = 17400;
         let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], socket_port))).unwrap();
         socket
             .join_multicast_v4(&Ipv4Addr::new(239, 255, 0, 1), &Ipv4Addr::new(127, 0, 0, 1))
@@ -212,8 +215,7 @@ mod tests {
             guid_prefix: [3; 12],
         };
 
-
-        let socket_port = 7405;
+        let socket_port = 17405;
         let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], socket_port))).unwrap();
         let mut transport = UdpTransport::new(socket);
         let destination_locator = Locator::new(

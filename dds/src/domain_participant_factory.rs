@@ -79,6 +79,7 @@ impl DomainParticipantFactory {
         let guid_prefix = [3; 12];
 
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+        socket.set_nonblocking(true).unwrap();
         socket
             .join_multicast_v4(&Ipv4Addr::new(239, 255, 0, 1), &Ipv4Addr::new(127, 0, 0, 1))
             .unwrap();
@@ -132,14 +133,14 @@ impl DomainParticipantFactory {
                     let vendor_id = *rtps_participant.vendor_id();
                     let guid_prefix = *rtps_participant.guid().prefix();
 
-        //             if let Some((source_locator, message)) = transport.read() {
-        //                 MessageReceiver::new().process_message(
-        //                     guid_prefix,
-        //                     &*rtps_participant.builtin_reader_group.lock(),
-        //                     source_locator,
-        //                     &message,
-        //                 );
-        //             }
+                    if let Some((source_locator, message)) = transport.read() {
+                        MessageReceiver::new().process_message(
+                            guid_prefix,
+                            &*rtps_participant.builtin_reader_group.lock(),
+                            source_locator,
+                            &message,
+                        );
+                    }
 
                     let writer_group = rtps_participant.builtin_writer_group.lock();
                     for writer in writer_group.writer_list() {
