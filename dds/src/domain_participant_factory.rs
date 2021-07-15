@@ -28,7 +28,7 @@ use rust_rtps_pim::{
     },
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
-        RTPSHistoryCache,
+        RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
 use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
@@ -95,8 +95,13 @@ impl DomainParticipantFactory {
         let mut spdp_builtin_participant_writer: RTPSWriterImpl =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
-        let spdp_discovered_participant_data =
-            SPDPdiscoveredParticipantDataUdp::new(domain_id as u32);
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+            &(domain_id as u32),
+            &"abc",
+            rtps_participant.protocol_version(),
+            rtps_participant.guid().prefix(),
+            rtps_participant.vendor_id(),
+        );
 
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,

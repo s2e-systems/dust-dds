@@ -7,7 +7,14 @@ use crate::{
 pub trait SPDPdiscoveredParticipantData {
     type LocatorListType;
 
-    fn new(domain_id: DomainId) -> Self;
+    fn new(
+        domain_id: &DomainId,
+        domain_tag: &str,
+        protocol_version: &ProtocolVersion,
+        guid_prefix: &GuidPrefix,
+        vendor_id: &VendorId,
+
+    ) -> Self;
 
     fn domain_id(&self) -> DomainId;
     fn domain_tag(&self) -> &str;

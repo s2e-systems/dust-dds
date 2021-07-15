@@ -134,18 +134,6 @@ impl GUID {
     }
 }
 
-impl From<[u8; 16]> for GUID {
-    fn from(_: [u8; 16]) -> Self {
-        todo!()
-    }
-}
-
-impl From<GUID> for [u8; 16] {
-    fn from(_: GUID) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TopicKind {
     NoKey,

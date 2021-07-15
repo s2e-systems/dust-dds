@@ -357,8 +357,11 @@ pub struct ProtocolVersionUdp {
 impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType
     for ProtocolVersionUdp
 {
-    fn new(_value: &ProtocolVersion) -> Self {
-        todo!()
+    fn new(value: &ProtocolVersion) -> Self {
+        Self {
+            major: value.major,
+            minor: value.minor,
+        }
     }
 
     fn value(&self) -> ProtocolVersion {
