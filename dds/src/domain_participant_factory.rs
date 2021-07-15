@@ -25,7 +25,7 @@ use rust_rtps_pim::{
     discovery::spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
-        RTPSEntity, RTPSHistoryCache, RTPSParticipant,
+        RTPSHistoryCache,
     },
 };
 
@@ -97,14 +97,10 @@ impl DomainParticipantFactory {
             (),
             1,
         );
+
         spdp_builtin_participant_writer
             .writer_cache_mut()
             .add_change(cc);
-
-        rtps_participant
-            .builtin_writer_group
-            .lock()
-            .add_writer(RtpsShared::new(spdp_builtin_participant_writer));
 
         let rtps_participant_impl = RtpsShared::new(rtps_participant);
         let rtps_participant_shared = rtps_participant_impl.clone();
@@ -112,10 +108,6 @@ impl DomainParticipantFactory {
         std::thread::spawn(move || loop {
             if is_enabled_thread.load(atomic::Ordering::Relaxed) {
                 if let Some(rtps_participant) = rtps_participant_shared.try_lock() {
-                    let protocol_version = *rtps_participant.protocol_version();
-                    let vendor_id = *rtps_participant.vendor_id();
-                    let guid_prefix = *rtps_participant.guid().prefix();
-
                     if let Some((source_locator, message)) = transport.read() {
                         MessageReceiver::new().process_message(
                             guid_prefix,
@@ -124,18 +116,11 @@ impl DomainParticipantFactory {
                             &message,
                         );
                     }
-
-                    let writer_group = rtps_participant.builtin_writer_group.lock();
-                    for writer in writer_group.writer_list() {
-                        let mut writer = writer.lock();
-                        send_data(
-                            protocol_version,
-                            vendor_id,
-                            guid_prefix,
-                            &mut *writer,
-                            &mut transport,
-                        );
-                    }
+                    send_data(
+                        &*rtps_participant,
+                        &mut spdp_builtin_participant_writer,
+                        &mut transport,
+                    );
                 }
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }

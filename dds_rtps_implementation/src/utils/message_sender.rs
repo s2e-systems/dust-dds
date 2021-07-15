@@ -9,7 +9,7 @@ use rust_rtps_pim::{
         submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
         RTPSMessage, RtpsMessageHeader,
     },
-    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
+    structure::{types::Locator, RTPSEntity, RTPSParticipant},
 };
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
@@ -66,10 +66,8 @@ where
     }
 }
 
-pub fn send_data<'a, Transport, PSM>(
-    protocol_version: ProtocolVersion,
-    vendor_id: VendorId,
-    guid_prefix: GuidPrefix,
+pub fn send_data<'a, Transport, PSM, Participant>(
+    participant: &'a Participant,
     writer: &'a mut RTPSWriterImpl,
     transport: &'a mut Transport,
 ) where
@@ -78,12 +76,13 @@ pub fn send_data<'a, Transport, PSM>(
     PSM: RtpsSubmessagePIM<'a>,
     PSM::DataSubmessageType: DataSubmessage<'a>,
     PSM::GapSubmessageType: GapSubmessage,
+    Participant: RTPSParticipant + RTPSEntity,
 {
     let header = RtpsMessageHeader {
         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-        version: protocol_version,
-        vendor_id,
-        guid_prefix,
+        version: *participant.protocol_version(),
+        vendor_id: *participant.vendor_id(),
+        guid_prefix: *participant.guid().prefix(),
     };
     let destined_submessages = writer.create_submessages();
     for (dst_locator, submessages) in destined_submessages {
