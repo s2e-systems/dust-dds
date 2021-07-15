@@ -9,7 +9,6 @@ impl serde::Serialize for VectorUdp {
     }
 }
 
-
 #[derive(Debug, PartialEq)]
 pub struct ParameterUdp {
     pub parameter_id: u16,
@@ -19,10 +18,15 @@ pub struct ParameterUdp {
 
 impl ParameterUdp {
     pub fn new(parameter_id: u16, value: Vec<u8>) -> Self {
+        let value_length = value.len() as i16;
+        let length = (value_length + 3) & !3; // Round to the nearest multiple of 4
+        let padding = (length - value_length) as usize;
+        let mut padded_value = value;
+        padded_value.append(&mut vec![0; padding]);
         Self {
             parameter_id,
-            length: value.len() as i16,
-            value: VectorUdp(value),
+            length,
+            value: VectorUdp(padded_value),
         }
     }
 
@@ -218,6 +222,16 @@ mod tests {
         assert_eq!(serialize(parameter), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
+        ]);
+    }
+
+    #[test]
+    fn serialize_parameter_non_multiple_4() {
+        let parameter = ParameterUdp::new(2, vec![5, 6, 7]);
+        #[rustfmt::skip]
+        assert_eq!(serialize(parameter), vec![
+            0x02, 0x00, 4, 0, // Parameter | length
+            5, 6, 7, 0,       // value
         ]);
     }
 
