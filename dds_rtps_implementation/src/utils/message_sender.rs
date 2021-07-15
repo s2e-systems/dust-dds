@@ -95,7 +95,8 @@ pub fn send_data<'a, Transport, PSM>(
 #[cfg(test)]
 mod tests {
     use rust_rtps_pim::{
-        messages::submessages::RtpsSubmessageType, structure::types::LOCATOR_INVALID,
+        messages::submessages::RtpsSubmessageType,
+        structure::types::{self, LOCATOR_INVALID},
     };
 
     use super::*;
@@ -118,11 +119,11 @@ mod tests {
         type PadSubmessageType = ();
     }
 
-    struct MockReaderLocator;
+    struct MockReaderLocator(Locator);
 
     impl RTPSReaderLocator for MockReaderLocator {
-        fn locator(&self) -> &rust_rtps_pim::structure::types::Locator {
-            &LOCATOR_INVALID
+        fn locator(&self) -> &types::Locator {
+            &self.0
         }
 
         fn expects_inline_qos(&self) -> bool {
@@ -131,7 +132,7 @@ mod tests {
     }
 
     #[test]
-    fn message_send_no_data() {
+    fn submessage_send_empty() {
         struct MockBehavior;
 
         impl<'a> StatelessWriterBehavior<'a, u8, ()> for MockBehavior {
@@ -153,7 +154,7 @@ mod tests {
     }
 
     #[test]
-    fn message_send_test() {
+    fn submessage_send_single_locator_send_only_data() {
         struct MockBehavior;
 
         impl<'a> StatelessWriterBehavior<'a, u8, ()> for MockBehavior {
@@ -164,8 +165,8 @@ mod tests {
                 mut send_data: impl FnMut(&Self::ReaderLocator, u8),
                 _send_gap: impl FnMut(&Self::ReaderLocator, ()),
             ) {
-                send_data(&MockReaderLocator, 0);
-                send_data(&MockReaderLocator, 2);
+                send_data(&MockReaderLocator(LOCATOR_INVALID), 0);
+                send_data(&MockReaderLocator(LOCATOR_INVALID), 2);
             }
         }
 
@@ -179,5 +180,48 @@ mod tests {
             submessages,
             &vec![RtpsSubmessageType::Data(0), RtpsSubmessageType::Data(2)]
         );
+    }
+
+    #[test]
+    fn submessage_send_multiple_locator_send_data_and_gap() {
+        struct MockBehavior;
+
+        impl<'a> StatelessWriterBehavior<'a, u8, ()> for MockBehavior {
+            type ReaderLocator = MockReaderLocator;
+
+            fn send_unsent_data(
+                &'a mut self,
+                mut send_data: impl FnMut(&Self::ReaderLocator, u8),
+                mut send_gap: impl FnMut(&Self::ReaderLocator, ()),
+            ) {
+                let locator1 = Locator::new([0; 4], 1, [0; 16]);
+                let locator2 = Locator::new([0; 4], 2, [0; 16]);
+                send_data(&MockReaderLocator(locator1), 0);
+                send_data(&MockReaderLocator(locator1), 1);
+
+                send_data(&MockReaderLocator(locator2), 2);
+                send_gap(&MockReaderLocator(locator1), ());
+
+                send_gap(&MockReaderLocator(locator2), ());
+            }
+        }
+
+        let mut writer = MockBehavior;
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, MockPSM>>)> =
+            writer.create_submessages();
+
+        let locator1_submessages = &destined_submessages[0].1;
+        let locator2_submessages = &destined_submessages[1].1;
+
+        assert_eq!(destined_submessages.len(), 2);
+
+        assert_eq!(locator1_submessages.len(), 3);
+        assert_eq!(locator1_submessages[0], RtpsSubmessageType::Data(0));
+        assert_eq!(locator1_submessages[1], RtpsSubmessageType::Data(1));
+        assert_eq!(locator1_submessages[2], RtpsSubmessageType::Gap(()));
+
+        assert_eq!(locator2_submessages.len(), 2);
+        assert_eq!(locator2_submessages[0], RtpsSubmessageType::Data(2));
+        assert_eq!(locator2_submessages[1], RtpsSubmessageType::Gap(()));
     }
 }
