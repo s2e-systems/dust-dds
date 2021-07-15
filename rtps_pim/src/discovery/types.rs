@@ -16,7 +16,7 @@ impl Default for BuiltinEndpointSet {
                 | Self::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER
                 | Self::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR
                 | Self::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER
-                | Self::BUILTIN_ENDPOINT_TOPICS_DETECTOR
+                | Self::BUILTIN_ENDPOINT_TOPICS_DETECTOR,
         )
     }
 }
@@ -63,6 +63,7 @@ impl BuiltinEndpointSet {
     }
 }
 
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub struct BuiltinEndpointQos(u32);
 
 impl Default for BuiltinEndpointQos {

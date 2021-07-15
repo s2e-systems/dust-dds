@@ -21,13 +21,13 @@ use rust_dds_rtps_implementation::{
     },
 };
 use rust_rtps_pim::{
-    behavior::writer::writer::{RTPSWriter, RTPSWriterOperations},
+    behavior::{
+        types::Duration,
+        writer::writer::{RTPSWriter, RTPSWriterOperations},
+    },
     discovery::{
-        spdp::{
-            builtin_endpoints::SpdpBuiltinParticipantWriter,
-            spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
-        },
-        types::BuiltinEndpointSet,
+        spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     messages::types::Count,
     structure::{
@@ -99,6 +99,10 @@ impl DomainParticipantFactory {
         let mut spdp_builtin_participant_writer: RTPSWriterImpl =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
+        let lease_duration = Duration {
+            seconds: 30,
+            fraction: 0,
+        };
         let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
             &(domain_id as u32),
             &"abc",
@@ -115,6 +119,8 @@ impl DomainParticipantFactory {
                     | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
             ),
             &Count(0),
+            &BuiltinEndpointQos::default(),
+            &lease_duration,
         );
 
         let cc = spdp_builtin_participant_writer.new_change(
