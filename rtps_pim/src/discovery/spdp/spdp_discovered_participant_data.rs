@@ -1,7 +1,7 @@
 use crate::{
     discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
     messages::types::Count,
-    structure::types::{GuidPrefix, ProtocolVersion, VendorId},
+    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
 };
 
 pub trait SPDPdiscoveredParticipantData {
@@ -13,7 +13,13 @@ pub trait SPDPdiscoveredParticipantData {
         protocol_version: &ProtocolVersion,
         guid_prefix: &GuidPrefix,
         vendor_id: &VendorId,
-
+        expects_inline_qos: &bool,
+        metatraffic_unicast_locator_list: &[Locator],
+        metatraffic_multicast_locator_list: &[Locator],
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
+        available_builtin_endpoints: &BuiltinEndpointSet,
+        manual_liveliness_count: &Count,
     ) -> Self;
 
     fn domain_id(&self) -> DomainId;

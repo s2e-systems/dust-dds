@@ -6,8 +6,9 @@ use rust_rtps_pim::{
     },
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementType, GuidPrefixSubmessageElementType,
-            ProtocolVersionSubmessageElementType, VendorIdSubmessageElementType,
+            CountSubmessageElementType, EntityIdSubmessageElementType,
+            GuidPrefixSubmessageElementType, ProtocolVersionSubmessageElementType,
+            VendorIdSubmessageElementType,
         },
         types::Count,
     },
@@ -20,11 +21,12 @@ use serde::ser::SerializeStruct;
 use crate::{
     builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
     parameter_list::{ParameterListUdp, ParameterUdp},
-    submessage_elements::{EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp},
+    submessage_elements::{CountUdp, EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp},
 };
 
 use super::parameterid_list::{
-    PID_DOMAIN_TAG, PID_PARTICIPANT_GUID, PID_PROTOCOL_VERSION, PID_VENDORID,
+    PID_BUILTIN_ENDPOINT_SET, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
 };
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
@@ -84,6 +86,25 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             rust_serde_cdr::to_bytes(&VendorIdUdp::new(&self.participant_proxy.vendor_id)).unwrap(),
         ));
 
+        parameter.push(ParameterUdp::new(
+            PID_EXPECTS_INLINE_QOS,
+            rust_serde_cdr::to_bytes(&self.participant_proxy.expects_inline_qos).unwrap(),
+        ));
+
+        parameter.push(ParameterUdp::new(
+            PID_BUILTIN_ENDPOINT_SET,
+            rust_serde_cdr::to_bytes(&self.participant_proxy.available_builtin_endpoints.0)
+                .unwrap(),
+        ));
+
+        parameter.push(ParameterUdp::new(
+            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+            rust_serde_cdr::to_bytes(&CountUdp::new(
+                &self.participant_proxy.manual_liveliness_count,
+            ))
+            .unwrap(),
+        ));
+
         let mut state = serializer.serialize_struct("SPDPdiscoveredParticipantData", 2)?;
         state.serialize_field("representation", &PL_CDR_LE)?;
         state.serialize_field("value", &ParameterListUdp { parameter })?;
@@ -97,6 +118,9 @@ struct ParticipantProxy {
     protocol_version: ProtocolVersion,
     guid_prefix: GuidPrefix,
     vendor_id: VendorId,
+    expects_inline_qos: bool,
+    available_builtin_endpoints: BuiltinEndpointSet,
+    manual_liveliness_count: Count,
 }
 
 impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
@@ -108,6 +132,13 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
         protocol_version: &ProtocolVersion,
         guid_prefix: &GuidPrefix,
         vendor_id: &VendorId,
+        expects_inline_qos: &bool,
+        metatraffic_unicast_locator_list: &[Locator],
+        metatraffic_multicast_locator_list: &[Locator],
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
+        available_builtin_endpoints: &BuiltinEndpointSet,
+        manual_liveliness_count: &Count,
     ) -> Self {
         Self {
             participant_proxy: ParticipantProxy {
@@ -116,6 +147,9 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
                 protocol_version: *protocol_version,
                 guid_prefix: *guid_prefix,
                 vendor_id: *vendor_id,
+                expects_inline_qos: *expects_inline_qos,
+                available_builtin_endpoints: *available_builtin_endpoints,
+                manual_liveliness_count: *manual_liveliness_count,
             },
             _lease_duration: Duration(0),
         }

@@ -445,8 +445,8 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElemen
 pub struct CountUdp(pub(crate) i32);
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType for CountUdp {
-    fn new(_value: &Count) -> Self {
-        todo!()
+    fn new(value: &Count) -> Self {
+        Self(value.0)
     }
 
     fn value(&self) -> Count {

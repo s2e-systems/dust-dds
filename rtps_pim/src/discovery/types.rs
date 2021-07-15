@@ -4,7 +4,7 @@
 pub type DomainId = u32;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
-pub struct BuiltinEndpointSet(u32);
+pub struct BuiltinEndpointSet(pub u32);
 
 impl Default for BuiltinEndpointSet {
     fn default() -> Self {

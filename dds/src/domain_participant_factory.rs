@@ -22,10 +22,14 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::writer::writer::{RTPSWriter, RTPSWriterOperations},
-    discovery::spdp::{
-        builtin_endpoints::SpdpBuiltinParticipantWriter,
-        spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
+    discovery::{
+        spdp::{
+            builtin_endpoints::SpdpBuiltinParticipantWriter,
+            spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
+        },
+        types::BuiltinEndpointSet,
     },
+    messages::types::Count,
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
         RTPSEntity, RTPSHistoryCache, RTPSParticipant,
@@ -101,6 +105,16 @@ impl DomainParticipantFactory {
             rtps_participant.protocol_version(),
             rtps_participant.guid().prefix(),
             rtps_participant.vendor_id(),
+            &false,
+            &[],
+            &[],
+            &[],
+            &[],
+            &BuiltinEndpointSet::new(
+                BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+                    | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+            ),
+            &Count(0),
         );
 
         let cc = spdp_builtin_participant_writer.new_change(
