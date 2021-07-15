@@ -81,7 +81,10 @@ impl<'a> TransportWrite<'a> for UdpTransport {
                 serializer.writer.as_slice(),
                 UdpLocator(*destination_locator),
             )
-            .unwrap();
+            .expect(&format!(
+                "Error sending message to {:?}",
+                destination_locator
+            ));
     }
 }
 
@@ -176,8 +179,11 @@ mod tests {
 
     #[test]
     fn multicast_write() {
-        let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
-        socket.join_multicast_v4(&Ipv4Addr::new(239,255,0,1), &Ipv4Addr::new(127,0,0,1)).unwrap();
+        let socket_port = 7400;
+        let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], socket_port))).unwrap();
+        socket
+            .join_multicast_v4(&Ipv4Addr::new(239, 255, 0, 1), &Ipv4Addr::new(127, 0, 0, 1))
+            .unwrap();
         let mut transport = UdpTransport::new(socket);
         let header = RtpsMessageHeader {
             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
@@ -187,11 +193,14 @@ mod tests {
         };
         let destination_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
-            7400,
+            socket_port as u32,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
         let message1: RTPSMessageUdp = RTPSMessageUdp::new(&header, vec![]);
+
         transport.write(&message1, &destination_locator);
+        let (_locator, received_message1) = transport.read().unwrap();
+        assert_eq!(message1, received_message1);
     }
 
     #[test]
@@ -203,11 +212,13 @@ mod tests {
             guid_prefix: [3; 12],
         };
 
-        let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+
+        let socket_port = 7405;
+        let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], socket_port))).unwrap();
         let mut transport = UdpTransport::new(socket);
         let destination_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
-            7400,
+            socket_port as u32,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         );
 

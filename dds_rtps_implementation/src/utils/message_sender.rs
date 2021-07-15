@@ -113,6 +113,28 @@ mod tests {
     }
 
     #[test]
+    fn message_send_no_data() {
+        struct MockBehavior;
+
+        impl<'a> StatelessWriterBehavior<'a, u8, ()> for MockBehavior {
+            type ReaderLocator = MockReaderLocator;
+
+            fn send_unsent_data(
+                &'a mut self,
+                _send_data: impl FnMut(&Self::ReaderLocator, u8),
+                _send_gap: impl FnMut(&Self::ReaderLocator, ()),
+            ) {
+            }
+        }
+
+        let mut writer = MockBehavior;
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, MockPSM>>)> =
+            writer.create_submessages();
+
+        assert!(destined_submessages.is_empty());
+    }
+
+    #[test]
     fn message_send_test() {
         struct MockBehavior;
 

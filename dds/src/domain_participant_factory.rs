@@ -1,5 +1,5 @@
 use std::{
-    net::UdpSocket,
+    net::{Ipv4Addr, UdpSocket},
     sync::{
         atomic::{self, AtomicBool},
         Arc,
@@ -79,6 +79,9 @@ impl DomainParticipantFactory {
         let guid_prefix = [3; 12];
 
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+        socket
+            .join_multicast_v4(&Ipv4Addr::new(239, 255, 0, 1), &Ipv4Addr::new(127, 0, 0, 1))
+            .unwrap();
         let mut transport = UdpTransport::new(socket);
 
         let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
@@ -129,14 +132,14 @@ impl DomainParticipantFactory {
                     let vendor_id = *rtps_participant.vendor_id();
                     let guid_prefix = *rtps_participant.guid().prefix();
 
-                    if let Some((source_locator, message)) = transport.read() {
-                        MessageReceiver::new().process_message(
-                            guid_prefix,
-                            &*rtps_participant.builtin_reader_group.lock(),
-                            source_locator,
-                            &message,
-                        );
-                    }
+        //             if let Some((source_locator, message)) = transport.read() {
+        //                 MessageReceiver::new().process_message(
+        //                     guid_prefix,
+        //                     &*rtps_participant.builtin_reader_group.lock(),
+        //                     source_locator,
+        //                     &message,
+        //                 );
+        //             }
 
                     let writer_group = rtps_participant.builtin_writer_group.lock();
                     for writer in writer_group.writer_list() {
@@ -150,23 +153,12 @@ impl DomainParticipantFactory {
                         );
                     }
                 }
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });
 
         let domain_participant = DomainParticipantImpl::new(rtps_participant_impl, is_enabled);
-        // let participant = DomainParticipant::Rtps(domain_participant);
-
-        // let domain_participant_impl =
-        // DomainParticipantImpl::new(guid_prefix.into()); // domain_id, qos.clone(), a_listener, mask, configuration
-        // let participant = DomainParticipant::new(domain_participant_impl);
-
-        // if enabled {
-        //     new_participant.enable().ok()?;
-        // }
 
         Some(domain_participant)
     }
-
-    // pub fn delete_participant(_a_participant: impl DomainParticipant) {}
 }
