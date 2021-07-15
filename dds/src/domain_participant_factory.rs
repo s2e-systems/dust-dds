@@ -22,7 +22,10 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::writer::writer::{RTPSWriter, RTPSWriterOperations},
-    discovery::{spdp::builtin_endpoints::SpdpBuiltinParticipantWriter, types::BuiltinEndpointSet},
+    discovery::{
+        spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    },
     messages::types::Count,
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
@@ -109,6 +112,7 @@ impl DomainParticipantFactory {
                     | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
             ),
             &Count(0),
+            &BuiltinEndpointQos::default(),
         );
 
         let cc = spdp_builtin_participant_writer.new_change(

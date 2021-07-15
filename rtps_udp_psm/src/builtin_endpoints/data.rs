@@ -18,9 +18,19 @@ use rust_rtps_pim::{
 };
 use serde::ser::SerializeStruct;
 
-use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, parameter_list::{ParameterListUdp, ParameterUdp}, submessage_elements::{CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp}};
+use crate::{
+    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
+    parameter_list::{ParameterListUdp, ParameterUdp},
+    submessage_elements::{
+        CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
+    },
+};
 
-use super::parameterid_list::{PID_BUILTIN_ENDPOINT_SET, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID};
+use super::parameterid_list::{
+    PID_BUILTIN_ENDPOINT_SET, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
+};
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
 
@@ -49,6 +59,22 @@ impl From<&Locator> for LocatorUdp {
     }
 }
 
+struct ParticipantProxy {
+    domain_id: DomainId,
+    domain_tag: String,
+    protocol_version: ProtocolVersion,
+    guid_prefix: GuidPrefix,
+    vendor_id: VendorId,
+    expects_inline_qos: bool,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
+    available_builtin_endpoints: BuiltinEndpointSet,
+    manual_liveliness_count: Count,
+    builtin_endpoint_qos: BuiltinEndpointQos,
+}
+
 pub struct SPDPdiscoveredParticipantDataUdp {
     // ddsParticipantData: DDS::ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
@@ -69,6 +95,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         default_multicast_locator_list: &[Locator],
         available_builtin_endpoints: &BuiltinEndpointSet,
         manual_liveliness_count: &Count,
+        builtin_endpoint_qos: &BuiltinEndpointQos,
     ) -> Self {
         Self {
             participant_proxy: ParticipantProxy {
@@ -78,9 +105,13 @@ impl SPDPdiscoveredParticipantDataUdp {
                 guid_prefix: *guid_prefix,
                 vendor_id: *vendor_id,
                 expects_inline_qos: *expects_inline_qos,
+                metatraffic_unicast_locator_list: metatraffic_unicast_locator_list.to_vec(),
                 metatraffic_multicast_locator_list: metatraffic_multicast_locator_list.to_vec(),
+                default_unicast_locator_list: default_unicast_locator_list.to_vec(),
+                default_multicast_locator_list: default_multicast_locator_list.to_vec(),
                 available_builtin_endpoints: *available_builtin_endpoints,
                 manual_liveliness_count: *manual_liveliness_count,
+                builtin_endpoint_qos: *builtin_endpoint_qos,
             },
             _lease_duration: Duration(0),
         }
@@ -140,11 +171,13 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             .unwrap(),
         ));
 
-        for metatraffic_multicast_locator in &self.participant_proxy.metatraffic_multicast_locator_list {
+        for metatraffic_multicast_locator in
+            &self.participant_proxy.metatraffic_multicast_locator_list
+        {
             let value: LocatorUdp = metatraffic_multicast_locator.into();
             parameter.push(ParameterUdp::new(
                 PID_METATRAFFIC_MULTICAST_LOCATOR,
-                rust_serde_cdr::to_bytes(&value).unwrap()
+                rust_serde_cdr::to_bytes(&value).unwrap(),
             ));
         }
 
@@ -153,18 +186,6 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
         state.serialize_field("value", &ParameterListUdp { parameter })?;
         state.end()
     }
-}
-
-struct ParticipantProxy {
-    domain_id: DomainId,
-    domain_tag: String,
-    protocol_version: ProtocolVersion,
-    guid_prefix: GuidPrefix,
-    vendor_id: VendorId,
-    expects_inline_qos: bool,
-    metatraffic_multicast_locator_list: Vec<Locator>,
-    available_builtin_endpoints: BuiltinEndpointSet,
-    manual_liveliness_count: Count,
 }
 
 impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
@@ -179,7 +200,7 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     }
 
     fn protocol_version(&self) -> ProtocolVersion {
-        todo!()
+        self.participant_proxy.protocol_version
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
@@ -187,45 +208,49 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     }
 
     fn vendor_id(&self) -> VendorId {
-        todo!()
+        self.participant_proxy.vendor_id
     }
 
     fn expects_inline_qos(&self) -> bool {
-        todo!()
+        self.participant_proxy.expects_inline_qos
     }
 
     fn metatraffic_unicast_locator_list(&self) -> Self::LocatorListType {
-        todo!()
+        self.participant_proxy
+            .metatraffic_unicast_locator_list
+            .clone()
     }
 
     fn metatraffic_multicast_locator_list(&self) -> Self::LocatorListType {
-        todo!()
+        self.participant_proxy
+            .metatraffic_multicast_locator_list
+            .clone()
     }
 
     fn default_unicast_locator_list(&self) -> Self::LocatorListType {
-        todo!()
+        self.participant_proxy.default_unicast_locator_list.clone()
     }
 
     fn default_multicast_locator_list(&self) -> Self::LocatorListType {
-        todo!()
+        self.participant_proxy
+            .default_multicast_locator_list
+            .clone()
     }
 
     fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        todo!()
+        self.participant_proxy.available_builtin_endpoints
     }
 
     fn manual_liveliness_count(&self) -> Count {
-        todo!()
+        self.participant_proxy.manual_liveliness_count
     }
 
     fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        todo!()
+        self.participant_proxy.builtin_endpoint_qos
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-
 }
