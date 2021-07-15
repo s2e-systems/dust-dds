@@ -18,11 +18,7 @@ use rust_rtps_pim::{
 };
 use serde::ser::SerializeStruct;
 
-use crate::{
-    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
-    parameter_list::{ParameterListUdp, ParameterUdp},
-    submessage_elements::{CountUdp, EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp},
-};
+use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, parameter_list::{ParameterListUdp, ParameterUdp}, submessage_elements::{CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp}};
 
 use super::parameterid_list::{PID_BUILTIN_ENDPOINT_SET, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID};
 
@@ -39,6 +35,16 @@ impl GUIDUdp {
         Self {
             prefix: GuidPrefixUdp::new(prefix),
             entity_id: EntityIdUdp::new(entity_id),
+        }
+    }
+}
+
+impl From<&Locator> for LocatorUdp {
+    fn from(value: &Locator) -> Self {
+        LocatorUdp {
+            kind: value.kind().clone(),
+            port: value.port().clone().into(),
+            address: value.address().clone().into(),
         }
     }
 }
@@ -102,9 +108,13 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             .unwrap(),
         ));
 
-        // for metatraffic_multicast_locator in &self.participant_proxy.metatraffic_multicast_locator_list {
-        //     parameter.push(ParameterUdp::new(PID_METATRAFFIC_MULTICAST_LOCATOR, rust_serde_cdr::to_bytes(&Locator))));
-        // }
+        for metatraffic_multicast_locator in &self.participant_proxy.metatraffic_multicast_locator_list {
+            let value: LocatorUdp = metatraffic_multicast_locator.into();
+            parameter.push(ParameterUdp::new(
+                PID_METATRAFFIC_MULTICAST_LOCATOR,
+                rust_serde_cdr::to_bytes(&value).unwrap()
+            ));
+        }
 
         let mut state = serializer.serialize_struct("SPDPdiscoveredParticipantData", 2)?;
         state.serialize_field("representation", &PL_CDR_LE)?;

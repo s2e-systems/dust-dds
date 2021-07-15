@@ -511,7 +511,14 @@ pub struct DurationUdp {
     pub fraction: u32,
 }
 
-pub struct LocatorListUdp(Vec<rust_rtps_pim::structure::types::Locator>);
+#[derive(serde::Serialize)]
+pub struct LocatorUdp {
+    pub(crate) kind: i32,
+    pub(crate) port: u32,
+    pub(crate) address: [u8; 16],
+}
+
+pub struct LocatorListUdp(pub Vec<LocatorUdp>);
 
 impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementType
     for LocatorListUdp
@@ -524,7 +531,8 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
     }
 
     fn value(&self) -> Self::IntoIter {
-        self.0.clone()
+        //self.0.clone()
+        todo!()
     }
 }
 

@@ -193,8 +193,8 @@ mod tests {
                 mut send_data: impl FnMut(&Self::ReaderLocator, u8),
                 mut send_gap: impl FnMut(&Self::ReaderLocator, ()),
             ) {
-                let locator1 = Locator::new([0; 4], 1, [0; 16]);
-                let locator2 = Locator::new([0; 4], 2, [0; 16]);
+                let locator1 = Locator::new(0, 1, [0; 16]);
+                let locator2 = Locator::new(0, 2, [0; 16]);
                 send_data(&MockReaderLocator(locator1), 0);
                 send_data(&MockReaderLocator(locator1), 1);
 
