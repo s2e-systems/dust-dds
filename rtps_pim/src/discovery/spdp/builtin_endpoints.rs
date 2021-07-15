@@ -1,9 +1,13 @@
 use crate::{
     behavior::{
-        reader::stateless_reader::RTPSStatelessReaderOperations, types::Duration,
-        writer::stateless_writer::RTPSStatelessWriterOperations,
+        reader::stateless_reader::RTPSStatelessReaderOperations,
+        types::Duration,
+        writer::{
+            reader_locator::RTPSReaderLocatorOperations,
+            stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
+        },
     },
-    structure::types::{EntityId, GuidPrefix, ReliabilityKind, TopicKind, GUID},
+    structure::types::{EntityId, GuidPrefix, Locator, ReliabilityKind, TopicKind, GUID},
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId = EntityId {
@@ -19,22 +23,38 @@ pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId = EntityId {
 pub struct SpdpBuiltinParticipantWriter;
 
 impl SpdpBuiltinParticipantWriter {
-    pub fn create<T: RTPSStatelessWriterOperations>(guid_prefix: GuidPrefix) -> T {
+    pub fn create<T>(
+        guid_prefix: GuidPrefix,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        reader_locators: &[Locator],
+    ) -> T
+    where
+        T: RTPSStatelessWriterOperations + RTPSStatelessWriter,
+        T::ReaderLocatorType: RTPSReaderLocatorOperations,
+    {
         let spdp_builtin_participant_writer_guid =
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
 
-        T::new(
+        let mut spdp_builtin_participant_writer = T::new(
             spdp_builtin_participant_writer_guid,
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            &[],
-            &[],
+            unicast_locator_list,
+            multicast_locator_list,
             true,
             Duration(0),
             Duration(0),
             Duration(0),
             None,
-        )
+        );
+
+        for reader_locator in reader_locators {
+            spdp_builtin_participant_writer
+                .reader_locator_add(T::ReaderLocatorType::new(*reader_locator, false))
+        }
+
+        spdp_builtin_participant_writer
     }
 }
 

@@ -14,21 +14,14 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::{
-        rtps_participant_impl::RTPSParticipantImpl,
-        rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_writer_impl::RTPSWriterImpl,
-    },
+    rtps_impl::{rtps_participant_impl::RTPSParticipantImpl, rtps_writer_impl::RTPSWriterImpl},
     utils::{
         message_receiver::MessageReceiver, message_sender::send_data, shared_object::RtpsShared,
         transport::TransportRead,
     },
 };
 use rust_rtps_pim::{
-    behavior::writer::{
-        reader_locator::RTPSReaderLocatorOperations,
-        stateless_writer::RTPSStatelessWriterOperations,
-        writer::{RTPSWriter, RTPSWriterOperations},
-    },
+    behavior::writer::writer::{RTPSWriter, RTPSWriterOperations},
     discovery::spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
@@ -90,18 +83,13 @@ impl DomainParticipantFactory {
         let is_enabled = Arc::new(AtomicBool::new(false));
         let is_enabled_thread = is_enabled.clone();
 
-        let mut spdp_builtin_participant_writer =
-            SpdpBuiltinParticipantWriter::create::<RTPSWriterImpl>(guid_prefix);
-        let spdp_discovery_writer_locator = RTPSReaderLocatorImpl::new(
-            Locator::new(
-                LOCATOR_KIND_UDPv4,
-                7400,
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
-            ),
-            false,
+        let spdp_discovery_locator = Locator::new(
+            LOCATOR_KIND_UDPv4,
+            7400,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
-
-        spdp_builtin_participant_writer.reader_locator_add(spdp_discovery_writer_locator);
+        let mut spdp_builtin_participant_writer: RTPSWriterImpl =
+            SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
