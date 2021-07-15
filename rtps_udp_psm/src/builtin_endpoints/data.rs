@@ -24,10 +24,7 @@ use crate::{
     submessage_elements::{CountUdp, EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp},
 };
 
-use super::parameterid_list::{
-    PID_BUILTIN_ENDPOINT_SET, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_PARTICIPANT_GUID,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
-};
+use super::parameterid_list::{PID_BUILTIN_ENDPOINT_SET, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID};
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
 
@@ -105,6 +102,10 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             .unwrap(),
         ));
 
+        // for metatraffic_multicast_locator in &self.participant_proxy.metatraffic_multicast_locator_list {
+        //     parameter.push(ParameterUdp::new(PID_METATRAFFIC_MULTICAST_LOCATOR, rust_serde_cdr::to_bytes(&Locator))));
+        // }
+
         let mut state = serializer.serialize_struct("SPDPdiscoveredParticipantData", 2)?;
         state.serialize_field("representation", &PL_CDR_LE)?;
         state.serialize_field("value", &ParameterListUdp { parameter })?;
@@ -119,6 +120,7 @@ struct ParticipantProxy {
     guid_prefix: GuidPrefix,
     vendor_id: VendorId,
     expects_inline_qos: bool,
+    metatraffic_multicast_locator_list: Vec<Locator>,
     available_builtin_endpoints: BuiltinEndpointSet,
     manual_liveliness_count: Count,
 }
@@ -148,6 +150,7 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
                 guid_prefix: *guid_prefix,
                 vendor_id: *vendor_id,
                 expects_inline_qos: *expects_inline_qos,
+                metatraffic_multicast_locator_list: metatraffic_multicast_locator_list.to_vec(),
                 available_builtin_endpoints: *available_builtin_endpoints,
                 manual_liveliness_count: *manual_liveliness_count,
             },

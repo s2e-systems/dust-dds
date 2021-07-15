@@ -107,7 +107,7 @@ impl DomainParticipantFactory {
             rtps_participant.vendor_id(),
             &false,
             &[],
-            &[],
+            &[spdp_discovery_locator],
             &[],
             &[],
             &BuiltinEndpointSet::new(
