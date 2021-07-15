@@ -24,17 +24,14 @@ use rust_dds_rtps_implementation::{
     },
 };
 use rust_rtps_pim::{
-    behavior::{
-        types::Duration,
-        writer::{
-            reader_locator::RTPSReaderLocatorOperations,
-            stateless_writer::RTPSStatelessWriterOperations,
-            writer::{RTPSWriter, RTPSWriterOperations},
-        },
+    behavior::writer::{
+        reader_locator::RTPSReaderLocatorOperations,
+        stateless_writer::RTPSStatelessWriterOperations,
+        writer::{RTPSWriter, RTPSWriterOperations},
     },
-    discovery::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+    discovery::spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
     structure::{
-        types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator, GUID},
+        types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
         RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
@@ -93,20 +90,8 @@ impl DomainParticipantFactory {
         let is_enabled = Arc::new(AtomicBool::new(false));
         let is_enabled_thread = is_enabled.clone();
 
-        let spdp_discovery_writer_guid =
-            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
-        let mut spdp_discovery_writer = <RTPSWriterImpl as RTPSStatelessWriterOperations>::new(
-            spdp_discovery_writer_guid,
-            rust_rtps_pim::structure::types::TopicKind::WithKey,
-            rust_rtps_pim::structure::types::ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            true,
-            Duration(0),
-            Duration(0),
-            Duration(0),
-            None,
-        );
+        let mut spdp_builtin_participant_writer =
+            SpdpBuiltinParticipantWriter::create::<RTPSWriterImpl>(guid_prefix);
         let spdp_discovery_writer_locator = RTPSReaderLocatorImpl::new(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
@@ -116,16 +101,22 @@ impl DomainParticipantFactory {
             false,
         );
 
-        spdp_discovery_writer.reader_locator_add(spdp_discovery_writer_locator);
+        spdp_builtin_participant_writer.reader_locator_add(spdp_discovery_writer_locator);
 
-        let cc =
-            spdp_discovery_writer.new_change(ChangeKind::Alive, vec![0, 0, 0, 0, 5, 6, 7], (), 1);
-        spdp_discovery_writer.writer_cache_mut().add_change(cc);
+        let cc = spdp_builtin_participant_writer.new_change(
+            ChangeKind::Alive,
+            vec![0, 0, 0, 0, 5, 6, 7],
+            (),
+            1,
+        );
+        spdp_builtin_participant_writer
+            .writer_cache_mut()
+            .add_change(cc);
 
         rtps_participant
             .builtin_writer_group
             .lock()
-            .add_writer(RtpsShared::new(spdp_discovery_writer));
+            .add_writer(RtpsShared::new(spdp_builtin_participant_writer));
 
         let rtps_participant_impl = RtpsShared::new(rtps_participant);
         let rtps_participant_shared = rtps_participant_impl.clone();
