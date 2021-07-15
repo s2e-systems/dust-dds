@@ -1,6 +1,6 @@
 pub mod spdp;
 
-// pub mod types;
+pub mod types;
 
 // pub mod spdp_data;
 // pub mod spdp_endpoints;
