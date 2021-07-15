@@ -29,8 +29,8 @@ use crate::{
 use super::parameterid_list::{
     PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
     PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
-    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-    PID_PROTOCOL_VERSION, PID_VENDORID,
+    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
 };
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
@@ -60,6 +60,21 @@ impl From<&Locator> for LocatorUdp {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DurationUdp {
+    pub seconds: i32,
+    pub fraction: u32,
+}
+
+impl From<Duration> for DurationUdp {
+    fn from(value: Duration) -> Self {
+        Self {
+            seconds: ((value.0 & 0xff00) >> 32) as i32,
+            fraction: (value.0 & 0xff) as u32,
+        }
+    }
+}
+
 struct ParticipantProxy {
     domain_id: DomainId,
     domain_tag: String,
@@ -79,7 +94,7 @@ struct ParticipantProxy {
 pub struct SPDPdiscoveredParticipantDataUdp {
     // ddsParticipantData: DDS::ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
-    _lease_duration: Duration,
+    lease_duration: Duration,
 }
 
 impl SPDPdiscoveredParticipantDataUdp {
@@ -97,6 +112,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         available_builtin_endpoints: &BuiltinEndpointSet,
         manual_liveliness_count: &Count,
         builtin_endpoint_qos: &BuiltinEndpointQos,
+        lease_duration: &Duration,
     ) -> Self {
         Self {
             participant_proxy: ParticipantProxy {
@@ -114,7 +130,7 @@ impl SPDPdiscoveredParticipantDataUdp {
                 manual_liveliness_count: *manual_liveliness_count,
                 builtin_endpoint_qos: *builtin_endpoint_qos,
             },
-            _lease_duration: Duration(0),
+            lease_duration: *lease_duration,
         }
     }
 }
@@ -209,6 +225,12 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             .unwrap(),
         ));
 
+        let value: DurationUdp = self.lease_duration.into();
+        parameter.push(ParameterUdp::new(
+            PID_PARTICIPANT_LEASE_DURATION,
+            rust_serde_cdr::to_bytes(&value).unwrap(),
+        ));
+
         let mut state = serializer.serialize_struct("SPDPdiscoveredParticipantData", 2)?;
         state.serialize_field("representation", &PL_CDR_LE)?;
         state.serialize_field("value", &ParameterListUdp { parameter })?;
@@ -300,6 +322,7 @@ mod tests {
         let builtin_endpoint_qos = BuiltinEndpointQos::new(
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );
+        let lease_duration = Duration(10);
 
         let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
             &domain_id,
@@ -315,6 +338,7 @@ mod tests {
             &available_builtin_endpoints,
             &manual_liveliness_count,
             &builtin_endpoint_qos,
+            &lease_duration,
         );
 
         let serialized_data = rust_serde_cdr::to_bytes(&spdp_discovered_participant_data).unwrap();

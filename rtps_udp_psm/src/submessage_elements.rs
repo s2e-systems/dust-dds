@@ -505,12 +505,6 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageEl
 
 pub type GroupDigestUdp = [u8; 4];
 
-#[derive(Clone, Copy)]
-pub struct DurationUdp {
-    pub seconds: i32,
-    pub fraction: u32,
-}
-
 #[derive(serde::Serialize)]
 pub struct LocatorUdp {
     pub(crate) kind: i32,
