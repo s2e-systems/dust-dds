@@ -369,14 +369,14 @@ mod tests {
         ));
 
         let inline_qos_flag = false;
-        let data_flag = false;
+        let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
-        let data = [];
+        let data = [1, 2, 3, 4];
         let serialized_payload = SerializedDataUdp(&data[..]);
         let data_submessage = RtpsSubmessageType::Data(submessages::data::DataSubmesageUdp::new(
             endianness_flag,
@@ -392,7 +392,7 @@ mod tests {
         ));
         let expected = RTPSMessageUdp {
             header,
-            submessages: vec![gap_submessage, data_submessage],
+            submessages: vec![data_submessage, gap_submessage, ],
         };
         #[rustfmt::skip]
         let result = RTPSMessageUdp::from_bytes(&[
@@ -401,7 +401,17 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
-            0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
+         0x99, 0xcc, 8, 0,   // Submessage header (Unknown)
+            0xcc, 0xcc, 0xcc, 0xcc, // Unknown stuff
+            0xcc, 0xcc, 0xcc, 0xcc, // Unknown stuff
+         0x15, 0b_0000_0101, 24, 0, // Submessage header (Data)
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+            1, 2, 3, 4, // serialized payload
+         0x08, 0b_0000_0001, 28, 0, // Submessage header (Gap)
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // gapStart: SequenceNumber: high
@@ -409,15 +419,6 @@ mod tests {
             0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
            10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
-            0x99, 0xcc, 8, 0,   // Submessage header
-            0xcc, 0xcc, 0xcc, 0xcc, // Unknown stuff
-            0xcc, 0xcc, 0xcc, 0xcc, // Unknown stuff
-            0x15, 0b_0000_0001, 20, 0, // Submessage header
-            0, 0, 16, 0, // extraFlags, octetsToInlineQos
-            1, 2, 3, 4, // readerId: value[4]
-            6, 7, 8, 9, // writerId: value[4]
-            0, 0, 0, 0, // writerSN: high
-            5, 0, 0, 0, // writerSN: low
         ]).unwrap();
         assert_eq!(result, expected);
     }
