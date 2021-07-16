@@ -434,7 +434,7 @@ mod tests {
         );
         #[rustfmt::skip]
         let result = deserialize(&[
-            /*0x15,*/ 0b_0000_0001, 20, 0, // Submessage header
+            0x15, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -479,7 +479,7 @@ mod tests {
         );
         #[rustfmt::skip]
         let result = deserialize(&[
-            /*0x15,*/ 0b_0000_0101, 24, 0, // Submessage header
+            0x15, 0b_0000_0101, 24, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -527,7 +527,7 @@ mod tests {
         );
         #[rustfmt::skip]
         let result = deserialize(&[
-            /*0x15,*/ 0b_0000_0011, 40, 0, // Submessage header
+            0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]

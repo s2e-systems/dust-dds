@@ -12,6 +12,12 @@ pub struct RTPSMessageHeaderUdp {
     pub(crate) guid_prefix: GuidPrefixUdp,
 }
 
+impl RTPSMessageHeaderUdp {
+    pub const fn number_of_bytes(&self) -> usize {
+        20
+    }
+}
+
 impl From<RTPSMessageHeaderUdp> for RtpsMessageHeader {
     fn from(header: RTPSMessageHeaderUdp) -> Self {
         Self {

@@ -46,52 +46,15 @@ impl TryFrom<Octet> for SubmessageKind {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SubmessageHeaderUdp {
     pub(crate) submessage_id: Octet,
     pub(crate) flags: Octet,
     pub(crate) submessage_length: u16,
 }
 
-impl PartialEq for SubmessageHeaderUdp {
-    fn eq(&self, other: &Self) -> bool {
-        self.flags == other.flags && self.submessage_length == other.submessage_length
-    }
-}
-
-struct SubmessageHeaderVisitor;
-
-impl<'de> serde::de::Visitor<'de> for SubmessageHeaderVisitor {
-    type Value = SubmessageHeaderUdp;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("SubmessageHeaderVisitor")
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
-    {
-        let flags: Octet = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let submessage_length: u16 = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        Ok(SubmessageHeaderUdp {
-            submessage_id: 0.into(),
-            flags,
-            submessage_length,
-        })
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for SubmessageHeaderUdp {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &'static [&'static str] = &["submessage_id", "flags", "submessage_length"];
-        deserializer.deserialize_struct("SubmessageHeader", FIELDS, SubmessageHeaderVisitor)
+impl SubmessageHeaderUdp {
+    pub const fn number_of_bytes(&self) -> usize {
+        4
     }
 }

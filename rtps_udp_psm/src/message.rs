@@ -1,9 +1,21 @@
-use std::convert::TryInto;
+use std::{
+    convert::TryInto,
+    io::{BufRead, BufReader},
+};
 
-use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
-use serde::ser::SerializeStruct;
+use rust_rtps_pim::messages::{
+    submessages::RtpsSubmessageType, types::SubmessageKind, RtpsMessageHeader, RtpsSubmessageHeader,
+};
+use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, error::Error};
+use serde::{de::Deserialize, ser::SerializeStruct};
 
-use crate::{message_header::RTPSMessageHeaderUdp, psm::RtpsUdpPsm, submessage_elements::Octet};
+use crate::{
+    message_header::RTPSMessageHeaderUdp,
+    psm::RtpsUdpPsm,
+    submessage_elements::Octet,
+    submessage_header::SubmessageHeaderUdp,
+    submessages::{data::DataSubmesageUdp, gap::GapSubmessageUdp},
+};
 
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageUdp<'a> {
@@ -29,8 +41,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageUdp<'a> {
     }
 
     fn submessages(&self) -> &[Self::SubmessageType] {
-        // &self.submessages
-        todo!()
+        &self.submessages
     }
 }
 
@@ -66,65 +77,54 @@ impl<'a> serde::Serialize for RTPSMessageUdp<'a> {
         state.end()
     }
 }
-struct RTPSMessageVisitor<'a>(std::marker::PhantomData<&'a ()>);
 
-impl<'a, 'de: 'a> serde::de::Visitor<'de> for RTPSMessageVisitor<'a> {
-    type Value = RTPSMessageUdp<'a>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("RTPSMessage")
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
-    {
-        let header: RTPSMessageHeaderUdp = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+impl<'a> RTPSMessageUdp<'a> {
+    pub fn deserialize(mut buf: &'a [u8]) -> Result<Self, Error> {
         let mut submessages = vec![];
 
-        for _ in 0..seq.size_hint().unwrap() {
-            let submessage_id_result: Result<Option<Octet>, _> = seq.next_element();
-            let submessage_id: Octet = match submessage_id_result {
-                Ok(submessage_id) => {
-                    submessage_id.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?
-                }
-                Err(_) => break, // No more submessages
+        let mut deserializer = RtpsMessageDeserializer { reader: buf };
+        let header: RTPSMessageHeaderUdp = serde::de::Deserialize::deserialize(&mut deserializer)?;
+        buf.consume(header.number_of_bytes());
+
+        const MAX_SUBMESSAGES: usize = 2 ^ 16;
+        for _ in 0..MAX_SUBMESSAGES {
+            if buf.len() < 1 {
+                break;
+            }
+            let submessage_header: SubmessageHeaderUdp =
+                serde::de::Deserialize::deserialize(&mut deserializer)?;
+            let submessage_kind: SubmessageKind = submessage_header.submessage_id.try_into()?;
+            let submessage_length = submessage_header.submessage_length as usize;
+            let submessage_number_of_bytes =
+                submessage_header.number_of_bytes() + submessage_length;
+
+            let mut submessage_deserializer = RtpsMessageDeserializer {
+                reader: &buf[..submessage_number_of_bytes],
             };
-            let submessage_kind_result = submessage_id.try_into();
-            let submessage_kind = match submessage_kind_result {
-                Ok(submessage_kind) => submessage_kind,
-                Err(_) => break, // Unknown message
-            };
+
             let typed_submessage = match submessage_kind {
-                rust_rtps_pim::messages::types::SubmessageKind::GAP => RtpsSubmessageType::Gap(
-                    seq.next_element()?
-                        .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?,
-                ),
-                rust_rtps_pim::messages::types::SubmessageKind::DATA => RtpsSubmessageType::Data(
-                    seq.next_element()?
-                        .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?,
-                ),
+                SubmessageKind::GAP => {
+                    RtpsSubmessageType::Gap(Deserialize::deserialize(&mut submessage_deserializer)?)
+                }
+                SubmessageKind::DATA => RtpsSubmessageType::Data(Deserialize::deserialize(
+                    &mut submessage_deserializer,
+                )?),
                 _ => todo!("Submessage type unhandled"),
             };
             submessages.push(typed_submessage);
+
+            if submessage_number_of_bytes >= buf.len() {
+                break;
+            };
+
+            buf.consume(submessage_number_of_bytes);
+            deserializer.reader.consume(submessage_length);
         }
+
         Ok(RTPSMessageUdp {
             header,
             submessages,
         })
-    }
-}
-impl<'a, 'de: 'a> serde::Deserialize<'de> for RTPSMessageUdp<'a> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const MAX_SUBMESSAGES: usize = 2 ^ 16;
-        const OTHER_FIELDS: usize = 1;
-        const MAX_FIELDS: usize = MAX_SUBMESSAGES + OTHER_FIELDS;
-        deserializer.deserialize_tuple(MAX_FIELDS, RTPSMessageVisitor(std::marker::PhantomData))
     }
 }
 
@@ -144,9 +144,7 @@ mod tests {
         submessage_elements::SequenceNumberSubmessageElementType,
         submessages::{DataSubmessage, GapSubmessage},
     };
-    use rust_serde_cdr::{
-        deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
-    };
+    use rust_serde_cdr::serializer::RtpsMessageSerializer;
 
     fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
         let mut serializer = RtpsMessageSerializer {
@@ -156,10 +154,6 @@ mod tests {
         serializer.writer
     }
 
-    fn deserialize<'de, T: serde::Deserialize<'de>>(buffer: &'de [u8]) -> T {
-        let mut de = RtpsMessageDeserializer { reader: buffer };
-        serde::de::Deserialize::deserialize(&mut de).unwrap()
-    }
 
     #[test]
     fn serialize_rtps_message_no_submessage() {
@@ -274,13 +268,13 @@ mod tests {
             submessages: vec![],
         };
         #[rustfmt::skip]
-        let result: RTPSMessageUdp = deserialize(&[
+        let result = RTPSMessageUdp::deserialize(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
-        ]);
+        ]).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -339,7 +333,7 @@ mod tests {
             submessages: vec![gap_submessage, data_submessage],
         };
         #[rustfmt::skip]
-        let result: RTPSMessageUdp = deserialize(&[
+        let result = RTPSMessageUdp::deserialize(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -359,7 +353,7 @@ mod tests {
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
-        ]);
+        ]).unwrap();
         assert_eq!(result, expected);
     }
 
