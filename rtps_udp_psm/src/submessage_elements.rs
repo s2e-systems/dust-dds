@@ -1,45 +1,21 @@
-use std::convert::{TryFrom, TryInto};
-
 use rust_rtps_pim::{
     messages::types::{Count, FragmentNumber, SubmessageFlag, Time},
     structure::types::{EntityKind, ProtocolVersion},
 };
 use serde::ser::SerializeStruct;
 
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Octet(pub u8);
 
-impl Octet {
-    pub fn is_bit_set(&self, index: usize) -> bool {
-        self.0 & (0b_0000_0001 << index) != 0
-    }
+pub fn is_bit_set(value: u8, index: usize) -> bool {
+    value & (0b_0000_0001 << index) != 0
 }
-
-impl<const N: usize> From<[SubmessageFlag; N]> for Octet {
-    fn from(value: [SubmessageFlag; N]) -> Self {
-        let mut flags = 0b_0000_0000;
-        for (i, &item) in value.iter().enumerate() {
-            if item {
-                flags |= 0b_0000_0001 << i
-            }
+pub fn flags_to_byte<const N: usize>(value: [SubmessageFlag; N]) -> u8 {
+    let mut flags = 0b_0000_0000_u8;
+    for (i, &item) in value.iter().enumerate() {
+        if item {
+            flags |= 0b_0000_0001 << i
         }
-        Self(flags)
     }
-}
-impl<const N: usize> From<Octet> for [SubmessageFlag; N] {
-    fn from(_value: Octet) -> Self {
-        todo!()
-    }
-}
-impl From<Octet> for u8 {
-    fn from(value: Octet) -> Self {
-        value.0
-    }
-}
-impl From<u8> for Octet {
-    fn from(value: u8) -> Self {
-        Self(value)
-    }
+    flags
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -124,62 +100,56 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementTy
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EntityIdUdp {
-    pub entity_key: [Octet; 3],
-    pub entity_kind: Octet,
+    pub entity_key: [u8; 3],
+    pub entity_kind: u8,
 }
 
 impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType for EntityIdUdp {
     fn new(value: &rust_rtps_pim::structure::types::EntityId) -> Self {
         Self {
             entity_key: [
-                Octet(value.entity_key[0]),
-                Octet(value.entity_key[1]),
-                Octet(value.entity_key[2]),
+                value.entity_key[0],
+                value.entity_key[1],
+                value.entity_key[2],
             ],
-            entity_kind: value.entity_kind.into(),
+            entity_kind: entity_kind_into_u8(value.entity_kind),
         }
     }
 
     fn value(&self) -> rust_rtps_pim::structure::types::EntityId {
         rust_rtps_pim::structure::types::EntityId {
             entity_key: [
-                self.entity_key[0].0,
-                self.entity_key[1].0,
-                self.entity_key[2].0,
+                self.entity_key[0],
+                self.entity_key[1],
+                self.entity_key[2],
             ],
-            entity_kind: self.entity_kind.try_into().unwrap(),
+            entity_kind: u8_into_entity_kind(self.entity_kind)
         }
     }
 }
 
-impl From<EntityKind> for Octet {
-    fn from(value: EntityKind) -> Self {
-        match value {
-            EntityKind::UserDefinedUnknown => Octet(0x00),
-            EntityKind::BuiltInUnknown => Octet(0xc0),
-            EntityKind::BuiltInParticipant => Octet(0xc1),
-            EntityKind::UserDefinedWriterWithKey => Octet(0x02),
-            EntityKind::BuiltInWriterWithKey => Octet(0xc2),
-            EntityKind::UserDefinedWriterNoKey => Octet(0x03),
-            EntityKind::BuiltInWriterNoKey => Octet(0xc3),
-            EntityKind::UserDefinedReaderWithKey => Octet(0x07),
-            EntityKind::BuiltInReaderWithKey => Octet(0xc7),
-            EntityKind::UserDefinedReaderNoKey => Octet(0x04),
-            EntityKind::BuiltInReaderNoKey => Octet(0xc4),
-            EntityKind::UserDefinedWriterGroup => Octet(0x08),
-            EntityKind::BuiltInWriterGroup => Octet(0xc8),
-            EntityKind::UserDefinedReaderGroup => Octet(0x09),
-            EntityKind::BuiltInReaderGroup => Octet(0xc9),
-        }
+
+fn entity_kind_into_u8(value: EntityKind) -> u8 {
+    match value {
+        EntityKind::UserDefinedUnknown => 0x00,
+        EntityKind::BuiltInUnknown => 0xc0,
+        EntityKind::BuiltInParticipant => 0xc1,
+        EntityKind::UserDefinedWriterWithKey => 0x02,
+        EntityKind::BuiltInWriterWithKey => 0xc2,
+        EntityKind::UserDefinedWriterNoKey => 0x03,
+        EntityKind::BuiltInWriterNoKey => 0xc3,
+        EntityKind::UserDefinedReaderWithKey => 0x07,
+        EntityKind::BuiltInReaderWithKey => 0xc7,
+        EntityKind::UserDefinedReaderNoKey => 0x04,
+        EntityKind::BuiltInReaderNoKey => 0xc4,
+        EntityKind::UserDefinedWriterGroup => 0x08,
+        EntityKind::BuiltInWriterGroup => 0xc8,
+        EntityKind::UserDefinedReaderGroup => 0x09,
+        EntityKind::BuiltInReaderGroup => 0xc9,
     }
 }
-
-impl TryFrom<Octet> for EntityKind {
-    type Error = ();
-
-    fn try_from(_value: Octet) -> Result<Self, Self::Error> {
-        todo!()
-    }
+fn u8_into_entity_kind(_value: u8) -> EntityKind {
+    todo!()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -555,43 +525,43 @@ mod tests {
 
     #[test]
     fn octet_from_submessage_flags() {
-        let result: Octet = [true, false, true].into();
-        assert_eq!(result, Octet(0b_0000_0101));
+        let result: u8 = flags_to_byte([true, false, true]);
+        assert_eq!(result, 0b_0000_0101);
     }
 
     #[test]
     fn octet_from_submessage_flags_empty() {
-        let result: Octet = [].into();
-        assert_eq!(result, Octet(0b_0000_0000));
+        let result: u8 = flags_to_byte([]);
+        assert_eq!(result, 0b_0000_0000);
     }
     #[test]
     #[should_panic]
     fn octet_from_submessage_flags_overflow() {
-        let _: Octet = [true; 9].into();
+        let _: u8 = flags_to_byte([true; 9]);
     }
 
     #[test]
     fn octet_is_set_bit() {
-        let flags = Octet(0b_0000_0001);
-        assert_eq!(flags.is_bit_set(0), true);
+        let flags = 0b_0000_0001;
+        assert_eq!(is_bit_set(flags, 0), true);
 
-        let flags = Octet(0b_0000_0000);
-        assert_eq!(flags.is_bit_set(0), false);
+        let flags = 0b_0000_0000;
+        assert_eq!(is_bit_set(flags, 0), false);
 
-        let flags = Octet(0b_0000_0010);
-        assert_eq!(flags.is_bit_set(1), true);
+        let flags = 0b_0000_0010;
+        assert_eq!(is_bit_set(flags, 1), true);
 
-        let flags = Octet(0b_1000_0011);
-        assert_eq!(flags.is_bit_set(7), true);
+        let flags = 0b_1000_0011;
+        assert_eq!(is_bit_set(flags, 7), true);
     }
     #[test]
     fn serialize_octet() {
-        assert_eq!(serialize(Octet(5)), vec![5]);
+        assert_eq!(serialize(5_u8), vec![5]);
     }
     #[test]
     fn deserialize_octet() {
-        let result: Octet = deserialize(&[5]);
-        assert_eq!(result, Octet(5));
+        let result: u8 = deserialize(&[5]);
+        assert_eq!(result,5);
     }
 
     #[test]

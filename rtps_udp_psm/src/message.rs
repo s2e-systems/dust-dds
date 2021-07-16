@@ -118,7 +118,7 @@ mod tests {
     use crate::{
         parameter_list::ParameterListUdp,
         submessage_elements::{
-            EntityIdUdp, GuidPrefixUdp, Octet, ProtocolVersionUdp, SequenceNumberSetUdp,
+            EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
             SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
         },
         submessages,
@@ -170,12 +170,12 @@ mod tests {
         };
         let endianness_flag = true;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
@@ -272,12 +272,12 @@ mod tests {
 
         let endianness_flag = true;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
@@ -351,12 +351,12 @@ mod tests {
 
         let endianness_flag = true;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);

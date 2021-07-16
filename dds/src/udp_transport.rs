@@ -127,7 +127,7 @@ mod tests {
     use rust_rtps_udp_psm::{
         message::RTPSMessageUdp,
         parameter_list::ParameterListUdp,
-        submessage_elements::{EntityIdUdp, Octet, SequenceNumberUdp, SerializedDataUdp},
+        submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp},
         submessages::data::DataSubmesageUdp,
     };
 
@@ -231,12 +231,12 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {

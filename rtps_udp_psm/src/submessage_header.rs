@@ -1,7 +1,5 @@
 use rust_rtps_pim::messages::types::SubmessageKind;
 
-use crate::submessage_elements::Octet;
-
 
 pub const DATA: u8 = 0x15;
 pub const GAP: u8 = 0x08;
@@ -16,29 +14,29 @@ pub const DATA_FRAG: u8 = 0x16;
 pub const NACK_FRAG: u8 = 0x12;
 pub const HEARTBEAT_FRAG: u8 = 0x13;
 
-impl From<SubmessageKind> for Octet {
-    fn from(value: SubmessageKind) -> Self {
-        match value {
-            SubmessageKind::DATA => Octet(DATA),
-            SubmessageKind::GAP => Octet(GAP),
-            SubmessageKind::HEARTBEAT => Octet(HEARTBEAT),
-            SubmessageKind::ACKNACK => Octet(ACKNACK),
-            SubmessageKind::PAD => Octet(PAD),
-            SubmessageKind::INFO_TS => Octet(INFO_TS),
-            SubmessageKind::INFO_REPLY => Octet(INFO_REPLY),
-            SubmessageKind::INFO_DST => Octet(INFO_DST),
-            SubmessageKind::INFO_SRC => Octet(INFO_SRC),
-            SubmessageKind::DATA_FRAG => Octet(DATA_FRAG),
-            SubmessageKind::NACK_FRAG => Octet(NACK_FRAG),
-            SubmessageKind::HEARTBEAT_FRAG => Octet(HEARTBEAT_FRAG),
-        }
+
+pub fn submessage_kind_into_byte(value: SubmessageKind) -> u8 {
+    match value {
+        SubmessageKind::DATA => DATA,
+        SubmessageKind::GAP => GAP,
+        SubmessageKind::HEARTBEAT => HEARTBEAT,
+        SubmessageKind::ACKNACK => ACKNACK,
+        SubmessageKind::PAD => PAD,
+        SubmessageKind::INFO_TS => INFO_TS,
+        SubmessageKind::INFO_REPLY => INFO_REPLY,
+        SubmessageKind::INFO_DST => INFO_DST,
+        SubmessageKind::INFO_SRC => INFO_SRC,
+        SubmessageKind::DATA_FRAG => DATA_FRAG,
+        SubmessageKind::NACK_FRAG => NACK_FRAG,
+        SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
     }
 }
 
+
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SubmessageHeaderUdp {
-    pub(crate) submessage_id: Octet,
-    pub(crate) flags: Octet,
+    pub(crate) submessage_id: u8,
+    pub(crate) flags: u8,
     pub(crate) submessage_length: u16,
 }
 
