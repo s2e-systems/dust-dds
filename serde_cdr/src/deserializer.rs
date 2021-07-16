@@ -283,13 +283,8 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
             where
                 T: serde::de::DeserializeSeed<'de>,
             {
-                if self.len > 0 {
-                    self.len -= 1;
-                    let value = seed.deserialize(&mut *self.deserializer)?;
-                    Ok(Some(value))
-                } else {
-                    Ok(None)
-                }
+                let value = seed.deserialize(&mut *self.deserializer)?;
+                Ok(Some(value))
             }
 
             fn size_hint(&self) -> Option<usize> {
@@ -297,7 +292,7 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
             }
         }
 
-        let len = usize::MAX;
+        let len = fields.len();
         visitor.visit_seq(Access {
             deserializer: self,
             len,
