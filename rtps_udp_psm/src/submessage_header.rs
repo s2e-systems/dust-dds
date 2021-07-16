@@ -1,48 +1,37 @@
-use std::convert::TryFrom;
-
 use rust_rtps_pim::messages::types::SubmessageKind;
 
 use crate::submessage_elements::Octet;
 
+
+pub const DATA: u8 = 0x15;
+pub const GAP: u8 = 0x08;
+pub const HEARTBEAT: u8 = 0x07;
+pub const ACKNACK: u8 = 0x06;
+pub const PAD: u8 = 0x01;
+pub const INFO_TS: u8 = 0x09;
+pub const INFO_REPLY: u8 = 0x0f;
+pub const INFO_DST: u8 = 0x0e;
+pub const INFO_SRC: u8 = 0x0c;
+pub const DATA_FRAG: u8 = 0x16;
+pub const NACK_FRAG: u8 = 0x12;
+pub const HEARTBEAT_FRAG: u8 = 0x13;
+
 impl From<SubmessageKind> for Octet {
     fn from(value: SubmessageKind) -> Self {
         match value {
-            SubmessageKind::DATA => Octet(0x15),
-            SubmessageKind::GAP => Octet(0x08),
-            SubmessageKind::HEARTBEAT => Octet(0x07),
-            SubmessageKind::ACKNACK => Octet(0x06),
-            SubmessageKind::PAD => Octet(0x01),
-            SubmessageKind::INFO_TS => Octet(0x09),
-            SubmessageKind::INFO_REPLY => Octet(0x0f),
-            SubmessageKind::INFO_DST => Octet(0x0e),
-            SubmessageKind::INFO_SRC => Octet(0x0c),
-            SubmessageKind::DATA_FRAG => Octet(0x16),
-            SubmessageKind::NACK_FRAG => Octet(0x12),
-            SubmessageKind::HEARTBEAT_FRAG => Octet(0x13),
+            SubmessageKind::DATA => Octet(DATA),
+            SubmessageKind::GAP => Octet(GAP),
+            SubmessageKind::HEARTBEAT => Octet(HEARTBEAT),
+            SubmessageKind::ACKNACK => Octet(ACKNACK),
+            SubmessageKind::PAD => Octet(PAD),
+            SubmessageKind::INFO_TS => Octet(INFO_TS),
+            SubmessageKind::INFO_REPLY => Octet(INFO_REPLY),
+            SubmessageKind::INFO_DST => Octet(INFO_DST),
+            SubmessageKind::INFO_SRC => Octet(INFO_SRC),
+            SubmessageKind::DATA_FRAG => Octet(DATA_FRAG),
+            SubmessageKind::NACK_FRAG => Octet(NACK_FRAG),
+            SubmessageKind::HEARTBEAT_FRAG => Octet(HEARTBEAT_FRAG),
         }
-    }
-}
-
-impl TryFrom<Octet> for SubmessageKind {
-    type Error = std::io::Error;
-
-    fn try_from(value: Octet) -> Result<Self, Self::Error> {
-        let submessage_kind = match value {
-            Octet(0x15) => SubmessageKind::DATA,
-            Octet(0x08) => SubmessageKind::GAP,
-            Octet(0x07) => SubmessageKind::HEARTBEAT,
-            Octet(0x06) => SubmessageKind::ACKNACK,
-            Octet(0x01) => SubmessageKind::PAD,
-            Octet(0x09) => SubmessageKind::INFO_TS,
-            Octet(0x0f) => SubmessageKind::INFO_REPLY,
-            Octet(0x0e) => SubmessageKind::INFO_DST,
-            Octet(0x0c) => SubmessageKind::INFO_SRC,
-            Octet(0x16) => SubmessageKind::DATA_FRAG,
-            Octet(0x12) => SubmessageKind::NACK_FRAG,
-            Octet(0x13) => SubmessageKind::HEARTBEAT_FRAG,
-            _ => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "")),
-        };
-        Ok(submessage_kind)
     }
 }
 
