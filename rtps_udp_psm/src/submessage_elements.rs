@@ -187,13 +187,13 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageEleme
 #[derive(Debug, Clone, PartialEq)]
 pub struct SequenceNumberSetUdp {
     base: SequenceNumberUdp,
-    num_bits: ULongUdp,
+    num_bits: u32,
     bitmap: [i32; 8],
 }
 
 impl SequenceNumberSetUdp {
     pub fn len(&self) -> u16 {
-        let number_of_bitmap_elements = ((self.num_bits.0 + 31) / 32) as usize; // aka "M"
+        let number_of_bitmap_elements = ((self.num_bits + 31) / 32) as usize; // aka "M"
         12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */ as u16
     }
 }
@@ -215,7 +215,7 @@ impl serde::Serialize for SequenceNumberSetUdp {
             "bitmap[6]",
             "bitmap[7]",
         ];
-        let number_of_bitmap_elements = ((self.num_bits.0 + 31) / 32) as usize; // aka "M"
+        let number_of_bitmap_elements = ((self.num_bits + 31) / 32) as usize; // aka "M"
         for i in 0..number_of_bitmap_elements {
             state.serialize_field(BITMAP_NAMES[i], &self.bitmap[i])?;
         }
@@ -239,10 +239,10 @@ impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
         let base: SequenceNumberUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let num_bits: ULongUdp = seq
+        let num_bits  = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        let num_bitmaps = (num_bits.0 + 31) / 32; //In standard refered to as "M"
+        let num_bitmaps = (num_bits + 31) / 32; //In standard refered to as "M"
         let mut bitmap = [0; 8];
         for i in 0..num_bitmaps as usize {
             let bitmap_i = seq
@@ -291,7 +291,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
         }
         Self {
             base: base.into(),
-            num_bits: ULongUdp(num_bits),
+            num_bits,
             bitmap,
         }
     }
@@ -302,7 +302,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
 
     fn set(&self) -> Self::IntoIter {
         let mut set = vec![];
-        for delta_n in 0..self.num_bits.0 as usize {
+        for delta_n in 0..self.num_bits as usize {
             if (self.bitmap[delta_n / 32] & (1 << (31 - delta_n % 32)))
                 == (1 << (31 - delta_n % 32))
             {
@@ -574,38 +574,38 @@ mod tests {
     fn sequence_number_set_submessage_element_type_constructor() {
         let expected = SequenceNumberSetUdp {
             base: SequenceNumberUdp::new(&2),
-            num_bits: ULongUdp(0),
+            num_bits: 0,
             bitmap: [0; 8],
         };
         assert_eq!(SequenceNumberSetUdp::new(&2, &[]), expected);
 
         let expected = SequenceNumberSetUdp {
             base: SequenceNumberUdp::new(&2),
-            num_bits: ULongUdp(1),
+            num_bits: 1,
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
             ],
         };
         assert_eq!(SequenceNumberSetUdp::new(&2, &[2]), expected);
 
         let expected = SequenceNumberSetUdp {
             base: SequenceNumberUdp::new(&2),
-            num_bits: ULongUdp(256),
+            num_bits: 256,
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
                 0b_00000000_00000000_00000000_00000001,
             ],
         };
@@ -616,7 +616,7 @@ mod tests {
     fn sequence_number_set_submessage_element_type_getters() {
         let sequence_number_set = SequenceNumberSetUdp {
             base: SequenceNumberUdp::new(&2),
-            num_bits: ULongUdp(0),
+            num_bits: 0,
             bitmap: [0; 8],
         };
         assert_eq!(sequence_number_set.base(), 2);
@@ -624,16 +624,16 @@ mod tests {
 
         let sequence_number_set = SequenceNumberSetUdp {
             base: SequenceNumberUdp::new(&2),
-            num_bits: ULongUdp(100),
+            num_bits: 100,
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
             ],
         };
         assert_eq!(sequence_number_set.base(), 2);
@@ -641,15 +641,15 @@ mod tests {
 
         let sequence_number_set = SequenceNumberSetUdp {
             base: SequenceNumberUdp::new(&2),
-            num_bits: ULongUdp(256),
+            num_bits: 256,
             bitmap: [
                 0b_10000000_00000000_00000000_00000000_u32 as i32,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
                 0b_00000000_00000000_00000000_00000001,
             ],
         };
