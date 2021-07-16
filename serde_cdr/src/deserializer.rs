@@ -107,7 +107,7 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
+        todo!() //visitor.visit_str(&self.read_string()?)
     }
 
     fn deserialize_string<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -176,14 +176,15 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
         struct Access<'de, 'a> {
             deserializer: &'a mut RtpsMessageDeserializer<'de>,
             remaining_items: usize,
-            len: usize
+            len: usize,
         }
 
-        impl<'de, 'a> serde::de::SeqAccess<'de> for Access<'de, 'a>{
+        impl<'de, 'a> serde::de::SeqAccess<'de> for Access<'de, 'a> {
             type Error = crate::error::Error;
 
             fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
-                where T: serde::de::DeserializeSeed<'de>,
+            where
+                T: serde::de::DeserializeSeed<'de>,
             {
                 if self.remaining_items > 0 {
                     self.remaining_items -= 1;
@@ -198,7 +199,11 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
                 Some(self.len)
             }
         }
-        visitor.visit_seq(Access{deserializer: self, remaining_items: len as usize, len: len as usize})
+        visitor.visit_seq(Access {
+            deserializer: self,
+            remaining_items: len as usize,
+            len: len as usize,
+        })
     }
 
     fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
@@ -208,14 +213,15 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
         struct Access<'de, 'a> {
             deserializer: &'a mut RtpsMessageDeserializer<'de>,
             remaining_items: usize,
-            len: usize
+            len: usize,
         }
 
-        impl<'de, 'a> serde::de::SeqAccess<'de> for Access<'de, 'a>{
+        impl<'de, 'a> serde::de::SeqAccess<'de> for Access<'de, 'a> {
             type Error = crate::error::Error;
 
             fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
-                where T: serde::de::DeserializeSeed<'de>,
+            where
+                T: serde::de::DeserializeSeed<'de>,
             {
                 if self.remaining_items > 0 {
                     self.remaining_items -= 1;
@@ -230,7 +236,11 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
                 Some(self.len)
             }
         }
-        visitor.visit_seq(Access{deserializer: self, remaining_items: len, len})
+        visitor.visit_seq(Access {
+            deserializer: self,
+            remaining_items: len,
+            len,
+        })
     }
 
     fn deserialize_tuple_struct<V>(
@@ -266,19 +276,15 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
             len: usize,
         }
 
-        impl<'de, 'a> serde::de::SeqAccess<'de> for Access<'de, 'a>{
+        impl<'de, 'a> serde::de::SeqAccess<'de> for Access<'de, 'a> {
             type Error = crate::error::Error;
 
             fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
-                where T: serde::de::DeserializeSeed<'de>,
+            where
+                T: serde::de::DeserializeSeed<'de>,
             {
-                if self.len > 0 {
-                    self.len -= 1;
-                    let value = seed.deserialize(&mut *self.deserializer)?;
-                    Ok(Some(value))
-                } else {
-                    Ok(None)
-                }
+                let value = seed.deserialize(&mut *self.deserializer)?;
+                Ok(Some(value))
             }
 
             fn size_hint(&self) -> Option<usize> {
@@ -287,7 +293,10 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
         }
 
         let len = fields.len();
-        visitor.visit_seq(Access{deserializer: self, len,})
+        visitor.visit_seq(Access {
+            deserializer: self,
+            len,
+        })
     }
 
     fn deserialize_enum<V>(
@@ -336,9 +345,7 @@ mod tests {
     #[test]
     fn deserialize_multiple_u8() {
         let buffer = [1, 2];
-        let mut de = RtpsMessageDeserializer {
-            reader: &buffer,
-        };
+        let mut de = RtpsMessageDeserializer { reader: &buffer };
         let result: u8 = serde::de::Deserialize::deserialize(&mut de).unwrap();
         assert_eq!(result, 1);
         let result: u8 = serde::de::Deserialize::deserialize(&mut de).unwrap();
@@ -386,7 +393,13 @@ mod tests {
     #[test]
     fn deserialze_primitive_struct() {
         let result: PrimitiveStruct = deserialize(&[0x03, 0x00, 0b00000001]);
-        assert_eq!(result, PrimitiveStruct{id: 0x0003, flags: 0b00000001});
+        assert_eq!(
+            result,
+            PrimitiveStruct {
+                id: 0x0003,
+                flags: 0b00000001
+            }
+        );
     }
 
     #[derive(PartialEq, Debug, serde::Deserialize)]
@@ -398,9 +411,17 @@ mod tests {
     #[test]
     fn deserialze_complex_struct() {
         let result: ComplexStruct = deserialize(&[0x03, 0x00, 0b00000001, 0x04, 0x00, 0x05, 0x00]);
-        assert_eq!(result, ComplexStruct{header: PrimitiveStruct{id: 0x0003, flags: 0b00000001}, data: [0x0004, 0x0005]});
+        assert_eq!(
+            result,
+            ComplexStruct {
+                header: PrimitiveStruct {
+                    id: 0x0003,
+                    flags: 0b00000001
+                },
+                data: [0x0004, 0x0005]
+            }
+        );
     }
-
 
     struct CustomStructVisitor;
 
@@ -412,15 +433,22 @@ mod tests {
         }
 
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where A: serde::de::SeqAccess<'de>,
+        where
+            A: serde::de::SeqAccess<'de>,
         {
             let error_message_len = seq.size_hint().unwrap_or(0);
-            let data_length: u16 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+            let data_length: u16 = seq
+                .next_element()?
+                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
             let mut data = vec![];
             for _ in 0..data_length {
-                data.push(seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(error_message_len, &self))?);
+                data.push(
+                    seq.next_element()?.ok_or_else(|| {
+                        serde::de::Error::invalid_length(error_message_len, &self)
+                    })?,
+                );
             }
-            Ok(CustomStruct{data_length, data})
+            Ok(CustomStruct { data_length, data })
         }
     }
 
@@ -432,16 +460,23 @@ mod tests {
     impl<'de> serde::Deserialize<'de> for CustomStruct {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
-            D: serde::Deserializer<'de> {
-                const MAX_BYTES: usize = 2^16;
-                deserializer.deserialize_tuple(MAX_BYTES, CustomStructVisitor {})
+            D: serde::Deserializer<'de>,
+        {
+            const MAX_BYTES: usize = 2 ^ 16;
+            deserializer.deserialize_tuple(MAX_BYTES, CustomStructVisitor {})
         }
     }
 
     #[test]
     fn deserialze_custom_struct() {
         let result: CustomStruct = deserialize(&[0x02, 0x00, 4, 5]);
-        assert_eq!(result, CustomStruct{data_length: 2, data: vec![4, 5]});
+        assert_eq!(
+            result,
+            CustomStruct {
+                data_length: 2,
+                data: vec![4, 5]
+            }
+        );
     }
 
     struct ReferenceStructVisitor;
@@ -454,45 +489,151 @@ mod tests {
         }
 
         fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where A: serde::de::SeqAccess<'a>,
+        where
+            A: serde::de::SeqAccess<'a>,
         {
-            let length: u8 = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-            let data: &[u8] = seq.next_element()?.ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-            Ok(ReferenceStruct{length, data: &data[0..length as usize]})
+            let length: u8 = seq
+                .next_element()?
+                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+            let data: &[u8] = seq
+                .next_element()?
+                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+
+            for _ in 0..length {
+                let _: u8 = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+            }
+
+            Ok(ReferenceStruct {
+                length,
+                data: &data[0..length as usize],
+            })
         }
     }
 
     #[derive(PartialEq, Debug)]
     struct ReferenceStruct<'a> {
         length: u8,
-        data: &'a [u8]
+        // #[serde(with = "serde_bytes")]
+        data: &'a [u8],
     }
     impl<'a, 'de: 'a> serde::Deserialize<'de> for ReferenceStruct<'a> {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
-            D: serde::Deserializer<'de> {
-                deserializer.deserialize_tuple(2, ReferenceStructVisitor)
+            D: serde::Deserializer<'de>,
+        {
+            const FIELDS: &'static [&'static str] = &["length", "data"];
+            deserializer.deserialize_struct("ReferenceStruct", FIELDS, ReferenceStructVisitor)
         }
     }
 
     #[test]
     fn deserialze_reference_struct() {
-        let buffer = [3, 4, 5, 6, 7];
+        let buffer = [3, 4, 5, 6, 99, 100, 101];
         let mut de = RtpsMessageDeserializer {
             reader: buffer.as_ref(),
         };
         let result: ReferenceStruct = serde::de::Deserialize::deserialize(&mut de).unwrap();
-        assert_eq!(result, ReferenceStruct{length: 3, data: &[4, 5, 6]});
+        assert_eq!(
+            result,
+            ReferenceStruct {
+                length: 3,
+                data: &[4, 5, 6],
+            }
+        );
     }
 
+    struct ComposedStructVisitor;
+
+    impl<'a> serde::de::Visitor<'a> for ComposedStructVisitor {
+        type Value = ComposedStructure<'a>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("ComposedStructure")
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::SeqAccess<'a>,
+        {
+            let refdata: ReferenceStruct = seq
+                .next_element()?
+                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+            let followdata: u8 = seq
+                .next_element()?
+                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+
+            Ok(ComposedStructure {
+                refdata,
+                followdata,
+            })
+        }
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct ComposedStructure<'a> {
+        refdata: ReferenceStruct<'a>,
+        followdata: u8,
+    }
+
+    impl<'a, 'de: 'a> serde::Deserialize<'de> for ComposedStructure<'a> {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            const FIELDS: &'static [&'static str] = &["refdata", "followdata"];
+            deserializer.deserialize_struct("ComposedStructVisitor", FIELDS, ComposedStructVisitor)
+        }
+    }
+
+    #[test]
+    fn deserialze_composed_reference_struct() {
+        let buffer = [3, 4, 5, 6, 99];
+        let mut de = RtpsMessageDeserializer {
+            reader: buffer.as_ref(),
+        };
+        let result: ComposedStructure = serde::de::Deserialize::deserialize(&mut de).unwrap();
+        assert_eq!(
+            result,
+            ComposedStructure {
+                refdata: ReferenceStruct {
+                    length: 3,
+                    data: &[4, 5, 6],
+                },
+                followdata: 99,
+            }
+        );
+    }
 
     #[test]
     fn shift() {
-        let mut buffer = &[0b_0000_0000_u8, 0b_0000_0000_u8, 0b_0000_0000_u8, 0b_1000_0000][..];
+        let mut buffer = &[
+            0b_0000_0000_u8,
+            0b_0000_0000_u8,
+            0b_0000_0000_u8,
+            0b_1000_0000,
+        ][..];
         let value = buffer.read_i32::<LittleEndian>().unwrap();
         assert_eq!(value, -2147483648);
 
         assert_eq!((value & 1 << 31) != 0, true);
         assert_eq!((value & 1 << 30) == 0, true);
+    }
+
+
+    #[test]
+    fn deserialize_u8_json() {
+        let json_str = r#"1"#;
+        let result: u8 = serde_json::de::from_str(json_str).unwrap();
+        assert_eq!(result, 1_u8);
+    }
+
+    #[test]
+    fn deserialize_primitive_json() {
+        let json_str = r#"{"id":1,"flags":2}"#;
+        let result: PrimitiveStruct = serde_json::de::from_str(json_str).unwrap();
+        let expected = PrimitiveStruct { id: 1, flags: 2 };
+        assert_eq!(result, expected);
     }
 }

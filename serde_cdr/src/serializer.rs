@@ -390,4 +390,18 @@ mod tests {
 
         assert_eq!(serialize(value), vec![2, 3, 4]);
     }
+
+    #[test]
+    fn serialize_u8_json() {
+        let expected = r#"1"#;
+        let result = serde_json::ser::to_string(&1_u8).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn serialize_timestamp_json() {
+        let expected = r#"{"seconds":1,"fraction":2}"#;
+        let result = serde_json::ser::to_string(&Timestamp{ seconds:1 , fraction:2 }).unwrap();
+        assert_eq!(result, expected);
+    }
 }

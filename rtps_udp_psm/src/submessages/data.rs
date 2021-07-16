@@ -434,7 +434,7 @@ mod tests {
         );
         #[rustfmt::skip]
         let result = deserialize(&[
-            /*0x15,*/ 0b_0000_0001, 20, 0, // Submessage header
+            0x15, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -479,7 +479,7 @@ mod tests {
         );
         #[rustfmt::skip]
         let result = deserialize(&[
-            /*0x15,*/ 0b_0000_0101, 24, 0, // Submessage header
+            0x15, 0b_0000_0101, 24, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -527,7 +527,7 @@ mod tests {
         );
         #[rustfmt::skip]
         let result = deserialize(&[
-            /*0x15,*/ 0b_0000_0011, 40, 0, // Submessage header
+            0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -581,4 +581,44 @@ mod tests {
             r#"{"header":{"submessage_id":21,"flags":1,"submessage_length":20},"extra_flags":0,"octets_to_inline_qos":16,"reader_id":{"entity_key":[1,2,3],"entity_kind":4},"writer_id":{"entity_key":[6,7,8],"entity_kind":9},"writer_sn":{"high":0,"low":5}}"#
         );
     }
+
+
+    // #[test]
+    // fn deserialize_no_inline_qos_no_serialized_payload_json() {
+    //     let endianness_flag = true;
+    //     let inline_qos_flag = false;
+    //     let data_flag = false;
+    //     let key_flag = false;
+    //     let non_standard_payload_flag = false;
+    //     let reader_id = EntityIdUdp {
+    //         entity_key: [Octet(1), Octet(2), Octet(3)],
+    //         entity_kind: Octet(4),
+    //     };
+    //     let writer_id = EntityIdUdp {
+    //         entity_key: [Octet(6), Octet(7), Octet(8)],
+    //         entity_kind: Octet(9),
+    //     };
+    //     let writer_sn = SequenceNumberUdp::new(&5);
+    //     let inline_qos = ParameterListUdp {
+    //         parameter: vec![].into(),
+    //     };
+    //     let data = [];
+    //     let serialized_payload = SerializedDataUdp(data[..].into());
+    //     let expected = DataSubmesageUdp::new(
+    //         endianness_flag,
+    //         inline_qos_flag,
+    //         data_flag,
+    //         key_flag,
+    //         non_standard_payload_flag,
+    //         reader_id,
+    //         writer_id,
+    //         writer_sn,
+    //         inline_qos,
+    //         serialized_payload,
+    //     );
+    //     let json_str = r#"{"header":{"submessage_id":21,"flags":1,"submessage_length":20},"extra_flags":0,"octets_to_inline_qos":16,"reader_id":{"entity_key":[1,2,3],"entity_kind":4},"writer_id":{"entity_key":[6,7,8],"entity_kind":9},"writer_sn":{"high":0,"low":5}}"#;
+    //     let result:DataSubmesageUdp  = serde_json::de::from_str(json_str).unwrap();
+
+    //     assert_eq!(expected, result);
+    // }
 }

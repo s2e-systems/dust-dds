@@ -155,7 +155,7 @@ mod tests {
         );
         #[rustfmt::skip]
         let result = deserialize(&[
-            /*0x08,*/ 0b_0000_0001, 28, 0, // Submessage header
+            0x08, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // gapStart: SequenceNumber: high
