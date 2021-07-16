@@ -53,7 +53,8 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
         } else {
             inline_qos.len()
         };
-        let submessage_length = 20 + inline_qos_len + serialized_payload.len();
+        let serialized_payload_len_padded = serialized_payload.len() + 3 &!3; //ceil to multiple of 4
+        let submessage_length = 20 + inline_qos_len + serialized_payload_len_padded;
         let header = SubmessageHeaderUdp {
             submessage_id: SubmessageKind::DATA.into(),
             flags,
@@ -142,10 +143,23 @@ impl<'a> serde::Serialize for DataSubmesageUdp<'a> {
         }
         if self.data_flag() || self.key_flag() {
             state.serialize_field("serialized_payload", &self.serialized_payload)?;
+            // Pad to 32bit boundary
+            let pad_length = (4 - self.serialized_payload.len() % 4) & 0b11; // ceil to the nearest multiple of 4
+            let pad = vec![0; pad_length as usize];
+            state.serialize_field("pad", &SerializedDataUdp(pad.as_slice()))?;
         }
+
         state.end()
     }
 }
+
+// #[test]
+// fn round() {
+//     for value_length in 0..15 {
+//         let result = value_length + 3 & !3;
+//         println!("value_length = {:?}, result = {:?}({:b})", value_length, result, result);
+//     }
+// }
 
 struct DataSubmesageVisitor<'a>(std::marker::PhantomData<&'a ()>);
 
@@ -396,6 +410,52 @@ mod tests {
                 0, 0, 0, 0, // writerSN: high
                 5, 0, 0, 0, // writerSN: low
                 1, 2, 3, 4, // serialized payload
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_no_inline_qos_with_serialized_payload_non_multiple_of_4() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdUdp {
+            entity_key: [Octet(1), Octet(2), Octet(3)],
+            entity_kind: Octet(4),
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [Octet(6), Octet(7), Octet(8)],
+            entity_kind: Octet(9),
+        };
+        let writer_sn = SequenceNumberUdp::new(&5);
+        let inline_qos = ParameterListUdp {
+            parameter: vec![].into(),
+        };
+        let data = [1_u8, 2, 3];
+        let serialized_payload = SerializedDataUdp(data[..].into());
+        let submessage = DataSubmesageUdp::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        );
+        #[rustfmt::skip]
+        assert_eq!(serialize(submessage), vec![
+                0x15, 0b_0000_0101, 24, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                1, 2, 3, 0, // serialized payload
             ]
         );
     }
