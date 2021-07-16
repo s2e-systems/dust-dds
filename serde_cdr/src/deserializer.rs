@@ -515,6 +515,7 @@ mod tests {
     #[derive(PartialEq, Debug)]
     struct ReferenceStruct<'a> {
         length: u8,
+        // #[serde(with = "serde_bytes")]
         data: &'a [u8],
     }
     impl<'a, 'de: 'a> serde::Deserialize<'de> for ReferenceStruct<'a> {

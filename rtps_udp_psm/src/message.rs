@@ -1,16 +1,9 @@
 use std::convert::TryInto;
 
-use rust_rtps_pim::{
-    messages::{submessages::RtpsSubmessageType, RtpsMessageHeader},
-    structure::types::ProtocolVersion,
-};
+use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
 use serde::ser::SerializeStruct;
 
-use crate::{
-    message_header::RTPSMessageHeaderUdp,
-    psm::RtpsUdpPsm,
-    submessage_elements::{GuidPrefixUdp, Octet, ProtocolVersionUdp, VendorIdUdp},
-};
+use crate::{message_header::RTPSMessageHeaderUdp, psm::RtpsUdpPsm, submessage_elements::Octet};
 
 #[derive(Debug, PartialEq)]
 pub struct RTPSMessageUdp<'a> {
@@ -25,31 +18,14 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageUdp<'a> {
         header: &RtpsMessageHeader,
         submessages: T,
     ) -> Self {
-        let header = RTPSMessageHeaderUdp {
-            protocol: [b'R', b'T', b'P', b'S'],
-            version: ProtocolVersionUdp {
-                major: header.version.major,
-                minor: header.version.minor,
-            },
-            vendor_id: VendorIdUdp(header.vendor_id),
-            guid_prefix: GuidPrefixUdp(header.guid_prefix),
-        };
         Self {
-            header,
+            header: header.into(),
             submessages: submessages.into_iter().collect(),
         }
     }
 
     fn header(&self) -> RtpsMessageHeader {
-        RtpsMessageHeader {
-            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersion {
-                major: self.header.version.major,
-                minor: self.header.version.minor,
-            },
-            vendor_id: self.header.vendor_id.0,
-            guid_prefix: self.header.guid_prefix.0,
-        }
+        self.header.into()
     }
 
     fn submessages(&self) -> &[Self::SubmessageType] {
