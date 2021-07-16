@@ -4,7 +4,7 @@ use crate::submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp}
 
 pub type ProtocolIdUdp = [u8; 4];
 
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RTPSMessageHeaderUdp {
     pub(crate) protocol: ProtocolIdUdp,
     pub(crate) version: ProtocolVersionUdp,
@@ -18,8 +18,8 @@ impl RTPSMessageHeaderUdp {
     }
 }
 
-impl From<RTPSMessageHeaderUdp> for RtpsMessageHeader {
-    fn from(header: RTPSMessageHeaderUdp) -> Self {
+impl From<&RTPSMessageHeaderUdp> for RtpsMessageHeader {
+    fn from(header: &RTPSMessageHeaderUdp) -> Self {
         Self {
             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion {

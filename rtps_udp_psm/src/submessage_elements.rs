@@ -4,7 +4,6 @@ use rust_rtps_pim::{
 };
 use serde::ser::SerializeStruct;
 
-
 pub fn is_bit_set(value: u8, index: usize) -> bool {
     value & (0b_0000_0001 << index) != 0
 }
@@ -18,7 +17,7 @@ pub fn flags_to_byte<const N: usize>(value: [SubmessageFlag; N]) -> u8 {
     flags
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq)]
 pub struct UShortUdp(pub(crate) u16);
 
 impl rust_rtps_pim::messages::submessage_elements::UShortSubmessageElementType for UShortUdp {
@@ -31,7 +30,7 @@ impl rust_rtps_pim::messages::submessage_elements::UShortSubmessageElementType f
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize)]
 pub struct LongUdp(pub(crate) i32);
 
 impl rust_rtps_pim::messages::submessage_elements::LongSubmessageElementType for LongUdp {
@@ -44,21 +43,7 @@ impl rust_rtps_pim::messages::submessage_elements::LongSubmessageElementType for
     }
 }
 
-impl From<[u8; 4]> for LongUdp {
-    fn from(value: [u8; 4]) -> Self {
-        Self(i32::from_le_bytes(value))
-    }
-}
-
-impl Into<[u8; 4]> for LongUdp {
-    fn into(self) -> [u8; 4] {
-        self.0.to_le_bytes()
-    }
-}
-
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ULongUdp(pub(crate) u32);
 
 impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType for ULongUdp {
@@ -71,19 +56,7 @@ impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType fo
     }
 }
 
-impl From<[u8; 4]> for ULongUdp {
-    fn from(value: [u8; 4]) -> Self {
-        Self(u32::from_le_bytes(value))
-    }
-}
-
-impl Into<[u8; 4]> for ULongUdp {
-    fn into(self) -> [u8; 4] {
-        self.0.to_le_bytes()
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GuidPrefixUdp(pub(crate) [u8; 12]);
 
 impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementType
@@ -98,7 +71,7 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementTy
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EntityIdUdp {
     pub entity_key: [u8; 3],
     pub entity_kind: u8,
@@ -118,16 +91,11 @@ impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType
 
     fn value(&self) -> rust_rtps_pim::structure::types::EntityId {
         rust_rtps_pim::structure::types::EntityId {
-            entity_key: [
-                self.entity_key[0],
-                self.entity_key[1],
-                self.entity_key[2],
-            ],
-            entity_kind: u8_into_entity_kind(self.entity_kind)
+            entity_key: [self.entity_key[0], self.entity_key[1], self.entity_key[2]],
+            entity_kind: u8_into_entity_kind(self.entity_kind),
         }
     }
 }
-
 
 fn entity_kind_into_u8(value: EntityKind) -> u8 {
     match value {
@@ -152,14 +120,14 @@ fn u8_into_entity_kind(_value: u8) -> EntityKind {
     todo!()
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SequenceNumberUdp {
     pub(crate) high: i32,
     pub(crate) low: u32,
 }
 
-impl From<SequenceNumberUdp> for i64 {
-    fn from(value: SequenceNumberUdp) -> Self {
+impl From<&SequenceNumberUdp> for i64 {
+    fn from(value: &SequenceNumberUdp) -> Self {
         ((value.high as i64) << 32) + value.low as i64
     }
 }
@@ -180,11 +148,11 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageEleme
     }
 
     fn value(&self) -> rust_rtps_pim::structure::types::SequenceNumber {
-        (*self).into()
+        self.into()
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct SequenceNumberSetUdp {
     base: SequenceNumberUdp,
     num_bits: u32,
@@ -239,7 +207,7 @@ impl<'de> serde::de::Visitor<'de> for SequenceNumberSetVisitor {
         let base: SequenceNumberUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let num_bits  = seq
+        let num_bits = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
         let num_bitmaps = (num_bits + 31) / 32; //In standard refered to as "M"
@@ -297,7 +265,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
     }
 
     fn base(&self) -> rust_rtps_pim::structure::types::SequenceNumber {
-        self.base.into()
+        (&self.base).into()
     }
 
     fn set(&self) -> Self::IntoIter {
@@ -307,7 +275,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
                 == (1 << (31 - delta_n % 32))
             {
                 let seq_num =
-                    Into::<rust_rtps_pim::structure::types::SequenceNumber>::into(self.base)
+                    Into::<rust_rtps_pim::structure::types::SequenceNumber>::into(&self.base)
                         + delta_n as rust_rtps_pim::structure::types::SequenceNumber;
                 set.push(seq_num);
             }
@@ -318,7 +286,7 @@ impl rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageEl
 
 pub type InstanceHandleUdp = i32;
 
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ProtocolVersionUdp {
     pub major: u8,
     pub minor: u8,
@@ -382,7 +350,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragmentSub
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VendorIdUdp(pub(crate) [u8; 2]);
 
 impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType for VendorIdUdp {
@@ -395,7 +363,7 @@ impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, PartialEq)]
 pub struct TimeUdp {
     pub seconds: u32,
     pub fraction: u32,
@@ -411,7 +379,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElemen
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize)]
 pub struct CountUdp(pub(crate) i32);
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType for CountUdp {
@@ -425,7 +393,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementTyp
     }
 }
 
-#[derive(Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq)]
 pub struct FragmentNumberUdp(pub(crate) u32);
 
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSubmessageElementType
@@ -561,7 +529,7 @@ mod tests {
     #[test]
     fn deserialize_octet() {
         let result: u8 = deserialize(&[5]);
-        assert_eq!(result,5);
+        assert_eq!(result, 5);
     }
 
     #[test]
