@@ -89,7 +89,7 @@ impl Locator {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,

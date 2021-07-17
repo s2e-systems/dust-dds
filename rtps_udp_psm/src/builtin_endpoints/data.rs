@@ -21,6 +21,7 @@ use rust_rtps_pim::{
     },
     structure::types::{
         EntityId, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
+        GUIDPREFIX_UNKNOWN, PROTOCOLVERSION,
     },
 };
 
@@ -58,6 +59,15 @@ impl From<&Locator> for LocatorUdp {
     }
 }
 
+impl From<DurationUdp> for Duration {
+    fn from(value: DurationUdp) -> Self {
+        Self {
+            seconds: value.seconds,
+            fraction: value.fraction,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DurationUdp {
     pub seconds: i32,
@@ -73,6 +83,7 @@ impl From<Duration> for DurationUdp {
     }
 }
 
+#[derive(PartialEq, Debug)]
 struct ParticipantProxy {
     domain_id: DomainId,
     domain_tag: String,
@@ -89,6 +100,7 @@ struct ParticipantProxy {
     builtin_endpoint_qos: BuiltinEndpointQos,
 }
 
+#[derive(PartialEq, Debug)]
 pub struct SPDPdiscoveredParticipantDataUdp {
     // ddsParticipantData: DDS::ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
@@ -96,6 +108,10 @@ pub struct SPDPdiscoveredParticipantDataUdp {
 }
 
 impl SPDPdiscoveredParticipantDataUdp {
+    const DEFAULT_LEASE_DURATION: Duration = Duration {
+        seconds: 30,
+        fraction: 0,
+    };
     pub fn new(
         domain_id: &DomainId,
         domain_tag: &str,
@@ -225,9 +241,59 @@ impl SPDPdiscoveredParticipantDataUdp {
         ));
 
         let mut bytes = PL_CDR_LE.to_vec();
-        rust_serde_cdr::serialize_into(&ParameterListUdp { parameter }, &mut bytes)
-            .unwrap();
+        rust_serde_cdr::serialize_into(&ParameterListUdp { parameter }, &mut bytes).unwrap();
         Ok(bytes)
+    }
+
+    pub fn from_bytes(buf: &[u8]) -> Result<Self, rust_serde_cdr::error::Error> {
+        let _representation: [u8; 4] = rust_serde_cdr::from_bytes(&buf[0..4])?;
+        let parameter_list: ParameterListUdp = rust_serde_cdr::from_bytes(&buf[4..])?;
+        let parameter_list = parameter_list.parameter;
+
+        let domain_id = 0;
+        let domain_tag = "".to_string();
+        let protocol_version = PROTOCOLVERSION;
+        let guid_prefix = GUIDPREFIX_UNKNOWN;
+        let vendor_id = [0, 0];
+        let expects_inline_qos = false;
+        let metatraffic_unicast_locator_list = vec![];
+        let metatraffic_multicast_locator_list = vec![];
+        let default_unicast_locator_list = vec![];
+        let default_multicast_locator_list = vec![];
+        let available_builtin_endpoints = BuiltinEndpointSet::new(0);
+        let manual_liveliness_count = Count(0);
+        let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
+
+        let lease_duration = match parameter_list
+            .iter()
+            .find(|x| x.parameter_id == PID_PARTICIPANT_LEASE_DURATION)
+        {
+            Some(parameter) => {
+                rust_serde_cdr::from_bytes::<DurationUdp>(&parameter.value.0)?.into()
+            }
+            None => Self::DEFAULT_LEASE_DURATION,
+        };
+
+        let participant_proxy = ParticipantProxy {
+            domain_id,
+            domain_tag,
+            protocol_version,
+            guid_prefix,
+            vendor_id,
+            expects_inline_qos,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            available_builtin_endpoints,
+            manual_liveliness_count,
+            builtin_endpoint_qos,
+        };
+
+        Ok(Self {
+            participant_proxy: participant_proxy,
+            lease_duration: lease_duration,
+        })
     }
 }
 
@@ -425,5 +491,134 @@ mod tests {
         ];
 
         assert_eq!(serialized_data, expected_data);
+    }
+
+    #[test]
+    fn deserialize_complete_spdp_discovered_participant_data() {
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::from_bytes(&[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId(1)
+            0x14, 0x40, 0x04, 0x00, // PID_DOMAIN_TAG, Length: 4
+            b'a', b'b', b'c', 0x00, // DomainTag('abc')
+            0x15, 0x00, 0x04, 0x00, // PID_PROTOCOL_VERSION, Length: 4
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion{major:2, minor:4}
+            0x50, 0x00, 0x10, 0x00, // PID_PARTICIPANT_GUID, Length: 16
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x00, 0x00, 0x01, 0xc1, // EntityId(ENTITYID_PARTICIPANT)
+            0x16, 0x00, 0x04, 0x00, // PID_VENDORID, Length:4,
+            0x09, 0x09, 0x00, 0x00, // VendorId([9,9])
+            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            0x01, 0x00, 0x00, 0x00, // True
+            0x32, 0x00, 0x18, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR, Length: 24,
+            0x01, 0x00, 0x00, 0x00, // Locator{kind:1
+            0x01, 0x00, 0x00, 0x00, // port:1,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address: [1;16]
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            0x32, 0x00, 0x18, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR, Length: 24,
+            0x02, 0x00, 0x00, 0x00, // Locator{kind:2
+            0x02, 0x00, 0x00, 0x00, // port:2,
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // address: [2;16]
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // }
+            0x33, 0x00, 0x18, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR, Length: 24,
+            0x01, 0x00, 0x00, 0x00, // Locator{kind:1
+            0x01, 0x00, 0x00, 0x00, // port:1,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address: [1;16]
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            0x33, 0x00, 0x18, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR, Length: 24,
+            0x02, 0x00, 0x00, 0x00, // Locator{kind:2
+            0x02, 0x00, 0x00, 0x00, // port:2,
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // address: [2;16]
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // }
+            0x31, 0x00, 0x18, 0x00, // PID_DEFAULT_UNICAST_LOCATOR, Length: 24,
+            0x01, 0x00, 0x00, 0x00, // Locator{kind:1
+            0x01, 0x00, 0x00, 0x00, // port:1,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address: [1;16]
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            0x31, 0x00, 0x18, 0x00, // PID_DEFAULT_UNICAST_LOCATOR, Length: 24,
+            0x02, 0x00, 0x00, 0x00, // Locator{kind:2
+            0x02, 0x00, 0x00, 0x00, // port:2,
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // address: [2;16]
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // }
+            0x48, 0x00, 0x18, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR, Length: 24,
+            0x01, 0x00, 0x00, 0x00, // Locator{kind:1
+            0x01, 0x00, 0x00, 0x00, // port:1,
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // address: [1;16]
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, // }
+            0x48, 0x00, 0x18, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR, Length: 24,
+            0x02, 0x00, 0x00, 0x00, // Locator{kind:2
+            0x02, 0x00, 0x00, 0x00, // port:2,
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // address: [2;16]
+            0x02, 0x02, 0x02, 0x02, //
+            0x02, 0x02, 0x02, 0x02, // }
+            0x58, 0x00, 0x04, 0x00, // PID_BUILTIN_ENDPOINT_SET, Length: 4
+            0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+            0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
+            0x02, 0x00, 0x00, 0x00, // Count(2)
+            0x02, 0x00, 0x08, 0x00, // PID_PARTICIPANT_LEASE_DURATION, Length: 8
+            0x0a, 0x00, 0x00, 0x00, // Duration{seconds:30,
+            0x00, 0x00, 0x00, 0x00, //          fraction:0}
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
+        ]).unwrap();
+
+        let locator1 = Locator::new(1, 1, [1; 16]);
+        let locator2 = Locator::new(2, 2, [2; 16]);
+
+        let domain_id = 1;
+        let domain_tag = "abc";
+        let protocol_version = ProtocolVersion { major: 2, minor: 4 };
+        let guid_prefix = [1; 12];
+        let vendor_id = [9, 9];
+        let expects_inline_qos = true;
+        let metatraffic_unicast_locator_list = &[locator1, locator2];
+        let metatraffic_multicast_locator_list = &[locator1, locator2];
+        let default_unicast_locator_list = &[locator1, locator2];
+        let default_multicast_locator_list = &[locator1, locator2];
+        let available_builtin_endpoints =
+            BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
+        let manual_liveliness_count = Count(2);
+        let builtin_endpoint_qos = BuiltinEndpointQos::new(
+            BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
+        );
+        let lease_duration = Duration {
+            seconds: 10,
+            fraction: 0,
+        };
+
+        let expected_spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+            &domain_id,
+            domain_tag,
+            &protocol_version,
+            &guid_prefix,
+            &vendor_id,
+            &expects_inline_qos,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            &available_builtin_endpoints,
+            &manual_liveliness_count,
+            &builtin_endpoint_qos,
+            &lease_duration,
+        );
+
+        assert_eq!(spdp_discovered_participant_data, expected_spdp_discovered_participant_data);
     }
 }

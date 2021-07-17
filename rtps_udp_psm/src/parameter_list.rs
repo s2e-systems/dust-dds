@@ -2,7 +2,7 @@ use rust_rtps_pim::messages::types::ParameterId;
 use serde::ser::SerializeStruct;
 
 #[derive(Debug, PartialEq)]
-pub struct VectorUdp(Vec<u8>);
+pub struct VectorUdp(pub Vec<u8>);
 impl serde::Serialize for VectorUdp {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_bytes(self.0.as_slice())
