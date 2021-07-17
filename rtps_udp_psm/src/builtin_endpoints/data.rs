@@ -1,3 +1,10 @@
+use crate::{
+    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
+    parameter_list::{ParameterListUdp, ParameterUdp},
+    submessage_elements::{
+        CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
+    },
+};
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
@@ -14,15 +21,6 @@ use rust_rtps_pim::{
     },
     structure::types::{
         EntityId, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
-    },
-};
-use serde::ser::SerializeStruct;
-
-use crate::{
-    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
-    parameter_list::{ParameterListUdp, ParameterUdp},
-    submessage_elements::{
-        CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
     },
 };
 
@@ -133,13 +131,8 @@ impl SPDPdiscoveredParticipantDataUdp {
             lease_duration: *lease_duration,
         }
     }
-}
 
-impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, rust_serde_cdr::error::Error> {
         let mut parameter = Vec::new();
 
         parameter.push(ParameterUdp::new(
@@ -231,10 +224,10 @@ impl serde::Serialize for SPDPdiscoveredParticipantDataUdp {
             rust_serde_cdr::to_bytes(&value).unwrap(),
         ));
 
-        let mut state = serializer.serialize_struct("SPDPdiscoveredParticipantData", 2)?;
-        state.serialize_field("representation", &PL_CDR_LE)?;
-        state.serialize_field("value", &ParameterListUdp { parameter })?;
-        state.end()
+        let mut bytes = PL_CDR_LE.to_vec();
+        rust_serde_cdr::serialize_into(&ParameterListUdp { parameter }, &mut bytes)
+            .unwrap();
+        Ok(bytes)
     }
 }
 
@@ -347,7 +340,7 @@ mod tests {
             &lease_duration,
         );
 
-        let serialized_data = rust_serde_cdr::to_bytes(&spdp_discovered_participant_data).unwrap();
+        let serialized_data = spdp_discovered_participant_data.to_bytes().unwrap();
         let expected_data = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4

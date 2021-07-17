@@ -6,6 +6,14 @@ use serde::{
 };
 use std::io::Write;
 
+pub fn serialize_into<T: ?Sized>(value: &T, buf: &mut Vec<u8>) -> Result<()>
+where
+    T: Serialize,
+{
+    let mut serializer = RtpsMessageSerializer { writer: buf };
+    value.serialize(&mut serializer)
+}
+
 pub fn to_bytes<T: ?Sized>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
@@ -401,7 +409,11 @@ mod tests {
     #[test]
     fn serialize_timestamp_json() {
         let expected = r#"{"seconds":1,"fraction":2}"#;
-        let result = serde_json::ser::to_string(&Timestamp{ seconds:1 , fraction:2 }).unwrap();
+        let result = serde_json::ser::to_string(&Timestamp {
+            seconds: 1,
+            fraction: 2,
+        })
+        .unwrap();
         assert_eq!(result, expected);
     }
 }

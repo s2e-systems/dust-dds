@@ -125,7 +125,7 @@ impl DomainParticipantFactory {
 
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
-            rust_serde_cdr::to_bytes(&spdp_discovered_participant_data).unwrap(),
+            spdp_discovered_participant_data.to_bytes().unwrap(),
             (),
             1,
         );
