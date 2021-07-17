@@ -198,28 +198,11 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageEl
 mod tests {
     use super::*;
 
-    use rust_serde_cdr::{
-        deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
-    };
-
-    fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
-        let mut serializer = RtpsMessageSerializer {
-            writer: Vec::<u8>::new(),
-        };
-        value.serialize(&mut serializer).unwrap();
-        serializer.writer
-    }
-
-    fn deserialize<'de, T: serde::Deserialize<'de>>(buffer: &'de [u8]) -> T {
-        let mut de = RtpsMessageDeserializer { reader: buffer };
-        serde::de::Deserialize::deserialize(&mut de).unwrap()
-    }
-
     #[test]
     fn serialize_parameter() {
         let parameter = ParameterUdp::new(2, vec![5, 6, 7, 8]);
         #[rustfmt::skip]
-        assert_eq!(serialize(parameter), vec![
+        assert_eq!(rust_serde_cdr::to_bytes(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
         ]);
@@ -229,7 +212,7 @@ mod tests {
     fn serialize_parameter_non_multiple_4() {
         let parameter = ParameterUdp::new(2, vec![5, 6, 7]);
         #[rustfmt::skip]
-        assert_eq!(serialize(parameter), vec![
+        assert_eq!(rust_serde_cdr::to_bytes(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 0,       // value
         ]);
@@ -245,7 +228,7 @@ mod tests {
             .into(),
         };
         #[rustfmt::skip]
-        assert_eq!(serialize(parameter), vec![
+        assert_eq!(rust_serde_cdr::to_bytes(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
             51, 61, 71, 81,   // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -258,10 +241,10 @@ mod tests {
     fn deserialize_parameter() {
         let expected = ParameterUdp::new(0x02, vec![5, 6, 7, 8]);
         #[rustfmt::skip]
-        let result = deserialize(&[
+        let result = rust_serde_cdr::from_bytes(&[
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
-        ]);
+        ]).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -275,14 +258,40 @@ mod tests {
             .into(),
         };
         #[rustfmt::skip]
-        let result: ParameterListUdp = deserialize(&[
+        let result: ParameterListUdp = rust_serde_cdr::from_bytes(&[
             0x02, 0x00, 4, 0, // Parameter ID | length
             15, 16, 17, 18,        // value
             0x03, 0x00, 4, 0, // Parameter ID | length
             25, 26, 27, 28,        // value
             0x01, 0x00, 0, 0, // Sentinel: Parameter ID | length
             9, 9, 9,    // Following data
-        ]);
+        ]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_parameter_list_with_long_parameter() {
+        let expected = ParameterListUdp {
+            parameter: vec![ParameterUdp::new(
+                0x32,
+                vec![
+                    0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01,
+                    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+                ],
+            )]
+            .into(),
+        };
+        #[rustfmt::skip]
+        let result: ParameterListUdp = rust_serde_cdr::from_bytes(&[
+            0x32, 0x00, 0x18, 0x00, // Parameter ID | length
+            0x01, 0x00, 0x00, 0x00, //
+            0x01, 0x00, 0x00, 0x00, //
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x01, 0x01, 0x01, //
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
+        ]).unwrap();
         assert_eq!(expected, result);
     }
 }
