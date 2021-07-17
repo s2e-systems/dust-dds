@@ -1,11 +1,10 @@
-use rust_rtps_pim::messages::{
-    types::{SubmessageFlag, SubmessageKind},
-    RtpsSubmessageHeader,
-};
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
 use crate::{
-    submessage_elements::{EntityIdUdp, SequenceNumberSetUdp, SequenceNumberUdp},
-    submessage_header::SubmessageHeaderUdp,
+    submessage_elements::{
+        flags_to_byte, is_bit_set, EntityIdUdp, SequenceNumberSetUdp, SequenceNumberUdp,
+    },
+    submessage_header::{SubmessageHeaderUdp, GAP},
 };
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -29,12 +28,12 @@ impl rust_rtps_pim::messages::submessages::GapSubmessage for GapSubmessageUdp {
         gap_start: SequenceNumberUdp,
         gap_list: SequenceNumberSetUdp,
     ) -> Self {
-        let flags = [endianness_flag].into();
+        let flags = flags_to_byte([endianness_flag]);
 
         let submessage_length = 16 + gap_list.len();
 
         let header = SubmessageHeaderUdp {
-            submessage_id: SubmessageKind::GAP.into(),
+            submessage_id: GAP,
             flags,
             submessage_length,
         };
@@ -48,7 +47,7 @@ impl rust_rtps_pim::messages::submessages::GapSubmessage for GapSubmessageUdp {
     }
 
     fn endianness_flag(&self) -> SubmessageFlag {
-        self.header.flags.is_bit_set(0)
+        is_bit_set(self.header.flags, 0)
     }
 
     fn reader_id(&self) -> &EntityIdUdp {
@@ -76,8 +75,6 @@ impl rust_rtps_pim::messages::Submessage for GapSubmessageUdp {
 
 #[cfg(test)]
 mod tests {
-    use crate::submessage_elements::Octet;
-
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::{
         SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
@@ -103,12 +100,12 @@ mod tests {
     fn serialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
@@ -137,12 +134,12 @@ mod tests {
     fn deserialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);

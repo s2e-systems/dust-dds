@@ -1,4 +1,4 @@
-use std::{io::BufRead};
+use std::io::BufRead;
 
 use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
 use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, error::Error};
@@ -30,7 +30,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageUdp<'a> {
     }
 
     fn header(&self) -> RtpsMessageHeader {
-        self.header.into()
+        (&self.header).into()
     }
 
     fn submessages(&self) -> &[Self::SubmessageType] {
@@ -118,7 +118,7 @@ mod tests {
     use crate::{
         parameter_list::ParameterListUdp,
         submessage_elements::{
-            EntityIdUdp, GuidPrefixUdp, Octet, ProtocolVersionUdp, SequenceNumberSetUdp,
+            EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
             SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
         },
         submessages,
@@ -170,12 +170,12 @@ mod tests {
         };
         let endianness_flag = true;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
@@ -191,6 +191,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
+        let reader_id = EntityIdUdp {
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
@@ -272,12 +280,12 @@ mod tests {
 
         let endianness_flag = true;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
@@ -293,6 +301,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
+        let reader_id = EntityIdUdp {
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
@@ -351,12 +367,12 @@ mod tests {
 
         let endianness_flag = true;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
@@ -372,6 +388,14 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
+        let reader_id = EntityIdUdp {
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
+        };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
@@ -392,7 +416,7 @@ mod tests {
         ));
         let expected = RTPSMessageUdp {
             header,
-            submessages: vec![data_submessage, gap_submessage, ],
+            submessages: vec![data_submessage, gap_submessage],
         };
         #[rustfmt::skip]
         let result = RTPSMessageUdp::from_bytes(&[

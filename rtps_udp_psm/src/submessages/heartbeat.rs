@@ -1,11 +1,8 @@
-use rust_rtps_pim::messages::{
-    types::{SubmessageFlag, SubmessageKind},
-    RtpsSubmessageHeader,
-};
+use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
 use crate::{
-    submessage_elements::{CountUdp, EntityIdUdp, SequenceNumberUdp},
-    submessage_header::SubmessageHeaderUdp,
+    submessage_elements::{flags_to_byte, is_bit_set, CountUdp, EntityIdUdp, SequenceNumberUdp},
+    submessage_header::{SubmessageHeaderUdp, HEARTBEAT},
 };
 
 #[derive(Debug, PartialEq, serde::Serialize)]
@@ -33,10 +30,10 @@ impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage for Heartbeat
         last_sn: SequenceNumberUdp,
         count: CountUdp,
     ) -> Self {
-        let flags = [endianness_flag, final_flag, liveliness_flag].into();
+        let flags = flags_to_byte([endianness_flag, final_flag, liveliness_flag]);
         let submessage_length = 28;
         let header = SubmessageHeaderUdp {
-            submessage_id: SubmessageKind::HEARTBEAT.into(),
+            submessage_id: HEARTBEAT,
             flags,
             submessage_length,
         };
@@ -51,15 +48,15 @@ impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage for Heartbeat
     }
 
     fn endianness_flag(&self) -> SubmessageFlag {
-        self.header.flags.is_bit_set(0)
+        is_bit_set(self.header.flags, 0)
     }
 
     fn final_flag(&self) -> SubmessageFlag {
-        self.header.flags.is_bit_set(1)
+        is_bit_set(self.header.flags, 1)
     }
 
     fn liveliness_flag(&self) -> SubmessageFlag {
-        self.header.flags.is_bit_set(2)
+        is_bit_set(self.header.flags, 2)
     }
 
     fn reader_id(&self) -> &EntityIdUdp {
@@ -91,7 +88,6 @@ impl rust_rtps_pim::messages::Submessage for HeartbeatSubmessageUdp {
 
 #[cfg(test)]
 mod tests {
-    use crate::submessage_elements::Octet;
 
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
@@ -110,12 +106,12 @@ mod tests {
         let final_flag = false;
         let liveliness_flag = false;
         let reader_id = EntityIdUdp {
-            entity_key: [Octet(1), Octet(2), Octet(3)],
-            entity_kind: Octet(4),
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
         };
         let writer_id = EntityIdUdp {
-            entity_key: [Octet(6), Octet(7), Octet(8)],
-            entity_kind: Octet(9),
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
         };
         let first_sn = SequenceNumberUdp::new(&1);
         let last_sn = SequenceNumberUdp::new(&3);
