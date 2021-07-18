@@ -64,7 +64,7 @@ impl BuiltinEndpointSet {
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
-pub struct BuiltinEndpointQos(u32);
+pub struct BuiltinEndpointQos(pub u32);
 
 impl Default for BuiltinEndpointQos {
     fn default() -> Self {

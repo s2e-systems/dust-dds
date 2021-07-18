@@ -23,10 +23,11 @@ use rust_rtps_pim::{
 };
 
 use super::parameterid_list::{
-    PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
-    PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
-    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
+    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+    PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+    PID_VENDORID,
 };
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
@@ -72,18 +73,9 @@ impl DurationUdp {
     }
 }
 
-impl From<&Duration> for DurationUdp {
-    fn from(value: &Duration) -> Self {
-        Self {
-            seconds: value.seconds,
-            fraction: value.fraction,
-        }
-    }
-}
-
 #[derive(PartialEq, Debug)]
 struct ParticipantProxy {
-    domain_id: DomainId,
+    domain_id: u32,
     domain_tag: String,
     protocol_version: ProtocolVersionUdp,
     guid: GUIDUdp,
@@ -93,9 +85,9 @@ struct ParticipantProxy {
     metatraffic_multicast_locator_list: Vec<LocatorUdp>,
     default_unicast_locator_list: Vec<LocatorUdp>,
     default_multicast_locator_list: Vec<LocatorUdp>,
-    available_builtin_endpoints: BuiltinEndpointSet,
+    available_builtin_endpoints: u32,
     manual_liveliness_count: CountUdp,
-    builtin_endpoint_qos: BuiltinEndpointQos,
+    builtin_endpoint_qos: u32,
 }
 
 #[derive(PartialEq, Debug)]
@@ -106,10 +98,10 @@ pub struct SPDPdiscoveredParticipantDataUdp {
 }
 
 impl SPDPdiscoveredParticipantDataUdp {
-    const DEFAULT_LEASE_DURATION: DurationUdp = DurationUdp {
-        seconds: 30,
-        fraction: 0,
-    };
+    // const DEFAULT_LEASE_DURATION: DurationUdp = DurationUdp {
+    //     seconds: 30,
+    //     fraction: 0,
+    // };
 
     const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
 
@@ -153,11 +145,11 @@ impl SPDPdiscoveredParticipantDataUdp {
                     .iter()
                     .map(|x| LocatorUdp::new(x))
                     .collect(),
-                available_builtin_endpoints: *available_builtin_endpoints,
+                available_builtin_endpoints: available_builtin_endpoints.0,
                 manual_liveliness_count: CountUdp::new(manual_liveliness_count),
-                builtin_endpoint_qos: *builtin_endpoint_qos,
+                builtin_endpoint_qos: builtin_endpoint_qos.0,
             },
-            lease_duration: lease_duration.into(),
+            lease_duration: DurationUdp::new(lease_duration),
         }
     }
 
@@ -229,7 +221,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         parameter.push(ParameterUdp::new(
             PID_BUILTIN_ENDPOINT_SET,
             rust_serde_cdr::serializer::to_bytes(
-                &self.participant_proxy.available_builtin_endpoints.0,
+                &self.participant_proxy.available_builtin_endpoints,
             )
             .unwrap(),
         ));
@@ -275,25 +267,19 @@ impl SPDPdiscoveredParticipantDataUdp {
             .get(PID_EXPECTS_INLINE_QOS)
             .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
         let metatraffic_unicast_locator_list =
-            parameter_list.get_list::<LocatorUdp>(PID_METATRAFFIC_UNICAST_LOCATOR);
+            parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
         let metatraffic_multicast_locator_list =
-            parameter_list.get_list::<LocatorUdp>(PID_METATRAFFIC_MULTICAST_LOCATOR);
-        let default_unicast_locator_list =
-            parameter_list.get_list::<LocatorUdp>(PID_DEFAULT_UNICAST_LOCATOR);
-        let default_multicast_locator_list =
-            parameter_list.get_list::<LocatorUdp>(PID_DEFAULT_MULTICAST_LOCATOR);
-        let available_builtin_endpoints =
-            BuiltinEndpointSet(parameter_list.get::<u32>(PID_BUILTIN_ENDPOINT_SET).unwrap());
+            parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
+        let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
+        let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
+        let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET).unwrap();
 
         let manual_liveliness_count = parameter_list
             .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
             .unwrap_or(CountUdp(0));
-        let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
+        let builtin_endpoint_qos = parameter_list.get(PID_BUILTIN_ENDPOINT_QOS).unwrap_or(0);
 
-        let lease_duration = parameter_list
-            .get::<DurationUdp>(PID_PARTICIPANT_LEASE_DURATION)
-            .unwrap_or(Self::DEFAULT_LEASE_DURATION.into())
-            .into();
+        let lease_duration = parameter_list.get(PID_PARTICIPANT_LEASE_DURATION).unwrap();
 
         let participant_proxy = ParticipantProxy {
             domain_id,
@@ -378,7 +364,7 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     }
 
     fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        self.participant_proxy.available_builtin_endpoints
+        BuiltinEndpointSet(self.participant_proxy.available_builtin_endpoints)
     }
 
     fn manual_liveliness_count(&self) -> Count {
@@ -386,7 +372,7 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     }
 
     fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        self.participant_proxy.builtin_endpoint_qos
+        BuiltinEndpointQos(self.participant_proxy.builtin_endpoint_qos)
     }
 }
 
