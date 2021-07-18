@@ -107,7 +107,7 @@ impl DomainParticipantFactory {
             &(domain_id as u32),
             &"abc",
             rtps_participant.protocol_version(),
-            rtps_participant.guid().prefix(),
+            rtps_participant.guid(),
             rtps_participant.vendor_id(),
             &false,
             &[],

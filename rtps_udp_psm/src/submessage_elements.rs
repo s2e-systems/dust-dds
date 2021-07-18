@@ -1,6 +1,6 @@
 use rust_rtps_pim::{
     messages::types::{Count, FragmentNumber, SubmessageFlag, Time},
-    structure::types::{EntityKind, ProtocolVersion},
+    structure::types::{EntityKind, Locator, ProtocolVersion},
 };
 use serde::ser::SerializeStruct;
 
@@ -382,7 +382,7 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElemen
     }
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CountUdp(pub(crate) i32);
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType for CountUdp {
@@ -446,11 +446,25 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageEl
 
 pub type GroupDigestUdp = [u8; 4];
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct LocatorUdp {
-    pub kind: i32,
-    pub port: u32,
-    pub address: [u8; 16],
+    kind: i32,
+    port: u32,
+    address: [u8; 16],
+}
+
+impl LocatorUdp {
+    pub fn new(locator: &Locator) -> Self {
+        Self {
+            kind: *locator.kind(),
+            port: *locator.port(),
+            address: *locator.address(),
+        }
+    }
+
+    pub fn value(&self) -> Locator {
+        Locator::new(self.kind, self.port, self.address)
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -464,17 +478,21 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
     fn new(value: &[rust_rtps_pim::structure::types::Locator]) -> Self {
         let mut locator_list = Vec::new();
         for locator in value {
-            locator_list.push(locator.into());
-        };
+            locator_list.push(LocatorUdp::new(locator));
+        }
         Self(locator_list)
     }
 
     fn value(&self) -> Self::IntoIter {
         let mut locator_list = Vec::new();
         for locator_udp in &self.0 {
-            let locator = rust_rtps_pim::structure::types::Locator::new(locator_udp.kind, locator_udp.port, locator_udp.address);
+            let locator = rust_rtps_pim::structure::types::Locator::new(
+                locator_udp.kind,
+                locator_udp.port,
+                locator_udp.address,
+            );
             locator_list.push(locator);
-        };
+        }
         locator_list
     }
 }
