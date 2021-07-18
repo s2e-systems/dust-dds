@@ -98,12 +98,14 @@ pub struct SPDPdiscoveredParticipantDataUdp {
 }
 
 impl SPDPdiscoveredParticipantDataUdp {
-    // const DEFAULT_LEASE_DURATION: DurationUdp = DurationUdp {
-    //     seconds: 30,
-    //     fraction: 0,
-    // };
 
+    // Constant value from Table 9.14 - ParameterId mapping and default values
+    const DEFAULT_DOMAIN_TAG: String = String::new();
     const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
+    const DEFAULT_PARTICIPANT_LEASE_DURATION: DurationUdp = DurationUdp {
+        seconds: 100,
+        fraction: 0,
+    };
 
     pub fn new(
         domain_id: &DomainId,
