@@ -1,12 +1,28 @@
-use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, parameter_list::{ParameterListUdp, ParameterUdp}, submessage_elements::{CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorListUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp}};
-use rust_rtps_pim::{behavior::types::Duration, discovery::{
+use crate::{
+    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
+    parameter_list::{ParameterListUdp, ParameterUdp},
+    submessage_elements::{
+        CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
+    },
+};
+use rust_rtps_pim::{
+    behavior::types::Duration,
+    discovery::{
         spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
         types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
-    }, messages::{submessage_elements::{CountSubmessageElementType, EntityIdSubmessageElementType, GuidPrefixSubmessageElementType, LocatorListSubmessageElementType, ProtocolVersionSubmessageElementType, VendorIdSubmessageElementType}, types::Count}, structure::types::{
+    },
+    messages::{
+        submessage_elements::{
+            CountSubmessageElementType, EntityIdSubmessageElementType,
+            GuidPrefixSubmessageElementType, ProtocolVersionSubmessageElementType,
+            VendorIdSubmessageElementType,
+        },
+        types::Count,
+    },
+    structure::types::{
         EntityId, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
-        GUIDPREFIX_UNKNOWN, PROTOCOLVERSION,
-    }};
-use rust_serde_cdr::serializer;
+    },
+};
 
 use super::parameterid_list::{
     PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
@@ -95,6 +111,9 @@ impl SPDPdiscoveredParticipantDataUdp {
         seconds: 30,
         fraction: 0,
     };
+
+    const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
+
     pub fn new(
         domain_id: &DomainId,
         domain_tag: &str,
@@ -136,17 +155,17 @@ impl SPDPdiscoveredParticipantDataUdp {
 
         parameter.push(ParameterUdp::new(
             PID_DOMAIN_ID,
-            serializer::to_bytes(&self.participant_proxy.domain_id).unwrap(),
+            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_id).unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_DOMAIN_TAG,
-            serializer::to_bytes(&self.participant_proxy.domain_tag).unwrap(),
+            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_tag).unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_PROTOCOL_VERSION,
-            serializer::to_bytes(&ProtocolVersionUdp::new(
+            rust_serde_cdr::serializer::to_bytes(&ProtocolVersionUdp::new(
                 &self.participant_proxy.protocol_version,
             ))
             .unwrap(),
@@ -155,17 +174,21 @@ impl SPDPdiscoveredParticipantDataUdp {
         let guid = GUIDUdp::new(&self.participant_proxy.guid_prefix, &ENTITYID_PARTICIPANT);
         parameter.push(ParameterUdp::new(
             PID_PARTICIPANT_GUID,
-            serializer::to_bytes(&guid).unwrap(),
+            rust_serde_cdr::serializer::to_bytes(&guid).unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_VENDORID,
-            serializer::to_bytes(&VendorIdUdp::new(&self.participant_proxy.vendor_id)).unwrap(),
+            rust_serde_cdr::serializer::to_bytes(&VendorIdUdp::new(
+                &self.participant_proxy.vendor_id,
+            ))
+            .unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_EXPECTS_INLINE_QOS,
-            serializer::to_bytes(&self.participant_proxy.expects_inline_qos).unwrap(),
+            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.expects_inline_qos)
+                .unwrap(),
         ));
 
         for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
@@ -173,7 +196,7 @@ impl SPDPdiscoveredParticipantDataUdp {
             let value: LocatorUdp = metatraffic_unicast_locator.into();
             parameter.push(ParameterUdp::new(
                 PID_METATRAFFIC_UNICAST_LOCATOR,
-                serializer::to_bytes(&value).unwrap(),
+                rust_serde_cdr::serializer::to_bytes(&value).unwrap(),
             ));
         }
 
@@ -183,7 +206,7 @@ impl SPDPdiscoveredParticipantDataUdp {
             let value: LocatorUdp = metatraffic_multicast_locator.into();
             parameter.push(ParameterUdp::new(
                 PID_METATRAFFIC_MULTICAST_LOCATOR,
-                serializer::to_bytes(&value).unwrap(),
+                rust_serde_cdr::serializer::to_bytes(&value).unwrap(),
             ));
         }
 
@@ -191,7 +214,7 @@ impl SPDPdiscoveredParticipantDataUdp {
             let value: LocatorUdp = default_unicast_locator.into();
             parameter.push(ParameterUdp::new(
                 PID_DEFAULT_UNICAST_LOCATOR,
-                serializer::to_bytes(&value).unwrap(),
+                rust_serde_cdr::serializer::to_bytes(&value).unwrap(),
             ));
         }
 
@@ -199,19 +222,21 @@ impl SPDPdiscoveredParticipantDataUdp {
             let value: LocatorUdp = default_multicast_locator.into();
             parameter.push(ParameterUdp::new(
                 PID_DEFAULT_MULTICAST_LOCATOR,
-                serializer::to_bytes(&value).unwrap(),
+                rust_serde_cdr::serializer::to_bytes(&value).unwrap(),
             ));
         }
 
         parameter.push(ParameterUdp::new(
             PID_BUILTIN_ENDPOINT_SET,
-            serializer::to_bytes(&self.participant_proxy.available_builtin_endpoints.0)
-                .unwrap(),
+            rust_serde_cdr::serializer::to_bytes(
+                &self.participant_proxy.available_builtin_endpoints.0,
+            )
+            .unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-            serializer::to_bytes(&CountUdp::new(
+            rust_serde_cdr::serializer::to_bytes(&CountUdp::new(
                 &self.participant_proxy.manual_liveliness_count,
             ))
             .unwrap(),
@@ -220,11 +245,12 @@ impl SPDPdiscoveredParticipantDataUdp {
         let value: DurationUdp = self.lease_duration.into();
         parameter.push(ParameterUdp::new(
             PID_PARTICIPANT_LEASE_DURATION,
-            serializer::to_bytes(&value).unwrap(),
+            rust_serde_cdr::serializer::to_bytes(&value).unwrap(),
         ));
 
         let mut bytes = PL_CDR_LE.to_vec();
-        serializer::serialize_into(&ParameterListUdp { parameter }, &mut bytes).unwrap();
+        rust_serde_cdr::serializer::serialize_into(&ParameterListUdp { parameter }, &mut bytes)
+            .unwrap();
         Ok(bytes)
     }
 
@@ -233,21 +259,39 @@ impl SPDPdiscoveredParticipantDataUdp {
         let parameter_list: ParameterListUdp = rust_serde_cdr::deserializer::from_bytes(&buf[4..])?;
 
         let domain_id = parameter_list.get(PID_DOMAIN_ID).unwrap();
-        let domain_tag = "".to_string();//parameter_list.get(PID_DOMAIN_TAG).unwrap();
-        let protocol_version: ProtocolVersionUdp = parameter_list.get(PID_PROTOCOL_VERSION).unwrap();
+        let domain_tag = match parameter_list
+            .parameter
+            .iter()
+            .find(|x| x.parameter_id == PID_DOMAIN_TAG)
+        {
+            Some(parameter) => String::from_utf8(parameter.value.0.clone()).unwrap(),
+            None => String::new(),
+        };
+        let protocol_version: ProtocolVersionUdp =
+            parameter_list.get(PID_PROTOCOL_VERSION).unwrap();
         let guid: GUIDUdp = parameter_list.get(PID_PARTICIPANT_GUID).unwrap();
         let guid_prefix = guid.prefix.value();
         let vendor_id: VendorIdUdp = parameter_list.get(PID_VENDORID).unwrap();
-        let expects_inline_qos = false;
+        let expects_inline_qos = parameter_list
+            .get(PID_EXPECTS_INLINE_QOS)
+            .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
         let metatraffic_unicast_locator_list = vec![];
         let metatraffic_multicast_locator_list = vec![];
         let default_unicast_locator_list = vec![];
         let default_multicast_locator_list = vec![];
-        let available_builtin_endpoints = BuiltinEndpointSet::new(0);
-        let manual_liveliness_count = Count(0);
+        let available_builtin_endpoints =
+            BuiltinEndpointSet(parameter_list.get::<u32>(PID_BUILTIN_ENDPOINT_SET).unwrap());
+
+        let manual_liveliness_count = Count(
+            parameter_list
+                .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
+                .unwrap_or(0),
+        );
         let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
 
-        let lease_duration: DurationUdp = parameter_list.get(PID_PARTICIPANT_LEASE_DURATION).unwrap();
+        let lease_duration: DurationUdp = parameter_list
+            .get(PID_PARTICIPANT_LEASE_DURATION)
+            .unwrap_or(Self::DEFAULT_LEASE_DURATION.into());
 
         let participant_proxy = ParticipantProxy {
             domain_id,
@@ -595,6 +639,9 @@ mod tests {
             &lease_duration,
         );
 
-        assert_eq!(spdp_discovered_participant_data, expected_spdp_discovered_participant_data);
+        assert_eq!(
+            spdp_discovered_participant_data,
+            expected_spdp_discovered_participant_data
+        );
     }
 }
