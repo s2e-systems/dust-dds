@@ -98,7 +98,6 @@ pub struct SPDPdiscoveredParticipantDataUdp {
 }
 
 impl SPDPdiscoveredParticipantDataUdp {
-
     // Constant value from Table 9.14 - ParameterId mapping and default values
     const DEFAULT_DOMAIN_TAG: String = String::new();
     const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
@@ -235,6 +234,12 @@ impl SPDPdiscoveredParticipantDataUdp {
         ));
 
         parameter.push(ParameterUdp::new(
+            PID_BUILTIN_ENDPOINT_QOS,
+            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.builtin_endpoint_qos)
+                .unwrap(),
+        ));
+
+        parameter.push(ParameterUdp::new(
             PID_PARTICIPANT_LEASE_DURATION,
             rust_serde_cdr::serializer::to_bytes(&self.lease_duration).unwrap(),
         ));
@@ -250,17 +255,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         let parameter_list: ParameterListUdp = rust_serde_cdr::deserializer::from_bytes(&buf[4..])?;
 
         let domain_id = parameter_list.get(PID_DOMAIN_ID).unwrap();
-        let domain_tag = match parameter_list
-            .parameter
-            .iter()
-            .find(|x| x.parameter_id == PID_DOMAIN_TAG)
-        {
-            Some(parameter) => String::from_utf8(parameter.value.0.clone())
-                .unwrap()
-                .trim_end_matches(char::from(0))
-                .to_owned(),
-            None => String::new(),
-        };
+        let domain_tag = parameter_list.get(PID_DOMAIN_TAG).unwrap();
         let protocol_version: ProtocolVersionUdp =
             parameter_list.get(PID_PROTOCOL_VERSION).unwrap();
         let guid: GUIDUdp = parameter_list.get(PID_PARTICIPANT_GUID).unwrap();
@@ -278,7 +273,7 @@ impl SPDPdiscoveredParticipantDataUdp {
 
         let manual_liveliness_count = parameter_list
             .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
-            .unwrap_or(CountUdp(0));
+            .unwrap();
         let builtin_endpoint_qos = parameter_list.get(PID_BUILTIN_ENDPOINT_QOS).unwrap_or(0);
 
         let lease_duration = parameter_list.get(PID_PARTICIPANT_LEASE_DURATION).unwrap();
@@ -432,7 +427,7 @@ mod tests {
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
-            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 4
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
             0x04, 0x00, 0x00, 0x00, // DomainTag(length: 4)
             b'a', b'b', b'c', 0x00, // DomainTag('abc')
             0x15, 0x00, 0x04, 0x00, // PID_PROTOCOL_VERSION, Length: 4
@@ -506,6 +501,8 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
             0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
             0x02, 0x00, 0x00, 0x00, // Count(2)
+            0x77, 0x00, 0x04, 0x00, // PID_BUILTIN_ENDPOINT_QOS, Length: 4
+            0x00, 0x00, 0x00, 0x20, // BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER
             0x02, 0x00, 0x08, 0x00, // PID_PARTICIPANT_LEASE_DURATION, Length: 8
             0x0a, 0x00, 0x00, 0x00, // Duration{seconds:30,
             0x00, 0x00, 0x00, 0x00, //          fraction:0}
@@ -522,7 +519,8 @@ mod tests {
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 4, 0x00,    // PID_DOMAIN_ID, Length
             0x01, 0x00, 0x00, 0x00, // DomainId
-            0x14, 0x40, 4, 0x00,    // PID_DOMAIN_TAG, Length
+            0x14, 0x40, 8, 0x00,    // PID_DOMAIN_TAG, Length
+            4,    0,    0,    0,             // Length: 4
             b'a', b'b', b'c', 0x00, // DomainTag
             0x15, 0x00, 4, 0x00,    // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion: major, minor
@@ -595,8 +593,10 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
             0x34, 0x00, 4, 0x00,    // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length
             0x02, 0x00, 0x00, 0x00, // Count
+            0x77, 0x00, 4, 0x00,    // PID_BUILTIN_ENDPOINT_QOS, Length: 4
+            0x00, 0x00, 0x00, 0x20, // BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER
             0x02, 0x00, 8, 0x00,    // PID_PARTICIPANT_LEASE_DURATION, Length
-            10, 0x00, 0x00, 0x00, // Duration: seconds
+            10, 0x00, 0x00, 0x00,   // Duration: seconds
             0x00, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length
         ]).unwrap();

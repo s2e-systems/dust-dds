@@ -73,7 +73,7 @@ impl Default for BuiltinEndpointQos {
 }
 
 impl BuiltinEndpointQos {
-    pub const BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 0 << 29;
+    pub const BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 1 << 29;
 
     pub fn new(value: u32) -> Self {
         Self(value)
