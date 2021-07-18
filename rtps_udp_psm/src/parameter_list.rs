@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rust_rtps_pim::messages::types::ParameterId;
-use serde::{ser::SerializeStruct};
+use serde::ser::SerializeStruct;
 
 #[derive(Debug, PartialEq)]
 pub struct VectorUdp(pub Vec<u8>);
@@ -83,8 +83,6 @@ impl<'de> serde::de::Visitor<'de> for ParameterVisitor {
         })
     }
 }
-
-
 
 impl<'de> serde::Deserialize<'de> for ParameterUdp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -169,6 +167,21 @@ impl ParameterListUdp {
         rust_serde_cdr::deserializer::from_bytes(bytes).ok()
     }
 
+    pub fn get_list<'a: 'de, 'de, T: serde::Deserialize<'de>>(
+        &'a self,
+        parameter_id: u16,
+    ) -> Vec<T> {
+        let mut list = Vec::new();
+        for parameter in &self.parameter {
+            if parameter.parameter_id == parameter_id {
+                let value =
+                    rust_serde_cdr::deserializer::from_bytes(parameter.value.0.as_slice()).unwrap();
+                list.push(value);
+            }
+        }
+        list
+    }
+
     fn as_map(&self) -> HashMap<u16, &[u8]> {
         let mut map = HashMap::new();
         for parameter_i in &self.parameter {
@@ -241,9 +254,12 @@ mod tests {
     #[test]
     fn serialize_parameter_zero_size() {
         let parameter = ParameterUdp::new(2, vec![]);
-        assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
+        assert_eq!(
+            rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(),
+            vec![
             0x02, 0x00, 0, 0, // Parameter | length
-        ]);
+        ]
+        );
     }
 
     #[test]
@@ -351,16 +367,16 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
         ];
         let parameter_value_expected2 = vec![
-            0x01, 0x00, 0x00, 0x00,
-            0x01, 0x00, 0x00, 0x00,
-            0x02, 0x02, 0x02, 0x02,
-            0x02, 0x02, 0x02, 0x02,
-            0x02, 0x02, 0x02, 0x02,
-            0x02, 0x02, 0x02, 0x02,
+            0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+            0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
         ];
 
         let expected = ParameterListUdp {
-            parameter: vec![ParameterUdp::new(0x32, parameter_value_expected1), ParameterUdp::new(0x32, parameter_value_expected2)].into(),
+            parameter: vec![
+                ParameterUdp::new(0x32, parameter_value_expected1),
+                ParameterUdp::new(0x32, parameter_value_expected2),
+            ]
+            .into(),
         };
         #[rustfmt::skip]
         let result: ParameterListUdp = deserializer::from_bytes(&[

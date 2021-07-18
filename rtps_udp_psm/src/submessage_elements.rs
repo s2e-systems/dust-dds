@@ -448,9 +448,9 @@ pub type GroupDigestUdp = [u8; 4];
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct LocatorUdp {
-    pub(crate) kind: i32,
-    pub(crate) port: u32,
-    pub(crate) address: [u8; 16],
+    pub kind: i32,
+    pub port: u32,
+    pub address: [u8; 16],
 }
 
 #[derive(serde::Deserialize)]

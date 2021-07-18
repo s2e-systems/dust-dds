@@ -58,6 +58,16 @@ impl From<&Locator> for LocatorUdp {
     }
 }
 
+impl From<&LocatorUdp> for Locator {
+    fn from(value: &LocatorUdp) -> Self {
+        Locator::new(
+            value.kind.clone(),
+            value.port.clone(),
+            value.address.clone(),
+        )
+    }
+}
+
 impl From<DurationUdp> for Duration {
     fn from(value: DurationUdp) -> Self {
         Self {
@@ -264,7 +274,10 @@ impl SPDPdiscoveredParticipantDataUdp {
             .iter()
             .find(|x| x.parameter_id == PID_DOMAIN_TAG)
         {
-            Some(parameter) => String::from_utf8(parameter.value.0.clone()).unwrap(),
+            Some(parameter) => String::from_utf8(parameter.value.0.clone())
+                .unwrap()
+                .trim_end_matches(char::from(0))
+                .to_owned(),
             None => String::new(),
         };
         let protocol_version: ProtocolVersionUdp =
@@ -275,10 +288,26 @@ impl SPDPdiscoveredParticipantDataUdp {
         let expects_inline_qos = parameter_list
             .get(PID_EXPECTS_INLINE_QOS)
             .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
-        let metatraffic_unicast_locator_list = vec![];
-        let metatraffic_multicast_locator_list = vec![];
-        let default_unicast_locator_list = vec![];
-        let default_multicast_locator_list = vec![];
+        let metatraffic_unicast_locator_list = parameter_list
+            .get_list::<LocatorUdp>(PID_METATRAFFIC_UNICAST_LOCATOR)
+            .iter()
+            .map(|x| x.into())
+            .collect();
+        let metatraffic_multicast_locator_list = parameter_list
+            .get_list::<LocatorUdp>(PID_METATRAFFIC_MULTICAST_LOCATOR)
+            .iter()
+            .map(|x| x.into())
+            .collect();
+        let default_unicast_locator_list = parameter_list
+            .get_list::<LocatorUdp>(PID_DEFAULT_UNICAST_LOCATOR)
+            .iter()
+            .map(|x| x.into())
+            .collect();
+        let default_multicast_locator_list = parameter_list
+            .get_list::<LocatorUdp>(PID_DEFAULT_MULTICAST_LOCATOR)
+            .iter()
+            .map(|x| x.into())
+            .collect();
         let available_builtin_endpoints =
             BuiltinEndpointSet(parameter_list.get::<u32>(PID_BUILTIN_ENDPOINT_SET).unwrap());
 
@@ -289,9 +318,10 @@ impl SPDPdiscoveredParticipantDataUdp {
         );
         let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
 
-        let lease_duration: DurationUdp = parameter_list
-            .get(PID_PARTICIPANT_LEASE_DURATION)
-            .unwrap_or(Self::DEFAULT_LEASE_DURATION.into());
+        let lease_duration = parameter_list
+            .get::<DurationUdp>(PID_PARTICIPANT_LEASE_DURATION)
+            .unwrap_or(Self::DEFAULT_LEASE_DURATION.into())
+            .into();
 
         let participant_proxy = ParticipantProxy {
             domain_id,
@@ -311,7 +341,7 @@ impl SPDPdiscoveredParticipantDataUdp {
 
         Ok(Self {
             participant_proxy: participant_proxy,
-            lease_duration: lease_duration.into(),
+            lease_duration: lease_duration,
         })
     }
 }
@@ -593,7 +623,7 @@ mod tests {
             0x34, 0x00, 4, 0x00,    // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length
             0x02, 0x00, 0x00, 0x00, // Count
             0x02, 0x00, 8, 0x00,    // PID_PARTICIPANT_LEASE_DURATION, Length
-              30, 0x00, 0x00, 0x00, // Duration: seconds
+            10, 0x00, 0x00, 0x00, // Duration: seconds
             0x00, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length
         ]).unwrap();
