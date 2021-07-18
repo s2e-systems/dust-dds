@@ -1,5 +1,7 @@
+use std::io::Read;
+
+use crate::error::{Error, Result};
 use byteorder::{LittleEndian, ReadBytesExt};
-use crate::error::Result;
 
 pub fn from_bytes<'a, T>(buf: &'a [u8]) -> Result<T>
 where
@@ -119,11 +121,18 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
         todo!() //visitor.visit_str(&self.read_string()?)
     }
 
-    fn deserialize_string<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
+        let len: u32 = serde::de::Deserialize::deserialize(&mut *self)?;
+        let mut buf = vec![0_u8; len as usize];
+        self.reader.read_exact(&mut buf[..])?;
+        buf.pop();
+        let string =
+            String::from_utf8(buf).map_err(|err| Error::InvalidUtf8Encoding(err.utf8_error()))?;
+
+        visitor.visit_string(string)
     }
 
     fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value>
@@ -154,22 +163,14 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
         todo!()
     }
 
-    fn deserialize_unit_struct<V>(
-        self,
-        _name: &'static str,
-        _visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
         todo!()
     }
 
-    fn deserialize_newtype_struct<V>(
-        self,
-        _name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
@@ -642,6 +643,13 @@ mod tests {
         let json_str = r#"{"id":1,"flags":2}"#;
         let result: PrimitiveStruct = serde_json::de::from_str(json_str).unwrap();
         let expected = PrimitiveStruct { id: 1, flags: 2 };
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn deserialize_string() {
+        let expected = "abc".to_string();
+        let result: String = deserialize(&[0x04, 0x00, 0x00, 0x00, b'a', b'b', b'c', 0]);
         assert_eq!(result, expected);
     }
 }

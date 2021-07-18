@@ -34,8 +34,8 @@ const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 struct GUIDUdp {
-    pub prefix: GuidPrefixUdp,
-    pub entity_id: EntityIdUdp,
+    prefix: GuidPrefixUdp,
+    entity_id: EntityIdUdp,
 }
 
 impl GUIDUdp {
@@ -430,7 +430,8 @@ mod tests {
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
-            0x14, 0x40, 0x04, 0x00, // PID_DOMAIN_TAG, Length: 4
+            0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 4
+            0x04, 0x00, 0x00, 0x00, // DomainTag(length: 4)
             b'a', b'b', b'c', 0x00, // DomainTag('abc')
             0x15, 0x00, 0x04, 0x00, // PID_PROTOCOL_VERSION, Length: 4
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion{major:2, minor:4}

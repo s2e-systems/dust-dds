@@ -1,12 +1,14 @@
+use std::str::Utf8Error;
+
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
     Message(String),
-
     IoError(std::io::Error),
     SequenceMustHaveLength,
     InvalidBoolEncoding(u8),
+    InvalidUtf8Encoding(Utf8Error),
     NumberOutOfRange,
 }
 

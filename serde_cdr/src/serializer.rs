@@ -136,7 +136,11 @@ impl<'a, W: Write> Serializer for &'a mut RtpsMessageSerializer<W> {
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
+        let terminating_char = [0u8];
+        let length = (v.len() + terminating_char.len()) as u32;
+        self.writer.write(&length.to_le_bytes())?;
         self.writer.write(v.as_bytes())?;
+        self.writer.write(&terminating_char)?;
         Ok(())
     }
 
@@ -415,5 +419,12 @@ mod tests {
         })
         .unwrap();
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn serialize_string() {
+        let expected = vec![0x04, 0x00, 0x00, 0x00, b'a', b'b', b'c', 0];
+        let result = serialize("abc");
+        assert_eq!(result,expected);
     }
 }
