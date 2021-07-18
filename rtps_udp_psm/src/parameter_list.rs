@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rust_rtps_pim::messages::types::ParameterId;
 use serde::ser::SerializeStruct;
 
@@ -160,6 +162,13 @@ impl ParameterListUdp {
     pub fn len(&self) -> u16 {
         self.parameter.iter().map(|p| p.len()).sum()
     }
+    pub fn as_map(&self) -> HashMap<u16, &[u8]> {
+        let mut map = HashMap::new();
+        for parameter_i in &self.parameter {
+            map.insert(parameter_i.parameter_id, parameter_i.value.0.as_slice());
+        }
+        map
+    }
 }
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<'a>
@@ -198,13 +207,15 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageEl
 
 #[cfg(test)]
 mod tests {
+    use rust_serde_cdr::deserializer;
+
     use super::*;
 
     #[test]
     fn serialize_parameter() {
         let parameter = ParameterUdp::new(2, vec![5, 6, 7, 8]);
         #[rustfmt::skip]
-        assert_eq!(rust_serde_cdr::to_bytes(&parameter).unwrap(), vec![
+        assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
         ]);
@@ -214,7 +225,7 @@ mod tests {
     fn serialize_parameter_non_multiple_4() {
         let parameter = ParameterUdp::new(2, vec![5, 6, 7]);
         #[rustfmt::skip]
-        assert_eq!(rust_serde_cdr::to_bytes(&parameter).unwrap(), vec![
+        assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 0,       // value
         ]);
@@ -223,7 +234,7 @@ mod tests {
     #[test]
     fn serialize_parameter_zero_size() {
         let parameter = ParameterUdp::new(2, vec![]);
-        assert_eq!(rust_serde_cdr::to_bytes(&parameter).unwrap(), vec![
+        assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
             0x02, 0x00, 0, 0, // Parameter | length
         ]);
     }
@@ -238,7 +249,7 @@ mod tests {
             .into(),
         };
         #[rustfmt::skip]
-        assert_eq!(rust_serde_cdr::to_bytes(&parameter).unwrap(), vec![
+        assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
             51, 61, 71, 81,   // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -251,7 +262,7 @@ mod tests {
     fn deserialize_parameter_non_multiple_of_4() {
         let expected = ParameterUdp::new(0x02, vec![5, 6, 7, 8, 9, 10, 11]);
         #[rustfmt::skip]
-        let result = rust_serde_cdr::from_bytes(&[
+        let result = deserializer::from_bytes(&[
             0x02, 0x00, 8, 0, // Parameter | length
             5, 6, 7, 8,       // value
             9, 10, 11, 0,     // value
@@ -263,7 +274,7 @@ mod tests {
     fn deserialize_parameter() {
         let expected = ParameterUdp::new(0x02, vec![5, 6, 7, 8, 9, 10, 11, 12]);
         #[rustfmt::skip]
-        let result = rust_serde_cdr::from_bytes(&[
+        let result = deserializer::from_bytes(&[
             0x02, 0x00, 8, 0, // Parameter | length
             5, 6, 7, 8,       // value
             9, 10, 11, 12,       // value
@@ -281,7 +292,7 @@ mod tests {
             .into(),
         };
         #[rustfmt::skip]
-        let result: ParameterListUdp = rust_serde_cdr::from_bytes(&[
+        let result: ParameterListUdp = deserializer::from_bytes(&[
             0x02, 0x00, 4, 0, // Parameter ID | length
             15, 16, 17, 18,        // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -308,7 +319,7 @@ mod tests {
             parameter: vec![ParameterUdp::new(0x32, parameter_value_expected)].into(),
         };
         #[rustfmt::skip]
-        let result: ParameterListUdp = rust_serde_cdr::from_bytes(&[
+        let result: ParameterListUdp = deserializer::from_bytes(&[
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value

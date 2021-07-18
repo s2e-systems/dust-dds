@@ -24,6 +24,7 @@ use rust_rtps_pim::{
         GUIDPREFIX_UNKNOWN, PROTOCOLVERSION,
     },
 };
+use rust_serde_cdr::serializer;
 
 use super::parameterid_list::{
     PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
@@ -153,17 +154,17 @@ impl SPDPdiscoveredParticipantDataUdp {
 
         parameter.push(ParameterUdp::new(
             PID_DOMAIN_ID,
-            rust_serde_cdr::to_bytes(&self.participant_proxy.domain_id).unwrap(),
+            serializer::to_bytes(&self.participant_proxy.domain_id).unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_DOMAIN_TAG,
-            rust_serde_cdr::to_bytes(&self.participant_proxy.domain_tag).unwrap(),
+            serializer::to_bytes(&self.participant_proxy.domain_tag).unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_PROTOCOL_VERSION,
-            rust_serde_cdr::to_bytes(&ProtocolVersionUdp::new(
+            serializer::to_bytes(&ProtocolVersionUdp::new(
                 &self.participant_proxy.protocol_version,
             ))
             .unwrap(),
@@ -172,17 +173,17 @@ impl SPDPdiscoveredParticipantDataUdp {
         let guid = GUIDUdp::new(&self.participant_proxy.guid_prefix, &ENTITYID_PARTICIPANT);
         parameter.push(ParameterUdp::new(
             PID_PARTICIPANT_GUID,
-            rust_serde_cdr::to_bytes(&guid).unwrap(),
+            serializer::to_bytes(&guid).unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_VENDORID,
-            rust_serde_cdr::to_bytes(&VendorIdUdp::new(&self.participant_proxy.vendor_id)).unwrap(),
+            serializer::to_bytes(&VendorIdUdp::new(&self.participant_proxy.vendor_id)).unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_EXPECTS_INLINE_QOS,
-            rust_serde_cdr::to_bytes(&self.participant_proxy.expects_inline_qos).unwrap(),
+            serializer::to_bytes(&self.participant_proxy.expects_inline_qos).unwrap(),
         ));
 
         for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
@@ -190,7 +191,7 @@ impl SPDPdiscoveredParticipantDataUdp {
             let value: LocatorUdp = metatraffic_unicast_locator.into();
             parameter.push(ParameterUdp::new(
                 PID_METATRAFFIC_UNICAST_LOCATOR,
-                rust_serde_cdr::to_bytes(&value).unwrap(),
+                serializer::to_bytes(&value).unwrap(),
             ));
         }
 
@@ -200,7 +201,7 @@ impl SPDPdiscoveredParticipantDataUdp {
             let value: LocatorUdp = metatraffic_multicast_locator.into();
             parameter.push(ParameterUdp::new(
                 PID_METATRAFFIC_MULTICAST_LOCATOR,
-                rust_serde_cdr::to_bytes(&value).unwrap(),
+                serializer::to_bytes(&value).unwrap(),
             ));
         }
 
@@ -208,7 +209,7 @@ impl SPDPdiscoveredParticipantDataUdp {
             let value: LocatorUdp = default_unicast_locator.into();
             parameter.push(ParameterUdp::new(
                 PID_DEFAULT_UNICAST_LOCATOR,
-                rust_serde_cdr::to_bytes(&value).unwrap(),
+                serializer::to_bytes(&value).unwrap(),
             ));
         }
 
@@ -216,19 +217,19 @@ impl SPDPdiscoveredParticipantDataUdp {
             let value: LocatorUdp = default_multicast_locator.into();
             parameter.push(ParameterUdp::new(
                 PID_DEFAULT_MULTICAST_LOCATOR,
-                rust_serde_cdr::to_bytes(&value).unwrap(),
+                serializer::to_bytes(&value).unwrap(),
             ));
         }
 
         parameter.push(ParameterUdp::new(
             PID_BUILTIN_ENDPOINT_SET,
-            rust_serde_cdr::to_bytes(&self.participant_proxy.available_builtin_endpoints.0)
+            serializer::to_bytes(&self.participant_proxy.available_builtin_endpoints.0)
                 .unwrap(),
         ));
 
         parameter.push(ParameterUdp::new(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-            rust_serde_cdr::to_bytes(&CountUdp::new(
+            serializer::to_bytes(&CountUdp::new(
                 &self.participant_proxy.manual_liveliness_count,
             ))
             .unwrap(),
@@ -237,17 +238,17 @@ impl SPDPdiscoveredParticipantDataUdp {
         let value: DurationUdp = self.lease_duration.into();
         parameter.push(ParameterUdp::new(
             PID_PARTICIPANT_LEASE_DURATION,
-            rust_serde_cdr::to_bytes(&value).unwrap(),
+            serializer::to_bytes(&value).unwrap(),
         ));
 
         let mut bytes = PL_CDR_LE.to_vec();
-        rust_serde_cdr::serialize_into(&ParameterListUdp { parameter }, &mut bytes).unwrap();
+        serializer::serialize_into(&ParameterListUdp { parameter }, &mut bytes).unwrap();
         Ok(bytes)
     }
 
     pub fn from_bytes(buf: &[u8]) -> Result<Self, rust_serde_cdr::error::Error> {
-        let _representation: [u8; 4] = rust_serde_cdr::from_bytes(&buf[0..4])?;
-        let parameter_list: ParameterListUdp = rust_serde_cdr::from_bytes(&buf[4..])?;
+        let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
+        let parameter_list: ParameterListUdp = rust_serde_cdr::deserializer::from_bytes(&buf[4..])?;
         let parameter_list = parameter_list.parameter;
 
         let domain_id = 0;
@@ -269,7 +270,7 @@ impl SPDPdiscoveredParticipantDataUdp {
             .find(|x| x.parameter_id == PID_PARTICIPANT_LEASE_DURATION)
         {
             Some(parameter) => {
-                rust_serde_cdr::from_bytes::<DurationUdp>(&parameter.value.0)?.into()
+                rust_serde_cdr::deserializer::from_bytes::<DurationUdp>(&parameter.value.0)?.into()
             }
             None => Self::DEFAULT_LEASE_DURATION,
         };
@@ -495,87 +496,88 @@ mod tests {
 
     #[test]
     fn deserialize_complete_spdp_discovered_participant_data() {
+        #[rustfmt::skip]
         let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::from_bytes(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
-            0x01, 0x00, 0x00, 0x00, // DomainId(1)
-            0x14, 0x40, 0x04, 0x00, // PID_DOMAIN_TAG, Length: 4
-            b'a', b'b', b'c', 0x00, // DomainTag('abc')
-            0x15, 0x00, 0x04, 0x00, // PID_PROTOCOL_VERSION, Length: 4
-            0x02, 0x04, 0x00, 0x00, // ProtocolVersion{major:2, minor:4}
-            0x50, 0x00, 0x10, 0x00, // PID_PARTICIPANT_GUID, Length: 16
-            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
-            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
-            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x0f, 0x00, 4, 0x00,    // PID_DOMAIN_ID, Length
+            0x01, 0x00, 0x00, 0x00, // DomainId
+            0x14, 0x40, 4, 0x00,    // PID_DOMAIN_TAG, Length
+            b'a', b'b', b'c', 0x00, // DomainTag
+            0x15, 0x00, 4, 0x00,    // PID_PROTOCOL_VERSION, Length
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion: major, minor
+            0x50, 0x00, 16, 0x00,   // PID_PARTICIPANT_GUID, Length
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix
             0x00, 0x00, 0x01, 0xc1, // EntityId(ENTITYID_PARTICIPANT)
-            0x16, 0x00, 0x04, 0x00, // PID_VENDORID, Length:4,
-            0x09, 0x09, 0x00, 0x00, // VendorId([9,9])
-            0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
+            0x16, 0x00, 4, 0x00,    // PID_VENDORID, Length
+            0x09, 0x09, 0x00, 0x00, // VendorId
+            0x43, 0x00, 4, 0x00,    // PID_EXPECTS_INLINE_QOS, Length
             0x01, 0x00, 0x00, 0x00, // True
-            0x32, 0x00, 0x18, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR, Length: 24,
-            0x01, 0x00, 0x00, 0x00, // Locator{kind:1
-            0x01, 0x00, 0x00, 0x00, // port:1,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address: [1;16]
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x32, 0x00, 0x18, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR, Length: 24,
-            0x02, 0x00, 0x00, 0x00, // Locator{kind:2
-            0x02, 0x00, 0x00, 0x00, // port:2,
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // address: [2;16]
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // }
-            0x33, 0x00, 0x18, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR, Length: 24,
-            0x01, 0x00, 0x00, 0x00, // Locator{kind:1
-            0x01, 0x00, 0x00, 0x00, // port:1,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address: [1;16]
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x33, 0x00, 0x18, 0x00, // PID_METATRAFFIC_MULTICAST_LOCATOR, Length: 24,
-            0x02, 0x00, 0x00, 0x00, // Locator{kind:2
-            0x02, 0x00, 0x00, 0x00, // port:2,
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // address: [2;16]
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // }
-            0x31, 0x00, 0x18, 0x00, // PID_DEFAULT_UNICAST_LOCATOR, Length: 24,
-            0x01, 0x00, 0x00, 0x00, // Locator{kind:1
-            0x01, 0x00, 0x00, 0x00, // port:1,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address: [1;16]
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x31, 0x00, 0x18, 0x00, // PID_DEFAULT_UNICAST_LOCATOR, Length: 24,
-            0x02, 0x00, 0x00, 0x00, // Locator{kind:2
-            0x02, 0x00, 0x00, 0x00, // port:2,
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // address: [2;16]
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // }
-            0x48, 0x00, 0x18, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR, Length: 24,
-            0x01, 0x00, 0x00, 0x00, // Locator{kind:1
-            0x01, 0x00, 0x00, 0x00, // port:1,
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // address: [1;16]
-            0x01, 0x01, 0x01, 0x01, //
-            0x01, 0x01, 0x01, 0x01, // }
-            0x48, 0x00, 0x18, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR, Length: 24,
-            0x02, 0x00, 0x00, 0x00, // Locator{kind:2
-            0x02, 0x00, 0x00, 0x00, // port:2,
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // address: [2;16]
-            0x02, 0x02, 0x02, 0x02, //
-            0x02, 0x02, 0x02, 0x02, // }
-            0x58, 0x00, 0x04, 0x00, // PID_BUILTIN_ENDPOINT_SET, Length: 4
+            0x32, 0x00, 24, 0x00,   // PID_METATRAFFIC_UNICAST_LOCATOR, Length
+            0x01, 0x00, 0x00, 0x00, // Locator: kind
+            0x01, 0x00, 0x00, 0x00, // Locator: port
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x32, 0x00, 24, 0x00,   // PID_METATRAFFIC_UNICAST_LOCATOR, Length
+            0x02, 0x00, 0x00, 0x00, // Locator: kind
+            0x02, 0x00, 0x00, 0x00, // Locator: port
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x33, 0x00, 24, 0x00,   // PID_METATRAFFIC_MULTICAST_LOCATOR, Length
+            0x01, 0x00, 0x00, 0x00, // Locator: kind
+            0x01, 0x00, 0x00, 0x00, // Locator: port
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x33, 0x00, 24, 0x00,   // PID_METATRAFFIC_MULTICAST_LOCATOR, Length
+            0x02, 0x00, 0x00, 0x00, // Locator: kind
+            0x02, 0x00, 0x00, 0x00, // Locator: port,
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x31, 0x00, 24, 0x00,   // PID_DEFAULT_UNICAST_LOCATOR, Length
+            0x01, 0x00, 0x00, 0x00, // Locator: kind
+            0x01, 0x00, 0x00, 0x00, // Locator: port
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x31, 0x00, 24, 0x00,   // PID_DEFAULT_UNICAST_LOCATOR, Length
+            0x02, 0x00, 0x00, 0x00, // Locator: kind
+            0x02, 0x00, 0x00, 0x00, // Locator: port
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x48, 0x00, 24, 0x00,   // PID_DEFAULT_MULTICAST_LOCATOR, Length
+            0x01, 0x00, 0x00, 0x00, // Locator: kind
+            0x01, 0x00, 0x00, 0x00, // Locator: port
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x01, 0x01, 0x01, 0x01, // Locator: address
+            0x48, 0x00, 024, 0x00, // PID_DEFAULT_MULTICAST_LOCATOR, Length,
+            0x02, 0x00, 0x00, 0x00, // Locator: kind
+            0x02, 0x00, 0x00, 0x00, // Locator: port
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x02, 0x02, 0x02, 0x02, // Locator: address
+            0x58, 0x00, 4, 0x00,    // PID_BUILTIN_ENDPOINT_SET, Length
             0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
-            0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
-            0x02, 0x00, 0x00, 0x00, // Count(2)
-            0x02, 0x00, 0x08, 0x00, // PID_PARTICIPANT_LEASE_DURATION, Length: 8
-            0x0a, 0x00, 0x00, 0x00, // Duration{seconds:30,
-            0x00, 0x00, 0x00, 0x00, //          fraction:0}
-            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
+            0x34, 0x00, 4, 0x00,    // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length
+            0x02, 0x00, 0x00, 0x00, // Count
+            0x02, 0x00, 8, 0x00,    // PID_PARTICIPANT_LEASE_DURATION, Length
+              30, 0x00, 0x00, 0x00, // Duration: seconds
+            0x00, 0x00, 0x00, 0x00, // Duration: fraction
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length
         ]).unwrap();
 
         let locator1 = Locator::new(1, 1, [1; 16]);
