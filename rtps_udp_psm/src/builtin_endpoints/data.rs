@@ -1,29 +1,11 @@
-use crate::{
-    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
-    parameter_list::{ParameterListUdp, ParameterUdp},
-    submessage_elements::{
-        CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
-    },
-};
-use rust_rtps_pim::{
-    behavior::types::Duration,
-    discovery::{
+use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, parameter_list::{ParameterListUdp, ParameterUdp}, submessage_elements::{CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorListUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp}};
+use rust_rtps_pim::{behavior::types::Duration, discovery::{
         spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
         types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
-    },
-    messages::{
-        submessage_elements::{
-            CountSubmessageElementType, EntityIdSubmessageElementType,
-            GuidPrefixSubmessageElementType, ProtocolVersionSubmessageElementType,
-            VendorIdSubmessageElementType,
-        },
-        types::Count,
-    },
-    structure::types::{
+    }, messages::{submessage_elements::{CountSubmessageElementType, EntityIdSubmessageElementType, GuidPrefixSubmessageElementType, LocatorListSubmessageElementType, ProtocolVersionSubmessageElementType, VendorIdSubmessageElementType}, types::Count}, structure::types::{
         EntityId, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
         GUIDPREFIX_UNKNOWN, PROTOCOLVERSION,
-    },
-};
+    }};
 use rust_serde_cdr::serializer;
 
 use super::parameterid_list::{
@@ -249,13 +231,13 @@ impl SPDPdiscoveredParticipantDataUdp {
     pub fn from_bytes(buf: &[u8]) -> Result<Self, rust_serde_cdr::error::Error> {
         let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
         let parameter_list: ParameterListUdp = rust_serde_cdr::deserializer::from_bytes(&buf[4..])?;
-        let parameter_list = parameter_list.parameter;
 
-        let domain_id = 0;
-        let domain_tag = "".to_string();
-        let protocol_version = PROTOCOLVERSION;
-        let guid_prefix = GUIDPREFIX_UNKNOWN;
-        let vendor_id = [0, 0];
+        let domain_id = parameter_list.get(PID_DOMAIN_ID).unwrap();
+        let domain_tag = "".to_string();//parameter_list.get(PID_DOMAIN_TAG).unwrap();
+        let protocol_version: ProtocolVersionUdp = parameter_list.get(PID_PROTOCOL_VERSION).unwrap();
+        let guid: GUIDUdp = parameter_list.get(PID_PARTICIPANT_GUID).unwrap();
+        let guid_prefix = guid.prefix.value();
+        let vendor_id: VendorIdUdp = parameter_list.get(PID_VENDORID).unwrap();
         let expects_inline_qos = false;
         let metatraffic_unicast_locator_list = vec![];
         let metatraffic_multicast_locator_list = vec![];
@@ -265,22 +247,14 @@ impl SPDPdiscoveredParticipantDataUdp {
         let manual_liveliness_count = Count(0);
         let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
 
-        let lease_duration = match parameter_list
-            .iter()
-            .find(|x| x.parameter_id == PID_PARTICIPANT_LEASE_DURATION)
-        {
-            Some(parameter) => {
-                rust_serde_cdr::deserializer::from_bytes::<DurationUdp>(&parameter.value.0)?.into()
-            }
-            None => Self::DEFAULT_LEASE_DURATION,
-        };
+        let lease_duration: DurationUdp = parameter_list.get(PID_PARTICIPANT_LEASE_DURATION).unwrap();
 
         let participant_proxy = ParticipantProxy {
             domain_id,
             domain_tag,
-            protocol_version,
+            protocol_version: protocol_version.value(),
             guid_prefix,
-            vendor_id,
+            vendor_id: vendor_id.value(),
             expects_inline_qos,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
@@ -293,7 +267,7 @@ impl SPDPdiscoveredParticipantDataUdp {
 
         Ok(Self {
             participant_proxy: participant_proxy,
-            lease_duration: lease_duration,
+            lease_duration: lease_duration.into(),
         })
     }
 }

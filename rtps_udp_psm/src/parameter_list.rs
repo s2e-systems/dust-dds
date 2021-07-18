@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rust_rtps_pim::messages::types::ParameterId;
-use serde::ser::SerializeStruct;
+use serde::{ser::SerializeStruct};
 
 #[derive(Debug, PartialEq)]
 pub struct VectorUdp(pub Vec<u8>);
@@ -162,7 +162,14 @@ impl ParameterListUdp {
     pub fn len(&self) -> u16 {
         self.parameter.iter().map(|p| p.len()).sum()
     }
-    pub fn as_map(&self) -> HashMap<u16, &[u8]> {
+
+    pub fn get<'a: 'de, 'de, T: serde::Deserialize<'de>>(&'a self, parameter_id: u16) -> Option<T> {
+        let map = self.as_map();
+        let bytes = map.get(&parameter_id)?;
+        rust_serde_cdr::deserializer::from_bytes(bytes).ok()
+    }
+
+    fn as_map(&self) -> HashMap<u16, &[u8]> {
         let mut map = HashMap::new();
         for parameter_i in &self.parameter {
             map.insert(parameter_i.parameter_id, parameter_i.value.0.as_slice());

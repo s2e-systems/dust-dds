@@ -303,7 +303,10 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElem
     }
 
     fn value(&self) -> ProtocolVersion {
-        todo!()
+        ProtocolVersion {
+            major: self.major,
+            minor: self.minor,
+        }
     }
 }
 
@@ -443,13 +446,14 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageEl
 
 pub type GroupDigestUdp = [u8; 4];
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct LocatorUdp {
     pub(crate) kind: i32,
     pub(crate) port: u32,
     pub(crate) address: [u8; 16],
 }
 
+#[derive(serde::Deserialize)]
 pub struct LocatorListUdp(pub Vec<LocatorUdp>);
 
 impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementType
@@ -457,14 +461,21 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
 {
     type IntoIter = Vec<rust_rtps_pim::structure::types::Locator>;
 
-    fn new(_value: &[rust_rtps_pim::structure::types::Locator]) -> Self {
-        // Self(value)
-        todo!()
+    fn new(value: &[rust_rtps_pim::structure::types::Locator]) -> Self {
+        let mut locator_list = Vec::new();
+        for locator in value {
+            locator_list.push(locator.into());
+        };
+        Self(locator_list)
     }
 
     fn value(&self) -> Self::IntoIter {
-        //self.0.clone()
-        todo!()
+        let mut locator_list = Vec::new();
+        for locator_udp in &self.0 {
+            let locator = rust_rtps_pim::structure::types::Locator::new(locator_udp.kind, locator_udp.port, locator_udp.address);
+            locator_list.push(locator);
+        };
+        locator_list
     }
 }
 
@@ -536,6 +547,28 @@ mod tests {
     fn serialize_serialized_data() {
         let data = SerializedDataUdp(&[1, 2]);
         assert_eq!(serialize(data), vec![1, 2]);
+    }
+
+    #[test]
+    fn serialize_guid_prefix() {
+        let data = GuidPrefixUdp([1; 12]);
+        #[rustfmt::skip]
+        assert_eq!(serialize(data), vec![
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+        ]);
+    }
+
+    #[test]
+    fn deserialize_guid_prefix() {
+        let expected = GuidPrefixUdp([1; 12]);
+        #[rustfmt::skip]
+        assert_eq!(expected, deserialize(&[
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+        ]));
     }
 
     #[test]
