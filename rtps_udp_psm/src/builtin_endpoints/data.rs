@@ -154,7 +154,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         let mut parameter = Vec::new();
 
         let value= &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_id).unwrap();
-        parameter.push(ParameterUdp{ parameter_id:PID_DOMAIN_ID, length: 4, value});
+        parameter.push(ParameterUdp::new(PID_DOMAIN_ID, value));
 
         // parameter.push(ParameterUdp::new(
         //     PID_DOMAIN_ID,

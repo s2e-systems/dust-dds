@@ -12,17 +12,16 @@ impl serde::Serialize for VectorUdp {
     }
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq)]
 pub struct ParameterUdp<'a> {
     pub parameter_id: u16,
     pub length: i16,
-    #[serde(with = "serde_bytes")]
-    pub value: &'a[u8],
+    pub value: &'a [u8],
 }
 
 impl<'a> ParameterUdp<'a> {
     pub fn new(parameter_id: u16, value: &'a [u8]) -> Self {
-        let length = value.len() as i16;
+        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
         Self {
             parameter_id,
             length,
@@ -34,9 +33,29 @@ impl<'a> ParameterUdp<'a> {
     }
 }
 
-struct ParameterVisitor<'a>(PhantomData<&'a()>);
+impl<'a> serde::Serialize for ParameterUdp<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("Parameter", 3)?;
+        let padding: &[u8] = match self.value.len() % 4 {
+            1 => &[0; 3],
+            2 => &[0; 2],
+            3 => &[0; 1],
+            _ => &[],
+        };
+        state.serialize_field("parameter_Id", &self.parameter_id)?;
+        state.serialize_field("length", &self.length)?;
+        state.serialize_field("value", serde_bytes::Bytes::new(self.value))?;
+        state.serialize_field("padding", serde_bytes::Bytes::new(padding))?;
+        state.end()
+    }
+}
 
-impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterVisitor<'a> {
+struct ParameterVisitor<'a>(PhantomData<&'a ()>);
+
+impl<'a, 'de: 'a> serde::de::Visitor<'de> for ParameterVisitor<'a> {
     type Value = ParameterUdp<'a>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -53,9 +72,9 @@ impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterVisitor<'a> {
         let length: i16 = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        let data: &[u8] =
-                seq.next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+        let data: &[u8] = seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
         Ok(ParameterUdp {
             parameter_id,
             length,
@@ -64,22 +83,22 @@ impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterVisitor<'a> {
     }
 }
 
-impl<'a,'de:'a> serde::Deserialize<'de> for ParameterUdp<'a> {
+impl<'a, 'de: 'a> serde::Deserialize<'de> for ParameterUdp<'a> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
-            const FIELDS: &[&str] = &["parameter_id", "length", "value"];
-            deserializer.deserialize_struct("Parameter", FIELDS, ParameterVisitor(PhantomData))
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["parameter_id", "length", "value"];
+        deserializer.deserialize_struct("Parameter", FIELDS, ParameterVisitor(PhantomData))
     }
 }
 
 const PID_SENTINEL: u16 = 1;
-static SENTINEL: ParameterUdp = ParameterUdp {
+const SENTINEL: ParameterUdp = ParameterUdp{
     parameter_id: PID_SENTINEL,
     length: 0,
     value: &[],
 };
-
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<'a>
     for ParameterListUdp<'a>
@@ -138,8 +157,7 @@ impl<'a> ParameterListUdp<'a> {
         let mut list = Vec::new();
         for parameter in &self.parameter {
             if parameter.parameter_id == parameter_id {
-                let value =
-                    rust_serde_cdr::deserializer::from_bytes(parameter.value).unwrap();
+                let value = rust_serde_cdr::deserializer::from_bytes(parameter.value).unwrap();
                 list.push(value);
             }
         }
@@ -167,10 +185,9 @@ impl<'a> serde::Serialize for ParameterListUdp<'a> {
     }
 }
 
+struct ParameterListVisitor<'a>(PhantomData<&'a ()>);
 
-struct ParameterListVisitor<'a>(PhantomData<&'a()>);
-
-impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterListVisitor<'a> {
+impl<'a, 'de: 'a> serde::de::Visitor<'de> for ParameterListVisitor<'a> {
     type Value = ParameterListUdp<'a>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -184,8 +201,8 @@ impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterListVisitor<'a> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
         let buf: &[u8] = seq
-        .next_element()?
-        .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
 
         let mut parameter = vec![];
 
@@ -195,18 +212,16 @@ impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterListVisitor<'a> {
             let parameter_i: ParameterUdp = serde::de::Deserialize::deserialize(&mut de).unwrap();
             // de.reader.consume(parameter)
             if parameter_i == SENTINEL {
-                return Ok(ParameterListUdp {
-                    parameter,
-                });
+                return Ok(ParameterListUdp { parameter });
             } else {
                 parameter.push(parameter_i);
             }
         }
-        Ok(ParameterListUdp{parameter})
+        Ok(ParameterListUdp { parameter })
     }
 }
 
-impl<'a,'de:'a> serde::Deserialize<'de> for ParameterListUdp<'a> {
+impl<'a, 'de: 'a> serde::Deserialize<'de> for ParameterListUdp<'a> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -231,7 +246,6 @@ mod tests {
             5, 6, 7, 8,       // value
         ]);
     }
-
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
@@ -275,7 +289,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
-        let expected = ParameterUdp::new(0x02, &[5, 6, 7, 8, 9, 10, 11]);
+        let expected = ParameterUdp::new(0x02, &[5, 6, 7, 8, 9, 10, 11, 0]);
         #[rustfmt::skip]
         let result = deserializer::from_bytes(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -296,7 +310,6 @@ mod tests {
         ]).unwrap();
         assert_eq!(expected, result);
     }
-
 
     // #[test]
     // fn deserialize_parameter_ref_multiple() {
@@ -339,7 +352,6 @@ mod tests {
         ]).unwrap();
         assert_eq!(expected, result);
     }
-
 
     #[test]
     fn deserialize_parameter_list_with_long_parameter() {
