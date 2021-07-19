@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{BufRead, Read};
 
 use crate::error::{Error, Result};
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -139,7 +139,9 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
     where
         V: serde::de::Visitor<'de>,
     {
-        visitor.visit_borrowed_bytes(self.reader)
+        let result = visitor.visit_borrowed_bytes(self.reader);
+        // self.reader.read_u32()?;
+        result
     }
 
     fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value>
@@ -256,13 +258,15 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
     fn deserialize_tuple_struct<V>(
         self,
         _name: &'static str,
-        _len: usize,
-        _visitor: V,
+        len: usize,
+        visitor: V,
     ) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
+        let result = visitor.visit_borrowed_bytes(self.reader);
+        self.reader.consume(len);
+        result
     }
 
     fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value>

@@ -87,7 +87,7 @@ pub struct Parameter<'a> {
 pub trait ParameterListSubmessageElementType<'a> {
     type IntoIter: IntoIterator<Item=Parameter<'a>>;
 
-    fn new(parameter: &[Parameter]) -> Self;
+    fn new(parameter: &'a [Parameter]) -> Self;
     fn parameter(&'a self) -> Self::IntoIter;
 }
 

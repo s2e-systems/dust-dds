@@ -151,6 +151,33 @@ impl<'a> serde::Serialize for DataSubmesageUdp<'a> {
 
 struct DataSubmesageVisitor<'a>(std::marker::PhantomData<&'a ()>);
 
+struct Bytes(usize);
+impl<'de> serde::de::DeserializeSeed<'de> for Bytes{
+    type Value = &'de [u8];
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+            struct BytesVisitor;
+
+        impl<'a> serde::de::Visitor<'a> for BytesVisitor {
+            type Value = &'a [u8];
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a borrowed byte array")
+            }
+
+            fn visit_borrowed_bytes<E>(self, v: &'a [u8]) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v)
+            }
+        }
+        deserializer.deserialize_tuple_struct("", self.0, BytesVisitor)
+    }
+}
+
 impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
     type Value = DataSubmesageUdp<'a>;
 
@@ -185,13 +212,11 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
 
-        let remaining_data: &[u8] = seq.next_element()?
-        .ok_or_else(|| serde::de::Error::invalid_length(7, &self))?;
-
-        let mut deserializer = RtpsMessageDeserializer{reader: remaining_data};
 
         let inline_qos: ParameterListUdp = if inline_qos_flag {
-            serde::de::Deserialize::deserialize(&mut deserializer).unwrap()
+            seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(6, &self))?
         } else {
             ParameterListUdp { parameter: vec![] }
         };
@@ -200,8 +225,15 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
         } else {
             0
         };
+
         let serialized_payload: SerializedDataUdp = if data_flag || key_flag {
-            SerializedDataUdp(&remaining_data[inline_qos_len..])
+            let serialized_payload_length =
+            header.submessage_length as usize - octets_to_inline_qos as usize - 4 - inline_qos_len;
+
+            let data: &[u8] = seq.next_element_seed(Bytes(serialized_payload_length))?
+                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+
+            SerializedDataUdp(&data)
         } else {
             SerializedDataUdp(&[])
         };
@@ -470,9 +502,9 @@ mod tests {
         };
         let writer_sn = SequenceNumberUdp::new(&5);
         let inline_qos = ParameterListUdp {
-            parameter: vec![].into(),
+            parameter: vec![],
         };
-        let serialized_payload = SerializedDataUdp([][..].into());
+        let serialized_payload = SerializedDataUdp(&[]);
         let expected = DataSubmesageUdp::new(
             endianness_flag,
             inline_qos_flag,
