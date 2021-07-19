@@ -1,11 +1,8 @@
 use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
-use crate::{
-    parameter_list::ParameterListUdp,
-    submessage_elements::{
+use crate::{parameter_list::ParameterListUdpRef, submessage_elements::{
         EntityIdUdp, FragmentNumberUdp, SequenceNumberUdp, SerializedDataUdp, ULongUdp, UShortUdp,
-    },
-};
+    }};
 
 #[derive(Debug, PartialEq)]
 pub struct DataFragUdp<'a> {
@@ -18,7 +15,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage for DataFragUd
     type FragmentNumberSubmessageElementType = FragmentNumberUdp;
     type UShortSubmessageElementType = UShortUdp;
     type ULongSubmessageElementType = ULongUdp;
-    type ParameterListSubmessageElementType = ParameterListUdp;
+    type ParameterListSubmessageElementType = ParameterListUdpRef<'a>;
     type SerializedDataFragmentSubmessageElementType = SerializedDataUdp<'a>;
 
     fn new(
@@ -26,15 +23,15 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage for DataFragUd
         _inline_qos_flag: SubmessageFlag,
         _non_standard_payload_flag: SubmessageFlag,
         _key_flag: SubmessageFlag,
-        _reader_id: EntityIdUdp,
-        _writer_id: EntityIdUdp,
-        _writer_sn: SequenceNumberUdp,
-        _fragment_starting_num: FragmentNumberUdp,
-        _fragments_in_submessage: UShortUdp,
-        _data_size: ULongUdp,
-        _fragment_size: UShortUdp,
-        _inline_qos: ParameterListUdp,
-        _serialized_payload: SerializedDataUdp,
+        _reader_id: Self::EntityIdSubmessageElementType,
+        _writer_id: Self::EntityIdSubmessageElementType,
+        _writer_sn: Self::SequenceNumberSubmessageElementType,
+        _fragment_starting_num: Self::FragmentNumberSubmessageElementType,
+        _fragments_in_submessage: Self::UShortSubmessageElementType,
+        _data_size: Self::ULongSubmessageElementType,
+        _fragment_size: Self::UShortSubmessageElementType,
+        _inline_qos: Self::ParameterListSubmessageElementType,
+        _serialized_payload: Self::SerializedDataFragmentSubmessageElementType,
     ) -> Self {
         todo!()
     }
@@ -83,7 +80,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage for DataFragUd
         todo!()
     }
 
-    fn inline_qos(&self) -> &ParameterListUdp {
+    fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
         todo!()
     }
 

@@ -115,7 +115,7 @@ impl<'a> RTPSMessageUdp<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{parameter_list::{ParameterListUdp, ParameterListUdpRef}, submessage_elements::{
+    use crate::{parameter_list::{ParameterListUdpRef}, submessage_elements::{
             EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
             SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
         }, submessages};

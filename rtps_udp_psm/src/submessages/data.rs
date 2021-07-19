@@ -5,7 +5,7 @@ use rust_rtps_pim::messages::{
 };
 use rust_serde_cdr::deserializer::{self, RtpsMessageDeserializer};
 
-use crate::{parameter_list::{ParameterListUdp, ParameterListUdpRef}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp, flags_to_byte, is_bit_set}, submessage_header::{DATA, SubmessageHeaderUdp}};
+use crate::{parameter_list::{ParameterListUdpRef}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp, flags_to_byte, is_bit_set}, submessage_header::{DATA, SubmessageHeaderUdp}};
 
 #[derive(Debug, PartialEq)]
 pub struct DataSubmesageUdp<'a> {
@@ -195,8 +195,13 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
         } else {
             ParameterListUdpRef { parameter: vec![] }
         };
+        let inline_qos_len = if inline_qos_flag {
+            inline_qos.len()
+        } else {
+            0
+        };
         let serialized_payload: SerializedDataUdp = if data_flag || key_flag {
-            SerializedDataUdp(&remaining_data[inline_qos.len()..])
+            SerializedDataUdp(&remaining_data[inline_qos_len..])
         } else {
             SerializedDataUdp(&[])
         };
@@ -239,7 +244,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesageUdp<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parameter_list::{ParameterUdp, ParameterUdpRef};
+    use crate::parameter_list::{ParameterUdpRef};
 
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
@@ -534,7 +539,6 @@ mod tests {
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
             1, 2, 3, 4, // SerializedPayload
-            9, 9, 9,    // Following data
         ]);
         assert_eq!(expected, result);
     }
@@ -586,7 +590,6 @@ mod tests {
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
             1, 0, 0, 0, // inlineQos: Sentinel
-            9, 9, 9,    // Following data
         ]);
         assert_eq!(expected, result);
     }

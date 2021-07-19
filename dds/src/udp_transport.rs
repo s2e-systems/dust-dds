@@ -124,7 +124,7 @@ mod tests {
             LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID, PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
         },
     };
-    use rust_rtps_udp_psm::{message::RTPSMessageUdp, parameter_list::{ParameterListUdp, ParameterListUdpRef}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp}, submessages::data::DataSubmesageUdp};
+    use rust_rtps_udp_psm::{message::RTPSMessageUdp, parameter_list::{ParameterListUdpRef}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp}, submessages::data::DataSubmesageUdp};
 
     use crate::udp_transport::UdpTransport;
 
