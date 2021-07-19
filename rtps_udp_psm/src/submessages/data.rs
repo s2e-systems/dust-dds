@@ -5,7 +5,7 @@ use rust_rtps_pim::messages::{
 };
 use rust_serde_cdr::deserializer::{self, RtpsMessageDeserializer};
 
-use crate::{parameter_list::{ParameterListUdpRef}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp, flags_to_byte, is_bit_set}, submessage_header::{DATA, SubmessageHeaderUdp}};
+use crate::{parameter_list::{ParameterListUdp}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp, flags_to_byte, is_bit_set}, submessage_header::{DATA, SubmessageHeaderUdp}};
 
 #[derive(Debug, PartialEq)]
 pub struct DataSubmesageUdp<'a> {
@@ -15,14 +15,14 @@ pub struct DataSubmesageUdp<'a> {
     reader_id: EntityIdUdp,
     writer_id: EntityIdUdp,
     writer_sn: SequenceNumberUdp,
-    inline_qos: ParameterListUdpRef<'a>,
+    inline_qos: ParameterListUdp<'a>,
     serialized_payload: SerializedDataUdp<'a>,
 }
 
 impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmesageUdp<'a> {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSubmessageElementType = SequenceNumberUdp;
-    type ParameterListSubmessageElementType = ParameterListUdpRef<'a>;
+    type ParameterListSubmessageElementType = ParameterListUdp<'a>;
     type SerializedDataSubmessageElementType = SerializedDataUdp<'a>;
 
     fn new(
@@ -190,10 +190,10 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
 
         let mut deserializer = RtpsMessageDeserializer{reader: remaining_data};
 
-        let inline_qos: ParameterListUdpRef = if inline_qos_flag {
+        let inline_qos: ParameterListUdp = if inline_qos_flag {
             serde::de::Deserialize::deserialize(&mut deserializer).unwrap()
         } else {
-            ParameterListUdpRef { parameter: vec![] }
+            ParameterListUdp { parameter: vec![] }
         };
         let inline_qos_len = if inline_qos_flag {
             inline_qos.len()
@@ -244,7 +244,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesageUdp<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parameter_list::{ParameterUdpRef};
+    use crate::parameter_list::{ParameterUdp};
 
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
@@ -280,7 +280,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdpRef {
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [];
@@ -325,9 +325,9 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let param1 = ParameterUdpRef::new(6, &[10, 11, 12, 13]);
-        let param2 = ParameterUdpRef::new(7, &[20, 21, 22, 23]);
-        let inline_qos = ParameterListUdpRef {
+        let param1 = ParameterUdp::new(6, &[10, 11, 12, 13]);
+        let param2 = ParameterUdp::new(7, &[20, 21, 22, 23]);
+        let inline_qos = ParameterListUdp {
             parameter: vec![param1, param2].into(),
         };
         let data = [];
@@ -377,7 +377,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdpRef {
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [1_u8, 2, 3, 4];
@@ -423,7 +423,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdpRef {
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [1_u8, 2, 3];
@@ -469,7 +469,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdpRef {
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let serialized_payload = SerializedDataUdp([][..].into());
@@ -513,7 +513,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdpRef {
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [1, 2, 3, 4];
@@ -559,9 +559,9 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let param1 = ParameterUdpRef::new(6, &[10, 11, 12, 13]);
-        let param2 = ParameterUdpRef::new(7, &[20, 21, 22, 23]);
-        let inline_qos = ParameterListUdpRef {
+        let param1 = ParameterUdp::new(6, &[10, 11, 12, 13]);
+        let param2 = ParameterUdp::new(7, &[20, 21, 22, 23]);
+        let inline_qos = ParameterListUdp {
             parameter: vec![param1, param2],
         };
         let serialized_payload = SerializedDataUdp([][..].into());
@@ -610,7 +610,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdpRef {
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [];

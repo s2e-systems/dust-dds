@@ -115,7 +115,7 @@ impl<'a> RTPSMessageUdp<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{parameter_list::{ParameterListUdpRef}, submessage_elements::{
+    use crate::{parameter_list::{ParameterListUdp}, submessage_elements::{
             EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
             SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
         }, submessages};
@@ -196,7 +196,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdpRef {
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [];
@@ -306,7 +306,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdpRef {
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [];
@@ -393,7 +393,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdpRef {
+        let inline_qos = ParameterListUdp {
             parameter: vec![].into(),
         };
         let data = [1, 2, 3, 4];

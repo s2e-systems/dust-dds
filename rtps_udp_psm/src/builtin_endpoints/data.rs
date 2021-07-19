@@ -1,4 +1,4 @@
-use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, parameter_list::{ParameterListUdpRef, ParameterUdpRef}, submessage_elements::{
+use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, parameter_list::{ParameterListUdp, ParameterUdp}, submessage_elements::{
         CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
     }};
 use rust_rtps_pim::{
@@ -154,7 +154,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         let mut parameter = Vec::new();
 
         let value= &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_id).unwrap();
-        parameter.push(ParameterUdpRef{ parameter_id:PID_DOMAIN_ID, length: 4, value});
+        parameter.push(ParameterUdp{ parameter_id:PID_DOMAIN_ID, length: 4, value});
 
         // parameter.push(ParameterUdp::new(
         //     PID_DOMAIN_ID,
@@ -244,14 +244,14 @@ impl SPDPdiscoveredParticipantDataUdp {
         // ));
 
         let mut bytes = PL_CDR_LE.to_vec();
-        rust_serde_cdr::serializer::serialize_into(&ParameterListUdpRef { parameter }, &mut bytes)
+        rust_serde_cdr::serializer::serialize_into(&ParameterListUdp { parameter }, &mut bytes)
             .unwrap();
         Ok(bytes)
     }
 
     pub fn from_bytes(buf: &[u8]) -> Result<Self, rust_serde_cdr::error::Error> {
         let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
-        let parameter_list: ParameterListUdpRef = rust_serde_cdr::deserializer::from_bytes(&buf[4..])?;
+        let parameter_list: ParameterListUdp = rust_serde_cdr::deserializer::from_bytes(&buf[4..])?;
 
         let domain_id = parameter_list.get(PID_DOMAIN_ID).unwrap();
         let domain_tag = parameter_list.get(PID_DOMAIN_TAG).unwrap();

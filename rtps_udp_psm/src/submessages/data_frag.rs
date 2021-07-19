@@ -1,6 +1,6 @@
 use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
-use crate::{parameter_list::ParameterListUdpRef, submessage_elements::{
+use crate::{parameter_list::ParameterListUdp, submessage_elements::{
         EntityIdUdp, FragmentNumberUdp, SequenceNumberUdp, SerializedDataUdp, ULongUdp, UShortUdp,
     }};
 
@@ -15,7 +15,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage for DataFragUd
     type FragmentNumberSubmessageElementType = FragmentNumberUdp;
     type UShortSubmessageElementType = UShortUdp;
     type ULongSubmessageElementType = ULongUdp;
-    type ParameterListSubmessageElementType = ParameterListUdpRef<'a>;
+    type ParameterListSubmessageElementType = ParameterListUdp<'a>;
     type SerializedDataFragmentSubmessageElementType = SerializedDataUdp<'a>;
 
     fn new(

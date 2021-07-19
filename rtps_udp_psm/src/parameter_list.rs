@@ -13,14 +13,14 @@ impl serde::Serialize for VectorUdp {
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
-pub struct ParameterUdpRef<'a> {
+pub struct ParameterUdp<'a> {
     pub parameter_id: u16,
     pub length: i16,
     #[serde(with = "serde_bytes")]
     pub value: &'a[u8],
 }
 
-impl<'a> ParameterUdpRef<'a> {
+impl<'a> ParameterUdp<'a> {
     pub fn new(parameter_id: u16, value: &'a [u8]) -> Self {
         let length = value.len() as i16;
         Self {
@@ -34,10 +34,10 @@ impl<'a> ParameterUdpRef<'a> {
     }
 }
 
-struct ParameterVisitorRef<'a>(PhantomData<&'a()>);
+struct ParameterVisitor<'a>(PhantomData<&'a()>);
 
-impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterVisitorRef<'a> {
-    type Value = ParameterUdpRef<'a>;
+impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterVisitor<'a> {
+    type Value = ParameterUdp<'a>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("Parameter of the ParameterList Submessage Element")
@@ -56,7 +56,7 @@ impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterVisitorRef<'a> {
         let data: &[u8] =
                 seq.next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
-        Ok(ParameterUdpRef {
+        Ok(ParameterUdp {
             parameter_id,
             length,
             value: &data[..length as usize],
@@ -64,17 +64,17 @@ impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterVisitorRef<'a> {
     }
 }
 
-impl<'a,'de:'a> serde::Deserialize<'de> for ParameterUdpRef<'a> {
+impl<'a,'de:'a> serde::Deserialize<'de> for ParameterUdp<'a> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {
             const FIELDS: &[&str] = &["parameter_id", "length", "value"];
-            deserializer.deserialize_struct("Parameter", FIELDS, ParameterVisitorRef(PhantomData))
+            deserializer.deserialize_struct("Parameter", FIELDS, ParameterVisitor(PhantomData))
     }
 }
 
 const PID_SENTINEL: u16 = 1;
-static SENTINEL_REF: ParameterUdpRef = ParameterUdpRef {
+static SENTINEL: ParameterUdp = ParameterUdp {
     parameter_id: PID_SENTINEL,
     length: 0,
     value: &[],
@@ -82,14 +82,14 @@ static SENTINEL_REF: ParameterUdpRef = ParameterUdpRef {
 
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<'a>
-    for ParameterListUdpRef<'a>
+    for ParameterListUdp<'a>
 {
     type IntoIter = Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'a>>;
 
     fn new(parameter: &[rust_rtps_pim::messages::submessage_elements::Parameter]) -> Self {
         // let mut parameter_list = vec![];
         // for parameter_i in parameter {
-        //     let parameter_i_udp = ParameterUdpRef {
+        //     let parameter_i_udp = ParameterUdp {
         //         parameter_id: parameter_i.parameter_id.0,
         //         length: parameter_i.length,
         //         value: parameter_i.value,
@@ -117,11 +117,11 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageEl
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ParameterListUdpRef<'a> {
-    pub parameter: Vec<ParameterUdpRef<'a>>,
+pub struct ParameterListUdp<'a> {
+    pub parameter: Vec<ParameterUdp<'a>>,
 }
 
-impl<'a> ParameterListUdpRef<'a> {
+impl<'a> ParameterListUdp<'a> {
     pub fn len(&self) -> usize {
         self.parameter.iter().map(|p| p.len()).sum::<usize>() + 4
     }
@@ -155,23 +155,23 @@ impl<'a> ParameterListUdpRef<'a> {
     }
 }
 
-impl<'a> serde::Serialize for ParameterListUdpRef<'a> {
+impl<'a> serde::Serialize for ParameterListUdp<'a> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let len = self.parameter.len() + 1;
         let mut state = serializer.serialize_struct("ParameterList", len)?;
         for parameter in &self.parameter {
             state.serialize_field("parameter", &parameter)?;
         }
-        state.serialize_field("sentinel", &SENTINEL_REF)?;
+        state.serialize_field("sentinel", &SENTINEL)?;
         state.end()
     }
 }
 
 
-struct ParameterListVisitorRef<'a>(PhantomData<&'a()>);
+struct ParameterListVisitor<'a>(PhantomData<&'a()>);
 
-impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterListVisitorRef<'a> {
-    type Value = ParameterListUdpRef<'a>;
+impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterListVisitor<'a> {
+    type Value = ParameterListUdp<'a>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("ParameterList Submessage Element")
@@ -192,27 +192,27 @@ impl<'a, 'de:'a> serde::de::Visitor<'de> for ParameterListVisitorRef<'a> {
         let mut de = RtpsMessageDeserializer { reader: buf };
 
         for _ in 0..MAX_PARAMETERS {
-            let parameter_i: ParameterUdpRef = serde::de::Deserialize::deserialize(&mut de).unwrap();
+            let parameter_i: ParameterUdp = serde::de::Deserialize::deserialize(&mut de).unwrap();
             // de.reader.consume(parameter)
-            if parameter_i == SENTINEL_REF {
-                return Ok(ParameterListUdpRef {
+            if parameter_i == SENTINEL {
+                return Ok(ParameterListUdp {
                     parameter,
                 });
             } else {
                 parameter.push(parameter_i);
             }
         }
-        Ok(ParameterListUdpRef{parameter})
+        Ok(ParameterListUdp{parameter})
     }
 }
 
-impl<'a,'de:'a> serde::Deserialize<'de> for ParameterListUdpRef<'a> {
+impl<'a,'de:'a> serde::Deserialize<'de> for ParameterListUdp<'a> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         const FIELDS: &'static [&'static str] = &["parameter"];
-        deserializer.deserialize_struct("ParameterList", FIELDS, ParameterListVisitorRef(PhantomData))
+        deserializer.deserialize_struct("ParameterList", FIELDS, ParameterListVisitor(PhantomData))
     }
 }
 
@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = ParameterUdpRef::new(2, &[5, 6, 7, 8]);
+        let parameter = ParameterUdp::new(2, &[5, 6, 7, 8]);
         #[rustfmt::skip]
         assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
-        let parameter = ParameterUdpRef::new(2, &[5, 6, 7]);
+        let parameter = ParameterUdp::new(2, &[5, 6, 7]);
         #[rustfmt::skip]
         assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_zero_size() {
-        let parameter = ParameterUdpRef::new(2, &[]);
+        let parameter = ParameterUdp::new(2, &[]);
         assert_eq!(
             rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(),
             vec![
@@ -256,10 +256,10 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter = ParameterListUdpRef {
+        let parameter = ParameterListUdp {
             parameter: vec![
-                ParameterUdpRef::new(2, &[51, 61, 71, 81]),
-                ParameterUdpRef::new(3, &[52, 62, 72, 82]),
+                ParameterUdp::new(2, &[51, 61, 71, 81]),
+                ParameterUdp::new(3, &[52, 62, 72, 82]),
             ]
             .into(),
         };
@@ -275,7 +275,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
-        let expected = ParameterUdpRef::new(0x02, &[5, 6, 7, 8, 9, 10, 11]);
+        let expected = ParameterUdp::new(0x02, &[5, 6, 7, 8, 9, 10, 11]);
         #[rustfmt::skip]
         let result = deserializer::from_bytes(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = ParameterUdpRef::new(0x02, &[5, 6, 7, 8, 9, 10, 11, 12]);
+        let expected = ParameterUdp::new(0x02, &[5, 6, 7, 8, 9, 10, 11, 12]);
         #[rustfmt::skip]
         let result = deserializer::from_bytes(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -322,15 +322,15 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_list() {
-        let expected = ParameterListUdpRef {
+        let expected = ParameterListUdp {
             parameter: vec![
-                ParameterUdpRef::new(0x02, &[15, 16, 17, 18]),
-                ParameterUdpRef::new(0x03, &[25, 26, 27, 28]),
+                ParameterUdp::new(0x02, &[15, 16, 17, 18]),
+                ParameterUdp::new(0x03, &[25, 26, 27, 28]),
             ]
             .into(),
         };
         #[rustfmt::skip]
-        let result: ParameterListUdpRef = deserializer::from_bytes(&[
+        let result: ParameterListUdp = deserializer::from_bytes(&[
             0x02, 0x00, 4, 0, // Parameter ID | length
             15, 16, 17, 18,        // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -353,11 +353,11 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
         ];
 
-        let expected = ParameterListUdpRef {
-            parameter: vec![ParameterUdpRef::new(0x32, parameter_value_expected)].into(),
+        let expected = ParameterListUdp {
+            parameter: vec![ParameterUdp::new(0x32, parameter_value_expected)].into(),
         };
         #[rustfmt::skip]
-        let result: ParameterListUdpRef = deserializer::from_bytes(&[
+        let result: ParameterListUdp = deserializer::from_bytes(&[
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -386,15 +386,15 @@ mod tests {
             0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
         ];
 
-        let expected = ParameterListUdpRef {
+        let expected = ParameterListUdp {
             parameter: vec![
-                ParameterUdpRef::new(0x32, parameter_value_expected1),
-                ParameterUdpRef::new(0x32, parameter_value_expected2),
+                ParameterUdp::new(0x32, parameter_value_expected1),
+                ParameterUdp::new(0x32, parameter_value_expected2),
             ]
             .into(),
         };
         #[rustfmt::skip]
-        let result: ParameterListUdpRef = deserializer::from_bytes(&[
+        let result: ParameterListUdp = deserializer::from_bytes(&[
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
