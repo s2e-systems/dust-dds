@@ -124,12 +124,7 @@ mod tests {
             LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID, PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
         },
     };
-    use rust_rtps_udp_psm::{
-        message::RTPSMessageUdp,
-        parameter_list::ParameterListUdp,
-        submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp},
-        submessages::data::DataSubmesageUdp,
-    };
+    use rust_rtps_udp_psm::{message::RTPSMessageUdp, parameter_list::{ParameterListUdp, ParameterListUdpRef}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp}, submessages::data::DataSubmesageUdp};
 
     use crate::udp_transport::UdpTransport;
 
@@ -239,7 +234,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let data = [];

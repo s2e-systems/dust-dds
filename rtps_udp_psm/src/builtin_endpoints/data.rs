@@ -1,10 +1,6 @@
-use crate::{
-    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
-    parameter_list::{ParameterListUdp, ParameterUdp},
-    submessage_elements::{
+use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, parameter_list::{ParameterListUdp, ParameterListUdpRef, ParameterUdp, ParameterUdpRef}, submessage_elements::{
         CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
-    },
-};
+    }};
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
@@ -99,9 +95,9 @@ pub struct SPDPdiscoveredParticipantDataUdp {
 
 impl SPDPdiscoveredParticipantDataUdp {
     // Constant value from Table 9.14 - ParameterId mapping and default values
-    const DEFAULT_DOMAIN_TAG: String = String::new();
+    const _DEFAULT_DOMAIN_TAG: String = String::new();
     const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
-    const DEFAULT_PARTICIPANT_LEASE_DURATION: DurationUdp = DurationUdp {
+    const _DEFAULT_PARTICIPANT_LEASE_DURATION: DurationUdp = DurationUdp {
         seconds: 100,
         fraction: 0,
     };
@@ -157,95 +153,98 @@ impl SPDPdiscoveredParticipantDataUdp {
     pub fn to_bytes(&self) -> Result<Vec<u8>, rust_serde_cdr::error::Error> {
         let mut parameter = Vec::new();
 
-        parameter.push(ParameterUdp::new(
-            PID_DOMAIN_ID,
-            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_id).unwrap(),
-        ));
+        let value= &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_id).unwrap();
+        parameter.push(ParameterUdpRef{ parameter_id:PID_DOMAIN_ID, length: 4, value});
 
-        parameter.push(ParameterUdp::new(
-            PID_DOMAIN_TAG,
-            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_tag).unwrap(),
-        ));
+        // parameter.push(ParameterUdp::new(
+        //     PID_DOMAIN_ID,
+        //     rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_id).unwrap(),
+        // ));
 
-        parameter.push(ParameterUdp::new(
-            PID_PROTOCOL_VERSION,
-            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.protocol_version).unwrap(),
-        ));
+        // parameter.push(ParameterUdp::new(
+        //     PID_DOMAIN_TAG,
+        //     rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_tag).unwrap(),
+        // ));
 
-        parameter.push(ParameterUdp::new(
-            PID_PARTICIPANT_GUID,
-            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.guid).unwrap(),
-        ));
+        // parameter.push(ParameterUdp::new(
+        //     PID_PROTOCOL_VERSION,
+        //     rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.protocol_version).unwrap(),
+        // ));
 
-        parameter.push(ParameterUdp::new(
-            PID_VENDORID,
-            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.vendor_id).unwrap(),
-        ));
+        // parameter.push(ParameterUdp::new(
+        //     PID_PARTICIPANT_GUID,
+        //     rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.guid).unwrap(),
+        // ));
 
-        parameter.push(ParameterUdp::new(
-            PID_EXPECTS_INLINE_QOS,
-            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.expects_inline_qos)
-                .unwrap(),
-        ));
+        // parameter.push(ParameterUdp::new(
+        //     PID_VENDORID,
+        //     rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.vendor_id).unwrap(),
+        // ));
 
-        for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
-        {
-            parameter.push(ParameterUdp::new(
-                PID_METATRAFFIC_UNICAST_LOCATOR,
-                rust_serde_cdr::serializer::to_bytes(&metatraffic_unicast_locator).unwrap(),
-            ));
-        }
+        // parameter.push(ParameterUdp::new(
+        //     PID_EXPECTS_INLINE_QOS,
+        //     rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.expects_inline_qos)
+        //         .unwrap(),
+        // ));
 
-        for metatraffic_multicast_locator in
-            &self.participant_proxy.metatraffic_multicast_locator_list
-        {
-            parameter.push(ParameterUdp::new(
-                PID_METATRAFFIC_MULTICAST_LOCATOR,
-                rust_serde_cdr::serializer::to_bytes(&metatraffic_multicast_locator).unwrap(),
-            ));
-        }
+        // for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
+        // {
+        //     parameter.push(ParameterUdp::new(
+        //         PID_METATRAFFIC_UNICAST_LOCATOR,
+        //         rust_serde_cdr::serializer::to_bytes(&metatraffic_unicast_locator).unwrap(),
+        //     ));
+        // }
 
-        for default_unicast_locator in &self.participant_proxy.default_unicast_locator_list {
-            parameter.push(ParameterUdp::new(
-                PID_DEFAULT_UNICAST_LOCATOR,
-                rust_serde_cdr::serializer::to_bytes(&default_unicast_locator).unwrap(),
-            ));
-        }
+        // for metatraffic_multicast_locator in
+        //     &self.participant_proxy.metatraffic_multicast_locator_list
+        // {
+        //     parameter.push(ParameterUdp::new(
+        //         PID_METATRAFFIC_MULTICAST_LOCATOR,
+        //         rust_serde_cdr::serializer::to_bytes(&metatraffic_multicast_locator).unwrap(),
+        //     ));
+        // }
 
-        for default_multicast_locator in &self.participant_proxy.default_multicast_locator_list {
-            parameter.push(ParameterUdp::new(
-                PID_DEFAULT_MULTICAST_LOCATOR,
-                rust_serde_cdr::serializer::to_bytes(&default_multicast_locator).unwrap(),
-            ));
-        }
+        // for default_unicast_locator in &self.participant_proxy.default_unicast_locator_list {
+        //     parameter.push(ParameterUdp::new(
+        //         PID_DEFAULT_UNICAST_LOCATOR,
+        //         rust_serde_cdr::serializer::to_bytes(&default_unicast_locator).unwrap(),
+        //     ));
+        // }
 
-        parameter.push(ParameterUdp::new(
-            PID_BUILTIN_ENDPOINT_SET,
-            rust_serde_cdr::serializer::to_bytes(
-                &self.participant_proxy.available_builtin_endpoints,
-            )
-            .unwrap(),
-        ));
+        // for default_multicast_locator in &self.participant_proxy.default_multicast_locator_list {
+        //     parameter.push(ParameterUdp::new(
+        //         PID_DEFAULT_MULTICAST_LOCATOR,
+        //         rust_serde_cdr::serializer::to_bytes(&default_multicast_locator).unwrap(),
+        //     ));
+        // }
 
-        parameter.push(ParameterUdp::new(
-            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.manual_liveliness_count)
-                .unwrap(),
-        ));
+        // parameter.push(ParameterUdp::new(
+        //     PID_BUILTIN_ENDPOINT_SET,
+        //     rust_serde_cdr::serializer::to_bytes(
+        //         &self.participant_proxy.available_builtin_endpoints,
+        //     )
+        //     .unwrap(),
+        // ));
 
-        parameter.push(ParameterUdp::new(
-            PID_BUILTIN_ENDPOINT_QOS,
-            rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.builtin_endpoint_qos)
-                .unwrap(),
-        ));
+        // parameter.push(ParameterUdp::new(
+        //     PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+        //     rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.manual_liveliness_count)
+        //         .unwrap(),
+        // ));
 
-        parameter.push(ParameterUdp::new(
-            PID_PARTICIPANT_LEASE_DURATION,
-            rust_serde_cdr::serializer::to_bytes(&self.lease_duration).unwrap(),
-        ));
+        // parameter.push(ParameterUdp::new(
+        //     PID_BUILTIN_ENDPOINT_QOS,
+        //     rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.builtin_endpoint_qos)
+        //         .unwrap(),
+        // ));
+
+        // parameter.push(ParameterUdp::new(
+        //     PID_PARTICIPANT_LEASE_DURATION,
+        //     rust_serde_cdr::serializer::to_bytes(&self.lease_duration).unwrap(),
+        // ));
 
         let mut bytes = PL_CDR_LE.to_vec();
-        rust_serde_cdr::serializer::serialize_into(&ParameterListUdp { parameter }, &mut bytes)
+        rust_serde_cdr::serializer::serialize_into(&ParameterListUdpRef { parameter }, &mut bytes)
             .unwrap();
         Ok(bytes)
     }

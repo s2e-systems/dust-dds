@@ -314,8 +314,8 @@ impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElem
 pub struct SerializedDataUdp<'a>(pub &'a [u8]);
 
 impl<'a> SerializedDataUdp<'a> {
-    pub fn len(&self) -> u16 {
-        self.0.len() as u16
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 

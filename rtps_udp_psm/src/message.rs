@@ -115,14 +115,10 @@ impl<'a> RTPSMessageUdp<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        parameter_list::ParameterListUdp,
-        submessage_elements::{
+    use crate::{parameter_list::{ParameterListUdp, ParameterListUdpRef}, submessage_elements::{
             EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
             SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
-        },
-        submessages,
-    };
+        }, submessages};
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
         submessage_elements::SequenceNumberSubmessageElementType,
@@ -200,7 +196,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let data = [];
@@ -310,7 +306,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let data = [];
@@ -397,7 +393,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let data = [1, 2, 3, 4];

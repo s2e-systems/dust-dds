@@ -3,8 +3,9 @@ use rust_rtps_pim::messages::{
     types::{SubmessageFlag, },
     RtpsSubmessageHeader, Submessage,
 };
+use rust_serde_cdr::deserializer::{self, RtpsMessageDeserializer};
 
-use crate::{parameter_list::ParameterListUdp, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp, flags_to_byte, is_bit_set}, submessage_header::{DATA, SubmessageHeaderUdp}};
+use crate::{parameter_list::{ParameterListUdp, ParameterListUdpRef}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp, flags_to_byte, is_bit_set}, submessage_header::{DATA, SubmessageHeaderUdp}};
 
 #[derive(Debug, PartialEq)]
 pub struct DataSubmesageUdp<'a> {
@@ -14,14 +15,14 @@ pub struct DataSubmesageUdp<'a> {
     reader_id: EntityIdUdp,
     writer_id: EntityIdUdp,
     writer_sn: SequenceNumberUdp,
-    inline_qos: ParameterListUdp,
+    inline_qos: ParameterListUdpRef<'a>,
     serialized_payload: SerializedDataUdp<'a>,
 }
 
 impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmesageUdp<'a> {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSubmessageElementType = SequenceNumberUdp;
-    type ParameterListSubmessageElementType = ParameterListUdp;
+    type ParameterListSubmessageElementType = ParameterListUdpRef<'a>;
     type SerializedDataSubmessageElementType = SerializedDataUdp<'a>;
 
     fn new(
@@ -30,11 +31,11 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: EntityIdUdp,
-        writer_id: EntityIdUdp,
-        writer_sn: SequenceNumberUdp,
-        inline_qos: ParameterListUdp,
-        serialized_payload: SerializedDataUdp<'a>,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        writer_sn: Self::SequenceNumberSubmessageElementType,
+        inline_qos: Self::ParameterListSubmessageElementType,
+        serialized_payload: Self::SerializedDataSubmessageElementType,
     ) -> Self {
         let flags = flags_to_byte([
             endianness_flag,
@@ -44,16 +45,16 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
             non_standard_payload_flag,
         ]);
         let inline_qos_len = if inline_qos_flag {
-            inline_qos.len() + 4 /*sentinel */
-        } else {
             inline_qos.len()
+        } else {
+            0
         };
         let serialized_payload_len_padded = serialized_payload.len() + 3 &!3; //ceil to multiple of 4
         let submessage_length = 20 + inline_qos_len + serialized_payload_len_padded;
         let header = SubmessageHeaderUdp {
             submessage_id: DATA,
             flags,
-            submessage_length,
+            submessage_length: submessage_length as u16,
         };
 
         DataSubmesageUdp {
@@ -100,7 +101,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
         &self.writer_sn
     }
 
-    fn inline_qos(&self) -> &ParameterListUdp {
+    fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
         todo!()
     }
 
@@ -183,22 +184,23 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
         let writer_sn: SequenceNumberUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
-        let inline_qos: ParameterListUdp = if inline_qos_flag {
-            seq.next_element()?
-                .ok_or_else(|| serde::de::Error::invalid_length(6, &self))?
+
+        let remaining_data: &[u8] = seq.next_element()?
+        .ok_or_else(|| serde::de::Error::invalid_length(7, &self))?;
+
+        let mut deserializer = RtpsMessageDeserializer{reader: remaining_data};
+
+        let inline_qos: ParameterListUdpRef = if inline_qos_flag {
+            serde::de::Deserialize::deserialize(&mut deserializer).unwrap()
         } else {
-            ParameterListUdp { parameter: vec![] }
+            ParameterListUdpRef { parameter: vec![] }
         };
         let serialized_payload: SerializedDataUdp = if data_flag || key_flag {
-            let serialized_payload_length =
-                (header.submessage_length - octets_to_inline_qos - 4 - inline_qos.len()) as usize;
-            let data: &[u8] = seq
-                .next_element()?
-                .ok_or_else(|| serde::de::Error::invalid_length(7, &self))?;
-            SerializedDataUdp(&data[..serialized_payload_length])
+            SerializedDataUdp(&remaining_data[inline_qos.len()..])
         } else {
             SerializedDataUdp(&[])
         };
+
         Ok(DataSubmesageUdp {
             header,
             extra_flags,
@@ -237,7 +239,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for DataSubmesageUdp<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parameter_list::ParameterUdp;
+    use crate::parameter_list::{ParameterUdp, ParameterUdpRef};
 
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
@@ -273,7 +275,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let data = [];
@@ -318,9 +320,9 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let param1 = ParameterUdp::new(6, vec![10, 11, 12, 13].into());
-        let param2 = ParameterUdp::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = ParameterListUdp {
+        let param1 = ParameterUdpRef::new(6, &[10, 11, 12, 13]);
+        let param2 = ParameterUdpRef::new(7, &[20, 21, 22, 23]);
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![param1, param2].into(),
         };
         let data = [];
@@ -370,7 +372,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let data = [1_u8, 2, 3, 4];
@@ -416,7 +418,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let data = [1_u8, 2, 3];
@@ -462,7 +464,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let serialized_payload = SerializedDataUdp([][..].into());
@@ -506,7 +508,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let data = [1, 2, 3, 4];
@@ -553,10 +555,10 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let param1 = ParameterUdp::new(6, vec![10, 11, 12, 13].into());
-        let param2 = ParameterUdp::new(7, vec![20, 21, 22, 23].into());
-        let inline_qos = ParameterListUdp {
-            parameter: vec![param1, param2].into(),
+        let param1 = ParameterUdpRef::new(6, &[10, 11, 12, 13]);
+        let param2 = ParameterUdpRef::new(7, &[20, 21, 22, 23]);
+        let inline_qos = ParameterListUdpRef {
+            parameter: vec![param1, param2],
         };
         let serialized_payload = SerializedDataUdp([][..].into());
         let expected = DataSubmesageUdp::new(
@@ -605,7 +607,7 @@ mod tests {
             entity_kind: 9,
         };
         let writer_sn = SequenceNumberUdp::new(&5);
-        let inline_qos = ParameterListUdp {
+        let inline_qos = ParameterListUdpRef {
             parameter: vec![].into(),
         };
         let data = [];
