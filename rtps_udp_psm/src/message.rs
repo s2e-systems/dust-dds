@@ -71,14 +71,30 @@ impl<'a> serde::Serialize for RTPSMessageUdp<'a> {
     }
 }
 
-impl<'a> RTPSMessageUdp<'a> {
-    pub fn from_bytes(buf: &'a [u8]) -> Result<Self, Error> {
+struct RTPSMessageUdpVisitor<'a>(std::marker::PhantomData<&'a ()>);
+impl<'a, 'de: 'a> serde::de::Visitor<'de> for RTPSMessageUdpVisitor<'a> {
+    type Value = RTPSMessageUdp<'a>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("RTPSMessage")
+    }
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
         let mut submessages = vec![];
 
-        let mut header_deserializer = RtpsMessageDeserializer { reader: buf };
-        let header: RTPSMessageHeaderUdp = Deserialize::deserialize(&mut header_deserializer)?;
+        let header: RTPSMessageHeaderUdp = seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
 
-        const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
+        let buf: &[u8] = seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+
+        let mut header_deserializer = RtpsMessageDeserializer { reader: buf };
+
+        const MAX_SUBMESSAGES: usize = 2 ^ 16;
         for _ in 0..MAX_SUBMESSAGES {
             if header_deserializer.reader.len() < 1 {
                 break;
@@ -87,16 +103,22 @@ impl<'a> RTPSMessageUdp<'a> {
                 reader: &header_deserializer.reader,
             };
             let submessage_header: SubmessageHeaderUdp =
-                Deserialize::deserialize(&mut header_deserializer)?;
+                Deserialize::deserialize(&mut header_deserializer)
+                    .ok()
+                    .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
             let submessage_length = submessage_header.submessage_length as usize;
 
             let typed_submessage = match submessage_header.submessage_id.into() {
-                GAP => Some(RtpsSubmessageType::Gap(Deserialize::deserialize(
-                    &mut deserializer,
-                )?)),
-                DATA => Some(RtpsSubmessageType::Data(Deserialize::deserialize(
-                    &mut deserializer,
-                )?)),
+                GAP => Some(RtpsSubmessageType::Gap(
+                    Deserialize::deserialize(&mut deserializer)
+                        .ok()
+                        .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
+                )),
+                DATA => Some(RtpsSubmessageType::Data(
+                    Deserialize::deserialize(&mut deserializer)
+                        .ok()
+                        .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
+                )),
                 _ => None,
             };
             if let Some(typed_submessage) = typed_submessage {
@@ -109,6 +131,20 @@ impl<'a> RTPSMessageUdp<'a> {
             header,
             submessages,
         })
+    }
+}
+
+impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RTPSMessageUdp<'a> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &'static [&'static str] = &["header", "submessages"];
+        deserializer.deserialize_struct(
+            "RTPSMessage",
+            FIELDS,
+            RTPSMessageUdpVisitor(std::marker::PhantomData),
+        )
     }
 }
 
@@ -255,7 +291,7 @@ mod tests {
             submessages: vec![],
         };
         #[rustfmt::skip]
-        let result = RTPSMessageUdp::from_bytes(&[
+        let result: RTPSMessageUdp = rust_serde_cdr::deserializer::from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -328,7 +364,7 @@ mod tests {
             submessages: vec![gap_submessage, data_submessage],
         };
         #[rustfmt::skip]
-        let result = RTPSMessageUdp::from_bytes(&[
+        let result: RTPSMessageUdp = rust_serde_cdr::deserializer::from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

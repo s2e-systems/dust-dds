@@ -95,7 +95,7 @@ impl<'a> TransportRead<'a> for UdpTransport {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
-                    let message = RTPSMessageUdp::from_bytes(&self.receive_buffer[0..bytes])
+                    let message: RTPSMessageUdp = rust_serde_cdr::deserializer::from_bytes(&self.receive_buffer[0..bytes])
                         .expect("Failed to deserialize");
                     let udp_locator: UdpLocator = source_address.into();
                     Some((udp_locator.0, message))
