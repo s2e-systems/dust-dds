@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::BufRead, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData};
 
 use rust_rtps_pim::messages::types::ParameterId;
 use rust_serde_cdr::deserializer::RtpsMessageDeserializer;
@@ -54,13 +54,14 @@ impl<'a> serde::Serialize for ParameterUdp<'a> {
 }
 
 struct Bytes(usize);
-impl<'de> serde::de::DeserializeSeed<'de> for Bytes{
+impl<'de> serde::de::DeserializeSeed<'de> for Bytes {
     type Value = &'de [u8];
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
-        D: serde::Deserializer<'de> {
-            struct BytesVisitor;
+        D: serde::Deserializer<'de>,
+    {
+        struct BytesVisitor;
 
         impl<'a> serde::de::Visitor<'a> for BytesVisitor {
             type Value = &'a [u8];
@@ -101,7 +102,8 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for ParameterVisitor<'a> {
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
         // let seed = Bytes(length as usize);
 
-        let data: &[u8] = seq.next_element_seed(Bytes(length as usize))?
+        let data: &[u8] = seq
+            .next_element_seed(Bytes(length as usize))?
             .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
 
         // let _data: &[u8] = seq.next_element_seed(b)?
@@ -126,7 +128,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for ParameterUdp<'a> {
 }
 
 const PID_SENTINEL: u16 = 1;
-const SENTINEL: ParameterUdp = ParameterUdp{
+const SENTINEL: ParameterUdp = ParameterUdp {
     parameter_id: PID_SENTINEL,
     length: 0,
     value: &[],
@@ -264,13 +266,13 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for ParameterListUdp<'a> {
 
 #[cfg(test)]
 mod tests {
-    use rust_serde_cdr::deserializer::{self, RtpsMessageDeserializer};
+    use rust_serde_cdr::deserializer::{self};
 
     use super::*;
 
     #[test]
     fn tuple() {
-        let expected = (1_u16,2_u16);
+        let expected = (1_u16, 2_u16);
         #[rustfmt::skip]
         let result = deserializer::from_bytes(&[1, 0, 2, 0]).unwrap();
         assert_eq!(expected, result);

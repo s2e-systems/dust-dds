@@ -1,7 +1,7 @@
 use std::io::BufRead;
 
 use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
-use rust_serde_cdr::{deserializer::RtpsMessageDeserializer, error::Error};
+use rust_serde_cdr::deserializer::RtpsMessageDeserializer;
 use serde::{de::Deserialize, ser::SerializeStruct};
 
 use crate::{
@@ -151,10 +151,14 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RTPSMessageUdp<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{parameter_list::{ParameterListUdp}, submessage_elements::{
+    use crate::{
+        parameter_list::ParameterListUdp,
+        submessage_elements::{
             EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
             SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
-        }, submessages};
+        },
+        submessages,
+    };
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
         submessage_elements::SequenceNumberSubmessageElementType,
@@ -388,96 +392,96 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-    // #[test]
-    // fn deserialize_rtps_message_with_unknown_submessage_kind() {
-    //     let header = RTPSMessageHeaderUdp {
-    //         protocol: b"RTPS".to_owned(),
-    //         version: ProtocolVersionUdp { major: 2, minor: 3 },
-    //         vendor_id: VendorIdUdp([9, 8]),
-    //         guid_prefix: GuidPrefixUdp([3; 12]),
-    //     };
+    #[test]
+    fn deserialize_rtps_message_with_unknown_submessage_kind() {
+        let header = RTPSMessageHeaderUdp {
+            protocol: b"RTPS".to_owned(),
+            version: ProtocolVersionUdp { major: 2, minor: 3 },
+            vendor_id: VendorIdUdp([9, 8]),
+            guid_prefix: GuidPrefixUdp([3; 12]),
+        };
 
-    //     let endianness_flag = true;
-    //     let reader_id = EntityIdUdp {
-    //         entity_key: [1, 2, 3],
-    //         entity_kind: 4,
-    //     };
-    //     let writer_id = EntityIdUdp {
-    //         entity_key: [6, 7, 8],
-    //         entity_kind: 9,
-    //     };
-    //     let gap_start = SequenceNumberUdp::new(&5);
-    //     let gap_list = SequenceNumberSetUdp::new(&10, &[]);
-    //     let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
-    //         endianness_flag,
-    //         reader_id,
-    //         writer_id,
-    //         gap_start,
-    //         gap_list,
-    //     ));
+        let endianness_flag = true;
+        let reader_id = EntityIdUdp {
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
+        };
+        let gap_start = SequenceNumberUdp::new(&5);
+        let gap_list = SequenceNumberSetUdp::new(&10, &[]);
+        let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        ));
 
-    //     let inline_qos_flag = false;
-    //     let data_flag = true;
-    //     let key_flag = false;
-    //     let non_standard_payload_flag = false;
-    //     let reader_id = EntityIdUdp {
-    //         entity_key: [1, 2, 3],
-    //         entity_kind: 4,
-    //     };
-    //     let writer_id = EntityIdUdp {
-    //         entity_key: [6, 7, 8],
-    //         entity_kind: 9,
-    //     };
-    //     let writer_sn = SequenceNumberUdp::new(&5);
-    //     let inline_qos = ParameterListUdp {
-    //         parameter: vec![].into(),
-    //     };
-    //     let data = [1, 2, 3, 4];
-    //     let serialized_payload = SerializedDataUdp(&data[..]);
-    //     let data_submessage = RtpsSubmessageType::Data(submessages::data::DataSubmesageUdp::new(
-    //         endianness_flag,
-    //         inline_qos_flag,
-    //         data_flag,
-    //         key_flag,
-    //         non_standard_payload_flag,
-    //         reader_id,
-    //         writer_id,
-    //         writer_sn,
-    //         inline_qos,
-    //         serialized_payload,
-    //     ));
-    //     let expected = RTPSMessageUdp {
-    //         header,
-    //         submessages: vec![data_submessage, gap_submessage],
-    //     };
-    //     #[rustfmt::skip]
-    //     let result = RTPSMessageUdp::from_bytes(&[
-    //         b'R', b'T', b'P', b'S', // Protocol
-    //         2, 3, 9, 8, // ProtocolVersion | VendorId
-    //         3, 3, 3, 3, // GuidPrefix
-    //         3, 3, 3, 3, // GuidPrefix
-    //         3, 3, 3, 3, // GuidPrefix
-    //      0x99, 0xcc, 8, 0,   // Submessage header (Unknown)
-    //         0xcc, 0xcc, 0xcc, 0xcc, // Unknown stuff
-    //         0xcc, 0xcc, 0xcc, 0xcc, // Unknown stuff
-    //      0x15, 0b_0000_0101, 24, 0, // Submessage header (Data)
-    //         0, 0, 16, 0, // extraFlags, octetsToInlineQos
-    //         1, 2, 3, 4, // readerId: value[4]
-    //         6, 7, 8, 9, // writerId: value[4]
-    //         0, 0, 0, 0, // writerSN: high
-    //         5, 0, 0, 0, // writerSN: low
-    //         1, 2, 3, 4, // serialized payload
-    //      0x08, 0b_0000_0001, 28, 0, // Submessage header (Gap)
-    //         1, 2, 3, 4, // readerId: value[4]
-    //         6, 7, 8, 9, // writerId: value[4]
-    //         0, 0, 0, 0, // gapStart: SequenceNumber: high
-    //         5, 0, 0, 0, // gapStart: SequenceNumber: low
-    //         0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
-    //        10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
-    //         0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
-    //     ]).unwrap();
-    //     assert_eq!(result, expected);
-    // }
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdUdp {
+            entity_key: [1, 2, 3],
+            entity_kind: 4,
+        };
+        let writer_id = EntityIdUdp {
+            entity_key: [6, 7, 8],
+            entity_kind: 9,
+        };
+        let writer_sn = SequenceNumberUdp::new(&5);
+        let inline_qos = ParameterListUdp {
+            parameter: vec![].into(),
+        };
+        let data = [1, 2, 3, 4];
+        let serialized_payload = SerializedDataUdp(&data[..]);
+        let data_submessage = RtpsSubmessageType::Data(submessages::data::DataSubmesageUdp::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        ));
+        let expected = RTPSMessageUdp {
+            header,
+            submessages: vec![data_submessage, gap_submessage],
+        };
+        #[rustfmt::skip]
+        let result: RTPSMessageUdp = rust_serde_cdr::deserializer::from_bytes(&[
+            b'R', b'T', b'P', b'S', // Protocol
+            2, 3, 9, 8, // ProtocolVersion | VendorId
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+            3, 3, 3, 3, // GuidPrefix
+         0x99, 0xcc, 8, 0,   // Submessage header (Unknown)
+            0xcc, 0xcc, 0xcc, 0xcc, // Unknown stuff
+            0xcc, 0xcc, 0xcc, 0xcc, // Unknown stuff
+         0x15, 0b_0000_0101, 24, 0, // Submessage header (Data)
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+            1, 2, 3, 4, // serialized payload
+         0x08, 0b_0000_0001, 28, 0, // Submessage header (Gap)
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // gapStart: SequenceNumber: high
+            5, 0, 0, 0, // gapStart: SequenceNumber: low
+            0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
+           10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
+            0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
+        ]).unwrap();
+        assert_eq!(result, expected);
+    }
 
     #[test]
     fn serialize_rtps_message_no_submessage_json() {

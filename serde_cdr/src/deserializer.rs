@@ -264,7 +264,7 @@ impl<'a, 'de: 'a> serde::de::Deserializer<'de> for &'a mut RtpsMessageDeserializ
     where
         V: serde::de::Visitor<'de>,
     {
-        let result = visitor.visit_borrowed_bytes(self.reader);
+        let result = visitor.visit_borrowed_bytes(&self.reader[..len]);
         self.reader.consume(len);
         result
     }

@@ -3,7 +3,6 @@ use rust_rtps_pim::messages::{
     types::{SubmessageFlag, },
     RtpsSubmessageHeader, Submessage,
 };
-use rust_serde_cdr::deserializer::{self, RtpsMessageDeserializer};
 
 use crate::{parameter_list::{ParameterListUdp}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp, flags_to_byte, is_bit_set}, submessage_header::{DATA, SubmessageHeaderUdp}};
 
