@@ -1,8 +1,5 @@
-use std::io::BufRead;
-
 use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
-use rust_serde_cdr::deserializer::RtpsMessageDeserializer;
-use serde::{de::Deserialize, ser::SerializeStruct};
+use serde::ser::SerializeStruct;
 
 use crate::{
     message_header::RTPSMessageHeaderUdp,
@@ -71,6 +68,35 @@ impl<'a> serde::Serialize for RTPSMessageUdp<'a> {
     }
 }
 
+struct Bytes(usize);
+impl<'de> serde::de::DeserializeSeed<'de> for Bytes {
+    type Value = ();
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct BytesVisitor;
+
+        impl<'a> serde::de::Visitor<'a> for BytesVisitor {
+            type Value = ();
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a borrowed byte array")
+            }
+
+            fn visit_borrowed_bytes<E>(self, _v: &'a [u8]) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(())
+            }
+        }
+        deserializer.deserialize_tuple_struct("", self.0, BytesVisitor)?;
+        Ok(())
+    }
+}
+
 struct RTPSMessageUdpVisitor<'a>(std::marker::PhantomData<&'a ()>);
 impl<'a, 'de: 'a> serde::de::Visitor<'de> for RTPSMessageUdpVisitor<'a> {
     type Value = RTPSMessageUdp<'a>;
@@ -87,46 +113,34 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for RTPSMessageUdpVisitor<'a> {
         let header: RTPSMessageHeaderUdp = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-
-        let buf: &[u8] = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-
-        let mut header_deserializer = RtpsMessageDeserializer { reader: buf };
-
-        const MAX_SUBMESSAGES: usize = 2 ^ 16;
+        const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
         for _ in 0..MAX_SUBMESSAGES {
-            if header_deserializer.reader.len() < 1 {
-                break;
-            };
-            let mut deserializer = RtpsMessageDeserializer {
-                reader: &header_deserializer.reader,
-            };
-            let submessage_header: SubmessageHeaderUdp =
-                Deserialize::deserialize(&mut header_deserializer)
-                    .ok()
-                    .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
-            let submessage_length = submessage_header.submessage_length as usize;
-
-            let typed_submessage = match submessage_header.submessage_id.into() {
-                GAP => Some(RtpsSubmessageType::Gap(
-                    Deserialize::deserialize(&mut deserializer)
-                        .ok()
-                        .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
-                )),
-                DATA => Some(RtpsSubmessageType::Data(
-                    Deserialize::deserialize(&mut deserializer)
-                        .ok()
-                        .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
-                )),
-                _ => None,
-            };
-            if let Some(typed_submessage) = typed_submessage {
-                submessages.push(typed_submessage);
+            // Preview byte only (to allow full deserialization of submessage header)
+            let submessage_id_ref: &[u8] = seq
+                .next_element()?
+                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+            if submessage_id_ref.len() >= 4 {
+                let submessage_id = submessage_id_ref[0];
+                let submessage = match submessage_id {
+                    GAP => RtpsSubmessageType::Gap(
+                        seq.next_element()?
+                            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
+                    ),
+                    DATA => RtpsSubmessageType::Data(
+                        seq.next_element()?
+                            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
+                    ),
+                    _ => {
+                        let submessage_header: SubmessageHeaderUdp = seq
+                            .next_element()?
+                            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                        seq.next_element_seed(Bytes(submessage_header.submessage_length as usize))?;
+                        continue;
+                    }
+                };
+                submessages.push(submessage);
             }
-            header_deserializer.reader.consume(submessage_length);
         }
-
         Ok(RTPSMessageUdp {
             header,
             submessages,
@@ -374,7 +388,7 @@ mod tests {
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
-            0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
+            0x08, 0b_0000_0001, 28, 0, // Submessage header (GAP)
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // gapStart: SequenceNumber: high
@@ -382,7 +396,7 @@ mod tests {
             0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
            10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
-            0x15, 0b_0000_0001, 20, 0, // Submessage header
+            0x15, 0b_0000_0001, 20, 0, // Submessage header (DATA)
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
