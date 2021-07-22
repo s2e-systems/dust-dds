@@ -101,6 +101,7 @@ impl SPDPdiscoveredParticipantDataUdp {
     // Constant value from Table 9.14 - ParameterId mapping and default values
     const DEFAULT_DOMAIN_TAG: String = String::new();
     const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
+    const DEFAULT_BUILTIN_ENDPOINT_QOS: u32 = 0;
     const DEFAULT_PARTICIPANT_LEASE_DURATION: DurationUdp = DurationUdp {
         seconds: 100,
         fraction: 0,
@@ -240,7 +241,9 @@ impl SPDPdiscoveredParticipantDataUdp {
 
         let v =
             &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.builtin_endpoint_qos)?;
-        parameter.push(ParameterUdp::new(PID_BUILTIN_ENDPOINT_QOS, v));
+        if &self.participant_proxy.builtin_endpoint_qos != &Self::DEFAULT_BUILTIN_ENDPOINT_QOS {
+            parameter.push(ParameterUdp::new(PID_BUILTIN_ENDPOINT_QOS, v));
+        }
 
         let v = &rust_serde_cdr::serializer::to_bytes(&self.lease_duration)?;
         if &self.lease_duration != &Self::DEFAULT_PARTICIPANT_LEASE_DURATION {
@@ -257,29 +260,69 @@ impl SPDPdiscoveredParticipantDataUdp {
         let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
         let parameter_list: ParameterListUdp = rust_serde_cdr::deserializer::from_bytes(&buf[4..])?;
 
-        let domain_id = parameter_list.get(PID_DOMAIN_ID).unwrap();
-        let domain_tag = parameter_list.get(PID_DOMAIN_TAG).unwrap();
-        let protocol_version: ProtocolVersionUdp =
-            parameter_list.get(PID_PROTOCOL_VERSION).unwrap();
-        let guid: GUIDUdp = parameter_list.get(PID_PARTICIPANT_GUID).unwrap();
-        let vendor_id: VendorIdUdp = parameter_list.get(PID_VENDORID).unwrap();
+        let domain_id =
+            parameter_list
+                .get(PID_DOMAIN_ID)
+                .ok_or(rust_serde_cdr::error::Error::Message(
+                    "Missing PID_DOMAIN_ID parameter".to_string(),
+                ))?;
+
+        let domain_tag = parameter_list
+            .get(PID_DOMAIN_TAG)
+            .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
+
+        let protocol_version: ProtocolVersionUdp = parameter_list.get(PID_PROTOCOL_VERSION).ok_or(
+            rust_serde_cdr::error::Error::Message(
+                "Missing PID_PROTOCOL_VERSION parameter".to_string(),
+            ),
+        )?;
+
+        let guid: GUIDUdp = parameter_list.get(PID_PARTICIPANT_GUID).ok_or(
+            rust_serde_cdr::error::Error::Message(
+                "Missing PID_PARTICIPANT_GUID parameter".to_string(),
+            ),
+        )?;
+
+        let vendor_id: VendorIdUdp =
+            parameter_list
+                .get(PID_VENDORID)
+                .ok_or(rust_serde_cdr::error::Error::Message(
+                    "Missing PID_VENDORID parameter".to_string(),
+                ))?;
+
         let expects_inline_qos = parameter_list
             .get(PID_EXPECTS_INLINE_QOS)
             .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
+
         let metatraffic_unicast_locator_list =
             parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
+
         let metatraffic_multicast_locator_list =
             parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
+
         let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
+
         let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
-        let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET).unwrap();
+
+        let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET).ok_or(
+            rust_serde_cdr::error::Error::Message(
+                "Missing PID_BUILTIN_ENDPOINT_SET parameter".to_string(),
+            ),
+        )?;
 
         let manual_liveliness_count = parameter_list
             .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
-            .unwrap();
-        let builtin_endpoint_qos = parameter_list.get(PID_BUILTIN_ENDPOINT_QOS).unwrap_or(0);
+            .ok_or(rust_serde_cdr::error::Error::Message(
+                "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter".to_string(),
+            ))?;
 
-        let lease_duration = parameter_list.get(PID_PARTICIPANT_LEASE_DURATION).unwrap();
+        let builtin_endpoint_qos = parameter_list
+            .get(PID_BUILTIN_ENDPOINT_QOS)
+            .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
+
+        let lease_duration = parameter_list
+            .get(PID_PARTICIPANT_LEASE_DURATION)
+            .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
 
         let participant_proxy = ParticipantProxy {
             domain_id,
@@ -530,9 +573,7 @@ mod tests {
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
         let manual_liveliness_count = Count(2);
-        let builtin_endpoint_qos = BuiltinEndpointQos::new(
-            BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
-        );
+        let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
         let lease_duration =
             SPDPdiscoveredParticipantDataUdp::DEFAULT_PARTICIPANT_LEASE_DURATION.value();
 
@@ -571,8 +612,6 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
             0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
             0x02, 0x00, 0x00, 0x00, // Count(2)
-            0x77, 0x00, 0x04, 0x00, // PID_BUILTIN_ENDPOINT_QOS, Length: 4
-            0x00, 0x00, 0x00, 0x20, // BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
         ];
 
@@ -691,6 +730,69 @@ mod tests {
             seconds: 10,
             fraction: 0,
         };
+
+        let expected_spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+            &domain_id,
+            domain_tag,
+            &protocol_version,
+            &guid,
+            &vendor_id,
+            &expects_inline_qos,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            &available_builtin_endpoints,
+            &manual_liveliness_count,
+            &builtin_endpoint_qos,
+            &lease_duration,
+        );
+
+        assert_eq!(
+            spdp_discovered_participant_data,
+            expected_spdp_discovered_participant_data
+        );
+    }
+
+    #[test]
+    fn deserialize_default_spdp_discovered_participant_data() {
+        #[rustfmt::skip]
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::from_bytes(&[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId(1)
+            0x15, 0x00, 0x04, 0x00, // PID_PROTOCOL_VERSION, Length: 4
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion{major:2, minor:4}
+            0x50, 0x00, 0x10, 0x00, // PID_PARTICIPANT_GUID, Length: 16
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x00, 0x00, 0x01, 0xc1, // EntityId(ENTITYID_PARTICIPANT)
+            0x16, 0x00, 0x04, 0x00, // PID_VENDORID, Length:4,
+            0x09, 0x09, 0x00, 0x00, // VendorId([9,9])
+            0x58, 0x00, 0x04, 0x00, // PID_BUILTIN_ENDPOINT_SET, Length: 4
+            0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+            0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
+            0x02, 0x00, 0x00, 0x00, // Count(2)
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
+        ]).unwrap();
+
+        let domain_id = 1;
+        let domain_tag = &SPDPdiscoveredParticipantDataUdp::DEFAULT_DOMAIN_TAG;
+        let protocol_version = ProtocolVersion { major: 2, minor: 4 };
+        let guid = GUID::new([1; 12], ENTITYID_PARTICIPANT);
+        let vendor_id = [9, 9];
+        let expects_inline_qos = SPDPdiscoveredParticipantDataUdp::DEFAULT_EXPECTS_INLINE_QOS;
+        let metatraffic_unicast_locator_list = &[];
+        let metatraffic_multicast_locator_list = &[];
+        let default_unicast_locator_list = &[];
+        let default_multicast_locator_list = &[];
+        let available_builtin_endpoints =
+            BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
+        let manual_liveliness_count = Count(2);
+        let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
+        let lease_duration =
+            SPDPdiscoveredParticipantDataUdp::DEFAULT_PARTICIPANT_LEASE_DURATION.value();
 
         let expected_spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
             &domain_id,
