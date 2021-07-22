@@ -816,4 +816,56 @@ mod tests {
             expected_spdp_discovered_participant_data
         );
     }
+
+    #[test]
+    fn deserialize_wrong_spdp_discovered_participant_data() {
+        #[rustfmt::skip]
+        let spdp_discovered_participant_data_missing_protocol_version = SPDPdiscoveredParticipantDataUdp::from_bytes(&[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId(1)
+            0x50, 0x00, 0x10, 0x00, // PID_PARTICIPANT_GUID, Length: 16
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x01, 0x01, 0x01, 0x01, // GuidPrefix([1;12])
+            0x00, 0x00, 0x01, 0xc1, // EntityId(ENTITYID_PARTICIPANT)
+            0x16, 0x00, 0x04, 0x00, // PID_VENDORID, Length:4,
+            0x09, 0x09, 0x00, 0x00, // VendorId([9,9])
+            0x58, 0x00, 0x04, 0x00, // PID_BUILTIN_ENDPOINT_SET, Length: 4
+            0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+            0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
+            0x02, 0x00, 0x00, 0x00, // Count(2)
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
+        ]);
+
+        match spdp_discovered_participant_data_missing_protocol_version {
+            Result::Err(rust_serde_cdr::error::Error::Message(msg)) => {
+                assert_eq!(&msg, "Missing PID_PROTOCOL_VERSION parameter")
+            }
+            _ => panic!(),
+        };
+
+        #[rustfmt::skip]
+        let spdp_discovered_participant_data_missing_participant_guid = SPDPdiscoveredParticipantDataUdp::from_bytes(&[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x01, 0x00, 0x00, 0x00, // DomainId(1)
+            0x15, 0x00, 0x04, 0x00, // PID_PROTOCOL_VERSION, Length: 4
+            0x02, 0x04, 0x00, 0x00, // ProtocolVersion{major:2, minor:4}
+            0x16, 0x00, 0x04, 0x00, // PID_VENDORID, Length:4,
+            0x09, 0x09, 0x00, 0x00, // VendorId([9,9])
+            0x58, 0x00, 0x04, 0x00, // PID_BUILTIN_ENDPOINT_SET, Length: 4
+            0x02, 0x00, 0x00, 0x00, // BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+            0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
+            0x02, 0x00, 0x00, 0x00, // Count(2)
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
+        ]);
+
+        match spdp_discovered_participant_data_missing_participant_guid {
+            Result::Err(rust_serde_cdr::error::Error::Message(msg)) => {
+                assert_eq!(&msg, "Missing PID_PARTICIPANT_GUID parameter")
+            }
+            _ => panic!(),
+        };
+    }
 }
