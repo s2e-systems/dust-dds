@@ -1,15 +1,16 @@
 use rust_dds_api::{
     dcps_psm::InstanceHandle, infrastructure::qos::SubscriberQos, return_type::DDSResult,
 };
-use rust_rtps_pim::structure::{
-    types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
-    RTPSEntity, RTPSParticipant,
-};
+use rust_rtps_pim::{discovery::{sedp::sedp_participant::SedpParticipant, spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData}, structure::{
+        types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
+        RTPSEntity, RTPSParticipant,
+    }};
 
 use crate::utils::shared_object::RtpsShared;
 
 use super::{
-    rtps_reader_group_impl::RTPSReaderGroupImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
+    rtps_reader_group_impl::RTPSReaderGroupImpl, rtps_reader_impl::RTPSReaderImpl,
+    rtps_writer_group_impl::RTPSWriterGroupImpl, rtps_writer_impl::RTPSWriterImpl,
 };
 
 pub struct RTPSParticipantImpl {
@@ -108,6 +109,99 @@ impl RTPSParticipant for RTPSParticipantImpl {
     }
 
     fn default_multicast_locator_list(&self) -> &[Locator] {
+        todo!()
+    }
+}
+
+impl SedpParticipant for RTPSParticipantImpl {
+    type BuiltinPublicationsWriter = RTPSWriterImpl;
+    type BuiltinPublicationsReader = RTPSReaderImpl;
+    type BuiltinSubscriptionsWriter = RTPSWriterImpl;
+    type BuiltinSubscriptionsReader = RTPSReaderImpl;
+    type BuiltinTopicsWriter = RTPSWriterImpl;
+    type BuiltinTopicsReader = RTPSReaderImpl;
+
+    fn sedp_builtin_publications_writer(&mut self) -> Option<&mut Self::BuiltinPublicationsWriter> {
+        todo!()
+    }
+
+    fn sedp_builtin_publications_reader(&mut self) -> Option<&mut Self::BuiltinPublicationsReader> {
+        todo!()
+    }
+
+    fn sedp_builtin_subscriptions_writer(
+        &mut self,
+    ) -> Option<&mut Self::BuiltinSubscriptionsWriter> {
+        todo!()
+    }
+
+    fn sedp_builtin_subscriptions_reader(
+        &mut self,
+    ) -> Option<&mut Self::BuiltinSubscriptionsReader> {
+        todo!()
+    }
+
+    fn sedp_builtin_topics_writer(&mut self) -> Option<&mut Self::BuiltinTopicsWriter> {
+        todo!()
+    }
+
+    fn sedp_builtin_topics_reader(&mut self) -> Option<&mut Self::BuiltinTopicsReader> {
+        todo!()
+    }
+}
+
+impl SPDPdiscoveredParticipantData for RTPSParticipantImpl {
+    type LocatorListType = Vec<Locator>;
+
+    fn domain_id(&self) -> rust_rtps_pim::discovery::types::DomainId {
+        todo!()
+    }
+
+    fn domain_tag(&self) -> &str {
+        todo!()
+    }
+
+    fn protocol_version(&self) -> ProtocolVersion {
+        todo!()
+    }
+
+    fn guid_prefix(&self) -> rust_rtps_pim::structure::types::GuidPrefix {
+        todo!()
+    }
+
+    fn vendor_id(&self) -> VendorId {
+        todo!()
+    }
+
+    fn expects_inline_qos(&self) -> bool {
+        todo!()
+    }
+
+    fn metatraffic_unicast_locator_list(&self) -> Self::LocatorListType {
+        todo!()
+    }
+
+    fn metatraffic_multicast_locator_list(&self) -> Self::LocatorListType {
+        todo!()
+    }
+
+    fn default_unicast_locator_list(&self) -> Self::LocatorListType {
+        todo!()
+    }
+
+    fn default_multicast_locator_list(&self) -> Self::LocatorListType {
+        todo!()
+    }
+
+    fn available_builtin_endpoints(&self) -> rust_rtps_pim::discovery::types::BuiltinEndpointSet {
+        todo!()
+    }
+
+    fn manual_liveliness_count(&self) -> rust_rtps_pim::messages::types::Count {
+        todo!()
+    }
+
+    fn builtin_endpoint_qos(&self) -> rust_rtps_pim::discovery::types::BuiltinEndpointQos {
         todo!()
     }
 }

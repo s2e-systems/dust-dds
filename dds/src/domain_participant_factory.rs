@@ -25,17 +25,19 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::{
+        reader::reader::RTPSReader,
         types::Duration,
         writer::writer::{RTPSWriter, RTPSWriterOperations},
     },
     discovery::{
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
+        participant_discovery::ParticipantDiscovery,
     },
     messages::types::Count,
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
-        RTPSEntity, RTPSHistoryCache, RTPSParticipant,
+        RTPSCacheChange, RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
 use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
@@ -150,7 +152,7 @@ impl DomainParticipantFactory {
 
         std::thread::spawn(move || loop {
             if is_enabled_thread.load(atomic::Ordering::Relaxed) {
-                if let Some(rtps_participant) = rtps_participant_shared.try_lock() {
+                if let Some(mut rtps_participant) = rtps_participant_shared.try_lock() {
                     if let Some((source_locator, message)) = transport.read() {
                         MessageReceiver::new().process_message(
                             guid_prefix,
@@ -164,6 +166,36 @@ impl DomainParticipantFactory {
                         &mut spdp_builtin_participant_writer,
                         &mut transport,
                     );
+                    {
+                        let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
+                        let spdp_builtin_participant_reader =
+                            builtin_reader_group.reader_list()[0].lock();
+                        if let Some(seq_num_min) = spdp_builtin_participant_reader
+                            .reader_cache()
+                            .get_seq_num_min()
+                        {
+                            let seq_num_max = spdp_builtin_participant_reader
+                                .reader_cache()
+                                .get_seq_num_max()
+                                .unwrap();
+                            for seq_num in seq_num_min..seq_num_max {
+                                if let Some(change) = spdp_builtin_participant_reader
+                                    .reader_cache()
+                                    .get_change(&seq_num)
+                                {
+                                    let spdp_discovered_participant_data =
+                                        SPDPdiscoveredParticipantDataUdp::from_bytes(
+                                            change.data_value().as_ref(),
+                                        );
+                                    if let Ok(spdp_discovered_participant_data) = spdp_discovered_participant_data {
+                                        // rtps_participant.discovered_participant_add(&spdp_discovered_participant_data);
+                                        todo!()
+                                    };
+                                    todo!()
+                                }
+                            }
+                        }
+                    }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }

@@ -2,6 +2,7 @@ use rust_rtps_pim::{
     behavior::{
         reader::{
             reader::{RTPSReader, RTPSReaderOperations},
+            stateful_reader::{RTPSStatefulReader, RTPSStatefulReaderOperations},
             stateless_reader::RTPSStatelessReaderOperations,
         },
         types::Duration,
@@ -12,7 +13,9 @@ use rust_rtps_pim::{
     },
 };
 
-use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
+use super::{
+    rtps_history_cache_impl::RTPSHistoryCacheImpl, rtps_writer_proxy_impl::RTPSWriterProxyImpl,
+};
 
 pub struct RTPSReaderImpl {
     guid: GUID,
@@ -121,5 +124,49 @@ impl RTPSStatelessReaderOperations for RTPSReaderImpl {
             expects_inline_qos,
             reader_cache: RTPSHistoryCacheImpl::new(),
         }
+    }
+}
+
+impl RTPSStatefulReader for RTPSReaderImpl {
+    type WriterProxyType = RTPSWriterProxyImpl;
+
+    fn matched_writers(&self) -> &[Self::WriterProxyType] {
+        todo!()
+    }
+}
+
+impl RTPSStatefulReaderOperations for RTPSReaderImpl {
+    fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        heartbeat_response_delay: Duration,
+        heartbeat_supression_duration: Duration,
+        expects_inline_qos: bool,
+    ) -> Self {
+        todo!()
+    }
+
+    fn matched_writer_add(&mut self, a_writer_proxy: <Self as RTPSStatefulReader>::WriterProxyType)
+    where
+        Self: RTPSStatefulReader,
+    {
+        todo!()
+    }
+
+    fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID) {
+        todo!()
+    }
+
+    fn matched_writer_lookup(
+        &self,
+        a_writer_guid: &GUID,
+    ) -> Option<&<Self as RTPSStatefulReader>::WriterProxyType>
+    where
+        Self: RTPSStatefulReader,
+    {
+        todo!()
     }
 }

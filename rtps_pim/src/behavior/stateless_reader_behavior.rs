@@ -131,11 +131,11 @@ mod tests {
             todo!()
         }
 
-        fn get_seq_num_min(&self) -> Option<&crate::structure::types::SequenceNumber> {
+        fn get_seq_num_min(&self) -> Option<crate::structure::types::SequenceNumber> {
             todo!()
         }
 
-        fn get_seq_num_max(&self) -> Option<&crate::structure::types::SequenceNumber> {
+        fn get_seq_num_max(&self) -> Option<crate::structure::types::SequenceNumber> {
             todo!()
         }
     }

@@ -32,12 +32,12 @@ impl RTPSHistoryCache for RTPSHistoryCacheImpl {
             .find(|&cc| cc.sequence_number() == seq_num)
     }
 
-    fn get_seq_num_min(&self) -> Option<&SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number()).min()
+    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+        self.changes.iter().map(|cc| cc.sequence_number()).min().cloned()
     }
 
-    fn get_seq_num_max(&self) -> Option<&SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number()).max()
+    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+        self.changes.iter().map(|cc| cc.sequence_number()).max().cloned()
     }
 }
 
@@ -115,7 +115,7 @@ mod tests {
         );
         hc.add_change(change1);
         hc.add_change(change2);
-        assert_eq!(hc.get_seq_num_min(), Some(&1));
+        assert_eq!(hc.get_seq_num_min(), Some(1));
     }
 
     #[test]
@@ -139,7 +139,7 @@ mod tests {
         );
         hc.add_change(change1);
         hc.add_change(change2);
-        assert_eq!(hc.get_seq_num_max(), Some(&2));
+        assert_eq!(hc.get_seq_num_max(), Some(2));
     }
 
     // #[test]
