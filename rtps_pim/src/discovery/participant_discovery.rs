@@ -29,7 +29,7 @@ use super::{
 
 pub trait ParticipantDiscovery<DiscoveredParticipantData> {
     fn discovered_participant_add(&mut self, participant_data: &DiscoveredParticipantData);
-    fn discovered_participant_remove(&mut self, a_guid: GUID);
+    fn discovered_participant_remove(&mut self, a_guid: &GUID);
 }
 
 impl<Participant, DiscoveredParticipantData> ParticipantDiscovery<DiscoveredParticipantData>
@@ -220,7 +220,47 @@ where
         }
     }
 
-    fn discovered_participant_remove(&mut self, a_guid: GUID) {
-        todo!()
+    fn discovered_participant_remove(&mut self, a_guid: &GUID) {
+        if let Some(sedp_builtin_publications_writer) = self.sedp_builtin_publications_writer() {
+            let guid = GUID::new(
+                *a_guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            );
+            sedp_builtin_publications_writer.matched_reader_remove(&guid);
+        }
+
+        if let Some(sedp_builtin_publications_reader) = self.sedp_builtin_publications_reader() {
+            let guid = GUID::new(
+                *a_guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            );
+            sedp_builtin_publications_reader.matched_writer_remove(&guid)
+        }
+
+        if let Some(sedp_builtin_subscriptions_writer) = self.sedp_builtin_subscriptions_writer() {
+            let guid = GUID::new(
+                *a_guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            );
+            sedp_builtin_subscriptions_writer.matched_reader_remove(&guid);
+        }
+
+        if let Some(sedp_builtin_subscriptions_reader) = self.sedp_builtin_subscriptions_reader() {
+            let guid = GUID::new(
+                *a_guid.prefix(),
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+            );
+            sedp_builtin_subscriptions_reader.matched_writer_remove(&guid)
+        }
+
+        if let Some(sedp_builtin_topics_writer) = self.sedp_builtin_topics_writer() {
+            let guid = GUID::new(*a_guid.prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
+            sedp_builtin_topics_writer.matched_reader_remove(&guid);
+        }
+
+        if let Some(sedp_builtin_topics_reader) = self.sedp_builtin_topics_reader() {
+            let guid = GUID::new(*a_guid.prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
+            sedp_builtin_topics_reader.matched_writer_remove(&guid)
+        }
     }
 }
