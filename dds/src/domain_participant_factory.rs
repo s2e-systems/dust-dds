@@ -30,9 +30,9 @@ use rust_rtps_pim::{
         writer::writer::{RTPSWriter, RTPSWriterOperations},
     },
     discovery::{
+        participant_discovery::ParticipantDiscovery,
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-        participant_discovery::ParticipantDiscovery,
     },
     messages::types::Count,
     structure::{
@@ -166,6 +166,8 @@ impl DomainParticipantFactory {
                         &mut spdp_builtin_participant_writer,
                         &mut transport,
                     );
+                    let mut spdp_discovered_participant_datas =
+                        Vec::<SPDPdiscoveredParticipantDataUdp>::new();
                     {
                         let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
                         let spdp_builtin_participant_reader =
@@ -183,18 +185,22 @@ impl DomainParticipantFactory {
                                     .reader_cache()
                                     .get_change(&seq_num)
                                 {
-                                    let spdp_discovered_participant_data =
+                                    if let Ok(spdp_discovered_participant_data) =
                                         SPDPdiscoveredParticipantDataUdp::from_bytes(
-                                            change.data_value().as_ref(),
-                                        );
-                                    if let Ok(spdp_discovered_participant_data) = spdp_discovered_participant_data {
-                                        // rtps_participant.discovered_participant_add(&spdp_discovered_participant_data);
-                                        todo!()
-                                    };
-                                    todo!()
+                                            change.data_value(),
+                                        )
+                                    {
+                                        spdp_discovered_participant_datas
+                                            .push(spdp_discovered_participant_data);
+                                    }
                                 }
                             }
                         }
+                    }
+
+                    for spdp_discovered_participant_data in spdp_discovered_participant_datas {
+                        rtps_participant
+                            .discovered_participant_add(&spdp_discovered_participant_data);
                     }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(100));
