@@ -18,7 +18,8 @@ use super::{
         builtin_endpoints::{
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         },
         sedp_participant::SedpParticipant,
     },
@@ -44,6 +45,12 @@ pub fn discover_new_remote_participant<Participant, ParticipantData>(
         RTPSReaderProxyOperations,
     Participant::BuiltinSubscriptionsReader: RTPSStatefulReaderOperations + RTPSStatefulReader,
     <Participant::BuiltinSubscriptionsReader as RTPSStatefulReader>::WriterProxyType:
+        RTPSWriterProxyOperations,
+    Participant::BuiltinTopicsWriter: RTPSStatefulWriterOperations + RTPSStatefulWriter,
+    <Participant::BuiltinTopicsWriter as RTPSStatefulWriter>::ReaderProxyType:
+        RTPSReaderProxyOperations,
+    Participant::BuiltinTopicsReader: RTPSStatefulReaderOperations + RTPSStatefulReader,
+    <Participant::BuiltinTopicsReader as RTPSStatefulReader>::WriterProxyType:
         RTPSWriterProxyOperations,
 {
     // Check that the domainId of the discovered participant equals the local one.
@@ -159,6 +166,53 @@ pub fn discover_new_remote_participant<Participant, ParticipantData>(
                 data_max_size_serialized,
             );
             sedp_builtin_subscriptions_reader.matched_writer_add(proxy);
+        }
+    }
+
+    if participant_data
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
+    {
+        if let Some(sedp_builtin_topics_writer) = local_participant.sedp_builtin_topics_writer() {
+            let guid = GUID::new(
+                participant_data.guid_prefix(),
+                ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+            let expects_inline_qos = false;
+            let is_active = true;
+            let proxy = RTPSReaderProxyOperations::new(
+                guid,
+                remote_group_entity_id,
+                participant_data.metatraffic_unicast_locator_list(),
+                participant_data.metatraffic_multicast_locator_list(),
+                expects_inline_qos,
+                is_active,
+            );
+            sedp_builtin_topics_writer.matched_reader_add(proxy);
+        }
+    }
+
+    if participant_data
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
+    {
+        if let Some(sedp_builtin_topics_reader) = local_participant.sedp_builtin_topics_reader() {
+            let guid = GUID::new(
+                participant_data.guid_prefix(),
+                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+            let data_max_size_serialized = None;
+
+            let proxy = RTPSWriterProxyOperations::new(
+                guid,
+                remote_group_entity_id,
+                participant_data.metatraffic_unicast_locator_list(),
+                participant_data.metatraffic_multicast_locator_list(),
+                data_max_size_serialized,
+            );
+            sedp_builtin_topics_reader.matched_writer_add(proxy);
         }
     }
 }
