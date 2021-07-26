@@ -1,6 +1,9 @@
 use crate::{
     behavior::{
-        reader::writer_proxy::RTPSWriterProxyOperations,
+        reader::{
+            stateful_reader::{RTPSStatefulReader, RTPSStatefulReaderOperations},
+            writer_proxy::RTPSWriterProxyOperations,
+        },
         writer::{
             reader_proxy::RTPSReaderProxyOperations,
             stateful_writer::{RTPSStatefulWriter, RTPSStatefulWriterOperations},
@@ -11,7 +14,10 @@ use crate::{
 };
 
 use super::{
-    sedp::sedp_participant::SedpParticipant,
+    sedp::{
+        builtin_endpoints::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        sedp_participant::SedpParticipant,
+    },
     spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
     types::BuiltinEndpointSet,
 };
@@ -26,6 +32,9 @@ pub fn discover_new_remote_participant<Participant, ParticipantData>(
     Participant::BuiltinPublicationsWriter: RTPSStatefulWriterOperations + RTPSStatefulWriter,
     <Participant::BuiltinPublicationsWriter as RTPSStatefulWriter>::ReaderProxyType:
         RTPSReaderProxyOperations,
+    Participant::BuiltinPublicationsReader: RTPSStatefulReaderOperations + RTPSStatefulReader,
+    <Participant::BuiltinPublicationsReader as RTPSStatefulReader>::WriterProxyType:
+        RTPSWriterProxyOperations,
 {
     // Check that the domainId of the discovered participant equals the local one.
     // If it is not equal then there the local endpoints are not configured to
@@ -74,14 +83,21 @@ pub fn discover_new_remote_participant<Participant, ParticipantData>(
         if let Some(sedp_builtin_publications_reader) =
             local_participant.sedp_builtin_publications_reader()
         {
-            //             guid = <participant_data.guidPrefix,
-            // ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER>;
-            // reader = local_participant.SEDPbuiltinPublicationsReader;
-            // proxy = new WriterProxy( guid,
-            // participant_data.metatrafficUnicastLocatorList, participant_data.metatrafficMulticastLocatorList);
+            let guid = GUID::new(
+                participant_data.guid_prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+            let data_max_size_serialized = None;
 
-            //             let proxy = RTPSWriterProxyOperations::new();
-            //             sedp_builtin_publications_reader.matched_writer_add(proxy);
+            let proxy = RTPSWriterProxyOperations::new(
+                guid,
+                remote_group_entity_id,
+                participant_data.metatraffic_unicast_locator_list(),
+                participant_data.metatraffic_multicast_locator_list(),
+                data_max_size_serialized,
+            );
+            sedp_builtin_publications_reader.matched_writer_add(proxy);
         }
     }
 }
