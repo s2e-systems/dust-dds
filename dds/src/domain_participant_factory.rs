@@ -14,7 +14,10 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::{rtps_participant_impl::RTPSParticipantImpl, rtps_writer_impl::RTPSWriterImpl},
+    rtps_impl::{
+        rtps_participant_impl::RTPSParticipantImpl, rtps_reader_impl::RTPSReaderImpl,
+        rtps_writer_impl::RTPSWriterImpl,
+    },
     utils::{
         message_receiver::MessageReceiver, message_sender::send_data, shared_object::RtpsShared,
         transport::TransportRead,
@@ -26,7 +29,7 @@ use rust_rtps_pim::{
         writer::writer::{RTPSWriter, RTPSWriterOperations},
     },
     discovery::{
-        spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
+        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     messages::types::Count,
@@ -133,6 +136,14 @@ impl DomainParticipantFactory {
         spdp_builtin_participant_writer
             .writer_cache_mut()
             .add_change(cc);
+
+        let spdp_builtin_participant_reader: RTPSReaderImpl =
+            SpdpBuiltinParticipantReader::create(guid_prefix);
+
+        rtps_participant
+            .builtin_reader_group
+            .lock()
+            .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
 
         let rtps_participant_impl = RtpsShared::new(rtps_participant);
         let rtps_participant_shared = rtps_participant_impl.clone();

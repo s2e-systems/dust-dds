@@ -1,7 +1,4 @@
-use rust_dds_api::{
-    dcps_psm::StatusMask, infrastructure::qos::SubscriberQos,
-    subscription::subscriber_listener::SubscriberListener,
-};
+use rust_dds_api::{dcps_psm::{InstanceHandle, StatusMask}, infrastructure::qos::SubscriberQos, subscription::subscriber_listener::SubscriberListener};
 use rust_rtps_pim::structure::{types::GUID, RTPSGroup};
 
 use crate::utils::shared_object::{RtpsLock, RtpsShared};
@@ -34,6 +31,14 @@ impl RTPSReaderGroupImpl {
 
     pub fn reader_list(&self) -> &[RtpsShared<RTPSReaderImpl>] {
         &self.reader_list
+    }
+
+    pub fn add_reader(&mut self, reader: RtpsShared<RTPSReaderImpl> ) {
+        self.reader_list.push(reader)
+    }
+
+    pub fn delete_reader(&mut self, _reader: InstanceHandle) {
+        todo!()
     }
 }
 

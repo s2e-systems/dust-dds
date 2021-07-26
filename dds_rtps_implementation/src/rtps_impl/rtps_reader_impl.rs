@@ -1,6 +1,9 @@
 use rust_rtps_pim::{
     behavior::{
-        reader::reader::{RTPSReader, RTPSReaderOperations},
+        reader::{
+            reader::{RTPSReader, RTPSReaderOperations},
+            stateless_reader::RTPSStatelessReaderOperations,
+        },
         types::Duration,
     },
     structure::{
@@ -93,5 +96,30 @@ impl RTPSEndpoint for RTPSReaderImpl {
 
     fn multicast_locator_list(&self) -> &[Locator] {
         &self.multicast_locator_list
+    }
+}
+
+impl RTPSStatelessReaderOperations for RTPSReaderImpl {
+    fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        heartbeat_response_delay: Duration,
+        heartbeat_supression_duration: Duration,
+        expects_inline_qos: bool,
+    ) -> Self {
+        Self {
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
+            multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
+            heartbeat_response_delay,
+            heartbeat_supression_duration,
+            expects_inline_qos,
+            reader_cache: RTPSHistoryCacheImpl::new(),
+        }
     }
 }
