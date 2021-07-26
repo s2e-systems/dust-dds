@@ -415,8 +415,8 @@ mod tests {
         let reader_proxy1 = RTPSReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
-            &[],
-            &[],
+            None,
+            None,
             false,
             true,
         );
@@ -430,8 +430,8 @@ mod tests {
         let reader_proxy2 = RTPSReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
-            &[],
-            &[],
+            None,
+            None,
             false,
             true,
         );
@@ -473,8 +473,8 @@ mod tests {
         let reader_proxy1 = RTPSReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
-            &[],
-            &[],
+            None,
+            None,
             false,
             true,
         );
@@ -488,8 +488,8 @@ mod tests {
         let reader_proxy2 = RTPSReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
-            &[],
-            &[],
+            None,
+            None,
             false,
             true,
         );
@@ -533,8 +533,8 @@ mod tests {
         let reader_proxy1 = RTPSReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
-            &[],
-            &[],
+            None,
+            None,
             false,
             true,
         );
@@ -548,8 +548,8 @@ mod tests {
         let reader_proxy2 = RTPSReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
-            &[],
-            &[],
+            None,
+            None,
             false,
             true,
         );

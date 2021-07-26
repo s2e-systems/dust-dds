@@ -42,19 +42,22 @@ impl RTPSReaderProxy for RTPSReaderProxyImpl {
 impl RTPSReaderProxyOperations for RTPSReaderProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
 
-    fn new(
+    fn new<L>(
         remote_reader_guid: GUID,
         remote_group_entity_id: EntityId,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
+        unicast_locator_list: L,
+        multicast_locator_list: L,
         expects_inline_qos: bool,
         is_active: bool,
-    ) -> Self {
+    ) -> Self
+    where
+        L: IntoIterator<Item = Locator>,
+    {
         Self {
             remote_reader_guid,
             remote_group_entity_id,
-            unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
-            multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
+            unicast_locator_list: unicast_locator_list.into_iter().collect(),
+            multicast_locator_list: multicast_locator_list.into_iter().collect(),
             expects_inline_qos,
             is_active,
             _last_sent_sequence_number: 0.into(),

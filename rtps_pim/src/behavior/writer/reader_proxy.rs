@@ -12,14 +12,16 @@ pub trait RTPSReaderProxy {
 pub trait RTPSReaderProxyOperations {
     type SequenceNumberVector;
 
-    fn new(
+    fn new<L>(
         remote_reader_guid: GUID,
         remote_group_entity_id: EntityId,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
+        unicast_locator_list: L,
+        multicast_locator_list: L,
         expects_inline_qos: bool,
         is_active: bool,
-    ) -> Self;
+    ) -> Self
+    where
+        L: IntoIterator<Item = Locator>;
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber);
     fn next_requested_change(&mut self) -> Option<SequenceNumber>;
     fn next_unsent_change(&mut self) -> Option<SequenceNumber>;
