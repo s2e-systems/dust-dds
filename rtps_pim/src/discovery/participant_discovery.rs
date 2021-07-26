@@ -1,7 +1,10 @@
 use crate::{
-    behavior::writer::{
-        reader_proxy::RTPSReaderProxyOperations,
-        stateful_writer::{RTPSStatefulWriter, RTPSStatefulWriterOperations},
+    behavior::{
+        reader::writer_proxy::RTPSWriterProxyOperations,
+        writer::{
+            reader_proxy::RTPSReaderProxyOperations,
+            stateful_writer::{RTPSStatefulWriter, RTPSStatefulWriterOperations},
+        },
     },
     discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
     structure::types::{Locator, ENTITYID_UNKNOWN, GUID},
@@ -42,24 +45,44 @@ pub fn discover_new_remote_participant<Participant, ParticipantData>(
         .available_builtin_endpoints()
         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
     {
-        let guid = GUID::new(
-            participant_data.guid_prefix(),
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-        );
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let expects_inline_qos = false;
-        let is_active = true;
-        let proxy = RTPSReaderProxyOperations::new(
-            guid,
-            remote_group_entity_id,
-            participant_data.metatraffic_unicast_locator_list(),
-            participant_data.metatraffic_multicast_locator_list(),
-            expects_inline_qos,
-            is_active,
-        );
-        local_participant
-            .sedp_builtin_publications_writer()
-            .matched_reader_add(proxy);
+        if let Some(sedp_builtin_publications_writer) =
+            local_participant.sedp_builtin_publications_writer()
+        {
+            let guid = GUID::new(
+                participant_data.guid_prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            );
+            let remote_group_entity_id = ENTITYID_UNKNOWN;
+            let expects_inline_qos = false;
+            let is_active = true;
+            let proxy = RTPSReaderProxyOperations::new(
+                guid,
+                remote_group_entity_id,
+                participant_data.metatraffic_unicast_locator_list(),
+                participant_data.metatraffic_multicast_locator_list(),
+                expects_inline_qos,
+                is_active,
+            );
+            sedp_builtin_publications_writer.matched_reader_add(proxy);
+        }
+    }
+
+    if participant_data
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
+    {
+        if let Some(sedp_builtin_publications_reader) =
+            local_participant.sedp_builtin_publications_reader()
+        {
+            //             guid = <participant_data.guidPrefix,
+            // ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER>;
+            // reader = local_participant.SEDPbuiltinPublicationsReader;
+            // proxy = new WriterProxy( guid,
+            // participant_data.metatrafficUnicastLocatorList, participant_data.metatrafficMulticastLocatorList);
+
+            //             let proxy = RTPSWriterProxyOperations::new();
+            //             sedp_builtin_publications_reader.matched_writer_add(proxy);
+        }
     }
 }
 
