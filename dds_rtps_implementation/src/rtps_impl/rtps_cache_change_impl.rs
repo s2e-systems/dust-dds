@@ -7,12 +7,11 @@ pub struct RTPSCacheChangeImpl {
     writer_guid: GUID,
     instance_handle: <Self as RTPSCacheChange>::InstanceHandleType,
     sequence_number: SequenceNumber,
-    data: <Self as RTPSCacheChange>::DataType,
+    data: Vec<u8>,
     inline_qos: <Self as RTPSCacheChange>::InlineQosType,
 }
 
-impl<'a> RTPSCacheChangeOperations<'a> for RTPSCacheChangeImpl {
-    type DataType = &'a [u8];
+impl<'a> RTPSCacheChangeOperations for RTPSCacheChangeImpl {
     type InstanceHandleType = i32;
     type InlineQosType = ();
 
@@ -21,7 +20,7 @@ impl<'a> RTPSCacheChangeOperations<'a> for RTPSCacheChangeImpl {
         writer_guid: GUID,
         instance_handle: Self::InstanceHandleType,
         sequence_number: SequenceNumber,
-        data: Self::DataType,
+        data: &[u8],
         inline_qos: Self::InlineQosType,
     ) -> Self {
         Self {
@@ -36,7 +35,6 @@ impl<'a> RTPSCacheChangeOperations<'a> for RTPSCacheChangeImpl {
 }
 
 impl rust_rtps_pim::structure::RTPSCacheChange for RTPSCacheChangeImpl {
-    type DataType = Vec<u8>;
     type InstanceHandleType = i32;
     type InlineQosType = ();
 
@@ -56,7 +54,7 @@ impl rust_rtps_pim::structure::RTPSCacheChange for RTPSCacheChangeImpl {
         &self.sequence_number
     }
 
-    fn data_value(&self) -> &Self::DataType {
+    fn data_value(&self) -> &[u8] {
         &self.data
     }
 

@@ -22,12 +22,8 @@ impl<'a, 'b, T, Data> StatelessReaderBehavior<Data> for T
 where
     T: RTPSReader + RTPSEntity,
     T::HistoryCacheType: RTPSHistoryCache,
-    <T::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChangeOperations<
-        'b,
-        InstanceHandleType = i32,
-        DataType = &'b [u8],
-        InlineQosType = (),
-    >,
+    <T::HistoryCacheType as RTPSHistoryCache>::CacheChange:
+        RTPSCacheChangeOperations<InstanceHandleType = i32, InlineQosType = ()>,
     Data: DataSubmessage<'b>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data) {
@@ -78,8 +74,7 @@ mod tests {
         inline_qos: (),
     }
 
-    impl<'a> RTPSCacheChangeOperations<'a> for MockCacheChange {
-        type DataType = &'a [u8];
+    impl<'a> RTPSCacheChangeOperations for MockCacheChange {
         type InstanceHandleType = i32;
         type InlineQosType = ();
 
@@ -88,7 +83,7 @@ mod tests {
             writer_guid: GUID,
             instance_handle: Self::InstanceHandleType,
             sequence_number: crate::structure::types::SequenceNumber,
-            data: Self::DataType,
+            data: &[u8],
             inline_qos: Self::InlineQosType,
         ) -> Self {
             let mut data_value: [u8; 3] = [0; 3];

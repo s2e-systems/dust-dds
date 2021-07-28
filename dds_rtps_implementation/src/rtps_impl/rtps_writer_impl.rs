@@ -113,7 +113,7 @@ impl RTPSWriterOperations for RTPSWriterImpl {
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <<<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::DataType,
+        data: &[u8],
         inline_qos: <<<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InlineQosType,
         handle:  <<<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
     ) -> <<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange
@@ -322,8 +322,8 @@ mod tests {
             matched_readers: Vec::new(),
             writer_cache: RTPSHistoryCacheImpl::new(),
         };
-        let change1 = writer.new_change(ChangeKind::Alive, vec![], (), 0);
-        let change2 = writer.new_change(ChangeKind::Alive, vec![], (), 0);
+        let change1 = writer.new_change(ChangeKind::Alive, &[], (), 0);
+        let change2 = writer.new_change(ChangeKind::Alive, &[], (), 0);
 
         assert_eq!(change1.sequence_number(), &1);
         assert_eq!(change2.sequence_number(), &2);

@@ -36,7 +36,7 @@ pub trait RTPSWriterOperations {
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::DataType,
+        data: &[u8],
         inline_qos: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InlineQosType,
         handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange

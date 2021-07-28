@@ -1,7 +1,6 @@
 use super::types::{ChangeKind, SequenceNumber, GUID};
 
 pub trait RTPSCacheChange {
-    type DataType: AsRef<[u8]>;
     type InstanceHandleType;
     type InlineQosType;
 
@@ -9,12 +8,11 @@ pub trait RTPSCacheChange {
     fn writer_guid(&self) -> &GUID;
     fn instance_handle(&self) -> &Self::InstanceHandleType;
     fn sequence_number(&self) -> &SequenceNumber;
-    fn data_value(&self) -> &Self::DataType;
+    fn data_value(&self) -> &[u8];
     fn inline_qos(&self) -> &Self::InlineQosType;
 }
 
-pub trait RTPSCacheChangeOperations<'a> {
-    type DataType: AsRef<[u8]>;
+pub trait RTPSCacheChangeOperations {
     type InstanceHandleType;
     type InlineQosType;
 
@@ -23,7 +21,7 @@ pub trait RTPSCacheChangeOperations<'a> {
         writer_guid: GUID,
         instance_handle: Self::InstanceHandleType,
         sequence_number: SequenceNumber,
-        data: Self::DataType,
+        data: &[u8],
         inline_qos: Self::InlineQosType,
     ) -> Self;
 }
