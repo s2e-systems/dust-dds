@@ -18,23 +18,39 @@ use rust_dds_api::{
     },
     topic::topic_description::TopicDescription,
 };
+use rust_rtps_pim::{
+    behavior::reader::reader::RTPSReader,
+    structure::{RTPSCacheChange, RTPSHistoryCache},
+};
+
+use crate::{rtps_impl::rtps_reader_impl::RTPSReaderImpl, utils::shared_object::RtpsWeak};
 
 pub struct DataReaderImpl<'dr, T: 'static> {
     _subscriber: &'dr dyn Subscriber,
     _topic: &'dr dyn TopicDescription<T>,
+    reader: RtpsWeak<RTPSReaderImpl>,
 }
 
-impl<'dr, T> rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderImpl<'dr, T> {
+impl<'dr, T> rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderImpl<'dr, T>
+where
+    T: for<'de> serde::Deserialize<'de>,
+{
+    type Samples = T;
+
     fn read(
         &self,
-        _data_values: &mut [T],
-        _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()> {
-        todo!()
+    ) -> DDSResult<Self::Samples> {
+        let shared_reader = self.reader.upgrade()?;
+        let reader = shared_reader.lock();
+        let reader_cache = reader.reader_cache();
+        let cc1 = reader_cache.get_change(&1).unwrap();
+        let data = cc1.data_value();
+        let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
+        Ok(value)
     }
 
     fn take(

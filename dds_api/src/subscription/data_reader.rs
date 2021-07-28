@@ -31,6 +31,8 @@ use super::{
 pub trait DataReader<T: 'static>:
     Entity<Qos = DataReaderQos, Listener = &'static dyn DataReaderListener<DataPIM = T>>
 {
+    type Samples;
+
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
     /// (see 2.2.3.6) may impose further limits on the size of the returned ‘list.’
@@ -109,13 +111,11 @@ pub trait DataReader<T: 'static>:
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn read(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()>;
+    ) -> DDSResult<Self::Samples>;
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
     /// structures. The operation will return either a ‘list’ of samples or else a single sample. This is controlled by the

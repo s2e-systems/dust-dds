@@ -28,6 +28,8 @@ pub struct SubscriberImpl<'s> {
 
 impl<'dr, 's: 'dr, 't: 'dr, T: 'static>
     rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T> for SubscriberImpl<'s>
+where
+    T: for<'de> serde::Deserialize<'de>,
 {
     type TopicType = TopicImpl<'t, T>;
     type DataReaderType = DataReaderImpl<'dr, T>;
