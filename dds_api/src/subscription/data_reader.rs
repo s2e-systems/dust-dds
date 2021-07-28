@@ -31,7 +31,7 @@ use super::{
 pub trait DataReader<T: 'static>:
     Entity<Qos = DataReaderQos, Listener = &'static dyn DataReaderListener<DataPIM = T>>
 {
-    type Samples;
+    type Samples: IntoIterator<Item=(T, SampleInfo)>;
 
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy

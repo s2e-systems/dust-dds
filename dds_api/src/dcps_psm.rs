@@ -262,6 +262,18 @@ pub struct SubscriptionMatchedStatus {
     pub current_count_change: i32,
 }
 
-pub type SampleStateKind = u32;
-pub type ViewStateKind = u32;
-pub type InstanceStateKind = u32;
+pub enum SampleStateKind {
+    Read,
+    NotRead,
+}
+
+pub enum ViewStateKind {
+    New,
+    NotNew,
+}
+
+pub enum InstanceStateKind {
+    Alive,
+    NotAliveDisposed,
+    NotAliveNoWriters,
+}

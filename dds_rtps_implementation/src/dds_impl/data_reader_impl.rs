@@ -3,7 +3,7 @@ use rust_dds_api::{
     dcps_psm::{
         InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
-        StatusMask, SubscriptionMatchedStatus, ViewStateKind,
+        StatusMask, SubscriptionMatchedStatus, Time, ViewStateKind,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -35,22 +35,40 @@ where
     Reader: RTPSReader,
     Reader::HistoryCacheType: RTPSHistoryCache,
 {
-    type Samples = T;
+    type Samples = Vec<(T, SampleInfo)>;
 
     fn read(
         &self,
-        _max_samples: i32,
+        max_samples: i32,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
+        let mut samples = Vec::new();
         let shared_reader = self.reader.upgrade()?;
         let reader = shared_reader.lock();
         let reader_cache = reader.reader_cache();
-        let cc1 = reader_cache.get_change(&1).unwrap();
-        let data = cc1.data_value();
-        let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
-        Ok(value)
+        for seq_num in 1..max_samples {
+            let cc1 = reader_cache.get_change(&(seq_num as i64)).unwrap();
+            let data = cc1.data_value();
+            let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
+            let sample_info = SampleInfo {
+                sample_state: SampleStateKind::NotRead,
+                view_state: ViewStateKind::New,
+                instance_state: InstanceStateKind::Alive,
+                disposed_generation_count: 0,
+                no_writers_generation_count: 0,
+                sample_rank: 0,
+                generation_rank: 0,
+                absolute_generation_rank: 0,
+                source_timestamp: Time { sec: 0, nanosec: 0 },
+                instance_handle: 0,
+                publication_handle: 0,
+                valid_data: true,
+            };
+            samples.push((value, sample_info));
+        }
+        Ok(samples)
     }
 
     fn take(
@@ -590,6 +608,6 @@ mod tests {
         };
 
         let sample = data_reader.read(1, &[], &[], &[]).unwrap();
-        assert_eq!(sample, 1);
+        assert_eq!(sample[0].0, 1);
     }
 }
