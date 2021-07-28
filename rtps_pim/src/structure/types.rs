@@ -153,3 +153,5 @@ pub enum ReliabilityKind {
     BestEffort,
     Reliable,
 }
+
+pub type InstanceHandle = i32;

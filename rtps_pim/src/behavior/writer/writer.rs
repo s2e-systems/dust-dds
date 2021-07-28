@@ -1,7 +1,9 @@
 use crate::{
     behavior::types::Duration,
     structure::{
-        types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
+        types::{
+            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
+        },
         RTPSCacheChange, RTPSHistoryCache,
     },
 };
@@ -38,7 +40,7 @@ pub trait RTPSWriterOperations {
         kind: ChangeKind,
         data: &[u8],
         inline_qos: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InlineQosType,
-        handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
+        handle: InstanceHandle,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
         Self: RTPSWriter,

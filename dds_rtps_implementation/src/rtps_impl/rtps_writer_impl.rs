@@ -10,7 +10,9 @@ use rust_rtps_pim::{
         },
     },
     structure::{
-        types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
+        types::{
+            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
+        },
         RTPSCacheChange, RTPSCacheChangeOperations, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
 };
@@ -115,7 +117,7 @@ impl RTPSWriterOperations for RTPSWriterImpl {
         kind: ChangeKind,
         data: &[u8],
         inline_qos: <<<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InlineQosType,
-        handle:  <<<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandleType,
+        handle: InstanceHandle,
     ) -> <<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange
     where
         Self: RTPSWriter,

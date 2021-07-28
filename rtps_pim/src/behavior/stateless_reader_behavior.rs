@@ -23,7 +23,7 @@ where
     T: RTPSReader + RTPSEntity,
     T::HistoryCacheType: RTPSHistoryCache,
     <T::HistoryCacheType as RTPSHistoryCache>::CacheChange:
-        RTPSCacheChangeOperations<InstanceHandleType = i32, InlineQosType = ()>,
+        RTPSCacheChangeOperations<InlineQosType = ()>,
     Data: DataSubmessage<'b>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data) {
@@ -60,7 +60,9 @@ mod tests {
             submessage_elements::{Parameter, ParameterListSubmessageElementType},
             types::SubmessageFlag,
         },
-        structure::types::{EntityId, SequenceNumber, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN},
+        structure::types::{
+            EntityId, InstanceHandle, SequenceNumber, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
+        },
     };
 
     use super::*;
@@ -68,20 +70,19 @@ mod tests {
     struct MockCacheChange {
         kind: ChangeKind,
         writer_guid: GUID,
-        instance_handle: i32,
+        instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
         data_value: [u8; 3],
         inline_qos: (),
     }
 
     impl<'a> RTPSCacheChangeOperations for MockCacheChange {
-        type InstanceHandleType = i32;
         type InlineQosType = ();
 
         fn new(
             kind: ChangeKind,
             writer_guid: GUID,
-            instance_handle: Self::InstanceHandleType,
+            instance_handle: InstanceHandle,
             sequence_number: crate::structure::types::SequenceNumber,
             data: &[u8],
             inline_qos: Self::InlineQosType,
