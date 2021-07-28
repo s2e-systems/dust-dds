@@ -181,13 +181,12 @@ mod tests {
     struct MockSerializedDataSubmessageElement;
 
     impl<'a> SerializedDataSubmessageElementType<'a> for MockSerializedDataSubmessageElement {
-        type Value = &'a [u8];
 
-        fn new(_value: &Self::Value) -> Self {
+        fn new(_value: &'a [u8]) -> Self {
             todo!()
         }
 
-        fn value(&self) -> Self::Value {
+        fn value(&self) -> &'a [u8] {
             todo!()
         }
     }

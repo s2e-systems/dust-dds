@@ -66,10 +66,7 @@ pub trait DataSubmessage<'a> {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type ParameterListSubmessageElementType: ParameterListSubmessageElementType<'a>;
-    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<
-        'a,
-        Value = &'a [u8],
-    >;
+    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>;
 
     fn new(
         endianness_flag: SubmessageFlag,

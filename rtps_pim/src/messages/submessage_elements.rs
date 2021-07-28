@@ -85,7 +85,7 @@ pub struct Parameter<'a> {
 }
 
 pub trait ParameterListSubmessageElementType<'a> {
-    type IntoIter: IntoIterator<Item=Parameter<'a>>;
+    type IntoIter: IntoIterator<Item = Parameter<'a>>;
 
     fn new(parameter: &'a [Parameter]) -> Self;
     fn parameter(&'a self) -> Self::IntoIter;
@@ -97,21 +97,19 @@ pub trait CountSubmessageElementType {
 }
 
 pub trait LocatorListSubmessageElementType {
-    type IntoIter: IntoIterator<Item=Locator>;
+    type IntoIter: IntoIterator<Item = Locator>;
     fn new(value: &[Locator]) -> Self;
     fn value(&self) -> Self::IntoIter;
 }
 
 pub trait SerializedDataSubmessageElementType<'a> {
-    type Value;
-    fn new(value: &Self::Value) -> Self;
-    fn value(&self) -> Self::Value;
+    fn new(value: &'a [u8]) -> Self;
+    fn value(&self) -> &'a [u8];
 }
 
-pub trait SerializedDataFragmentSubmessageElementType {
-    type Value;
-    fn new<T: Into<Self::Value>>(value: T) -> Self;
-    fn value(&self) -> &[u8];
+pub trait SerializedDataFragmentSubmessageElementType<'a> {
+    fn new(value: &'a [u8]) -> Self;
+    fn value(&self) -> &'a [u8];
 }
 
 pub trait GroupDigestSubmessageElementType {

@@ -322,13 +322,11 @@ impl<'a> SerializedDataUdp<'a> {
 impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElementType<'a>
     for SerializedDataUdp<'a>
 {
-    type Value = &'a [u8];
-
-    fn new(value: &Self::Value) -> Self {
+    fn new(value: &'a [u8]) -> Self {
         SerializedDataUdp(value)
     }
 
-    fn value(&self) -> Self::Value {
+    fn value(&self) -> &'a [u8] {
         self.0
     }
 }
@@ -339,16 +337,15 @@ impl<'a> serde::Serialize for SerializedDataUdp<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataFragmentSubmessageElementType
+impl<'a>
+    rust_rtps_pim::messages::submessage_elements::SerializedDataFragmentSubmessageElementType<'a>
     for SerializedDataUdp<'a>
 {
-    type Value = &'a [u8];
-
-    fn new<T: Into<Self::Value>>(value: T) -> Self {
+    fn new(value: &'a [u8]) -> Self {
         Self(value.into())
     }
 
-    fn value(&self) -> &[u8] {
+    fn value(&self) -> &'a [u8] {
         self.0
     }
 }
