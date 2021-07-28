@@ -359,7 +359,7 @@ mod tests {
         let param1 = ParameterUdp::new(6, &[10, 11, 12, 13]);
         let param2 = ParameterUdp::new(7, &[20, 21, 22, 23]);
         let inline_qos = ParameterListUdp {
-            parameter: vec![param1, param2].into(),
+            parameter: vec![param1.into(), param2.into()],
         };
         let data = [];
         let serialized_payload = SerializedDataUdp(data[..].into());
@@ -593,7 +593,7 @@ mod tests {
         let param1 = ParameterUdp::new(6, &[10, 11, 12, 13]);
         let param2 = ParameterUdp::new(7, &[20, 21, 22, 23]);
         let inline_qos = ParameterListUdp {
-            parameter: vec![param1, param2],
+            parameter: vec![param1.into(), param2.into()],
         };
         let serialized_payload = SerializedDataUdp([][..].into());
         let expected = DataSubmesageUdp::new(

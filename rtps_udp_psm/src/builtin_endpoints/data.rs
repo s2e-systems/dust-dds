@@ -159,25 +159,25 @@ impl SPDPdiscoveredParticipantDataUdp {
         let mut parameter = Vec::new();
 
         let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_id)?;
-        parameter.push(ParameterUdp::new(PID_DOMAIN_ID, v));
+        parameter.push(ParameterUdp::new(PID_DOMAIN_ID, v).into());
 
         let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_tag)?;
         if &self.participant_proxy.domain_tag != &Self::DEFAULT_DOMAIN_TAG {
-            parameter.push(ParameterUdp::new(PID_DOMAIN_TAG, v));
+            parameter.push(ParameterUdp::new(PID_DOMAIN_TAG, v).into());
         }
 
         let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.protocol_version)?;
-        parameter.push(ParameterUdp::new(PID_PROTOCOL_VERSION, v));
+        parameter.push(ParameterUdp::new(PID_PROTOCOL_VERSION, v).into());
 
         let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.guid)?;
-        parameter.push(ParameterUdp::new(PID_PARTICIPANT_GUID, v));
+        parameter.push(ParameterUdp::new(PID_PARTICIPANT_GUID, v).into());
 
         let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.vendor_id)?;
-        parameter.push(ParameterUdp::new(PID_VENDORID, v));
+        parameter.push(ParameterUdp::new(PID_VENDORID, v).into());
 
         let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.expects_inline_qos)?;
         if &self.participant_proxy.expects_inline_qos != &Self::DEFAULT_EXPECTS_INLINE_QOS {
-            parameter.push(ParameterUdp::new(PID_EXPECTS_INLINE_QOS, v));
+            parameter.push(ParameterUdp::new(PID_EXPECTS_INLINE_QOS, v).into());
         }
 
         let mut serialized_locators = vec![];
@@ -189,7 +189,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         }
         for serialized_locator in &serialized_locators {
             let p = ParameterUdp::new(PID_METATRAFFIC_UNICAST_LOCATOR, &serialized_locator);
-            parameter.push(p);
+            parameter.push(p.into());
         }
 
         let mut serialized_locators = vec![];
@@ -202,7 +202,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         }
         for serialized_locator in &serialized_locators {
             let p = ParameterUdp::new(PID_METATRAFFIC_MULTICAST_LOCATOR, &serialized_locator);
-            parameter.push(p);
+            parameter.push(p.into());
         }
 
         let mut serialized_locators = vec![];
@@ -213,7 +213,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         }
         for serialized_locator in &serialized_locators {
             let p = ParameterUdp::new(PID_DEFAULT_UNICAST_LOCATOR, &serialized_locator);
-            parameter.push(p);
+            parameter.push(p.into());
         }
 
         let mut serialized_locators = vec![];
@@ -224,30 +224,30 @@ impl SPDPdiscoveredParticipantDataUdp {
         }
         for serialized_locator in &serialized_locators {
             let p = ParameterUdp::new(PID_DEFAULT_MULTICAST_LOCATOR, &serialized_locator);
-            parameter.push(p);
+            parameter.push(p.into());
         }
 
         let v = &rust_serde_cdr::serializer::to_bytes(
             &self.participant_proxy.available_builtin_endpoints,
         )?;
-        parameter.push(ParameterUdp::new(PID_BUILTIN_ENDPOINT_SET, v));
+        parameter.push(ParameterUdp::new(PID_BUILTIN_ENDPOINT_SET, v).into());
 
         let v =
             &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.manual_liveliness_count)?;
         parameter.push(ParameterUdp::new(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             v,
-        ));
+        ).into());
 
         let v =
             &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.builtin_endpoint_qos)?;
         if &self.participant_proxy.builtin_endpoint_qos != &Self::DEFAULT_BUILTIN_ENDPOINT_QOS {
-            parameter.push(ParameterUdp::new(PID_BUILTIN_ENDPOINT_QOS, v));
+            parameter.push(ParameterUdp::new(PID_BUILTIN_ENDPOINT_QOS, v).into());
         }
 
         let v = &rust_serde_cdr::serializer::to_bytes(&self.lease_duration)?;
         if &self.lease_duration != &Self::DEFAULT_PARTICIPANT_LEASE_DURATION {
-            parameter.push(ParameterUdp::new(PID_PARTICIPANT_LEASE_DURATION, v));
+            parameter.push(ParameterUdp::new(PID_PARTICIPANT_LEASE_DURATION, v).into());
         }
 
         let mut bytes = PL_CDR_LE.to_vec();
