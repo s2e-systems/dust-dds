@@ -1,14 +1,21 @@
-use rust_rtps_pim::structure::{types::SequenceNumber, RTPSCacheChange, RTPSHistoryCache};
+use rust_rtps_pim::structure::{
+    types::{ChangeKind, InstanceHandle, SequenceNumber, GUID},
+    RTPSHistoryCache, RtpsCacheChange,
+};
 
-use super::rtps_cache_change_impl::RTPSCacheChangeImpl;
+struct CacheChangeRepresentation {
+    kind: ChangeKind,
+    writer_guid: GUID,
+    sequence_number: SequenceNumber,
+    instance_handle: InstanceHandle,
+    data: Vec<u8>,
+}
 
 pub struct RTPSHistoryCacheImpl {
-    changes: Vec<RTPSCacheChangeImpl>,
+    changes: Vec<CacheChangeRepresentation>,
 }
 
 impl RTPSHistoryCache for RTPSHistoryCacheImpl {
-    type CacheChange = RTPSCacheChangeImpl;
-
     fn new() -> Self
     where
         Self: Sized,
@@ -18,39 +25,64 @@ impl RTPSHistoryCache for RTPSHistoryCacheImpl {
         }
     }
 
-    fn add_change(&mut self, change: Self::CacheChange) {
-        self.changes.push(change)
+    fn add_change(&mut self, change: &RtpsCacheChange) {
+        let local_change = CacheChangeRepresentation {
+            kind: *change.kind(),
+            writer_guid: *change.writer_guid(),
+            sequence_number: *change.sequence_number(),
+            instance_handle: *change.instance_handle(),
+            data: change.data_value().iter().cloned().collect(),
+        };
+        self.changes.push(local_change)
     }
 
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
-        self.changes.retain(|cc| cc.sequence_number() != seq_num)
+        self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
 
-    fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChange> {
-        self.changes
+    fn get_change(&self, seq_num: &SequenceNumber) -> Option<RtpsCacheChange> {
+        let local_change = self
+            .changes
             .iter()
-            .find(|&cc| cc.sequence_number() == seq_num)
+            .find(|&cc| &cc.sequence_number == seq_num)?;
+
+        Some(RtpsCacheChange::new(
+            local_change.kind,
+            local_change.writer_guid,
+            local_change.instance_handle,
+            local_change.sequence_number,
+            local_change.data.as_ref(),
+            (),
+        ))
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number()).min().cloned()
+        self.changes
+            .iter()
+            .map(|cc| cc.sequence_number)
+            .min()
+            .clone()
     }
 
     fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number()).max().cloned()
+        self.changes
+            .iter()
+            .map(|cc| cc.sequence_number)
+            .max()
+            .clone()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::{types::GUID_UNKNOWN, RTPSCacheChangeOperations};
+    use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
     use super::*;
 
     #[test]
     fn add_change() {
         let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
-        let change = RTPSCacheChangeImpl::new(
+        let change = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
@@ -58,14 +90,14 @@ mod tests {
             &[],
             (),
         );
-        hc.add_change(change);
+        hc.add_change(&change);
         assert!(hc.get_change(&1).is_some());
     }
 
     #[test]
     fn remove_change() {
         let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
-        let change = RTPSCacheChangeImpl::new(
+        let change = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
@@ -73,7 +105,7 @@ mod tests {
             &[],
             (),
         );
-        hc.add_change(change);
+        hc.add_change(&change);
         hc.remove_change(&1);
         assert!(hc.get_change(&1).is_none());
     }
@@ -81,7 +113,7 @@ mod tests {
     #[test]
     fn get_change() {
         let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
-        let change = RTPSCacheChangeImpl::new(
+        let change = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
@@ -89,7 +121,7 @@ mod tests {
             &[],
             (),
         );
-        hc.add_change(change);
+        hc.add_change(&change);
         assert!(hc.get_change(&1).is_some());
         assert!(hc.get_change(&2).is_none());
     }
@@ -97,7 +129,7 @@ mod tests {
     #[test]
     fn get_seq_num_min() {
         let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
-        let change1 = RTPSCacheChangeImpl::new(
+        let change1 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
@@ -105,7 +137,7 @@ mod tests {
             &[],
             (),
         );
-        let change2 = RTPSCacheChangeImpl::new(
+        let change2 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
@@ -113,15 +145,15 @@ mod tests {
             &[],
             (),
         );
-        hc.add_change(change1);
-        hc.add_change(change2);
+        hc.add_change(&change1);
+        hc.add_change(&change2);
         assert_eq!(hc.get_seq_num_min(), Some(1));
     }
 
     #[test]
     fn get_seq_num_max() {
         let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
-        let change1 = RTPSCacheChangeImpl::new(
+        let change1 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
@@ -129,7 +161,7 @@ mod tests {
             &[],
             (),
         );
-        let change2 = RTPSCacheChangeImpl::new(
+        let change2 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
@@ -137,8 +169,8 @@ mod tests {
             &[],
             (),
         );
-        hc.add_change(change1);
-        hc.add_change(change2);
+        hc.add_change(&change1);
+        hc.add_change(&change2);
         assert_eq!(hc.get_seq_num_max(), Some(2));
     }
 

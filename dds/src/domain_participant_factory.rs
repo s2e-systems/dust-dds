@@ -37,7 +37,7 @@ use rust_rtps_pim::{
     messages::types::Count,
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
-        RTPSCacheChange, RTPSEntity, RTPSHistoryCache, RTPSParticipant,
+        RtpsCacheChange, RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
 use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
@@ -127,17 +127,17 @@ impl DomainParticipantFactory {
             &BuiltinEndpointQos::default(),
             &lease_duration,
         );
-
+        let spdp_discovered_participant_data_bytes = spdp_discovered_participant_data.to_bytes().unwrap();
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
-            &spdp_discovered_participant_data.to_bytes().unwrap(),
+            &spdp_discovered_participant_data_bytes,
             (),
             1,
         );
 
         spdp_builtin_participant_writer
             .writer_cache_mut()
-            .add_change(cc);
+            .add_change(&cc);
 
         let spdp_builtin_participant_reader: RTPSReaderImpl =
             SpdpBuiltinParticipantReader::create(guid_prefix);

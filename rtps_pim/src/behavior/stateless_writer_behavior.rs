@@ -13,7 +13,7 @@ use crate::{
     },
     structure::{
         types::{ChangeKind, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
-        RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache,
+        RTPSEndpoint, RTPSHistoryCache,
     },
 };
 
@@ -32,7 +32,6 @@ where
     T: RTPSStatelessWriter + RTPSWriter + RTPSEndpoint,
     T::ReaderLocatorType: RTPSReaderLocatorOperations,
     T::HistoryCacheType: RTPSHistoryCache,
-    <T::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     Data: DataSubmessage<'a>,
     Gap: GapSubmessage,
 {
@@ -70,7 +69,6 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
 ) where
     ReaderLocator: RTPSReaderLocatorOperations,
     WriterCache: RTPSHistoryCache,
-    <WriterCache as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     Data: DataSubmessage<'a>,
     Gap: GapSubmessage,
 {
@@ -90,7 +88,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
             let writer_sn =
                 Data::SequenceNumberSubmessageElementType::new(change.sequence_number());
             let inline_qos = Data::ParameterListSubmessageElementType::new(&[]); //change.inline_qos().clone();
-            let data = change.data_value().as_ref();
+            let data = change.data_value();
             let serialized_payload = Data::SerializedDataSubmessageElementType::new(&data);
             let data_submessage = Data::new(
                 endianness_flag,

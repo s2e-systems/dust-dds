@@ -13,13 +13,13 @@ use rust_rtps_pim::{
         types::{
             ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
         },
-        RTPSCacheChange, RTPSCacheChangeOperations, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
+        RTPSEndpoint, RTPSEntity, RTPSHistoryCache, RtpsCacheChange,
     },
 };
 
 use super::{
-    rtps_cache_change_impl::RTPSCacheChangeImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl,
-    rtps_reader_locator_impl::RTPSReaderLocatorImpl, rtps_reader_proxy_impl::RTPSReaderProxyImpl,
+    rtps_history_cache_impl::RTPSHistoryCacheImpl, rtps_reader_locator_impl::RTPSReaderLocatorImpl,
+    rtps_reader_proxy_impl::RTPSReaderProxyImpl,
 };
 
 pub struct RTPSWriterImpl {
@@ -112,25 +112,24 @@ impl RTPSWriterOperations for RTPSWriterImpl {
         }
     }
 
-    fn new_change(
+    fn new_change<'a>(
         &mut self,
         kind: ChangeKind,
-        data: &[u8],
-        inline_qos: <<<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InlineQosType,
+        data: &'a [u8],
+        inline_qos: (),
         handle: InstanceHandle,
-    ) -> <<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange
+    ) -> RtpsCacheChange<'a>
     where
         Self: RTPSWriter,
         <Self as RTPSWriter>::HistoryCacheType: RTPSHistoryCache,
-        <<Self as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
     {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
-        RTPSCacheChangeImpl::new(
+        RtpsCacheChange::new(
             kind,
             self.guid,
             handle,
             self.last_change_sequence_number,
-            data.as_ref(),
+            data,
             inline_qos,
         )
     }
@@ -294,7 +293,7 @@ mod tests {
             types::{
                 ChangeKind, EntityId, Locator, ReliabilityKind, TopicKind, GUID, GUID_UNKNOWN,
             },
-            RTPSCacheChange, RTPSHistoryCache,
+            RTPSHistoryCache,
         },
     };
 

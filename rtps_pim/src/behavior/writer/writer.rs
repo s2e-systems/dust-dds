@@ -4,7 +4,7 @@ use crate::{
         types::{
             ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
         },
-        RTPSCacheChange, RTPSHistoryCache,
+        RTPSHistoryCache, RtpsCacheChange,
     },
 };
 
@@ -35,15 +35,14 @@ pub trait RTPSWriterOperations {
         data_max_size_serialized: Option<i32>,
     ) -> Self;
 
-    fn new_change(
+    fn new_change<'a>(
         &mut self,
         kind: ChangeKind,
-        data: &[u8],
-        inline_qos: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InlineQosType,
+        data: &'a [u8],
+        inline_qos: (),
         handle: InstanceHandle,
-    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange
+    ) -> RtpsCacheChange<'a>
     where
         Self: RTPSWriter,
-        Self::HistoryCacheType: RTPSHistoryCache,
-        <Self::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange;
+        Self::HistoryCacheType: RTPSHistoryCache;
 }

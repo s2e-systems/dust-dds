@@ -9,11 +9,11 @@ impl RTPSWriterProxyOperations for RTPSWriterProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
 
     fn new<L>(
-        remote_writer_guid: rust_rtps_pim::structure::types::GUID,
-        remote_group_entity_id: rust_rtps_pim::structure::types::EntityId,
-        unicast_locator_list: L,
-        multicast_locator_list: L,
-        data_max_size_serialized: Option<i32>,
+        _remote_writer_guid: rust_rtps_pim::structure::types::GUID,
+        _remote_group_entity_id: rust_rtps_pim::structure::types::EntityId,
+        _unicast_locator_list: L,
+        _multicast_locator_list: L,
+        _data_max_size_serialized: Option<i32>,
     ) -> Self
     where
         L: IntoIterator<Item = rust_rtps_pim::structure::types::Locator>,
@@ -27,14 +27,14 @@ impl RTPSWriterProxyOperations for RTPSWriterProxyImpl {
 
     fn irrelevant_change_set(
         &mut self,
-        a_seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
+        _a_seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
     ) {
         todo!()
     }
 
     fn lost_changes_update(
         &mut self,
-        first_available_seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
+        _first_available_seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
     ) {
         todo!()
     }
@@ -45,12 +45,12 @@ impl RTPSWriterProxyOperations for RTPSWriterProxyImpl {
 
     fn missing_changes_update(
         &mut self,
-        last_available_seq_num: rust_rtps_pim::structure::types::SequenceNumber,
+        _last_available_seq_num: rust_rtps_pim::structure::types::SequenceNumber,
     ) {
         todo!()
     }
 
-    fn received_change_set(&mut self, a_seq_num: rust_rtps_pim::structure::types::SequenceNumber) {
+    fn received_change_set(&mut self, _a_seq_num: rust_rtps_pim::structure::types::SequenceNumber) {
         todo!()
     }
 }

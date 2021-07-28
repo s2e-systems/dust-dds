@@ -137,32 +137,32 @@ impl RTPSStatefulReader for RTPSReaderImpl {
 
 impl RTPSStatefulReaderOperations for RTPSReaderImpl {
     fn new(
-        guid: GUID,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
-        heartbeat_response_delay: Duration,
-        heartbeat_supression_duration: Duration,
-        expects_inline_qos: bool,
+        _guid: GUID,
+        _topic_kind: TopicKind,
+        _reliability_level: ReliabilityKind,
+        _unicast_locator_list: &[Locator],
+        _multicast_locator_list: &[Locator],
+        _heartbeat_response_delay: Duration,
+        _heartbeat_supression_duration: Duration,
+        _expects_inline_qos: bool,
     ) -> Self {
         todo!()
     }
 
-    fn matched_writer_add(&mut self, a_writer_proxy: <Self as RTPSStatefulReader>::WriterProxyType)
+    fn matched_writer_add(&mut self, _a_writer_proxy: <Self as RTPSStatefulReader>::WriterProxyType)
     where
         Self: RTPSStatefulReader,
     {
         todo!()
     }
 
-    fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID) {
+    fn matched_writer_remove(&mut self, _writer_proxy_guid: &GUID) {
         todo!()
     }
 
     fn matched_writer_lookup(
         &self,
-        a_writer_guid: &GUID,
+        _a_writer_guid: &GUID,
     ) -> Option<&<Self as RTPSStatefulReader>::WriterProxyType>
     where
         Self: RTPSStatefulReader,

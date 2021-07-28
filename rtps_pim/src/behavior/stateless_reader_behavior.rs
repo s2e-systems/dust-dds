@@ -8,7 +8,7 @@ use crate::{
     },
     structure::{
         types::{ChangeKind, GuidPrefix, ENTITYID_UNKNOWN, GUID},
-        RTPSCacheChangeOperations, RTPSEntity, RTPSHistoryCache,
+        RTPSEntity, RTPSHistoryCache, RtpsCacheChange,
     },
 };
 
@@ -22,8 +22,6 @@ impl<'a, 'b, T, Data> StatelessReaderBehavior<Data> for T
 where
     T: RTPSReader + RTPSEntity,
     T::HistoryCacheType: RTPSHistoryCache,
-    <T::HistoryCacheType as RTPSHistoryCache>::CacheChange:
-        RTPSCacheChangeOperations<InlineQosType = ()>,
     Data: DataSubmessage<'b>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data) {
@@ -40,7 +38,7 @@ where
             let sequence_number = data.writer_sn().value();
             let data = data.serialized_payload().value();
             let inline_qos = ();
-            let a_change = RTPSCacheChangeOperations::new(
+            let a_change = RtpsCacheChange::new(
                 kind,
                 writer_guid,
                 instance_handle,
@@ -48,7 +46,7 @@ where
                 data,
                 inline_qos,
             );
-            reader_cache.add_change(a_change);
+            reader_cache.add_change(&a_change);
         }
     }
 }
@@ -70,41 +68,15 @@ mod tests {
     struct MockCacheChange {
         kind: ChangeKind,
         writer_guid: GUID,
-        instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        data_value: [u8; 3],
+        instance_handle: InstanceHandle,
+        data: [u8; 1],
         inline_qos: (),
-    }
-
-    impl<'a> RTPSCacheChangeOperations for MockCacheChange {
-        type InlineQosType = ();
-
-        fn new(
-            kind: ChangeKind,
-            writer_guid: GUID,
-            instance_handle: InstanceHandle,
-            sequence_number: crate::structure::types::SequenceNumber,
-            data: &[u8],
-            inline_qos: Self::InlineQosType,
-        ) -> Self {
-            let mut data_value: [u8; 3] = [0; 3];
-            data_value.clone_from_slice(data);
-            Self {
-                kind,
-                writer_guid,
-                instance_handle,
-                sequence_number,
-                data_value,
-                inline_qos,
-            }
-        }
     }
 
     struct MockHistoryCache(Option<MockCacheChange>);
 
-    impl RTPSHistoryCache for MockHistoryCache {
-        type CacheChange = MockCacheChange;
-
+    impl<'a> RTPSHistoryCache for MockHistoryCache {
         fn new() -> Self
         where
             Self: Sized,
@@ -112,8 +84,15 @@ mod tests {
             todo!()
         }
 
-        fn add_change(&mut self, change: Self::CacheChange) {
-            self.0 = Some(change)
+        fn add_change(&mut self, change: &RtpsCacheChange) {
+            self.0 = Some(MockCacheChange {
+                kind: *change.kind(),
+                writer_guid: *change.writer_guid(),
+                sequence_number: *change.sequence_number(),
+                instance_handle: *change.instance_handle(),
+                data: [change.data_value()[0].clone()],
+                inline_qos: (),
+            });
         }
 
         fn remove_change(&mut self, _seq_num: &crate::structure::types::SequenceNumber) {
@@ -123,7 +102,7 @@ mod tests {
         fn get_change(
             &self,
             _seq_num: &crate::structure::types::SequenceNumber,
-        ) -> Option<&Self::CacheChange> {
+        ) -> Option<RtpsCacheChange> {
             todo!()
         }
 
@@ -140,7 +119,7 @@ mod tests {
         reader_cache: MockHistoryCache,
     }
 
-    impl RTPSEntity for MockStatelessReader {
+    impl<'a> RTPSEntity for MockStatelessReader {
         fn guid(&self) -> &GUID {
             &GUID_UNKNOWN
         }
@@ -321,7 +300,7 @@ mod tests {
                 GUID::new(source_guid_prefix, writer_entity_id)
             );
             assert_eq!(cache_change.sequence_number, message_sequence_number);
-            assert_eq!(cache_change.data_value, [1, 2, 3]);
+            assert_eq!(cache_change.data, [3]);
             assert_eq!(cache_change.inline_qos, ());
             assert_eq!(cache_change.instance_handle, 0);
         } else {

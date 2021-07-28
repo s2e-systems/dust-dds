@@ -18,10 +18,7 @@ use rust_dds_api::{
     },
     topic::topic_description::TopicDescription,
 };
-use rust_rtps_pim::{
-    behavior::reader::reader::RTPSReader,
-    structure::{RTPSCacheChange, RTPSHistoryCache},
-};
+use rust_rtps_pim::{behavior::reader::reader::RTPSReader, structure::RTPSHistoryCache};
 
 use crate::utils::shared_object::RtpsWeak;
 
@@ -37,7 +34,6 @@ where
     T: for<'de> serde::Deserialize<'de>,
     Reader: RTPSReader,
     Reader::HistoryCacheType: RTPSHistoryCache,
-    <Reader::HistoryCacheType as RTPSHistoryCache>::CacheChange: RTPSCacheChange,
 {
     type Samples = T;
 
@@ -342,12 +338,9 @@ mod tests {
         infrastructure::qos::{SubscriberQos, TopicQos},
         topic::topic_listener::TopicListener,
     };
-    use rust_rtps_pim::structure::{RTPSCacheChange, RTPSHistoryCache};
+    use rust_rtps_pim::structure::{types::GUID_UNKNOWN, RTPSHistoryCache, RtpsCacheChange};
 
-    use crate::{
-        dds_impl::data_reader_impl::DataReaderImpl,
-        rtps_impl::rtps_history_cache_impl::RTPSHistoryCacheImpl, utils::shared_object::RtpsShared,
-    };
+    use crate::{dds_impl::data_reader_impl::DataReaderImpl, utils::shared_object::RtpsShared};
 
     struct MockSubcriber;
     impl rust_dds_api::subscription::subscriber::Subscriber for MockSubcriber {
@@ -361,10 +354,10 @@ mod tests {
 
         fn get_datareaders(
             &self,
-            readers: &mut [&mut dyn rust_dds_api::subscription::data_reader::AnyDataReader],
-            sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-            view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-            instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
+            _readers: &mut [&mut dyn rust_dds_api::subscription::data_reader::AnyDataReader],
+            _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
+            _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
+            _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
         ) -> rust_dds_api::return_type::DDSResult<()> {
             todo!()
         }
@@ -381,7 +374,7 @@ mod tests {
 
         fn get_sample_lost_status(
             &self,
-            status: &mut rust_dds_api::dcps_psm::SampleLostStatus,
+            _status: &mut rust_dds_api::dcps_psm::SampleLostStatus,
         ) -> rust_dds_api::return_type::DDSResult<()> {
             todo!()
         }
@@ -392,7 +385,7 @@ mod tests {
 
         fn set_default_datareader_qos(
             &self,
-            qos: Option<rust_dds_api::infrastructure::qos::DataReaderQos>,
+            _qos: Option<rust_dds_api::infrastructure::qos::DataReaderQos>,
         ) -> rust_dds_api::return_type::DDSResult<()> {
             todo!()
         }
@@ -406,8 +399,8 @@ mod tests {
 
         fn copy_from_topic_qos(
             &self,
-            a_datareader_qos: &mut rust_dds_api::infrastructure::qos::DataReaderQos,
-            a_topic_qos: &rust_dds_api::infrastructure::qos::TopicQos,
+            _a_datareader_qos: &mut rust_dds_api::infrastructure::qos::DataReaderQos,
+            _a_topic_qos: &rust_dds_api::infrastructure::qos::TopicQos,
         ) -> rust_dds_api::return_type::DDSResult<()> {
             todo!()
         }
@@ -418,7 +411,7 @@ mod tests {
         type Listener =
             &'static dyn rust_dds_api::subscription::subscriber_listener::SubscriberListener;
 
-        fn set_qos(&self, qos: Option<Self::Qos>) -> rust_dds_api::return_type::DDSResult<()> {
+        fn set_qos(&self, _qos: Option<Self::Qos>) -> rust_dds_api::return_type::DDSResult<()> {
             todo!()
         }
 
@@ -428,8 +421,8 @@ mod tests {
 
         fn set_listener(
             &self,
-            a_listener: Option<Self::Listener>,
-            mask: rust_dds_api::dcps_psm::StatusMask,
+            _a_listener: Option<Self::Listener>,
+            _mask: rust_dds_api::dcps_psm::StatusMask,
         ) -> rust_dds_api::return_type::DDSResult<()> {
             todo!()
         }
@@ -479,7 +472,7 @@ mod tests {
         type Qos = TopicQos;
         type Listener = &'static dyn TopicListener<DataPIM = T>;
 
-        fn set_qos(&self, qos: Option<Self::Qos>) -> rust_dds_api::return_type::DDSResult<()> {
+        fn set_qos(&self, _qos: Option<Self::Qos>) -> rust_dds_api::return_type::DDSResult<()> {
             todo!()
         }
 
@@ -489,8 +482,8 @@ mod tests {
 
         fn set_listener(
             &self,
-            a_listener: Option<Self::Listener>,
-            mask: rust_dds_api::dcps_psm::StatusMask,
+            _a_listener: Option<Self::Listener>,
+            _mask: rust_dds_api::dcps_psm::StatusMask,
         ) -> rust_dds_api::return_type::DDSResult<()> {
             todo!()
         }
@@ -518,41 +511,9 @@ mod tests {
         }
     }
 
-    struct MockCacheChange(Vec<u8>);
-
-    impl RTPSCacheChange for MockCacheChange {
-        type InlineQosType = ();
-
-        fn kind(&self) -> &rust_rtps_pim::structure::types::ChangeKind {
-            todo!()
-        }
-
-        fn writer_guid(&self) -> &rust_rtps_pim::structure::types::GUID {
-            todo!()
-        }
-
-        fn instance_handle(&self) -> &rust_rtps_pim::structure::types::InstanceHandle {
-            todo!()
-        }
-
-        fn sequence_number(&self) -> &rust_rtps_pim::structure::types::SequenceNumber {
-            todo!()
-        }
-
-        fn data_value(&self) -> &[u8] {
-            &self.0
-        }
-
-        fn inline_qos(&self) -> &Self::InlineQosType {
-            todo!()
-        }
-    }
-
-    struct MockHistoryCache(MockCacheChange);
+    struct MockHistoryCache(());
 
     impl RTPSHistoryCache for MockHistoryCache {
-        type CacheChange = MockCacheChange;
-
         fn new() -> Self
         where
             Self: Sized,
@@ -560,19 +521,26 @@ mod tests {
             todo!()
         }
 
-        fn add_change(&mut self, change: Self::CacheChange) {
+        fn add_change(&mut self, _change: &RtpsCacheChange) {
             todo!()
         }
 
-        fn remove_change(&mut self, seq_num: &rust_rtps_pim::structure::types::SequenceNumber) {
+        fn remove_change(&mut self, _seq_num: &rust_rtps_pim::structure::types::SequenceNumber) {
             todo!()
         }
 
         fn get_change(
             &self,
-            seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
-        ) -> Option<&Self::CacheChange> {
-            Some(&self.0)
+            _seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
+        ) -> Option<RtpsCacheChange> {
+            Some(RtpsCacheChange::new(
+                rust_rtps_pim::structure::types::ChangeKind::Alive,
+                GUID_UNKNOWN,
+                0,
+                1,
+                &[1],
+                (),
+            ))
         }
 
         fn get_seq_num_min(&self) -> Option<rust_rtps_pim::structure::types::SequenceNumber> {
@@ -612,7 +580,7 @@ mod tests {
 
     #[test]
     fn read() {
-        let reader = MockRtpsReader(MockHistoryCache(MockCacheChange(vec![1])));
+        let reader = MockRtpsReader(MockHistoryCache(()));
         let shared_reader = RtpsShared::new(reader);
 
         let data_reader = DataReaderImpl::<u8, _> {
