@@ -346,7 +346,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_parameter_list_with_long_parameter() {
+    fn deserialize_parameter_list_with_long_parameter_including_sentinel() {
         #[rustfmt::skip]
         let parameter_value_expected = &[
             0x01, 0x00, 0x00, 0x00,
@@ -415,5 +415,17 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
         ]).unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn paramter_submessage_element_roundtrip(){
+        let parameter_value1 = [1, 2];
+        let parameter_value2 = [3, 4, 5];
+        let parameter1 = Parameter{ parameter_id: ParameterId(1), length: parameter_value1.len() as i16, value: &parameter_value1 };
+        let parameter2 = Parameter{ parameter_id: ParameterId(2), length: parameter_value2.len() as i16, value: &parameter_value2 };
+        let parameter = &[parameter1, parameter2];
+        let submessage_element: ParameterListUdp = ParameterListSubmessageElementType::new(parameter);
+        let result = submessage_element.parameter();
+        assert_eq!(parameter, result);
     }
 }
