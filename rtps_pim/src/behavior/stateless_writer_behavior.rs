@@ -88,7 +88,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
             let writer_sn =
                 Data::SequenceNumberSubmessageElementType::new(change.sequence_number());
             let inline_qos = Data::ParameterListSubmessageElementType::new(change.inline_qos());
-            let serialized_payload = Data::SerializedDataSubmessageElementType::new(&change.data_value());
+            let serialized_payload = Data::SerializedDataSubmessageElementType::new(change.data_value());
             let data_submessage = Data::new(
                 endianness_flag,
                 inline_qos_flag,
