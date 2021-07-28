@@ -1,6 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use rust_rtps_pim::messages::types::ParameterId;
+use rust_rtps_pim::messages::{submessage_elements::Parameter, types::ParameterId};
 use rust_serde_cdr::deserializer::RtpsMessageDeserializer;
 use serde::ser::SerializeStruct;
 
@@ -137,8 +137,6 @@ const SENTINEL: ParameterUdp = ParameterUdp {
 impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<'a>
     for ParameterListUdp<'a>
 {
-    type IntoIter = Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'a>>;
-
     fn new(parameter: &'a [rust_rtps_pim::messages::submessage_elements::Parameter]) -> Self {
         let mut parameter_list = vec![];
         for parameter_i in parameter {
@@ -154,17 +152,32 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageEl
         }
     }
 
-    fn parameter(&'a self) -> Self::IntoIter {
-        self.parameter
-            .iter()
-            .map(
-                |x| rust_rtps_pim::messages::submessage_elements::Parameter {
-                    parameter_id: ParameterId(x.parameter_id),
-                    length: x.value.len() as i16,
-                    value: x.value,
-                },
-            )
-            .collect()
+    fn parameter(&self) -> &[Parameter<'a>] {
+        todo!()
+    }
+}
+
+pub struct ParameterListIterator<'a>(std::slice::Iter<'a, ParameterUdp<'a>>);
+
+impl<'a> Iterator for ParameterListIterator<'a> {
+    type Item = Parameter<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let parameter_udp = self.0.next()?;
+        Some(Parameter {
+            parameter_id: ParameterId(parameter_udp.parameter_id),
+            length: parameter_udp.value.len() as i16,
+            value: parameter_udp.value,
+        })
+    }
+}
+
+impl<'a> IntoIterator for &'a ParameterListUdp<'a> {
+    type Item = Parameter<'a>;
+    type IntoIter = ParameterListIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ParameterListIterator(self.parameter.iter())
     }
 }
 

@@ -1,5 +1,4 @@
-use rust_rtps_pim::{
-    behavior::{
+use rust_rtps_pim::{behavior::{
         types::Duration,
         writer::{
             reader_locator::RTPSReaderLocator,
@@ -8,14 +7,12 @@ use rust_rtps_pim::{
             stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
             writer::{RTPSWriter, RTPSWriterOperations},
         },
-    },
-    structure::{
+    }, messages::submessage_elements::Parameter, structure::{
         types::{
             ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
         },
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache, RtpsCacheChange,
-    },
-};
+    }};
 
 use super::{
     rtps_history_cache_impl::RTPSHistoryCacheImpl, rtps_reader_locator_impl::RTPSReaderLocatorImpl,
@@ -116,7 +113,7 @@ impl RTPSWriterOperations for RTPSWriterImpl {
         &mut self,
         kind: ChangeKind,
         data: &'a [u8],
-        inline_qos: (),
+        inline_qos: &'a [Parameter<'a>],
         handle: InstanceHandle,
     ) -> RtpsCacheChange<'a>
     where
@@ -323,8 +320,8 @@ mod tests {
             matched_readers: Vec::new(),
             writer_cache: RTPSHistoryCacheImpl::new(),
         };
-        let change1 = writer.new_change(ChangeKind::Alive, &[], (), 0);
-        let change2 = writer.new_change(ChangeKind::Alive, &[], (), 0);
+        let change1 = writer.new_change(ChangeKind::Alive, &[], &[], 0);
+        let change2 = writer.new_change(ChangeKind::Alive, &[], &[], 0);
 
         assert_eq!(change1.sequence_number(), &1);
         assert_eq!(change2.sequence_number(), &2);

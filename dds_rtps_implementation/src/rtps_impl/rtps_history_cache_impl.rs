@@ -52,7 +52,7 @@ impl RTPSHistoryCache for RTPSHistoryCacheImpl {
             local_change.instance_handle,
             local_change.sequence_number,
             local_change.data.as_ref(),
-            (),
+            &[],
         ))
     }
 
@@ -88,7 +88,7 @@ mod tests {
             0,
             1,
             &[],
-            (),
+            &[],
         );
         hc.add_change(&change);
         assert!(hc.get_change(&1).is_some());
@@ -103,7 +103,7 @@ mod tests {
             0,
             1,
             &[],
-            (),
+            &[],
         );
         hc.add_change(&change);
         hc.remove_change(&1);
@@ -119,7 +119,7 @@ mod tests {
             0,
             1,
             &[],
-            (),
+            &[],
         );
         hc.add_change(&change);
         assert!(hc.get_change(&1).is_some());
@@ -135,7 +135,7 @@ mod tests {
             0,
             1,
             &[],
-            (),
+            &[],
         );
         let change2 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
@@ -143,7 +143,7 @@ mod tests {
             0,
             2,
             &[],
-            (),
+            &[],
         );
         hc.add_change(&change1);
         hc.add_change(&change2);
@@ -159,7 +159,7 @@ mod tests {
             0,
             1,
             &[],
-            (),
+            &[],
         );
         let change2 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
@@ -167,7 +167,7 @@ mod tests {
             0,
             2,
             &[],
-            (),
+            &[],
         );
         hc.add_change(&change1);
         hc.add_change(&change2);

@@ -1,5 +1,6 @@
 use crate::{
     behavior::types::Duration,
+    messages::submessage_elements::Parameter,
     structure::{
         types::{
             ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
@@ -39,7 +40,7 @@ pub trait RTPSWriterOperations {
         &mut self,
         kind: ChangeKind,
         data: &'a [u8],
-        inline_qos: (),
+        inline_qos: &'a [Parameter<'a>],
         handle: InstanceHandle,
     ) -> RtpsCacheChange<'a>
     where

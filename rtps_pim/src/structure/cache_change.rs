@@ -1,4 +1,8 @@
+use crate::messages::submessage_elements::Parameter;
+
 use super::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID};
+
+type ParameterList<'a> = &'a [Parameter<'a>];
 
 pub struct RtpsCacheChange<'a> {
     kind: ChangeKind,
@@ -6,7 +10,7 @@ pub struct RtpsCacheChange<'a> {
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
     data_value: &'a [u8],
-    inline_qos: (),
+    inline_qos: ParameterList<'a>,
 }
 
 impl<'a> RtpsCacheChange<'a> {
@@ -16,7 +20,7 @@ impl<'a> RtpsCacheChange<'a> {
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
         data_value: &'a [u8],
-        inline_qos: (),
+        inline_qos: ParameterList<'a>,
     ) -> Self {
         Self {
             kind,
@@ -53,7 +57,7 @@ impl<'a> RtpsCacheChange<'a> {
     }
 
     /// Get a reference to the rtps cache change's inline qos.
-    pub fn inline_qos(&self) -> &() {
+    pub fn inline_qos(&self) -> &ParameterList<'a> {
         &self.inline_qos
     }
 }

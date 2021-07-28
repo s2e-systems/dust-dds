@@ -1,8 +1,8 @@
 use crate::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementType, SequenceNumberSubmessageElementType,
-            SerializedDataSubmessageElementType,
+            EntityIdSubmessageElementType, ParameterListSubmessageElementType,
+            SequenceNumberSubmessageElementType, SerializedDataSubmessageElementType,
         },
         submessages::DataSubmessage,
     },
@@ -36,14 +36,14 @@ where
             let writer_guid = GUID::new(source_guid_prefix, data.writer_id().value());
             let instance_handle = 0;
             let sequence_number = data.writer_sn().value();
-            let data = data.serialized_payload().value();
-            let inline_qos = ();
+            let data_value = data.serialized_payload().value();
+            let inline_qos = data.inline_qos().parameter();
             let a_change = RtpsCacheChange::new(
                 kind,
                 writer_guid,
                 instance_handle,
                 sequence_number,
-                data,
+                data_value,
                 inline_qos,
             );
             reader_cache.add_change(&a_change);
@@ -175,13 +175,11 @@ mod tests {
     pub struct MockParameterListSubmessageElement;
 
     impl<'a> ParameterListSubmessageElementType<'a> for MockParameterListSubmessageElement {
-        type IntoIter = Option<Parameter<'a>>;
-
         fn new(_parameter: &[crate::messages::submessage_elements::Parameter]) -> Self {
             todo!()
         }
 
-        fn parameter(&'a self) -> Self::IntoIter {
+        fn parameter(&self) -> &[Parameter<'a>] {
             todo!()
         }
     }

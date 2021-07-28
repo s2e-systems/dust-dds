@@ -85,10 +85,11 @@ pub struct Parameter<'a> {
 }
 
 pub trait ParameterListSubmessageElementType<'a> {
-    type IntoIter: IntoIterator<Item = Parameter<'a>>;
+    fn new(parameter: &'a [Parameter<'a>]) -> Self
+    where
+        Self: Sized;
 
-    fn new(parameter: &'a [Parameter]) -> Self;
-    fn parameter(&'a self) -> Self::IntoIter;
+    fn parameter(&self) -> &[Parameter<'a>];
 }
 
 pub trait CountSubmessageElementType {

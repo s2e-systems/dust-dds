@@ -167,13 +167,11 @@ mod tests {
     struct MockParameterListSubmessageElement;
 
     impl<'a> ParameterListSubmessageElementType<'a> for MockParameterListSubmessageElement {
-        type IntoIter = Option<Parameter<'a>>;
-
         fn new(_parameter: &[Parameter]) -> Self {
             todo!()
         }
 
-        fn parameter(&'a self) -> Self::IntoIter {
+        fn parameter(&self) -> &[Parameter<'a>] {
             todo!()
         }
     }
@@ -181,7 +179,6 @@ mod tests {
     struct MockSerializedDataSubmessageElement;
 
     impl<'a> SerializedDataSubmessageElementType<'a> for MockSerializedDataSubmessageElement {
-
         fn new(_value: &'a [u8]) -> Self {
             todo!()
         }

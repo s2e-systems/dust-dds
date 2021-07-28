@@ -131,7 +131,7 @@ impl DomainParticipantFactory {
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
             &spdp_discovered_participant_data_bytes,
-            (),
+            &[],
             1,
         );
 
