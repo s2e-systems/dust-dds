@@ -289,7 +289,7 @@ mod tests {
             reader_id: MockEntityIdSubmessageElement(ENTITYID_UNKNOWN),
             writer_id: MockEntityIdSubmessageElement(writer_entity_id),
             writer_sn: MockSequenceNumberSubmessageElement(message_sequence_number),
-            serialized_payload: MockSerializedDataSubmessageElement(&[1, 2, 3]),
+            serialized_payload: MockSerializedDataSubmessageElement(&[3]),
         };
         stateless_reader.receive_data(source_guid_prefix, &data);
 

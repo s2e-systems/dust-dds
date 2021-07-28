@@ -37,7 +37,7 @@ use rust_rtps_pim::{
     messages::types::Count,
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
-        RtpsCacheChange, RTPSEntity, RTPSHistoryCache, RTPSParticipant,
+        RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
 use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
