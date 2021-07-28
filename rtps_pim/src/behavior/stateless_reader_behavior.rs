@@ -180,7 +180,7 @@ mod tests {
         }
 
         fn parameter(&self) -> &[Parameter<'a>] {
-            todo!()
+            &[]
         }
     }
 
@@ -207,11 +207,8 @@ mod tests {
 
     impl<'a> DataSubmessage<'a> for MockDataSubmessage<'a> {
         type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
-
         type SequenceNumberSubmessageElementType = MockSequenceNumberSubmessageElement;
-
         type ParameterListSubmessageElementType = MockParameterListSubmessageElement;
-
         type SerializedDataSubmessageElementType = MockSerializedDataSubmessageElement<'a>;
 
         fn new(
@@ -262,7 +259,7 @@ mod tests {
         }
 
         fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
-            todo!()
+            &MockParameterListSubmessageElement
         }
 
         fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
