@@ -1,9 +1,11 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::marker::PhantomData;
 
-use rust_rtps_pim::messages::{submessage_elements::Parameter, types::ParameterId};
+use rust_rtps_pim::messages::{
+    submessage_elements::{Parameter, ParameterListSubmessageElementType},
+    types::ParameterId,
+};
 use rust_serde_cdr::deserializer::RtpsMessageDeserializer;
 use serde::ser::SerializeStruct;
-
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterUdp<'a> {
@@ -21,7 +23,7 @@ impl<'a> ParameterUdp<'a> {
             value,
         }
     }
-    pub fn len(&self) -> usize {
+    pub fn number_of_bytes(&self) -> usize {
         4 + self.length as usize
     }
 }
@@ -36,7 +38,7 @@ impl<'a> From<ParameterUdp<'a>> for Parameter<'a> {
     fn from(value: ParameterUdp<'a>) -> Self {
         Parameter {
             parameter_id: ParameterId(value.parameter_id),
-            length: value.len() as i16,
+            length: value.value.len() as i16,
             value: value.value,
         }
     }
@@ -139,29 +141,17 @@ const SENTINEL: ParameterUdp = ParameterUdp {
     value: &[],
 };
 
-impl<'a> rust_rtps_pim::messages::submessage_elements::ParameterListSubmessageElementType<'a>
-    for ParameterListUdp<'a>
-{
-    fn new(parameter: &'a [rust_rtps_pim::messages::submessage_elements::Parameter]) -> Self {
-        let mut parameter_list = vec![];
-        for parameter_i in parameter {
-            let parameter_i_udp = ParameterUdp {
-                parameter_id: parameter_i.parameter_id.0,
-                length: parameter_i.length,
-                value: parameter_i.value,
-            };
-            parameter_list.push(parameter_i_udp.into());
-        }
+impl<'a> ParameterListSubmessageElementType<'a> for ParameterListUdp<'a> {
+    fn new(parameter: &'a [Parameter]) -> Self {
         Self {
-            parameter: parameter_list,
+            parameter: parameter.to_vec(),
         }
     }
 
     fn parameter(&self) -> &[Parameter<'a>] {
-        todo!()
+        self.parameter.as_slice()
     }
 }
-
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterListUdp<'a> {
@@ -169,13 +159,20 @@ pub struct ParameterListUdp<'a> {
 }
 
 impl<'a> ParameterListUdp<'a> {
-    pub fn len(&self) -> usize {
-        self.parameter.iter().map(|p| ParameterUdp::from(p).len()).sum::<usize>() + 4
+    pub fn number_of_bytes(&self) -> usize {
+        self.parameter
+            .iter()
+            .map(|p| ParameterUdp::from(p).number_of_bytes())
+            .sum::<usize>()
+            + 4
     }
     pub fn get<'b: 'de, 'de, T: serde::Deserialize<'de>>(&'b self, parameter_id: u16) -> Option<T> {
-        let map = self.as_map();
-        let bytes = map.get(&parameter_id)?;
-        rust_serde_cdr::deserializer::from_bytes(bytes).ok()
+        for parameter in &self.parameter {
+            if parameter.parameter_id.0 == parameter_id {
+                return rust_serde_cdr::deserializer::from_bytes(parameter.value).unwrap();
+            }
+        }
+        None
     }
 
     pub fn get_list<'b: 'de, 'de, T: serde::Deserialize<'de>>(
@@ -190,14 +187,6 @@ impl<'a> ParameterListUdp<'a> {
             }
         }
         list
-    }
-
-    fn as_map(&self) -> HashMap<u16, &[u8]> {
-        let mut map = HashMap::new();
-        for parameter_i in &self.parameter {
-            map.insert(parameter_i.parameter_id.0, parameter_i.value);
-        }
-        map
     }
 }
 
@@ -261,17 +250,8 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for ParameterListUdp<'a> {
 
 #[cfg(test)]
 mod tests {
-    use rust_serde_cdr::deserializer::{self};
-
     use super::*;
-
-    #[test]
-    fn tuple() {
-        let expected = (1_u16, 2_u16);
-        #[rustfmt::skip]
-        let result = deserializer::from_bytes(&[1, 0, 2, 0]).unwrap();
-        assert_eq!(expected, result);
-    }
+    use rust_serde_cdr::deserializer::{self};
 
     #[test]
     fn serialize_parameter() {
@@ -310,7 +290,7 @@ mod tests {
             parameter: vec![
                 ParameterUdp::new(2, &[51, 61, 71, 81]).into(),
                 ParameterUdp::new(3, &[52, 62, 72, 82]).into(),
-            ]
+            ],
         };
         #[rustfmt::skip]
         assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
@@ -352,7 +332,7 @@ mod tests {
             parameter: vec![
                 ParameterUdp::new(0x02, &[15, 16, 17, 18]).into(),
                 ParameterUdp::new(0x03, &[25, 26, 27, 28]).into(),
-            ]
+            ],
         };
         #[rustfmt::skip]
         let result: ParameterListUdp = deserializer::from_bytes(&[
@@ -414,7 +394,7 @@ mod tests {
             parameter: vec![
                 ParameterUdp::new(0x32, parameter_value_expected1).into(),
                 ParameterUdp::new(0x32, parameter_value_expected2).into(),
-            ]
+            ],
         };
         #[rustfmt::skip]
         let result: ParameterListUdp = deserializer::from_bytes(&[

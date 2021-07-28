@@ -44,7 +44,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmes
             non_standard_payload_flag,
         ]);
         let inline_qos_len = if inline_qos_flag {
-            inline_qos.len()
+            inline_qos.number_of_bytes()
         } else {
             0
         };
@@ -220,7 +220,7 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
             ParameterListUdp { parameter: vec![] }
         };
         let inline_qos_len = if inline_qos_flag {
-            inline_qos.len()
+            inline_qos.number_of_bytes()
         } else {
             0
         };
