@@ -16,7 +16,8 @@ use rust_dds_api::{
 };
 
 use crate::{
-    rtps_impl::rtps_reader_group_impl::RTPSReaderGroupImpl, utils::shared_object::RtpsWeak,
+    rtps_impl::{rtps_reader_group_impl::RTPSReaderGroupImpl, rtps_reader_impl::RTPSReaderImpl},
+    utils::shared_object::RtpsWeak,
 };
 
 use super::{data_reader_impl::DataReaderImpl, topic_impl::TopicImpl};
@@ -32,7 +33,7 @@ where
     T: for<'de> serde::Deserialize<'de>,
 {
     type TopicType = TopicImpl<'t, T>;
-    type DataReaderType = DataReaderImpl<'dr, T>;
+    type DataReaderType = DataReaderImpl<'dr, T, RTPSReaderImpl>;
 
     fn create_datareader(
         &'dr self,
