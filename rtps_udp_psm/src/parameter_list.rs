@@ -169,7 +169,7 @@ impl<'a> ParameterListUdp<'a> {
     pub fn get<'b: 'de, 'de, T: serde::Deserialize<'de>>(&'b self, parameter_id: u16) -> Option<T> {
         for parameter in &self.parameter {
             if parameter.parameter_id.0 == parameter_id {
-                return rust_serde_cdr::deserializer::from_bytes(parameter.value).unwrap();
+                return Some(rust_serde_cdr::deserializer::from_bytes(parameter.value).unwrap());
             }
         }
         None
