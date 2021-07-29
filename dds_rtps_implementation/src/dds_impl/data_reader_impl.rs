@@ -53,7 +53,7 @@ where
             for seq_num in seq_num_min..=seq_num_max {
                 let cc1 = reader_cache.get_change(&(seq_num as i64)).unwrap();
                 let data = cc1.data_value();
-                let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
+                let value = cdr::deserialize::<T>(&data).unwrap();
                 let sample_info = SampleInfo {
                     sample_state: SampleStateKind::NotRead,
                     view_state: ViewStateKind::New,
