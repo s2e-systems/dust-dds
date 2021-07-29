@@ -1,6 +1,12 @@
-use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, deserialize::from_bytes_le, parameter_list::{ParameterListUdp, ParameterUdp}, serialize::{to_bytes_le, to_writer_le}, submessage_elements::{
+use crate::{
+    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
+    deserialize::from_bytes_le,
+    parameter_list::{ParameterListUdp, ParameterUdp},
+    serialize::{to_bytes_le, to_writer_le},
+    submessage_elements::{
         CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
-    }};
+    },
+};
 use byteorder::LittleEndian;
 use rust_rtps_pim::{
     behavior::types::Duration,
@@ -16,7 +22,7 @@ use rust_rtps_pim::{
         },
         types::Count,
     },
-    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUID},
+    structure::types::{EntityId, GuidPrefix, Locator, ProtocolVersion, VendorId, GUID},
 };
 
 use super::parameterid_list::{
@@ -29,77 +35,36 @@ use super::parameterid_list::{
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
 
-#[derive(Debug, PartialEq)]
-struct GUIDUdp {
-    prefix: GuidPrefixUdp,
-    entity_id: EntityIdUdp,
-}
-
-impl GUIDUdp {
-    pub fn new(guid: &GUID) -> Self {
-        Self {
-            prefix: GuidPrefixUdp::new(guid.prefix()),
-            entity_id: EntityIdUdp::new(guid.entity_id()),
-        }
-    }
-
-    pub fn value(&self) -> GUID {
-        GUID::new(self.prefix.value(), self.entity_id.value())
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DurationUdp {
-    seconds: i32,
-    fraction: u32,
-}
-
-impl DurationUdp {
-    pub fn new(duration: &Duration) -> Self {
-        Self {
-            seconds: duration.seconds,
-            fraction: duration.fraction,
-        }
-    }
-
-    pub fn value(&self) -> Duration {
-        Duration {
-            seconds: self.seconds,
-            fraction: self.fraction,
-        }
-    }
-}
-
 #[derive(PartialEq, Debug)]
 struct ParticipantProxy {
     domain_id: u32,
     domain_tag: String,
-    protocol_version: ProtocolVersionUdp,
-    guid: GUIDUdp,
-    vendor_id: VendorIdUdp,
+    protocol_version: ProtocolVersion,
+    guid: GUID,
+    vendor_id: VendorId,
     expects_inline_qos: bool,
-    metatraffic_unicast_locator_list: Vec<LocatorUdp>,
-    metatraffic_multicast_locator_list: Vec<LocatorUdp>,
-    default_unicast_locator_list: Vec<LocatorUdp>,
-    default_multicast_locator_list: Vec<LocatorUdp>,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
     available_builtin_endpoints: u32,
-    manual_liveliness_count: CountUdp,
+    manual_liveliness_count: Count,
     builtin_endpoint_qos: u32,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct SPDPdiscoveredParticipantDataUdp {
+pub struct SPDPdiscoveredParticipantDataCdr {
     // ddsParticipantData: DDS::ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
-    lease_duration: DurationUdp,
+    lease_duration: Duration,
 }
 
-impl SPDPdiscoveredParticipantDataUdp {
+impl SPDPdiscoveredParticipantDataCdr {
     // Constant value from Table 9.14 - ParameterId mapping and default values
     const DEFAULT_DOMAIN_TAG: String = String::new();
     const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
     const DEFAULT_BUILTIN_ENDPOINT_QOS: u32 = 0;
-    const DEFAULT_PARTICIPANT_LEASE_DURATION: DurationUdp = DurationUdp {
+    const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration {
         seconds: 100,
         fraction: 0,
     };
@@ -124,31 +89,19 @@ impl SPDPdiscoveredParticipantDataUdp {
             participant_proxy: ParticipantProxy {
                 domain_id: *domain_id,
                 domain_tag: domain_tag.to_owned(),
-                protocol_version: ProtocolVersionUdp::new(protocol_version),
-                guid: GUIDUdp::new(guid),
-                vendor_id: VendorIdUdp::new(vendor_id),
+                protocol_version: *protocol_version,
+                guid: *guid,
+                vendor_id: *vendor_id,
                 expects_inline_qos: *expects_inline_qos,
-                metatraffic_unicast_locator_list: metatraffic_unicast_locator_list
-                    .iter()
-                    .map(|x| LocatorUdp::new(x))
-                    .collect(),
-                metatraffic_multicast_locator_list: metatraffic_multicast_locator_list
-                    .iter()
-                    .map(|x| LocatorUdp::new(x))
-                    .collect(),
-                default_unicast_locator_list: default_unicast_locator_list
-                    .iter()
-                    .map(|x| LocatorUdp::new(x))
-                    .collect(),
-                default_multicast_locator_list: default_multicast_locator_list
-                    .iter()
-                    .map(|x| LocatorUdp::new(x))
-                    .collect(),
+                metatraffic_unicast_locator_list: metatraffic_unicast_locator_list.to_vec(),
+                metatraffic_multicast_locator_list: metatraffic_multicast_locator_list.to_vec(),
+                default_unicast_locator_list: default_unicast_locator_list.to_vec(),
+                default_multicast_locator_list: default_multicast_locator_list.to_vec(),
                 available_builtin_endpoints: available_builtin_endpoints.0,
-                manual_liveliness_count: CountUdp::new(manual_liveliness_count),
+                manual_liveliness_count: *manual_liveliness_count,
                 builtin_endpoint_qos: builtin_endpoint_qos.0,
             },
-            lease_duration: DurationUdp::new(lease_duration),
+            lease_duration: *lease_duration,
         }
     }
 
@@ -346,7 +299,7 @@ impl SPDPdiscoveredParticipantDataUdp {
     }
 }
 
-impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
+impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataCdr {
     type LocatorListType = Vec<Locator>;
 
     fn domain_id(&self) -> DomainId {
@@ -358,15 +311,15 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     }
 
     fn protocol_version(&self) -> ProtocolVersion {
-        self.participant_proxy.protocol_version.value()
+        self.participant_proxy.protocol_version
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
-        *self.participant_proxy.guid.value().prefix()
+        *self.participant_proxy.guid.prefix()
     }
 
     fn vendor_id(&self) -> VendorId {
-        self.participant_proxy.vendor_id.value()
+        self.participant_proxy.vendor_id
     }
 
     fn expects_inline_qos(&self) -> bool {
@@ -376,33 +329,23 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     fn metatraffic_unicast_locator_list(&self) -> Self::LocatorListType {
         self.participant_proxy
             .metatraffic_unicast_locator_list
-            .iter()
-            .map(|x| x.value())
-            .collect()
+            .clone()
     }
 
     fn metatraffic_multicast_locator_list(&self) -> Self::LocatorListType {
         self.participant_proxy
             .metatraffic_multicast_locator_list
-            .iter()
-            .map(|x| x.value())
-            .collect()
+            .clone()
     }
 
     fn default_unicast_locator_list(&self) -> Self::LocatorListType {
-        self.participant_proxy
-            .default_unicast_locator_list
-            .iter()
-            .map(|x| x.value())
-            .collect()
+        self.participant_proxy.default_unicast_locator_list.clone()
     }
 
     fn default_multicast_locator_list(&self) -> Self::LocatorListType {
         self.participant_proxy
             .default_multicast_locator_list
-            .iter()
-            .map(|x| x.value())
-            .collect()
+            .clone()
     }
 
     fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
@@ -410,7 +353,7 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     }
 
     fn manual_liveliness_count(&self) -> Count {
-        self.participant_proxy.manual_liveliness_count.value()
+        self.participant_proxy.manual_liveliness_count
     }
 
     fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
@@ -450,7 +393,7 @@ mod tests {
             fraction: 0,
         };
 
-        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataCdr::new(
             &domain_id,
             domain_tag,
             &protocol_version,
@@ -560,11 +503,11 @@ mod tests {
     #[test]
     pub fn serialize_spdp_default_data() {
         let domain_id = 1;
-        let domain_tag = &SPDPdiscoveredParticipantDataUdp::DEFAULT_DOMAIN_TAG;
+        let domain_tag = &SPDPdiscoveredParticipantDataCdr::DEFAULT_DOMAIN_TAG;
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid = GUID::new([1; 12], ENTITYID_PARTICIPANT);
         let vendor_id = [9, 9];
-        let expects_inline_qos = SPDPdiscoveredParticipantDataUdp::DEFAULT_EXPECTS_INLINE_QOS;
+        let expects_inline_qos = SPDPdiscoveredParticipantDataCdr::DEFAULT_EXPECTS_INLINE_QOS;
         let metatraffic_unicast_locator_list = &[];
         let metatraffic_multicast_locator_list = &[];
         let default_unicast_locator_list = &[];
@@ -574,9 +517,9 @@ mod tests {
         let manual_liveliness_count = Count(2);
         let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
         let lease_duration =
-            SPDPdiscoveredParticipantDataUdp::DEFAULT_PARTICIPANT_LEASE_DURATION.value();
+            SPDPdiscoveredParticipantDataCdr::DEFAULT_PARTICIPANT_LEASE_DURATION;
 
-        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataCdr::new(
             &domain_id,
             domain_tag,
             &protocol_version,
@@ -620,7 +563,7 @@ mod tests {
     #[test]
     fn deserialize_complete_spdp_discovered_participant_data() {
         #[rustfmt::skip]
-        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::from_bytes(&[
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataCdr::from_bytes(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 4, 0x00,    // PID_DOMAIN_ID, Length
             0x01, 0x00, 0x00, 0x00, // DomainId
@@ -730,7 +673,7 @@ mod tests {
             fraction: 0,
         };
 
-        let expected_spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+        let expected_spdp_discovered_participant_data = SPDPdiscoveredParticipantDataCdr::new(
             &domain_id,
             domain_tag,
             &protocol_version,
@@ -756,7 +699,7 @@ mod tests {
     #[test]
     fn deserialize_default_spdp_discovered_participant_data() {
         #[rustfmt::skip]
-        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::from_bytes(&[
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataCdr::from_bytes(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
@@ -777,11 +720,11 @@ mod tests {
         ]).unwrap();
 
         let domain_id = 1;
-        let domain_tag = &SPDPdiscoveredParticipantDataUdp::DEFAULT_DOMAIN_TAG;
+        let domain_tag = &SPDPdiscoveredParticipantDataCdr::DEFAULT_DOMAIN_TAG;
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid = GUID::new([1; 12], ENTITYID_PARTICIPANT);
         let vendor_id = [9, 9];
-        let expects_inline_qos = SPDPdiscoveredParticipantDataUdp::DEFAULT_EXPECTS_INLINE_QOS;
+        let expects_inline_qos = SPDPdiscoveredParticipantDataCdr::DEFAULT_EXPECTS_INLINE_QOS;
         let metatraffic_unicast_locator_list = &[];
         let metatraffic_multicast_locator_list = &[];
         let default_unicast_locator_list = &[];
@@ -791,9 +734,9 @@ mod tests {
         let manual_liveliness_count = Count(2);
         let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
         let lease_duration =
-            SPDPdiscoveredParticipantDataUdp::DEFAULT_PARTICIPANT_LEASE_DURATION.value();
+            SPDPdiscoveredParticipantDataCdr::DEFAULT_PARTICIPANT_LEASE_DURATION;
 
-        let expected_spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+        let expected_spdp_discovered_participant_data = SPDPdiscoveredParticipantDataCdr::new(
             &domain_id,
             domain_tag,
             &protocol_version,
@@ -819,7 +762,7 @@ mod tests {
     #[test]
     fn deserialize_wrong_spdp_discovered_participant_data() {
         #[rustfmt::skip]
-        let spdp_discovered_participant_data_missing_protocol_version = SPDPdiscoveredParticipantDataUdp::from_bytes(&[
+        let spdp_discovered_participant_data_missing_protocol_version = SPDPdiscoveredParticipantDataCdr::from_bytes(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
@@ -845,7 +788,7 @@ mod tests {
         };
 
         #[rustfmt::skip]
-        let spdp_discovered_participant_data_missing_participant_guid = SPDPdiscoveredParticipantDataUdp::from_bytes(&[
+        let spdp_discovered_participant_data_missing_participant_guid = SPDPdiscoveredParticipantDataCdr::from_bytes(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)

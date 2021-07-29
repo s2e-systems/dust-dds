@@ -40,7 +40,7 @@ use rust_rtps_pim::{
         RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
-use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
+use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataCdr;
 
 use crate::udp_transport::UdpTransport;
 
@@ -108,7 +108,7 @@ impl DomainParticipantFactory {
             seconds: 30,
             fraction: 0,
         };
-        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataCdr::new(
             &(domain_id as u32),
             &"abc",
             rtps_participant.protocol_version(),
@@ -167,7 +167,7 @@ impl DomainParticipantFactory {
                         &mut transport,
                     );
                     let mut spdp_discovered_participant_datas =
-                        Vec::<SPDPdiscoveredParticipantDataUdp>::new();
+                        Vec::<SPDPdiscoveredParticipantDataCdr>::new();
                     {
                         let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
                         let spdp_builtin_participant_reader =
@@ -186,7 +186,7 @@ impl DomainParticipantFactory {
                                     .get_change(&seq_num)
                                 {
                                     if let Ok(spdp_discovered_participant_data) =
-                                        SPDPdiscoveredParticipantDataUdp::from_bytes(
+                                        SPDPdiscoveredParticipantDataCdr::from_bytes(
                                             change.data_value(),
                                         )
                                     {
