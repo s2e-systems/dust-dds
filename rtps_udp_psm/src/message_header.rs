@@ -1,10 +1,13 @@
+use std::io::Write;
+
+use byteorder::ByteOrder;
 use rust_rtps_pim::{messages::RtpsMessageHeader, structure::types::ProtocolVersion};
 
 use crate::submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp};
 
 pub type ProtocolIdUdp = [u8; 4];
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct RTPSMessageHeaderUdp {
     pub(crate) protocol: ProtocolIdUdp,
     pub(crate) version: ProtocolVersionUdp,
@@ -15,6 +18,17 @@ pub struct RTPSMessageHeaderUdp {
 impl RTPSMessageHeaderUdp {
     pub const fn number_of_bytes(&self) -> usize {
         20
+    }
+}
+
+impl crate::serialize::Serialize for RTPSMessageHeaderUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for RTPSMessageHeaderUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
     }
 }
 
@@ -52,6 +66,8 @@ mod tests {
         deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
     };
 
+    use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
+
     use super::*;
 
     fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
@@ -76,7 +92,7 @@ mod tests {
             guid_prefix: GuidPrefixUdp([3; 12]),
         };
         #[rustfmt::skip]
-        assert_eq!(serialize(value), vec![
+        assert_eq!(to_bytes_le(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -94,40 +110,15 @@ mod tests {
             guid_prefix: GuidPrefixUdp([3; 12]),
         };
         #[rustfmt::skip]
-        let result = deserialize(&[
+        let result = from_bytes_le(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
             3, 3, 3, 3, // GuidPrefix
-        ]);
+        ]).unwrap();
         assert_eq!(expected, result);
     }
 
-    #[test]
-    fn serialize_rtps_message_header_json() {
-        let value = RTPSMessageHeaderUdp {
-            protocol: b"RTPS".to_owned(),
-            version: ProtocolVersionUdp { major: 2, minor: 3 },
-            vendor_id: VendorIdUdp([9, 8]),
-            guid_prefix: GuidPrefixUdp([3; 12]),
-        };
-        #[rustfmt::skip]
-        assert_eq!(serde_json::ser::to_string(&value).unwrap(),
-        r#"{"protocol":[82,84,80,83],"version":{"major":2,"minor":3},"vendor_id":[9,8],"guid_prefix":[3,3,3,3,3,3,3,3,3,3,3,3]}"#
-        );
-    }
 
-    #[test]
-    fn deserialize_rtps_message_header_json() {
-        let expected = RTPSMessageHeaderUdp {
-            protocol: b"RTPS".to_owned(),
-            version: ProtocolVersionUdp { major: 2, minor: 3 },
-            vendor_id: VendorIdUdp([9, 8]),
-            guid_prefix: GuidPrefixUdp([3; 12]),
-        };
-        let json_str = r#"{"protocol":[82,84,80,83],"version":{"major":2,"minor":3},"vendor_id":[9,8],"guid_prefix":[3,3,3,3,3,3,3,3,3,3,3,3]}"#;
-        let result = serde_json::de::from_str(json_str).unwrap();
-        assert_eq!(expected, result);
-    }
 }

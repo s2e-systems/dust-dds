@@ -1,6 +1,6 @@
-use std::io::Read;
+use std::io::{Read, Write};
 
-use byteorder::{ReadBytesExt, WriteBytesExt};
+use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::{
     messages::types::{Count, FragmentNumber, SubmessageFlag, Time},
     structure::types::{EntityKind, Locator, ProtocolVersion},
@@ -334,9 +334,9 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageE
     }
 }
 
-impl<'a> serde::Serialize for SerializedDataUdp<'a> {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_bytes(self.0)
+impl<'a> crate::serialize::Serialize for SerializedDataUdp<'a>{
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.0.serialize::<_, B>(&mut writer)
     }
 }
 
@@ -345,7 +345,7 @@ impl<'a>
     for SerializedDataUdp<'a>
 {
     fn new(value: &'a [u8]) -> Self {
-        Self(value.into())
+        Self(value)
     }
 
     fn value(&self) -> &'a [u8] {
@@ -353,8 +353,19 @@ impl<'a>
     }
 }
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct VendorIdUdp(pub(crate) [u8; 2]);
+
+impl crate::serialize::Serialize for VendorIdUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.0.serialize::<_, B>(&mut writer)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for VendorIdUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        Ok(Self(crate::deserialize::Deserialize::deserialize::<B>(buf)?))
+    }
+}
 
 impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType for VendorIdUdp {
     fn new(value: &rust_rtps_pim::structure::types::VendorId) -> Self {
@@ -467,7 +478,7 @@ impl LocatorUdp {
     }
 }
 impl<const N: usize> crate::serialize::Serialize for [u8; N] {
-    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+    fn serialize<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> crate::serialize::Result {
@@ -477,7 +488,7 @@ impl<const N: usize> crate::serialize::Serialize for [u8; N] {
 impl<'de, const N: usize> crate::deserialize::Deserialize<'de> for [u8; N] {
     fn deserialize<T>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        T: byteorder::ByteOrder,
+        T: ByteOrder,
     {
         let mut this = [0; N];
         buf.read(&mut this)?;
@@ -485,7 +496,7 @@ impl<'de, const N: usize> crate::deserialize::Deserialize<'de> for [u8; N] {
     }
 }
 impl crate::serialize::Serialize for u8 {
-    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+    fn serialize<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> crate::serialize::Result {
@@ -495,13 +506,13 @@ impl crate::serialize::Serialize for u8 {
 impl<'de> crate::deserialize::Deserialize<'de> for u8 {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        B: byteorder::ByteOrder,
+        B: ByteOrder,
     {
         buf.read_u8()
     }
 }
 impl crate::serialize::Serialize for i32 {
-    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+    fn serialize<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> crate::serialize::Result {
@@ -511,14 +522,14 @@ impl crate::serialize::Serialize for i32 {
 impl<'de> crate::deserialize::Deserialize<'de> for i32 {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        B: byteorder::ByteOrder,
+        B: ByteOrder,
     {
         buf.read_i32::<B>()
     }
 }
 
 impl crate::serialize::Serialize for u32 {
-    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+    fn serialize<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> crate::serialize::Result {
@@ -528,14 +539,14 @@ impl crate::serialize::Serialize for u32 {
 impl<'de> crate::deserialize::Deserialize<'de> for u32 {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        B: byteorder::ByteOrder,
+        B: ByteOrder,
     {
         buf.read_u32::<B>()
     }
 }
 
 impl crate::serialize::Serialize for LocatorUdp {
-    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+    fn serialize<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> super::serialize::Result {
@@ -547,7 +558,7 @@ impl crate::serialize::Serialize for LocatorUdp {
 impl<'de> crate::deserialize::Deserialize<'de> for LocatorUdp {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        B: byteorder::ByteOrder,
+        B: ByteOrder,
     {
         let kind = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let port = crate::deserialize::Deserialize::deserialize::<B>(buf)?;

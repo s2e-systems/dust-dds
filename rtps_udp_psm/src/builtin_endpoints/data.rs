@@ -1,4 +1,4 @@
-use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, deserialize::from_bytes_le, parameter_list::{ParameterListUdp, ParameterUdp}, serialize::to_writer_le, submessage_elements::{
+use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, deserialize::from_bytes_le, parameter_list::{ParameterListUdp, ParameterUdp}, serialize::{to_bytes_le, to_writer_le}, submessage_elements::{
         CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
     }};
 use byteorder::LittleEndian;
@@ -169,7 +169,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.guid)?;
         parameter.push(ParameterUdp::new(PID_PARTICIPANT_GUID, v).into());
 
-        let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.vendor_id)?;
+        let v = &to_bytes_le(&self.participant_proxy.vendor_id)?;
         parameter.push(ParameterUdp::new(PID_VENDORID, v).into());
 
         let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.expects_inline_qos)?;
@@ -257,90 +257,91 @@ impl SPDPdiscoveredParticipantDataUdp {
         let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
         let parameter_list: ParameterListUdp = from_bytes_le(&buf[4..])?;
 
-        let domain_id =
-            parameter_list
-                .get(PID_DOMAIN_ID)
-                .ok_or(rust_serde_cdr::error::Error::Message(
-                    "Missing PID_DOMAIN_ID parameter".to_string(),
-                ))?;
+        // let domain_id =
+        //     parameter_list
+        //         .get(PID_DOMAIN_ID)
+        //         .ok_or(rust_serde_cdr::error::Error::Message(
+        //             "Missing PID_DOMAIN_ID parameter".to_string(),
+        //         ))?;
 
-        let domain_tag = parameter_list
-            .get(PID_DOMAIN_TAG)
-            .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
+        // let domain_tag = parameter_list
+        //     .get(PID_DOMAIN_TAG)
+        //     .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
 
-        let protocol_version: ProtocolVersionUdp = parameter_list.get(PID_PROTOCOL_VERSION).ok_or(
-            rust_serde_cdr::error::Error::Message(
-                "Missing PID_PROTOCOL_VERSION parameter".to_string(),
-            ),
-        )?;
+        // let protocol_version: ProtocolVersionUdp = parameter_list.get(PID_PROTOCOL_VERSION).ok_or(
+        //     rust_serde_cdr::error::Error::Message(
+        //         "Missing PID_PROTOCOL_VERSION parameter".to_string(),
+        //     ),
+        // )?;
 
-        let guid: GUIDUdp = parameter_list.get(PID_PARTICIPANT_GUID).ok_or(
-            rust_serde_cdr::error::Error::Message(
-                "Missing PID_PARTICIPANT_GUID parameter".to_string(),
-            ),
-        )?;
+        // let guid: GUIDUdp = parameter_list.get(PID_PARTICIPANT_GUID).ok_or(
+        //     rust_serde_cdr::error::Error::Message(
+        //         "Missing PID_PARTICIPANT_GUID parameter".to_string(),
+        //     ),
+        // )?;
 
-        let vendor_id: VendorIdUdp =
-            parameter_list
-                .get(PID_VENDORID)
-                .ok_or(rust_serde_cdr::error::Error::Message(
-                    "Missing PID_VENDORID parameter".to_string(),
-                ))?;
+        // let vendor_id: VendorIdUdp =
+        //     parameter_list
+        //         .get(PID_VENDORID)
+        //         .ok_or(rust_serde_cdr::error::Error::Message(
+        //             "Missing PID_VENDORID parameter".to_string(),
+        //         ))?;
 
-        let expects_inline_qos = parameter_list
-            .get(PID_EXPECTS_INLINE_QOS)
-            .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
+        // let expects_inline_qos = parameter_list
+        //     .get(PID_EXPECTS_INLINE_QOS)
+        //     .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
 
-        let metatraffic_unicast_locator_list =
-            parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
+        // let metatraffic_unicast_locator_list =
+        //     parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
 
-        let metatraffic_multicast_locator_list =
-            parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
+        // let metatraffic_multicast_locator_list =
+        //     parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
 
-        let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
+        // let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
 
-        let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
+        // let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
 
-        let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET).ok_or(
-            rust_serde_cdr::error::Error::Message(
-                "Missing PID_BUILTIN_ENDPOINT_SET parameter".to_string(),
-            ),
-        )?;
+        // let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET).ok_or(
+        //     rust_serde_cdr::error::Error::Message(
+        //         "Missing PID_BUILTIN_ENDPOINT_SET parameter".to_string(),
+        //     ),
+        // )?;
 
-        let manual_liveliness_count = parameter_list
-            .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
-            .ok_or(rust_serde_cdr::error::Error::Message(
-                "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter".to_string(),
-            ))?;
+        // let manual_liveliness_count = parameter_list
+        //     .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
+        //     .ok_or(rust_serde_cdr::error::Error::Message(
+        //         "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter".to_string(),
+        //     ))?;
 
-        let builtin_endpoint_qos = parameter_list
-            .get(PID_BUILTIN_ENDPOINT_QOS)
-            .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
+        // let builtin_endpoint_qos = parameter_list
+        //     .get(PID_BUILTIN_ENDPOINT_QOS)
+        //     .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
 
-        let lease_duration = parameter_list
-            .get(PID_PARTICIPANT_LEASE_DURATION)
-            .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
+        // let lease_duration = parameter_list
+        //     .get(PID_PARTICIPANT_LEASE_DURATION)
+        //     .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
 
-        let participant_proxy = ParticipantProxy {
-            domain_id,
-            domain_tag,
-            protocol_version,
-            guid,
-            vendor_id,
-            expects_inline_qos,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            available_builtin_endpoints,
-            manual_liveliness_count,
-            builtin_endpoint_qos,
-        };
+        // let participant_proxy = ParticipantProxy {
+        //     domain_id,
+        //     domain_tag,
+        //     protocol_version,
+        //     guid,
+        //     vendor_id,
+        //     expects_inline_qos,
+        //     metatraffic_unicast_locator_list,
+        //     metatraffic_multicast_locator_list,
+        //     default_unicast_locator_list,
+        //     default_multicast_locator_list,
+        //     available_builtin_endpoints,
+        //     manual_liveliness_count,
+        //     builtin_endpoint_qos,
+        // };
 
-        Ok(Self {
-            participant_proxy: participant_proxy,
-            lease_duration: lease_duration,
-        })
+        // Ok(Self {
+        //     participant_proxy: participant_proxy,
+        //     lease_duration: lease_duration,
+        // })
+        todo!()
     }
 }
 

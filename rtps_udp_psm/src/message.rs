@@ -40,31 +40,32 @@ impl<'a> serde::Serialize for RTPSMessageUdp<'a> {
     where
         S: serde::Serializer,
     {
-        let len = self.submessages.len() + 1;
-        let mut state = serializer.serialize_struct("RTPSMessage", len)?;
-        state.serialize_field("header", &self.header)?;
-        for submessage in &self.submessages {
-            match submessage {
-                //RtpsSubmessageType::AckNack(submessage) => state.serialize_field("submessage", submessage)?,
-                RtpsSubmessageType::Data(submessage) => {
-                    state.serialize_field("submessage", submessage)?
-                }
-                //RtpsSubmessageType::DataFrag(submessage) => state.serialize_field("submessage", submessage)?,
-                RtpsSubmessageType::Gap(submessage) => {
-                    state.serialize_field("submessage", submessage)?
-                }
-                // RtpsSubmessageType::Heartbeat(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::HeartbeatFrag(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::InfoDestination(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::InfoReply(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::InfoSource(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::InfoTimestamp(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::NackFrag(submessage) => state.serialize_field("submessage", submessage)?,
-                //RtpsSubmessageType::Pad(submessage) => state.serialize_field("submessage", submessage)?,
-                _ => todo!(),
-            }
-        }
-        state.end()
+        // let len = self.submessages.len() + 1;
+        // let mut state = serializer.serialize_struct("RTPSMessage", len)?;
+        // state.serialize_field("header", &self.header)?;
+        // for submessage in &self.submessages {
+        //     match submessage {
+        //         //RtpsSubmessageType::AckNack(submessage) => state.serialize_field("submessage", submessage)?,
+        //         RtpsSubmessageType::Data(submessage) => {
+        //             state.serialize_field("submessage", submessage)?
+        //         }
+        //         //RtpsSubmessageType::DataFrag(submessage) => state.serialize_field("submessage", submessage)?,
+        //         RtpsSubmessageType::Gap(submessage) => {
+        //             state.serialize_field("submessage", submessage)?
+        //         }
+        //         // RtpsSubmessageType::Heartbeat(submessage) => state.serialize_field("submessage", submessage)?,
+        //         // RtpsSubmessageType::HeartbeatFrag(submessage) => state.serialize_field("submessage", submessage)?,
+        //         // RtpsSubmessageType::InfoDestination(submessage) => state.serialize_field("submessage", submessage)?,
+        //         // RtpsSubmessageType::InfoReply(submessage) => state.serialize_field("submessage", submessage)?,
+        //         // RtpsSubmessageType::InfoSource(submessage) => state.serialize_field("submessage", submessage)?,
+        //         // RtpsSubmessageType::InfoTimestamp(submessage) => state.serialize_field("submessage", submessage)?,
+        //         // RtpsSubmessageType::NackFrag(submessage) => state.serialize_field("submessage", submessage)?,
+        //         //RtpsSubmessageType::Pad(submessage) => state.serialize_field("submessage", submessage)?,
+        //         _ => todo!(),
+        //     }
+        // }
+        // state.end()
+        todo!()
     }
 }
 
@@ -108,43 +109,44 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for RTPSMessageUdpVisitor<'a> {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        let mut submessages = vec![];
+        // let mut submessages = vec![];
 
-        let header: RTPSMessageHeaderUdp = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
-        for _ in 0..MAX_SUBMESSAGES {
-            // Preview byte only (to allow full deserialization of submessage header)
-            let submessage_id_ref: &[u8] = seq
-                .next_element()?
-                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-            if submessage_id_ref.len() >= 4 {
-                let submessage_id = submessage_id_ref[0];
-                let submessage = match submessage_id {
-                    GAP => RtpsSubmessageType::Gap(
-                        seq.next_element()?
-                            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
-                    ),
-                    DATA => RtpsSubmessageType::Data(
-                        seq.next_element()?
-                            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
-                    ),
-                    _ => {
-                        let submessage_header: SubmessageHeaderUdp = seq
-                            .next_element()?
-                            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
-                        seq.next_element_seed(Bytes(submessage_header.submessage_length as usize))?;
-                        continue;
-                    }
-                };
-                submessages.push(submessage);
-            }
-        }
-        Ok(RTPSMessageUdp {
-            header,
-            submessages,
-        })
+        // let header: RTPSMessageHeaderUdp = seq
+        //     .next_element()?
+        //     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        // const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
+        // for _ in 0..MAX_SUBMESSAGES {
+        //     // Preview byte only (to allow full deserialization of submessage header)
+        //     let submessage_id_ref: &[u8] = seq
+        //         .next_element()?
+        //         .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+        //     if submessage_id_ref.len() >= 4 {
+        //         let submessage_id = submessage_id_ref[0];
+        //         let submessage = match submessage_id {
+        //             GAP => RtpsSubmessageType::Gap(
+        //                 seq.next_element()?
+        //                     .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
+        //             ),
+        //             DATA => RtpsSubmessageType::Data(
+        //                 seq.next_element()?
+        //                     .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
+        //             ),
+        //             _ => {
+        //                 let submessage_header: SubmessageHeaderUdp = seq
+        //                     .next_element()?
+        //                     .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+        //                 seq.next_element_seed(Bytes(submessage_header.submessage_length as usize))?;
+        //                 continue;
+        //             }
+        //         };
+        //         submessages.push(submessage);
+        //     }
+        // }
+        // Ok(RTPSMessageUdp {
+        //     header,
+        //     submessages,
+        // })
+        todo!()
     }
 }
 
