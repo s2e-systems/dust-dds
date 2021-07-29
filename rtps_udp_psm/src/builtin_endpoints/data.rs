@@ -1,10 +1,7 @@
-use crate::{
-    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
-    parameter_list::{ParameterListUdp, ParameterUdp},
-    submessage_elements::{
+use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, deserialize::from_bytes_le, parameter_list::{ParameterListUdp, ParameterUdp}, serialize::to_writer_le, submessage_elements::{
         CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
-    },
-};
+    }};
+use byteorder::LittleEndian;
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
@@ -251,14 +248,14 @@ impl SPDPdiscoveredParticipantDataUdp {
         }
 
         let mut bytes = PL_CDR_LE.to_vec();
-        rust_serde_cdr::serializer::serialize_into(&ParameterListUdp { parameter }, &mut bytes)
+        to_writer_le(&ParameterListUdp { parameter }, &mut bytes)
             .unwrap();
         Ok(bytes)
     }
 
     pub fn from_bytes(buf: &[u8]) -> Result<Self, rust_serde_cdr::error::Error> {
         let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
-        let parameter_list: ParameterListUdp = rust_serde_cdr::deserializer::from_bytes(&buf[4..])?;
+        let parameter_list: ParameterListUdp = from_bytes_le(&buf[4..])?;
 
         let domain_id =
             parameter_list

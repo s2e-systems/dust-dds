@@ -119,32 +119,33 @@ impl<'a> serde::Serialize for DataSubmesageUdp<'a> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
 
-        let mut len = 6;
-        if self.inline_qos_flag() {
-            len += 1
-        };
-        if self.data_flag() || self.key_flag() {
-            len += 1;
-        };
-        let mut state = serializer.serialize_struct("Data", len)?;
-        state.serialize_field("header", &self.header)?;
-        state.serialize_field("extra_flags", &self.extra_flags)?;
-        state.serialize_field("octets_to_inline_qos", &self.octets_to_inline_qos)?;
-        state.serialize_field("reader_id", &self.reader_id)?;
-        state.serialize_field("writer_id", &self.writer_id)?;
-        state.serialize_field("writer_sn", &self.writer_sn)?;
-        if self.inline_qos_flag() {
-            state.serialize_field("inline_qos", &self.inline_qos)?;
-        }
-        if self.data_flag() || self.key_flag() {
-            state.serialize_field("serialized_payload", &self.serialized_payload)?;
-            // Pad to 32bit boundary
-            let pad_length = (4 - self.serialized_payload.len() % 4) & 0b11; // ceil to the nearest multiple of 4
-            let pad = vec![0; pad_length as usize];
-            state.serialize_field("pad", &SerializedDataUdp(pad.as_slice()))?;
-        }
+        // let mut len = 6;
+        // if self.inline_qos_flag() {
+        //     len += 1
+        // };
+        // if self.data_flag() || self.key_flag() {
+        //     len += 1;
+        // };
+        // let mut state = serializer.serialize_struct("Data", len)?;
+        // state.serialize_field("header", &self.header)?;
+        // state.serialize_field("extra_flags", &self.extra_flags)?;
+        // state.serialize_field("octets_to_inline_qos", &self.octets_to_inline_qos)?;
+        // state.serialize_field("reader_id", &self.reader_id)?;
+        // state.serialize_field("writer_id", &self.writer_id)?;
+        // state.serialize_field("writer_sn", &self.writer_sn)?;
+        // if self.inline_qos_flag() {
+        //     state.serialize_field("inline_qos", &self.inline_qos)?;
+        // }
+        // if self.data_flag() || self.key_flag() {
+        //     state.serialize_field("serialized_payload", &self.serialized_payload)?;
+        //     // Pad to 32bit boundary
+        //     let pad_length = (4 - self.serialized_payload.len() % 4) & 0b11; // ceil to the nearest multiple of 4
+        //     let pad = vec![0; pad_length as usize];
+        //     state.serialize_field("pad", &SerializedDataUdp(pad.as_slice()))?;
+        // }
 
-        state.end()
+        // state.end()
+        todo!()
     }
 }
 
@@ -188,65 +189,66 @@ impl<'a, 'de: 'a> serde::de::Visitor<'de> for DataSubmesageVisitor<'a> {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        let header: SubmessageHeaderUdp = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let inline_qos_flag = is_bit_set(header.flags, 1);
-        let data_flag = is_bit_set(header.flags, 2);
-        let key_flag = is_bit_set(header.flags, 3);
-        // let non_standard_payload_flag = header.flags.is_bit_set(4);
-        let extra_flags: u16 = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        let octets_to_inline_qos: u16 = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
-        let reader_id: EntityIdUdp = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
-        let writer_id: EntityIdUdp = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
-        let writer_sn: SequenceNumberUdp = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
+        // let header: SubmessageHeaderUdp = seq
+        //     .next_element()?
+        //     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        // let inline_qos_flag = is_bit_set(header.flags, 1);
+        // let data_flag = is_bit_set(header.flags, 2);
+        // let key_flag = is_bit_set(header.flags, 3);
+        // // let non_standard_payload_flag = header.flags.is_bit_set(4);
+        // let extra_flags: u16 = seq
+        //     .next_element()?
+        //     .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+        // let octets_to_inline_qos: u16 = seq
+        //     .next_element()?
+        //     .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+        // let reader_id: EntityIdUdp = seq
+        //     .next_element()?
+        //     .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+        // let writer_id: EntityIdUdp = seq
+        //     .next_element()?
+        //     .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
+        // let writer_sn: SequenceNumberUdp = seq
+        //     .next_element()?
+        //     .ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
 
 
-        let inline_qos: ParameterListUdp = if inline_qos_flag {
-            seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(6, &self))?
-        } else {
-            ParameterListUdp { parameter: vec![] }
-        };
-        let inline_qos_len = if inline_qos_flag {
-            inline_qos.number_of_bytes()
-        } else {
-            0
-        };
+        // let inline_qos: ParameterListUdp = if inline_qos_flag {
+        //     seq
+        //     .next_element()?
+        //     .ok_or_else(|| serde::de::Error::invalid_length(6, &self))?
+        // } else {
+        //     ParameterListUdp { parameter: vec![] }
+        // };
+        // let inline_qos_len = if inline_qos_flag {
+        //     inline_qos.number_of_bytes()
+        // } else {
+        //     0
+        // };
 
-        let serialized_payload: SerializedDataUdp = if data_flag || key_flag {
-            let serialized_payload_length =
-            header.submessage_length as usize - octets_to_inline_qos as usize - 4 - inline_qos_len;
+        // let serialized_payload: SerializedDataUdp = if data_flag || key_flag {
+        //     let serialized_payload_length =
+        //     header.submessage_length as usize - octets_to_inline_qos as usize - 4 - inline_qos_len;
 
-            let data: &[u8] = seq.next_element_seed(Bytes(serialized_payload_length))?
-                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+        //     let data: &[u8] = seq.next_element_seed(Bytes(serialized_payload_length))?
+        //         .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
 
-            SerializedDataUdp(&data)
-        } else {
-            SerializedDataUdp(&[])
-        };
+        //     SerializedDataUdp(&data)
+        // } else {
+        //     SerializedDataUdp(&[])
+        // };
 
-        Ok(DataSubmesageUdp {
-            header,
-            extra_flags,
-            octets_to_inline_qos,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        })
+        // Ok(DataSubmesageUdp {
+        //     header,
+        //     extra_flags,
+        //     octets_to_inline_qos,
+        //     reader_id,
+        //     writer_id,
+        //     writer_sn,
+        //     inline_qos,
+        //     serialized_payload,
+        // })
+        todo!()
     }
 }
 

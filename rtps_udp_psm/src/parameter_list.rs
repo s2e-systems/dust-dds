@@ -1,11 +1,19 @@
 use std::marker::PhantomData;
 
+use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
     submessage_elements::{Parameter, ParameterListSubmessageElementType},
     types::ParameterId,
 };
 use rust_serde_cdr::deserializer::RtpsMessageDeserializer;
 use serde::ser::SerializeStruct;
+
+const PID_SENTINEL: u16 = 1;
+const SENTINEL: ParameterUdp = ParameterUdp {
+    parameter_id: PID_SENTINEL,
+    length: 0,
+    value: &[],
+};
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterUdp<'a> {
@@ -44,112 +52,112 @@ impl<'a> From<ParameterUdp<'a>> for Parameter<'a> {
     }
 }
 
-impl<'a> serde::Serialize for ParameterUdp<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl crate::serialize::Serialize for u16 {
+    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> crate::serialize::Result {
+        writer.write_u16::<B>(*self)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for u16 {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        S: serde::Serializer,
+        B: byteorder::ByteOrder,
     {
-        let mut state = serializer.serialize_struct("Parameter", 3)?;
+        buf.read_u16::<B>()
+    }
+}
+impl crate::serialize::Serialize for i16 {
+    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> crate::serialize::Result {
+        writer.write_i16::<B>(*self)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for i16 {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: byteorder::ByteOrder,
+    {
+        buf.read_i16::<B>()
+    }
+}
+
+impl<'a> crate::serialize::Serialize for &'a [u8] {
+    fn serialize<W: std::io::Write, B: ByteOrder>(&self, mut writer: W) -> std::io::Result<()> {
+        writer.write_all(self)
+    }
+}
+
+impl<'a> crate::serialize::Serialize for ParameterUdp<'a> {
+    fn serialize<W: std::io::Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> crate::serialize::Result {
+        self.parameter_id.serialize::<_, B>(&mut writer)?;
+        self.length.serialize::<_, B>(&mut writer)?;
+        self.value.serialize::<_, B>(&mut writer)?;
         let padding: &[u8] = match self.value.len() % 4 {
             1 => &[0; 3],
             2 => &[0; 2],
             3 => &[0; 1],
             _ => &[],
         };
-        state.serialize_field("parameter_Id", &self.parameter_id)?;
-        state.serialize_field("length", &self.length)?;
-        state.serialize_field("value", serde_bytes::Bytes::new(self.value))?;
-        state.serialize_field("padding", serde_bytes::Bytes::new(padding))?;
-        state.end()
+        padding.serialize::<_, B>(&mut writer)
     }
 }
 
-struct Bytes(usize);
-impl<'de> serde::de::DeserializeSeed<'de> for Bytes {
-    type Value = &'de [u8];
-
-    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+impl<'a, 'de: 'a> crate::deserialize::Deserialize<'de> for ParameterUdp<'a> {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        D: serde::Deserializer<'de>,
+        B: ByteOrder,
     {
-        struct BytesVisitor;
-
-        impl<'a> serde::de::Visitor<'a> for BytesVisitor {
-            type Value = &'a [u8];
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a borrowed byte array")
-            }
-
-            fn visit_borrowed_bytes<E>(self, v: &'a [u8]) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(v)
-            }
-        }
-        deserializer.deserialize_tuple_struct("", self.0, BytesVisitor)
-    }
-}
-
-struct ParameterVisitor<'a>(PhantomData<&'a ()>);
-
-impl<'a, 'de: 'a> serde::de::Visitor<'de> for ParameterVisitor<'a> {
-    type Value = ParameterUdp<'a>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("Parameter of the ParameterList Submessage Element")
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
-    {
-        let parameter_id: u16 = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let length: i16 = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-
-        let data: &[u8] = seq
-            .next_element_seed(Bytes(length as usize))?
-            .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
-
-        Ok(ParameterUdp {
+        let parameter_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let length = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let (value, following) = buf.split_at(length as usize);
+        *buf = following;
+        Ok(Self {
             parameter_id,
             length,
-            value: &data[..length as usize],
+            value,
         })
     }
 }
 
-impl<'a, 'de: 'a> serde::Deserialize<'de> for ParameterUdp<'a> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &["parameter_id", "length", "value"];
-        deserializer.deserialize_struct("Parameter", FIELDS, ParameterVisitor(PhantomData))
+impl<'a> crate::serialize::Serialize for ParameterListUdp<'a> {
+    fn serialize<W: std::io::Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> crate::serialize::Result {
+        for parameter in &self.parameter {
+            ParameterUdp::from(parameter).serialize::<_, B>(&mut writer)?;
+        }
+        SENTINEL.serialize::<_, B>(&mut writer)
     }
 }
 
-const PID_SENTINEL: u16 = 1;
-const SENTINEL: ParameterUdp = ParameterUdp {
-    parameter_id: PID_SENTINEL,
-    length: 0,
-    value: &[],
-};
+impl<'a, 'de: 'a> crate::deserialize::Deserialize<'de> for ParameterListUdp<'a> {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: ByteOrder,
+    {
+        const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
-impl<'a> ParameterListSubmessageElementType<'a> for ParameterListUdp<'a> {
-    fn new(parameter: &'a [Parameter]) -> Self {
-        Self {
-            parameter: parameter.to_vec(),
+        let mut parameter = vec![];
+
+        for _ in 0..MAX_PARAMETERS {
+            let parameter_i: ParameterUdp =
+                crate::deserialize::Deserialize::deserialize::<B>(buf).unwrap();
+
+            if parameter_i == SENTINEL {
+                return Ok(ParameterListUdp { parameter });
+            } else {
+                parameter.push(Parameter::from(parameter_i));
+            }
         }
-    }
-
-    fn parameter(&self) -> &[Parameter<'a>] {
-        self.parameter.as_slice()
+        Ok(ParameterListUdp { parameter })
     }
 }
 
@@ -169,7 +177,7 @@ impl<'a> ParameterListUdp<'a> {
     pub fn get<'b: 'de, 'de, T: serde::Deserialize<'de>>(&'b self, parameter_id: u16) -> Option<T> {
         for parameter in &self.parameter {
             if parameter.parameter_id.0 == parameter_id {
-                return rust_serde_cdr::deserializer::from_bytes(parameter.value).unwrap();
+                return Some(rust_serde_cdr::deserializer::from_bytes(parameter.value).unwrap());
             }
         }
         None
@@ -190,74 +198,30 @@ impl<'a> ParameterListUdp<'a> {
     }
 }
 
-impl<'a> serde::Serialize for ParameterListUdp<'a> {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let len = self.parameter.len() + 1;
-        let mut state = serializer.serialize_struct("ParameterList", len)?;
-        for parameter in &self.parameter {
-            state.serialize_field("parameter", &ParameterUdp::from(parameter))?;
+impl<'a> ParameterListSubmessageElementType<'a> for ParameterListUdp<'a> {
+    fn new(parameter: &'a [Parameter]) -> Self {
+        Self {
+            parameter: parameter.to_vec(),
         }
-        state.serialize_field("sentinel", &SENTINEL)?;
-        state.end()
-    }
-}
-
-struct ParameterListVisitor<'a>(PhantomData<&'a ()>);
-
-impl<'a, 'de: 'a> serde::de::Visitor<'de> for ParameterListVisitor<'a> {
-    type Value = ParameterListUdp<'a>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("ParameterList Submessage Element")
     }
 
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
-    {
-        const MAX_PARAMETERS: usize = 2_usize.pow(16);
-
-        let buf: &[u8] = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-
-        let mut parameter = vec![];
-
-        let mut de = RtpsMessageDeserializer { reader: buf };
-
-        for _ in 0..MAX_PARAMETERS {
-            let parameter_i: ParameterUdp = serde::de::Deserialize::deserialize(&mut de).unwrap();
-            //de.reader.consume(parameter_i.length as usize);
-            if parameter_i == SENTINEL {
-                return Ok(ParameterListUdp { parameter });
-            } else {
-                parameter.push(Parameter::from(parameter_i));
-            }
-        }
-        Ok(ParameterListUdp { parameter })
-    }
-}
-
-impl<'a, 'de: 'a> serde::Deserialize<'de> for ParameterListUdp<'a> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &'static [&'static str] = &["parameter"];
-        deserializer.deserialize_struct("ParameterList", FIELDS, ParameterListVisitor(PhantomData))
+    fn parameter(&self) -> &[Parameter<'a>] {
+        self.parameter.as_slice()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_serde_cdr::deserializer::{self};
+
+    use crate::deserialize::from_bytes_le;
+    use crate::serialize::to_bytes_le;
 
     #[test]
     fn serialize_parameter() {
         let parameter = ParameterUdp::new(2, &[5, 6, 7, 8]);
         #[rustfmt::skip]
-        assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
+        assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
         ]);
@@ -267,7 +231,7 @@ mod tests {
     fn serialize_parameter_non_multiple_4() {
         let parameter = ParameterUdp::new(2, &[5, 6, 7]);
         #[rustfmt::skip]
-        assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
+        assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 0,       // value
         ]);
@@ -277,7 +241,7 @@ mod tests {
     fn serialize_parameter_zero_size() {
         let parameter = ParameterUdp::new(2, &[]);
         assert_eq!(
-            rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(),
+            to_bytes_le(&parameter).unwrap(),
             vec![
             0x02, 0x00, 0, 0, // Parameter | length
         ]
@@ -293,7 +257,7 @@ mod tests {
             ],
         };
         #[rustfmt::skip]
-        assert_eq!(rust_serde_cdr::serializer::to_bytes(&parameter).unwrap(), vec![
+        assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
             51, 61, 71, 81,   // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -306,7 +270,7 @@ mod tests {
     fn deserialize_parameter_non_multiple_of_4() {
         let expected = ParameterUdp::new(0x02, &[5, 6, 7, 8, 9, 10, 11, 0]);
         #[rustfmt::skip]
-        let result = deserializer::from_bytes(&[
+        let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
             5, 6, 7, 8,       // value
             9, 10, 11, 0,     // value
@@ -318,7 +282,7 @@ mod tests {
     fn deserialize_parameter() {
         let expected = ParameterUdp::new(0x02, &[5, 6, 7, 8, 9, 10, 11, 12]);
         #[rustfmt::skip]
-        let result = deserializer::from_bytes(&[
+        let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
             5, 6, 7, 8,       // value
             9, 10, 11, 12,       // value
@@ -335,7 +299,7 @@ mod tests {
             ],
         };
         #[rustfmt::skip]
-        let result: ParameterListUdp = deserializer::from_bytes(&[
+        let result: ParameterListUdp = from_bytes_le(&[
             0x02, 0x00, 4, 0, // Parameter ID | length
             15, 16, 17, 18,        // value
             0x03, 0x00, 4, 0, // Parameter ID | length
@@ -361,7 +325,7 @@ mod tests {
             parameter: vec![ParameterUdp::new(0x32, parameter_value_expected).into()],
         };
         #[rustfmt::skip]
-        let result: ParameterListUdp = deserializer::from_bytes(&[
+        let result: ParameterListUdp = from_bytes_le(&[
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -397,7 +361,7 @@ mod tests {
             ],
         };
         #[rustfmt::skip]
-        let result: ParameterListUdp = deserializer::from_bytes(&[
+        let result: ParameterListUdp = from_bytes_le(&[
             0x32, 0x00, 24, 0x00, // Parameter ID | length
             0x01, 0x00, 0x00, 0x00, // Parameter value
             0x01, 0x00, 0x00, 0x00, // Parameter value
@@ -418,13 +382,22 @@ mod tests {
     }
 
     #[test]
-    fn paramter_submessage_element_roundtrip(){
+    fn paramter_submessage_element_roundtrip() {
         let parameter_value1 = [1, 2];
         let parameter_value2 = [3, 4, 5];
-        let parameter1 = Parameter{ parameter_id: ParameterId(1), length: parameter_value1.len() as i16, value: &parameter_value1 };
-        let parameter2 = Parameter{ parameter_id: ParameterId(2), length: parameter_value2.len() as i16, value: &parameter_value2 };
+        let parameter1 = Parameter {
+            parameter_id: ParameterId(1),
+            length: parameter_value1.len() as i16,
+            value: &parameter_value1,
+        };
+        let parameter2 = Parameter {
+            parameter_id: ParameterId(2),
+            length: parameter_value2.len() as i16,
+            value: &parameter_value2,
+        };
         let parameter = &[parameter1, parameter2];
-        let submessage_element: ParameterListUdp = ParameterListSubmessageElementType::new(parameter);
+        let submessage_element: ParameterListUdp =
+            ParameterListSubmessageElementType::new(parameter);
         let result = submessage_element.parameter();
         assert_eq!(parameter, result);
     }
