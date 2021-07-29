@@ -6,18 +6,9 @@ use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader
 use crate::{
     message_header::RTPSMessageHeaderUdp,
     psm::RtpsUdpPsm,
-    submessage_header::{SubmessageHeaderUdp, DATA, GAP,
-
-        HEARTBEAT,
-        ACKNACK,
-        PAD,
-        INFO_TS,
-        INFO_REPLY,
-        INFO_DST,
-        INFO_SRC,
-        DATA_FRAG,
-        NACK_FRAG,
-        HEARTBEAT_FRAG
+    submessage_header::{
+        SubmessageHeaderUdp, ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST,
+        INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD,
     },
 };
 
@@ -54,44 +45,24 @@ impl<'a> crate::serialize::Serialize for RTPSMessageUdp<'a> {
         self.header.serialize::<_, B>(&mut writer)?;
         for submessage in &self.submessages {
             match submessage {
-                RtpsSubmessageType::AckNack(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::Data(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::DataFrag(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::Gap(submessage) => submessage.serialize::<_, B>(&mut writer)?,
-                RtpsSubmessageType::Heartbeat(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::HeartbeatFrag(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::InfoDestination(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::InfoReply(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::InfoSource(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::InfoTimestamp(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::NackFrag(submessage) => {
-                    submessage.serialize::<_, B>(&mut writer)?
-                }
-                RtpsSubmessageType::Pad(submessage) => submessage.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::AckNack(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::Data(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::DataFrag(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::Gap(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::Heartbeat(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::HeartbeatFrag(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::InfoDestination(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::InfoReply(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::InfoSource(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::InfoTimestamp(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::NackFrag(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::Pad(s) => s.serialize::<_, B>(&mut writer)?,
             }
         }
         Ok(())
     }
 }
-impl<'a, 'de:'a> crate::deserialize::Deserialize<'de> for RTPSMessageUdp<'a> {
+impl<'a, 'de: 'a> crate::deserialize::Deserialize<'de> for RTPSMessageUdp<'a> {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
         B: ByteOrder,
@@ -101,21 +72,48 @@ impl<'a, 'de:'a> crate::deserialize::Deserialize<'de> for RTPSMessageUdp<'a> {
         let mut submessages = vec![];
         let header = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         for _ in 0..MAX_SUBMESSAGES {
+            if buf.len() < 4 {
+                break;
+            }
             // Preview byte only (to allow full deserialization of submessage header)
             let submessage_id = buf[0];
             let submessage = match submessage_id {
-                ACKNACK  => RtpsSubmessageType::AckNack(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                DATA => RtpsSubmessageType::Data(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                DATA_FRAG => RtpsSubmessageType::DataFrag(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                GAP => RtpsSubmessageType::Gap(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                HEARTBEAT => RtpsSubmessageType::Heartbeat(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                HEARTBEAT_FRAG => RtpsSubmessageType::HeartbeatFrag(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                INFO_DST => RtpsSubmessageType::InfoDestination(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                INFO_REPLY => RtpsSubmessageType::InfoReply(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                INFO_SRC => RtpsSubmessageType::InfoSource(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                INFO_TS => RtpsSubmessageType::InfoTimestamp(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                NACK_FRAG => RtpsSubmessageType::NackFrag(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
-                PAD => RtpsSubmessageType::Pad(crate::deserialize::Deserialize::deserialize::<B>(buf)?),
+                ACKNACK => RtpsSubmessageType::AckNack(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                DATA => RtpsSubmessageType::Data(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                DATA_FRAG => RtpsSubmessageType::DataFrag(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                GAP => {
+                    RtpsSubmessageType::Gap(crate::deserialize::Deserialize::deserialize::<B>(buf)?)
+                }
+                HEARTBEAT => RtpsSubmessageType::Heartbeat(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                HEARTBEAT_FRAG => RtpsSubmessageType::HeartbeatFrag(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                INFO_DST => RtpsSubmessageType::InfoDestination(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                INFO_REPLY => RtpsSubmessageType::InfoReply(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                INFO_SRC => RtpsSubmessageType::InfoSource(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                INFO_TS => RtpsSubmessageType::InfoTimestamp(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                NACK_FRAG => RtpsSubmessageType::NackFrag(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                PAD => {
+                    RtpsSubmessageType::Pad(crate::deserialize::Deserialize::deserialize::<B>(buf)?)
+                }
                 _ => {
                     let submessage_header: SubmessageHeaderUdp =
                         crate::deserialize::Deserialize::deserialize::<B>(buf)?;
@@ -129,10 +127,8 @@ impl<'a, 'de:'a> crate::deserialize::Deserialize<'de> for RTPSMessageUdp<'a> {
             header,
             submessages,
         })
-
     }
 }
-
 
 #[cfg(test)]
 mod tests {

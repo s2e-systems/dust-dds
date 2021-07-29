@@ -22,13 +22,28 @@ impl RTPSMessageHeaderUdp {
 }
 
 impl crate::serialize::Serialize for RTPSMessageHeaderUdp {
-    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> crate::serialize::Result {
-        todo!()
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.protocol.serialize::<_, B>(&mut writer)?;
+        self.version.serialize::<_, B>(&mut writer)?;
+        self.vendor_id.serialize::<_, B>(&mut writer)?;
+        self.guid_prefix.serialize::<_, B>(&mut writer)
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for RTPSMessageHeaderUdp {
-    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
-        todo!()
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: ByteOrder,
+    {
+        let protocol = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let version = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let vendor_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let guid_prefix = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        Ok(Self {
+            protocol,
+            version,
+            vendor_id,
+            guid_prefix,
+        })
     }
 }
 
@@ -119,6 +134,4 @@ mod tests {
         ]).unwrap();
         assert_eq!(expected, result);
     }
-
-
 }

@@ -21,21 +21,30 @@ pub struct GapSubmessageUdp {
 
 impl crate::serialize::Serialize for GapSubmessageUdp {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
-        self.header.serialize::<_,B>(&mut writer)?;
-        self.reader_id.serialize::<_,B>(&mut writer)?;
-        self.writer_id.serialize::<_,B>(&mut writer)?;
-        self.gap_start.serialize::<_,B>(&mut writer)?;
-        self.gap_list.serialize::<_,B>(&mut writer)
+        self.header.serialize::<_, B>(&mut writer)?;
+        self.reader_id.serialize::<_, B>(&mut writer)?;
+        self.writer_id.serialize::<_, B>(&mut writer)?;
+        self.gap_start.serialize::<_, B>(&mut writer)?;
+        self.gap_list.serialize::<_, B>(&mut writer)
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for GapSubmessageUdp {
-    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: ByteOrder,
+    {
         let header = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let reader_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let writer_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let gap_start = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let gap_list = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        Ok(Self{ header, reader_id, writer_id, gap_start, gap_list })
+        Ok(Self {
+            header,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        })
     }
 }
 

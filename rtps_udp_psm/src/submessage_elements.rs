@@ -284,6 +284,20 @@ pub struct ProtocolVersionUdp {
     pub minor: u8,
 }
 
+impl crate::serialize::Serialize for ProtocolVersionUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.major.serialize::<_, B>(&mut writer)?;
+        self.minor.serialize::<_, B>(&mut writer)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for ProtocolVersionUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        let major = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let minor = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        Ok(Self{ major, minor })
+    }
+}
+
 impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType
     for ProtocolVersionUdp
 {
