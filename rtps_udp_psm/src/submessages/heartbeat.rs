@@ -18,6 +18,17 @@ pub struct HeartbeatSubmessageUdp {
     count: CountUdp,
 }
 
+impl crate::serialize::Serialize for HeartbeatSubmessageUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for HeartbeatSubmessageUdp {
+    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
+    }
+}
+
 impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage for HeartbeatSubmessageUdp {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSubmessageElementType = SequenceNumberUdp;
@@ -89,16 +100,6 @@ impl rust_rtps_pim::messages::Submessage for HeartbeatSubmessageUdp {
     }
 }
 
-impl crate::serialize::Serialize for HeartbeatSubmessageUdp {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
-        todo!()
-    }
-}
-impl<'de> crate::deserialize::Deserialize<'de> for HeartbeatSubmessageUdp {
-    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
-        todo!()
-    }
-}
 
 #[cfg(test)]
 mod tests {

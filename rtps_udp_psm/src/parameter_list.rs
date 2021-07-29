@@ -1,12 +1,8 @@
-use std::marker::PhantomData;
-
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
     submessage_elements::{Parameter, ParameterListSubmessageElementType},
     types::ParameterId,
 };
-use rust_serde_cdr::deserializer::RtpsMessageDeserializer;
-use serde::ser::SerializeStruct;
 
 const PID_SENTINEL: u16 = 1;
 const SENTINEL: ParameterUdp = ParameterUdp {
