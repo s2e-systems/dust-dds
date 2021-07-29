@@ -78,7 +78,7 @@ pub trait TimestampSubmessageElementType {
     fn value(&self) -> Time;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Parameter<'a> {
     pub parameter_id: ParameterId,
     pub length: i16,
