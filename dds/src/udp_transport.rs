@@ -3,8 +3,6 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 use rust_dds_rtps_implementation::utils::transport::{TransportRead, TransportWrite};
 use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
 use rust_rtps_udp_psm::{deserialize::from_bytes_le, message::RTPSMessageUdp, serialize::to_writer_le};
-use rust_serde_cdr::serializer::RtpsMessageSerializer;
-use serde::ser::Serialize;
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {

@@ -19,13 +19,24 @@ pub struct HeartbeatSubmessageUdp {
 }
 
 impl crate::serialize::Serialize for HeartbeatSubmessageUdp {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
-        todo!()
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.header.serialize::<_, B>(&mut writer)?;
+        self.reader_id.serialize::<_, B>(&mut writer)?;
+        self.writer_id.serialize::<_, B>(&mut writer)?;
+        self.first_sn.serialize::<_, B>(&mut writer)?;
+        self.last_sn.serialize::<_, B>(&mut writer)?;
+        self.count.serialize::<_, B>(&mut writer)
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for HeartbeatSubmessageUdp {
-    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
-        todo!()
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        let header = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let reader_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let writer_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let first_sn = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let last_sn = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let count = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        Ok(Self{ header, reader_id, writer_id, first_sn, last_sn, count })
     }
 }
 
@@ -103,19 +114,9 @@ impl rust_rtps_pim::messages::Submessage for HeartbeatSubmessageUdp {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::serialize::to_bytes_le;
-
     use super::*;
+    use crate::serialize::to_bytes_le;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
-    use rust_serde_cdr::serializer::RtpsMessageSerializer;
-    use serde::Serialize;
-
-    fn create_serializer() -> RtpsMessageSerializer<Vec<u8>> {
-        RtpsMessageSerializer {
-            writer: Vec::<u8>::new(),
-        }
-    }
 
     #[test]
     fn serialize() {

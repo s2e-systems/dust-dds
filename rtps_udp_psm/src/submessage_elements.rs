@@ -386,12 +386,12 @@ pub struct TimeUdp {
     pub fraction: u32,
 }
 impl crate::serialize::Serialize for TimeUdp {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
         todo!()
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for TimeUdp {
-    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
         todo!()
     }
 }
@@ -409,12 +409,12 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElemen
 pub struct CountUdp(pub(crate) i32);
 
 impl crate::serialize::Serialize for CountUdp {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
         todo!()
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for CountUdp {
-    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
         todo!()
     }
 }
@@ -433,12 +433,12 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementTyp
 pub struct FragmentNumberUdp(pub(crate) u32);
 
 impl crate::serialize::Serialize for FragmentNumberUdp {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
         todo!()
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for FragmentNumberUdp {
-    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
         todo!()
     }
 }
@@ -470,12 +470,12 @@ impl Into<u32> for FragmentNumberUdp {
 pub struct FragmentNumberSetUdp(Vec<FragmentNumberUdp>);
 
 impl crate::serialize::Serialize for FragmentNumberSetUdp {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
         todo!()
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for FragmentNumberSetUdp {
-    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
         todo!()
     }
 }
@@ -645,12 +645,12 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
 }
 
 impl crate::serialize::Serialize for LocatorListUdp {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
         todo!()
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for LocatorListUdp {
-    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
         todo!()
     }
 }

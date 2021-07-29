@@ -77,26 +77,8 @@ impl From<&RtpsMessageHeader> for RTPSMessageHeaderUdp {
 
 #[cfg(test)]
 mod tests {
-    use rust_serde_cdr::{
-        deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
-    };
-
-    use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
-
     use super::*;
-
-    fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
-        let mut serializer = RtpsMessageSerializer {
-            writer: Vec::<u8>::new(),
-        };
-        value.serialize(&mut serializer).unwrap();
-        serializer.writer
-    }
-
-    fn deserialize<'de, T: serde::Deserialize<'de>>(buffer: &'de [u8]) -> T {
-        let mut de = RtpsMessageDeserializer { reader: buffer };
-        serde::de::Deserialize::deserialize(&mut de).unwrap()
-    }
+    use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
 
     #[test]
     fn serialize_rtps_message_header() {
