@@ -3,7 +3,7 @@ use rust_dds_api::{
     dcps_psm::{
         InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
-        StatusMask, SubscriptionMatchedStatus, Time, ViewStateKind,
+        StatusMask, SubscriptionMatchedStatus, ViewStateKind,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -18,63 +18,33 @@ use rust_dds_api::{
     },
     topic::topic_description::TopicDescription,
 };
-use rust_rtps_pim::{behavior::reader::reader::RTPSReader, structure::RTPSHistoryCache};
 
 use crate::utils::shared_object::RtpsWeak;
 
-pub struct DataReaderImpl<'dr, T: 'static, Reader> {
+use super::data_reader_storage::DataReaderStorage;
+
+pub struct DataReaderImpl<'dr, T: 'static> {
     _subscriber: &'dr dyn Subscriber,
     _topic: &'dr dyn TopicDescription<T>,
-    reader: RtpsWeak<Reader>,
+    reader: RtpsWeak<DataReaderStorage>,
 }
 
-impl<'dr, T, Reader> rust_dds_api::subscription::data_reader::DataReader<T>
-    for DataReaderImpl<'dr, T, Reader>
+impl<'dr, T> rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderImpl<'dr, T>
 where
     T: for<'de> serde::Deserialize<'de>,
-    Reader: RTPSReader,
-    Reader::HistoryCacheType: RTPSHistoryCache,
 {
     type Samples = Vec<(T, SampleInfo)>;
 
     fn read(
         &self,
         max_samples: i32,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        let mut samples = Vec::new();
         let shared_reader = self.reader.upgrade()?;
-        let reader = shared_reader.lock();
-        let reader_cache = reader.reader_cache();
-        if let Some(seq_num_min) = reader_cache.get_seq_num_min() {
-            let seq_num_max = reader_cache.get_seq_num_max() .unwrap();
-            for seq_num in seq_num_min..=seq_num_max {
-                let cc1 = reader_cache.get_change(&(seq_num as i64)).unwrap();
-                let data = cc1.data_value();
-                let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
-                let sample_info = SampleInfo {
-                    sample_state: SampleStateKind::NotRead,
-                    view_state: ViewStateKind::New,
-                    instance_state: InstanceStateKind::Alive,
-                    disposed_generation_count: 0,
-                    no_writers_generation_count: 0,
-                    sample_rank: 0,
-                    generation_rank: 0,
-                    absolute_generation_rank: 0,
-                    source_timestamp: Time { sec: 0, nanosec: 0 },
-                    instance_handle: 0,
-                    publication_handle: 0,
-                    valid_data: true,
-                };
-                samples.push((value, sample_info));
-                if samples.len() >= max_samples as usize {
-                    break;
-                }
-            }
-        }
-        Ok(samples)
+        let mut reader = shared_reader.lock();
+        reader.read(max_samples, sample_states, view_states, instance_states)
     }
 
     fn take(
@@ -310,7 +280,7 @@ where
     }
 }
 
-impl<'dr, T, Reader> Entity for DataReaderImpl<'dr, T, Reader> {
+impl<'dr, T> Entity for DataReaderImpl<'dr, T> {
     type Qos = DataReaderQos;
     type Listener = &'static dyn DataReaderListener<DataPIM = T>;
 
@@ -351,11 +321,10 @@ impl<'dr, T, Reader> Entity for DataReaderImpl<'dr, T, Reader> {
     }
 }
 
-impl<'dr, T, Reader> AnyDataReader for DataReaderImpl<'dr, T, Reader> {}
+impl<'dr, T> AnyDataReader for DataReaderImpl<'dr, T> {}
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::subscription::data_reader::DataReader;
     use std::marker::PhantomData;
 
     use rust_dds_api::{
@@ -363,8 +332,6 @@ mod tests {
         topic::topic_listener::TopicListener,
     };
     use rust_rtps_pim::structure::{types::GUID_UNKNOWN, RTPSHistoryCache, RtpsCacheChange};
-
-    use crate::{dds_impl::data_reader_impl::DataReaderImpl, utils::shared_object::RtpsShared};
 
     struct MockSubcriber;
     impl rust_dds_api::subscription::subscriber::Subscriber for MockSubcriber {
@@ -602,18 +569,18 @@ mod tests {
         }
     }
 
-    #[test]
-    fn read() {
-        let reader = MockRtpsReader(MockHistoryCache(()));
-        let shared_reader = RtpsShared::new(reader);
+    // #[test]
+    // fn read() {
+    //     let reader = DataReaderStorage {};
+    //     let shared_reader = RtpsShared::new(reader);
 
-        let data_reader = DataReaderImpl::<u8, _> {
-            _subscriber: &MockSubcriber,
-            _topic: &MockTopic(PhantomData),
-            reader: shared_reader.downgrade(),
-        };
+    //     let data_reader = DataReaderImpl::<u8> {
+    //         _subscriber: &MockSubcriber,
+    //         _topic: &MockTopic(PhantomData),
+    //         reader: shared_reader.downgrade(),
+    //     };
 
-        let sample = data_reader.read(1, &[], &[], &[]).unwrap();
-        assert_eq!(sample[0].0, 1);
-    }
+    //     let sample = data_reader.read(1, &[], &[], &[]).unwrap();
+    //     assert_eq!(sample[0].0, 1);
+    // }
 }
