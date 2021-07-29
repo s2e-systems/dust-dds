@@ -9,9 +9,9 @@ use serde::ser::SerializeStruct;
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterUdp<'a> {
-    pub parameter_id: u16,
-    pub length: i16,
-    pub value: &'a [u8],
+    parameter_id: u16,
+    length: i16,
+    value: &'a [u8],
 }
 
 impl<'a> ParameterUdp<'a> {
