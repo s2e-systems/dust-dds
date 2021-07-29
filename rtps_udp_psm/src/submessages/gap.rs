@@ -21,12 +21,21 @@ pub struct GapSubmessageUdp {
 
 impl crate::serialize::Serialize for GapSubmessageUdp {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
-        todo!()
+        self.header.serialize::<_,B>(&mut writer)?;
+        self.reader_id.serialize::<_,B>(&mut writer)?;
+        self.writer_id.serialize::<_,B>(&mut writer)?;
+        self.gap_start.serialize::<_,B>(&mut writer)?;
+        self.gap_list.serialize::<_,B>(&mut writer)
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for GapSubmessageUdp {
     fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
-        todo!()
+        let header = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let reader_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let writer_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let gap_start = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let gap_list = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        Ok(Self{ header, reader_id, writer_id, gap_start, gap_list })
     }
 }
 
@@ -95,23 +104,6 @@ mod tests {
     use rust_rtps_pim::messages::submessage_elements::{
         SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
     };
-    use rust_serde_cdr::{
-        deserializer::RtpsMessageDeserializer, serializer::RtpsMessageSerializer,
-    };
-
-    fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
-        let mut serializer = RtpsMessageSerializer {
-            writer: Vec::<u8>::new(),
-        };
-        value.serialize(&mut serializer).unwrap();
-        serializer.writer
-    }
-
-    fn deserialize<'de, T: serde::Deserialize<'de>>(buffer: &'de [u8]) -> T {
-        let mut de = RtpsMessageDeserializer { reader: buffer };
-        serde::de::Deserialize::deserialize(&mut de).unwrap()
-    }
-
     #[test]
     fn serialize_gap() {
         let endianness_flag = true;
