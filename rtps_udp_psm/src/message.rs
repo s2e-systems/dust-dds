@@ -2,7 +2,6 @@ use std::io::{BufRead, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
-use serde::ser::SerializeStruct;
 
 use crate::{
     message_header::RTPSMessageHeaderUdp,
@@ -92,7 +91,7 @@ impl<'a> crate::serialize::Serialize for RTPSMessageUdp<'a> {
         Ok(())
     }
 }
-impl<'a: 'de, 'de> crate::deserialize::Deserialize<'de> for RTPSMessageUdp<'a> {
+impl<'a, 'de:'a> crate::deserialize::Deserialize<'de> for RTPSMessageUdp<'a> {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
         B: ByteOrder,

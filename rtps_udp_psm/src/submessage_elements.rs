@@ -90,6 +90,20 @@ pub struct EntityIdUdp {
     pub entity_kind: u8,
 }
 
+impl crate::serialize::Serialize for EntityIdUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.entity_key.serialize::<_, B>(&mut writer)?;
+        self.entity_kind.serialize::<_, B>(&mut writer)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for EntityIdUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        let entity_key = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let entity_kind = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        Ok(Self{ entity_key, entity_kind })
+    }
+}
+
 impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType for EntityIdUdp {
     fn new(value: &rust_rtps_pim::structure::types::EntityId) -> Self {
         Self {
