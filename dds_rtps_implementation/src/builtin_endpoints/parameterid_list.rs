@@ -1,3 +1,5 @@
+use rust_rtps_pim::messages::types::ParameterId;
+
 pub const PID_PAD: u16 = 0x0000;
 pub const PID_SENTINEL: u16 = 0x0001;
 pub const PID_USER_DATA: u16 = 0x002c;

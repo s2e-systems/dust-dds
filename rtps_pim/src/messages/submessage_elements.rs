@@ -85,6 +85,16 @@ pub struct Parameter<'a> {
     pub value: &'a [u8],
 }
 
+impl<'a> Parameter<'a> {
+    pub fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
+        Self {
+            parameter_id,
+            length: value.len() as i16,
+            value,
+        }
+    }
+}
+
 pub trait ParameterListSubmessageElementType<'a> {
     fn new(parameter: &'a [Parameter<'a>]) -> Self
     where

@@ -13,3 +13,5 @@ rust-rtps-pim = {path="../rtps_pim"}
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 cdr = "0.2.4"
 # rust-serde-cdr = {path="../serde_cdr"}
+rust-rtps-udp-psm = {path="../rtps_udp_psm"}
+byteorder = "1.4.3"
