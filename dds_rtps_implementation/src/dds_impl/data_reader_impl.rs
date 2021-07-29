@@ -48,25 +48,31 @@ where
         let shared_reader = self.reader.upgrade()?;
         let reader = shared_reader.lock();
         let reader_cache = reader.reader_cache();
-        for seq_num in 1..max_samples {
-            let cc1 = reader_cache.get_change(&(seq_num as i64)).unwrap();
-            let data = cc1.data_value();
-            let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
-            let sample_info = SampleInfo {
-                sample_state: SampleStateKind::NotRead,
-                view_state: ViewStateKind::New,
-                instance_state: InstanceStateKind::Alive,
-                disposed_generation_count: 0,
-                no_writers_generation_count: 0,
-                sample_rank: 0,
-                generation_rank: 0,
-                absolute_generation_rank: 0,
-                source_timestamp: Time { sec: 0, nanosec: 0 },
-                instance_handle: 0,
-                publication_handle: 0,
-                valid_data: true,
-            };
-            samples.push((value, sample_info));
+        if let Some(seq_num_min) = reader_cache.get_seq_num_min() {
+            let seq_num_max = reader_cache.get_seq_num_max() .unwrap();
+            for seq_num in seq_num_min..=seq_num_max {
+                let cc1 = reader_cache.get_change(&(seq_num as i64)).unwrap();
+                let data = cc1.data_value();
+                let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
+                let sample_info = SampleInfo {
+                    sample_state: SampleStateKind::NotRead,
+                    view_state: ViewStateKind::New,
+                    instance_state: InstanceStateKind::Alive,
+                    disposed_generation_count: 0,
+                    no_writers_generation_count: 0,
+                    sample_rank: 0,
+                    generation_rank: 0,
+                    absolute_generation_rank: 0,
+                    source_timestamp: Time { sec: 0, nanosec: 0 },
+                    instance_handle: 0,
+                    publication_handle: 0,
+                    valid_data: true,
+                };
+                samples.push((value, sample_info));
+                if samples.len() >= max_samples as usize {
+                    break;
+                }
+            }
         }
         Ok(samples)
     }
@@ -562,11 +568,11 @@ mod tests {
         }
 
         fn get_seq_num_min(&self) -> Option<rust_rtps_pim::structure::types::SequenceNumber> {
-            todo!()
+            Some(1)
         }
 
         fn get_seq_num_max(&self) -> Option<rust_rtps_pim::structure::types::SequenceNumber> {
-            todo!()
+            Some(1)
         }
     }
 
