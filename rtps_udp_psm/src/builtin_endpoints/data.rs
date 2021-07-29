@@ -29,7 +29,7 @@ use super::parameterid_list::{
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq)]
 struct GUIDUdp {
     prefix: GuidPrefixUdp,
     entity_id: EntityIdUdp,

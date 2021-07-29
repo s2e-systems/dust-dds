@@ -1,3 +1,6 @@
+use std::io::Write;
+
+use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
 use crate::{
@@ -7,13 +10,24 @@ use crate::{
     submessage_header::{SubmessageHeaderUdp, GAP},
 };
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct GapSubmessageUdp {
     pub header: SubmessageHeaderUdp,
     reader_id: EntityIdUdp,
     writer_id: EntityIdUdp,
     gap_start: SequenceNumberUdp,
     gap_list: SequenceNumberSetUdp,
+}
+
+impl crate::serialize::Serialize for GapSubmessageUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for GapSubmessageUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
+    }
 }
 
 impl rust_rtps_pim::messages::submessages::GapSubmessage for GapSubmessageUdp {
@@ -75,6 +89,8 @@ impl rust_rtps_pim::messages::Submessage for GapSubmessageUdp {
 
 #[cfg(test)]
 mod tests {
+    use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
+
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::{
         SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
@@ -117,7 +133,7 @@ mod tests {
             gap_list,
         );
         #[rustfmt::skip]
-        assert_eq!(serialize(submessage), vec![
+        assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
@@ -151,7 +167,7 @@ mod tests {
             gap_list,
         );
         #[rustfmt::skip]
-        let result = deserialize(&[
+        let result = from_bytes_le(&[
             0x08, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]
@@ -160,7 +176,7 @@ mod tests {
             0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
            10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
-        ]);
+        ]).unwrap();
         assert_eq!(expected, result);
     }
 }
