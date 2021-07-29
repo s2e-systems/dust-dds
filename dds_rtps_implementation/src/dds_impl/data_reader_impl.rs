@@ -284,12 +284,15 @@ impl<'dr, T> Entity for DataReaderImpl<'dr, T> {
     type Qos = DataReaderQos;
     type Listener = &'static dyn DataReaderListener<DataPIM = T>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self.reader
+            .upgrade()?
+            .lock()
+            .set_qos(qos.unwrap_or_default())
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        todo!()
+        Ok(self.reader.upgrade()?.lock().qos().clone())
     }
 
     fn set_listener(

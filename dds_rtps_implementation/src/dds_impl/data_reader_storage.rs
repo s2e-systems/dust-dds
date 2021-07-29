@@ -1,6 +1,6 @@
 use rust_dds_api::{
     dcps_psm::{InstanceStateKind, SampleStateKind, Time, ViewStateKind},
-    infrastructure::sample_info::SampleInfo,
+    infrastructure::{qos::DataReaderQos, sample_info::SampleInfo},
     return_type::DDSResult,
 };
 use rust_rtps_pim::{behavior::reader::reader::RTPSReader, structure::RTPSHistoryCache};
@@ -10,6 +10,7 @@ use crate::rtps_impl::rtps_reader_impl::RTPSReaderImpl;
 
 pub struct DataReaderStorage {
     reader: RTPSReaderImpl,
+    qos: DataReaderQos,
 }
 
 impl DataReaderStorage {
@@ -52,5 +53,13 @@ impl DataReaderStorage {
             }
         }
         Ok(samples)
+    }
+
+    pub fn set_qos(&mut self, _qos: DataReaderQos) -> DDSResult<()> {
+        todo!()
+    }
+
+    pub fn qos(&self) -> &DataReaderQos {
+        &self.qos
     }
 }
