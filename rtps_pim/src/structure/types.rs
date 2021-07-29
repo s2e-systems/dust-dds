@@ -44,9 +44,9 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
 pub type SequenceNumber = i64;
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
 
-type LocatorKind = i32;
-type LocatorPort = u32;
-type LocatorAddress = [u8; 16];
+pub type LocatorKind = i32;
+pub type LocatorPort = u32;
+pub type LocatorAddress = [u8; 16];
 
 pub const LOCATOR_KIND_INVALID: LocatorKind = -1;
 pub const LOCATOR_KIND_RESERVED: LocatorKind = 0;
@@ -115,11 +115,6 @@ pub struct GUID {
     entity_id: EntityId,
 }
 
-pub const GUID_UNKNOWN: GUID = GUID {
-    prefix: GUIDPREFIX_UNKNOWN,
-    entity_id: ENTITYID_UNKNOWN,
-};
-
 impl GUID {
     pub fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self {
         Self { prefix, entity_id }
@@ -133,6 +128,11 @@ impl GUID {
         &self.entity_id
     }
 }
+
+pub const GUID_UNKNOWN: GUID = GUID {
+    prefix: GUIDPREFIX_UNKNOWN,
+    entity_id: ENTITYID_UNKNOWN,
+};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TopicKind {

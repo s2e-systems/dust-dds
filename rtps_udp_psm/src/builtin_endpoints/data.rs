@@ -32,30 +32,39 @@ use super::parameterid_list::{
     PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
     PID_VENDORID,
 };
+use super::serde_derives::{ProtocolVersionDef, GuidDef, LocatorDef, CountDef, DurationDef};
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, serde::Serialize)]
 struct ParticipantProxy {
     domain_id: u32,
     domain_tag: String,
+    #[serde(with = "ProtocolVersionDef")]
     protocol_version: ProtocolVersion,
+    #[serde(with = "GuidDef")]
     guid: GUID,
     vendor_id: VendorId,
     expects_inline_qos: bool,
-    metatraffic_unicast_locator_list: Vec<Locator>,
-    metatraffic_multicast_locator_list: Vec<Locator>,
-    default_unicast_locator_list: Vec<Locator>,
-    default_multicast_locator_list: Vec<Locator>,
+    // #[serde(with = "LocatorDef")]
+    // metatraffic_unicast_locator_list: Vec<Locator>,
+    // #[serde(with = "LocatorDef")]
+    // metatraffic_multicast_locator_list: Vec<Locator>,
+    // #[serde(with = "LocatorDef")]
+    // default_unicast_locator_list: Vec<Locator>,
+    // #[serde(with = "LocatorDef")]
+    // default_multicast_locator_list: Vec<Locator>,
     available_builtin_endpoints: u32,
+    #[serde(with = "CountDef")]
     manual_liveliness_count: Count,
     builtin_endpoint_qos: u32,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, serde::Serialize)]
 pub struct SPDPdiscoveredParticipantDataCdr {
     // ddsParticipantData: DDS::ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
+    #[serde(with = "DurationDef")]
     lease_duration: Duration,
 }
 
@@ -93,10 +102,10 @@ impl SPDPdiscoveredParticipantDataCdr {
                 guid: *guid,
                 vendor_id: *vendor_id,
                 expects_inline_qos: *expects_inline_qos,
-                metatraffic_unicast_locator_list: metatraffic_unicast_locator_list.to_vec(),
-                metatraffic_multicast_locator_list: metatraffic_multicast_locator_list.to_vec(),
-                default_unicast_locator_list: default_unicast_locator_list.to_vec(),
-                default_multicast_locator_list: default_multicast_locator_list.to_vec(),
+                // metatraffic_unicast_locator_list: metatraffic_unicast_locator_list.to_vec(),
+                // metatraffic_multicast_locator_list: metatraffic_multicast_locator_list.to_vec(),
+                // default_unicast_locator_list: default_unicast_locator_list.to_vec(),
+                // default_multicast_locator_list: default_multicast_locator_list.to_vec(),
                 available_builtin_endpoints: available_builtin_endpoints.0,
                 manual_liveliness_count: *manual_liveliness_count,
                 builtin_endpoint_qos: builtin_endpoint_qos.0,
@@ -327,25 +336,29 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataCdr {
     }
 
     fn metatraffic_unicast_locator_list(&self) -> Self::LocatorListType {
-        self.participant_proxy
-            .metatraffic_unicast_locator_list
-            .clone()
+        // self.participant_proxy
+        //     .metatraffic_unicast_locator_list
+        //     .clone()
+        todo!()
     }
 
     fn metatraffic_multicast_locator_list(&self) -> Self::LocatorListType {
-        self.participant_proxy
-            .metatraffic_multicast_locator_list
-            .clone()
+        // self.participant_proxy
+        //     .metatraffic_multicast_locator_list
+        //     .clone()
+        todo!()
     }
 
     fn default_unicast_locator_list(&self) -> Self::LocatorListType {
-        self.participant_proxy.default_unicast_locator_list.clone()
+        //self.participant_proxy.default_unicast_locator_list.clone()
+        todo!()
     }
 
     fn default_multicast_locator_list(&self) -> Self::LocatorListType {
-        self.participant_proxy
-            .default_multicast_locator_list
-            .clone()
+        // self.participant_proxy
+        //     .default_multicast_locator_list
+        //     .clone()
+        todo!()
     }
 
     fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
