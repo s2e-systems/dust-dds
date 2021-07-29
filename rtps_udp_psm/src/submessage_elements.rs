@@ -1,3 +1,6 @@
+use std::io::Read;
+
+use byteorder::{ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::{
     messages::types::{Count, FragmentNumber, SubmessageFlag, Time},
     structure::types::{EntityKind, Locator, ProtocolVersion},
@@ -463,6 +466,84 @@ impl LocatorUdp {
         Locator::new(self.kind, self.port, self.address)
     }
 }
+impl<const N: usize> crate::serialize::Serialize for [u8; N] {
+    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+        self,
+        mut writer: W,
+    ) -> crate::serialize::Result {
+        writer.write(self.as_ref()).map(|_| ())
+    }
+}
+impl<'de, const N: usize> crate::deserialize::Deserialize<'de> for [u8; N] {
+    fn deserialize<T>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        T: byteorder::ByteOrder,
+    {
+        let mut this = [0; N];
+        buf.read(&mut this)?;
+        Ok(this)
+    }
+}
+
+impl crate::serialize::Serialize for i32 {
+    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+        self,
+        mut writer: W,
+    ) -> crate::serialize::Result {
+        writer.write_i32::<B>(self)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for i32 {
+    fn deserialize<T>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        T: byteorder::ByteOrder,
+    {
+        buf.read_i32::<T>()
+    }
+}
+
+impl crate::serialize::Serialize for u32 {
+    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+        self,
+        mut writer: W,
+    ) -> crate::serialize::Result {
+        writer.write_u32::<B>(self)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for u32 {
+    fn deserialize<T>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        T: byteorder::ByteOrder,
+    {
+        buf.read_u32::<T>()
+    }
+}
+
+impl crate::serialize::Serialize for LocatorUdp {
+    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+        self,
+        mut writer: W,
+    ) -> super::serialize::Result {
+        self.kind.serialize::<_, B>(&mut writer)?;
+        self.port.serialize::<_, B>(&mut writer)?;
+        self.address.serialize::<_, B>(&mut writer)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for LocatorUdp {
+    fn deserialize<T>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        T: byteorder::ByteOrder,
+    {
+        let kind = crate::deserialize::Deserialize::deserialize::<T>(buf)?;
+        let port = crate::deserialize::Deserialize::deserialize::<T>(buf)?;
+        let address = crate::deserialize::Deserialize::deserialize::<T>(buf)?;
+        Ok(Self {
+            kind,
+            port,
+            address,
+        })
+    }
+}
 
 #[derive(serde::Deserialize)]
 pub struct LocatorListUdp(pub Vec<LocatorUdp>);
@@ -496,7 +577,10 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
 
 #[cfg(test)]
 mod tests {
+    use crate::serialize::Serialize;
+
     use super::*;
+    use byteorder::LittleEndian;
     use rust_rtps_pim::messages::submessage_elements::{
         SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
     };
@@ -734,5 +818,36 @@ mod tests {
 
         ]);
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn serialize_locator() {
+        let locator = LocatorUdp{ kind: 1, port: 2, address: [3; 16] };
+        let mut result = Vec::new();
+        locator.serialize::<_,LittleEndian>(&mut result).unwrap();
+        #[rustfmt::skip]
+        assert_eq!(result, vec![
+            1, 0, 0, 0, // kind (long)
+            2, 0, 0, 0, // port (unsigned long)
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+        ]);
+    }
+
+    #[test]
+    fn deserialize_locator() {
+        #[rustfmt::skip]
+        let result: LocatorUdp = crate::deserialize::Deserialize::deserialize::<LittleEndian>(&mut[
+            1, 0, 0, 0, // kind (long)
+            2, 0, 0, 0, // port (unsigned long)
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+            3, 3, 3, 3, // address (octet[16])
+        ].as_ref()).unwrap();
+        let expected = LocatorUdp{ kind: 1, port: 2, address: [3; 16] };
+        assert_eq!(result, expected);
     }
 }

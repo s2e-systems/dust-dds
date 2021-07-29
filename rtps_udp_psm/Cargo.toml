@@ -13,6 +13,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 rust-serde-cdr = {path="../serde_cdr"}
 serde_bytes = "0.11.5"
 # erased-serde = "0.3"
+byteorder = "1.4.3"
 
 [dev-dependencies]
 serde_json = "1.0.64"
