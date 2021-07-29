@@ -12,17 +12,13 @@ use rust_dds_api::{
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::DomainParticipantQos,
 };
-use rust_dds_rtps_implementation::{
-    dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::{
+use rust_dds_rtps_implementation::{builtin_endpoints::data::SPDPdiscoveredParticipantDataCdr, dds_impl::domain_participant_impl::DomainParticipantImpl, rtps_impl::{
         rtps_participant_impl::RTPSParticipantImpl, rtps_reader_impl::RTPSReaderImpl,
         rtps_writer_impl::RTPSWriterImpl,
-    },
-    utils::{
+    }, utils::{
         message_receiver::MessageReceiver, message_sender::send_data, shared_object::RtpsShared,
         transport::TransportRead,
-    },
-};
+    }};
 use rust_rtps_pim::{
     behavior::{
         reader::reader::RTPSReader,
@@ -40,7 +36,6 @@ use rust_rtps_pim::{
         RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
-use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataCdr;
 
 use crate::udp_transport::UdpTransport;
 
