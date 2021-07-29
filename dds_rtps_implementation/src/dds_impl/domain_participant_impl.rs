@@ -23,31 +23,28 @@ use crate::{
 };
 
 use super::{
-    publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
+    domain_participant_storage::DomainParticipantStorage, publisher_impl::PublisherImpl,
+    subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
     writer_group_factory::WriterGroupFactory,
 };
 
 pub struct DomainParticipantImpl {
     writer_group_factory: Mutex<WriterGroupFactory>,
-    rtps_participant_impl: RtpsShared<RTPSParticipantImpl>,
     is_enabled: Arc<AtomicBool>,
+    domain_participant_storage: RtpsShared<DomainParticipantStorage>,
 }
 
 impl DomainParticipantImpl {
     pub fn new(
-        rtps_participant_impl: RtpsShared<RTPSParticipantImpl>,
-        is_enabled: Arc<AtomicBool>,
+        rtps_participant: RTPSParticipantImpl,
+        domain_participant_storage: RtpsShared<DomainParticipantStorage>,
     ) -> Self {
-        let guid_prefix = *rtps_participant_impl.lock().guid().prefix();
+        let guid_prefix = *rtps_participant.guid().prefix();
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
-            rtps_participant_impl,
-            is_enabled,
+            domain_participant_storage,
+            is_enabled: Arc::new(AtomicBool::new(false)),
         }
-    }
-
-    pub fn is_enabled(&self) -> &Arc<AtomicBool> {
-        &self.is_enabled
     }
 }
 
@@ -55,28 +52,30 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
     type PublisherType = PublisherImpl<'p>;
     fn create_publisher(
         &'p self,
-        qos: Option<PublisherQos>,
-        a_listener: Option<&'static dyn PublisherListener>,
-        mask: StatusMask,
+        _qos: Option<PublisherQos>,
+        _a_listener: Option<&'static dyn PublisherListener>,
+        _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let writer_group = self
-            .writer_group_factory
-            .lock()
-            .unwrap()
-            .create_writer_group(qos, a_listener, mask)
-            .ok()?;
-        let writer_group_shared = RtpsShared::new(writer_group);
-        self.rtps_participant_impl
-            .lock()
-            .add_writer_group(writer_group_shared.clone());
-        Some(PublisherImpl::new(self, &writer_group_shared))
+        todo!()
+        // let writer_group = self
+        //     .writer_group_factory
+        //     .lock()
+        //     .unwrap()
+        //     .create_writer_group(qos, a_listener, mask)
+        //     .ok()?;
+        // let writer_group_shared = RtpsShared::new(writer_group);
+        // self.rtps_participant_impl
+        //     .lock()
+        //     .add_writer_group(writer_group_shared.clone());
+        // Some(PublisherImpl::new(self, &writer_group_shared))
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.get_participant(), self) {
-            self.rtps_participant_impl
-                .lock()
-                .delete_writer_group(a_publisher.get_instance_handle()?)
+            todo!()
+            // self.rtps_participant_impl
+            //     .lock()
+            //     .delete_writer_group(a_publisher.get_instance_handle()?)
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",
@@ -312,6 +311,65 @@ impl Entity for DomainParticipantImpl {
     }
 
     fn enable(&self) -> DDSResult<()> {
+        let is_enabled = self.is_enabled.clone();
+        std::thread::spawn(move || loop {
+            if is_enabled.load(atomic::Ordering::Relaxed) {
+                // if let Some(mut rtps_participant) = rtps_participant_shared.try_lock() {
+                // if let Some((source_locator, message)) = transport.read() {
+                // todo!()
+                // MessageReceiver::new().process_message(
+                //     guid_prefix,
+                //     &*rtps_participant.builtin_reader_group.lock(),
+                //     source_locator,
+                //     &message,
+                // );
+                // }
+                // send_data(
+                //     &*rtps_participant,
+                //     &mut spdp_builtin_participant_writer,
+                //     &mut transport,
+                // );
+                // let mut spdp_discovered_participant_datas =
+                //     Vec::<SPDPdiscoveredParticipantDataUdp>::new();
+                // {
+                //     todo!()
+                // let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
+                // let spdp_builtin_participant_reader =
+                //     builtin_reader_group.reader_list()[0].lock();
+                // if let Some(seq_num_min) = spdp_builtin_participant_reader
+                //     .reader_cache()
+                //     .get_seq_num_min()
+                // {
+                //     let seq_num_max = spdp_builtin_participant_reader
+                //         .reader_cache()
+                //         .get_seq_num_max()
+                //         .unwrap();
+                //     for seq_num in seq_num_min..seq_num_max {
+                //         if let Some(change) = spdp_builtin_participant_reader
+                //             .reader_cache()
+                //             .get_change(&seq_num)
+                //         {
+                //             if let Ok(spdp_discovered_participant_data) =
+                //                 SPDPdiscoveredParticipantDataUdp::from_bytes(
+                //                     change.data_value(),
+                //                 )
+                //             {
+                //                 spdp_discovered_participant_datas
+                //                     .push(spdp_discovered_participant_data);
+                //             }
+                //         }
+                //     }
+                // }
+            }
+
+            // for spdp_discovered_participant_data in spdp_discovered_participant_datas {
+            //     rtps_participant
+            //         .discovered_participant_add(&spdp_discovered_participant_data);
+            // }
+            // }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            // }
+        });
         self.is_enabled.store(true, atomic::Ordering::Release);
         Ok(())
     }

@@ -127,7 +127,8 @@ impl DomainParticipantFactory {
             &BuiltinEndpointQos::default(),
             &lease_duration,
         );
-        let spdp_discovered_participant_data_bytes = spdp_discovered_participant_data.to_bytes().unwrap();
+        let spdp_discovered_participant_data_bytes =
+            spdp_discovered_participant_data.to_bytes().unwrap();
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
             &spdp_discovered_participant_data_bytes,
@@ -142,72 +143,14 @@ impl DomainParticipantFactory {
         let spdp_builtin_participant_reader: RTPSReaderImpl =
             SpdpBuiltinParticipantReader::create(guid_prefix);
 
-        rtps_participant
-            .builtin_reader_group
-            .lock()
-            .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
+        // rtps_participant
+        //     .builtin_reader_group
+        //     .lock()
+        //     .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
 
-        let rtps_participant_impl = RtpsShared::new(rtps_participant);
-        let rtps_participant_shared = rtps_participant_impl.clone();
+        let rtps_participant_impl = rtps_participant;
 
-        std::thread::spawn(move || loop {
-            if is_enabled_thread.load(atomic::Ordering::Relaxed) {
-                if let Some(mut rtps_participant) = rtps_participant_shared.try_lock() {
-                    if let Some((source_locator, message)) = transport.read() {
-                        MessageReceiver::new().process_message(
-                            guid_prefix,
-                            &*rtps_participant.builtin_reader_group.lock(),
-                            source_locator,
-                            &message,
-                        );
-                    }
-                    send_data(
-                        &*rtps_participant,
-                        &mut spdp_builtin_participant_writer,
-                        &mut transport,
-                    );
-                    let mut spdp_discovered_participant_datas =
-                        Vec::<SPDPdiscoveredParticipantDataUdp>::new();
-                    {
-                        let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
-                        let spdp_builtin_participant_reader =
-                            builtin_reader_group.reader_list()[0].lock();
-                        if let Some(seq_num_min) = spdp_builtin_participant_reader
-                            .reader_cache()
-                            .get_seq_num_min()
-                        {
-                            let seq_num_max = spdp_builtin_participant_reader
-                                .reader_cache()
-                                .get_seq_num_max()
-                                .unwrap();
-                            for seq_num in seq_num_min..seq_num_max {
-                                if let Some(change) = spdp_builtin_participant_reader
-                                    .reader_cache()
-                                    .get_change(&seq_num)
-                                {
-                                    if let Ok(spdp_discovered_participant_data) =
-                                        SPDPdiscoveredParticipantDataUdp::from_bytes(
-                                            change.data_value(),
-                                        )
-                                    {
-                                        spdp_discovered_participant_datas
-                                            .push(spdp_discovered_participant_data);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    for spdp_discovered_participant_data in spdp_discovered_participant_datas {
-                        rtps_participant
-                            .discovered_participant_add(&spdp_discovered_participant_data);
-                    }
-                }
-                std::thread::sleep(std::time::Duration::from_millis(100));
-            }
-        });
-
-        let domain_participant = DomainParticipantImpl::new(rtps_participant_impl, is_enabled);
+        let domain_participant = DomainParticipantImpl::new(rtps_participant_impl, domain_participant_storage);
 
         Some(domain_participant)
     }

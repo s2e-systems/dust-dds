@@ -1,10 +1,14 @@
-use rust_dds_api::{
-    dcps_psm::InstanceHandle, infrastructure::qos::SubscriberQos, return_type::DDSResult,
-};
-use rust_rtps_pim::{discovery::{sedp::sedp_participant::SedpParticipant, spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData}, structure::{
+use rust_dds_api::infrastructure::qos::SubscriberQos;
+use rust_rtps_pim::{
+    discovery::{
+        sedp::sedp_participant::SedpParticipant,
+        spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
+    },
+    structure::{
         types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
         RTPSEntity, RTPSParticipant,
-    }};
+    },
+};
 
 use crate::utils::shared_object::RtpsShared;
 
@@ -17,10 +21,6 @@ pub struct RTPSParticipantImpl {
     guid: GUID,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
-    rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl>>,
-    _rtps_reader_groups: Vec<RtpsShared<RTPSReaderGroupImpl>>,
-    pub builtin_writer_group: RtpsShared<RTPSWriterGroupImpl>,
-    pub builtin_reader_group: RtpsShared<RTPSReaderGroupImpl>,
 }
 
 impl RTPSParticipantImpl {
@@ -62,30 +62,7 @@ impl RTPSParticipantImpl {
             guid,
             protocol_version: PROTOCOLVERSION_2_4,
             vendor_id: [99, 99],
-            rtps_writer_groups: Vec::new(),
-            _rtps_reader_groups: Vec::new(),
-            builtin_writer_group,
-            builtin_reader_group,
         }
-    }
-
-    pub fn writer_groups(&self) -> &[RtpsShared<RTPSWriterGroupImpl>] {
-        &self.rtps_writer_groups
-    }
-
-    pub fn add_writer_group(&mut self, writer_group: RtpsShared<RTPSWriterGroupImpl>) {
-        self.rtps_writer_groups.push(writer_group)
-    }
-
-    pub fn delete_writer_group(&mut self, _writer_group: InstanceHandle) -> DDSResult<()> {
-        todo!()
-        // let index = self
-        //     .rtps_writer_groups
-        //     .iter()
-        //     .position(|x| crate::utils::instance_handle_from_guid(&x.lock().guid()) == writer_group)
-        //     .ok_or(DDSError::PreconditionNotMet("RTPS writer group not found"))?;
-        // self.rtps_writer_groups.swap_remove(index);
-        // Ok(())
     }
 }
 
