@@ -484,7 +484,22 @@ impl<'de, const N: usize> crate::deserialize::Deserialize<'de> for [u8; N] {
         Ok(this)
     }
 }
-
+impl crate::serialize::Serialize for u8 {
+    fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> crate::serialize::Result {
+        writer.write_u8(*self)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for u8 {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: byteorder::ByteOrder,
+    {
+        buf.read_u8()
+    }
+}
 impl crate::serialize::Serialize for i32 {
     fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
         &self,
@@ -494,11 +509,11 @@ impl crate::serialize::Serialize for i32 {
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for i32 {
-    fn deserialize<T>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        T: byteorder::ByteOrder,
+        B: byteorder::ByteOrder,
     {
-        buf.read_i32::<T>()
+        buf.read_i32::<B>()
     }
 }
 
@@ -511,11 +526,11 @@ impl crate::serialize::Serialize for u32 {
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for u32 {
-    fn deserialize<T>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        T: byteorder::ByteOrder,
+        B: byteorder::ByteOrder,
     {
-        buf.read_u32::<T>()
+        buf.read_u32::<B>()
     }
 }
 
@@ -577,65 +592,57 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
 
 #[cfg(test)]
 mod tests {
-    use crate::serialize::{Serialize, to_bytes_le};
-    use crate::deserialize::{Deserialize, from_bytes_le};
-
     use super::*;
-    use byteorder::LittleEndian;
+    use crate::serialize::{to_bytes_le};
+    use crate::deserialize::{from_bytes_le};
+
     use rust_rtps_pim::messages::submessage_elements::{
         SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
     };
 
-    // fn serialize_le<T: Serialize>(value: T) -> Vec<u8> {
-    //     let mut writer = Vec::<u8>::new();
-    //     value.serialize::<_,LittleEndian>(&mut writer).unwrap();
-    //     writer
-    // }
+    #[test]
+    fn octet_from_submessage_flags() {
+        let result: u8 = flags_to_byte([true, false, true]);
+        assert_eq!(result, 0b_0000_0101);
+    }
 
-    // fn deserialize_le<'de, T: Deserialize<'de>>(mut buffer: &'de [u8]) -> T {
-    //     Deserialize::deserialize::<LittleEndian>(&mut buffer).unwrap()
-    // }
+    #[test]
+    fn octet_from_submessage_flags_empty() {
+        let result: u8 = flags_to_byte([]);
+        assert_eq!(result, 0b_0000_0000);
+    }
+    #[test]
+    #[should_panic]
+    fn octet_from_submessage_flags_overflow() {
+        let _: u8 = flags_to_byte([true; 9]);
+    }
 
-    // #[test]
-    // fn octet_from_submessage_flags() {
-    //     let result: u8 = flags_to_byte([true, false, true]);
-    //     assert_eq!(result, 0b_0000_0101);
-    // }
+    #[test]
+    fn octet_is_set_bit() {
+        let flags = 0b_0000_0001;
+        assert_eq!(is_bit_set(flags, 0), true);
 
-    // #[test]
-    // fn octet_from_submessage_flags_empty() {
-    //     let result: u8 = flags_to_byte([]);
-    //     assert_eq!(result, 0b_0000_0000);
-    // }
-    // #[test]
-    // #[should_panic]
-    // fn octet_from_submessage_flags_overflow() {
-    //     let _: u8 = flags_to_byte([true; 9]);
-    // }
+        let flags = 0b_0000_0000;
+        assert_eq!(is_bit_set(flags, 0), false);
 
-    // #[test]
-    // fn octet_is_set_bit() {
-    //     let flags = 0b_0000_0001;
-    //     assert_eq!(is_bit_set(flags, 0), true);
+        let flags = 0b_0000_0010;
+        assert_eq!(is_bit_set(flags, 1), true);
 
-    //     let flags = 0b_0000_0000;
-    //     assert_eq!(is_bit_set(flags, 0), false);
+        let flags = 0b_1000_0011;
+        assert_eq!(is_bit_set(flags, 7), true);
+    }
 
-    //     let flags = 0b_0000_0010;
-    //     assert_eq!(is_bit_set(flags, 1), true);
 
-    //     let flags = 0b_1000_0011;
-    //     assert_eq!(is_bit_set(flags, 7), true);
-    // }
-    // #[test]
-    // fn serialize_octet() {
-    //     assert_eq!(serialize(5_u8), vec![5]);
-    // }
-    // #[test]
-    // fn deserialize_octet() {
-    //     let result: u8 = deserialize(&[5]);
-    //     assert_eq!(result, 5);
-    // }
+    #[test]
+    fn serialize_octet() {
+        assert_eq!(to_bytes_le(&5_u8).unwrap(), vec![5]);
+    }
+
+    #[test]
+    fn deserialize_octet() {
+        let result: u8 = from_bytes_le(&[5]).unwrap();
+        assert_eq!(result, 5);
+    }
 
     // #[test]
     // fn serialize_serialized_data() {
