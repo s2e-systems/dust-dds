@@ -15,15 +15,15 @@ use rust_dds_api::{
     },
 };
 
-use crate::{
-    rtps_impl::rtps_reader_group_impl::RTPSReaderGroupImpl, utils::shared_object::RtpsWeak,
-};
+use crate::utils::shared_object::RtpsWeak;
 
-use super::{data_reader_impl::DataReaderImpl, topic_impl::TopicImpl};
+use super::{
+    data_reader_impl::DataReaderImpl, subscriber_storage::SubscriberStorage, topic_impl::TopicImpl,
+};
 
 pub struct SubscriberImpl<'s> {
     participant: &'s dyn DomainParticipant,
-    _rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl>,
+    _rtps_reader_group_impl: RtpsWeak<SubscriberStorage>,
 }
 
 impl<'dr, 's: 'dr, 't: 'dr, T: 'static>

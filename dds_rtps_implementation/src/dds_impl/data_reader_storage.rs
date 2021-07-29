@@ -14,6 +14,10 @@ pub struct DataReaderStorage {
 }
 
 impl DataReaderStorage {
+    pub fn new(reader: RTPSReaderImpl, qos: DataReaderQos) -> Self {
+        Self { reader, qos }
+    }
+
     pub fn read<T>(
         &mut self,
         max_samples: i32,
