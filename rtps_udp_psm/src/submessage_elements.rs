@@ -74,6 +74,17 @@ impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementTy
     }
 }
 
+impl crate::serialize::Serialize for GuidPrefixUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.0.serialize::<_, B>(&mut writer)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for GuidPrefixUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        Ok(Self(crate::deserialize::Deserialize::deserialize::<B>(buf)?))
+    }
+}
+
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EntityIdUdp {
     pub entity_key: [u8; 3],
@@ -128,7 +139,19 @@ pub struct SequenceNumberUdp {
     pub(crate) high: i32,
     pub(crate) low: u32,
 }
-
+impl crate::serialize::Serialize for SequenceNumberUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.high.serialize::<_, B>(&mut writer)?;
+        self.low.serialize::<_, B>(&mut writer)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for SequenceNumberUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        let high = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let low = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        Ok(Self{ high, low })
+    }
+}
 impl From<&SequenceNumberUdp> for i64 {
     fn from(value: &SequenceNumberUdp) -> Self {
         ((value.high as i64) << 32) + value.low as i64
@@ -166,6 +189,30 @@ impl SequenceNumberSetUdp {
     pub fn len(&self) -> u16 {
         let number_of_bitmap_elements = ((self.num_bits + 31) / 32) as usize; // aka "M"
         12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */ as u16
+    }
+}
+
+impl crate::serialize::Serialize for SequenceNumberSetUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.base.serialize::<_, B>(&mut writer)?;
+        self.num_bits.serialize::<_, B>(&mut writer)?;
+        let number_of_bitmap_elements = ((self.num_bits + 31) / 32) as usize; //In standard refered to as "M"
+        for i in 0..number_of_bitmap_elements {
+            self.bitmap[i].serialize::<_, B>(&mut writer)?;
+        }
+        Ok(())
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for SequenceNumberSetUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        let base = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let num_bits = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let num_bitmaps = (num_bits + 31) / 32; //In standard refered to as "M"
+        let mut bitmap = [0; 8];
+        for i in 0..num_bitmaps as usize {
+            bitmap[i] = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        }
+        Ok(Self{ base, num_bits, bitmap })
     }
 }
 
@@ -382,7 +429,16 @@ pub struct TimeUdp {
     pub seconds: u32,
     pub fraction: u32,
 }
-
+impl crate::serialize::Serialize for TimeUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for TimeUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
+    }
+}
 impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElementType for TimeUdp {
     fn new(_value: &Time) -> Self {
         todo!()
@@ -393,8 +449,19 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElemen
     }
 }
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct CountUdp(pub(crate) i32);
+
+impl crate::serialize::Serialize for CountUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for CountUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
+    }
+}
 
 impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementType for CountUdp {
     fn new(value: &Count) -> Self {
@@ -409,6 +476,17 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::CountSubmessageElementTyp
 
 #[derive(Debug, PartialEq)]
 pub struct FragmentNumberUdp(pub(crate) u32);
+
+impl crate::serialize::Serialize for FragmentNumberUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for FragmentNumberUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
+    }
+}
 
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSubmessageElementType
     for FragmentNumberUdp
@@ -436,6 +514,17 @@ impl Into<u32> for FragmentNumberUdp {
 
 pub struct FragmentNumberSetUdp(Vec<FragmentNumberUdp>);
 
+impl crate::serialize::Serialize for FragmentNumberSetUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for FragmentNumberSetUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
+    }
+}
+
 impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElementType
     for FragmentNumberSetUdp
 {
@@ -445,19 +534,17 @@ impl rust_rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageEl
     }
 
     fn base(&self) -> FragmentNumber {
-        // &0
         todo!()
     }
 
     fn set(&self) -> Self::IntoIter {
         todo!()
-        // self
     }
 }
 
 pub type GroupDigestUdp = [u8; 4];
 
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct LocatorUdp {
     kind: i32,
     port: u32,
@@ -477,6 +564,7 @@ impl LocatorUdp {
         Locator::new(self.kind, self.port, self.address)
     }
 }
+
 impl<const N: usize> crate::serialize::Serialize for [u8; N] {
     fn serialize<W: Write, B: ByteOrder>(
         &self,
@@ -571,7 +659,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for LocatorUdp {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct LocatorListUdp(pub Vec<LocatorUdp>);
 
 impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementType
@@ -598,6 +686,17 @@ impl rust_rtps_pim::messages::submessage_elements::LocatorListSubmessageElementT
             locator_list.push(locator);
         }
         locator_list
+    }
+}
+
+impl crate::serialize::Serialize for LocatorListUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for LocatorListUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
     }
 }
 
@@ -655,183 +754,183 @@ mod tests {
         assert_eq!(result, 5);
     }
 
-    // #[test]
-    // fn serialize_serialized_data() {
-    //     let data = SerializedDataUdp(&[1, 2]);
-    //     assert_eq!(serialize(data), vec![1, 2]);
-    // }
+    #[test]
+    fn serialize_serialized_data() {
+        let data = SerializedDataUdp(&[1, 2]);
+        assert_eq!(to_bytes_le(&data).unwrap(), vec![1, 2]);
+    }
 
-    // #[test]
-    // fn serialize_guid_prefix() {
-    //     let data = GuidPrefixUdp([1; 12]);
-    //     #[rustfmt::skip]
-    //     assert_eq!(serialize(data), vec![
-    //         1, 1, 1, 1,
-    //         1, 1, 1, 1,
-    //         1, 1, 1, 1,
-    //     ]);
-    // }
+    #[test]
+    fn serialize_guid_prefix() {
+        let data = GuidPrefixUdp([1; 12]);
+        #[rustfmt::skip]
+        assert_eq!(to_bytes_le(&data).unwrap(), vec![
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+        ]);
+    }
 
-    // #[test]
-    // fn deserialize_guid_prefix() {
-    //     let expected = GuidPrefixUdp([1; 12]);
-    //     #[rustfmt::skip]
-    //     assert_eq!(expected, deserialize(&[
-    //         1, 1, 1, 1,
-    //         1, 1, 1, 1,
-    //         1, 1, 1, 1,
-    //     ]));
-    // }
+    #[test]
+    fn deserialize_guid_prefix() {
+        let expected = GuidPrefixUdp([1; 12]);
+        #[rustfmt::skip]
+        assert_eq!(expected, from_bytes_le(&[
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+            1, 1, 1, 1,
+        ]).unwrap());
+    }
 
-    // #[test]
-    // fn sequence_number_set_submessage_element_type_constructor() {
-    //     let expected = SequenceNumberSetUdp {
-    //         base: SequenceNumberUdp::new(&2),
-    //         num_bits: 0,
-    //         bitmap: [0; 8],
-    //     };
-    //     assert_eq!(SequenceNumberSetUdp::new(&2, &[]), expected);
+    #[test]
+    fn sequence_number_set_submessage_element_type_constructor() {
+        let expected = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(&2),
+            num_bits: 0,
+            bitmap: [0; 8],
+        };
+        assert_eq!(SequenceNumberSetUdp::new(&2, &[]), expected);
 
-    //     let expected = SequenceNumberSetUdp {
-    //         base: SequenceNumberUdp::new(&2),
-    //         num_bits: 1,
-    //         bitmap: [
-    //             0b_10000000_00000000_00000000_00000000_u32 as i32,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //         ],
-    //     };
-    //     assert_eq!(SequenceNumberSetUdp::new(&2, &[2]), expected);
+        let expected = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(&2),
+            num_bits: 1,
+            bitmap: [
+                0b_10000000_00000000_00000000_00000000_u32 as i32,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+            ],
+        };
+        assert_eq!(SequenceNumberSetUdp::new(&2, &[2]), expected);
 
-    //     let expected = SequenceNumberSetUdp {
-    //         base: SequenceNumberUdp::new(&2),
-    //         num_bits: 256,
-    //         bitmap: [
-    //             0b_10000000_00000000_00000000_00000000_u32 as i32,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000001,
-    //         ],
-    //     };
-    //     assert_eq!(SequenceNumberSetUdp::new(&2, &[2, 257]), expected);
-    // }
+        let expected = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(&2),
+            num_bits: 256,
+            bitmap: [
+                0b_10000000_00000000_00000000_00000000_u32 as i32,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000001,
+            ],
+        };
+        assert_eq!(SequenceNumberSetUdp::new(&2, &[2, 257]), expected);
+    }
 
-    // #[test]
-    // fn sequence_number_set_submessage_element_type_getters() {
-    //     let sequence_number_set = SequenceNumberSetUdp {
-    //         base: SequenceNumberUdp::new(&2),
-    //         num_bits: 0,
-    //         bitmap: [0; 8],
-    //     };
-    //     assert_eq!(sequence_number_set.base(), 2);
-    //     assert!(sequence_number_set.set().eq(Vec::<i64>::new()));
+    #[test]
+    fn sequence_number_set_submessage_element_type_getters() {
+        let sequence_number_set = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(&2),
+            num_bits: 0,
+            bitmap: [0; 8],
+        };
+        assert_eq!(sequence_number_set.base(), 2);
+        assert!(sequence_number_set.set().eq(Vec::<i64>::new()));
 
-    //     let sequence_number_set = SequenceNumberSetUdp {
-    //         base: SequenceNumberUdp::new(&2),
-    //         num_bits: 100,
-    //         bitmap: [
-    //             0b_10000000_00000000_00000000_00000000_u32 as i32,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //         ],
-    //     };
-    //     assert_eq!(sequence_number_set.base(), 2);
-    //     assert!(sequence_number_set.set().eq(vec![2]));
+        let sequence_number_set = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(&2),
+            num_bits: 100,
+            bitmap: [
+                0b_10000000_00000000_00000000_00000000_u32 as i32,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+            ],
+        };
+        assert_eq!(sequence_number_set.base(), 2);
+        assert!(sequence_number_set.set().eq(vec![2]));
 
-    //     let sequence_number_set = SequenceNumberSetUdp {
-    //         base: SequenceNumberUdp::new(&2),
-    //         num_bits: 256,
-    //         bitmap: [
-    //             0b_10000000_00000000_00000000_00000000_u32 as i32,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000000,
-    //             0b_00000000_00000000_00000000_00000001,
-    //         ],
-    //     };
-    //     assert_eq!(sequence_number_set.base(), 2);
-    //     assert!(sequence_number_set.set().eq(vec![2, 257]));
-    // }
+        let sequence_number_set = SequenceNumberSetUdp {
+            base: SequenceNumberUdp::new(&2),
+            num_bits: 256,
+            bitmap: [
+                0b_10000000_00000000_00000000_00000000_u32 as i32,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000000,
+                0b_00000000_00000000_00000000_00000001,
+            ],
+        };
+        assert_eq!(sequence_number_set.base(), 2);
+        assert!(sequence_number_set.set().eq(vec![2, 257]));
+    }
 
-    // #[test]
-    // fn serialize_sequence_number_max_gap() {
-    //     let sequence_number_set = SequenceNumberSetUdp::new(&2, &[2, 257]);
-    //     #[rustfmt::skip]
-    //     assert_eq!(serialize(sequence_number_set), vec![
-    //         0, 0, 0, 0, // bitmapBase: high (long)
-    //         2, 0, 0, 0, // bitmapBase: low (unsigned long)
-    //         0, 1, 0, 0, // numBits (ULong)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
-    //         0b_000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
-    //     ]);
-    // }
+    #[test]
+    fn serialize_sequence_number_max_gap() {
+        let sequence_number_set = SequenceNumberSetUdp::new(&2, &[2, 257]);
+        #[rustfmt::skip]
+        assert_eq!(to_bytes_le(&sequence_number_set).unwrap(), vec![
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 1, 0, 0, // numBits (ULong)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
+            0b_000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
+        ]);
+    }
 
-    // #[test]
-    // fn serialize_sequence_number_set_empty() {
-    //     let sequence_number_set = SequenceNumberSetUdp::new(&2, &[]);
-    //     #[rustfmt::skip]
-    //     assert_eq!(serialize(sequence_number_set), vec![
-    //         0, 0, 0, 0, // bitmapBase: high (long)
-    //         2, 0, 0, 0, // bitmapBase: low (unsigned long)
-    //         0, 0, 0, 0, // numBits (ULong)
-    //     ]);
-    // }
+    #[test]
+    fn serialize_sequence_number_set_empty() {
+        let sequence_number_set = SequenceNumberSetUdp::new(&2, &[]);
+        #[rustfmt::skip]
+        assert_eq!(to_bytes_le(&sequence_number_set).unwrap(), vec![
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 0, 0, 0, // numBits (ULong)
+        ]);
+    }
 
-    // #[test]
-    // fn deserialize_sequence_number_set_empty() {
-    //     let expected = SequenceNumberSetUdp::new(&2, &[]);
-    //     #[rustfmt::skip]
-    //     let result = deserialize(&[
-    //         0, 0, 0, 0, // bitmapBase: high (long)
-    //         2, 0, 0, 0, // bitmapBase: low (unsigned long)
-    //         0, 0, 0, 0, // numBits (ULong)
-    //     ]);
-    //     assert_eq!(expected, result);
-    // }
+    #[test]
+    fn deserialize_sequence_number_set_empty() {
+        let expected = SequenceNumberSetUdp::new(&2, &[]);
+        #[rustfmt::skip]
+        let result = from_bytes_le(&[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 0, 0, 0, // numBits (ULong)
+        ]).unwrap();
+        assert_eq!(expected, result);
+    }
 
-    // #[test]
-    // fn deserialize_sequence_number_set_max_gap() {
-    //     let expected = SequenceNumberSetUdp::new(&2, &[2, 257]);
-    //     #[rustfmt::skip]
-    //     let result = deserialize(&[
-    //         0, 0, 0, 0, // bitmapBase: high (long)
-    //         2, 0, 0, 0, // bitmapBase: low (unsigned long)
-    //         0, 1, 0, 0, // numBits (ULong)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
-    //         0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
-    //         0b_000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
+    #[test]
+    fn deserialize_sequence_number_set_max_gap() {
+        let expected = SequenceNumberSetUdp::new(&2, &[2, 257]);
+        #[rustfmt::skip]
+        let result = from_bytes_le(&[
+            0, 0, 0, 0, // bitmapBase: high (long)
+            2, 0, 0, 0, // bitmapBase: low (unsigned long)
+            0, 1, 0, 0, // numBits (ULong)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_1000_0000, // bitmap[0] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[1] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[2] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[3] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[4] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
+            0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
+            0b_000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
 
-    //     ]);
-    //     assert_eq!(expected, result);
-    // }
+        ]).unwrap();
+        assert_eq!(expected, result);
+    }
 
     #[test]
     fn serialize_locator() {

@@ -1,3 +1,6 @@
+use std::io::Write;
+
+use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
 use crate::{
@@ -5,7 +8,7 @@ use crate::{
     submessage_header::{SubmessageHeaderUdp, HEARTBEAT},
 };
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq)]
 pub struct HeartbeatSubmessageUdp {
     pub header: SubmessageHeaderUdp,
     reader_id: EntityIdUdp,
@@ -86,8 +89,21 @@ impl rust_rtps_pim::messages::Submessage for HeartbeatSubmessageUdp {
     }
 }
 
+impl crate::serialize::Serialize for HeartbeatSubmessageUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for HeartbeatSubmessageUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+
+    use crate::serialize::to_bytes_le;
 
     use super::*;
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementType;
@@ -127,12 +143,9 @@ mod tests {
                 last_sn,
                 count,
             );
-
-        let mut serializer = create_serializer();
-        submessage.serialize(&mut serializer).unwrap();
         #[rustfmt::skip]
         assert_eq!(
-            serializer.writer, vec![
+            to_bytes_le(&submessage).unwrap(), vec![
                 0x07_u8, 0b_0000_0001, 28, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
@@ -143,9 +156,5 @@ mod tests {
                 5, 0, 0, 0, // count: Count: value (long)
             ]
         );
-        assert_eq!(
-            serializer.writer.len() as u16 - 4,
-            submessage.header.submessage_length
-        )
     }
 }
