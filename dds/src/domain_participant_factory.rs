@@ -38,7 +38,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
 
-use crate::udp_transport::{send_udp_builtin_data, UdpTransport};
+use crate::udp_transport::{receive_udp_builtin_data, send_udp_builtin_data, UdpTransport};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -166,6 +166,7 @@ impl DomainParticipantFactory {
         let communication_thread_handle = std::thread::spawn(move || loop {
             if is_enabled_cloned.load(atomic::Ordering::Relaxed) {
                 send_udp_builtin_data(&domain_participant_storage_cloned, &mut transport);
+                receive_udp_builtin_data(&domain_participant_storage_cloned, &mut transport);
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });
@@ -178,16 +179,6 @@ impl DomainParticipantFactory {
         Some(domain_participant)
     }
 }
-
-// if let Some((source_locator, message)) = transport.read() {
-// todo!()
-// MessageReceiver::new().process_message(
-//     guid_prefix,
-//     &*rtps_participant.builtin_reader_group.lock(),
-//     source_locator,
-//     &message,
-// );
-// }
 
 // let mut spdp_discovered_participant_datas =
 //     Vec::<SPDPdiscoveredParticipantDataUdp>::new();

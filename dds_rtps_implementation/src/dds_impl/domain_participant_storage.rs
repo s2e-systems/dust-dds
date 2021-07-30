@@ -1,4 +1,7 @@
-use rust_rtps_pim::discovery::spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData;
+use rust_rtps_pim::{
+    discovery::spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
+    structure::RTPSEntity,
+};
 
 use crate::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
@@ -24,7 +27,7 @@ impl DomainParticipantStorage {
         builtin_subscriber_storage: RtpsShared<SubscriberStorage>,
         builtin_publisher_storage: RtpsShared<PublisherStorage>,
     ) -> Self {
-        let writer_group_factory = WriterGroupFactory::new(rtps_participant.guid_prefix());
+        let writer_group_factory = WriterGroupFactory::new(*rtps_participant.guid().prefix());
         Self {
             rtps_participant,
             builtin_subscriber_storage,
@@ -43,5 +46,10 @@ impl DomainParticipantStorage {
     /// Get a reference to the domain participant storage's builtin publisher storage.
     pub fn builtin_publisher_storage(&self) -> &RtpsShared<PublisherStorage> {
         &self.builtin_publisher_storage
+    }
+
+    /// Get a reference to the domain participant storage's builtin subscriber storage.
+    pub fn builtin_subscriber_storage(&self) -> &RtpsShared<SubscriberStorage> {
+        &self.builtin_subscriber_storage
     }
 }

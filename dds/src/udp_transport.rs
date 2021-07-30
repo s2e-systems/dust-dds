@@ -3,11 +3,15 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_storage::DomainParticipantStorage,
     utils::{
+        message_receiver::MessageReceiver,
         shared_object::RtpsShared,
         transport::{TransportRead, TransportWrite},
     },
 };
-use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
+use rust_rtps_pim::structure::{
+    types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
+    RTPSEntity,
+};
 use rust_rtps_udp_psm::message::RTPSMessageUdp;
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
 use serde::ser::Serialize;
@@ -32,6 +36,25 @@ pub fn send_udp_builtin_data(
                 domain_participant_storage_lock.rtps_participant(),
                 &mut data_writer_lock.rtps_data_writer_mut(),
                 transport,
+            );
+        }
+    }
+}
+
+pub fn receive_udp_builtin_data(
+    domain_participant: &RtpsShared<DomainParticipantStorage>,
+    transport: &mut UdpTransport,
+) {
+    if let Some(domain_participant_storage_lock) = domain_participant.try_lock() {
+        if let Some((source_locator, message)) = transport.read() {
+            MessageReceiver::new().process_message(
+                *domain_participant_storage_lock
+                    .rtps_participant()
+                    .guid()
+                    .prefix(),
+                &[domain_participant_storage_lock.builtin_subscriber_storage().clone()],
+                source_locator,
+                &message,
             );
         }
     }

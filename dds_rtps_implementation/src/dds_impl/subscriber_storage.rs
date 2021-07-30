@@ -10,8 +10,14 @@ pub struct SubscriberStorage {
 }
 
 impl SubscriberStorage {
-    pub fn new(qos: SubscriberQos, data_reader_storage_list: Vec<RtpsShared<DataReaderStorage>>) -> Self {
-        Self { qos, data_reader_storage_list }
+    pub fn new(
+        qos: SubscriberQos,
+        data_reader_storage_list: Vec<RtpsShared<DataReaderStorage>>,
+    ) -> Self {
+        Self {
+            qos,
+            data_reader_storage_list,
+        }
     }
 
     /// Get a reference to the subscriber storage's qos.

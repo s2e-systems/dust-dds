@@ -14,7 +14,9 @@ pub struct DataReaderStorage {
 }
 
 impl DataReaderStorage {
-    pub fn new(reader: RTPSReaderImpl, qos: DataReaderQos) -> Self { Self { reader, qos } }
+    pub fn new(reader: RTPSReaderImpl, qos: DataReaderQos) -> Self {
+        Self { reader, qos }
+    }
 
     pub fn read<T>(
         &mut self,
@@ -63,5 +65,15 @@ impl DataReaderStorage {
 
     pub fn qos(&self) -> &DataReaderQos {
         &self.qos
+    }
+
+    /// Get a reference to the data reader storage's reader.
+    pub fn reader(&self) -> &RTPSReaderImpl {
+        &self.reader
+    }
+
+    /// Get a mutable reference to the data reader storage's reader.
+    pub fn reader_mut(&mut self) -> &mut RTPSReaderImpl {
+        &mut self.reader
     }
 }
