@@ -1,28 +1,16 @@
 use std::{
     net::{Ipv4Addr, UdpSocket},
     str::FromStr,
-    sync::{
-        atomic::{self, AtomicBool},
-        Arc,
-    },
 };
 
-use rust_dds_api::{
-    dcps_psm::{DomainId, StatusMask},
-    domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::qos::DomainParticipantQos,
-};
-use rust_dds_rtps_implementation::{
-    dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::{
+use rust_dds_api::{dcps_psm::{DomainId, StatusMask}, domain::domain_participant_listener::DomainParticipantListener, infrastructure::qos::{DomainParticipantQos, SubscriberQos}};
+use rust_dds_rtps_implementation::{dds_impl::{domain_participant_impl::DomainParticipantImpl, domain_participant_storage::DomainParticipantStorage, subscriber_storage::SubscriberStorage}, rtps_impl::{
         rtps_participant_impl::RTPSParticipantImpl, rtps_reader_impl::RTPSReaderImpl,
         rtps_writer_impl::RTPSWriterImpl,
-    },
-    utils::{
+    }, utils::{
         message_receiver::MessageReceiver, message_sender::send_data, shared_object::RtpsShared,
         transport::TransportRead,
-    },
-};
+    }};
 use rust_rtps_pim::{
     behavior::{
         reader::reader::RTPSReader,
@@ -93,8 +81,6 @@ impl DomainParticipantFactory {
         let mut transport = UdpTransport::new(socket);
 
         let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
-        let is_enabled = Arc::new(AtomicBool::new(false));
-        let is_enabled_thread = is_enabled.clone();
 
         let spdp_discovery_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -148,9 +134,12 @@ impl DomainParticipantFactory {
         //     .lock()
         //     .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
 
-        let rtps_participant_impl = rtps_participant;
+        let builtin_subscriber_storage = RtpsShared::new(SubscriberStorage::new(Vec::new(), SubscriberQos::default()));
 
-        let domain_participant = DomainParticipantImpl::new(rtps_participant_impl, domain_participant_storage);
+        let domain_participant_storage =
+            RtpsShared::new(DomainParticipantStorage::new(rtps_participant, builtin_subscriber_storage));
+
+        let domain_participant = DomainParticipantImpl::new(domain_participant_storage);
 
         Some(domain_participant)
     }

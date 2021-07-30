@@ -16,34 +16,24 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::RTPSEntity;
 
-use crate::{
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
-};
+use crate::utils::shared_object::RtpsShared;
 
 use super::{
     domain_participant_storage::DomainParticipantStorage, publisher_impl::PublisherImpl,
     subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
-    writer_group_factory::WriterGroupFactory,
 };
 
 pub struct DomainParticipantImpl {
-    writer_group_factory: Mutex<WriterGroupFactory>,
     is_enabled: Arc<AtomicBool>,
     domain_participant_storage: RtpsShared<DomainParticipantStorage>,
 }
 
 impl DomainParticipantImpl {
-    pub fn new(
-        rtps_participant: RTPSParticipantImpl,
-        domain_participant_storage: RtpsShared<DomainParticipantStorage>,
-    ) -> Self {
-        let guid_prefix = *rtps_participant.guid().prefix();
+    pub fn new(domain_participant_storage: RtpsShared<DomainParticipantStorage>) -> Self {
         Self {
-            writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
-            domain_participant_storage,
             is_enabled: Arc::new(AtomicBool::new(false)),
+            domain_participant_storage,
         }
     }
 }
@@ -200,15 +190,17 @@ impl rust_dds_api::domain::domain_participant::DomainParticipant for DomainParti
     }
 
     fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
-        self.writer_group_factory
-            .lock()
-            .unwrap()
-            .set_default_qos(qos);
-        Ok(())
+        // self.writer_group_factory
+        //     .lock()
+        //     .unwrap()
+        //     .set_default_qos(qos);
+        // Ok(())
+        todo!()
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
-        self.writer_group_factory.lock().unwrap().get_default_qos()
+        // self.writer_group_factory.lock().unwrap().get_default_qos()
+        todo!()
     }
 
     fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
