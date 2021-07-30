@@ -1,6 +1,10 @@
 use std::{
     net::{Ipv4Addr, UdpSocket},
     str::FromStr,
+    sync::{
+        atomic::{self, AtomicBool},
+        Arc,
+    },
 };
 
 use rust_dds_api::{
@@ -34,7 +38,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
 
-use crate::udp_transport::UdpTransport;
+use crate::udp_transport::{send_udp_builtin_data, UdpTransport};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -82,7 +86,7 @@ impl DomainParticipantFactory {
                 &Ipv4Addr::from_str("127.0.0.1").unwrap(),
             )
             .unwrap();
-        let transport = UdpTransport::new(socket);
+        let mut transport = UdpTransport::new(socket);
 
         let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
 
@@ -156,9 +160,70 @@ impl DomainParticipantFactory {
             builtin_subscriber_storage,
             builtin_publisher_storage,
         ));
+        let is_enabled = Arc::new(AtomicBool::new(false));
+        let is_enabled_cloned = is_enabled.clone();
+        let domain_participant_storage_cloned = domain_participant_storage.clone();
+        let communication_thread_handle = std::thread::spawn(move || loop {
+            if is_enabled_cloned.load(atomic::Ordering::Relaxed) {
+                send_udp_builtin_data(&domain_participant_storage_cloned, &mut transport);
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        });
 
-        let domain_participant = DomainParticipantImpl::new(domain_participant_storage);
+        let worker_threads = vec![communication_thread_handle];
+
+        let domain_participant =
+            DomainParticipantImpl::new(is_enabled, domain_participant_storage, worker_threads);
 
         Some(domain_participant)
     }
 }
+
+// if let Some((source_locator, message)) = transport.read() {
+// todo!()
+// MessageReceiver::new().process_message(
+//     guid_prefix,
+//     &*rtps_participant.builtin_reader_group.lock(),
+//     source_locator,
+//     &message,
+// );
+// }
+
+// let mut spdp_discovered_participant_datas =
+//     Vec::<SPDPdiscoveredParticipantDataUdp>::new();
+// {
+//     todo!()
+// let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
+// let spdp_builtin_participant_reader =
+//     builtin_reader_group.reader_list()[0].lock();
+// if let Some(seq_num_min) = spdp_builtin_participant_reader
+//     .reader_cache()
+//     .get_seq_num_min()
+// {
+//     let seq_num_max = spdp_builtin_participant_reader
+//         .reader_cache()
+//         .get_seq_num_max()
+//         .unwrap();
+//     for seq_num in seq_num_min..seq_num_max {
+//         if let Some(change) = spdp_builtin_participant_reader
+//             .reader_cache()
+//             .get_change(&seq_num)
+//         {
+//             if let Ok(spdp_discovered_participant_data) =
+//                 SPDPdiscoveredParticipantDataUdp::from_bytes(
+//                     change.data_value(),
+//                 )
+//             {
+//                 spdp_discovered_participant_datas
+//                     .push(spdp_discovered_participant_data);
+//             }
+//         }
+//     }
+// }
+// }
+
+// for spdp_discovered_participant_data in spdp_discovered_participant_datas {
+//     rtps_participant
+//         .discovered_participant_add(&spdp_discovered_participant_data);
+// }
+// }

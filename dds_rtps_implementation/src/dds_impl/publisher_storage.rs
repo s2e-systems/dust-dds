@@ -1,8 +1,17 @@
 use rust_dds_api::infrastructure::qos::PublisherQos;
+use rust_rtps_pim::{
+    messages::{
+        submessages::{DataSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
+        RTPSMessage,
+    },
+    structure::{RTPSEntity, RTPSParticipant},
+};
 
-use crate::utils::shared_object::RtpsShared;
+use crate::utils::{
+    message_sender::send_data, shared_object::RtpsShared, transport::TransportWrite,
+};
 
-use super::data_writer_storage::DataWriterStorage;
+use super::data_writer_storage::{self, DataWriterStorage};
 
 pub struct PublisherStorage {
     qos: PublisherQos,
@@ -18,5 +27,10 @@ impl PublisherStorage {
             qos,
             data_writer_storage_list,
         }
+    }
+
+    /// Get a reference to the publisher storage's data writer storage list.
+    pub fn data_writer_storage_list(&self) -> &[RtpsShared<DataWriterStorage>] {
+        self.data_writer_storage_list.as_slice()
     }
 }

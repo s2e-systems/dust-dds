@@ -34,4 +34,14 @@ impl DomainParticipantStorage {
             writer_group_factory,
         }
     }
+
+    /// Get a reference to the domain participant storage's rtps participant.
+    pub fn rtps_participant(&self) -> &RTPSParticipantImpl {
+        &self.rtps_participant
+    }
+
+    /// Get a reference to the domain participant storage's builtin publisher storage.
+    pub fn builtin_publisher_storage(&self) -> &RtpsShared<PublisherStorage> {
+        &self.builtin_publisher_storage
+    }
 }

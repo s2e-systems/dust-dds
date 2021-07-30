@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{self, AtomicBool},
-    Arc, Mutex,
+use std::{
+    sync::{
+        atomic::{self, AtomicBool},
+        Arc, Mutex,
+    },
+    thread::JoinHandle,
 };
 
 use rust_dds_api::{
@@ -27,13 +30,19 @@ use super::{
 pub struct DomainParticipantImpl {
     is_enabled: Arc<AtomicBool>,
     domain_participant_storage: RtpsShared<DomainParticipantStorage>,
+    worker_threads: Vec<JoinHandle<()>>,
 }
 
 impl DomainParticipantImpl {
-    pub fn new(domain_participant_storage: RtpsShared<DomainParticipantStorage>) -> Self {
+    pub fn new(
+        is_enabled: Arc<AtomicBool>,
+        domain_participant_storage: RtpsShared<DomainParticipantStorage>,
+        worker_threads: Vec<JoinHandle<()>>,
+    ) -> Self {
         Self {
-            is_enabled: Arc::new(AtomicBool::new(false)),
+            is_enabled,
             domain_participant_storage,
+            worker_threads,
         }
     }
 }
@@ -303,65 +312,6 @@ impl Entity for DomainParticipantImpl {
     }
 
     fn enable(&self) -> DDSResult<()> {
-        let is_enabled = self.is_enabled.clone();
-        std::thread::spawn(move || loop {
-            if is_enabled.load(atomic::Ordering::Relaxed) {
-                // if let Some(mut rtps_participant) = rtps_participant_shared.try_lock() {
-                // if let Some((source_locator, message)) = transport.read() {
-                // todo!()
-                // MessageReceiver::new().process_message(
-                //     guid_prefix,
-                //     &*rtps_participant.builtin_reader_group.lock(),
-                //     source_locator,
-                //     &message,
-                // );
-                // }
-                // send_data(
-                //     &*rtps_participant,
-                //     &mut spdp_builtin_participant_writer,
-                //     &mut transport,
-                // );
-                // let mut spdp_discovered_participant_datas =
-                //     Vec::<SPDPdiscoveredParticipantDataUdp>::new();
-                // {
-                //     todo!()
-                // let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
-                // let spdp_builtin_participant_reader =
-                //     builtin_reader_group.reader_list()[0].lock();
-                // if let Some(seq_num_min) = spdp_builtin_participant_reader
-                //     .reader_cache()
-                //     .get_seq_num_min()
-                // {
-                //     let seq_num_max = spdp_builtin_participant_reader
-                //         .reader_cache()
-                //         .get_seq_num_max()
-                //         .unwrap();
-                //     for seq_num in seq_num_min..seq_num_max {
-                //         if let Some(change) = spdp_builtin_participant_reader
-                //             .reader_cache()
-                //             .get_change(&seq_num)
-                //         {
-                //             if let Ok(spdp_discovered_participant_data) =
-                //                 SPDPdiscoveredParticipantDataUdp::from_bytes(
-                //                     change.data_value(),
-                //                 )
-                //             {
-                //                 spdp_discovered_participant_datas
-                //                     .push(spdp_discovered_participant_data);
-                //             }
-                //         }
-                //     }
-                // }
-            }
-
-            // for spdp_discovered_participant_data in spdp_discovered_participant_datas {
-            //     rtps_participant
-            //         .discovered_participant_add(&spdp_discovered_participant_data);
-            // }
-            // }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            // }
-        });
         self.is_enabled.store(true, atomic::Ordering::Release);
         Ok(())
     }

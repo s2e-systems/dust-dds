@@ -1,6 +1,12 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
-use rust_dds_rtps_implementation::utils::transport::{TransportRead, TransportWrite};
+use rust_dds_rtps_implementation::{
+    dds_impl::domain_participant_storage::DomainParticipantStorage,
+    utils::{
+        shared_object::RtpsShared,
+        transport::{TransportRead, TransportWrite},
+    },
+};
 use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
 use rust_rtps_udp_psm::message::RTPSMessageUdp;
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
@@ -10,6 +16,25 @@ const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
     socket: UdpSocket,
     receive_buffer: [u8; BUFFER_SIZE],
+}
+
+pub fn send_udp_builtin_data(
+    domain_participant: &RtpsShared<DomainParticipantStorage>,
+    transport: &mut UdpTransport,
+) {
+    if let Some(domain_participant_storage_lock) = domain_participant.try_lock() {
+        let builtin_publisher_storage_lock = domain_participant_storage_lock
+            .builtin_publisher_storage()
+            .lock();
+        for data_writer in builtin_publisher_storage_lock.data_writer_storage_list() {
+            let mut data_writer_lock = data_writer.lock();
+            rust_dds_rtps_implementation::utils::message_sender::send_data(
+                domain_participant_storage_lock.rtps_participant(),
+                &mut data_writer_lock.rtps_data_writer_mut(),
+                transport,
+            );
+        }
+    }
 }
 
 struct UdpLocator(Locator);
@@ -95,8 +120,9 @@ impl<'a> TransportRead<'a> for UdpTransport {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
-                    let message: RTPSMessageUdp = rust_serde_cdr::deserializer::from_bytes(&self.receive_buffer[0..bytes])
-                        .expect("Failed to deserialize");
+                    let message: RTPSMessageUdp =
+                        rust_serde_cdr::deserializer::from_bytes(&self.receive_buffer[0..bytes])
+                            .expect("Failed to deserialize");
                     let udp_locator: UdpLocator = source_address.into();
                     Some((udp_locator.0, message))
                 } else {
@@ -124,7 +150,12 @@ mod tests {
             LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID, PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
         },
     };
-    use rust_rtps_udp_psm::{message::RTPSMessageUdp, parameter_list::{ParameterListUdp}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp}, submessages::data::DataSubmesageUdp};
+    use rust_rtps_udp_psm::{
+        message::RTPSMessageUdp,
+        parameter_list::ParameterListUdp,
+        submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp},
+        submessages::data::DataSubmesageUdp,
+    };
 
     use crate::udp_transport::UdpTransport;
 

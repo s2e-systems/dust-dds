@@ -14,4 +14,14 @@ impl DataWriterStorage {
             rtps_data_writer,
         }
     }
+
+    /// Get a reference to the data writer storage's rtps data writer.
+    pub fn rtps_data_writer(&self) -> &RTPSWriterImpl {
+        &self.rtps_data_writer
+    }
+
+    /// Get a mutable reference to the data writer storage's rtps data writer.
+    pub fn rtps_data_writer_mut(&mut self) -> &mut RTPSWriterImpl {
+        &mut self.rtps_data_writer
+    }
 }
