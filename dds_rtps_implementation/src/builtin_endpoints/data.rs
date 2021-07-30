@@ -1,7 +1,3 @@
-use std::io::Write;
-
-use byteorder::{ByteOrder, LittleEndian};
-use cdr::{CdrLe, Infinite};
 // use crate::{
 //     builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
 //     deserialize::from_bytes_le,
@@ -12,20 +8,30 @@ use cdr::{CdrLe, Infinite};
 //     },
 // };
 // use byteorder::LittleEndian;
-use rust_rtps_pim::{behavior::types::Duration, discovery::{
+use rust_rtps_pim::{
+    behavior::types::Duration,
+    discovery::{
         spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
         types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
-    }, messages::{submessage_elements::{CountSubmessageElementType, EntityIdSubmessageElementType, GuidPrefixSubmessageElementType, Parameter, ProtocolVersionSubmessageElementType, VendorIdSubmessageElementType}, types::{Count, ParameterId}}, structure::types::{EntityId, GuidPrefix, Locator, ProtocolVersion, VendorId, GUID}};
-use rust_rtps_udp_psm::{parameter_list::ParameterUdp, serialize::Serialize};
-use serde::ser::SerializeStruct;
-
-use crate::builtin_endpoints::parameterid_list::{PID_DOMAIN_ID,
-    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-    PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
-    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
-    PID_VENDORID,
+    },
+    messages::{
+        submessage_elements::{
+            CountSubmessageElementType, EntityIdSubmessageElementType,
+            GuidPrefixSubmessageElementType, ProtocolVersionSubmessageElementType,
+            VendorIdSubmessageElementType,
+        },
+        types::Count,
+    },
+    structure::types::{EntityId, GuidPrefix, Locator, ProtocolVersion, VendorId, GUID},
 };
+
+// use super::parameterid_list::{
+//     PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+//     PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+//     PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+//     PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+//     PID_VENDORID,
+// };
 use super::serde_derives::{ProtocolVersionDef, GuidDef, LocatorDef, CountDef, DurationDef};
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
@@ -54,121 +60,12 @@ struct ParticipantProxy {
     builtin_endpoint_qos: u32,
 }
 
-#[derive(PartialEq, Debug, serde::Deserialize)]
+#[derive(PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SPDPdiscoveredParticipantDataCdr {
     // ddsParticipantData: DDS::ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
     #[serde(with = "DurationDef")]
     lease_duration: Duration,
-}
-
-fn cdr_parameter<T: serde::Serialize, W: Write>(parameter_id: u16, value: &T, mut writer: W) -> rust_rtps_udp_psm::serialize::Result {
-    let mut cdr_writer = Vec::new();
-    let mut serializer = cdr::Serializer::<_, LittleEndian>::new(&mut cdr_writer);
-    serde::Serialize::serialize(value, &mut serializer).unwrap();
-
-    let parameter = Parameter::new(ParameterId(parameter_id), cdr_writer.as_slice());
-    ParameterUdp::from(&parameter).serialize::<_,LittleEndian>(&mut writer)
-}
-
-impl rust_rtps_udp_psm::serialize::Serialize for SPDPdiscoveredParticipantDataCdr {
-    fn serialize<W, B>(&self, mut writer: W) -> rust_rtps_udp_psm::serialize::Result where W: Write, B: ByteOrder {
-        writer.write(PL_CDR_LE.as_ref())?;
-        cdr_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id, &mut writer)?;
-        if &self.participant_proxy.domain_tag != &Self::DEFAULT_DOMAIN_TAG {
-            cdr_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag, &mut writer)?;
-        }
-        //ProtocolVersionDef::serialize(&self.participant_proxy.protocol_version, serializer)
-        let mut cdr_writer = Vec::new();
-        let mut serializer = cdr::Serializer::<_, LittleEndian>::new(&mut cdr_writer);
-        ProtocolVersionDef::serialize(&self.participant_proxy.protocol_version, &mut serializer).unwrap();
-        let parameter = Parameter::new(ParameterId(PID_PROTOCOL_VERSION), cdr_writer.as_slice());
-        ParameterUdp::from(&parameter).serialize::<_,LittleEndian>(&mut writer)?;
-
-        // cdr_parameter(PID_PROTOCOL_VERSION, &self.participant_proxy.protocol_version, &mut writer)?;
-
-        // let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.guid)?;
-        // parameter.push(ParameterUdp::new(PID_PARTICIPANT_GUID, v).into());
-
-        // let v = &to_bytes_le(&self.participant_proxy.vendor_id)?;
-        // parameter.push(ParameterUdp::new(PID_VENDORID, v).into());
-
-        // let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.expects_inline_qos)?;
-        // if &self.participant_proxy.expects_inline_qos != &Self::DEFAULT_EXPECTS_INLINE_QOS {
-        //     parameter.push(ParameterUdp::new(PID_EXPECTS_INLINE_QOS, v).into());
-        // }
-
-        // let mut serialized_locators = vec![];
-        // for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
-        // {
-        //     serialized_locators.push(rust_serde_cdr::serializer::to_bytes(
-        //         &metatraffic_unicast_locator,
-        //     )?);
-        // }
-        // for serialized_locator in &serialized_locators {
-        //     let p = ParameterUdp::new(PID_METATRAFFIC_UNICAST_LOCATOR, &serialized_locator);
-        //     parameter.push(p.into());
-        // }
-
-        // let mut serialized_locators = vec![];
-        // for metatraffic_unicast_locator in
-        //     &self.participant_proxy.metatraffic_multicast_locator_list
-        // {
-        //     serialized_locators.push(rust_serde_cdr::serializer::to_bytes(
-        //         &metatraffic_unicast_locator,
-        //     )?);
-        // }
-        // for serialized_locator in &serialized_locators {
-        //     let p = ParameterUdp::new(PID_METATRAFFIC_MULTICAST_LOCATOR, &serialized_locator);
-        //     parameter.push(p.into());
-        // }
-
-        // let mut serialized_locators = vec![];
-        // for metatraffic_unicast_locator in &self.participant_proxy.default_unicast_locator_list {
-        //     serialized_locators.push(rust_serde_cdr::serializer::to_bytes(
-        //         &metatraffic_unicast_locator,
-        //     )?);
-        // }
-        // for serialized_locator in &serialized_locators {
-        //     let p = ParameterUdp::new(PID_DEFAULT_UNICAST_LOCATOR, &serialized_locator);
-        //     parameter.push(p.into());
-        // }
-
-        // let mut serialized_locators = vec![];
-        // for metatraffic_unicast_locator in &self.participant_proxy.default_multicast_locator_list {
-        //     serialized_locators.push(rust_serde_cdr::serializer::to_bytes(
-        //         &metatraffic_unicast_locator,
-        //     )?);
-        // }
-        // for serialized_locator in &serialized_locators {
-        //     let p = ParameterUdp::new(PID_DEFAULT_MULTICAST_LOCATOR, &serialized_locator);
-        //     parameter.push(p.into());
-        // }
-
-        // let v = &rust_serde_cdr::serializer::to_bytes(
-        //     &self.participant_proxy.available_builtin_endpoints,
-        // )?;
-        // parameter.push(ParameterUdp::new(PID_BUILTIN_ENDPOINT_SET, v).into());
-
-        // let v =
-        //     &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.manual_liveliness_count)?;
-        // parameter.push(ParameterUdp::new(
-        //     PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-        //     v,
-        // ).into());
-
-        // let v =
-        //     &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.builtin_endpoint_qos)?;
-        // if &self.participant_proxy.builtin_endpoint_qos != &Self::DEFAULT_BUILTIN_ENDPOINT_QOS {
-        //     parameter.push(ParameterUdp::new(PID_BUILTIN_ENDPOINT_QOS, v).into());
-        // }
-
-        // let v = &rust_serde_cdr::serializer::to_bytes(&self.lease_duration)?;
-        // if &self.lease_duration != &Self::DEFAULT_PARTICIPANT_LEASE_DURATION {
-        //     parameter.push(ParameterUdp::new(PID_PARTICIPANT_LEASE_DURATION, v).into());
-        // }
-        Ok(())
-    }
 }
 
 impl SPDPdiscoveredParticipantDataCdr {
@@ -479,7 +376,7 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataCdr {
 
 #[cfg(test)]
 mod tests {
-    use cdr::{CdrLe, Infinite, PlCdrLe};
+    use cdr::{CdrLe, Infinite};
     use rust_rtps_pim::structure::types::ENTITYID_PARTICIPANT;
 
     use super::*;
@@ -527,7 +424,7 @@ mod tests {
             &lease_duration,
         );
 
-        let serialized_data = rust_rtps_udp_psm::serialize::to_bytes_le(&spdp_discovered_participant_data).unwrap();
+        let serialized_data = cdr::serialize::<_, _, CdrLe>(&spdp_discovered_participant_data, Infinite).unwrap();
         let expected_data = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
@@ -653,7 +550,7 @@ mod tests {
             &lease_duration,
         );
 
-        let serialized_data = rust_rtps_udp_psm::serialize::to_bytes_le(&spdp_discovered_participant_data).unwrap();
+        let serialized_data = cdr::serialize::<_, _, CdrLe>(&spdp_discovered_participant_data, Infinite).unwrap();
         let expected_data = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4

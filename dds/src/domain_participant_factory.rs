@@ -123,7 +123,7 @@ impl DomainParticipantFactory {
             &BuiltinEndpointQos::default(),
             &lease_duration,
         );
-        let spdp_discovered_participant_data_bytes = rust_rtps_udp_psm::serialize::to_bytes_le(&spdp_discovered_participant_data).unwrap();
+        let spdp_discovered_participant_data_bytes = cdr::serialize::<_, _, CdrLe>(&spdp_discovered_participant_data, Infinite).unwrap();
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
             &spdp_discovered_participant_data_bytes,
