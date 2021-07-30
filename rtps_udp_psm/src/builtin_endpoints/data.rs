@@ -1,13 +1,13 @@
-// use crate::{
-//     builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
-//     deserialize::from_bytes_le,
-//     parameter_list::{ParameterListUdp, ParameterUdp},
-//     serialize::{to_bytes_le, to_writer_le},
-//     submessage_elements::{
-//         CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
-//     },
-// };
-// use byteorder::LittleEndian;
+use crate::{
+    builtin_endpoints::parameterid_list::PID_DOMAIN_ID,
+    deserialize::from_bytes_le,
+    parameter_list::{ParameterListUdp, ParameterUdp},
+    serialize::{to_bytes_le, to_writer_le},
+    submessage_elements::{
+        CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
+    },
+};
+use byteorder::LittleEndian;
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
@@ -25,13 +25,13 @@ use rust_rtps_pim::{
     structure::types::{EntityId, GuidPrefix, Locator, ProtocolVersion, VendorId, GUID},
 };
 
-// use super::parameterid_list::{
-//     PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-//     PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-//     PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
-//     PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
-//     PID_VENDORID,
-// };
+use super::parameterid_list::{
+    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+    PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+    PID_VENDORID,
+};
 use super::serde_derives::{ProtocolVersionDef, GuidDef, LocatorDef, CountDef, DurationDef};
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
@@ -217,8 +217,8 @@ impl SPDPdiscoveredParticipantDataCdr {
     }
 
     pub fn from_bytes(buf: &[u8]) -> Result<Self, rust_serde_cdr::error::Error> {
-        // let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
-        // let parameter_list: ParameterListUdp = from_bytes_le(&buf[4..])?;
+        let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
+        let parameter_list: ParameterListUdp = from_bytes_le(&buf[4..])?;
 
         // let domain_id =
         //     parameter_list

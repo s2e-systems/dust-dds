@@ -5,5 +5,6 @@ pub mod message;
 pub mod submessage_header;
 pub mod message_header;
 pub mod parameter_list;
+pub mod builtin_endpoints;
 pub mod serialize;
 pub mod deserialize;
