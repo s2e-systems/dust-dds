@@ -7,7 +7,6 @@ use std::{
     },
 };
 
-use cdr::{CdrLe, Infinite};
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
@@ -123,7 +122,7 @@ impl DomainParticipantFactory {
             &BuiltinEndpointQos::default(),
             &lease_duration,
         );
-        let spdp_discovered_participant_data_bytes = cdr::serialize::<_, _, CdrLe>(&spdp_discovered_participant_data, Infinite).unwrap();
+        let spdp_discovered_participant_data_bytes = spdp_discovered_participant_data.to_bytes().unwrap();
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
             &spdp_discovered_participant_data_bytes,
@@ -182,7 +181,7 @@ impl DomainParticipantFactory {
                                     .get_change(&seq_num)
                                 {
                                     if let Ok(spdp_discovered_participant_data) =
-                                    cdr::deserialize::<SPDPdiscoveredParticipantDataCdr>(
+                                        SPDPdiscoveredParticipantDataCdr::from_bytes(
                                             change.data_value(),
                                         )
                                     {

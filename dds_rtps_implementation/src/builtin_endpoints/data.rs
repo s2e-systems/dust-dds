@@ -36,7 +36,7 @@ use super::serde_derives::{ProtocolVersionDef, GuidDef, LocatorDef, CountDef, Du
 
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
 
-#[derive(PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Debug, serde::Serialize)]
 struct ParticipantProxy {
     domain_id: u32,
     domain_tag: String,
@@ -60,7 +60,7 @@ struct ParticipantProxy {
     builtin_endpoint_qos: u32,
 }
 
-#[derive(PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, Debug, serde::Serialize)]
 pub struct SPDPdiscoveredParticipantDataCdr {
     // ddsParticipantData: DDS::ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
@@ -114,7 +114,7 @@ impl SPDPdiscoveredParticipantDataCdr {
         }
     }
 
-    // pub fn to_bytes(&self) -> Result<Vec<u8>, rust_serde_cdr::error::Error> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, rust_serde_cdr::error::Error> {
         // let mut parameter = Vec::new();
 
         // let v = &rust_serde_cdr::serializer::to_bytes(&self.participant_proxy.domain_id)?;
@@ -213,10 +213,10 @@ impl SPDPdiscoveredParticipantDataCdr {
         // to_writer_le(&ParameterListUdp { parameter }, &mut bytes)
         //     .unwrap();
         // Ok(bytes)
-        // todo!()
-    // }
+        todo!()
+    }
 
-    // pub fn from_bytes(buf: &[u8]) -> Result<Self, rust_serde_cdr::error::Error> {
+    pub fn from_bytes(buf: &[u8]) -> Result<Self, rust_serde_cdr::error::Error> {
         // let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
         // let parameter_list: ParameterListUdp = from_bytes_le(&buf[4..])?;
 
@@ -304,8 +304,8 @@ impl SPDPdiscoveredParticipantDataCdr {
         //     participant_proxy: participant_proxy,
         //     lease_duration: lease_duration,
         // })
-        // todo!()
-    // }
+        todo!()
+    }
 }
 
 impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataCdr {
@@ -376,7 +376,6 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataCdr {
 
 #[cfg(test)]
 mod tests {
-    use cdr::{CdrLe, Infinite};
     use rust_rtps_pim::structure::types::ENTITYID_PARTICIPANT;
 
     use super::*;
@@ -424,7 +423,7 @@ mod tests {
             &lease_duration,
         );
 
-        let serialized_data = cdr::serialize::<_, _, CdrLe>(&spdp_discovered_participant_data, Infinite).unwrap();
+        let serialized_data = spdp_discovered_participant_data.to_bytes().unwrap();
         let expected_data = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
@@ -550,7 +549,7 @@ mod tests {
             &lease_duration,
         );
 
-        let serialized_data = cdr::serialize::<_, _, CdrLe>(&spdp_discovered_participant_data, Infinite).unwrap();
+        let serialized_data = spdp_discovered_participant_data.to_bytes().unwrap();
         let expected_data = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
@@ -577,7 +576,7 @@ mod tests {
     #[test]
     fn deserialize_complete_spdp_discovered_participant_data() {
         #[rustfmt::skip]
-        let spdp_discovered_participant_data = cdr::deserialize::<SPDPdiscoveredParticipantDataCdr>(&[
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataCdr::from_bytes(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 4, 0x00,    // PID_DOMAIN_ID, Length
             0x01, 0x00, 0x00, 0x00, // DomainId
@@ -713,7 +712,7 @@ mod tests {
     #[test]
     fn deserialize_default_spdp_discovered_participant_data() {
         #[rustfmt::skip]
-        let spdp_discovered_participant_data = cdr::deserialize::<SPDPdiscoveredParticipantDataCdr>(&[
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataCdr::from_bytes(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
@@ -776,7 +775,7 @@ mod tests {
     #[test]
     fn deserialize_wrong_spdp_discovered_participant_data() {
         #[rustfmt::skip]
-        let spdp_discovered_participant_data_missing_protocol_version = cdr::deserialize::<SPDPdiscoveredParticipantDataCdr>(&[
+        let spdp_discovered_participant_data_missing_protocol_version = SPDPdiscoveredParticipantDataCdr::from_bytes(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
@@ -794,15 +793,15 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
         ]);
 
-        // match spdp_discovered_participant_data_missing_protocol_version {
-        //     Result::Err(rust_serde_cdr::error::Error::Message(msg)) => {
-        //         assert_eq!(&msg, "Missing PID_PROTOCOL_VERSION parameter")
-        //     }
-        //     _ => panic!(),
-        // };
+        match spdp_discovered_participant_data_missing_protocol_version {
+            Result::Err(rust_serde_cdr::error::Error::Message(msg)) => {
+                assert_eq!(&msg, "Missing PID_PROTOCOL_VERSION parameter")
+            }
+            _ => panic!(),
+        };
 
         #[rustfmt::skip]
-        let spdp_discovered_participant_data_missing_participant_guid = cdr::deserialize::<SPDPdiscoveredParticipantDataCdr>(&[
+        let spdp_discovered_participant_data_missing_participant_guid = SPDPdiscoveredParticipantDataCdr::from_bytes(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
@@ -817,11 +816,11 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
         ]);
 
-        // match spdp_discovered_participant_data_missing_participant_guid {
-        //     Result::Err(rust_serde_cdr::error::Error::Message(msg)) => {
-        //         assert_eq!(&msg, "Missing PID_PARTICIPANT_GUID parameter")
-        //     }
-        //     _ => panic!(),
-        // };
+        match spdp_discovered_participant_data_missing_participant_guid {
+            Result::Err(rust_serde_cdr::error::Error::Message(msg)) => {
+                assert_eq!(&msg, "Missing PID_PARTICIPANT_GUID parameter")
+            }
+            _ => panic!(),
+        };
     }
 }
