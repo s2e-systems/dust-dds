@@ -1,7 +1,7 @@
 use std::{
     sync::{
         atomic::{self, AtomicBool},
-        Arc, Mutex,
+        Arc,
     },
     thread::JoinHandle,
 };

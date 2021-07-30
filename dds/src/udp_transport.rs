@@ -1,7 +1,7 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
 use rust_dds_rtps_implementation::{
-    dds_impl::domain_participant_storage::DomainParticipantStorage,
+    dds_impl::{publisher_storage::PublisherStorage, subscriber_storage::SubscriberStorage},
     utils::{
         message_receiver::MessageReceiver,
         shared_object::RtpsShared,
@@ -10,7 +10,7 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::structure::{
     types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
-    RTPSEntity,
+    RTPSEntity, RTPSParticipant,
 };
 use rust_rtps_udp_psm::message::RTPSMessageUdp;
 use rust_serde_cdr::serializer::RtpsMessageSerializer;
@@ -22,18 +22,17 @@ pub struct UdpTransport {
     receive_buffer: [u8; BUFFER_SIZE],
 }
 
-pub fn send_udp_builtin_data(
-    domain_participant: &RtpsShared<DomainParticipantStorage>,
+pub fn send_udp_data(
+    rtps_participant: &(impl RTPSParticipant + RTPSEntity),
+    publishers: &[RtpsShared<PublisherStorage>],
     transport: &mut UdpTransport,
 ) {
-    if let Some(domain_participant_storage_lock) = domain_participant.try_lock() {
-        let builtin_publisher_storage_lock = domain_participant_storage_lock
-            .builtin_publisher_storage()
-            .lock();
-        for data_writer in builtin_publisher_storage_lock.data_writer_storage_list() {
+    for publisher in publishers {
+        let publisher_lock = publisher.lock();
+        for data_writer in publisher_lock.data_writer_storage_list() {
             let mut data_writer_lock = data_writer.lock();
             rust_dds_rtps_implementation::utils::message_sender::send_data(
-                domain_participant_storage_lock.rtps_participant(),
+                rtps_participant,
                 &mut data_writer_lock.rtps_data_writer_mut(),
                 transport,
             );
@@ -41,22 +40,18 @@ pub fn send_udp_builtin_data(
     }
 }
 
-pub fn receive_udp_builtin_data(
-    domain_participant: &RtpsShared<DomainParticipantStorage>,
+pub fn receive_udp_data(
+    rtps_participant: &(impl RTPSParticipant + RTPSEntity),
+    subscribers: &[RtpsShared<SubscriberStorage>],
     transport: &mut UdpTransport,
 ) {
-    if let Some(domain_participant_storage_lock) = domain_participant.try_lock() {
-        if let Some((source_locator, message)) = transport.read() {
-            MessageReceiver::new().process_message(
-                *domain_participant_storage_lock
-                    .rtps_participant()
-                    .guid()
-                    .prefix(),
-                &[domain_participant_storage_lock.builtin_subscriber_storage().clone()],
-                source_locator,
-                &message,
-            );
-        }
+    if let Some((source_locator, message)) = transport.read() {
+        MessageReceiver::new().process_message(
+            *rtps_participant.guid().prefix(),
+            subscribers,
+            source_locator,
+            &message,
+        );
     }
 }
 

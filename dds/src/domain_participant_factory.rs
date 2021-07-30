@@ -38,7 +38,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
 
-use crate::udp_transport::{receive_udp_builtin_data, send_udp_builtin_data, UdpTransport};
+use crate::udp_transport::{receive_udp_data, send_udp_data, UdpTransport};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -148,12 +148,14 @@ impl DomainParticipantFactory {
             spdp_builtin_participant_rtps_writer,
         ));
 
-        let builtin_publisher_storage = RtpsShared::new(PublisherStorage::new(
+        let builtin_publisher_storage = [RtpsShared::new(PublisherStorage::new(
             PublisherQos::default(),
             vec![spdp_builtin_participant_writer],
-        ));
-        let builtin_subscriber_storage =
-            RtpsShared::new(SubscriberStorage::new(SubscriberQos::default(), Vec::new()));
+        ))];
+        let builtin_subscriber_storage = [RtpsShared::new(SubscriberStorage::new(
+            SubscriberQos::default(),
+            Vec::new(),
+        ))];
 
         let domain_participant_storage = RtpsShared::new(DomainParticipantStorage::new(
             rtps_participant,
@@ -165,8 +167,17 @@ impl DomainParticipantFactory {
         let domain_participant_storage_cloned = domain_participant_storage.clone();
         let communication_thread_handle = std::thread::spawn(move || loop {
             if is_enabled_cloned.load(atomic::Ordering::Relaxed) {
-                send_udp_builtin_data(&domain_participant_storage_cloned, &mut transport);
-                receive_udp_builtin_data(&domain_participant_storage_cloned, &mut transport);
+                let domain_participant_lock = domain_participant_storage_cloned.lock();
+                send_udp_data(
+                    domain_participant_lock.rtps_participant(),
+                    domain_participant_lock.builtin_publisher_storage(),
+                    &mut transport,
+                );
+                receive_udp_data(
+                    domain_participant_lock.rtps_participant(),
+                    domain_participant_lock.builtin_subscriber_storage(),
+                    &mut transport,
+                );
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });
