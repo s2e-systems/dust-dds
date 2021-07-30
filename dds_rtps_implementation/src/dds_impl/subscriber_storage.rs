@@ -5,13 +5,13 @@ use crate::utils::shared_object::RtpsShared;
 use super::data_reader_storage::DataReaderStorage;
 
 pub struct SubscriberStorage {
-    readers: Vec<RtpsShared<DataReaderStorage>>,
     qos: SubscriberQos,
+    data_reader_storage_list: Vec<RtpsShared<DataReaderStorage>>,
 }
 
 impl SubscriberStorage {
-    pub fn new(readers: Vec<RtpsShared<DataReaderStorage>>, qos: SubscriberQos) -> Self {
-        Self { readers, qos }
+    pub fn new(qos: SubscriberQos, data_reader_storage_list: Vec<RtpsShared<DataReaderStorage>>) -> Self {
+        Self { qos, data_reader_storage_list }
     }
 
     /// Get a reference to the subscriber storage's qos.
@@ -21,6 +21,6 @@ impl SubscriberStorage {
 
     /// Get a reference to the subscriber storage's readers.
     pub fn readers(&self) -> &[RtpsShared<DataReaderStorage>] {
-        self.readers.as_slice()
+        self.data_reader_storage_list.as_slice()
     }
 }

@@ -3,22 +3,26 @@ use std::{
     str::FromStr,
 };
 
-use rust_dds_api::{dcps_psm::{DomainId, StatusMask}, domain::domain_participant_listener::DomainParticipantListener, infrastructure::qos::{DomainParticipantQos, SubscriberQos}};
-use rust_dds_rtps_implementation::{dds_impl::{domain_participant_impl::DomainParticipantImpl, domain_participant_storage::DomainParticipantStorage, subscriber_storage::SubscriberStorage}, rtps_impl::{
-        rtps_participant_impl::RTPSParticipantImpl, rtps_reader_impl::RTPSReaderImpl,
-        rtps_writer_impl::RTPSWriterImpl,
-    }, utils::{
-        message_receiver::MessageReceiver, message_sender::send_data, shared_object::RtpsShared,
-        transport::TransportRead,
-    }};
+use rust_dds_api::{
+    dcps_psm::{DomainId, StatusMask},
+    domain::domain_participant_listener::DomainParticipantListener,
+    infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
+};
+use rust_dds_rtps_implementation::{
+    dds_impl::{
+        data_writer_storage::DataWriterStorage, domain_participant_impl::DomainParticipantImpl,
+        domain_participant_storage::DomainParticipantStorage, publisher_storage::PublisherStorage,
+        subscriber_storage::SubscriberStorage,
+    },
+    rtps_impl::{rtps_participant_impl::RTPSParticipantImpl, rtps_writer_impl::RTPSWriterImpl},
+    utils::shared_object::RtpsShared,
+};
 use rust_rtps_pim::{
     behavior::{
-        reader::reader::RTPSReader,
         types::Duration,
         writer::writer::{RTPSWriter, RTPSWriterOperations},
     },
     discovery::{
-        participant_discovery::ParticipantDiscovery,
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
@@ -78,16 +82,25 @@ impl DomainParticipantFactory {
                 &Ipv4Addr::from_str("127.0.0.1").unwrap(),
             )
             .unwrap();
-        let mut transport = UdpTransport::new(socket);
+        let transport = UdpTransport::new(socket);
 
         let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
 
+        // let spdp_builtin_participant_reader: RTPSReaderImpl =
+        //     SpdpBuiltinParticipantReader::create(guid_prefix);
+
+        // rtps_participant
+        //     .builtin_reader_group
+        //     .lock()
+        //     .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
+
+        let spdp_builtin_participant_writer_qos = DataWriterQos::default();
         let spdp_discovery_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
-        let mut spdp_builtin_participant_writer: RTPSWriterImpl =
+        let mut spdp_builtin_participant_rtps_writer: RTPSWriterImpl =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
         let lease_duration = Duration {
@@ -115,29 +128,34 @@ impl DomainParticipantFactory {
         );
         let spdp_discovered_participant_data_bytes =
             spdp_discovered_participant_data.to_bytes().unwrap();
-        let cc = spdp_builtin_participant_writer.new_change(
+        let cc = spdp_builtin_participant_rtps_writer.new_change(
             ChangeKind::Alive,
             &spdp_discovered_participant_data_bytes,
             &[],
             1,
         );
 
-        spdp_builtin_participant_writer
+        spdp_builtin_participant_rtps_writer
             .writer_cache_mut()
             .add_change(&cc);
 
-        let spdp_builtin_participant_reader: RTPSReaderImpl =
-            SpdpBuiltinParticipantReader::create(guid_prefix);
+        let spdp_builtin_participant_writer = RtpsShared::new(DataWriterStorage::new(
+            spdp_builtin_participant_writer_qos,
+            spdp_builtin_participant_rtps_writer,
+        ));
 
-        // rtps_participant
-        //     .builtin_reader_group
-        //     .lock()
-        //     .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
+        let builtin_publisher_storage = RtpsShared::new(PublisherStorage::new(
+            PublisherQos::default(),
+            vec![spdp_builtin_participant_writer],
+        ));
+        let builtin_subscriber_storage =
+            RtpsShared::new(SubscriberStorage::new(SubscriberQos::default(), Vec::new()));
 
-        let builtin_subscriber_storage = RtpsShared::new(SubscriberStorage::new(Vec::new(), SubscriberQos::default()));
-
-        let domain_participant_storage =
-            RtpsShared::new(DomainParticipantStorage::new(rtps_participant, builtin_subscriber_storage));
+        let domain_participant_storage = RtpsShared::new(DomainParticipantStorage::new(
+            rtps_participant,
+            builtin_subscriber_storage,
+            builtin_publisher_storage,
+        ));
 
         let domain_participant = DomainParticipantImpl::new(domain_participant_storage);
 

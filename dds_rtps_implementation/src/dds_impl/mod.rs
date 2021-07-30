@@ -8,6 +8,7 @@ pub mod domain_participant_impl;
 pub mod domain_participant_storage;
 
 pub mod publisher_impl;
+pub mod publisher_storage;
 
 pub mod subscriber_impl;
 pub mod subscriber_storage;
