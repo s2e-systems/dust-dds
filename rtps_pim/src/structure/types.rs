@@ -111,8 +111,8 @@ pub const VENDOR_ID_S2E: VendorId = [99, 99];
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct GUID {
-    prefix: GuidPrefix,
-    entity_id: EntityId,
+    pub prefix: GuidPrefix,
+    pub entity_id: EntityId,
 }
 
 pub const GUID_UNKNOWN: GUID = GUID {

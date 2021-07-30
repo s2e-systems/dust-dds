@@ -1,6 +1,9 @@
-use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, deserialize::from_bytes_le, parameter_list::{ParameterListUdp, ParameterUdp}, serialize::{to_bytes_le, to_writer_le}, submessage_elements::{
-        CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
-    }};
+use crate::deserialize::from_bytes_le;
+use crate::parameter_list::ParameterListUdp;
+// use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, deserialize::from_bytes_le, parameter_list::{ParameterListUdp, ParameterUdp}, serialize::{to_bytes_le, to_writer_le}, submessage_elements::{
+//         CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
+//     }};
+use crate::submessage_elements::{CountUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp};
 use byteorder::LittleEndian;
 use rust_rtps_pim::{
     behavior::types::Duration,
@@ -19,63 +22,21 @@ use rust_rtps_pim::{
     structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUID},
 };
 
-use super::parameterid_list::{
-    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-    PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
-    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
-    PID_VENDORID,
-};
 
-const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
-
-#[derive(Debug, PartialEq)]
-struct GUIDUdp {
-    prefix: GuidPrefixUdp,
-    entity_id: EntityIdUdp,
-}
-
-impl GUIDUdp {
-    pub fn new(guid: &GUID) -> Self {
-        Self {
-            prefix: GuidPrefixUdp::new(guid.prefix()),
-            entity_id: EntityIdUdp::new(guid.entity_id()),
-        }
-    }
-
-    pub fn value(&self) -> GUID {
-        GUID::new(self.prefix.value(), self.entity_id.value())
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DurationUdp {
-    seconds: i32,
-    fraction: u32,
-}
-
-impl DurationUdp {
-    pub fn new(duration: &Duration) -> Self {
-        Self {
-            seconds: duration.seconds,
-            fraction: duration.fraction,
-        }
-    }
-
-    pub fn value(&self) -> Duration {
-        Duration {
-            seconds: self.seconds,
-            fraction: self.fraction,
-        }
-    }
-}
+// use super::parameterid_list::{
+//     PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+//     PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+//     PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+//     PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+//     PID_VENDORID,
+// };
 
 #[derive(PartialEq, Debug)]
 struct ParticipantProxy {
     domain_id: u32,
     domain_tag: String,
     protocol_version: ProtocolVersionUdp,
-    guid: GUIDUdp,
+    guid: GUID,
     vendor_id: VendorIdUdp,
     expects_inline_qos: bool,
     metatraffic_unicast_locator_list: Vec<LocatorUdp>,
@@ -91,7 +52,7 @@ struct ParticipantProxy {
 pub struct SPDPdiscoveredParticipantDataUdp {
     // ddsParticipantData: DDS::ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
-    lease_duration: DurationUdp,
+    lease_duration: Duration,
 }
 
 impl SPDPdiscoveredParticipantDataUdp {
@@ -99,10 +60,7 @@ impl SPDPdiscoveredParticipantDataUdp {
     const DEFAULT_DOMAIN_TAG: String = String::new();
     const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
     const DEFAULT_BUILTIN_ENDPOINT_QOS: u32 = 0;
-    const DEFAULT_PARTICIPANT_LEASE_DURATION: DurationUdp = DurationUdp {
-        seconds: 100,
-        fraction: 0,
-    };
+    const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration{seconds: 100, fraction: 0};
 
     pub fn new(
         domain_id: &DomainId,
@@ -125,7 +83,7 @@ impl SPDPdiscoveredParticipantDataUdp {
                 domain_id: *domain_id,
                 domain_tag: domain_tag.to_owned(),
                 protocol_version: ProtocolVersionUdp::new(protocol_version),
-                guid: GUIDUdp::new(guid),
+                guid: *guid,
                 vendor_id: VendorIdUdp::new(vendor_id),
                 expects_inline_qos: *expects_inline_qos,
                 metatraffic_unicast_locator_list: metatraffic_unicast_locator_list
@@ -148,7 +106,7 @@ impl SPDPdiscoveredParticipantDataUdp {
                 manual_liveliness_count: CountUdp::new(manual_liveliness_count),
                 builtin_endpoint_qos: builtin_endpoint_qos.0,
             },
-            lease_duration: DurationUdp::new(lease_duration),
+            lease_duration: *lease_duration,
         }
     }
 
@@ -362,7 +320,8 @@ impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
     }
 
     fn guid_prefix(&self) -> GuidPrefix {
-        *self.participant_proxy.guid.value().prefix()
+        //*self.participant_proxy.guid.value().prefix()
+        todo!()
     }
 
     fn vendor_id(&self) -> VendorId {
@@ -574,7 +533,7 @@ mod tests {
         let manual_liveliness_count = Count(2);
         let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
         let lease_duration =
-            SPDPdiscoveredParticipantDataUdp::DEFAULT_PARTICIPANT_LEASE_DURATION.value();
+            SPDPdiscoveredParticipantDataUdp::DEFAULT_PARTICIPANT_LEASE_DURATION.into();
 
         let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
             &domain_id,
@@ -791,7 +750,7 @@ mod tests {
         let manual_liveliness_count = Count(2);
         let builtin_endpoint_qos = BuiltinEndpointQos::new(0);
         let lease_duration =
-            SPDPdiscoveredParticipantDataUdp::DEFAULT_PARTICIPANT_LEASE_DURATION.value();
+            SPDPdiscoveredParticipantDataUdp::DEFAULT_PARTICIPANT_LEASE_DURATION.into();
 
         let expected_spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
             &domain_id,

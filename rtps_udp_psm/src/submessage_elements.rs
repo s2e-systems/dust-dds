@@ -1,10 +1,7 @@
 use std::io::{Read, Write};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
-use rust_rtps_pim::{
-    messages::types::{Count, FragmentNumber, SubmessageFlag, Time},
-    structure::types::{EntityKind, Locator, ProtocolVersion},
-};
+use rust_rtps_pim::{messages::types::{Count, FragmentNumber, SubmessageFlag, Time}, structure::types::{EntityId, EntityKind, Locator, ProtocolVersion}};
 
 pub fn is_bit_set(value: u8, index: usize) -> bool {
     value & (0b_0000_0001 << index) != 0
@@ -84,11 +81,32 @@ impl<'de> crate::deserialize::Deserialize<'de> for GuidPrefixUdp {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct EntityIdUdp {
     pub entity_key: [u8; 3],
     pub entity_kind: u8,
 }
+impl From<EntityIdUdp> for EntityId {
+    fn from(v: EntityIdUdp) -> Self {
+        Self {
+            entity_key: [v.entity_key[0], v.entity_key[1], v.entity_key[2]],
+            entity_kind: u8_into_entity_kind(v.entity_kind),
+        }
+    }
+}
+impl From<EntityId> for EntityIdUdp {
+    fn from(v: EntityId) -> Self {
+        Self {
+            entity_key: [
+                v.entity_key[0],
+                v.entity_key[1],
+                v.entity_key[2],
+            ],
+            entity_kind: entity_kind_into_u8(v.entity_kind),
+        }
+    }
+}
+
 
 impl crate::serialize::Serialize for EntityIdUdp {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
@@ -105,26 +123,16 @@ impl<'de> crate::deserialize::Deserialize<'de> for EntityIdUdp {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementType for EntityIdUdp {
-    fn new(value: &rust_rtps_pim::structure::types::EntityId) -> Self {
-        Self {
-            entity_key: [
-                value.entity_key[0],
-                value.entity_key[1],
-                value.entity_key[2],
-            ],
-            entity_kind: entity_kind_into_u8(value.entity_kind),
-        }
+    fn new(value: &EntityId) -> Self {
+        (*value).into()
     }
 
-    fn value(&self) -> rust_rtps_pim::structure::types::EntityId {
-        rust_rtps_pim::structure::types::EntityId {
-            entity_key: [self.entity_key[0], self.entity_key[1], self.entity_key[2]],
-            entity_kind: u8_into_entity_kind(self.entity_kind),
-        }
+    fn value(&self) -> EntityId {
+        (*self).into()
     }
 }
 
-fn entity_kind_into_u8(value: EntityKind) -> u8 {
+pub fn entity_kind_into_u8(value: EntityKind) -> u8 {
     match value {
         EntityKind::UserDefinedUnknown => 0x00,
         EntityKind::BuiltInUnknown => 0xc0,
@@ -143,7 +151,7 @@ fn entity_kind_into_u8(value: EntityKind) -> u8 {
         EntityKind::BuiltInReaderGroup => 0xc9,
     }
 }
-fn u8_into_entity_kind(_value: u8) -> EntityKind {
+pub fn u8_into_entity_kind(_value: u8) -> EntityKind {
     todo!()
 }
 
