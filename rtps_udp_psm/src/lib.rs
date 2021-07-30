@@ -1,3 +1,5 @@
+pub mod serialize;
+pub mod deserialize;
 pub mod submessages;
 pub mod psm;
 pub mod submessage_elements;
@@ -6,5 +8,3 @@ pub mod submessage_header;
 pub mod message_header;
 pub mod parameter_list;
 pub mod builtin_endpoints;
-pub mod serialize;
-pub mod deserialize;

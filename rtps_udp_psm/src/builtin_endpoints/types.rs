@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::{
@@ -6,7 +6,99 @@ use rust_rtps_pim::{
     structure::types::{EntityId, EntityKind, GUID},
 };
 
-use crate::submessage_elements::u8_into_entity_kind;
+use crate::{serialize::NumberofBytes, submessage_elements::{EntityIdUdp, GuidPrefixUdp, u8_into_entity_kind}};
+
+impl crate::serialize::Serialize for bool {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        if *self {
+            1_u8.serialize::<_, B>(&mut writer)?;
+        }
+        else {
+            0_u8.serialize::<_, B>(&mut writer)?;
+        }
+        Ok(())
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for bool {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: ByteOrder,
+    {
+        let v: u8 = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        if v == 0 {
+            Ok(false)
+        }
+        else {
+            Ok(true)
+        }
+    }
+}
+impl NumberofBytes for bool {
+    fn number_of_bytes(&self) -> usize {
+        1
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct GuidUdp {
+    prefix: GuidPrefixUdp,
+    entity_id: EntityIdUdp,
+}
+
+impl GuidUdp {
+    pub fn prefix(&self) -> &GuidPrefixUdp {
+        &self.prefix
+    }
+}
+impl From<GuidUdp> for GUID {
+    fn from(v: GuidUdp) -> Self {
+        GUID::new(v.prefix.0, v.entity_id.into())
+    }
+}
+impl From<GUID> for GuidUdp {
+    fn from(v: GUID) -> Self {
+        Self{ prefix: (*v.prefix()).into(), entity_id: (*v.entity_id()).into() }
+    }
+}
+
+
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DurationUdp {
+    pub seconds: i32,
+    pub fraction: u32,
+}
+impl From<DurationUdp> for Duration {
+    fn from(v: DurationUdp) -> Self {
+        Duration::new(v.seconds, v.fraction)
+    }
+}
+impl From<Duration> for DurationUdp {
+    fn from(v: Duration) -> Self {
+        Self{ seconds: *v.seconds(), fraction: *v.fraction() }
+    }
+}
+impl crate::serialize::Serialize for DurationUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.seconds.serialize::<_, B>(&mut writer)?;
+        self.fraction.serialize::<_, B>(&mut writer)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for DurationUdp {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: ByteOrder,
+    {
+        let seconds = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let fraction = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        Ok(Self{seconds, fraction})
+    }
+}
+impl NumberofBytes for DurationUdp {
+    fn number_of_bytes(&self) -> usize {
+        8
+    }
+}
+
 
 impl crate::serialize::Serialize for EntityKind {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
@@ -43,13 +135,13 @@ impl<'de> crate::deserialize::Deserialize<'de> for EntityId {
     }
 }
 
-impl crate::serialize::Serialize for GUID {
+impl crate::serialize::Serialize for GuidUdp {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
-        self.prefix().serialize::<_, B>(&mut writer)?;
-        self.entity_id().serialize::<_, B>(&mut writer)
+        self.prefix.serialize::<_, B>(&mut writer)?;
+        self.entity_id.serialize::<_, B>(&mut writer)
     }
 }
-impl<'de> crate::deserialize::Deserialize<'de> for GUID {
+impl<'de> crate::deserialize::Deserialize<'de> for GuidUdp {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
         B: ByteOrder,
@@ -57,6 +149,11 @@ impl<'de> crate::deserialize::Deserialize<'de> for GUID {
         let prefix = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let entity_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         Ok(Self { prefix, entity_id })
+    }
+}
+impl NumberofBytes for GuidUdp {
+    fn number_of_bytes(&self) -> usize {
+        16
     }
 }
 
@@ -74,5 +171,32 @@ impl<'de> crate::deserialize::Deserialize<'de> for Duration {
         let seconds = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let fraction = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         Ok(Self { seconds, fraction })
+    }
+}
+
+
+impl crate::serialize::Serialize for String {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        let length = self.len() as u32 + 1;
+        length.serialize::<_, B>(&mut writer)?;
+        self.as_bytes().serialize::<_, B>(&mut writer)?;
+        0u8.serialize::<_, B>(&mut writer)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for String {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: ByteOrder,
+    {
+        let length: u32 = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let mut string_buf = vec![0_u8; length as usize];
+        buf.read_exact(&mut string_buf[..])?;
+        string_buf.pop();
+        String::from_utf8(string_buf).map_err(|_err| std::io::ErrorKind::Other.into())
+    }
+}
+impl NumberofBytes for String {
+    fn number_of_bytes(&self) -> usize {
+        4 + self.len() + 1
     }
 }

@@ -16,3 +16,7 @@ pub fn to_bytes_le<S: Serialize>(value: &S) -> std::result::Result<Vec<u8>, std:
     value.serialize::<_, LittleEndian>(&mut writer)?;
     Ok(writer)
 }
+
+pub trait NumberofBytes {
+    fn number_of_bytes(&self) -> usize;
+}

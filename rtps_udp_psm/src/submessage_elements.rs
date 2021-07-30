@@ -1,7 +1,9 @@
 use std::io::{Read, Write};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
-use rust_rtps_pim::{messages::types::{Count, FragmentNumber, SubmessageFlag, Time}, structure::types::{EntityId, EntityKind, Locator, ProtocolVersion}};
+use rust_rtps_pim::{messages::{submessage_elements::GuidPrefixSubmessageElementType, types::{Count, FragmentNumber, SubmessageFlag, Time}}, structure::types::{EntityId, EntityKind, GuidPrefix, Locator, ProtocolVersion}};
+
+use crate::serialize::NumberofBytes;
 
 pub fn is_bit_set(value: u8, index: usize) -> bool {
     value & (0b_0000_0001 << index) != 0
@@ -57,16 +59,23 @@ impl rust_rtps_pim::messages::submessage_elements::ULongSubmessageElementType fo
 
 #[derive(Debug, PartialEq)]
 pub struct GuidPrefixUdp(pub(crate) [u8; 12]);
-
-impl rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElementType
-    for GuidPrefixUdp
-{
-    fn new(value: &rust_rtps_pim::structure::types::GuidPrefix) -> Self {
-        Self(value.clone())
+impl From<&GuidPrefixUdp> for GuidPrefix {
+    fn from(v: &GuidPrefixUdp) -> Self {
+        v.0
+    }
+}
+impl From<GuidPrefix> for GuidPrefixUdp {
+    fn from(v: GuidPrefix) -> Self {
+        Self(v)
+    }
+}
+impl GuidPrefixSubmessageElementType for GuidPrefixUdp {
+    fn new(value: &GuidPrefix) -> Self {
+        Self((*value).into())
     }
 
-    fn value(&self) -> rust_rtps_pim::structure::types::GuidPrefix {
-        self.0
+    fn value(&self) -> GuidPrefix {
+        self.into()
     }
 }
 
@@ -305,6 +314,11 @@ impl<'de> crate::deserialize::Deserialize<'de> for ProtocolVersionUdp {
         Ok(Self{ major, minor })
     }
 }
+impl NumberofBytes for ProtocolVersionUdp {
+    fn number_of_bytes(&self) -> usize {
+        2
+    }
+}
 
 impl rust_rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElementType
     for ProtocolVersionUdp
@@ -377,6 +391,11 @@ impl<'de> crate::deserialize::Deserialize<'de> for VendorIdUdp {
         Ok(Self(crate::deserialize::Deserialize::deserialize::<B>(buf)?))
     }
 }
+impl NumberofBytes for VendorIdUdp {
+    fn number_of_bytes(&self) -> usize {
+        2
+    }
+}
 
 impl rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElementType for VendorIdUdp {
     fn new(value: &rust_rtps_pim::structure::types::VendorId) -> Self {
@@ -417,13 +436,18 @@ impl<'a> rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElemen
 pub struct CountUdp(pub(crate) i32);
 
 impl crate::serialize::Serialize for CountUdp {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
-        todo!()
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.0.serialize::<_, B>(&mut writer)
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for CountUdp {
-    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
-        todo!()
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        Ok(Self(crate::deserialize::Deserialize::deserialize::<B>(buf)?))
+    }
+}
+impl NumberofBytes for CountUdp{
+    fn number_of_bytes(&self) -> usize {
+        4
     }
 }
 
@@ -527,7 +551,11 @@ impl LocatorUdp {
         Locator::new(self.kind, self.port, self.address)
     }
 }
-
+impl NumberofBytes for LocatorUdp {
+    fn number_of_bytes(&self) -> usize {
+        24
+    }
+}
 impl<const N: usize> crate::serialize::Serialize for [u8; N] {
     fn serialize<W: Write, B: ByteOrder>(
         &self,
@@ -546,6 +574,12 @@ impl<'de, const N: usize> crate::deserialize::Deserialize<'de> for [u8; N] {
         Ok(this)
     }
 }
+impl<const N: usize> NumberofBytes for  [u8; N] {
+    fn number_of_bytes(&self) -> usize {
+        N
+    }
+}
+
 impl crate::serialize::Serialize for u8 {
     fn serialize<W: Write, B: ByteOrder>(
         &self,
@@ -593,6 +627,11 @@ impl<'de> crate::deserialize::Deserialize<'de> for u32 {
         B: ByteOrder,
     {
         buf.read_u32::<B>()
+    }
+}
+impl NumberofBytes for u32 {
+    fn number_of_bytes(&self) -> usize {
+        4
     }
 }
 
