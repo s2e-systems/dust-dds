@@ -86,7 +86,11 @@ impl DomainParticipantFactory {
                 &Ipv4Addr::from_str("127.0.0.1").unwrap(),
             )
             .unwrap();
-        let mut transport = UdpTransport::new(socket);
+        let mut metatraffic_transport = UdpTransport::new(socket);
+
+        let socket = UdpSocket::bind("127.0.0.1:7410").unwrap();
+        socket.set_nonblocking(true).unwrap();
+        let mut default_transport = UdpTransport::new(socket);
 
         let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
 
@@ -171,12 +175,23 @@ impl DomainParticipantFactory {
                 send_udp_data(
                     domain_participant_lock.rtps_participant(),
                     domain_participant_lock.builtin_publisher_storage(),
-                    &mut transport,
+                    &mut metatraffic_transport,
                 );
                 receive_udp_data(
                     domain_participant_lock.rtps_participant(),
                     domain_participant_lock.builtin_subscriber_storage(),
-                    &mut transport,
+                    &mut metatraffic_transport,
+                );
+
+                send_udp_data(
+                    domain_participant_lock.rtps_participant(),
+                    domain_participant_lock.user_defined_publisher_storage(),
+                    &mut default_transport,
+                );
+                receive_udp_data(
+                    domain_participant_lock.rtps_participant(),
+                    domain_participant_lock.user_defined_subscriber_storage(),
+                    &mut default_transport,
                 );
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }

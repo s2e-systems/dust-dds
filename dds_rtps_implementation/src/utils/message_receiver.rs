@@ -1,11 +1,11 @@
 use rust_rtps_pim::{
-    behavior::stateless_reader_behavior::StatelessReaderBehavior,
+    behavior::{reader::reader::RTPSReader, stateless_reader_behavior::StatelessReaderBehavior},
     messages::{
         submessage_elements::TimestampSubmessageElementType,
         submessages::{
             DataSubmessage, InfoTimestampSubmessage, RtpsSubmessagePIM, RtpsSubmessageType,
         },
-        types::{Time, TIME_INVALID},
+        types::{Time, TIME_INVALID, TIME_ZERO},
         RTPSMessage,
     },
     structure::types::{
@@ -101,6 +101,10 @@ impl MessageReceiver {
             let subscriber_lock = subscriber.lock();
             for reader in subscriber_lock.readers() {
                 let mut reader_lock = reader.lock();
+                reader_lock
+                    .reader_mut()
+                    .reader_cache_mut()
+                    .set_info(Some(self.timestamp));
                 reader_lock
                     .reader_mut()
                     .receive_data(self.source_guid_prefix, data);
