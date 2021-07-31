@@ -1,12 +1,11 @@
 use std::io::Write;
 use std::marker::PhantomData;
 
-use crate::deserialize::from_bytes_le;
 use crate::parameter_list::ParameterListUdp;
 use crate::serialize::{NumberofBytes, Serialize};
 
 use crate::submessage_elements::{CountUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp};
-use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
+use byteorder::{ByteOrder, LittleEndian};
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
@@ -15,8 +14,7 @@ use rust_rtps_pim::{
     },
     messages::{
         submessage_elements::{
-            CountSubmessageElementType, EntityIdSubmessageElementType,
-            GuidPrefixSubmessageElementType, ProtocolVersionSubmessageElementType,
+            CountSubmessageElementType, ProtocolVersionSubmessageElementType,
             VendorIdSubmessageElementType,
         },
         types::Count,
@@ -356,18 +354,19 @@ impl<'de> crate::deserialize::Deserialize<'de> for SPDPdiscoveredParticipantData
 
         let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
 
-        let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET).ok_or(
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Missing PID_BUILTIN_ENDPOINT_SET parameter"
-            ),
-        )?;
+        let available_builtin_endpoints =
+            parameter_list
+                .get(PID_BUILTIN_ENDPOINT_SET)
+                .ok_or(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Missing PID_BUILTIN_ENDPOINT_SET parameter",
+                ))?;
 
         let manual_liveliness_count = parameter_list
             .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
             .ok_or(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter"
+                "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter",
             ))?;
 
         let builtin_endpoint_qos = parameter_list
@@ -402,7 +401,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for SPDPdiscoveredParticipantData
 }
 #[cfg(test)]
 mod tests {
-    use crate::serialize::to_bytes_le;
+    use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
 
     use super::*;
     use rust_rtps_pim::structure::types::ENTITYID_PARTICIPANT;
@@ -802,7 +801,7 @@ mod tests {
     #[test]
     fn deserialize_wrong_spdp_discovered_participant_data() {
         #[rustfmt::skip]
-        let spdp_discovered_participant_data_missing_protocol_version: SPDPdiscoveredParticipantDataUdp = from_bytes_le(&[
+        let result: std::result::Result<SPDPdiscoveredParticipantDataUdp, _> = from_bytes_le(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
@@ -818,17 +817,17 @@ mod tests {
             0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
             0x02, 0x00, 0x00, 0x00, // Count(2)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ]).unwrap();
-
-        // match spdp_discovered_participant_data_missing_protocol_version {
-        //     Result::Err(rust_serde_cdr::error::Error::Message(msg)) => {
-        //         assert_eq!(&msg, "Missing PID_PROTOCOL_VERSION parameter")
-        //     }
-        //     _ => panic!(),
-        // };
+        ]);
+        match result {
+            Err(err) => {
+                assert_eq!(err.kind(), std::io::ErrorKind::Other);
+                assert_eq!(err.to_string(), "Missing PID_PROTOCOL_VERSION parameter")
+            }
+            _ => panic!(),
+        }
 
         #[rustfmt::skip]
-        let spdp_discovered_participant_data_missing_participant_guid: SPDPdiscoveredParticipantDataUdp = from_bytes_le(&[
+        let result: Result<SPDPdiscoveredParticipantDataUdp, _> = from_bytes_le(&[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId(1)
@@ -841,13 +840,14 @@ mod tests {
             0x34, 0x00, 0x04, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length: 4
             0x02, 0x00, 0x00, 0x00, // Count(2)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length: 0
-        ]).unwrap();
+        ]);
 
-        // match spdp_discovered_participant_data_missing_participant_guid {
-        //     Result::Err(rust_serde_cdr::error::Error::Message(msg)) => {
-        //         assert_eq!(&msg, "Missing PID_PARTICIPANT_GUID parameter")
-        //     }
-        //     _ => panic!(),
-        // };
+        match result {
+            Err(err) => {
+                assert_eq!(err.kind(), std::io::ErrorKind::Other);
+                assert_eq!(err.to_string(), "Missing PID_PARTICIPANT_GUID parameter")
+            }
+            _ => panic!(),
+        }
     }
 }
