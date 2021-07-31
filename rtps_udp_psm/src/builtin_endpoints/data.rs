@@ -4,9 +4,7 @@ use std::marker::PhantomData;
 use crate::deserialize::from_bytes_le;
 use crate::parameter_list::ParameterListUdp;
 use crate::serialize::{NumberofBytes, Serialize};
-// use crate::{builtin_endpoints::parameterid_list::PID_DOMAIN_ID, deserialize::from_bytes_le, parameter_list::{ParameterListUdp, ParameterUdp}, serialize::{to_bytes_le, to_writer_le}, submessage_elements::{
-//         CountUdp, EntityIdUdp, GuidPrefixUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp,
-//     }};
+
 use crate::submessage_elements::{CountUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp};
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use rust_rtps_pim::{
@@ -26,16 +24,14 @@ use rust_rtps_pim::{
     structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUID},
 };
 
-use super::parameterid_list::{PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_SENTINEL, PID_VENDORID};
+use super::parameterid_list::{
+    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+    PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+    PID_SENTINEL, PID_VENDORID,
+};
 use super::types::{DurationUdp, GuidUdp};
-
-// use super::parameterid_list::{
-//     PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-//     PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-//     PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
-//     PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
-//     PID_VENDORID,
-// };
 
 #[derive(PartialEq, Debug)]
 struct ParticipantProxy {
@@ -196,20 +192,33 @@ const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
 
 struct ParameterSerializer<'a, W: Write, B: ByteOrder> {
     writer: &'a mut W,
-    byteorder: PhantomData<B>
+    byteorder: PhantomData<B>,
 }
 
 impl<'a, W: Write, B: ByteOrder> ParameterSerializer<'a, W, B> {
-    fn new(writer: &'a mut W) -> Self { Self { writer, byteorder: PhantomData } }
+    fn new(writer: &'a mut W) -> Self {
+        Self {
+            writer,
+            byteorder: PhantomData,
+        }
+    }
 
-    fn serialize_list<S: Serialize + NumberofBytes>(&mut self, parameter_id: u16, parameter: &[S]) -> crate::serialize::Result {
+    fn serialize_list<S: Serialize + NumberofBytes>(
+        &mut self,
+        parameter_id: u16,
+        parameter: &[S],
+    ) -> crate::serialize::Result {
         for parameter_i in parameter {
-                self.serialize(parameter_id, parameter_i)?;
+            self.serialize(parameter_id, parameter_i)?;
         }
         Ok(())
     }
-    fn serialize<S: Serialize + NumberofBytes>(&mut self, parameter_id: u16, parameter: &S) -> crate::serialize::Result {
-        parameter_id.serialize::<_,B>(&mut self.writer)?;
+    fn serialize<S: Serialize + NumberofBytes>(
+        &mut self,
+        parameter_id: u16,
+        parameter: &S,
+    ) -> crate::serialize::Result {
+        parameter_id.serialize::<_, B>(&mut self.writer)?;
         let length = parameter.number_of_bytes();
         let padding: &[u8] = match length % 4 {
             1 => &[0; 3],
@@ -217,10 +226,10 @@ impl<'a, W: Write, B: ByteOrder> ParameterSerializer<'a, W, B> {
             3 => &[0; 1],
             _ => &[],
         };
-        let length_with_padding = (length + padding.len())  as u16;
-        length_with_padding.serialize::<_,B>(&mut self.writer)?;
-        parameter.serialize::<_,B>(&mut self.writer)?;
-        padding.serialize::<_,B>(&mut self.writer)
+        let length_with_padding = (length + padding.len()) as u16;
+        length_with_padding.serialize::<_, B>(&mut self.writer)?;
+        parameter.serialize::<_, B>(&mut self.writer)?;
+        padding.serialize::<_, B>(&mut self.writer)
     }
 }
 
@@ -231,25 +240,60 @@ impl crate::serialize::Serialize for SPDPdiscoveredParticipantDataUdp {
     ) -> crate::serialize::Result {
         writer.write(&PL_CDR_LE)?;
 
-        let mut ser = ParameterSerializer::<_,LittleEndian>::new(&mut writer);
+        let mut ser = ParameterSerializer::<_, LittleEndian>::new(&mut writer);
         ser.serialize(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
         if &self.participant_proxy.domain_tag != &Self::DEFAULT_DOMAIN_TAG {
             ser.serialize(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)?;
         }
-        ser.serialize(PID_PROTOCOL_VERSION, &self.participant_proxy.protocol_version)?;
+        ser.serialize(
+            PID_PROTOCOL_VERSION,
+            &self.participant_proxy.protocol_version,
+        )?;
         ser.serialize(PID_PARTICIPANT_GUID, &self.participant_proxy.guid)?;
         ser.serialize(PID_VENDORID, &self.participant_proxy.vendor_id)?;
         if &self.participant_proxy.expects_inline_qos != &Self::DEFAULT_EXPECTS_INLINE_QOS {
-            ser.serialize(PID_EXPECTS_INLINE_QOS, &self.participant_proxy.expects_inline_qos)?;
+            ser.serialize(
+                PID_EXPECTS_INLINE_QOS,
+                &self.participant_proxy.expects_inline_qos,
+            )?;
         }
-        ser.serialize_list(PID_METATRAFFIC_UNICAST_LOCATOR, self.participant_proxy.metatraffic_unicast_locator_list.as_slice())?;
-        ser.serialize_list(PID_METATRAFFIC_MULTICAST_LOCATOR, self.participant_proxy.metatraffic_multicast_locator_list.as_slice())?;
-        ser.serialize_list(PID_DEFAULT_UNICAST_LOCATOR, self.participant_proxy.default_unicast_locator_list.as_slice())?;
-        ser.serialize_list(PID_DEFAULT_MULTICAST_LOCATOR, self.participant_proxy.default_multicast_locator_list.as_slice())?;
-        ser.serialize(PID_BUILTIN_ENDPOINT_SET, &self.participant_proxy.available_builtin_endpoints)?;
-        ser.serialize(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, &self.participant_proxy.manual_liveliness_count)?;
+        ser.serialize_list(
+            PID_METATRAFFIC_UNICAST_LOCATOR,
+            self.participant_proxy
+                .metatraffic_unicast_locator_list
+                .as_slice(),
+        )?;
+        ser.serialize_list(
+            PID_METATRAFFIC_MULTICAST_LOCATOR,
+            self.participant_proxy
+                .metatraffic_multicast_locator_list
+                .as_slice(),
+        )?;
+        ser.serialize_list(
+            PID_DEFAULT_UNICAST_LOCATOR,
+            self.participant_proxy
+                .default_unicast_locator_list
+                .as_slice(),
+        )?;
+        ser.serialize_list(
+            PID_DEFAULT_MULTICAST_LOCATOR,
+            self.participant_proxy
+                .default_multicast_locator_list
+                .as_slice(),
+        )?;
+        ser.serialize(
+            PID_BUILTIN_ENDPOINT_SET,
+            &self.participant_proxy.available_builtin_endpoints,
+        )?;
+        ser.serialize(
+            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+            &self.participant_proxy.manual_liveliness_count,
+        )?;
         if &self.participant_proxy.builtin_endpoint_qos != &Self::DEFAULT_BUILTIN_ENDPOINT_QOS {
-            ser.serialize(PID_BUILTIN_ENDPOINT_QOS, &self.participant_proxy.builtin_endpoint_qos)?;
+            ser.serialize(
+                PID_BUILTIN_ENDPOINT_QOS,
+                &self.participant_proxy.builtin_endpoint_qos,
+            )?;
         }
         if &self.lease_duration != &Self::DEFAULT_PARTICIPANT_LEASE_DURATION {
             ser.serialize(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)?;
@@ -260,95 +304,100 @@ impl crate::serialize::Serialize for SPDPdiscoveredParticipantDataUdp {
 }
 
 impl<'de> crate::deserialize::Deserialize<'de> for SPDPdiscoveredParticipantDataUdp {
-    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
-        // let _representation: [u8; 4] = rust_serde_cdr::deserializer::from_bytes(&buf[0..4])?;
-        // let parameter_list: ParameterListUdp = from_bytes_le(&buf[4..])?;
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: ByteOrder,
+    {
+        let _representation: [u8; 4] = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let parameter_list: ParameterListUdp =
+            crate::deserialize::Deserialize::deserialize::<B>(buf)?;
 
-        // let domain_id =
-        //     parameter_list
-        //         .get(PID_DOMAIN_ID)
-        //         .ok_or(rust_serde_cdr::error::Error::Message(
-        //             "Missing PID_DOMAIN_ID parameter".to_string(),
-        //         ))?;
+        let domain_id = parameter_list
+            .get(PID_DOMAIN_ID)
+            .ok_or(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Missing PID_DOMAIN_ID parameter",
+            ))?;
 
-        // let domain_tag = parameter_list
-        //     .get(PID_DOMAIN_TAG)
-        //     .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
+        let domain_tag = parameter_list
+            .get(PID_DOMAIN_TAG)
+            .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
 
-        // let protocol_version: ProtocolVersionUdp = parameter_list.get(PID_PROTOCOL_VERSION).ok_or(
-        //     rust_serde_cdr::error::Error::Message(
-        //         "Missing PID_PROTOCOL_VERSION parameter".to_string(),
-        //     ),
-        // )?;
+        let protocol_version: ProtocolVersionUdp =
+            parameter_list
+                .get(PID_PROTOCOL_VERSION)
+                .ok_or(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Missing PID_PROTOCOL_VERSION parameter",
+                ))?;
 
-        // let guid: GUIDUdp = parameter_list.get(PID_PARTICIPANT_GUID).ok_or(
-        //     rust_serde_cdr::error::Error::Message(
-        //         "Missing PID_PARTICIPANT_GUID parameter".to_string(),
-        //     ),
-        // )?;
+        let guid: GuidUdp = parameter_list
+            .get(PID_PARTICIPANT_GUID)
+            .ok_or(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Missing PID_PARTICIPANT_GUID parameter",
+            ))?;
 
-        // let vendor_id: VendorIdUdp =
-        //     parameter_list
-        //         .get(PID_VENDORID)
-        //         .ok_or(rust_serde_cdr::error::Error::Message(
-        //             "Missing PID_VENDORID parameter".to_string(),
-        //         ))?;
+        let vendor_id: VendorIdUdp = parameter_list.get(PID_VENDORID).ok_or(
+            std::io::Error::new(std::io::ErrorKind::Other, "Missing PID_VENDORID parameter"),
+        )?;
 
-        // let expects_inline_qos = parameter_list
-        //     .get(PID_EXPECTS_INLINE_QOS)
-        //     .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
+        let expects_inline_qos = parameter_list
+            .get(PID_EXPECTS_INLINE_QOS)
+            .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
 
-        // let metatraffic_unicast_locator_list =
-        //     parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
+        let metatraffic_unicast_locator_list =
+            parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
 
-        // let metatraffic_multicast_locator_list =
-        //     parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
+        let metatraffic_multicast_locator_list =
+            parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
 
-        // let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
+        let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
 
-        // let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
+        let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
 
-        // let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET).ok_or(
-        //     rust_serde_cdr::error::Error::Message(
-        //         "Missing PID_BUILTIN_ENDPOINT_SET parameter".to_string(),
-        //     ),
-        // )?;
+        let available_builtin_endpoints = parameter_list.get(PID_BUILTIN_ENDPOINT_SET).ok_or(
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Missing PID_BUILTIN_ENDPOINT_SET parameter"
+            ),
+        )?;
 
-        // let manual_liveliness_count = parameter_list
-        //     .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
-        //     .ok_or(rust_serde_cdr::error::Error::Message(
-        //         "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter".to_string(),
-        //     ))?;
+        let manual_liveliness_count = parameter_list
+            .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
+            .ok_or(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter"
+            ))?;
 
-        // let builtin_endpoint_qos = parameter_list
-        //     .get(PID_BUILTIN_ENDPOINT_QOS)
-        //     .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
+        let builtin_endpoint_qos = parameter_list
+            .get(PID_BUILTIN_ENDPOINT_QOS)
+            .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
 
-        // let lease_duration = parameter_list
-        //     .get(PID_PARTICIPANT_LEASE_DURATION)
-        //     .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
+        let lease_duration = parameter_list
+            .get(PID_PARTICIPANT_LEASE_DURATION)
+            .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
 
-        // let participant_proxy = ParticipantProxy {
-        //     domain_id,
-        //     domain_tag,
-        //     protocol_version,
-        //     guid,
-        //     vendor_id,
-        //     expects_inline_qos,
-        //     metatraffic_unicast_locator_list,
-        //     metatraffic_multicast_locator_list,
-        //     default_unicast_locator_list,
-        //     default_multicast_locator_list,
-        //     available_builtin_endpoints,
-        //     manual_liveliness_count,
-        //     builtin_endpoint_qos,
-        // };
+        let participant_proxy = ParticipantProxy {
+            domain_id,
+            domain_tag,
+            protocol_version,
+            guid,
+            vendor_id,
+            expects_inline_qos,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            available_builtin_endpoints,
+            manual_liveliness_count,
+            builtin_endpoint_qos,
+        };
 
-        // Ok(Self {
-        //     participant_proxy: participant_proxy,
-        //     lease_duration: lease_duration,
-        // })
-        todo!()
+        Ok(Self {
+            participant_proxy: participant_proxy,
+            lease_duration: lease_duration,
+        })
     }
 }
 #[cfg(test)]

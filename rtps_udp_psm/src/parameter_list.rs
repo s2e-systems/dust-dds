@@ -4,6 +4,8 @@ use rust_rtps_pim::messages::{
     types::ParameterId,
 };
 
+use crate::deserialize::from_bytes_le;
+
 const PID_SENTINEL: u16 = 1;
 const SENTINEL: ParameterUdp = ParameterUdp {
     parameter_id: PID_SENTINEL,
@@ -170,23 +172,23 @@ impl<'a> ParameterListUdp<'a> {
             .sum::<usize>()
             + 4
     }
-    pub fn get<'b: 'de, 'de, T: serde::Deserialize<'de>>(&'b self, parameter_id: u16) -> Option<T> {
+    pub fn get<'b: 'de, 'de, T: crate::deserialize::Deserialize<'de>>(&'b self, parameter_id: u16) -> Option<T> {
         for parameter in &self.parameter {
             if parameter.parameter_id.0 == parameter_id {
-                return Some(rust_serde_cdr::deserializer::from_bytes(parameter.value).unwrap());
+                return Some(from_bytes_le(parameter.value).unwrap());
             }
         }
         None
     }
 
-    pub fn get_list<'b: 'de, 'de, T: serde::Deserialize<'de>>(
+    pub fn get_list<'b: 'de, 'de, T: crate::deserialize::Deserialize<'de>>(
         &'b self,
         parameter_id: u16,
     ) -> Vec<T> {
         let mut list = Vec::new();
         for parameter in &self.parameter {
             if parameter.parameter_id.0 == parameter_id {
-                let value = rust_serde_cdr::deserializer::from_bytes(parameter.value).unwrap();
+                let value = from_bytes_le(parameter.value).unwrap();
                 list.push(value);
             }
         }
