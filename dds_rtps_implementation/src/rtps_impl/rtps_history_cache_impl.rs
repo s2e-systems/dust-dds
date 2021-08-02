@@ -18,6 +18,69 @@ pub struct CacheChange {
     sample_state_kind: SampleStateKind,
     view_state_kind: ViewStateKind,
     instance_state_kind: InstanceStateKind,
+    taken: bool,
+}
+
+impl CacheChange {
+    /// Get a reference to the cache change's kind.
+    pub fn kind(&self) -> &ChangeKind {
+        &self.kind
+    }
+
+    /// Get a reference to the cache change's writer guid.
+    pub fn writer_guid(&self) -> &Guid {
+        &self.writer_guid
+    }
+
+    /// Get a reference to the cache change's sequence number.
+    pub fn sequence_number(&self) -> &SequenceNumber {
+        &self.sequence_number
+    }
+
+    /// Get a reference to the cache change's instance handle.
+    pub fn instance_handle(&self) -> &InstanceHandle {
+        &self.instance_handle
+    }
+
+    /// Get a reference to the cache change's data.
+    pub fn data(&self) -> &[u8] {
+        self.data.as_slice()
+    }
+
+    /// Get a reference to the cache change's source timestamp.
+    pub fn source_timestamp(&self) -> Option<&Time> {
+        self.source_timestamp.as_ref()
+    }
+
+    /// Get a reference to the cache change's creation timestamp.
+    pub fn creation_timestamp(&self) -> &Time {
+        &self.creation_timestamp
+    }
+
+    /// Get a reference to the cache change's sample state kind.
+    pub fn sample_state_kind(&self) -> &SampleStateKind {
+        &self.sample_state_kind
+    }
+
+    /// Get a reference to the cache change's view state kind.
+    pub fn view_state_kind(&self) -> &ViewStateKind {
+        &self.view_state_kind
+    }
+
+    /// Get a reference to the cache change's instance state kind.
+    pub fn instance_state_kind(&self) -> &InstanceStateKind {
+        &self.instance_state_kind
+    }
+
+    /// Mark the cache change as read
+    pub fn mark_read(&mut self) {
+        self.sample_state_kind = SampleStateKind::Read;
+    }
+
+    /// Mark the cache change as taken
+    pub fn mark_taken(&mut self) {
+        self.taken = true;
+    }
 }
 
 pub struct RtpsHistoryCacheImpl {
@@ -70,6 +133,7 @@ impl RtpsHistoryCache for RtpsHistoryCacheImpl {
             sample_state_kind: SampleStateKind::NotRead,
             view_state_kind: ViewStateKind::New,
             instance_state_kind,
+            taken: false,
         };
 
         self.changes.push(local_change)
