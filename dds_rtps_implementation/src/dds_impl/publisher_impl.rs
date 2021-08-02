@@ -20,9 +20,33 @@ use crate::{
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{
-    data_writer_impl::DataWriterImpl, topic_impl::TopicImpl, writer_factory::WriterFactory,
-};
+use super::{data_writer_impl::DataWriterImpl, data_writer_storage::DataWriterStorage, topic_impl::TopicImpl, writer_factory::WriterFactory};
+
+pub struct PublisherStorage {
+    qos: PublisherQos,
+    rtps_group: RtpsGroupImpl,
+    data_writer_storage_list: Vec<RtpsShared<DataWriterStorage>>,
+}
+
+impl PublisherStorage {
+    pub fn new(
+        qos: PublisherQos,
+        rtps_group: RtpsGroupImpl,
+        data_writer_storage_list: Vec<RtpsShared<DataWriterStorage>>,
+    ) -> Self {
+        Self {
+            qos,
+            rtps_group,
+            data_writer_storage_list,
+        }
+    }
+
+    /// Get a reference to the publisher storage's data writer storage list.
+    pub fn data_writer_storage_list(&self) -> &[RtpsShared<DataWriterStorage>] {
+        self.data_writer_storage_list.as_slice()
+    }
+}
+
 
 pub struct PublisherImpl<'p> {
     participant: &'p dyn DomainParticipant,

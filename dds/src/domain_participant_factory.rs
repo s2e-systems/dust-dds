@@ -16,10 +16,13 @@ use rust_dds_rtps_implementation::{
     dds_impl::{
         data_writer_storage::DataWriterStorage,
         domain_participant_impl::{DomainParticipantImpl, DomainParticipantStorage},
-        publisher_storage::PublisherStorage,
+        publisher_impl::PublisherStorage,
         subscriber_storage::SubscriberStorage,
     },
-    rtps_impl::{rtps_participant_impl::RtpsParticipantImpl, rtps_writer_impl::RtpsWriterImpl},
+    rtps_impl::{
+        rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
+        rtps_writer_impl::RtpsWriterImpl,
+    },
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
@@ -33,7 +36,7 @@ use rust_rtps_pim::{
     },
     messages::types::Count,
     structure::{
-        types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
+        types::{ChangeKind, EntityId, EntityKind, Guid, LOCATOR_KIND_UDPv4, Locator},
         RtpsEntity, RtpsHistoryCache, RtpsParticipant,
     },
 };
@@ -157,6 +160,10 @@ impl DomainParticipantFactory {
 
         let builtin_publisher_storage = [RtpsShared::new(PublisherStorage::new(
             PublisherQos::default(),
+            RtpsGroupImpl::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], EntityKind::BuiltInWriterGroup),
+            )),
             vec![spdp_builtin_participant_writer],
         ))];
         let builtin_subscriber_storage = [RtpsShared::new(SubscriberStorage::new(

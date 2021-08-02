@@ -26,8 +26,10 @@ use crate::{
 };
 
 use super::{
-    publisher_impl::PublisherImpl, publisher_storage::PublisherStorage,
-    subscriber_impl::SubscriberImpl, subscriber_storage::SubscriberStorage, topic_impl::TopicImpl,
+    publisher_impl::{PublisherImpl, PublisherStorage},
+    subscriber_impl::SubscriberImpl,
+    subscriber_storage::SubscriberStorage,
+    topic_impl::TopicImpl,
     writer_group_factory::WriterGroupFactory,
 };
 

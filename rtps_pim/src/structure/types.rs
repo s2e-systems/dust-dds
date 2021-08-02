@@ -27,8 +27,27 @@ pub enum EntityKind {
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct EntityId {
-    pub entity_key: [u8; 3],
-    pub entity_kind: EntityKind,
+    entity_key: [u8; 3],
+    entity_kind: EntityKind,
+}
+
+impl EntityId {
+    pub const fn new(entity_key: [u8; 3], entity_kind: EntityKind) -> Self {
+        Self {
+            entity_key,
+            entity_kind,
+        }
+    }
+
+    /// Get a reference to the entity id's entity key.
+    pub fn entity_key(&self) -> &[u8; 3] {
+        &self.entity_key
+    }
+
+    /// Get a reference to the entity id's entity kind.
+    pub fn entity_kind(&self) -> &EntityKind {
+        &self.entity_kind
+    }
 }
 
 pub const ENTITYID_UNKNOWN: EntityId = EntityId {
