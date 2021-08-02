@@ -18,13 +18,13 @@ use rust_dds_rtps_implementation::{
         domain_participant_storage::DomainParticipantStorage, publisher_storage::PublisherStorage,
         subscriber_storage::SubscriberStorage,
     },
-    rtps_impl::{rtps_participant_impl::RTPSParticipantImpl, rtps_writer_impl::RTPSWriterImpl},
+    rtps_impl::{rtps_participant_impl::RtpsParticipantImpl, rtps_writer_impl::RtpsWriterImpl},
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
     behavior::{
         types::Duration,
-        writer::writer::{RTPSWriter, RTPSWriterOperations},
+        writer::writer::{RtpsWriter, RtpsWriterOperations},
     },
     discovery::{
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
@@ -33,7 +33,7 @@ use rust_rtps_pim::{
     messages::types::Count,
     structure::{
         types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator},
-        RTPSEntity, RTPSHistoryCache, RTPSParticipant,
+        RtpsEntity, RtpsHistoryCache, RtpsParticipant,
     },
 };
 use rust_rtps_udp_psm::{
@@ -95,7 +95,7 @@ impl DomainParticipantFactory {
         socket.set_nonblocking(true).unwrap();
         let mut default_transport = UdpTransport::new(socket);
 
-        let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
+        let rtps_participant = RtpsParticipantImpl::new(guid_prefix);
 
         // let spdp_builtin_participant_reader: RTPSReaderImpl =
         //     SpdpBuiltinParticipantReader::create(guid_prefix);
@@ -111,7 +111,7 @@ impl DomainParticipantFactory {
             7400,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
-        let mut spdp_builtin_participant_rtps_writer: RTPSWriterImpl =
+        let mut spdp_builtin_participant_rtps_writer: RtpsWriterImpl =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
         let lease_duration = Duration {

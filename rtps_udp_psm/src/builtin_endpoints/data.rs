@@ -19,7 +19,7 @@ use rust_rtps_pim::{
         },
         types::Count,
     },
-    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, GUID},
+    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, Guid},
 };
 
 use super::parameterid_list::{
@@ -69,7 +69,7 @@ impl SPDPdiscoveredParticipantDataUdp {
         domain_id: &DomainId,
         domain_tag: &str,
         protocol_version: &ProtocolVersion,
-        guid: &GUID,
+        guid: &Guid,
         vendor_id: &VendorId,
         expects_inline_qos: &bool,
         metatraffic_unicast_locator_list: &[Locator],
@@ -411,7 +411,7 @@ mod tests {
         let domain_id = 1;
         let domain_tag = &SPDPdiscoveredParticipantDataUdp::DEFAULT_DOMAIN_TAG;
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid = GUID::new([1; 12], ENTITYID_PARTICIPANT);
+        let guid = Guid::new([1; 12], ENTITYID_PARTICIPANT);
         let vendor_id = [9, 9];
         let expects_inline_qos = SPDPdiscoveredParticipantDataUdp::DEFAULT_EXPECTS_INLINE_QOS;
         let metatraffic_unicast_locator_list = &[];
@@ -474,7 +474,7 @@ mod tests {
         let domain_id = 1;
         let domain_tag = "abc";
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid = GUID::new([1; 12], ENTITYID_PARTICIPANT);
+        let guid = Guid::new([1; 12], ENTITYID_PARTICIPANT);
         let vendor_id = [9, 9];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = &[locator1, locator2];
@@ -694,7 +694,7 @@ mod tests {
         let domain_id = 1;
         let domain_tag = "abc";
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid = GUID::new([1; 12], ENTITYID_PARTICIPANT);
+        let guid = Guid::new([1; 12], ENTITYID_PARTICIPANT);
         let vendor_id = [9, 9];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = &[locator1, locator2];
@@ -761,7 +761,7 @@ mod tests {
         let domain_id = 1;
         let domain_tag = &SPDPdiscoveredParticipantDataUdp::DEFAULT_DOMAIN_TAG;
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid = GUID::new([1; 12], ENTITYID_PARTICIPANT);
+        let guid = Guid::new([1; 12], ENTITYID_PARTICIPANT);
         let vendor_id = [9, 9];
         let expects_inline_qos = SPDPdiscoveredParticipantDataUdp::DEFAULT_EXPECTS_INLINE_QOS;
         let metatraffic_unicast_locator_list = &[];

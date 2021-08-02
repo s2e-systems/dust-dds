@@ -1,15 +1,15 @@
 use rust_rtps_pim::{
-    behavior::reader::writer_proxy::{RTPSWriterProxy, RTPSWriterProxyOperations},
+    behavior::reader::writer_proxy::{RtpsWriterProxy, RtpsWriterProxyOperations},
     structure::types::SequenceNumber,
 };
 
-pub struct RTPSWriterProxyImpl;
+pub struct RtpsWriterProxyImpl;
 
-impl RTPSWriterProxyOperations for RTPSWriterProxyImpl {
+impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
 
     fn new<L>(
-        _remote_writer_guid: rust_rtps_pim::structure::types::GUID,
+        _remote_writer_guid: rust_rtps_pim::structure::types::Guid,
         _remote_group_entity_id: rust_rtps_pim::structure::types::EntityId,
         _unicast_locator_list: L,
         _multicast_locator_list: L,
@@ -55,8 +55,8 @@ impl RTPSWriterProxyOperations for RTPSWriterProxyImpl {
     }
 }
 
-impl RTPSWriterProxy for RTPSWriterProxyImpl {
-    fn remote_writer_guid(&self) -> &rust_rtps_pim::structure::types::GUID {
+impl RtpsWriterProxy for RtpsWriterProxyImpl {
+    fn remote_writer_guid(&self) -> &rust_rtps_pim::structure::types::Guid {
         todo!()
     }
 

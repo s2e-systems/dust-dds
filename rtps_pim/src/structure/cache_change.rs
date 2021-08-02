@@ -1,10 +1,10 @@
 use crate::messages::submessage_elements::Parameter;
 
-use super::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID};
+use super::types::{ChangeKind, InstanceHandle, SequenceNumber, Guid};
 
 pub struct RtpsCacheChange<'a> {
     kind: ChangeKind,
-    writer_guid: GUID,
+    writer_guid: Guid,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
     data_value: &'a [u8],
@@ -14,7 +14,7 @@ pub struct RtpsCacheChange<'a> {
 impl<'a> RtpsCacheChange<'a> {
     pub fn new(
         kind: ChangeKind,
-        writer_guid: GUID,
+        writer_guid: Guid,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
         data_value: &'a [u8],
@@ -35,7 +35,7 @@ impl<'a> RtpsCacheChange<'a> {
     }
 
     /// Get a reference to the rtps cache change's writer guid.
-    pub fn writer_guid(&self) -> &GUID {
+    pub fn writer_guid(&self) -> &Guid {
         &self.writer_guid
     }
 

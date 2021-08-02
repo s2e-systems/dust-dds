@@ -7,12 +7,12 @@ use crate::{
         submessages::DataSubmessage,
     },
     structure::{
-        types::{ChangeKind, GuidPrefix, ENTITYID_UNKNOWN, GUID},
-        RTPSEntity, RTPSHistoryCache, RtpsCacheChange,
+        types::{ChangeKind, GuidPrefix, ENTITYID_UNKNOWN, Guid},
+        RtpsEntity, RtpsHistoryCache, RtpsCacheChange,
     },
 };
 
-use super::reader::reader::RTPSReader;
+use super::reader::reader::RtpsReader;
 
 pub trait StatelessReaderBehavior<Data> {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data);
@@ -20,8 +20,8 @@ pub trait StatelessReaderBehavior<Data> {
 
 impl<'a, 'b, T, Data> StatelessReaderBehavior<Data> for T
 where
-    T: RTPSReader + RTPSEntity,
-    T::HistoryCacheType: RTPSHistoryCache,
+    T: RtpsReader + RtpsEntity,
+    T::HistoryCacheType: RtpsHistoryCache,
     Data: DataSubmessage<'b>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data) {
@@ -33,7 +33,7 @@ where
                 (false, true) => ChangeKind::NotAliveDisposed,
                 _ => todo!(),
             };
-            let writer_guid = GUID::new(source_guid_prefix, data.writer_id().value());
+            let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
             let instance_handle = 0;
             let sequence_number = data.writer_sn().value();
             let data_value = data.serialized_payload().value();
@@ -67,7 +67,7 @@ mod tests {
 
     struct MockCacheChange {
         kind: ChangeKind,
-        writer_guid: GUID,
+        writer_guid: Guid,
         sequence_number: SequenceNumber,
         instance_handle: InstanceHandle,
         data: [u8; 1],
@@ -76,7 +76,7 @@ mod tests {
 
     struct MockHistoryCache(Option<MockCacheChange>);
 
-    impl<'a> RTPSHistoryCache for MockHistoryCache {
+    impl<'a> RtpsHistoryCache for MockHistoryCache {
         fn new() -> Self
         where
             Self: Sized,
@@ -119,13 +119,13 @@ mod tests {
         reader_cache: MockHistoryCache,
     }
 
-    impl<'a> RTPSEntity for MockStatelessReader {
-        fn guid(&self) -> &GUID {
+    impl<'a> RtpsEntity for MockStatelessReader {
+        fn guid(&self) -> &Guid {
             &GUID_UNKNOWN
         }
     }
 
-    impl RTPSReader for MockStatelessReader {
+    impl RtpsReader for MockStatelessReader {
         type HistoryCacheType = MockHistoryCache;
 
         fn heartbeat_response_delay(&self) -> &crate::behavior::types::Duration {
@@ -292,7 +292,7 @@ mod tests {
             assert_eq!(cache_change.kind, ChangeKind::Alive);
             assert_eq!(
                 cache_change.writer_guid,
-                GUID::new(source_guid_prefix, writer_entity_id)
+                Guid::new(source_guid_prefix, writer_entity_id)
             );
             assert_eq!(cache_change.sequence_number, message_sequence_number);
             assert_eq!(cache_change.data, [3]);

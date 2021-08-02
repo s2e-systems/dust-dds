@@ -1,17 +1,17 @@
 use crate::{
     behavior::types::Duration,
-    structure::types::{Locator, ReliabilityKind, TopicKind, GUID},
+    structure::types::{Locator, ReliabilityKind, TopicKind, Guid},
 };
 
-pub trait RTPSStatefulWriter {
+pub trait RtpsStatefulWriter {
     type ReaderProxyType;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType];
 }
 
-pub trait RTPSStatefulWriterOperations {
+pub trait RtpsStatefulWriterOperations {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],
@@ -25,13 +25,13 @@ pub trait RTPSStatefulWriterOperations {
 
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType)
     where
-        Self: RTPSStatefulWriter;
+        Self: RtpsStatefulWriter;
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID);
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid);
 
-    fn matched_reader_lookup(&self, a_reader_guid: &GUID) -> Option<&Self::ReaderProxyType>
+    fn matched_reader_lookup(&self, a_reader_guid: &Guid) -> Option<&Self::ReaderProxyType>
     where
-        Self: RTPSStatefulWriter;
+        Self: RtpsStatefulWriter;
 
     fn is_acked_by_all(&self) -> bool;
 }

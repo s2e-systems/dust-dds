@@ -1,4 +1,4 @@
-use crate::{rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::RtpsWeak};
+use crate::{rtps_impl::rtps_writer_impl::RtpsWriterImpl, utils::shared_object::RtpsWeak};
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -14,14 +14,14 @@ use rust_dds_api::{
 pub struct DataWriterImpl<'dw, T: 'static> {
     _publisher: &'dw dyn Publisher,
     _topic: &'dw dyn Topic<T>,
-    _rtps_writer_impl: RtpsWeak<RTPSWriterImpl>,
+    _rtps_writer_impl: RtpsWeak<RtpsWriterImpl>,
 }
 
 impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
     pub fn new(
         publisher: &'dw dyn Publisher,
         topic: &'dw dyn Topic<T>,
-        rtps_writer_impl: RtpsWeak<RTPSWriterImpl>,
+        rtps_writer_impl: RtpsWeak<RtpsWriterImpl>,
     ) -> Self {
         Self {
             _publisher: publisher,

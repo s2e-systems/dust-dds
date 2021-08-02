@@ -3,13 +3,13 @@ use crate::{
     messages::submessage_elements::Parameter,
     structure::{
         types::{
-            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
+            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, Guid,
         },
-        RTPSHistoryCache, RtpsCacheChange,
+        RtpsHistoryCache, RtpsCacheChange,
     },
 };
 
-pub trait RTPSWriter {
+pub trait RtpsWriter {
     type HistoryCacheType;
 
     fn push_mode(&self) -> bool;
@@ -22,9 +22,9 @@ pub trait RTPSWriter {
     fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
 }
 
-pub trait RTPSWriterOperations {
+pub trait RtpsWriterOperations {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],
@@ -44,6 +44,6 @@ pub trait RTPSWriterOperations {
         handle: InstanceHandle,
     ) -> RtpsCacheChange<'a>
     where
-        Self: RTPSWriter,
-        Self::HistoryCacheType: RTPSHistoryCache;
+        Self: RtpsWriter,
+        Self::HistoryCacheType: RtpsHistoryCache;
 }

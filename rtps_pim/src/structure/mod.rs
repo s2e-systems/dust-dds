@@ -10,8 +10,8 @@ mod participant;
 pub mod types;
 
 pub use cache_change::RtpsCacheChange;
-pub use endpoint::RTPSEndpoint;
-pub use entity::RTPSEntity;
-pub use group::RTPSGroup;
-pub use history_cache::RTPSHistoryCache;
-pub use participant::RTPSParticipant;
+pub use endpoint::RtpsEndpoint;
+pub use entity::RtpsEntity;
+pub use group::RtpsGroup;
+pub use history_cache::RtpsHistoryCache;
+pub use participant::RtpsParticipant;

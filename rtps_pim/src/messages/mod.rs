@@ -22,7 +22,7 @@ pub trait Submessage {
     fn submessage_header(&self) -> RtpsSubmessageHeader;
 }
 
-pub trait RTPSMessage {
+pub trait RtpsMessage {
     type SubmessageType;
 
     fn new<T: IntoIterator<Item = Self::SubmessageType>>(

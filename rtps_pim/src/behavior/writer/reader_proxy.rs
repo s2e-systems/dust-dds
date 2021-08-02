@@ -1,7 +1,7 @@
-use crate::structure::types::{EntityId, Locator, SequenceNumber, GUID};
+use crate::structure::types::{EntityId, Locator, SequenceNumber, Guid};
 
-pub trait RTPSReaderProxy {
-    fn remote_reader_guid(&self) -> &GUID;
+pub trait RtpsReaderProxy {
+    fn remote_reader_guid(&self) -> &Guid;
     fn remote_group_entity_id(&self) -> &EntityId;
     fn unicast_locator_list(&self) -> &[Locator];
     fn multicast_locator_list(&self) -> &[Locator];
@@ -9,11 +9,11 @@ pub trait RTPSReaderProxy {
     fn is_active(&self) -> bool;
 }
 
-pub trait RTPSReaderProxyOperations {
+pub trait RtpsReaderProxyOperations {
     type SequenceNumberVector;
 
     fn new<L>(
-        remote_reader_guid: GUID,
+        remote_reader_guid: Guid,
         remote_group_entity_id: EntityId,
         unicast_locator_list: L,
         multicast_locator_list: L,

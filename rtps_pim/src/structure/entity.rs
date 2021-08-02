@@ -1,5 +1,5 @@
-use super::types::GUID;
+use super::types::Guid;
 
-pub trait RTPSEntity {
-    fn guid(&self) -> &GUID;
+pub trait RtpsEntity {
+    fn guid(&self) -> &Guid;
 }

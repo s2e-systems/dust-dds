@@ -1,7 +1,7 @@
 use crate::{
     behavior::writer::{
-        reader_locator::RTPSReaderLocatorOperations, stateless_writer::RTPSStatelessWriter,
-        writer::RTPSWriter,
+        reader_locator::RtpsReaderLocatorOperations, stateless_writer::RtpsStatelessWriter,
+        writer::RtpsWriter,
     },
     messages::{
         submessage_elements::{
@@ -13,7 +13,7 @@ use crate::{
     },
     structure::{
         types::{ChangeKind, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
-        RTPSEndpoint, RTPSHistoryCache,
+        RtpsEndpoint, RtpsHistoryCache,
     },
 };
 
@@ -29,9 +29,9 @@ pub trait StatelessWriterBehavior<'a, Data, Gap> {
 
 impl<'a, Data, Gap, T> StatelessWriterBehavior<'a, Data, Gap> for T
 where
-    T: RTPSStatelessWriter + RTPSWriter + RTPSEndpoint,
-    T::ReaderLocatorType: RTPSReaderLocatorOperations,
-    T::HistoryCacheType: RTPSHistoryCache,
+    T: RtpsStatelessWriter + RtpsWriter + RtpsEndpoint,
+    T::ReaderLocatorType: RtpsReaderLocatorOperations,
+    T::HistoryCacheType: RtpsHistoryCache,
     Data: DataSubmessage<'a>,
     Gap: GapSubmessage,
 {
@@ -67,8 +67,8 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
     send_data: &mut impl FnMut(&ReaderLocator, Data),
     send_gap: &mut impl FnMut(&ReaderLocator, Gap),
 ) where
-    ReaderLocator: RTPSReaderLocatorOperations,
-    WriterCache: RTPSHistoryCache,
+    ReaderLocator: RtpsReaderLocatorOperations,
+    WriterCache: RtpsHistoryCache,
     Data: DataSubmessage<'a>,
     Gap: GapSubmessage,
 {
@@ -117,7 +117,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
 }
 
 pub fn reliable_send_unsent_data(
-    reader_locator: &mut impl RTPSReaderLocatorOperations,
+    reader_locator: &mut impl RtpsReaderLocatorOperations,
     last_change_sequence_number: SequenceNumber,
     mut send: impl FnMut(SequenceNumber),
 ) {

@@ -334,7 +334,7 @@ mod tests {
         infrastructure::qos::{SubscriberQos, TopicQos},
         topic::topic_listener::TopicListener,
     };
-    use rust_rtps_pim::structure::{types::GUID_UNKNOWN, RTPSHistoryCache, RtpsCacheChange};
+    use rust_rtps_pim::structure::{types::GUID_UNKNOWN, RtpsHistoryCache, RtpsCacheChange};
 
     struct MockSubcriber;
     impl rust_dds_api::subscription::subscriber::Subscriber for MockSubcriber {
@@ -507,7 +507,7 @@ mod tests {
 
     struct MockHistoryCache(());
 
-    impl RTPSHistoryCache for MockHistoryCache {
+    impl RtpsHistoryCache for MockHistoryCache {
         fn new() -> Self
         where
             Self: Sized,
@@ -548,7 +548,7 @@ mod tests {
 
     struct MockRtpsReader(MockHistoryCache);
 
-    impl rust_rtps_pim::behavior::reader::reader::RTPSReader for MockRtpsReader {
+    impl rust_rtps_pim::behavior::reader::reader::RtpsReader for MockRtpsReader {
         type HistoryCacheType = MockHistoryCache;
 
         fn heartbeat_response_delay(&self) -> &rust_rtps_pim::behavior::types::Duration {

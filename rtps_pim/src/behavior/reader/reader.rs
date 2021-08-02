@@ -1,9 +1,9 @@
 use crate::{
     behavior::types::Duration,
-    structure::types::{Locator, ReliabilityKind, TopicKind, GUID},
+    structure::types::{Locator, ReliabilityKind, TopicKind, Guid},
 };
 
-pub trait RTPSReader {
+pub trait RtpsReader {
     type HistoryCacheType;
 
     fn heartbeat_response_delay(&self) -> &Duration;
@@ -13,9 +13,9 @@ pub trait RTPSReader {
     fn expects_inline_qos(&self) -> bool;
 }
 
-pub trait RTPSReaderOperations {
+pub trait RtpsReaderOperations {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],

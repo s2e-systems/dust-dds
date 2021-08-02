@@ -13,10 +13,10 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::structure::RTPSEntity;
+use rust_rtps_pim::structure::RtpsEntity;
 
 use crate::{
-    rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl,
+    rtps_impl::rtps_writer_group_impl::RtpsWriterGroupImpl,
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
@@ -28,13 +28,13 @@ pub struct PublisherImpl<'p> {
     participant: &'p dyn DomainParticipant,
     writer_factory: Mutex<WriterFactory>,
     default_datawriter_qos: Mutex<DataWriterQos>,
-    rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl>,
+    rtps_writer_group_impl: RtpsWeak<RtpsWriterGroupImpl>,
 }
 
 impl<'p> PublisherImpl<'p> {
     pub fn new(
         participant: &'p dyn DomainParticipant,
-        rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl>,
+        rtps_writer_group_impl: &RtpsShared<RtpsWriterGroupImpl>,
     ) -> Self {
         let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {

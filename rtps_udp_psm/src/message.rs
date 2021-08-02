@@ -4,7 +4,7 @@ use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
 
 use crate::{
-    message_header::RTPSMessageHeaderUdp,
+    message_header::RtpsMessageHeaderUdp,
     psm::RtpsUdpPsm,
     submessage_header::{
         SubmessageHeaderUdp, ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST,
@@ -13,12 +13,12 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct RTPSMessageUdp<'a> {
-    header: RTPSMessageHeaderUdp,
+pub struct RtpsMessageUdp<'a> {
+    header: RtpsMessageHeaderUdp,
     submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageUdp<'a> {
+impl<'a> rust_rtps_pim::messages::RtpsMessage for RtpsMessageUdp<'a> {
     type SubmessageType = RtpsSubmessageType<'a, RtpsUdpPsm>;
 
     fn new<T: IntoIterator<Item = Self::SubmessageType>>(
@@ -40,7 +40,7 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageUdp<'a> {
     }
 }
 
-impl<'a> crate::serialize::Serialize for RTPSMessageUdp<'a> {
+impl<'a> crate::serialize::Serialize for RtpsMessageUdp<'a> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
         self.header.serialize::<_, B>(&mut writer)?;
         for submessage in &self.submessages {
@@ -62,7 +62,7 @@ impl<'a> crate::serialize::Serialize for RTPSMessageUdp<'a> {
         Ok(())
     }
 }
-impl<'a, 'de: 'a> crate::deserialize::Deserialize<'de> for RTPSMessageUdp<'a> {
+impl<'a, 'de: 'a> crate::deserialize::Deserialize<'de> for RtpsMessageUdp<'a> {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
         B: ByteOrder,
@@ -151,13 +151,13 @@ mod tests {
 
     #[test]
     fn serialize_rtps_message_no_submessage() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
             guid_prefix: GuidPrefixUdp([3; 12]),
         };
-        let value = RTPSMessageUdp {
+        let value = RtpsMessageUdp {
             header,
             submessages: vec![],
         };
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn serialize_rtps_message() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
@@ -228,7 +228,7 @@ mod tests {
             inline_qos,
             serialized_payload,
         ));
-        let value = RTPSMessageUdp {
+        let value = RtpsMessageUdp {
             header,
             submessages: vec![gap_submessage, data_submessage],
         };
@@ -258,19 +258,19 @@ mod tests {
 
     #[test]
     fn deserialize_rtps_message_no_submessage() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
             guid_prefix: GuidPrefixUdp([3; 12]),
         };
 
-        let expected = RTPSMessageUdp {
+        let expected = RtpsMessageUdp {
             header,
             submessages: vec![],
         };
         #[rustfmt::skip]
-        let result: RTPSMessageUdp = from_bytes_le(&[
+        let result: RtpsMessageUdp = from_bytes_le(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn deserialize_rtps_message() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
@@ -338,12 +338,12 @@ mod tests {
             inline_qos,
             serialized_payload,
         ));
-        let expected = RTPSMessageUdp {
+        let expected = RtpsMessageUdp {
             header,
             submessages: vec![gap_submessage, data_submessage],
         };
         #[rustfmt::skip]
-        let result: RTPSMessageUdp = from_bytes_le(&[
+        let result: RtpsMessageUdp = from_bytes_le(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn deserialize_rtps_message_with_unknown_submessage_kind() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
@@ -425,12 +425,12 @@ mod tests {
             inline_qos,
             serialized_payload,
         ));
-        let expected = RTPSMessageUdp {
+        let expected = RtpsMessageUdp {
             header,
             submessages: vec![data_submessage, gap_submessage],
         };
         #[rustfmt::skip]
-        let result: RTPSMessageUdp = from_bytes_le(&[
+        let result: RtpsMessageUdp = from_bytes_le(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

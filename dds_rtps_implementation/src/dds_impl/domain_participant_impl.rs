@@ -20,7 +20,9 @@ use rust_dds_api::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-use crate::utils::shared_object::RtpsShared;
+use crate::{
+    rtps_impl::rtps_participant_impl::RtpsParticipantImpl, utils::shared_object::RtpsShared,
+};
 
 use super::{
     domain_participant_storage::DomainParticipantStorage, publisher_impl::PublisherImpl,

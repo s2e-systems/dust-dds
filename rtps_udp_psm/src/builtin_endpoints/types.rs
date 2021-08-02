@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use byteorder::ByteOrder;
 use rust_rtps_pim::{
     behavior::types::Duration,
-    structure::types::{EntityId, EntityKind, GUID},
+    structure::types::{EntityId, EntityKind, Guid},
 };
 
 use crate::{serialize::NumberofBytes, submessage_elements::{EntityIdUdp, GuidPrefixUdp, u8_into_entity_kind}};
@@ -50,13 +50,13 @@ impl GuidUdp {
         &self.prefix
     }
 }
-impl From<GuidUdp> for GUID {
+impl From<GuidUdp> for Guid {
     fn from(v: GuidUdp) -> Self {
-        GUID::new(v.prefix.0, v.entity_id.into())
+        Guid::new(v.prefix.0, v.entity_id.into())
     }
 }
-impl From<GUID> for GuidUdp {
-    fn from(v: GUID) -> Self {
+impl From<Guid> for GuidUdp {
+    fn from(v: Guid) -> Self {
         Self{ prefix: (*v.prefix()).into(), entity_id: (*v.entity_id()).into() }
     }
 }

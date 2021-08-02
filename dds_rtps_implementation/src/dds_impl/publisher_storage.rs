@@ -2,9 +2,9 @@ use rust_dds_api::infrastructure::qos::PublisherQos;
 use rust_rtps_pim::{
     messages::{
         submessages::{DataSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
-        RTPSMessage,
+        RtpsMessage,
     },
-    structure::{RTPSEntity, RTPSParticipant},
+    structure::{RtpsEntity, RtpsParticipant},
 };
 
 use crate::utils::{

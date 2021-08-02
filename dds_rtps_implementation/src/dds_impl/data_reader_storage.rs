@@ -3,18 +3,18 @@ use rust_dds_api::{
     infrastructure::{qos::DataReaderQos, sample_info::SampleInfo},
     return_type::DDSResult,
 };
-use rust_rtps_pim::{behavior::reader::reader::RTPSReader, structure::RTPSHistoryCache};
+use rust_rtps_pim::{behavior::reader::reader::RtpsReader, structure::RtpsHistoryCache};
 use serde::Deserialize;
 
-use crate::rtps_impl::rtps_reader_impl::RTPSReaderImpl;
+use crate::rtps_impl::rtps_reader_impl::RtpsReaderImpl;
 
 pub struct DataReaderStorage {
-    reader: RTPSReaderImpl,
+    reader: RtpsReaderImpl,
     qos: DataReaderQos,
 }
 
 impl DataReaderStorage {
-    pub fn new(reader: RTPSReaderImpl, qos: DataReaderQos) -> Self {
+    pub fn new(reader: RtpsReaderImpl, qos: DataReaderQos) -> Self {
         Self { reader, qos }
     }
 
@@ -68,12 +68,12 @@ impl DataReaderStorage {
     }
 
     /// Get a reference to the data reader storage's reader.
-    pub fn reader(&self) -> &RTPSReaderImpl {
+    pub fn reader(&self) -> &RtpsReaderImpl {
         &self.reader
     }
 
     /// Get a mutable reference to the data reader storage's reader.
-    pub fn reader_mut(&mut self) -> &mut RTPSReaderImpl {
+    pub fn reader_mut(&mut self) -> &mut RtpsReaderImpl {
         &mut self.reader
     }
 }

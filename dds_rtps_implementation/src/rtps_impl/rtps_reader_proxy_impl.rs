@@ -1,10 +1,10 @@
 use rust_rtps_pim::{
-    behavior::writer::reader_proxy::{RTPSReaderProxy, RTPSReaderProxyOperations},
-    structure::types::{EntityId, Locator, SequenceNumber, GUID},
+    behavior::writer::reader_proxy::{RtpsReaderProxy, RtpsReaderProxyOperations},
+    structure::types::{EntityId, Locator, SequenceNumber, Guid},
 };
 
-pub struct RTPSReaderProxyImpl {
-    remote_reader_guid: GUID,
+pub struct RtpsReaderProxyImpl {
+    remote_reader_guid: Guid,
     remote_group_entity_id: EntityId,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
@@ -13,8 +13,8 @@ pub struct RTPSReaderProxyImpl {
     _last_sent_sequence_number: SequenceNumber,
 }
 
-impl RTPSReaderProxy for RTPSReaderProxyImpl {
-    fn remote_reader_guid(&self) -> &GUID {
+impl RtpsReaderProxy for RtpsReaderProxyImpl {
+    fn remote_reader_guid(&self) -> &Guid {
         &self.remote_reader_guid
     }
 
@@ -39,11 +39,11 @@ impl RTPSReaderProxy for RTPSReaderProxyImpl {
     }
 }
 
-impl RTPSReaderProxyOperations for RTPSReaderProxyImpl {
+impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
 
     fn new<L>(
-        remote_reader_guid: GUID,
+        remote_reader_guid: Guid,
         remote_group_entity_id: EntityId,
         unicast_locator_list: L,
         multicast_locator_list: L,
