@@ -1,5 +1,8 @@
-use rust_dds_api::{dcps_psm::{InstanceHandle, StatusMask}, infrastructure::qos::SubscriberQos, subscription::subscriber_listener::SubscriberListener};
-use rust_rtps_pim::structure::{types::GUID, RTPSGroup};
+use rust_dds_api::{
+    dcps_psm::StatusMask, infrastructure::qos::SubscriberQos,
+    subscription::subscriber_listener::SubscriberListener,
+};
+use rust_rtps_pim::structure::types::GUID;
 
 use crate::utils::shared_object::{RtpsLock, RtpsShared};
 
@@ -10,7 +13,6 @@ pub struct RTPSReaderGroupImpl {
     _qos: SubscriberQos,
     _listener: Option<&'static dyn SubscriberListener>,
     _status_mask: StatusMask,
-    reader_list: Vec<RtpsShared<RTPSReaderImpl>>,
 }
 
 impl RTPSReaderGroupImpl {
@@ -25,28 +27,7 @@ impl RTPSReaderGroupImpl {
             _qos: qos,
             _listener: listener,
             _status_mask: status_mask,
-            reader_list: Vec::new(),
         }
-    }
-
-    pub fn reader_list(&self) -> &[RtpsShared<RTPSReaderImpl>] {
-        &self.reader_list
-    }
-
-    pub fn add_reader(&mut self, reader: RtpsShared<RTPSReaderImpl> ) {
-        self.reader_list.push(reader)
-    }
-
-    pub fn delete_reader(&mut self, _reader: InstanceHandle) {
-        todo!()
-    }
-}
-
-impl<'a> RTPSGroup for &'a RTPSReaderGroupImpl {
-    type Endpoints = RTPSReaderIterator<'a>;
-
-    fn endpoints(self) -> Self::Endpoints {
-        RTPSReaderIterator((&self.reader_list).into_iter())
     }
 }
 

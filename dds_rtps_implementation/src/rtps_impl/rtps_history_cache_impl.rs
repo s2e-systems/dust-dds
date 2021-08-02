@@ -1,7 +1,7 @@
-use rust_rtps_pim::structure::{
+use rust_rtps_pim::{messages::types::Time, structure::{
     types::{ChangeKind, InstanceHandle, SequenceNumber, GUID},
     RTPSHistoryCache, RtpsCacheChange,
-};
+}};
 
 struct CacheChangeRepresentation {
     kind: ChangeKind,
@@ -9,10 +9,19 @@ struct CacheChangeRepresentation {
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     data: Vec<u8>,
+    info_timestamp: Option<Time>
 }
 
 pub struct RTPSHistoryCacheImpl {
     changes: Vec<CacheChangeRepresentation>,
+    info: Option<Time>,
+}
+
+impl RTPSHistoryCacheImpl {
+    /// Set the r t p s history cache impl's info.
+    pub fn set_info(&mut self, info: Option<Time>) {
+        self.info = info;
+    }
 }
 
 impl RTPSHistoryCache for RTPSHistoryCacheImpl {
@@ -22,6 +31,7 @@ impl RTPSHistoryCache for RTPSHistoryCacheImpl {
     {
         Self {
             changes: Vec::new(),
+            info: None,
         }
     }
 
@@ -32,6 +42,7 @@ impl RTPSHistoryCache for RTPSHistoryCacheImpl {
             sequence_number: *change.sequence_number(),
             instance_handle: *change.instance_handle(),
             data: change.data_value().iter().cloned().collect(),
+            info_timestamp: self.info,
         };
         self.changes.push(local_change)
     }

@@ -1,13 +1,58 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
-use rust_dds_rtps_implementation::utils::transport::{TransportRead, TransportWrite};
-use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
-use rust_rtps_udp_psm::{deserialize::from_bytes_le, message::RTPSMessageUdp, serialize::to_writer_le};
+use rust_dds_rtps_implementation::{
+    dds_impl::{publisher_storage::PublisherStorage, subscriber_storage::SubscriberStorage},
+    utils::{
+        message_receiver::MessageReceiver,
+        shared_object::RtpsShared,
+        transport::{TransportRead, TransportWrite},
+    },
+};
+use rust_rtps_pim::structure::{
+    types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
+    RTPSEntity, RTPSParticipant,
+};
+use rust_rtps_udp_psm::{
+    deserialize::from_bytes_le, message::RTPSMessageUdp, serialize::to_writer_le,
+};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
     socket: UdpSocket,
     receive_buffer: [u8; BUFFER_SIZE],
+}
+
+pub fn send_udp_data(
+    rtps_participant: &(impl RTPSParticipant + RTPSEntity),
+    publishers: &[RtpsShared<PublisherStorage>],
+    transport: &mut UdpTransport,
+) {
+    for publisher in publishers {
+        let publisher_lock = publisher.lock();
+        for data_writer in publisher_lock.data_writer_storage_list() {
+            let mut data_writer_lock = data_writer.lock();
+            rust_dds_rtps_implementation::utils::message_sender::send_data(
+                rtps_participant,
+                &mut data_writer_lock.rtps_data_writer_mut(),
+                transport,
+            );
+        }
+    }
+}
+
+pub fn receive_udp_data(
+    rtps_participant: &(impl RTPSParticipant + RTPSEntity),
+    subscribers: &[RtpsShared<SubscriberStorage>],
+    transport: &mut UdpTransport,
+) {
+    if let Some((source_locator, message)) = transport.read() {
+        MessageReceiver::new().process_message(
+            *rtps_participant.guid().prefix(),
+            subscribers,
+            source_locator,
+            &message,
+        );
+    }
 }
 
 struct UdpLocator(Locator);
@@ -74,10 +119,7 @@ impl<'a> TransportWrite<'a> for UdpTransport {
         let mut writer = Vec::<u8>::new();
         to_writer_le(message, &mut writer).unwrap();
         self.socket
-            .send_to(
-                writer.as_slice(),
-                UdpLocator(*destination_locator),
-            )
+            .send_to(writer.as_slice(), UdpLocator(*destination_locator))
             .expect(&format!(
                 "Error sending message to {:?}",
                 destination_locator
@@ -121,7 +163,12 @@ mod tests {
             LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID, PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
         },
     };
-    use rust_rtps_udp_psm::{message::RTPSMessageUdp, parameter_list::{ParameterListUdp}, submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp}, submessages::data::DataSubmesageUdp};
+    use rust_rtps_udp_psm::{
+        message::RTPSMessageUdp,
+        parameter_list::ParameterListUdp,
+        submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp},
+        submessages::data::DataSubmesageUdp,
+    };
 
     use crate::udp_transport::UdpTransport;
 

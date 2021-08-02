@@ -10,27 +10,23 @@ use std::{
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::qos::DomainParticipantQos,
+    infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
 };
 use rust_dds_rtps_implementation::{
-    dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::{
-        rtps_participant_impl::RTPSParticipantImpl, rtps_reader_impl::RTPSReaderImpl,
-        rtps_writer_impl::RTPSWriterImpl,
+    dds_impl::{
+        data_writer_storage::DataWriterStorage, domain_participant_impl::DomainParticipantImpl,
+        domain_participant_storage::DomainParticipantStorage, publisher_storage::PublisherStorage,
+        subscriber_storage::SubscriberStorage,
     },
-    utils::{
-        message_receiver::MessageReceiver, message_sender::send_data, shared_object::RtpsShared,
-        transport::TransportRead,
-    },
+    rtps_impl::{rtps_participant_impl::RTPSParticipantImpl, rtps_writer_impl::RTPSWriterImpl},
+    utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::reader::RTPSReader,
         types::Duration,
         writer::writer::{RTPSWriter, RTPSWriterOperations},
     },
     discovery::{
-        participant_discovery::ParticipantDiscovery,
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
@@ -40,9 +36,12 @@ use rust_rtps_pim::{
         RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
-use rust_rtps_udp_psm::{builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp, deserialize::from_bytes_le, serialize::to_bytes_le};
+use rust_rtps_udp_psm::{
+    builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp, deserialize::from_bytes_le,
+    serialize::to_bytes_le,
+};
 
-use crate::udp_transport::UdpTransport;
+use crate::udp_transport::{receive_udp_data, send_udp_data, UdpTransport};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -90,18 +89,29 @@ impl DomainParticipantFactory {
                 &Ipv4Addr::from_str("127.0.0.1").unwrap(),
             )
             .unwrap();
-        let mut transport = UdpTransport::new(socket);
+        let mut metatraffic_transport = UdpTransport::new(socket);
+
+        let socket = UdpSocket::bind("127.0.0.1:7410").unwrap();
+        socket.set_nonblocking(true).unwrap();
+        let mut default_transport = UdpTransport::new(socket);
 
         let rtps_participant = RTPSParticipantImpl::new(guid_prefix);
-        let is_enabled = Arc::new(AtomicBool::new(false));
-        let is_enabled_thread = is_enabled.clone();
 
+        // let spdp_builtin_participant_reader: RTPSReaderImpl =
+        //     SpdpBuiltinParticipantReader::create(guid_prefix);
+
+        // rtps_participant
+        //     .builtin_reader_group
+        //     .lock()
+        //     .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
+
+        let spdp_builtin_participant_writer_qos = DataWriterQos::default();
         let spdp_discovery_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
-        let mut spdp_builtin_participant_writer: RTPSWriterImpl =
+        let mut spdp_builtin_participant_rtps_writer: RTPSWriterImpl =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
         let lease_duration = Duration {
@@ -127,88 +137,113 @@ impl DomainParticipantFactory {
             &BuiltinEndpointQos::default(),
             &lease_duration,
         );
-        let spdp_discovered_participant_data_bytes = to_bytes_le(&spdp_discovered_participant_data).unwrap();
-        let cc = spdp_builtin_participant_writer.new_change(
+        let spdp_discovered_participant_data_bytes =
+            to_bytes_le(&spdp_discovered_participant_data).unwrap();
+        let cc = spdp_builtin_participant_rtps_writer.new_change(
             ChangeKind::Alive,
             &spdp_discovered_participant_data_bytes,
             &[],
             1,
         );
 
-        spdp_builtin_participant_writer
+        spdp_builtin_participant_rtps_writer
             .writer_cache_mut()
             .add_change(&cc);
 
-        let spdp_builtin_participant_reader: RTPSReaderImpl =
-            SpdpBuiltinParticipantReader::create(guid_prefix);
+        let spdp_builtin_participant_writer = RtpsShared::new(DataWriterStorage::new(
+            spdp_builtin_participant_writer_qos,
+            spdp_builtin_participant_rtps_writer,
+        ));
 
-        rtps_participant
-            .builtin_reader_group
-            .lock()
-            .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
+        let builtin_publisher_storage = [RtpsShared::new(PublisherStorage::new(
+            PublisherQos::default(),
+            vec![spdp_builtin_participant_writer],
+        ))];
+        let builtin_subscriber_storage = [RtpsShared::new(SubscriberStorage::new(
+            SubscriberQos::default(),
+            Vec::new(),
+        ))];
 
-        let rtps_participant_impl = RtpsShared::new(rtps_participant);
-        let rtps_participant_shared = rtps_participant_impl.clone();
+        let domain_participant_storage = RtpsShared::new(DomainParticipantStorage::new(
+            rtps_participant,
+            builtin_subscriber_storage,
+            builtin_publisher_storage,
+        ));
+        let is_enabled = Arc::new(AtomicBool::new(false));
+        let is_enabled_cloned = is_enabled.clone();
+        let domain_participant_storage_cloned = domain_participant_storage.clone();
+        let communication_thread_handle = std::thread::spawn(move || loop {
+            if is_enabled_cloned.load(atomic::Ordering::Relaxed) {
+                let domain_participant_lock = domain_participant_storage_cloned.lock();
+                send_udp_data(
+                    domain_participant_lock.rtps_participant(),
+                    domain_participant_lock.builtin_publisher_storage(),
+                    &mut metatraffic_transport,
+                );
+                receive_udp_data(
+                    domain_participant_lock.rtps_participant(),
+                    domain_participant_lock.builtin_subscriber_storage(),
+                    &mut metatraffic_transport,
+                );
 
-        std::thread::spawn(move || loop {
-            if is_enabled_thread.load(atomic::Ordering::Relaxed) {
-                if let Some(mut rtps_participant) = rtps_participant_shared.try_lock() {
-                    if let Some((source_locator, message)) = transport.read() {
-                        MessageReceiver::new().process_message(
-                            guid_prefix,
-                            &*rtps_participant.builtin_reader_group.lock(),
-                            source_locator,
-                            &message,
-                        );
-                    }
-                    send_data(
-                        &*rtps_participant,
-                        &mut spdp_builtin_participant_writer,
-                        &mut transport,
-                    );
-                    let mut spdp_discovered_participant_datas =
-                        Vec::<SPDPdiscoveredParticipantDataUdp>::new();
-                    {
-                        let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
-                        let spdp_builtin_participant_reader =
-                            builtin_reader_group.reader_list()[0].lock();
-                        if let Some(seq_num_min) = spdp_builtin_participant_reader
-                            .reader_cache()
-                            .get_seq_num_min()
-                        {
-                            let seq_num_max = spdp_builtin_participant_reader
-                                .reader_cache()
-                                .get_seq_num_max()
-                                .unwrap();
-                            for seq_num in seq_num_min..seq_num_max {
-                                if let Some(change) = spdp_builtin_participant_reader
-                                    .reader_cache()
-                                    .get_change(&seq_num)
-                                {
-                                    if let Ok(spdp_discovered_participant_data) =
-                                        from_bytes_le(
-                                            change.data_value(),
-                                        )
-                                    {
-                                        spdp_discovered_participant_datas
-                                            .push(spdp_discovered_participant_data);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    for spdp_discovered_participant_data in spdp_discovered_participant_datas {
-                        rtps_participant
-                            .discovered_participant_add(&spdp_discovered_participant_data);
-                    }
-                }
+                send_udp_data(
+                    domain_participant_lock.rtps_participant(),
+                    domain_participant_lock.user_defined_publisher_storage(),
+                    &mut default_transport,
+                );
+                receive_udp_data(
+                    domain_participant_lock.rtps_participant(),
+                    domain_participant_lock.user_defined_subscriber_storage(),
+                    &mut default_transport,
+                );
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });
 
-        let domain_participant = DomainParticipantImpl::new(rtps_participant_impl, is_enabled);
+        let worker_threads = vec![communication_thread_handle];
+
+        let domain_participant =
+            DomainParticipantImpl::new(is_enabled, domain_participant_storage, worker_threads);
 
         Some(domain_participant)
     }
 }
+
+// let mut spdp_discovered_participant_datas =
+//     Vec::<SPDPdiscoveredParticipantDataUdp>::new();
+// {
+//     todo!()
+// let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
+// let spdp_builtin_participant_reader =
+//     builtin_reader_group.reader_list()[0].lock();
+// if let Some(seq_num_min) = spdp_builtin_participant_reader
+//     .reader_cache()
+//     .get_seq_num_min()
+// {
+//     let seq_num_max = spdp_builtin_participant_reader
+//         .reader_cache()
+//         .get_seq_num_max()
+//         .unwrap();
+//     for seq_num in seq_num_min..seq_num_max {
+//         if let Some(change) = spdp_builtin_participant_reader
+//             .reader_cache()
+//             .get_change(&seq_num)
+//         {
+//             if let Ok(spdp_discovered_participant_data) =
+//                 SPDPdiscoveredParticipantDataUdp::from_bytes(
+//                     change.data_value(),
+//                 )
+//             {
+//                 spdp_discovered_participant_datas
+//                     .push(spdp_discovered_participant_data);
+//             }
+//         }
+//     }
+// }
+// }
+
+// for spdp_discovered_participant_data in spdp_discovered_participant_datas {
+//     rtps_participant
+//         .discovered_participant_add(&spdp_discovered_participant_data);
+// }
+// }
