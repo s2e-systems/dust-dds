@@ -18,7 +18,6 @@ pub struct CacheChange {
     sample_state_kind: SampleStateKind,
     view_state_kind: ViewStateKind,
     instance_state_kind: InstanceStateKind,
-    taken: bool,
 }
 
 impl CacheChange {
@@ -75,11 +74,6 @@ impl CacheChange {
     /// Mark the cache change as read
     pub fn mark_read(&mut self) {
         self.sample_state_kind = SampleStateKind::Read;
-    }
-
-    /// Mark the cache change as taken
-    pub fn mark_taken(&mut self) {
-        self.taken = true;
     }
 }
 
@@ -143,7 +137,6 @@ impl RtpsHistoryCache for RtpsHistoryCacheImpl {
             sample_state_kind: SampleStateKind::NotRead,
             view_state_kind: ViewStateKind::New,
             instance_state_kind,
-            taken: false,
         };
 
         self.changes.push(local_change)
