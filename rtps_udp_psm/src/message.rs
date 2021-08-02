@@ -1,10 +1,15 @@
+use std::io::{BufRead, Write};
+
+use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
-use serde::ser::SerializeStruct;
 
 use crate::{
     message_header::RTPSMessageHeaderUdp,
     psm::RtpsUdpPsm,
-    submessage_header::{SubmessageHeaderUdp, DATA, GAP},
+    submessage_header::{
+        SubmessageHeaderUdp, ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST,
+        INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD,
+    },
 };
 
 #[derive(Debug, PartialEq)]
@@ -35,130 +40,93 @@ impl<'a> rust_rtps_pim::messages::RTPSMessage for RTPSMessageUdp<'a> {
     }
 }
 
-impl<'a> serde::Serialize for RTPSMessageUdp<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let len = self.submessages.len() + 1;
-        let mut state = serializer.serialize_struct("RTPSMessage", len)?;
-        state.serialize_field("header", &self.header)?;
+impl<'a> crate::serialize::Serialize for RTPSMessageUdp<'a> {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.header.serialize::<_, B>(&mut writer)?;
         for submessage in &self.submessages {
             match submessage {
-                //RtpsSubmessageType::AckNack(submessage) => state.serialize_field("submessage", submessage)?,
-                RtpsSubmessageType::Data(submessage) => {
-                    state.serialize_field("submessage", submessage)?
-                }
-                //RtpsSubmessageType::DataFrag(submessage) => state.serialize_field("submessage", submessage)?,
-                RtpsSubmessageType::Gap(submessage) => {
-                    state.serialize_field("submessage", submessage)?
-                }
-                // RtpsSubmessageType::Heartbeat(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::HeartbeatFrag(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::InfoDestination(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::InfoReply(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::InfoSource(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::InfoTimestamp(submessage) => state.serialize_field("submessage", submessage)?,
-                // RtpsSubmessageType::NackFrag(submessage) => state.serialize_field("submessage", submessage)?,
-                //RtpsSubmessageType::Pad(submessage) => state.serialize_field("submessage", submessage)?,
-                _ => todo!(),
+                RtpsSubmessageType::AckNack(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::Data(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::DataFrag(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::Gap(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::Heartbeat(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::HeartbeatFrag(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::InfoDestination(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::InfoReply(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::InfoSource(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::InfoTimestamp(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::NackFrag(s) => s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::Pad(s) => s.serialize::<_, B>(&mut writer)?,
             }
         }
-        state.end()
-    }
-}
-
-struct Bytes(usize);
-impl<'de> serde::de::DeserializeSeed<'de> for Bytes {
-    type Value = ();
-
-    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct BytesVisitor;
-
-        impl<'a> serde::de::Visitor<'a> for BytesVisitor {
-            type Value = ();
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a borrowed byte array")
-            }
-
-            fn visit_borrowed_bytes<E>(self, _v: &'a [u8]) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(())
-            }
-        }
-        deserializer.deserialize_tuple_struct("", self.0, BytesVisitor)?;
         Ok(())
     }
 }
-
-struct RTPSMessageUdpVisitor<'a>(std::marker::PhantomData<&'a ()>);
-impl<'a, 'de: 'a> serde::de::Visitor<'de> for RTPSMessageUdpVisitor<'a> {
-    type Value = RTPSMessageUdp<'a>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("RTPSMessage")
-    }
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+impl<'a, 'de: 'a> crate::deserialize::Deserialize<'de> for RTPSMessageUdp<'a> {
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
-        A: serde::de::SeqAccess<'de>,
+        B: ByteOrder,
     {
-        let mut submessages = vec![];
-
-        let header: RTPSMessageHeaderUdp = seq
-            .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
         const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
+
+        let mut submessages = vec![];
+        let header = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         for _ in 0..MAX_SUBMESSAGES {
-            // Preview byte only (to allow full deserialization of submessage header)
-            let submessage_id_ref: &[u8] = seq
-                .next_element()?
-                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-            if submessage_id_ref.len() >= 4 {
-                let submessage_id = submessage_id_ref[0];
-                let submessage = match submessage_id {
-                    GAP => RtpsSubmessageType::Gap(
-                        seq.next_element()?
-                            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
-                    ),
-                    DATA => RtpsSubmessageType::Data(
-                        seq.next_element()?
-                            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?,
-                    ),
-                    _ => {
-                        let submessage_header: SubmessageHeaderUdp = seq
-                            .next_element()?
-                            .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
-                        seq.next_element_seed(Bytes(submessage_header.submessage_length as usize))?;
-                        continue;
-                    }
-                };
-                submessages.push(submessage);
+            if buf.len() < 4 {
+                break;
             }
+            // Preview byte only (to allow full deserialization of submessage header)
+            let submessage_id = buf[0];
+            let submessage = match submessage_id {
+                ACKNACK => RtpsSubmessageType::AckNack(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                DATA => RtpsSubmessageType::Data(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                DATA_FRAG => RtpsSubmessageType::DataFrag(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                GAP => {
+                    RtpsSubmessageType::Gap(crate::deserialize::Deserialize::deserialize::<B>(buf)?)
+                }
+                HEARTBEAT => RtpsSubmessageType::Heartbeat(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                HEARTBEAT_FRAG => RtpsSubmessageType::HeartbeatFrag(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                INFO_DST => RtpsSubmessageType::InfoDestination(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                INFO_REPLY => RtpsSubmessageType::InfoReply(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                INFO_SRC => RtpsSubmessageType::InfoSource(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                INFO_TS => RtpsSubmessageType::InfoTimestamp(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                NACK_FRAG => RtpsSubmessageType::NackFrag(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                ),
+                PAD => {
+                    RtpsSubmessageType::Pad(crate::deserialize::Deserialize::deserialize::<B>(buf)?)
+                }
+                _ => {
+                    let submessage_header: SubmessageHeaderUdp =
+                        crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+                    buf.consume(submessage_header.submessage_length as usize);
+                    continue;
+                }
+            };
+            submessages.push(submessage);
         }
-        Ok(RTPSMessageUdp {
+        Ok(Self {
             header,
             submessages,
         })
-    }
-}
-
-impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RTPSMessageUdp<'a> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &'static [&'static str] = &["header", "submessages"];
-        deserializer.deserialize_struct(
-            "RTPSMessage",
-            FIELDS,
-            RTPSMessageUdpVisitor(std::marker::PhantomData),
-        )
     }
 }
 
@@ -166,7 +134,9 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RTPSMessageUdp<'a> {
 mod tests {
     use super::*;
     use crate::{
+        deserialize::from_bytes_le,
         parameter_list::ParameterListUdp,
+        serialize::to_bytes_le,
         submessage_elements::{
             EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
             SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
@@ -178,15 +148,6 @@ mod tests {
         submessage_elements::SequenceNumberSubmessageElementType,
         submessages::{DataSubmessage, GapSubmessage},
     };
-    use rust_serde_cdr::serializer::RtpsMessageSerializer;
-
-    fn serialize<T: serde::Serialize>(value: T) -> Vec<u8> {
-        let mut serializer = RtpsMessageSerializer {
-            writer: Vec::<u8>::new(),
-        };
-        value.serialize(&mut serializer).unwrap();
-        serializer.writer
-    }
 
     #[test]
     fn serialize_rtps_message_no_submessage() {
@@ -201,7 +162,7 @@ mod tests {
             submessages: vec![],
         };
         #[rustfmt::skip]
-        assert_eq!(serialize(value), vec![
+        assert_eq!(to_bytes_le(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -272,7 +233,7 @@ mod tests {
             submessages: vec![gap_submessage, data_submessage],
         };
         #[rustfmt::skip]
-        assert_eq!(serialize(value), vec![
+        assert_eq!(to_bytes_le(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -309,7 +270,7 @@ mod tests {
             submessages: vec![],
         };
         #[rustfmt::skip]
-        let result: RTPSMessageUdp = rust_serde_cdr::deserializer::from_bytes(&[
+        let result: RTPSMessageUdp = from_bytes_le(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -382,7 +343,7 @@ mod tests {
             submessages: vec![gap_submessage, data_submessage],
         };
         #[rustfmt::skip]
-        let result: RTPSMessageUdp = rust_serde_cdr::deserializer::from_bytes(&[
+        let result: RTPSMessageUdp = from_bytes_le(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -469,7 +430,7 @@ mod tests {
             submessages: vec![data_submessage, gap_submessage],
         };
         #[rustfmt::skip]
-        let result: RTPSMessageUdp = rust_serde_cdr::deserializer::from_bytes(&[
+        let result: RTPSMessageUdp = from_bytes_le(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -495,23 +456,5 @@ mod tests {
             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
         ]).unwrap();
         assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn serialize_rtps_message_no_submessage_json() {
-        let header = RTPSMessageHeaderUdp {
-            protocol: b"RTPS".to_owned(),
-            version: ProtocolVersionUdp { major: 2, minor: 3 },
-            vendor_id: VendorIdUdp([9, 8]),
-            guid_prefix: GuidPrefixUdp([3; 12]),
-        };
-        let value = RTPSMessageUdp {
-            header,
-            submessages: vec![],
-        };
-        assert_eq!(
-            serde_json::ser::to_string(&value).unwrap(),
-            r#"{"header":{"protocol":[82,84,80,83],"version":{"major":2,"minor":3},"vendor_id":[9,8],"guid_prefix":[3,3,3,3,3,3,3,3,3,3,3,3]}}"#
-        );
     }
 }

@@ -40,7 +40,7 @@ use rust_rtps_pim::{
         RTPSEntity, RTPSHistoryCache, RTPSParticipant,
     },
 };
-use rust_rtps_udp_psm::builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp;
+use rust_rtps_udp_psm::{builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp, deserialize::from_bytes_le, serialize::to_bytes_le};
 
 use crate::udp_transport::UdpTransport;
 
@@ -127,7 +127,7 @@ impl DomainParticipantFactory {
             &BuiltinEndpointQos::default(),
             &lease_duration,
         );
-        let spdp_discovered_participant_data_bytes = spdp_discovered_participant_data.to_bytes().unwrap();
+        let spdp_discovered_participant_data_bytes = to_bytes_le(&spdp_discovered_participant_data).unwrap();
         let cc = spdp_builtin_participant_writer.new_change(
             ChangeKind::Alive,
             &spdp_discovered_participant_data_bytes,
@@ -186,7 +186,7 @@ impl DomainParticipantFactory {
                                     .get_change(&seq_num)
                                 {
                                     if let Ok(spdp_discovered_participant_data) =
-                                        SPDPdiscoveredParticipantDataUdp::from_bytes(
+                                        from_bytes_le(
                                             change.data_value(),
                                         )
                                     {

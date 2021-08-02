@@ -9,6 +9,16 @@ pub struct Duration {
     pub fraction: u32,
 }
 
+impl Duration {
+    pub fn new(seconds: i32, fraction: u32) -> Self { Self { seconds, fraction } }
+    pub fn seconds(&self) -> &i32 {
+        &self.seconds
+    }
+    pub fn fraction(&self) -> &u32 {
+        &self.fraction
+    }
+}
+
 pub const DURATION_ZERO: Duration = Duration {
     seconds: 0,
     fraction: 0,
