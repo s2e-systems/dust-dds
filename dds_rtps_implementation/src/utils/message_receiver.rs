@@ -14,7 +14,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::dds_impl::subscriber_storage::SubscriberStorage;
+use crate::dds_impl::subscriber_impl::SubscriberStorage;
 
 use super::shared_object::RtpsShared;
 

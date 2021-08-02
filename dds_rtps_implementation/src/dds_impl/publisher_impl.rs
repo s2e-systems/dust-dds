@@ -25,7 +25,6 @@ pub struct PublisherStorage {
     qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
     data_writer_storage_list: Vec<RtpsShared<DataWriterStorage>>,
-    // data_writer_factory: WriterFactory
 }
 
 impl PublisherStorage {
@@ -57,11 +56,15 @@ impl<'p> PublisherImpl<'p> {
         participant: &'p dyn DomainParticipant,
         publisher_storage: &RtpsShared<PublisherStorage>,
     ) -> Self {
-        // let writer_factory = WriterFactory::new(*publisher_storage.lock().guid().prefix());
         Self {
             participant,
             publisher_storage: publisher_storage.downgrade(),
         }
+    }
+
+    /// Get a reference to the publisher impl's publisher storage.
+    pub(crate) fn publisher_storage(&self) -> &RtpsWeak<PublisherStorage> {
+        &self.publisher_storage
     }
 }
 

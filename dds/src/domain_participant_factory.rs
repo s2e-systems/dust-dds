@@ -17,7 +17,7 @@ use rust_dds_rtps_implementation::{
         data_writer_storage::DataWriterStorage,
         domain_participant_impl::{DomainParticipantImpl, DomainParticipantStorage},
         publisher_impl::PublisherStorage,
-        subscriber_storage::SubscriberStorage,
+        subscriber_impl::SubscriberStorage,
     },
     rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
@@ -168,6 +168,10 @@ impl DomainParticipantFactory {
         ))];
         let builtin_subscriber_storage = vec![RtpsShared::new(SubscriberStorage::new(
             SubscriberQos::default(),
+            RtpsGroupImpl::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], EntityKind::BuiltInReaderGroup),
+            )),
             Vec::new(),
         ))];
 

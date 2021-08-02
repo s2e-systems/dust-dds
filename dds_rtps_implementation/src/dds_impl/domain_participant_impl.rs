@@ -16,7 +16,7 @@ use rust_dds_api::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     return_type::{DDSError, DDSResult},
-    subscription::subscriber_listener::SubscriberListener,
+    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::structure::{
@@ -31,8 +31,7 @@ use crate::{
 
 use super::{
     publisher_impl::{PublisherImpl, PublisherStorage},
-    subscriber_impl::SubscriberImpl,
-    subscriber_storage::SubscriberStorage,
+    subscriber_impl::{SubscriberImpl, SubscriberStorage},
     topic_impl::TopicImpl,
 };
 
@@ -99,19 +98,19 @@ impl DomainParticipantStorage {
 pub struct DomainParticipantImpl {
     is_enabled: Arc<AtomicBool>,
     domain_participant_storage: RtpsShared<DomainParticipantStorage>,
-    worker_threads: Vec<JoinHandle<()>>,
+    _worker_threads: Vec<JoinHandle<()>>,
 }
 
 impl DomainParticipantImpl {
     pub fn new(
         is_enabled: Arc<AtomicBool>,
         domain_participant_storage: RtpsShared<DomainParticipantStorage>,
-        worker_threads: Vec<JoinHandle<()>>,
+        _worker_threads: Vec<JoinHandle<()>>,
     ) -> Self {
         Self {
             is_enabled,
             domain_participant_storage,
-            worker_threads,
+            _worker_threads,
         }
     }
 }
@@ -128,7 +127,11 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
         let publisher_qos = qos.unwrap_or(domain_participant_lock.default_publisher_qos.clone());
         domain_participant_lock.user_defined_publisher_counter += 1;
         let entity_id = EntityId::new(
-            [domain_participant_lock.user_defined_publisher_counter, 0, 0],
+            [
+                domain_participant_lock.user_defined_publisher_counter,
+                0,
+                0,
+            ],
             EntityKind::UserDefinedWriterGroup,
         );
         let guid = Guid::new(
@@ -149,10 +152,12 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.get_participant(), self) {
-            todo!()
-            // self.rtps_participant_impl
-            //     .lock()
-            //     .delete_writer_group(a_publisher.get_instance_handle()?)
+            let publisher_storage = a_publisher.publisher_storage().upgrade()?;
+            let mut domain_participant_lock = self.domain_participant_storage.lock();
+            domain_participant_lock
+                .user_defined_publisher_storage
+                .retain(|x| x != &publisher_storage);
+            Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",
@@ -166,36 +171,50 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for Dom
 
     fn create_subscriber(
         &'s self,
-        _qos: Option<SubscriberQos>,
+        qos: Option<SubscriberQos>,
         _a_listener: Option<&'static dyn SubscriberListener>,
         _mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
-        todo!()
-        //         // let impl_ref = self
-        //         //     .0
-        //         //     .lock()
-        //         //     .unwrap()
-        //         //     .create_subscriber(qos, a_listener, mask)
-        //         //     .ok()?;
-
-        //         // Some(Subscriber(Node {
-        //         //     parent: self,
-        //         //     impl_ref,
-        //         // }))
+        let mut domain_participant_lock = self.domain_participant_storage.lock();
+        let subscriber_qos = qos.unwrap_or(domain_participant_lock.default_subscriber_qos.clone());
+        domain_participant_lock.user_defined_subscriber_counter += 1;
+        let entity_id = EntityId::new(
+            [
+                domain_participant_lock.user_defined_subscriber_counter,
+                0,
+                0,
+            ],
+            EntityKind::UserDefinedWriterGroup,
+        );
+        let guid = Guid::new(
+            *domain_participant_lock.rtps_participant.guid().prefix(),
+            entity_id,
+        );
+        let rtps_group = RtpsGroupImpl::new(guid);
+        let data_writer_storage_list = Vec::new();
+        let subscriber_storage =
+            SubscriberStorage::new(subscriber_qos, rtps_group, data_writer_storage_list);
+        let subscriber_storage_shared = RtpsShared::new(subscriber_storage);
+        let subscriber = SubscriberImpl::new(self, &subscriber_storage_shared);
+        domain_participant_lock
+            .user_defined_subscriber_storage
+            .push(subscriber_storage_shared);
+        Some(subscriber)
     }
 
-    fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
-        todo!()
-        //         // if std::ptr::eq(a_subscriber.parent, self) {
-        //         //     self.0
-        //         //         .lock()
-        //         //         .unwrap()
-        //         //         .delete_subscriber(&a_subscriber.impl_ref)
-        //         // } else {
-        //         //     Err(DDSError::PreconditionNotMet(
-        //         //         "Subscriber can only be deleted from its parent participant",
-        //         //     ))
-        //         // }
+    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+        if std::ptr::eq(a_subscriber.get_participant(), self) {
+            let subscriber_storage = a_subscriber.subscriber_storage().upgrade()?;
+            let mut domain_participant_lock = self.domain_participant_storage.lock();
+            domain_participant_lock
+                .user_defined_subscriber_storage
+                .retain(|x| x != &subscriber_storage);
+            Ok(())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
+        }
     }
 
     fn get_builtin_subscriber(&'s self) -> Self::SubscriberType {
@@ -510,18 +529,6 @@ mod tests {
     }
 
     // #[test]
-    // fn get_default_subscriber_qos() {
-    //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-    //         DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-    //     let mut qos = SubscriberQos::default();
-    //     qos.group_data.value = &[1, 2, 3, 4];
-    //     domain_participant_impl
-    //         .set_default_subscriber_qos(Some(qos.clone()))
-    //         .unwrap();
-    //     assert!(domain_participant_impl.get_default_subscriber_qos() == qos);
-    // }
-
-    // #[test]
     // fn set_default_topic_qos_some_value() {
     //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
     //         DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
@@ -571,14 +578,43 @@ mod tests {
     //     assert!(domain_participant_impl.get_default_topic_qos() == qos);
     // }
 
-    // #[test]
-    // fn create_publisher() {
-    //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-    //         DomainParticipantImpl::new([1; 12]);
-    //     let publisher = domain_participant_impl.create_publisher(None, None, 0);
+    #[test]
+    fn create_publisher() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant_storage = DomainParticipantStorage::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+        );
+        let domain_participant_impl = DomainParticipantImpl::new(
+            Arc::new(AtomicBool::new(false)),
+            RtpsShared::new(domain_participant_storage),
+            vec![],
+        );
+        let publisher = domain_participant_impl.create_publisher(None, None, 0);
 
-    //     assert!(publisher.is_some())
-    // }
+        assert!(publisher.is_some())
+    }
+
+    #[test]
+    fn create_subscriber() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant_storage = DomainParticipantStorage::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+        );
+        let domain_participant_impl = DomainParticipantImpl::new(
+            Arc::new(AtomicBool::new(false)),
+            RtpsShared::new(domain_participant_storage),
+            vec![],
+        );
+        let subscriber = domain_participant_impl.create_subscriber(None, None, 0);
+
+        assert!(subscriber.is_some())
+    }
 
     // #[test]
     // fn create_topic() {

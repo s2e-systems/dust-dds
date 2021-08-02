@@ -15,15 +15,60 @@ use rust_dds_api::{
     },
 };
 
-use crate::utils::shared_object::RtpsWeak;
+use crate::{
+    rtps_impl::rtps_group_impl::RtpsGroupImpl,
+    utils::shared_object::{RtpsShared, RtpsWeak},
+};
 
 use super::{
-    data_reader_impl::DataReaderImpl, subscriber_storage::SubscriberStorage, topic_impl::TopicImpl,
+    data_reader_impl::DataReaderImpl, data_reader_storage::DataReaderStorage, topic_impl::TopicImpl,
 };
+
+pub struct SubscriberStorage {
+    qos: SubscriberQos,
+    rtps_group: RtpsGroupImpl,
+    data_reader_storage_list: Vec<RtpsShared<DataReaderStorage>>,
+}
+
+impl SubscriberStorage {
+    pub fn new(
+        qos: SubscriberQos,
+        rtps_group: RtpsGroupImpl,
+        data_reader_storage_list: Vec<RtpsShared<DataReaderStorage>>,
+    ) -> Self {
+        Self {
+            qos,
+            rtps_group,
+            data_reader_storage_list,
+        }
+    }
+
+    /// Get a reference to the subscriber storage's readers.
+    pub fn readers(&self) -> &[RtpsShared<DataReaderStorage>] {
+        self.data_reader_storage_list.as_slice()
+    }
+}
 
 pub struct SubscriberImpl<'s> {
     participant: &'s dyn DomainParticipant,
-    _rtps_reader_group_impl: RtpsWeak<SubscriberStorage>,
+    subscriber_storage: RtpsWeak<SubscriberStorage>,
+}
+
+impl<'s> SubscriberImpl<'s> {
+    pub fn new(
+        participant: &'s dyn DomainParticipant,
+        subscriber_storage: &RtpsShared<SubscriberStorage>,
+    ) -> Self {
+        Self {
+            participant,
+            subscriber_storage: subscriber_storage.downgrade(),
+        }
+    }
+
+    /// Get a reference to the subscriber impl's subscriber storage.
+    pub(crate) fn subscriber_storage(&self) -> &RtpsWeak<SubscriberStorage> {
+        &self.subscriber_storage
+    }
 }
 
 impl<'dr, 's: 'dr, 't: 'dr, T: 'static>

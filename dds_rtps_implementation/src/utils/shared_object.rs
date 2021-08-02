@@ -31,6 +31,12 @@ impl<T> Clone for RtpsShared<T> {
     }
 }
 
+impl<T> PartialEq for RtpsShared<T> {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 pub struct RtpsLock<'a, T>(MutexGuard<'a, T>);
 
 impl<'a, T> Deref for RtpsLock<'a, T> {
