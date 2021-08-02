@@ -7,13 +7,14 @@ use rust_rtps_pim::{
     },
 };
 
-struct CacheChange {
+pub struct CacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     data: Vec<u8>,
-    info_timestamp: Option<Time>,
+    source_timestamp: Option<Time>,
+    creation_timestamp: Time,
     sample_state_kind: SampleStateKind,
     view_state_kind: ViewStateKind,
     instance_state_kind: InstanceStateKind,
@@ -21,13 +22,13 @@ struct CacheChange {
 
 pub struct RtpsHistoryCacheImpl {
     changes: Vec<CacheChange>,
-    info: Option<Time>,
+    source_timestamp: Option<Time>,
 }
 
 impl RtpsHistoryCacheImpl {
     /// Set the Rtps history cache impl's info.
-    pub fn set_info(&mut self, info: Option<Time>) {
-        self.info = info;
+    pub fn set_source_timestamp(&mut self, info: Option<Time>) {
+        self.source_timestamp = info;
     }
 }
 
@@ -38,7 +39,7 @@ impl RtpsHistoryCache for RtpsHistoryCacheImpl {
     {
         Self {
             changes: Vec::new(),
-            info: None,
+            source_timestamp: None,
         }
     }
 
@@ -50,13 +51,22 @@ impl RtpsHistoryCache for RtpsHistoryCacheImpl {
             ChangeKind::NotAliveUnregistered => todo!(),
         };
 
+        let current_time = std::time::SystemTime::now();
+        let creation_timestamp = Time(
+            current_time
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        );
+
         let local_change = CacheChange {
             kind: *change.kind(),
             writer_guid: *change.writer_guid(),
             sequence_number: *change.sequence_number(),
             instance_handle: *change.instance_handle(),
             data: change.data_value().iter().cloned().collect(),
-            info_timestamp: self.info,
+            source_timestamp: self.source_timestamp,
+            creation_timestamp,
             sample_state_kind: SampleStateKind::NotRead,
             view_state_kind: ViewStateKind::New,
             instance_state_kind,

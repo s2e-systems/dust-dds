@@ -104,7 +104,7 @@ impl MessageReceiver {
                 reader_lock
                     .rtps_reader_mut()
                     .reader_cache_mut()
-                    .set_info(Some(self.timestamp));
+                    .set_source_timestamp(Some(self.timestamp));
                 reader_lock
                     .rtps_reader_mut()
                     .receive_data(self.source_guid_prefix, data);
