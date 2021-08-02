@@ -28,7 +28,7 @@ use rust_rtps_pim::{
         writer::writer::{RtpsWriter, RtpsWriterOperations},
     },
     discovery::{
-        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
+        spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     messages::types::Count,
@@ -38,8 +38,7 @@ use rust_rtps_pim::{
     },
 };
 use rust_rtps_udp_psm::{
-    builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp, deserialize::from_bytes_le,
-    serialize::to_bytes_le,
+    builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp, serialize::to_bytes_le,
 };
 
 use crate::udp_transport::{receive_udp_data, send_udp_data, UdpTransport};
@@ -210,42 +209,3 @@ impl DomainParticipantFactory {
         Some(domain_participant)
     }
 }
-
-// let mut spdp_discovered_participant_datas =
-//     Vec::<SPDPdiscoveredParticipantDataUdp>::new();
-// {
-//     todo!()
-// let builtin_reader_group = rtps_participant.builtin_reader_group.lock();
-// let spdp_builtin_participant_reader =
-//     builtin_reader_group.reader_list()[0].lock();
-// if let Some(seq_num_min) = spdp_builtin_participant_reader
-//     .reader_cache()
-//     .get_seq_num_min()
-// {
-//     let seq_num_max = spdp_builtin_participant_reader
-//         .reader_cache()
-//         .get_seq_num_max()
-//         .unwrap();
-//     for seq_num in seq_num_min..seq_num_max {
-//         if let Some(change) = spdp_builtin_participant_reader
-//             .reader_cache()
-//             .get_change(&seq_num)
-//         {
-//             if let Ok(spdp_discovered_participant_data) =
-//                 SPDPdiscoveredParticipantDataUdp::from_bytes(
-//                     change.data_value(),
-//                 )
-//             {
-//                 spdp_discovered_participant_datas
-//                     .push(spdp_discovered_participant_data);
-//             }
-//         }
-//     }
-// }
-// }
-
-// for spdp_discovered_participant_data in spdp_discovered_participant_datas {
-//     rtps_participant
-//         .discovered_participant_add(&spdp_discovered_participant_data);
-// }
-// }
