@@ -425,6 +425,6 @@ mod tests {
     fn serialize_string() {
         let expected = vec![0x04, 0x00, 0x00, 0x00, b'a', b'b', b'c', 0];
         let result = serialize("abc");
-        assert_eq!(result,expected);
+        assert_eq!(result, expected);
     }
 }

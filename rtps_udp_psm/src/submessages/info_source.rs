@@ -1,9 +1,22 @@
+use std::io::Write;
+use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
 use crate::submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp};
 
 #[derive(Debug, PartialEq)]
 pub struct InfoSourceUdp;
+
+impl crate::serialize::Serialize for InfoSourceUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
+        todo!()
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for InfoSourceUdp {
+    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        todo!()
+    }
+}
 
 impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessage for InfoSourceUdp {
     type ProtocolVersionSubmessageElementType = ProtocolVersionUdp;

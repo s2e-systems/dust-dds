@@ -1,3 +1,6 @@
+use std::io::Write;
+
+use byteorder::ByteOrder;
 use rust_rtps_pim::messages::types::SubmessageKind;
 
 
@@ -33,7 +36,7 @@ pub fn submessage_kind_into_byte(value: SubmessageKind) -> u8 {
 }
 
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct SubmessageHeaderUdp {
     pub(crate) submessage_id: u8,
     pub(crate) flags: u8,
@@ -43,5 +46,21 @@ pub struct SubmessageHeaderUdp {
 impl SubmessageHeaderUdp {
     pub const fn number_of_bytes(&self) -> usize {
         4
+    }
+}
+
+impl crate::serialize::Serialize for SubmessageHeaderUdp {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+        self.submessage_id.serialize::<_, B>(&mut writer)?;
+        self.flags.serialize::<_, B>(&mut writer)?;
+        self.submessage_length.serialize::<_, B>(&mut writer)
+    }
+}
+impl<'de> crate::deserialize::Deserialize<'de> for SubmessageHeaderUdp {
+    fn deserialize<B>(buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+        let submessage_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let flags = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let submessage_length = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        Ok(Self{ submessage_id, flags, submessage_length})
     }
 }

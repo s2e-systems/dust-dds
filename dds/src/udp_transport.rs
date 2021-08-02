@@ -12,9 +12,9 @@ use rust_rtps_pim::structure::{
     types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
     RTPSEntity, RTPSParticipant,
 };
-use rust_rtps_udp_psm::message::RTPSMessageUdp;
-use rust_serde_cdr::serializer::RtpsMessageSerializer;
-use serde::ser::Serialize;
+use rust_rtps_udp_psm::{
+    deserialize::from_bytes_le, message::RTPSMessageUdp, serialize::to_writer_le,
+};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
@@ -116,14 +116,10 @@ impl<'a> TransportWrite<'a> for UdpTransport {
     type Message = RTPSMessageUdp<'a>;
 
     fn write(&mut self, message: &Self::Message, destination_locator: &Locator) {
-        let writer = Vec::<u8>::new();
-        let mut serializer = RtpsMessageSerializer { writer };
-        message.serialize(&mut serializer).unwrap();
+        let mut writer = Vec::<u8>::new();
+        to_writer_le(message, &mut writer).unwrap();
         self.socket
-            .send_to(
-                serializer.writer.as_slice(),
-                UdpLocator(*destination_locator),
-            )
+            .send_to(writer.as_slice(), UdpLocator(*destination_locator))
             .expect(&format!(
                 "Error sending message to {:?}",
                 destination_locator
@@ -138,9 +134,8 @@ impl<'a> TransportRead<'a> for UdpTransport {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
-                    let message: RTPSMessageUdp =
-                        rust_serde_cdr::deserializer::from_bytes(&self.receive_buffer[0..bytes])
-                            .expect("Failed to deserialize");
+                    let message: RTPSMessageUdp = from_bytes_le(&self.receive_buffer[0..bytes])
+                        .expect("Failed to deserialize");
                     let udp_locator: UdpLocator = source_address.into();
                     Some((udp_locator.0, message))
                 } else {
