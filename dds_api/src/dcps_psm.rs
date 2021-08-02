@@ -262,16 +262,19 @@ pub struct SubscriptionMatchedStatus {
     pub current_count_change: i32,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SampleStateKind {
     Read,
     NotRead,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ViewStateKind {
     New,
     NotNew,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum InstanceStateKind {
     Alive,
     NotAliveDisposed,

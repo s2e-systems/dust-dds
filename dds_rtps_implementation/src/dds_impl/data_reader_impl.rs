@@ -38,25 +38,24 @@ where
 
     fn read(
         &self,
-        max_samples: i32,
+        _max_samples: i32,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         let shared_reader = self.reader.upgrade()?;
         let mut reader = shared_reader.lock();
-        let mut samples = Vec::new();
         let reader_cache = reader.rtps_reader_mut().reader_cache_mut();
-        if let Some(seq_num_min) = reader_cache.get_seq_num_min() {
-            let seq_num_max = reader_cache.get_seq_num_max().unwrap();
-            for seq_num in seq_num_min..=seq_num_max {
-                let cc1 = reader_cache.get_change(&(seq_num as i64)).unwrap();
-                let data = cc1.data_value();
+        Ok(reader_cache
+            .changes_mut()
+            .iter()
+            .map(|cc| {
+                let data = cc.data();
                 let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
                 let sample_info = SampleInfo {
-                    sample_state: SampleStateKind::NotRead,
-                    view_state: ViewStateKind::New,
-                    instance_state: InstanceStateKind::Alive,
+                    sample_state: *cc.sample_state_kind(),
+                    view_state: *cc.view_state_kind(),
+                    instance_state: *cc.instance_state_kind(),
                     disposed_generation_count: 0,
                     no_writers_generation_count: 0,
                     sample_rank: 0,
@@ -67,15 +66,9 @@ where
                     publication_handle: 0,
                     valid_data: true,
                 };
-                samples.push((value, sample_info));
-                if samples.len() >= max_samples as usize {
-                    break;
-                }
-            }
-            Ok(samples)
-        } else {
-            Err(DDSError::NoData)
-        }
+                (value, sample_info)
+            })
+            .collect())
     }
 
     fn take(

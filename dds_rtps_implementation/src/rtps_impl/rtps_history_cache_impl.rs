@@ -93,6 +93,16 @@ impl RtpsHistoryCacheImpl {
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
     }
+
+    /// Get a reference to the rtps history cache impl's changes.
+    pub fn changes(&self) -> &[CacheChange] {
+        self.changes.as_slice()
+    }
+
+    /// Get a mutable reference to the rtps history cache impl's changes.
+    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        &mut self.changes
+    }
 }
 
 impl RtpsHistoryCache for RtpsHistoryCacheImpl {
