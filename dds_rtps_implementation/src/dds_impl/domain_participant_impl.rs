@@ -42,6 +42,8 @@ pub struct DomainParticipantStorage {
     builtin_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
     builtin_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
     user_defined_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
+    user_defined_subscriber_counter: u8,
+    default_subscriber_qos: SubscriberQos,
     user_defined_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
@@ -60,6 +62,8 @@ impl DomainParticipantStorage {
             builtin_subscriber_storage,
             builtin_publisher_storage,
             user_defined_subscriber_storage: Vec::new(),
+            user_defined_subscriber_counter: 0,
+            default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_storage: Vec::new(),
             user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
@@ -137,6 +141,9 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
             PublisherStorage::new(publisher_qos, rtps_group, data_writer_storage_list);
         let publisher_storage_shared = RtpsShared::new(publisher_storage);
         let publisher = PublisherImpl::new(self, &publisher_storage_shared);
+        domain_participant_lock
+            .user_defined_publisher_storage
+            .push(publisher_storage_shared);
         Some(publisher)
     }
 
@@ -270,27 +277,29 @@ impl rust_dds_api::domain::domain_participant::DomainParticipant for DomainParti
     }
 
     fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
-        // self.writer_group_factory
-        //     .lock()
-        //     .unwrap()
-        //     .set_default_qos(qos);
-        // Ok(())
-        todo!()
+        self.domain_participant_storage.lock().default_publisher_qos = qos.unwrap_or_default();
+        Ok(())
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
-        // self.writer_group_factory.lock().unwrap().get_default_qos()
-        todo!()
+        self.domain_participant_storage
+            .lock()
+            .default_publisher_qos
+            .clone()
     }
 
-    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
-        // *self.default_subscriber_qos.lock().unwrap() = qos.unwrap_or_default();
+    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()> {
+        self.domain_participant_storage
+            .lock()
+            .default_subscriber_qos = qos.unwrap_or_default();
         Ok(())
     }
 
     fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        // self.default_subscriber_qos.lock().unwrap().clone()
-        todo!()
+        self.domain_participant_storage
+            .lock()
+            .default_subscriber_qos
+            .clone()
     }
 
     fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
