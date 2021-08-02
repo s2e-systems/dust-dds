@@ -33,6 +33,7 @@ use super::{
 
 pub struct DomainParticipantStorage {
     rtps_participant: RtpsParticipantImpl,
+    domain_participant_qos: DomainParticipantQos,
     builtin_subscriber_storage: [RtpsShared<SubscriberStorage>; 1],
     builtin_publisher_storage: [RtpsShared<PublisherStorage>; 1],
     user_defined_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
@@ -42,6 +43,7 @@ pub struct DomainParticipantStorage {
 
 impl DomainParticipantStorage {
     pub fn new(
+        domain_participant_qos: DomainParticipantQos,
         rtps_participant: RtpsParticipantImpl,
         builtin_subscriber_storage: [RtpsShared<SubscriberStorage>; 1],
         builtin_publisher_storage: [RtpsShared<PublisherStorage>; 1],
@@ -49,6 +51,7 @@ impl DomainParticipantStorage {
         let writer_group_factory = WriterGroupFactory::new(*rtps_participant.guid().prefix());
         Self {
             rtps_participant,
+            domain_participant_qos,
             builtin_subscriber_storage,
             builtin_publisher_storage,
             user_defined_subscriber_storage: Vec::new(),
@@ -330,14 +333,19 @@ impl Entity for DomainParticipantImpl {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-        // self.0.lock().unwrap().set_qos(qos)
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self.domain_participant_storage
+            .lock()
+            .domain_participant_qos = qos.unwrap_or_default();
+        Ok(())
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        // Ok(self.0.lock().unwrap().get_qos())
-        todo!()
+        Ok(self
+            .domain_participant_storage
+            .lock()
+            .domain_participant_qos
+            .clone())
     }
 
     fn set_listener(

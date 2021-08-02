@@ -2,18 +2,18 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener, return_type::DDSResult,
 };
-use rust_rtps_pim::structure::types::{EntityId, Guid};
+use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
 use crate::rtps_impl::rtps_writer_group_impl::RtpsWriterGroupImpl;
 
 pub struct WriterGroupFactory {
-    guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
+    guid_prefix: GuidPrefix,
     publisher_counter: u8,
     default_publisher_qos: PublisherQos,
 }
 
 impl WriterGroupFactory {
-    pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
+    pub fn new(guid_prefix: GuidPrefix) -> Self {
         Self {
             guid_prefix,
             publisher_counter: 0,

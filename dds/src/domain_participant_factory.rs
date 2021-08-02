@@ -76,7 +76,7 @@ impl DomainParticipantFactory {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_participant(
         domain_id: DomainId,
-        _qos: Option<DomainParticipantQos>,
+        qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> Option<DomainParticipantImpl> {
@@ -166,6 +166,7 @@ impl DomainParticipantFactory {
         ))];
 
         let domain_participant_storage = RtpsShared::new(DomainParticipantStorage::new(
+            qos.unwrap_or_default(),
             rtps_participant,
             builtin_subscriber_storage,
             builtin_publisher_storage,
