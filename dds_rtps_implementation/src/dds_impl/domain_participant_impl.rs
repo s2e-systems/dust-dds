@@ -39,8 +39,8 @@ use super::{
 pub struct DomainParticipantStorage {
     rtps_participant: RtpsParticipantImpl,
     domain_participant_qos: DomainParticipantQos,
-    builtin_subscriber_storage: [RtpsShared<SubscriberStorage>; 1],
-    builtin_publisher_storage: [RtpsShared<PublisherStorage>; 1],
+    builtin_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
+    builtin_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
     user_defined_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
     user_defined_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
     user_defined_publisher_counter: u8,
@@ -51,8 +51,8 @@ impl DomainParticipantStorage {
     pub fn new(
         domain_participant_qos: DomainParticipantQos,
         rtps_participant: RtpsParticipantImpl,
-        builtin_subscriber_storage: [RtpsShared<SubscriberStorage>; 1],
-        builtin_publisher_storage: [RtpsShared<PublisherStorage>; 1],
+        builtin_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
+        builtin_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
     ) -> Self {
         Self {
             rtps_participant,
@@ -67,7 +67,7 @@ impl DomainParticipantStorage {
     }
 
     /// Get a reference to the domain participant storage's builtin subscriber storage.
-    pub fn builtin_subscriber_storage(&self) -> &[RtpsShared<SubscriberStorage>; 1] {
+    pub fn builtin_subscriber_storage(&self) -> &[RtpsShared<SubscriberStorage>] {
         &self.builtin_subscriber_storage
     }
 
@@ -77,7 +77,7 @@ impl DomainParticipantStorage {
     }
 
     /// Get a reference to the domain participant storage's builtin publisher storage.
-    pub fn builtin_publisher_storage(&self) -> &[RtpsShared<PublisherStorage>; 1] {
+    pub fn builtin_publisher_storage(&self) -> &[RtpsShared<PublisherStorage>] {
         &self.builtin_publisher_storage
     }
 
@@ -395,80 +395,110 @@ impl Entity for DomainParticipantImpl {
 
 #[cfg(test)]
 mod tests {
-    // use rust_dds_api::domain::domain_participant::DomainParticipant;
-    // use rust_rtps_udp_psm::RtpsUdpPsm;
+    use super::*;
 
-    // use super::*;
+    use rust_dds_api::domain::domain_participant::DomainParticipant;
 
     // struct MockDDSType;
 
-    // #[test]
-    // fn set_default_publisher_qos_some_value() {
-    //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-    //         DomainParticipantImpl::new([1; 12]);
-    //     let mut qos = PublisherQos::default();
-    //     qos.group_data.value = &[1, 2, 3, 4];
-    //     domain_participant_impl
-    //         .set_default_publisher_qos(Some(qos.clone()))
-    //         .unwrap();
-    //     assert!(domain_participant_impl.get_default_publisher_qos() == qos);
-    // }
+    #[test]
+    fn set_default_publisher_qos_some_value() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant_storage = DomainParticipantStorage::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+        );
+        let domain_participant_impl = DomainParticipantImpl::new(
+            Arc::new(AtomicBool::new(false)),
+            RtpsShared::new(domain_participant_storage),
+            vec![],
+        );
+        let mut qos = PublisherQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_publisher_qos(Some(qos.clone()))
+            .unwrap();
+        assert!(domain_participant_impl.get_default_publisher_qos() == qos);
+    }
 
-    // #[test]
-    // fn set_default_publisher_qos_none() {
-    //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-    //         DomainParticipantImpl::new([1; 12]);
-    //     let mut qos = PublisherQos::default();
-    //     qos.group_data.value = &[1, 2, 3, 4];
-    //     domain_participant_impl
-    //         .set_default_publisher_qos(Some(qos.clone()))
-    //         .unwrap();
+    #[test]
+    fn set_default_publisher_qos_none() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant_storage = DomainParticipantStorage::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+        );
+        let domain_participant_impl = DomainParticipantImpl::new(
+            Arc::new(AtomicBool::new(false)),
+            RtpsShared::new(domain_participant_storage),
+            vec![],
+        );
+        let mut qos = PublisherQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_publisher_qos(Some(qos.clone()))
+            .unwrap();
 
-    //     domain_participant_impl
-    //         .set_default_publisher_qos(None)
-    //         .unwrap();
-    //     assert!(domain_participant_impl.get_default_publisher_qos() == PublisherQos::default());
-    // }
+        domain_participant_impl
+            .set_default_publisher_qos(None)
+            .unwrap();
+        assert!(domain_participant_impl.get_default_publisher_qos() == PublisherQos::default());
+    }
 
-    // #[test]
-    // fn set_default_subscriber_qos_some_value() {
-    //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-    //         DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-    //     let mut qos = SubscriberQos::default();
-    //     qos.group_data.value = &[1, 2, 3, 4];
-    //     domain_participant_impl
-    //         .set_default_subscriber_qos(Some(qos.clone()))
-    //         .unwrap();
-    //     assert!(
-    //         *domain_participant_impl
-    //             .default_subscriber_qos
-    //             .lock()
-    //             .unwrap()
-    //             == qos
-    //     );
-    // }
+    #[test]
+    fn set_default_subscriber_qos_some_value() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant_storage = DomainParticipantStorage::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+        );
+        let domain_participant_impl = DomainParticipantImpl::new(
+            Arc::new(AtomicBool::new(false)),
+            RtpsShared::new(domain_participant_storage),
+            vec![],
+        );
+        let mut qos = SubscriberQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_subscriber_qos(Some(qos.clone()))
+            .unwrap();
+        assert_eq!(domain_participant_impl.get_default_subscriber_qos(), qos);
+    }
 
-    // #[test]
-    // fn set_default_subscriber_qos_none() {
-    //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-    //         DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-    //     let mut qos = SubscriberQos::default();
-    //     qos.group_data.value = &[1, 2, 3, 4];
-    //     domain_participant_impl
-    //         .set_default_subscriber_qos(Some(qos.clone()))
-    //         .unwrap();
+    #[test]
+    fn set_default_subscriber_qos_none() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant_storage = DomainParticipantStorage::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+        );
+        let domain_participant_impl = DomainParticipantImpl::new(
+            Arc::new(AtomicBool::new(false)),
+            RtpsShared::new(domain_participant_storage),
+            vec![],
+        );
+        let mut qos = SubscriberQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_subscriber_qos(Some(qos.clone()))
+            .unwrap();
 
-    //     domain_participant_impl
-    //         .set_default_subscriber_qos(None)
-    //         .unwrap();
-    //     assert!(
-    //         *domain_participant_impl
-    //             .default_subscriber_qos
-    //             .lock()
-    //             .unwrap()
-    //             == SubscriberQos::default()
-    //     );
-    // }
+        domain_participant_impl
+            .set_default_subscriber_qos(None)
+            .unwrap();
+        assert_eq!(
+            domain_participant_impl.get_default_subscriber_qos(),
+            SubscriberQos::default()
+        );
+    }
 
     // #[test]
     // fn get_default_subscriber_qos() {

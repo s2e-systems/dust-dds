@@ -158,7 +158,7 @@ impl DomainParticipantFactory {
             spdp_builtin_participant_rtps_writer,
         ));
 
-        let builtin_publisher_storage = [RtpsShared::new(PublisherStorage::new(
+        let builtin_publisher_storage = vec![RtpsShared::new(PublisherStorage::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
@@ -166,7 +166,7 @@ impl DomainParticipantFactory {
             )),
             vec![spdp_builtin_participant_writer],
         ))];
-        let builtin_subscriber_storage = [RtpsShared::new(SubscriberStorage::new(
+        let builtin_subscriber_storage = vec![RtpsShared::new(SubscriberStorage::new(
             SubscriberQos::default(),
             Vec::new(),
         ))];
