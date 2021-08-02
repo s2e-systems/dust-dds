@@ -31,19 +31,19 @@ impl RtpsParticipantImpl {
 
         let builtin_writer_group_guid = Guid::new(
             guid_prefix,
-            EntityId {
-                entity_key: [0, 0, 0],
-                entity_kind: rust_rtps_pim::structure::types::EntityKind::BuiltInWriterGroup,
-            },
+            EntityId::new(
+                [0, 0, 0],
+                rust_rtps_pim::structure::types::EntityKind::BuiltInWriterGroup,
+            ),
         );
         let builtin_writer_group = RtpsShared::new(RtpsGroupImpl::new(builtin_writer_group_guid));
 
         let builtin_reader_group_guid = Guid::new(
             guid_prefix,
-            EntityId {
-                entity_key: [0, 0, 0],
-                entity_kind: rust_rtps_pim::structure::types::EntityKind::BuiltInReaderGroup,
-            },
+            EntityId::new(
+                [0, 0, 0],
+                rust_rtps_pim::structure::types::EntityKind::BuiltInReaderGroup,
+            ),
         );
         let builtin_reader_group = RtpsShared::new(RtpsGroupImpl::new(builtin_reader_group_guid));
 

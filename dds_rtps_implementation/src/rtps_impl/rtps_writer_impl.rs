@@ -1,4 +1,5 @@
-use rust_rtps_pim::{behavior::{
+use rust_rtps_pim::{
+    behavior::{
         types::Duration,
         writer::{
             reader_locator::RtpsReaderLocator,
@@ -7,12 +8,15 @@ use rust_rtps_pim::{behavior::{
             stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
             writer::{RtpsWriter, RtpsWriterOperations},
         },
-    }, messages::submessage_elements::Parameter, structure::{
+    },
+    messages::submessage_elements::Parameter,
+    structure::{
         types::{
-            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, Guid,
+            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
         },
-        RtpsEndpoint, RtpsEntity, RtpsHistoryCache, RtpsCacheChange,
-    }};
+        RtpsCacheChange, RtpsEndpoint, RtpsEntity, RtpsHistoryCache,
+    },
+};
 
 use super::{
     rtps_history_cache_impl::RtpsHistoryCacheImpl, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
@@ -288,7 +292,8 @@ mod tests {
         },
         structure::{
             types::{
-                ChangeKind, EntityId, Locator, ReliabilityKind, TopicKind, Guid, GUID_UNKNOWN,
+                ChangeKind, EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind,
+                GUID_UNKNOWN,
             },
             RtpsHistoryCache,
         },
@@ -399,16 +404,10 @@ mod tests {
             matched_readers: Vec::new(),
             writer_cache: RtpsHistoryCacheImpl::new(),
         };
-        let unknown_remote_group_entity_id = EntityId {
-            entity_key: [0; 3],
-            entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
-        };
+        let unknown_remote_group_entity_id = EntityId::new([0; 3], EntityKind::UserDefinedUnknown);
         let reader_proxy_guid1 = Guid::new(
             [1; 12],
-            EntityId {
-                entity_key: [1; 3],
-                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
-            },
+            EntityId::new([1; 3], EntityKind::UserDefinedReaderNoKey),
         );
         let reader_proxy1 = RtpsReaderProxyImpl::new(
             reader_proxy_guid1,
@@ -420,10 +419,7 @@ mod tests {
         );
         let reader_proxy_guid2 = Guid::new(
             [2; 12],
-            EntityId {
-                entity_key: [2; 3],
-                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
-            },
+            EntityId::new([2; 3], EntityKind::UserDefinedReaderNoKey),
         );
         let reader_proxy2 = RtpsReaderProxyImpl::new(
             reader_proxy_guid2,
@@ -457,16 +453,10 @@ mod tests {
             writer_cache: RtpsHistoryCacheImpl::new(),
         };
 
-        let unknown_remote_group_entity_id = EntityId {
-            entity_key: [0; 3],
-            entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
-        };
+        let unknown_remote_group_entity_id = EntityId::new([0; 3], EntityKind::UserDefinedUnknown);
         let reader_proxy_guid1 = Guid::new(
             [1; 12],
-            EntityId {
-                entity_key: [1; 3],
-                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
-            },
+            EntityId::new([1; 3], EntityKind::UserDefinedReaderNoKey),
         );
         let reader_proxy1 = RtpsReaderProxyImpl::new(
             reader_proxy_guid1,
@@ -478,10 +468,7 @@ mod tests {
         );
         let reader_proxy_guid2 = Guid::new(
             [2; 12],
-            EntityId {
-                entity_key: [2; 3],
-                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
-            },
+            EntityId::new([2; 3], EntityKind::UserDefinedReaderNoKey),
         );
         let reader_proxy2 = RtpsReaderProxyImpl::new(
             reader_proxy_guid2,
@@ -517,16 +504,10 @@ mod tests {
             writer_cache: RtpsHistoryCacheImpl::new(),
         };
 
-        let unknown_remote_group_entity_id = EntityId {
-            entity_key: [0; 3],
-            entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
-        };
+        let unknown_remote_group_entity_id = EntityId::new([0; 3], EntityKind::UserDefinedUnknown);
         let reader_proxy_guid1 = Guid::new(
             [1; 12],
-            EntityId {
-                entity_key: [1; 3],
-                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
-            },
+            EntityId::new([1; 3], EntityKind::UserDefinedReaderNoKey),
         );
         let reader_proxy1 = RtpsReaderProxyImpl::new(
             reader_proxy_guid1,
@@ -538,10 +519,7 @@ mod tests {
         );
         let reader_proxy_guid2 = Guid::new(
             [2; 12],
-            EntityId {
-                entity_key: [2; 3],
-                entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
-            },
+            EntityId::new([2; 3], EntityKind::UserDefinedReaderNoKey),
         );
         let reader_proxy2 = RtpsReaderProxyImpl::new(
             reader_proxy_guid2,

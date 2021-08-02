@@ -102,7 +102,7 @@ impl NumberofBytes for DurationUdp {
 
 impl crate::serialize::Serialize for EntityKind {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
-        crate::submessage_elements::entity_kind_into_u8(*self).serialize::<_, B>(&mut writer)
+        crate::submessage_elements::entity_kind_into_u8(self).serialize::<_, B>(&mut writer)
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for EntityKind {
@@ -117,8 +117,8 @@ impl<'de> crate::deserialize::Deserialize<'de> for EntityKind {
 
 impl crate::serialize::Serialize for EntityId {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
-        self.entity_key.serialize::<_, B>(&mut writer)?;
-        self.entity_kind.serialize::<_, B>(&mut writer)
+        self.entity_key().serialize::<_, B>(&mut writer)?;
+        self.entity_kind().serialize::<_, B>(&mut writer)
     }
 }
 impl<'de> crate::deserialize::Deserialize<'de> for EntityId {
@@ -128,10 +128,10 @@ impl<'de> crate::deserialize::Deserialize<'de> for EntityId {
     {
         let entity_key = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let entity_kind = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        Ok(Self {
+        Ok(Self::new(
             entity_key,
             entity_kind,
-        })
+        ))
     }
 }
 

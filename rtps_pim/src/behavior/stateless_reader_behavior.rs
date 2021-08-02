@@ -7,8 +7,8 @@ use crate::{
         submessages::DataSubmessage,
     },
     structure::{
-        types::{ChangeKind, GuidPrefix, ENTITYID_UNKNOWN, Guid},
-        RtpsEntity, RtpsHistoryCache, RtpsCacheChange,
+        types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
+        RtpsCacheChange, RtpsEntity, RtpsHistoryCache,
     },
 };
 
@@ -273,10 +273,10 @@ mod tests {
             reader_cache: MockHistoryCache(None),
         };
         let source_guid_prefix = GUIDPREFIX_UNKNOWN;
-        let writer_entity_id = EntityId {
-            entity_key: [1, 2, 3],
-            entity_kind: crate::structure::types::EntityKind::BuiltInWriterWithKey,
-        };
+        let writer_entity_id = EntityId::new(
+            [1, 2, 3],
+            crate::structure::types::EntityKind::BuiltInWriterWithKey,
+        );
         let message_sequence_number = 1;
         let data = MockDataSubmessage {
             data_flag: true,

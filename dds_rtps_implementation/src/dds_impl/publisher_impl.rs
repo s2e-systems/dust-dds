@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
     domain::domain_participant::DomainParticipant,
@@ -13,19 +11,21 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::structure::RtpsEntity;
 
 use crate::{
     rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{data_writer_impl::DataWriterImpl, data_writer_storage::DataWriterStorage, topic_impl::TopicImpl, writer_factory::WriterFactory};
+use super::{
+    data_writer_impl::DataWriterImpl, data_writer_storage::DataWriterStorage, topic_impl::TopicImpl,
+};
 
 pub struct PublisherStorage {
     qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
     data_writer_storage_list: Vec<RtpsShared<DataWriterStorage>>,
+    // data_writer_factory: WriterFactory
 }
 
 impl PublisherStorage {
@@ -47,25 +47,20 @@ impl PublisherStorage {
     }
 }
 
-
 pub struct PublisherImpl<'p> {
     participant: &'p dyn DomainParticipant,
-    writer_factory: Mutex<WriterFactory>,
-    default_datawriter_qos: Mutex<DataWriterQos>,
-    rtps_writer_group_impl: RtpsWeak<RtpsGroupImpl>,
+    publisher_storage: RtpsWeak<PublisherStorage>,
 }
 
 impl<'p> PublisherImpl<'p> {
     pub fn new(
         participant: &'p dyn DomainParticipant,
-        rtps_writer_group_impl: &RtpsShared<RtpsGroupImpl>,
+        publisher_storage: &RtpsShared<PublisherStorage>,
     ) -> Self {
-        let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
+        // let writer_factory = WriterFactory::new(*publisher_storage.lock().guid().prefix());
         Self {
             participant,
-            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
-            writer_factory: Mutex::new(writer_factory),
-            rtps_writer_group_impl: rtps_writer_group_impl.downgrade(),
+            publisher_storage: publisher_storage.downgrade(),
         }
     }
 }

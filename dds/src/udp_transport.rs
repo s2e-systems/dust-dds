@@ -1,7 +1,7 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
 use rust_dds_rtps_implementation::{
-    dds_impl::{publisher_storage::PublisherStorage, subscriber_storage::SubscriberStorage},
+    dds_impl::{publisher_impl::PublisherStorage, subscriber_storage::SubscriberStorage},
     utils::{
         message_receiver::MessageReceiver,
         shared_object::RtpsShared,

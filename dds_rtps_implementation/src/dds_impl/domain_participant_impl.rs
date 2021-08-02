@@ -19,10 +19,14 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::RtpsEntity;
+use rust_rtps_pim::structure::{
+    types::{EntityId, EntityKind, Guid},
+    RtpsEntity,
+};
 
 use crate::{
-    rtps_impl::rtps_participant_impl::RtpsParticipantImpl, utils::shared_object::RtpsShared,
+    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
+    utils::shared_object::RtpsShared,
 };
 
 use super::{
@@ -30,7 +34,6 @@ use super::{
     subscriber_impl::SubscriberImpl,
     subscriber_storage::SubscriberStorage,
     topic_impl::TopicImpl,
-    writer_group_factory::WriterGroupFactory,
 };
 
 pub struct DomainParticipantStorage {
@@ -40,7 +43,8 @@ pub struct DomainParticipantStorage {
     builtin_publisher_storage: [RtpsShared<PublisherStorage>; 1],
     user_defined_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
     user_defined_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
-    writer_group_factory: WriterGroupFactory,
+    user_defined_publisher_counter: u8,
+    default_publisher_qos: PublisherQos,
 }
 
 impl DomainParticipantStorage {
@@ -50,7 +54,6 @@ impl DomainParticipantStorage {
         builtin_subscriber_storage: [RtpsShared<SubscriberStorage>; 1],
         builtin_publisher_storage: [RtpsShared<PublisherStorage>; 1],
     ) -> Self {
-        let writer_group_factory = WriterGroupFactory::new(*rtps_participant.guid().prefix());
         Self {
             rtps_participant,
             domain_participant_qos,
@@ -58,7 +61,8 @@ impl DomainParticipantStorage {
             builtin_publisher_storage,
             user_defined_subscriber_storage: Vec::new(),
             user_defined_publisher_storage: Vec::new(),
-            writer_group_factory,
+            user_defined_publisher_counter: 0,
+            default_publisher_qos: PublisherQos::default(),
         }
     }
 
@@ -112,22 +116,28 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
     type PublisherType = PublisherImpl<'p>;
     fn create_publisher(
         &'p self,
-        _qos: Option<PublisherQos>,
+        qos: Option<PublisherQos>,
         _a_listener: Option<&'static dyn PublisherListener>,
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        todo!()
-        // let writer_group = self
-        //     .writer_group_factory
-        //     .lock()
-        //     .unwrap()
-        //     .create_writer_group(qos, a_listener, mask)
-        //     .ok()?;
-        // let writer_group_shared = RtpsShared::new(writer_group);
-        // self.rtps_participant_impl
-        //     .lock()
-        //     .add_writer_group(writer_group_shared.clone());
-        // Some(PublisherImpl::new(self, &writer_group_shared))
+        let mut domain_participant_lock = self.domain_participant_storage.lock();
+        let publisher_qos = qos.unwrap_or(domain_participant_lock.default_publisher_qos.clone());
+        domain_participant_lock.user_defined_publisher_counter += 1;
+        let entity_id = EntityId::new(
+            [domain_participant_lock.user_defined_publisher_counter, 0, 0],
+            EntityKind::UserDefinedWriterGroup,
+        );
+        let guid = Guid::new(
+            *domain_participant_lock.rtps_participant.guid().prefix(),
+            entity_id,
+        );
+        let rtps_group = RtpsGroupImpl::new(guid);
+        let data_writer_storage_list = Vec::new();
+        let publisher_storage =
+            PublisherStorage::new(publisher_qos, rtps_group, data_writer_storage_list);
+        let publisher_storage_shared = RtpsShared::new(publisher_storage);
+        let publisher = PublisherImpl::new(self, &publisher_storage_shared);
+        Some(publisher)
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
