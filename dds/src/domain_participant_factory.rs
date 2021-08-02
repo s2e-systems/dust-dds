@@ -14,8 +14,9 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_writer_storage::DataWriterStorage, domain_participant_impl::DomainParticipantImpl,
-        domain_participant_storage::DomainParticipantStorage, publisher_storage::PublisherStorage,
+        data_writer_storage::DataWriterStorage,
+        domain_participant_impl::{DomainParticipantImpl, DomainParticipantStorage},
+        publisher_storage::PublisherStorage,
         subscriber_storage::SubscriberStorage,
     },
     rtps_impl::{rtps_participant_impl::RtpsParticipantImpl, rtps_writer_impl::RtpsWriterImpl},
@@ -174,26 +175,26 @@ impl DomainParticipantFactory {
         let domain_participant_storage_cloned = domain_participant_storage.clone();
         let communication_thread_handle = std::thread::spawn(move || loop {
             if is_enabled_cloned.load(atomic::Ordering::Relaxed) {
-                let domain_participant_lock = domain_participant_storage_cloned.lock();
+                let domain_participant_storage_lock = domain_participant_storage_cloned.lock();
                 send_udp_data(
-                    domain_participant_lock.rtps_participant(),
-                    domain_participant_lock.builtin_publisher_storage(),
+                    domain_participant_storage_lock.rtps_participant(),
+                    domain_participant_storage_lock.builtin_publisher_storage(),
                     &mut metatraffic_transport,
                 );
                 receive_udp_data(
-                    domain_participant_lock.rtps_participant(),
-                    domain_participant_lock.builtin_subscriber_storage(),
+                    domain_participant_storage_lock.rtps_participant(),
+                    domain_participant_storage_lock.builtin_subscriber_storage(),
                     &mut metatraffic_transport,
                 );
 
                 send_udp_data(
-                    domain_participant_lock.rtps_participant(),
-                    domain_participant_lock.user_defined_publisher_storage(),
+                    domain_participant_storage_lock.rtps_participant(),
+                    domain_participant_storage_lock.user_defined_publisher_storage(),
                     &mut default_transport,
                 );
                 receive_udp_data(
-                    domain_participant_lock.rtps_participant(),
-                    domain_participant_lock.user_defined_subscriber_storage(),
+                    domain_participant_storage_lock.rtps_participant(),
+                    domain_participant_storage_lock.user_defined_subscriber_storage(),
                     &mut default_transport,
                 );
                 std::thread::sleep(std::time::Duration::from_millis(100));

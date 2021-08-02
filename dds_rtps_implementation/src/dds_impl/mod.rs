@@ -5,7 +5,6 @@ pub mod data_writer_impl;
 pub mod data_writer_storage;
 
 pub mod domain_participant_impl;
-pub mod domain_participant_storage;
 
 pub mod publisher_impl;
 pub mod publisher_storage;

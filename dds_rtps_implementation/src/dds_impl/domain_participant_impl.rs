@@ -19,15 +19,69 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use rust_rtps_pim::structure::RtpsEntity;
 
 use crate::{
     rtps_impl::rtps_participant_impl::RtpsParticipantImpl, utils::shared_object::RtpsShared,
 };
 
 use super::{
-    domain_participant_storage::DomainParticipantStorage, publisher_impl::PublisherImpl,
-    subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
+    publisher_impl::PublisherImpl, publisher_storage::PublisherStorage,
+    subscriber_impl::SubscriberImpl, subscriber_storage::SubscriberStorage, topic_impl::TopicImpl,
+    writer_group_factory::WriterGroupFactory,
 };
+
+pub struct DomainParticipantStorage {
+    rtps_participant: RtpsParticipantImpl,
+    builtin_subscriber_storage: [RtpsShared<SubscriberStorage>; 1],
+    builtin_publisher_storage: [RtpsShared<PublisherStorage>; 1],
+    user_defined_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
+    user_defined_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
+    writer_group_factory: WriterGroupFactory,
+}
+
+impl DomainParticipantStorage {
+    pub fn new(
+        rtps_participant: RtpsParticipantImpl,
+        builtin_subscriber_storage: [RtpsShared<SubscriberStorage>; 1],
+        builtin_publisher_storage: [RtpsShared<PublisherStorage>; 1],
+    ) -> Self {
+        let writer_group_factory = WriterGroupFactory::new(*rtps_participant.guid().prefix());
+        Self {
+            rtps_participant,
+            builtin_subscriber_storage,
+            builtin_publisher_storage,
+            user_defined_subscriber_storage: Vec::new(),
+            user_defined_publisher_storage: Vec::new(),
+            writer_group_factory,
+        }
+    }
+
+    /// Get a reference to the domain participant storage's builtin subscriber storage.
+    pub fn builtin_subscriber_storage(&self) -> &[RtpsShared<SubscriberStorage>; 1] {
+        &self.builtin_subscriber_storage
+    }
+
+    /// Get a reference to the domain participant storage's rtps participant.
+    pub fn rtps_participant(&self) -> &RtpsParticipantImpl {
+        &self.rtps_participant
+    }
+
+    /// Get a reference to the domain participant storage's builtin publisher storage.
+    pub fn builtin_publisher_storage(&self) -> &[RtpsShared<PublisherStorage>; 1] {
+        &self.builtin_publisher_storage
+    }
+
+    /// Get a reference to the domain participant storage's user defined subscriber storage.
+    pub fn user_defined_subscriber_storage(&self) -> &[RtpsShared<SubscriberStorage>] {
+        self.user_defined_subscriber_storage.as_slice()
+    }
+
+    /// Get a reference to the domain participant storage's user defined publisher storage.
+    pub fn user_defined_publisher_storage(&self) -> &[RtpsShared<PublisherStorage>] {
+        self.user_defined_publisher_storage.as_slice()
+    }
+}
 
 pub struct DomainParticipantImpl {
     is_enabled: Arc<AtomicBool>,
