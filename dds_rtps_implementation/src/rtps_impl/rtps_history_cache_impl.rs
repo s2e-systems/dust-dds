@@ -1,24 +1,31 @@
-use rust_rtps_pim::{messages::types::Time, structure::{
-    types::{ChangeKind, InstanceHandle, SequenceNumber, Guid},
-    RtpsHistoryCache, RtpsCacheChange,
-}};
+use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
+use rust_rtps_pim::{
+    messages::types::Time,
+    structure::{
+        types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
+        RtpsCacheChange, RtpsHistoryCache,
+    },
+};
 
-struct CacheChangeRepresentation {
+struct CacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     data: Vec<u8>,
-    info_timestamp: Option<Time>
+    info_timestamp: Option<Time>,
+    sample_state_kind: SampleStateKind,
+    view_state_kind: ViewStateKind,
+    instance_state_kind: InstanceStateKind,
 }
 
 pub struct RtpsHistoryCacheImpl {
-    changes: Vec<CacheChangeRepresentation>,
+    changes: Vec<CacheChange>,
     info: Option<Time>,
 }
 
 impl RtpsHistoryCacheImpl {
-    /// Set the r t p s history cache impl's info.
+    /// Set the Rtps history cache impl's info.
     pub fn set_info(&mut self, info: Option<Time>) {
         self.info = info;
     }
@@ -36,14 +43,25 @@ impl RtpsHistoryCache for RtpsHistoryCacheImpl {
     }
 
     fn add_change(&mut self, change: &RtpsCacheChange) {
-        let local_change = CacheChangeRepresentation {
+        let instance_state_kind = match change.kind() {
+            ChangeKind::Alive => InstanceStateKind::Alive,
+            ChangeKind::AliveFiltered => InstanceStateKind::Alive,
+            ChangeKind::NotAliveDisposed => InstanceStateKind::NotAliveDisposed,
+            ChangeKind::NotAliveUnregistered => todo!(),
+        };
+
+        let local_change = CacheChange {
             kind: *change.kind(),
             writer_guid: *change.writer_guid(),
             sequence_number: *change.sequence_number(),
             instance_handle: *change.instance_handle(),
             data: change.data_value().iter().cloned().collect(),
             info_timestamp: self.info,
+            sample_state_kind: SampleStateKind::NotRead,
+            view_state_kind: ViewStateKind::New,
+            instance_state_kind,
         };
+
         self.changes.push(local_change)
     }
 
