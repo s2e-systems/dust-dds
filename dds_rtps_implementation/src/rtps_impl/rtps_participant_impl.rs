@@ -1,11 +1,10 @@
-use rust_dds_api::infrastructure::qos::SubscriberQos;
 use rust_rtps_pim::{
     discovery::{
         sedp::sedp_participant::SedpParticipant,
         spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
     },
     structure::{
-        types::{EntityId, Locator, ProtocolVersion, VendorId, Guid, PROTOCOLVERSION_2_4},
+        types::{EntityId, Guid, Locator, ProtocolVersion, VendorId, PROTOCOLVERSION_2_4},
         RtpsEntity, RtpsParticipant,
     },
 };
@@ -13,8 +12,8 @@ use rust_rtps_pim::{
 use crate::utils::shared_object::RtpsShared;
 
 use super::{
-    rtps_reader_group_impl::RtpsReaderGroupImpl, rtps_reader_impl::RtpsReaderImpl,
-    rtps_writer_group_impl::RtpsWriterGroupImpl, rtps_writer_impl::RtpsWriterImpl,
+    rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl,
+    rtps_writer_impl::RtpsWriterImpl,
 };
 
 pub struct RtpsParticipantImpl {
@@ -37,12 +36,7 @@ impl RtpsParticipantImpl {
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::BuiltInWriterGroup,
             },
         );
-        let builtin_writer_group = RtpsShared::new(RtpsWriterGroupImpl::new(
-            builtin_writer_group_guid,
-            rust_dds_api::infrastructure::qos::PublisherQos::default(),
-            None,
-            0,
-        ));
+        let builtin_writer_group = RtpsShared::new(RtpsGroupImpl::new(builtin_writer_group_guid));
 
         let builtin_reader_group_guid = Guid::new(
             guid_prefix,
@@ -51,12 +45,7 @@ impl RtpsParticipantImpl {
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::BuiltInReaderGroup,
             },
         );
-        let builtin_reader_group = RtpsShared::new(RtpsReaderGroupImpl::new(
-            builtin_reader_group_guid,
-            SubscriberQos::default(),
-            None,
-            0,
-        ));
+        let builtin_reader_group = RtpsShared::new(RtpsGroupImpl::new(builtin_reader_group_guid));
 
         Self {
             guid,

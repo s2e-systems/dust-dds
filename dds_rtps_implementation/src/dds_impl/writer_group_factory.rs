@@ -4,7 +4,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
-use crate::rtps_impl::rtps_writer_group_impl::RtpsWriterGroupImpl;
+use crate::rtps_impl::rtps_group_impl::RtpsGroupImpl;
 
 pub struct WriterGroupFactory {
     guid_prefix: GuidPrefix,
@@ -21,13 +21,12 @@ impl WriterGroupFactory {
         }
     }
 
-    pub fn create_writer_group(
+    pub fn create_group(
         &mut self,
         qos: Option<PublisherQos>,
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
-    ) -> DDSResult<RtpsWriterGroupImpl> {
-        let qos = qos.unwrap_or(self.default_publisher_qos.clone());
+    ) -> DDSResult<RtpsGroupImpl> {
         let guid_prefix = self.guid_prefix.clone();
 
         self.publisher_counter += 1;
@@ -36,7 +35,7 @@ impl WriterGroupFactory {
             entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedWriterGroup,
         };
         let guid = Guid::new(guid_prefix, entity_id);
-        Ok(RtpsWriterGroupImpl::new(guid, qos, a_listener, mask))
+        Ok(RtpsGroupImpl::new(guid))
     }
 
     pub fn set_default_qos(&mut self, qos: Option<PublisherQos>) {

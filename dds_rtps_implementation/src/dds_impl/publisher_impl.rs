@@ -16,7 +16,7 @@ use rust_dds_api::{
 use rust_rtps_pim::structure::RtpsEntity;
 
 use crate::{
-    rtps_impl::rtps_writer_group_impl::RtpsWriterGroupImpl,
+    rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
@@ -28,13 +28,13 @@ pub struct PublisherImpl<'p> {
     participant: &'p dyn DomainParticipant,
     writer_factory: Mutex<WriterFactory>,
     default_datawriter_qos: Mutex<DataWriterQos>,
-    rtps_writer_group_impl: RtpsWeak<RtpsWriterGroupImpl>,
+    rtps_writer_group_impl: RtpsWeak<RtpsGroupImpl>,
 }
 
 impl<'p> PublisherImpl<'p> {
     pub fn new(
         participant: &'p dyn DomainParticipant,
-        rtps_writer_group_impl: &RtpsShared<RtpsWriterGroupImpl>,
+        rtps_writer_group_impl: &RtpsShared<RtpsGroupImpl>,
     ) -> Self {
         let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
@@ -52,26 +52,27 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: 'static> DataWriterFactory<'dw, 't, T> for Publis
 
     fn create_datawriter(
         &'dw self,
-        a_topic: &'dw Self::TopicType,
-        qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
-        mask: StatusMask,
+        _a_topic: &'dw Self::TopicType,
+        _qos: Option<DataWriterQos>,
+        _a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
+        _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let qos = qos.unwrap_or(self.default_datawriter_qos.lock().unwrap().clone());
-        let rtps_writer = self
-            .writer_factory
-            .lock()
-            .unwrap()
-            .create_datawriter(qos, a_listener, mask);
-        let rtps_writer_shared = RtpsShared::new(rtps_writer);
-        let rtps_writer_weak = rtps_writer_shared.downgrade();
-        self.rtps_writer_group_impl
-            .upgrade()
-            .ok()?
-            .lock()
-            .add_writer(rtps_writer_shared);
+        todo!()
+        // let qos = qos.unwrap_or(self.default_datawriter_qos.lock().unwrap().clone());
+        // let rtps_writer = self
+        //     .writer_factory
+        //     .lock()
+        //     .unwrap()
+        //     .create_datawriter(qos, a_listener, mask);
+        // let rtps_writer_shared = RtpsShared::new(rtps_writer);
+        // let rtps_writer_weak = rtps_writer_shared.downgrade();
+        // self.rtps_writer_group_impl
+        //     .upgrade()
+        //     .ok()?
+        //     .lock()
+        //     .add_writer(rtps_writer_shared);
 
-        Some(DataWriterImpl::new(self, a_topic, rtps_writer_weak))
+        // Some(DataWriterImpl::new(self, a_topic, rtps_writer_weak))
     }
 
     fn delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
