@@ -8,11 +8,11 @@ use crate::{
     },
     structure::{
         types::{ChangeKind, GuidPrefix, ENTITYID_UNKNOWN, GUID},
-        RTPSEntity, RTPSHistoryCache, RtpsCacheChange,
+        RtpsEntity, RtpsHistoryCache, RtpsCacheChange,
     },
 };
 
-use super::reader::reader::RTPSReader;
+use super::reader::reader::RtpsReader;
 
 pub trait StatelessReaderBehavior<Data> {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data);
@@ -20,8 +20,8 @@ pub trait StatelessReaderBehavior<Data> {
 
 impl<'a, 'b, T, Data> StatelessReaderBehavior<Data> for T
 where
-    T: RTPSReader + RTPSEntity,
-    T::HistoryCacheType: RTPSHistoryCache,
+    T: RtpsReader + RtpsEntity,
+    T::HistoryCacheType: RtpsHistoryCache,
     Data: DataSubmessage<'b>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data) {
@@ -76,7 +76,7 @@ mod tests {
 
     struct MockHistoryCache(Option<MockCacheChange>);
 
-    impl<'a> RTPSHistoryCache for MockHistoryCache {
+    impl<'a> RtpsHistoryCache for MockHistoryCache {
         fn new() -> Self
         where
             Self: Sized,
@@ -119,13 +119,13 @@ mod tests {
         reader_cache: MockHistoryCache,
     }
 
-    impl<'a> RTPSEntity for MockStatelessReader {
+    impl<'a> RtpsEntity for MockStatelessReader {
         fn guid(&self) -> &GUID {
             &GUID_UNKNOWN
         }
     }
 
-    impl RTPSReader for MockStatelessReader {
+    impl RtpsReader for MockStatelessReader {
         type HistoryCacheType = MockHistoryCache;
 
         fn heartbeat_response_delay(&self) -> &crate::behavior::types::Duration {

@@ -1,12 +1,12 @@
 use rust_rtps_pim::{
-    behavior::{reader::reader::RTPSReader, stateless_reader_behavior::StatelessReaderBehavior},
+    behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
     messages::{
         submessage_elements::TimestampSubmessageElementType,
         submessages::{
             DataSubmessage, InfoTimestampSubmessage, RtpsSubmessagePIM, RtpsSubmessageType,
         },
-        types::{Time, TIME_INVALID, TIME_ZERO},
-        RTPSMessage,
+        types::{Time, TIME_INVALID},
+        RtpsMessage,
     },
     structure::types::{
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
@@ -50,7 +50,7 @@ impl MessageReceiver {
         source_locator: Locator,
         message: &'a Message,
     ) where
-        Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
+        Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
         PSM: RtpsSubmessagePIM<'a> + 'a,
         PSM::DataSubmessageType: DataSubmessage<'a>,
         PSM::InfoTimestampSubmessageType: InfoTimestampSubmessage,

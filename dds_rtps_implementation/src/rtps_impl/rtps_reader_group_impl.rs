@@ -6,16 +6,16 @@ use rust_rtps_pim::structure::types::GUID;
 
 use crate::utils::shared_object::{RtpsLock, RtpsShared};
 
-use super::rtps_reader_impl::RTPSReaderImpl;
+use super::rtps_reader_impl::RtpsReaderImpl;
 
-pub struct RTPSReaderGroupImpl {
+pub struct RtpsReaderGroupImpl {
     _guid: GUID,
     _qos: SubscriberQos,
     _listener: Option<&'static dyn SubscriberListener>,
     _status_mask: StatusMask,
 }
 
-impl RTPSReaderGroupImpl {
+impl RtpsReaderGroupImpl {
     pub fn new(
         guid: GUID,
         qos: SubscriberQos,
@@ -31,10 +31,10 @@ impl RTPSReaderGroupImpl {
     }
 }
 
-pub struct RTPSReaderIterator<'a>(std::slice::Iter<'a, RtpsShared<RTPSReaderImpl>>);
+pub struct RTPSReaderIterator<'a>(std::slice::Iter<'a, RtpsShared<RtpsReaderImpl>>);
 
 impl<'a> Iterator for RTPSReaderIterator<'a> {
-    type Item = RtpsLock<'a, RTPSReaderImpl>;
+    type Item = RtpsLock<'a, RtpsReaderImpl>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.next() {

@@ -3,7 +3,7 @@ use crate::{
     structure::types::{Locator, ReliabilityKind, TopicKind, GUID},
 };
 
-use super::writer::RTPSWriter;
+use super::writer::RtpsWriter;
 
 pub trait RTPSStatelessWriter {
     type ReaderLocatorType;
@@ -13,11 +13,11 @@ pub trait RTPSStatelessWriter {
     fn writer_cache_and_reader_locators(
         &mut self,
     ) -> (
-        &<Self as RTPSWriter>::HistoryCacheType,
+        &<Self as RtpsWriter>::HistoryCacheType,
         &mut [Self::ReaderLocatorType],
     )
     where
-        Self: RTPSWriter;
+        Self: RtpsWriter;
 }
 
 pub trait RTPSStatelessWriterOperations {

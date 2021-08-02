@@ -1,7 +1,7 @@
 use rust_rtps_pim::{
     behavior::{
         reader::{
-            reader::{RTPSReader, RTPSReaderOperations},
+            reader::{RtpsReader, RTPSReaderOperations},
             stateful_reader::{RTPSStatefulReader, RTPSStatefulReaderOperations},
             stateless_reader::RTPSStatelessReaderOperations,
         },
@@ -9,15 +9,15 @@ use rust_rtps_pim::{
     },
     structure::{
         types::{Locator, ReliabilityKind, TopicKind, GUID},
-        RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
+        RTPSEndpoint, RtpsEntity, RtpsHistoryCache,
     },
 };
 
 use super::{
-    rtps_history_cache_impl::RTPSHistoryCacheImpl, rtps_writer_proxy_impl::RTPSWriterProxyImpl,
+    rtps_history_cache_impl::RtpsHistoryCacheImpl, rtps_writer_proxy_impl::RTPSWriterProxyImpl,
 };
 
-pub struct RTPSReaderImpl {
+pub struct RtpsReaderImpl {
     guid: GUID,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
@@ -26,17 +26,17 @@ pub struct RTPSReaderImpl {
     heartbeat_response_delay: Duration,
     heartbeat_supression_duration: Duration,
     expects_inline_qos: bool,
-    reader_cache: RTPSHistoryCacheImpl,
+    reader_cache: RtpsHistoryCacheImpl,
 }
 
-impl RTPSEntity for RTPSReaderImpl {
+impl RtpsEntity for RtpsReaderImpl {
     fn guid(&self) -> &GUID {
         &self.guid
     }
 }
 
-impl RTPSReader for RTPSReaderImpl {
-    type HistoryCacheType = RTPSHistoryCacheImpl;
+impl RtpsReader for RtpsReaderImpl {
+    type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn heartbeat_response_delay(&self) -> &Duration {
         &self.heartbeat_response_delay
@@ -59,7 +59,7 @@ impl RTPSReader for RTPSReaderImpl {
     }
 }
 
-impl RTPSReaderOperations for RTPSReaderImpl {
+impl RTPSReaderOperations for RtpsReaderImpl {
     fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -79,12 +79,12 @@ impl RTPSReaderOperations for RTPSReaderImpl {
             heartbeat_response_delay,
             heartbeat_supression_duration,
             expects_inline_qos,
-            reader_cache: RTPSHistoryCacheImpl::new(),
+            reader_cache: RtpsHistoryCacheImpl::new(),
         }
     }
 }
 
-impl RTPSEndpoint for RTPSReaderImpl {
+impl RTPSEndpoint for RtpsReaderImpl {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
     }
@@ -102,7 +102,7 @@ impl RTPSEndpoint for RTPSReaderImpl {
     }
 }
 
-impl RTPSStatelessReaderOperations for RTPSReaderImpl {
+impl RTPSStatelessReaderOperations for RtpsReaderImpl {
     fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -122,12 +122,12 @@ impl RTPSStatelessReaderOperations for RTPSReaderImpl {
             heartbeat_response_delay,
             heartbeat_supression_duration,
             expects_inline_qos,
-            reader_cache: RTPSHistoryCacheImpl::new(),
+            reader_cache: RtpsHistoryCacheImpl::new(),
         }
     }
 }
 
-impl RTPSStatefulReader for RTPSReaderImpl {
+impl RTPSStatefulReader for RtpsReaderImpl {
     type WriterProxyType = RTPSWriterProxyImpl;
 
     fn matched_writers(&self) -> &[Self::WriterProxyType] {
@@ -135,7 +135,7 @@ impl RTPSStatefulReader for RTPSReaderImpl {
     }
 }
 
-impl RTPSStatefulReaderOperations for RTPSReaderImpl {
+impl RTPSStatefulReaderOperations for RtpsReaderImpl {
     fn new(
         _guid: GUID,
         _topic_kind: TopicKind,

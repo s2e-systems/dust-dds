@@ -6,24 +6,24 @@ use rust_rtps_pim::{
     },
     structure::{
         types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
-        RTPSEntity, RTPSParticipant,
+        RtpsEntity, RtpsParticipant,
     },
 };
 
 use crate::utils::shared_object::RtpsShared;
 
 use super::{
-    rtps_reader_group_impl::RTPSReaderGroupImpl, rtps_reader_impl::RTPSReaderImpl,
-    rtps_writer_group_impl::RTPSWriterGroupImpl, rtps_writer_impl::RTPSWriterImpl,
+    rtps_reader_group_impl::RtpsReaderGroupImpl, rtps_reader_impl::RtpsReaderImpl,
+    rtps_writer_group_impl::RtpsWriterGroupImpl, rtps_writer_impl::RtpsWriterImpl,
 };
 
-pub struct RTPSParticipantImpl {
+pub struct RtpsParticipantImpl {
     guid: GUID,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
 }
 
-impl RTPSParticipantImpl {
+impl RtpsParticipantImpl {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
         let guid = GUID::new(
             guid_prefix,
@@ -37,7 +37,7 @@ impl RTPSParticipantImpl {
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::BuiltInWriterGroup,
             },
         );
-        let builtin_writer_group = RtpsShared::new(RTPSWriterGroupImpl::new(
+        let builtin_writer_group = RtpsShared::new(RtpsWriterGroupImpl::new(
             builtin_writer_group_guid,
             rust_dds_api::infrastructure::qos::PublisherQos::default(),
             None,
@@ -51,7 +51,7 @@ impl RTPSParticipantImpl {
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::BuiltInReaderGroup,
             },
         );
-        let builtin_reader_group = RtpsShared::new(RTPSReaderGroupImpl::new(
+        let builtin_reader_group = RtpsShared::new(RtpsReaderGroupImpl::new(
             builtin_reader_group_guid,
             SubscriberQos::default(),
             None,
@@ -66,13 +66,13 @@ impl RTPSParticipantImpl {
     }
 }
 
-impl RTPSEntity for RTPSParticipantImpl {
+impl RtpsEntity for RtpsParticipantImpl {
     fn guid(&self) -> &GUID {
         &self.guid
     }
 }
 
-impl RTPSParticipant for RTPSParticipantImpl {
+impl RtpsParticipant for RtpsParticipantImpl {
     fn protocol_version(&self) -> &ProtocolVersion {
         &self.protocol_version
     }
@@ -90,13 +90,13 @@ impl RTPSParticipant for RTPSParticipantImpl {
     }
 }
 
-impl SedpParticipant for RTPSParticipantImpl {
-    type BuiltinPublicationsWriter = RTPSWriterImpl;
-    type BuiltinPublicationsReader = RTPSReaderImpl;
-    type BuiltinSubscriptionsWriter = RTPSWriterImpl;
-    type BuiltinSubscriptionsReader = RTPSReaderImpl;
-    type BuiltinTopicsWriter = RTPSWriterImpl;
-    type BuiltinTopicsReader = RTPSReaderImpl;
+impl SedpParticipant for RtpsParticipantImpl {
+    type BuiltinPublicationsWriter = RtpsWriterImpl;
+    type BuiltinPublicationsReader = RtpsReaderImpl;
+    type BuiltinSubscriptionsWriter = RtpsWriterImpl;
+    type BuiltinSubscriptionsReader = RtpsReaderImpl;
+    type BuiltinTopicsWriter = RtpsWriterImpl;
+    type BuiltinTopicsReader = RtpsReaderImpl;
 
     fn sedp_builtin_publications_writer(&mut self) -> Option<&mut Self::BuiltinPublicationsWriter> {
         todo!()
@@ -127,7 +127,7 @@ impl SedpParticipant for RTPSParticipantImpl {
     }
 }
 
-impl SPDPdiscoveredParticipantData for RTPSParticipantImpl {
+impl SPDPdiscoveredParticipantData for RtpsParticipantImpl {
     type LocatorListType = Vec<Locator>;
 
     fn domain_id(&self) -> rust_rtps_pim::discovery::types::DomainId {

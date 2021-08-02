@@ -5,21 +5,21 @@ use rust_rtps_pim::{behavior::{
             reader_proxy::RTPSReaderProxy,
             stateful_writer::{RTPSStatefulWriter, RTPSStatefulWriterOperations},
             stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
-            writer::{RTPSWriter, RTPSWriterOperations},
+            writer::{RtpsWriter, RtpsWriterOperations},
         },
     }, messages::submessage_elements::Parameter, structure::{
         types::{
             ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
         },
-        RTPSEndpoint, RTPSEntity, RTPSHistoryCache, RtpsCacheChange,
+        RTPSEndpoint, RtpsEntity, RtpsHistoryCache, RtpsCacheChange,
     }};
 
 use super::{
-    rtps_history_cache_impl::RTPSHistoryCacheImpl, rtps_reader_locator_impl::RTPSReaderLocatorImpl,
+    rtps_history_cache_impl::RtpsHistoryCacheImpl, rtps_reader_locator_impl::RTPSReaderLocatorImpl,
     rtps_reader_proxy_impl::RTPSReaderProxyImpl,
 };
 
-pub struct RTPSWriterImpl {
+pub struct RtpsWriterImpl {
     guid: GUID,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
@@ -33,17 +33,17 @@ pub struct RTPSWriterImpl {
     data_max_size_serialized: Option<i32>,
     reader_locators: Vec<RTPSReaderLocatorImpl>,
     matched_readers: Vec<RTPSReaderProxyImpl>,
-    writer_cache: RTPSHistoryCacheImpl,
+    writer_cache: RtpsHistoryCacheImpl,
 }
 
-impl RTPSEntity for RTPSWriterImpl {
+impl RtpsEntity for RtpsWriterImpl {
     fn guid(&self) -> &GUID {
         &self.guid
     }
 }
 
-impl RTPSWriter for RTPSWriterImpl {
-    type HistoryCacheType = RTPSHistoryCacheImpl;
+impl RtpsWriter for RtpsWriterImpl {
+    type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn push_mode(&self) -> bool {
         self.push_mode
@@ -69,16 +69,16 @@ impl RTPSWriter for RTPSWriterImpl {
         &self.data_max_size_serialized
     }
 
-    fn writer_cache(&self) -> &RTPSHistoryCacheImpl {
+    fn writer_cache(&self) -> &RtpsHistoryCacheImpl {
         &self.writer_cache
     }
 
-    fn writer_cache_mut(&mut self) -> &mut RTPSHistoryCacheImpl {
+    fn writer_cache_mut(&mut self) -> &mut RtpsHistoryCacheImpl {
         &mut self.writer_cache
     }
 }
 
-impl RTPSWriterOperations for RTPSWriterImpl {
+impl RtpsWriterOperations for RtpsWriterImpl {
     fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -105,7 +105,7 @@ impl RTPSWriterOperations for RTPSWriterImpl {
             last_change_sequence_number: 0.into(),
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: RTPSHistoryCacheImpl::new(),
+            writer_cache: RtpsHistoryCacheImpl::new(),
         }
     }
 
@@ -117,8 +117,8 @@ impl RTPSWriterOperations for RTPSWriterImpl {
         handle: InstanceHandle,
     ) -> RtpsCacheChange<'a>
     where
-        Self: RTPSWriter,
-        <Self as RTPSWriter>::HistoryCacheType: RTPSHistoryCache,
+        Self: RtpsWriter,
+        <Self as RtpsWriter>::HistoryCacheType: RtpsHistoryCache,
     {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RtpsCacheChange::new(
@@ -132,7 +132,7 @@ impl RTPSWriterOperations for RTPSWriterImpl {
     }
 }
 
-impl RTPSEndpoint for RTPSWriterImpl {
+impl RTPSEndpoint for RtpsWriterImpl {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
     }
@@ -150,7 +150,7 @@ impl RTPSEndpoint for RTPSWriterImpl {
     }
 }
 
-impl RTPSStatelessWriter for RTPSWriterImpl {
+impl RTPSStatelessWriter for RtpsWriterImpl {
     type ReaderLocatorType = RTPSReaderLocatorImpl;
 
     fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorType] {
@@ -160,17 +160,17 @@ impl RTPSStatelessWriter for RTPSWriterImpl {
     fn writer_cache_and_reader_locators(
         &mut self,
     ) -> (
-        &<Self as RTPSWriter>::HistoryCacheType,
+        &<Self as RtpsWriter>::HistoryCacheType,
         &mut [Self::ReaderLocatorType],
     )
     where
-        Self: RTPSWriter,
+        Self: RtpsWriter,
     {
         (&self.writer_cache, &mut self.reader_locators)
     }
 }
 
-impl RTPSStatelessWriterOperations for RTPSWriterImpl {
+impl RTPSStatelessWriterOperations for RtpsWriterImpl {
     fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -183,7 +183,7 @@ impl RTPSStatelessWriterOperations for RTPSWriterImpl {
         nack_suppression_duration: Duration,
         data_max_size_serialized: Option<i32>,
     ) -> Self {
-        <Self as RTPSWriterOperations>::new(
+        <Self as RtpsWriterOperations>::new(
             guid,
             topic_kind,
             reliability_level,
@@ -212,7 +212,7 @@ impl RTPSStatelessWriterOperations for RTPSWriterImpl {
     }
 }
 
-impl RTPSStatefulWriter for RTPSWriterImpl {
+impl RTPSStatefulWriter for RtpsWriterImpl {
     type ReaderProxyType = RTPSReaderProxyImpl;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType] {
@@ -220,7 +220,7 @@ impl RTPSStatefulWriter for RTPSWriterImpl {
     }
 }
 
-impl RTPSStatefulWriterOperations for RTPSWriterImpl {
+impl RTPSStatefulWriterOperations for RtpsWriterImpl {
     fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -233,7 +233,7 @@ impl RTPSStatefulWriterOperations for RTPSWriterImpl {
         nack_suppression_duration: Duration,
         data_max_size_serialized: Option<i32>,
     ) -> Self {
-        <Self as RTPSWriterOperations>::new(
+        <Self as RtpsWriterOperations>::new(
             guid,
             topic_kind,
             reliability_level,
@@ -283,28 +283,28 @@ mod tests {
                 reader_proxy::RTPSReaderProxyOperations,
                 stateful_writer::{RTPSStatefulWriter, RTPSStatefulWriterOperations},
                 stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
-                writer::RTPSWriterOperations,
+                writer::RtpsWriterOperations,
             },
         },
         structure::{
             types::{
                 ChangeKind, EntityId, Locator, ReliabilityKind, TopicKind, GUID, GUID_UNKNOWN,
             },
-            RTPSHistoryCache,
+            RtpsHistoryCache,
         },
     };
 
     use crate::rtps_impl::{
-        rtps_history_cache_impl::RTPSHistoryCacheImpl,
+        rtps_history_cache_impl::RtpsHistoryCacheImpl,
         rtps_reader_locator_impl::RTPSReaderLocatorImpl,
         rtps_reader_proxy_impl::RTPSReaderProxyImpl,
     };
 
-    use super::RTPSWriterImpl;
+    use super::RtpsWriterImpl;
 
     #[test]
     fn new_change() {
-        let mut writer = RTPSWriterImpl {
+        let mut writer = RtpsWriterImpl {
             guid: GUID_UNKNOWN,
             topic_kind: TopicKind::WithKey,
             reliability_level: ReliabilityKind::BestEffort,
@@ -318,7 +318,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: RTPSHistoryCacheImpl::new(),
+            writer_cache: RtpsHistoryCacheImpl::new(),
         };
         let change1 = writer.new_change(ChangeKind::Alive, &[], &[], 0);
         let change2 = writer.new_change(ChangeKind::Alive, &[], &[], 0);
@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn reader_locator_add() {
-        let mut writer = RTPSWriterImpl {
+        let mut writer = RtpsWriterImpl {
             guid: GUID_UNKNOWN,
             topic_kind: TopicKind::WithKey,
             reliability_level: ReliabilityKind::BestEffort,
@@ -343,7 +343,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: RTPSHistoryCacheImpl::new(),
+            writer_cache: RtpsHistoryCacheImpl::new(),
         };
         let reader_locator1 = RTPSReaderLocatorImpl::new(Locator::new(1, 1, [1; 16]), false);
         let reader_locator2 = RTPSReaderLocatorImpl::new(Locator::new(2, 2, [2; 16]), false);
@@ -355,7 +355,7 @@ mod tests {
 
     #[test]
     fn reader_locator_remove() {
-        let mut writer = RTPSWriterImpl {
+        let mut writer = RtpsWriterImpl {
             guid: GUID_UNKNOWN,
             topic_kind: TopicKind::WithKey,
             reliability_level: ReliabilityKind::BestEffort,
@@ -369,7 +369,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: RTPSHistoryCacheImpl::new(),
+            writer_cache: RtpsHistoryCacheImpl::new(),
         };
 
         let reader_locator1 = RTPSReaderLocatorImpl::new(Locator::new(1, 1, [1; 16]), false);
@@ -383,7 +383,7 @@ mod tests {
 
     #[test]
     fn matched_reader_add() {
-        let mut writer = RTPSWriterImpl {
+        let mut writer = RtpsWriterImpl {
             guid: GUID_UNKNOWN,
             topic_kind: TopicKind::WithKey,
             reliability_level: ReliabilityKind::BestEffort,
@@ -397,7 +397,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: RTPSHistoryCacheImpl::new(),
+            writer_cache: RtpsHistoryCacheImpl::new(),
         };
         let unknown_remote_group_entity_id = EntityId {
             entity_key: [0; 3],
@@ -440,7 +440,7 @@ mod tests {
 
     #[test]
     fn matched_reader_remove() {
-        let mut writer = RTPSWriterImpl {
+        let mut writer = RtpsWriterImpl {
             guid: GUID_UNKNOWN,
             topic_kind: TopicKind::WithKey,
             reliability_level: ReliabilityKind::BestEffort,
@@ -454,7 +454,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: RTPSHistoryCacheImpl::new(),
+            writer_cache: RtpsHistoryCacheImpl::new(),
         };
 
         let unknown_remote_group_entity_id = EntityId {
@@ -500,7 +500,7 @@ mod tests {
 
     #[test]
     fn matched_reader_lookup() {
-        let mut writer = RTPSWriterImpl {
+        let mut writer = RtpsWriterImpl {
             guid: GUID_UNKNOWN,
             topic_kind: TopicKind::WithKey,
             reliability_level: ReliabilityKind::BestEffort,
@@ -514,7 +514,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: RTPSHistoryCacheImpl::new(),
+            writer_cache: RtpsHistoryCacheImpl::new(),
         };
 
         let unknown_remote_group_entity_id = EntityId {

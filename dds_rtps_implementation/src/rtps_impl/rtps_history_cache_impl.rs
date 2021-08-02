@@ -1,6 +1,6 @@
 use rust_rtps_pim::{messages::types::Time, structure::{
     types::{ChangeKind, InstanceHandle, SequenceNumber, GUID},
-    RTPSHistoryCache, RtpsCacheChange,
+    RtpsHistoryCache, RtpsCacheChange,
 }};
 
 struct CacheChangeRepresentation {
@@ -12,19 +12,19 @@ struct CacheChangeRepresentation {
     info_timestamp: Option<Time>
 }
 
-pub struct RTPSHistoryCacheImpl {
+pub struct RtpsHistoryCacheImpl {
     changes: Vec<CacheChangeRepresentation>,
     info: Option<Time>,
 }
 
-impl RTPSHistoryCacheImpl {
+impl RtpsHistoryCacheImpl {
     /// Set the r t p s history cache impl's info.
     pub fn set_info(&mut self, info: Option<Time>) {
         self.info = info;
     }
 }
 
-impl RTPSHistoryCache for RTPSHistoryCacheImpl {
+impl RtpsHistoryCache for RtpsHistoryCacheImpl {
     fn new() -> Self
     where
         Self: Sized,
@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn add_change() {
-        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
+        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
         let change = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
+        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
         let change = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn get_change() {
-        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
+        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
         let change = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
+        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
         let change1 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc: RTPSHistoryCacheImpl = RTPSHistoryCacheImpl::new();
+        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
         let change1 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,

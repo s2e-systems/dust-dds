@@ -1,7 +1,7 @@
 use crate::{
     behavior::writer::{
         reader_locator::RTPSReaderLocatorOperations, stateless_writer::RTPSStatelessWriter,
-        writer::RTPSWriter,
+        writer::RtpsWriter,
     },
     messages::{
         submessage_elements::{
@@ -13,7 +13,7 @@ use crate::{
     },
     structure::{
         types::{ChangeKind, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
-        RTPSEndpoint, RTPSHistoryCache,
+        RTPSEndpoint, RtpsHistoryCache,
     },
 };
 
@@ -29,9 +29,9 @@ pub trait StatelessWriterBehavior<'a, Data, Gap> {
 
 impl<'a, Data, Gap, T> StatelessWriterBehavior<'a, Data, Gap> for T
 where
-    T: RTPSStatelessWriter + RTPSWriter + RTPSEndpoint,
+    T: RTPSStatelessWriter + RtpsWriter + RTPSEndpoint,
     T::ReaderLocatorType: RTPSReaderLocatorOperations,
-    T::HistoryCacheType: RTPSHistoryCache,
+    T::HistoryCacheType: RtpsHistoryCache,
     Data: DataSubmessage<'a>,
     Gap: GapSubmessage,
 {
@@ -68,7 +68,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
     send_gap: &mut impl FnMut(&ReaderLocator, Gap),
 ) where
     ReaderLocator: RTPSReaderLocatorOperations,
-    WriterCache: RTPSHistoryCache,
+    WriterCache: RtpsHistoryCache,
     Data: DataSubmessage<'a>,
     Gap: GapSubmessage,
 {

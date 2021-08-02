@@ -5,11 +5,11 @@ use crate::{
         types::{
             ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
         },
-        RTPSHistoryCache, RtpsCacheChange,
+        RtpsHistoryCache, RtpsCacheChange,
     },
 };
 
-pub trait RTPSWriter {
+pub trait RtpsWriter {
     type HistoryCacheType;
 
     fn push_mode(&self) -> bool;
@@ -22,7 +22,7 @@ pub trait RTPSWriter {
     fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
 }
 
-pub trait RTPSWriterOperations {
+pub trait RtpsWriterOperations {
     fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -44,6 +44,6 @@ pub trait RTPSWriterOperations {
         handle: InstanceHandle,
     ) -> RtpsCacheChange<'a>
     where
-        Self: RTPSWriter,
-        Self::HistoryCacheType: RTPSHistoryCache;
+        Self: RtpsWriter,
+        Self::HistoryCacheType: RtpsHistoryCache;
 }

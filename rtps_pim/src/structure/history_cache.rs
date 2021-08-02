@@ -1,6 +1,6 @@
 use super::{types::SequenceNumber, RtpsCacheChange};
 
-pub trait RTPSHistoryCache {
+pub trait RtpsHistoryCache {
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     fn new() -> Self
     where

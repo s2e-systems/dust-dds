@@ -7,12 +7,12 @@ use rust_rtps_pim::{
     },
     messages::{
         submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
-        RTPSMessage, RtpsMessageHeader,
+        RtpsMessage, RtpsMessageHeader,
     },
-    structure::{types::Locator, RTPSEntity, RTPSParticipant},
+    structure::{types::Locator, RtpsEntity, RtpsParticipant},
 };
 
-use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
+use crate::rtps_impl::rtps_writer_impl::RtpsWriterImpl;
 
 use super::transport::TransportWrite;
 
@@ -68,15 +68,15 @@ where
 
 pub fn send_data<'a, Transport, PSM, Participant>(
     participant: &'a Participant,
-    writer: &'a mut RTPSWriterImpl,
+    writer: &'a mut RtpsWriterImpl,
     transport: &'a mut Transport,
 ) where
     Transport: TransportWrite<'a>,
-    Transport::Message: RTPSMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
+    Transport::Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
     PSM: RtpsSubmessagePIM<'a>,
     PSM::DataSubmessageType: DataSubmessage<'a>,
     PSM::GapSubmessageType: GapSubmessage,
-    Participant: RTPSParticipant + RTPSEntity,
+    Participant: RtpsParticipant + RtpsEntity,
 {
     let header = RtpsMessageHeader {
         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,

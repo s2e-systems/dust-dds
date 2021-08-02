@@ -3,7 +3,7 @@ use rust_dds_api::{
     publication::data_writer_listener::DataWriterListener,
 };
 
-use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
+use crate::rtps_impl::rtps_writer_impl::RtpsWriterImpl;
 
 pub struct WriterFactory {
     _guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
@@ -23,7 +23,7 @@ impl WriterFactory {
         _qos: DataWriterQos,
         _a_listener: Option<&'a (dyn DataWriterListener<DataPIM = T> + 'a)>,
         _mask: StatusMask,
-    ) -> RTPSWriterImpl {
+    ) -> RtpsWriterImpl {
         todo!()
     }
 }

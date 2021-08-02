@@ -8,17 +8,17 @@ use rust_rtps_pim::structure::types::GUID;
 
 use crate::utils::shared_object::RtpsShared;
 
-use super::rtps_writer_impl::RTPSWriterImpl;
+use super::rtps_writer_impl::RtpsWriterImpl;
 
-pub struct RTPSWriterGroupImpl {
+pub struct RtpsWriterGroupImpl {
     guid: GUID,
     _qos: PublisherQos,
     _listener: Option<&'static dyn PublisherListener>,
     _status_mask: StatusMask,
-    writer_list: Vec<RtpsShared<RTPSWriterImpl>>,
+    writer_list: Vec<RtpsShared<RtpsWriterImpl>>,
 }
 
-impl RTPSWriterGroupImpl {
+impl RtpsWriterGroupImpl {
     pub fn new(
         guid: GUID,
         qos: PublisherQos,
@@ -34,11 +34,11 @@ impl RTPSWriterGroupImpl {
         }
     }
 
-    pub fn writer_list(&self) -> &[RtpsShared<RTPSWriterImpl>] {
+    pub fn writer_list(&self) -> &[RtpsShared<RtpsWriterImpl>] {
         &self.writer_list
     }
 
-    pub fn add_writer(&mut self, writer: RtpsShared<RTPSWriterImpl>) {
+    pub fn add_writer(&mut self, writer: RtpsShared<RtpsWriterImpl>) {
         self.writer_list.push(writer)
     }
 
@@ -54,7 +54,7 @@ impl RTPSWriterGroupImpl {
     }
 }
 
-impl<'a> rust_rtps_pim::structure::RTPSGroup for &'a mut RTPSWriterGroupImpl {
+impl<'a> rust_rtps_pim::structure::RTPSGroup for &'a mut RtpsWriterGroupImpl {
     type Endpoints = ();
 
     fn endpoints(self) -> Self::Endpoints {
@@ -62,7 +62,7 @@ impl<'a> rust_rtps_pim::structure::RTPSGroup for &'a mut RTPSWriterGroupImpl {
     }
 }
 
-impl rust_rtps_pim::structure::RTPSEntity for RTPSWriterGroupImpl {
+impl rust_rtps_pim::structure::RtpsEntity for RtpsWriterGroupImpl {
     fn guid(&self) -> &GUID {
         &self.guid
     }

@@ -3,7 +3,7 @@ use crate::{
     structure::types::{Locator, ReliabilityKind, TopicKind, GUID},
 };
 
-pub trait RTPSReader {
+pub trait RtpsReader {
     type HistoryCacheType;
 
     fn heartbeat_response_delay(&self) -> &Duration;
