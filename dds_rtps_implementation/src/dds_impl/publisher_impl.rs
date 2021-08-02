@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::{
-    data_writer_impl::DataWriterImpl, data_writer_storage::DataWriterStorage, topic_impl::TopicImpl,
+    data_writer_impl::{DataWriterImpl, DataWriterStorage}, topic_impl::TopicImpl,
 };
 
 pub struct PublisherStorage {

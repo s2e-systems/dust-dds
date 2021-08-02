@@ -127,11 +127,7 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
         let publisher_qos = qos.unwrap_or(domain_participant_lock.default_publisher_qos.clone());
         domain_participant_lock.user_defined_publisher_counter += 1;
         let entity_id = EntityId::new(
-            [
-                domain_participant_lock.user_defined_publisher_counter,
-                0,
-                0,
-            ],
+            [domain_participant_lock.user_defined_publisher_counter, 0, 0],
             EntityKind::UserDefinedWriterGroup,
         );
         let guid = Guid::new(
@@ -191,9 +187,9 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for Dom
             entity_id,
         );
         let rtps_group = RtpsGroupImpl::new(guid);
-        let data_writer_storage_list = Vec::new();
+        let data_reader_storage_list = Vec::new();
         let subscriber_storage =
-            SubscriberStorage::new(subscriber_qos, rtps_group, data_writer_storage_list);
+            SubscriberStorage::new(subscriber_qos, rtps_group, data_reader_storage_list);
         let subscriber_storage_shared = RtpsShared::new(subscriber_storage);
         let subscriber = SubscriberImpl::new(self, &subscriber_storage_shared);
         domain_participant_lock
@@ -212,25 +208,16 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for Dom
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
+                "Subscriber can only be deleted from its parent participant",
             ))
         }
     }
 
     fn get_builtin_subscriber(&'s self) -> Self::SubscriberType {
-        todo!()
-        //         //     self.builtin_entities
-        //         //         .subscriber_list()
-        //         //         .into_iter()
-        //         //         .find(|x| {
-        //         //             if let Some(subscriber) = x.get().ok() {
-        //         //                 subscriber.group.entity.guid.entity_id().entity_kind()
-        //         //                     == ENTITY_KIND_BUILT_IN_READER_GROUP
-        //         //             } else {
-        //         //                 false
-        //         //             }
-        //         //         })
-        //         // }
+        let domain_participant_lock = self.domain_participant_storage.lock();
+        let subscriber_storage_shared =
+            domain_participant_lock.builtin_subscriber_storage[0].clone();
+        SubscriberImpl::new(self, &subscriber_storage_shared)
     }
 }
 

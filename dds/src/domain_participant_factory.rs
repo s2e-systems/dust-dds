@@ -7,14 +7,10 @@ use std::{
     },
 };
 
-use rust_dds_api::{
-    dcps_psm::{DomainId, StatusMask},
-    domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
-};
+use rust_dds_api::{dcps_psm::{DomainId, StatusMask}, domain::{domain_participant::DomainParticipant, domain_participant_listener::DomainParticipantListener}, infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos}};
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_writer_storage::DataWriterStorage,
+        data_writer_impl::DataWriterStorage,
         domain_participant_impl::{DomainParticipantImpl, DomainParticipantStorage},
         publisher_impl::PublisherStorage,
         subscriber_impl::SubscriberStorage,
@@ -81,7 +77,7 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<DomainParticipantImpl> {
+    ) -> Option<impl DomainParticipant> {
         let guid_prefix = [3; 12];
 
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();

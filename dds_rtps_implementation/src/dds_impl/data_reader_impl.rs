@@ -11,18 +11,37 @@ use rust_dds_api::{
         read_condition::ReadCondition,
         sample_info::SampleInfo,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
     subscription::{
         data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
         query_condition::QueryCondition, subscriber::Subscriber,
     },
     topic::topic_description::TopicDescription,
 };
-use rust_rtps_pim::{behavior::reader::reader::RtpsReader, structure::RtpsHistoryCache};
+use rust_rtps_pim::behavior::reader::reader::RtpsReader;
 
-use crate::utils::shared_object::RtpsWeak;
+use crate::{rtps_impl::rtps_reader_impl::RtpsReaderImpl, utils::shared_object::RtpsWeak};
 
-use super::data_reader_storage::DataReaderStorage;
+pub struct DataReaderStorage {
+    rtps_reader: RtpsReaderImpl,
+    qos: DataReaderQos,
+}
+
+impl DataReaderStorage {
+    pub fn new(rtps_reader: RtpsReaderImpl, qos: DataReaderQos) -> Self {
+        Self { rtps_reader, qos }
+    }
+
+    /// Get a reference to the data reader storage's reader.
+    pub fn rtps_reader(&self) -> &RtpsReaderImpl {
+        &self.rtps_reader
+    }
+
+    /// Get a mutable reference to the data reader storage's reader.
+    pub fn rtps_reader_mut(&mut self) -> &mut RtpsReaderImpl {
+        &mut self.rtps_reader
+    }
+}
 
 pub struct DataReaderImpl<'dr, T: 'static> {
     _subscriber: &'dr dyn Subscriber,
@@ -309,14 +328,12 @@ impl<'dr, T> Entity for DataReaderImpl<'dr, T> {
     type Listener = &'static dyn DataReaderListener<DataPIM = T>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.reader
-            .upgrade()?
-            .lock()
-            .set_qos(qos.unwrap_or_default())
+        self.reader.upgrade()?.lock().qos = qos.unwrap_or_default();
+        Ok(())
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.reader.upgrade()?.lock().qos().clone())
+        Ok(self.reader.upgrade()?.lock().qos.clone())
     }
 
     fn set_listener(

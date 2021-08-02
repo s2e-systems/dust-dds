@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::{
-    data_reader_impl::DataReaderImpl, data_reader_storage::DataReaderStorage, topic_impl::TopicImpl,
+    data_reader_impl::{DataReaderImpl,DataReaderStorage},topic_impl::TopicImpl,
 };
 
 pub struct SubscriberStorage {
