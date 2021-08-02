@@ -1,13 +1,13 @@
 use crate::{
     behavior::{
-        reader::stateless_reader::RTPSStatelessReaderOperations,
+        reader::stateless_reader::RtpsStatelessReaderOperations,
         types::DURATION_ZERO,
         writer::{
-            reader_locator::RTPSReaderLocatorOperations,
-            stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
+            reader_locator::RtpsReaderLocatorOperations,
+            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
         },
     },
-    structure::types::{EntityId, GuidPrefix, Locator, ReliabilityKind, TopicKind, GUID},
+    structure::types::{EntityId, GuidPrefix, Locator, ReliabilityKind, TopicKind, Guid},
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId = EntityId {
@@ -30,11 +30,11 @@ impl SpdpBuiltinParticipantWriter {
         reader_locators: &[Locator],
     ) -> T
     where
-        T: RTPSStatelessWriterOperations + RTPSStatelessWriter,
-        T::ReaderLocatorType: RTPSReaderLocatorOperations,
+        T: RtpsStatelessWriterOperations + RtpsStatelessWriter,
+        T::ReaderLocatorType: RtpsReaderLocatorOperations,
     {
         let spdp_builtin_participant_writer_guid =
-            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
 
         let mut spdp_builtin_participant_writer = T::new(
             spdp_builtin_participant_writer_guid,
@@ -61,9 +61,9 @@ impl SpdpBuiltinParticipantWriter {
 pub struct SpdpBuiltinParticipantReader;
 
 impl SpdpBuiltinParticipantReader {
-    pub fn create<T: RTPSStatelessReaderOperations>(guid_prefix: GuidPrefix) -> T {
+    pub fn create<T: RtpsStatelessReaderOperations>(guid_prefix: GuidPrefix) -> T {
         let spdp_builtin_participant_reader_guid =
-            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
+            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
         T::new(
             spdp_builtin_participant_reader_guid,
             TopicKind::WithKey,

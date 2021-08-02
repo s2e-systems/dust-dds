@@ -8,20 +8,20 @@ use crate::submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp}
 pub type ProtocolIdUdp = [u8; 4];
 
 #[derive(Debug, PartialEq)]
-pub struct RTPSMessageHeaderUdp {
+pub struct RtpsMessageHeaderUdp {
     pub(crate) protocol: ProtocolIdUdp,
     pub(crate) version: ProtocolVersionUdp,
     pub(crate) vendor_id: VendorIdUdp,
     pub(crate) guid_prefix: GuidPrefixUdp,
 }
 
-impl RTPSMessageHeaderUdp {
+impl RtpsMessageHeaderUdp {
     pub const fn number_of_bytes(&self) -> usize {
         20
     }
 }
 
-impl crate::serialize::Serialize for RTPSMessageHeaderUdp {
+impl crate::serialize::Serialize for RtpsMessageHeaderUdp {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
         self.protocol.serialize::<_, B>(&mut writer)?;
         self.version.serialize::<_, B>(&mut writer)?;
@@ -29,7 +29,7 @@ impl crate::serialize::Serialize for RTPSMessageHeaderUdp {
         self.guid_prefix.serialize::<_, B>(&mut writer)
     }
 }
-impl<'de> crate::deserialize::Deserialize<'de> for RTPSMessageHeaderUdp {
+impl<'de> crate::deserialize::Deserialize<'de> for RtpsMessageHeaderUdp {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
         B: ByteOrder,
@@ -47,8 +47,8 @@ impl<'de> crate::deserialize::Deserialize<'de> for RTPSMessageHeaderUdp {
     }
 }
 
-impl From<&RTPSMessageHeaderUdp> for RtpsMessageHeader {
-    fn from(header: &RTPSMessageHeaderUdp) -> Self {
+impl From<&RtpsMessageHeaderUdp> for RtpsMessageHeader {
+    fn from(header: &RtpsMessageHeaderUdp) -> Self {
         Self {
             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion {
@@ -61,7 +61,7 @@ impl From<&RTPSMessageHeaderUdp> for RtpsMessageHeader {
     }
 }
 
-impl From<&RtpsMessageHeader> for RTPSMessageHeaderUdp {
+impl From<&RtpsMessageHeader> for RtpsMessageHeaderUdp {
     fn from(header: &RtpsMessageHeader) -> Self {
         Self {
             protocol: [b'R', b'T', b'P', b'S'],
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn serialize_rtps_message_header() {
-        let value = RTPSMessageHeaderUdp {
+        let value = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn deserialize_rtps_message_header() {
-        let expected = RTPSMessageHeaderUdp {
+        let expected = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),

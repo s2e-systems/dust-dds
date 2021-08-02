@@ -1,17 +1,17 @@
 use crate::{
     behavior::types::Duration,
-    structure::types::{Locator, ReliabilityKind, TopicKind, GUID},
+    structure::types::{Locator, ReliabilityKind, TopicKind, Guid},
 };
 
-pub trait RTPSStatefulReader {
+pub trait RtpsStatefulReader {
     type WriterProxyType;
 
     fn matched_writers(&self) -> &[Self::WriterProxyType];
 }
 
-pub trait RTPSStatefulReaderOperations {
+pub trait RtpsStatefulReaderOperations {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],
@@ -22,9 +22,9 @@ pub trait RTPSStatefulReaderOperations {
     ) -> Self;
     fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType)
     where
-        Self: RTPSStatefulReader;
-    fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID);
-    fn matched_writer_lookup(&self, a_writer_guid: &GUID) -> Option<&Self::WriterProxyType>
+        Self: RtpsStatefulReader;
+    fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid);
+    fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&Self::WriterProxyType>
     where
-        Self: RTPSStatefulReader;
+        Self: RtpsStatefulReader;
 }

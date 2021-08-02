@@ -1,26 +1,26 @@
 use rust_rtps_pim::{behavior::{
         types::Duration,
         writer::{
-            reader_locator::RTPSReaderLocator,
-            reader_proxy::RTPSReaderProxy,
-            stateful_writer::{RTPSStatefulWriter, RTPSStatefulWriterOperations},
-            stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
+            reader_locator::RtpsReaderLocator,
+            reader_proxy::RtpsReaderProxy,
+            stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
+            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
             writer::{RtpsWriter, RtpsWriterOperations},
         },
     }, messages::submessage_elements::Parameter, structure::{
         types::{
-            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
+            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, Guid,
         },
-        RTPSEndpoint, RtpsEntity, RtpsHistoryCache, RtpsCacheChange,
+        RtpsEndpoint, RtpsEntity, RtpsHistoryCache, RtpsCacheChange,
     }};
 
 use super::{
-    rtps_history_cache_impl::RtpsHistoryCacheImpl, rtps_reader_locator_impl::RTPSReaderLocatorImpl,
-    rtps_reader_proxy_impl::RTPSReaderProxyImpl,
+    rtps_history_cache_impl::RtpsHistoryCacheImpl, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+    rtps_reader_proxy_impl::RtpsReaderProxyImpl,
 };
 
 pub struct RtpsWriterImpl {
-    guid: GUID,
+    guid: Guid,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
     unicast_locator_list: Vec<Locator>,
@@ -31,13 +31,13 @@ pub struct RtpsWriterImpl {
     nack_suppression_duration: Duration,
     last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: Option<i32>,
-    reader_locators: Vec<RTPSReaderLocatorImpl>,
-    matched_readers: Vec<RTPSReaderProxyImpl>,
+    reader_locators: Vec<RtpsReaderLocatorImpl>,
+    matched_readers: Vec<RtpsReaderProxyImpl>,
     writer_cache: RtpsHistoryCacheImpl,
 }
 
 impl RtpsEntity for RtpsWriterImpl {
-    fn guid(&self) -> &GUID {
+    fn guid(&self) -> &Guid {
         &self.guid
     }
 }
@@ -80,7 +80,7 @@ impl RtpsWriter for RtpsWriterImpl {
 
 impl RtpsWriterOperations for RtpsWriterImpl {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],
@@ -132,7 +132,7 @@ impl RtpsWriterOperations for RtpsWriterImpl {
     }
 }
 
-impl RTPSEndpoint for RtpsWriterImpl {
+impl RtpsEndpoint for RtpsWriterImpl {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
     }
@@ -150,8 +150,8 @@ impl RTPSEndpoint for RtpsWriterImpl {
     }
 }
 
-impl RTPSStatelessWriter for RtpsWriterImpl {
-    type ReaderLocatorType = RTPSReaderLocatorImpl;
+impl RtpsStatelessWriter for RtpsWriterImpl {
+    type ReaderLocatorType = RtpsReaderLocatorImpl;
 
     fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorType] {
         &mut self.reader_locators
@@ -170,9 +170,9 @@ impl RTPSStatelessWriter for RtpsWriterImpl {
     }
 }
 
-impl RTPSStatelessWriterOperations for RtpsWriterImpl {
+impl RtpsStatelessWriterOperations for RtpsWriterImpl {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],
@@ -197,7 +197,7 @@ impl RTPSStatelessWriterOperations for RtpsWriterImpl {
         )
     }
 
-    fn reader_locator_add(&mut self, a_locator: <Self as RTPSStatelessWriter>::ReaderLocatorType) {
+    fn reader_locator_add(&mut self, a_locator: <Self as RtpsStatelessWriter>::ReaderLocatorType) {
         self.reader_locators.push(a_locator);
     }
 
@@ -212,17 +212,17 @@ impl RTPSStatelessWriterOperations for RtpsWriterImpl {
     }
 }
 
-impl RTPSStatefulWriter for RtpsWriterImpl {
-    type ReaderProxyType = RTPSReaderProxyImpl;
+impl RtpsStatefulWriter for RtpsWriterImpl {
+    type ReaderProxyType = RtpsReaderProxyImpl;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType] {
         &self.matched_readers
     }
 }
 
-impl RTPSStatefulWriterOperations for RtpsWriterImpl {
+impl RtpsStatefulWriterOperations for RtpsWriterImpl {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],
@@ -247,22 +247,22 @@ impl RTPSStatefulWriterOperations for RtpsWriterImpl {
         )
     }
 
-    fn matched_reader_add(&mut self, a_reader_proxy: <Self as RTPSStatefulWriter>::ReaderProxyType)
+    fn matched_reader_add(&mut self, a_reader_proxy: <Self as RtpsStatefulWriter>::ReaderProxyType)
     where
-        Self: RTPSStatefulWriter,
+        Self: RtpsStatefulWriter,
     {
         self.matched_readers.push(a_reader_proxy)
     }
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID) {
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != reader_proxy_guid)
     }
 
     fn matched_reader_lookup(
         &self,
-        a_reader_guid: &GUID,
-    ) -> Option<&<Self as RTPSStatefulWriter>::ReaderProxyType> {
+        a_reader_guid: &Guid,
+    ) -> Option<&<Self as RtpsStatefulWriter>::ReaderProxyType> {
         self.matched_readers
             .iter()
             .find(|&x| x.remote_reader_guid() == a_reader_guid)
@@ -279,16 +279,16 @@ mod tests {
         behavior::{
             types::DURATION_ZERO,
             writer::{
-                reader_locator::RTPSReaderLocatorOperations,
-                reader_proxy::RTPSReaderProxyOperations,
-                stateful_writer::{RTPSStatefulWriter, RTPSStatefulWriterOperations},
-                stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterOperations},
+                reader_locator::RtpsReaderLocatorOperations,
+                reader_proxy::RtpsReaderProxyOperations,
+                stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
+                stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
                 writer::RtpsWriterOperations,
             },
         },
         structure::{
             types::{
-                ChangeKind, EntityId, Locator, ReliabilityKind, TopicKind, GUID, GUID_UNKNOWN,
+                ChangeKind, EntityId, Locator, ReliabilityKind, TopicKind, Guid, GUID_UNKNOWN,
             },
             RtpsHistoryCache,
         },
@@ -296,8 +296,8 @@ mod tests {
 
     use crate::rtps_impl::{
         rtps_history_cache_impl::RtpsHistoryCacheImpl,
-        rtps_reader_locator_impl::RTPSReaderLocatorImpl,
-        rtps_reader_proxy_impl::RTPSReaderProxyImpl,
+        rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_reader_proxy_impl::RtpsReaderProxyImpl,
     };
 
     use super::RtpsWriterImpl;
@@ -345,8 +345,8 @@ mod tests {
             matched_readers: Vec::new(),
             writer_cache: RtpsHistoryCacheImpl::new(),
         };
-        let reader_locator1 = RTPSReaderLocatorImpl::new(Locator::new(1, 1, [1; 16]), false);
-        let reader_locator2 = RTPSReaderLocatorImpl::new(Locator::new(2, 2, [2; 16]), false);
+        let reader_locator1 = RtpsReaderLocatorImpl::new(Locator::new(1, 1, [1; 16]), false);
+        let reader_locator2 = RtpsReaderLocatorImpl::new(Locator::new(2, 2, [2; 16]), false);
         writer.reader_locator_add(reader_locator1);
         writer.reader_locator_add(reader_locator2);
 
@@ -372,8 +372,8 @@ mod tests {
             writer_cache: RtpsHistoryCacheImpl::new(),
         };
 
-        let reader_locator1 = RTPSReaderLocatorImpl::new(Locator::new(1, 1, [1; 16]), false);
-        let reader_locator2 = RTPSReaderLocatorImpl::new(Locator::new(2, 2, [2; 16]), false);
+        let reader_locator1 = RtpsReaderLocatorImpl::new(Locator::new(1, 1, [1; 16]), false);
+        let reader_locator2 = RtpsReaderLocatorImpl::new(Locator::new(2, 2, [2; 16]), false);
         writer.reader_locator_add(reader_locator1);
         writer.reader_locator_add(reader_locator2);
         writer.reader_locator_remove(&Locator::new(1, 1, [1; 16]));
@@ -403,14 +403,14 @@ mod tests {
             entity_key: [0; 3],
             entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
         };
-        let reader_proxy_guid1 = GUID::new(
+        let reader_proxy_guid1 = Guid::new(
             [1; 12],
             EntityId {
                 entity_key: [1; 3],
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
             },
         );
-        let reader_proxy1 = RTPSReaderProxyImpl::new(
+        let reader_proxy1 = RtpsReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
             None,
@@ -418,14 +418,14 @@ mod tests {
             false,
             true,
         );
-        let reader_proxy_guid2 = GUID::new(
+        let reader_proxy_guid2 = Guid::new(
             [2; 12],
             EntityId {
                 entity_key: [2; 3],
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
             },
         );
-        let reader_proxy2 = RTPSReaderProxyImpl::new(
+        let reader_proxy2 = RtpsReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
             None,
@@ -461,14 +461,14 @@ mod tests {
             entity_key: [0; 3],
             entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
         };
-        let reader_proxy_guid1 = GUID::new(
+        let reader_proxy_guid1 = Guid::new(
             [1; 12],
             EntityId {
                 entity_key: [1; 3],
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
             },
         );
-        let reader_proxy1 = RTPSReaderProxyImpl::new(
+        let reader_proxy1 = RtpsReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
             None,
@@ -476,14 +476,14 @@ mod tests {
             false,
             true,
         );
-        let reader_proxy_guid2 = GUID::new(
+        let reader_proxy_guid2 = Guid::new(
             [2; 12],
             EntityId {
                 entity_key: [2; 3],
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
             },
         );
-        let reader_proxy2 = RTPSReaderProxyImpl::new(
+        let reader_proxy2 = RtpsReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
             None,
@@ -521,14 +521,14 @@ mod tests {
             entity_key: [0; 3],
             entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedUnknown,
         };
-        let reader_proxy_guid1 = GUID::new(
+        let reader_proxy_guid1 = Guid::new(
             [1; 12],
             EntityId {
                 entity_key: [1; 3],
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
             },
         );
-        let reader_proxy1 = RTPSReaderProxyImpl::new(
+        let reader_proxy1 = RtpsReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
             None,
@@ -536,14 +536,14 @@ mod tests {
             false,
             true,
         );
-        let reader_proxy_guid2 = GUID::new(
+        let reader_proxy_guid2 = Guid::new(
             [2; 12],
             EntityId {
                 entity_key: [2; 3],
                 entity_kind: rust_rtps_pim::structure::types::EntityKind::UserDefinedReaderNoKey,
             },
         );
-        let reader_proxy2 = RTPSReaderProxyImpl::new(
+        let reader_proxy2 = RtpsReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
             None,

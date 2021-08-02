@@ -1,11 +1,11 @@
 use rust_rtps_pim::{messages::types::Time, structure::{
-    types::{ChangeKind, InstanceHandle, SequenceNumber, GUID},
+    types::{ChangeKind, InstanceHandle, SequenceNumber, Guid},
     RtpsHistoryCache, RtpsCacheChange,
 }};
 
 struct CacheChangeRepresentation {
     kind: ChangeKind,
-    writer_guid: GUID,
+    writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     data: Vec<u8>,

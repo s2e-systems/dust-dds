@@ -4,7 +4,7 @@ use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
 
 use crate::{
-    message_header::RTPSMessageHeaderUdp,
+    message_header::RtpsMessageHeaderUdp,
     psm::RtpsUdpPsm,
     submessage_header::{
         SubmessageHeaderUdp, ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST,
@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsMessageUdp<'a> {
-    header: RTPSMessageHeaderUdp,
+    header: RtpsMessageHeaderUdp,
     submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
 }
 
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn serialize_rtps_message_no_submessage() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn serialize_rtps_message() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn deserialize_rtps_message_no_submessage() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn deserialize_rtps_message() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn deserialize_rtps_message_with_unknown_submessage_kind() {
-        let header = RTPSMessageHeaderUdp {
+        let header = RtpsMessageHeaderUdp {
             protocol: b"RTPS".to_owned(),
             version: ProtocolVersionUdp { major: 2, minor: 3 },
             vendor_id: VendorIdUdp([9, 8]),

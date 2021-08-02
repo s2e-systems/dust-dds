@@ -5,7 +5,7 @@ use rust_rtps_pim::{
         spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
     },
     structure::{
-        types::{EntityId, Locator, ProtocolVersion, VendorId, GUID, PROTOCOLVERSION_2_4},
+        types::{EntityId, Locator, ProtocolVersion, VendorId, Guid, PROTOCOLVERSION_2_4},
         RtpsEntity, RtpsParticipant,
     },
 };
@@ -18,19 +18,19 @@ use super::{
 };
 
 pub struct RtpsParticipantImpl {
-    guid: GUID,
+    guid: Guid,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
 }
 
 impl RtpsParticipantImpl {
     pub fn new(guid_prefix: rust_rtps_pim::structure::types::GuidPrefix) -> Self {
-        let guid = GUID::new(
+        let guid = Guid::new(
             guid_prefix,
             rust_rtps_pim::structure::types::ENTITYID_PARTICIPANT,
         );
 
-        let builtin_writer_group_guid = GUID::new(
+        let builtin_writer_group_guid = Guid::new(
             guid_prefix,
             EntityId {
                 entity_key: [0, 0, 0],
@@ -44,7 +44,7 @@ impl RtpsParticipantImpl {
             0,
         ));
 
-        let builtin_reader_group_guid = GUID::new(
+        let builtin_reader_group_guid = Guid::new(
             guid_prefix,
             EntityId {
                 entity_key: [0, 0, 0],
@@ -67,7 +67,7 @@ impl RtpsParticipantImpl {
 }
 
 impl RtpsEntity for RtpsParticipantImpl {
-    fn guid(&self) -> &GUID {
+    fn guid(&self) -> &Guid {
         &self.guid
     }
 }

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use rust_rtps_pim::{
     behavior::{
         stateless_writer_behavior::StatelessWriterBehavior,
-        writer::reader_locator::RTPSReaderLocator,
+        writer::reader_locator::RtpsReaderLocator,
     },
     messages::{
         submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
@@ -26,7 +26,7 @@ where
 impl<'a, PSM, T> RtpsSubmessageSender<'a, PSM> for T
 where
     T: StatelessWriterBehavior<'a, PSM::DataSubmessageType, PSM::GapSubmessageType>,
-    T::ReaderLocator: RTPSReaderLocator,
+    T::ReaderLocator: RtpsReaderLocator,
     PSM: RtpsSubmessagePIM<'a>,
 {
     fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)> {
@@ -120,7 +120,7 @@ mod tests {
 
     struct MockReaderLocator(Locator);
 
-    impl RTPSReaderLocator for MockReaderLocator {
+    impl RtpsReaderLocator for MockReaderLocator {
         fn locator(&self) -> &types::Locator {
             &self.0
         }

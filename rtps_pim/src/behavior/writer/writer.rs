@@ -3,7 +3,7 @@ use crate::{
     messages::submessage_elements::Parameter,
     structure::{
         types::{
-            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
+            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, Guid,
         },
         RtpsHistoryCache, RtpsCacheChange,
     },
@@ -24,7 +24,7 @@ pub trait RtpsWriter {
 
 pub trait RtpsWriterOperations {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],

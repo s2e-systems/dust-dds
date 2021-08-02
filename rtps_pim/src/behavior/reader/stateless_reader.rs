@@ -1,11 +1,11 @@
 use crate::{
     behavior::types::Duration,
-    structure::types::{Locator, ReliabilityKind, TopicKind, GUID},
+    structure::types::{Locator, ReliabilityKind, TopicKind, Guid},
 };
 
-pub trait RTPSStatelessReaderOperations {
+pub trait RtpsStatelessReaderOperations {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],

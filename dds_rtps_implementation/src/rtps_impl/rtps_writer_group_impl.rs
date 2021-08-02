@@ -4,14 +4,14 @@ use rust_dds_api::{
     publication::publisher_listener::PublisherListener,
     return_type::DDSResult,
 };
-use rust_rtps_pim::structure::types::GUID;
+use rust_rtps_pim::structure::types::Guid;
 
 use crate::utils::shared_object::RtpsShared;
 
 use super::rtps_writer_impl::RtpsWriterImpl;
 
 pub struct RtpsWriterGroupImpl {
-    guid: GUID,
+    guid: Guid,
     _qos: PublisherQos,
     _listener: Option<&'static dyn PublisherListener>,
     _status_mask: StatusMask,
@@ -20,7 +20,7 @@ pub struct RtpsWriterGroupImpl {
 
 impl RtpsWriterGroupImpl {
     pub fn new(
-        guid: GUID,
+        guid: Guid,
         qos: PublisherQos,
         listener: Option<&'static dyn PublisherListener>,
         status_mask: StatusMask,
@@ -54,7 +54,7 @@ impl RtpsWriterGroupImpl {
     }
 }
 
-impl<'a> rust_rtps_pim::structure::RTPSGroup for &'a mut RtpsWriterGroupImpl {
+impl<'a> rust_rtps_pim::structure::RtpsGroup for &'a mut RtpsWriterGroupImpl {
     type Endpoints = ();
 
     fn endpoints(self) -> Self::Endpoints {
@@ -63,7 +63,7 @@ impl<'a> rust_rtps_pim::structure::RTPSGroup for &'a mut RtpsWriterGroupImpl {
 }
 
 impl rust_rtps_pim::structure::RtpsEntity for RtpsWriterGroupImpl {
-    fn guid(&self) -> &GUID {
+    fn guid(&self) -> &Guid {
         &self.guid
     }
 }

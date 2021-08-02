@@ -1,24 +1,24 @@
 use rust_rtps_pim::{
     behavior::{
         reader::{
-            reader::{RtpsReader, RTPSReaderOperations},
-            stateful_reader::{RTPSStatefulReader, RTPSStatefulReaderOperations},
-            stateless_reader::RTPSStatelessReaderOperations,
+            reader::{RtpsReader, RtpsReaderOperations},
+            stateful_reader::{RtpsStatefulReader, RtpsStatefulReaderOperations},
+            stateless_reader::RtpsStatelessReaderOperations,
         },
         types::Duration,
     },
     structure::{
-        types::{Locator, ReliabilityKind, TopicKind, GUID},
-        RTPSEndpoint, RtpsEntity, RtpsHistoryCache,
+        types::{Locator, ReliabilityKind, TopicKind, Guid},
+        RtpsEndpoint, RtpsEntity, RtpsHistoryCache,
     },
 };
 
 use super::{
-    rtps_history_cache_impl::RtpsHistoryCacheImpl, rtps_writer_proxy_impl::RTPSWriterProxyImpl,
+    rtps_history_cache_impl::RtpsHistoryCacheImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 
 pub struct RtpsReaderImpl {
-    guid: GUID,
+    guid: Guid,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
     unicast_locator_list: Vec<Locator>,
@@ -30,7 +30,7 @@ pub struct RtpsReaderImpl {
 }
 
 impl RtpsEntity for RtpsReaderImpl {
-    fn guid(&self) -> &GUID {
+    fn guid(&self) -> &Guid {
         &self.guid
     }
 }
@@ -59,9 +59,9 @@ impl RtpsReader for RtpsReaderImpl {
     }
 }
 
-impl RTPSReaderOperations for RtpsReaderImpl {
+impl RtpsReaderOperations for RtpsReaderImpl {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],
@@ -84,7 +84,7 @@ impl RTPSReaderOperations for RtpsReaderImpl {
     }
 }
 
-impl RTPSEndpoint for RtpsReaderImpl {
+impl RtpsEndpoint for RtpsReaderImpl {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
     }
@@ -102,9 +102,9 @@ impl RTPSEndpoint for RtpsReaderImpl {
     }
 }
 
-impl RTPSStatelessReaderOperations for RtpsReaderImpl {
+impl RtpsStatelessReaderOperations for RtpsReaderImpl {
     fn new(
-        guid: GUID,
+        guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: &[Locator],
@@ -127,17 +127,17 @@ impl RTPSStatelessReaderOperations for RtpsReaderImpl {
     }
 }
 
-impl RTPSStatefulReader for RtpsReaderImpl {
-    type WriterProxyType = RTPSWriterProxyImpl;
+impl RtpsStatefulReader for RtpsReaderImpl {
+    type WriterProxyType = RtpsWriterProxyImpl;
 
     fn matched_writers(&self) -> &[Self::WriterProxyType] {
         todo!()
     }
 }
 
-impl RTPSStatefulReaderOperations for RtpsReaderImpl {
+impl RtpsStatefulReaderOperations for RtpsReaderImpl {
     fn new(
-        _guid: GUID,
+        _guid: Guid,
         _topic_kind: TopicKind,
         _reliability_level: ReliabilityKind,
         _unicast_locator_list: &[Locator],
@@ -149,23 +149,23 @@ impl RTPSStatefulReaderOperations for RtpsReaderImpl {
         todo!()
     }
 
-    fn matched_writer_add(&mut self, _a_writer_proxy: <Self as RTPSStatefulReader>::WriterProxyType)
+    fn matched_writer_add(&mut self, _a_writer_proxy: <Self as RtpsStatefulReader>::WriterProxyType)
     where
-        Self: RTPSStatefulReader,
+        Self: RtpsStatefulReader,
     {
         todo!()
     }
 
-    fn matched_writer_remove(&mut self, _writer_proxy_guid: &GUID) {
+    fn matched_writer_remove(&mut self, _writer_proxy_guid: &Guid) {
         todo!()
     }
 
     fn matched_writer_lookup(
         &self,
-        _a_writer_guid: &GUID,
-    ) -> Option<&<Self as RTPSStatefulReader>::WriterProxyType>
+        _a_writer_guid: &Guid,
+    ) -> Option<&<Self as RtpsStatefulReader>::WriterProxyType>
     where
-        Self: RTPSStatefulReader,
+        Self: RtpsStatefulReader,
     {
         todo!()
     }
