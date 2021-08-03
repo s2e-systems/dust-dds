@@ -302,10 +302,6 @@ where
         todo!()
     }
 
-    // fn get_topicdescription(&self) -> &dyn TopicDescription {
-    //     todo!()
-    // }
-
     fn delete_contained_entities(&self) -> DDSResult<()> {
         todo!()
     }
@@ -329,11 +325,11 @@ where
     fn get_topicdescription(
         &self,
     ) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<T> {
-        todo!()
+        self.topic
     }
 
     fn get_subscriber(&self) -> &dyn rust_dds_api::subscription::subscriber::Subscriber {
-        todo!()
+        self.subscriber
     }
 }
 
