@@ -3,7 +3,7 @@ use rust_dds_api::{
     dcps_psm::{
         InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
-        StatusMask, SubscriptionMatchedStatus, ViewStateKind,
+        StatusMask, SubscriptionMatchedStatus, Time, ViewStateKind,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -11,13 +11,14 @@ use rust_dds_api::{
         read_condition::ReadCondition,
         sample_info::SampleInfo,
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
     subscription::{
         data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
         query_condition::QueryCondition, subscriber::Subscriber,
     },
     topic::topic_description::TopicDescription,
 };
+use rust_rtps_pim::{behavior::reader::reader::RtpsReader, structure::RtpsHistoryCache};
 
 use crate::utils::shared_object::RtpsWeak;
 
@@ -37,14 +38,37 @@ where
 
     fn read(
         &self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         let shared_reader = self.reader.upgrade()?;
         let mut reader = shared_reader.lock();
-        reader.read(max_samples, sample_states, view_states, instance_states)
+        let reader_cache = reader.rtps_reader_mut().reader_cache_mut();
+        Ok(reader_cache
+            .changes_mut()
+            .iter()
+            .map(|cc| {
+                let data = cc.data();
+                let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
+                let sample_info = SampleInfo {
+                    sample_state: *cc.sample_state_kind(),
+                    view_state: *cc.view_state_kind(),
+                    instance_state: *cc.instance_state_kind(),
+                    disposed_generation_count: 0,
+                    no_writers_generation_count: 0,
+                    sample_rank: 0,
+                    generation_rank: 0,
+                    absolute_generation_rank: 0,
+                    source_timestamp: Time { sec: 0, nanosec: 0 },
+                    instance_handle: 0,
+                    publication_handle: 0,
+                    valid_data: true,
+                };
+                (value, sample_info)
+            })
+            .collect())
     }
 
     fn take(
@@ -334,7 +358,6 @@ mod tests {
         infrastructure::qos::{SubscriberQos, TopicQos},
         topic::topic_listener::TopicListener,
     };
-    use rust_rtps_pim::structure::{types::GUID_UNKNOWN, RtpsHistoryCache, RtpsCacheChange};
 
     struct MockSubcriber;
     impl rust_dds_api::subscription::subscriber::Subscriber for MockSubcriber {
@@ -501,73 +524,6 @@ mod tests {
         fn get_instance_handle(
             &self,
         ) -> rust_dds_api::return_type::DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
-            todo!()
-        }
-    }
-
-    struct MockHistoryCache(());
-
-    impl RtpsHistoryCache for MockHistoryCache {
-        fn new() -> Self
-        where
-            Self: Sized,
-        {
-            todo!()
-        }
-
-        fn add_change(&mut self, _change: &RtpsCacheChange) {
-            todo!()
-        }
-
-        fn remove_change(&mut self, _seq_num: &rust_rtps_pim::structure::types::SequenceNumber) {
-            todo!()
-        }
-
-        fn get_change(
-            &self,
-            _seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
-        ) -> Option<RtpsCacheChange> {
-            Some(RtpsCacheChange::new(
-                rust_rtps_pim::structure::types::ChangeKind::Alive,
-                GUID_UNKNOWN,
-                0,
-                1,
-                &[1],
-                &[],
-            ))
-        }
-
-        fn get_seq_num_min(&self) -> Option<rust_rtps_pim::structure::types::SequenceNumber> {
-            Some(1)
-        }
-
-        fn get_seq_num_max(&self) -> Option<rust_rtps_pim::structure::types::SequenceNumber> {
-            Some(1)
-        }
-    }
-
-    struct MockRtpsReader(MockHistoryCache);
-
-    impl rust_rtps_pim::behavior::reader::reader::RtpsReader for MockRtpsReader {
-        type HistoryCacheType = MockHistoryCache;
-
-        fn heartbeat_response_delay(&self) -> &rust_rtps_pim::behavior::types::Duration {
-            todo!()
-        }
-
-        fn heartbeat_supression_duration(&self) -> &rust_rtps_pim::behavior::types::Duration {
-            todo!()
-        }
-
-        fn reader_cache(&self) -> &Self::HistoryCacheType {
-            &self.0
-        }
-
-        fn reader_cache_mut(&mut self) -> &mut Self::HistoryCacheType {
-            todo!()
-        }
-
-        fn expects_inline_qos(&self) -> bool {
             todo!()
         }
     }

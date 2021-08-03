@@ -46,7 +46,7 @@ impl MessageReceiver {
     pub fn process_message<'a, PSM, Message>(
         mut self,
         participant_guid_prefix: GuidPrefix,
-        reader_group: &'a [RtpsShared<SubscriberStorage>],
+        reader_group_list: &'a [RtpsShared<SubscriberStorage>],
         source_locator: Locator,
         message: &'a Message,
     ) where
@@ -73,7 +73,7 @@ impl MessageReceiver {
         for submessage in message.submessages() {
             match submessage {
                 RtpsSubmessageType::AckNack(_) => todo!(),
-                RtpsSubmessageType::Data(data) => self.process_data(data, reader_group),
+                RtpsSubmessageType::Data(data) => self.process_data(data, reader_group_list),
                 RtpsSubmessageType::DataFrag(_) => todo!(),
                 RtpsSubmessageType::Gap(_) => todo!(),
                 RtpsSubmessageType::Heartbeat(_) => todo!(),
@@ -93,20 +93,20 @@ impl MessageReceiver {
     fn process_data<'a, Data>(
         &mut self,
         data: &'a Data,
-        reader_group: &'a [RtpsShared<SubscriberStorage>],
+        reader_group_list: &'a [RtpsShared<SubscriberStorage>],
     ) where
         Data: DataSubmessage<'a>,
     {
-        for subscriber in reader_group {
+        for subscriber in reader_group_list {
             let subscriber_lock = subscriber.lock();
             for reader in subscriber_lock.readers() {
                 let mut reader_lock = reader.lock();
                 reader_lock
-                    .reader_mut()
+                    .rtps_reader_mut()
                     .reader_cache_mut()
-                    .set_info(Some(self.timestamp));
+                    .set_source_timestamp(Some(self.timestamp));
                 reader_lock
-                    .reader_mut()
+                    .rtps_reader_mut()
                     .receive_data(self.source_guid_prefix, data);
             }
         }

@@ -1,26 +1,101 @@
-use rust_rtps_pim::{messages::types::Time, structure::{
-    types::{ChangeKind, InstanceHandle, SequenceNumber, Guid},
-    RtpsHistoryCache, RtpsCacheChange,
-}};
+use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
+use rust_rtps_pim::{
+    messages::types::Time,
+    structure::{
+        types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
+        RtpsCacheChange, RtpsHistoryCache,
+    },
+};
 
-struct CacheChangeRepresentation {
+pub struct CacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     data: Vec<u8>,
-    info_timestamp: Option<Time>
+    source_timestamp: Option<Time>,
+    creation_timestamp: Time,
+    sample_state_kind: SampleStateKind,
+    view_state_kind: ViewStateKind,
+    instance_state_kind: InstanceStateKind,
+}
+
+impl CacheChange {
+    /// Get a reference to the cache change's kind.
+    pub fn kind(&self) -> &ChangeKind {
+        &self.kind
+    }
+
+    /// Get a reference to the cache change's writer guid.
+    pub fn writer_guid(&self) -> &Guid {
+        &self.writer_guid
+    }
+
+    /// Get a reference to the cache change's sequence number.
+    pub fn sequence_number(&self) -> &SequenceNumber {
+        &self.sequence_number
+    }
+
+    /// Get a reference to the cache change's instance handle.
+    pub fn instance_handle(&self) -> &InstanceHandle {
+        &self.instance_handle
+    }
+
+    /// Get a reference to the cache change's data.
+    pub fn data(&self) -> &[u8] {
+        self.data.as_slice()
+    }
+
+    /// Get a reference to the cache change's source timestamp.
+    pub fn source_timestamp(&self) -> Option<&Time> {
+        self.source_timestamp.as_ref()
+    }
+
+    /// Get a reference to the cache change's creation timestamp.
+    pub fn creation_timestamp(&self) -> &Time {
+        &self.creation_timestamp
+    }
+
+    /// Get a reference to the cache change's sample state kind.
+    pub fn sample_state_kind(&self) -> &SampleStateKind {
+        &self.sample_state_kind
+    }
+
+    /// Get a reference to the cache change's view state kind.
+    pub fn view_state_kind(&self) -> &ViewStateKind {
+        &self.view_state_kind
+    }
+
+    /// Get a reference to the cache change's instance state kind.
+    pub fn instance_state_kind(&self) -> &InstanceStateKind {
+        &self.instance_state_kind
+    }
+
+    /// Mark the cache change as read
+    pub fn mark_read(&mut self) {
+        self.sample_state_kind = SampleStateKind::Read;
+    }
 }
 
 pub struct RtpsHistoryCacheImpl {
-    changes: Vec<CacheChangeRepresentation>,
-    info: Option<Time>,
+    changes: Vec<CacheChange>,
+    source_timestamp: Option<Time>,
 }
 
 impl RtpsHistoryCacheImpl {
-    /// Set the r t p s history cache impl's info.
-    pub fn set_info(&mut self, info: Option<Time>) {
-        self.info = info;
+    /// Set the Rtps history cache impl's info.
+    pub fn set_source_timestamp(&mut self, info: Option<Time>) {
+        self.source_timestamp = info;
+    }
+
+    /// Get a reference to the rtps history cache impl's changes.
+    pub fn changes(&self) -> &[CacheChange] {
+        self.changes.as_slice()
+    }
+
+    /// Get a mutable reference to the rtps history cache impl's changes.
+    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
+        &mut self.changes
     }
 }
 
@@ -31,19 +106,39 @@ impl RtpsHistoryCache for RtpsHistoryCacheImpl {
     {
         Self {
             changes: Vec::new(),
-            info: None,
+            source_timestamp: None,
         }
     }
 
     fn add_change(&mut self, change: &RtpsCacheChange) {
-        let local_change = CacheChangeRepresentation {
+        let instance_state_kind = match change.kind() {
+            ChangeKind::Alive => InstanceStateKind::Alive,
+            ChangeKind::AliveFiltered => InstanceStateKind::Alive,
+            ChangeKind::NotAliveDisposed => InstanceStateKind::NotAliveDisposed,
+            ChangeKind::NotAliveUnregistered => todo!(),
+        };
+
+        let current_time = std::time::SystemTime::now();
+        let creation_timestamp = Time(
+            current_time
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        );
+
+        let local_change = CacheChange {
             kind: *change.kind(),
             writer_guid: *change.writer_guid(),
             sequence_number: *change.sequence_number(),
             instance_handle: *change.instance_handle(),
             data: change.data_value().iter().cloned().collect(),
-            info_timestamp: self.info,
+            source_timestamp: self.source_timestamp,
+            creation_timestamp,
+            sample_state_kind: SampleStateKind::NotRead,
+            view_state_kind: ViewStateKind::New,
+            instance_state_kind,
         };
+
         self.changes.push(local_change)
     }
 
