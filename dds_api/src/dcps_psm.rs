@@ -17,8 +17,24 @@ pub type StringSeq<'a> = &'a [&'a str];
 
 #[derive(PartialOrd, PartialEq, Debug, Clone)]
 pub struct Duration {
-    pub sec: i32,
-    pub nanosec: u32,
+    sec: i32,
+    nanosec: u32,
+}
+
+impl Duration {
+    pub fn new(sec: i32, nanosec: u32) -> Self {
+        Self { sec, nanosec }
+    }
+
+    /// Get a reference to the duration's sec.
+    pub fn sec(&self) -> &i32 {
+        &self.sec
+    }
+
+    /// Get a reference to the duration's nanosec.
+    pub fn nanosec(&self) -> &u32 {
+        &self.nanosec
+    }
 }
 
 pub struct Time {

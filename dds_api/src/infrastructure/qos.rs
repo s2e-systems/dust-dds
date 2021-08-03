@@ -51,10 +51,7 @@ impl Default for DataWriterQos {
         Self {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-                max_blocking_time: Duration {
-                    sec: 0,
-                    nanosec: 100000000, /*100ms*/
-                },
+                max_blocking_time: Duration::new(0, 100_000_000 /*100ms*/),
             },
             durability: DurabilityQosPolicy::default(),
             deadline: DeadlineQosPolicy::default(),
@@ -131,10 +128,7 @@ impl Default for DataReaderQos {
         Self {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                max_blocking_time: Duration {
-                    sec: 0,
-                    nanosec: 100000000, /*100ms*/
-                },
+                max_blocking_time: Duration::new(0, 100_000_000 /*100ms*/),
             },
             durability: DurabilityQosPolicy::default(),
             deadline: DeadlineQosPolicy::default(),
@@ -207,10 +201,7 @@ impl Default for TopicQos {
         Self {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                max_blocking_time: Duration {
-                    sec: 0,
-                    nanosec: 100000000, /*100ms*/
-                },
+                max_blocking_time: Duration::new(0, 100_000_000 /*100ms*/),
             },
             topic_data: TopicDataQosPolicy::default(),
             durability: DurabilityQosPolicy::default(),

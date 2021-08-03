@@ -45,12 +45,12 @@ impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
     pub fn new(
         publisher: &'dw dyn Publisher,
         topic: &'dw dyn Topic<T>,
-        data_writer_storage: &RtpsShared<DataWriterStorage>,
+        data_writer_storage: RtpsWeak<DataWriterStorage>,
     ) -> Self {
         Self {
             _publisher: publisher,
             _topic: topic,
-            _data_writer_storage: data_writer_storage.downgrade(),
+            _data_writer_storage: data_writer_storage,
         }
     }
 }
