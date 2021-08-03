@@ -44,9 +44,23 @@ impl DataReaderStorage {
 }
 
 pub struct DataReaderImpl<'dr, T: 'static> {
-    _subscriber: &'dr dyn Subscriber,
-    _topic: &'dr dyn TopicDescription<T>,
+    subscriber: &'dr dyn Subscriber,
+    topic: &'dr dyn TopicDescription<T>,
     reader: RtpsWeak<DataReaderStorage>,
+}
+
+impl<'dr, T: 'static> DataReaderImpl<'dr, T> {
+    pub fn new(
+        subscriber: &'dr dyn Subscriber,
+        topic: &'dr dyn TopicDescription<T>,
+        reader: RtpsWeak<DataReaderStorage>,
+    ) -> Self {
+        Self {
+            subscriber,
+            topic,
+            reader,
+        }
+    }
 }
 
 impl<'dr, T> rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderImpl<'dr, T>

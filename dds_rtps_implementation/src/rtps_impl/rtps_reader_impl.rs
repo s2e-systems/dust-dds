@@ -8,14 +8,12 @@ use rust_rtps_pim::{
         types::Duration,
     },
     structure::{
-        types::{Locator, ReliabilityKind, TopicKind, Guid},
+        types::{Guid, Locator, ReliabilityKind, TopicKind},
         RtpsEndpoint, RtpsEntity, RtpsHistoryCache,
     },
 };
 
-use super::{
-    rtps_history_cache_impl::HistoryCache, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
-};
+use super::{rtps_history_cache_impl::HistoryCache, rtps_writer_proxy_impl::RtpsWriterProxyImpl};
 
 pub struct RtpsReaderImpl {
     guid: Guid,
@@ -113,17 +111,16 @@ impl RtpsStatelessReaderOperations for RtpsReaderImpl {
         heartbeat_supression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self {
-        Self {
+        <Self as RtpsReaderOperations>::new(
             guid,
             topic_kind,
             reliability_level,
-            unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
-            multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
+            unicast_locator_list,
+            multicast_locator_list,
             heartbeat_response_delay,
             heartbeat_supression_duration,
             expects_inline_qos,
-            reader_cache: HistoryCache::new(),
-        }
+        )
     }
 }
 
@@ -137,16 +134,25 @@ impl RtpsStatefulReader for RtpsReaderImpl {
 
 impl RtpsStatefulReaderOperations for RtpsReaderImpl {
     fn new(
-        _guid: Guid,
-        _topic_kind: TopicKind,
-        _reliability_level: ReliabilityKind,
-        _unicast_locator_list: &[Locator],
-        _multicast_locator_list: &[Locator],
-        _heartbeat_response_delay: Duration,
-        _heartbeat_supression_duration: Duration,
-        _expects_inline_qos: bool,
+        guid: Guid,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        heartbeat_response_delay: Duration,
+        heartbeat_supression_duration: Duration,
+        expects_inline_qos: bool,
     ) -> Self {
-        todo!()
+        <Self as RtpsReaderOperations>::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            heartbeat_response_delay,
+            heartbeat_supression_duration,
+            expects_inline_qos,
+        )
     }
 
     fn matched_writer_add(&mut self, _a_writer_proxy: <Self as RtpsStatefulReader>::WriterProxyType)
