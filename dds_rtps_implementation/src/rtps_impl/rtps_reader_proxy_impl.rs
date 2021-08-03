@@ -1,6 +1,6 @@
 use rust_rtps_pim::{
     behavior::writer::reader_proxy::{RtpsReaderProxy, RtpsReaderProxyOperations},
-    structure::types::{EntityId, Locator, SequenceNumber, Guid},
+    structure::types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
 pub struct RtpsReaderProxyImpl {
