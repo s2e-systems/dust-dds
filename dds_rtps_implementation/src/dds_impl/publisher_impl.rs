@@ -285,176 +285,193 @@ impl<'p> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use rust_dds_api::{
-//         domain::domain_participant_listener::DomainParticipantListener,
-//         infrastructure::{entity::Entity, qos::DomainParticipantQos},
-//     };
-//     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
+#[cfg(test)]
+mod tests {
+    use rust_dds_api::{
+        domain::domain_participant_listener::DomainParticipantListener,
+        infrastructure::{entity::Entity, qos::DomainParticipantQos},
+    };
+    use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-//     use super::*;
+    use crate::dds_impl::topic_impl::TopicStorage;
 
-//     struct MockDomainParticipant;
+    use super::*;
 
-//     impl DomainParticipant for MockDomainParticipant {
-//         fn lookup_topicdescription<'t, T>(
-//             &'t self,
-//             _name: &'t str,
-//         ) -> Option<&'t dyn rust_dds_api::topic::topic_description::TopicDescription<T>>
-//         where
-//             Self: Sized,
-//         {
-//             todo!()
-//         }
+    struct MockKeyedType;
 
-//         fn ignore_participant(&self, handle: InstanceHandle) -> DDSResult<()> {
-//             todo!()
-//         }
+    impl DDSType for MockKeyedType {
+        fn type_name() -> &'static str {
+            todo!()
+        }
 
-//         fn ignore_topic(&self, handle: InstanceHandle) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn has_key() -> bool {
+            true
+        }
+    }
 
-//         fn ignore_publication(&self, handle: InstanceHandle) -> DDSResult<()> {
-//             todo!()
-//         }
+    struct MockDomainParticipant;
 
-//         fn ignore_subscription(&self, handle: InstanceHandle) -> DDSResult<()> {
-//             todo!()
-//         }
+    impl DomainParticipant for MockDomainParticipant {
+        fn lookup_topicdescription<'t, T>(
+            &'t self,
+            _name: &'t str,
+        ) -> Option<&'t dyn rust_dds_api::topic::topic_description::TopicDescription<T>>
+        where
+            Self: Sized,
+        {
+            todo!()
+        }
 
-//         fn get_domain_id(&self) -> rust_dds_api::dcps_psm::DomainId {
-//             todo!()
-//         }
+        fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn delete_contained_entities(&self) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn ignore_topic(&self, _handle: InstanceHandle) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn assert_liveliness(&self) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn ignore_publication(&self, handle: InstanceHandle) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn ignore_subscription(&self, handle: InstanceHandle) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn get_default_publisher_qos(&self) -> PublisherQos {
-//             todo!()
-//         }
+        fn get_domain_id(&self) -> rust_dds_api::dcps_psm::DomainId {
+            todo!()
+        }
 
-//         fn set_default_subscriber_qos(
-//             &self,
-//             qos: Option<rust_dds_api::infrastructure::qos::SubscriberQos>,
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn delete_contained_entities(&self) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn get_default_subscriber_qos(&self) -> rust_dds_api::infrastructure::qos::SubscriberQos {
-//             todo!()
-//         }
+        fn assert_liveliness(&self) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn get_default_topic_qos(&self) -> TopicQos {
-//             todo!()
-//         }
+        fn get_default_publisher_qos(&self) -> PublisherQos {
+            todo!()
+        }
 
-//         fn get_discovered_participants(
-//             &self,
-//             participant_handles: &mut [InstanceHandle],
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn set_default_subscriber_qos(
+            &self,
+            qos: Option<rust_dds_api::infrastructure::qos::SubscriberQos>,
+        ) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn get_discovered_participant_data(
-//             &self,
-//             participant_data: rust_dds_api::builtin_topics::ParticipantBuiltinTopicData,
-//             participant_handle: InstanceHandle,
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn get_default_subscriber_qos(&self) -> rust_dds_api::infrastructure::qos::SubscriberQos {
+            todo!()
+        }
 
-//         fn get_discovered_topics(&self, topic_handles: &mut [InstanceHandle]) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn get_discovered_topic_data(
-//             &self,
-//             topic_data: rust_dds_api::builtin_topics::TopicBuiltinTopicData,
-//             topic_handle: InstanceHandle,
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn get_default_topic_qos(&self) -> TopicQos {
+            todo!()
+        }
 
-//         fn contains_entity(&self, a_handle: InstanceHandle) -> bool {
-//             todo!()
-//         }
+        fn get_discovered_participants(
+            &self,
+            participant_handles: &mut [InstanceHandle],
+        ) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn get_current_time(&self) -> DDSResult<rust_dds_api::dcps_psm::Time> {
-//             todo!()
-//         }
-//     }
+        fn get_discovered_participant_data(
+            &self,
+            participant_data: rust_dds_api::builtin_topics::ParticipantBuiltinTopicData,
+            participant_handle: InstanceHandle,
+        ) -> DDSResult<()> {
+            todo!()
+        }
 
-//     impl Entity for MockDomainParticipant {
-//         type Qos = DomainParticipantQos;
-//         type Listener = &'static dyn DomainParticipantListener;
+        fn get_discovered_topics(&self, topic_handles: &mut [InstanceHandle]) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn get_discovered_topic_data(
+            &self,
+            topic_data: rust_dds_api::builtin_topics::TopicBuiltinTopicData,
+            topic_handle: InstanceHandle,
+        ) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn get_qos(&self) -> DDSResult<Self::Qos> {
-//             todo!()
-//         }
+        fn contains_entity(&self, a_handle: InstanceHandle) -> bool {
+            todo!()
+        }
 
-//         fn set_listener(
-//             &self,
-//             a_listener: Option<Self::Listener>,
-//             mask: StatusMask,
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn get_current_time(&self) -> DDSResult<rust_dds_api::dcps_psm::Time> {
+            todo!()
+        }
+    }
 
-//         fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-//             todo!()
-//         }
+    impl Entity for MockDomainParticipant {
+        type Qos = DomainParticipantQos;
+        type Listener = &'static dyn DomainParticipantListener;
 
-//         fn get_statuscondition(&self) -> StatusCondition {
-//             todo!()
-//         }
+        fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn get_status_changes(&self) -> StatusMask {
-//             todo!()
-//         }
+        fn get_qos(&self) -> DDSResult<Self::Qos> {
+            todo!()
+        }
 
-//         fn enable(&self) -> DDSResult<()> {
-//             todo!()
-//         }
+        fn set_listener(
+            &self,
+            a_listener: Option<Self::Listener>,
+            mask: StatusMask,
+        ) -> DDSResult<()> {
+            todo!()
+        }
 
-//         fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-//             todo!()
-//         }
-//     }
+        fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+            todo!()
+        }
 
-//     #[test]
-//     fn create_datawriter() {
-//         let rtps_group = RtpsGroupImpl::new(GUID_UNKNOWN);
-//         let data_writer_storage_list = vec![];
-//         let publisher_storage = PublisherStorage::new(
-//             PublisherQos::default(),
-//             rtps_group,
-//             data_writer_storage_list,
-//         );
-//         let publisher_storage_shared = RtpsShared::new(publisher_storage);
-//         let publisher =
-//             PublisherImpl::new(&MockDomainParticipant, publisher_storage_shared.downgrade());
+        fn get_statuscondition(&self) -> StatusCondition {
+            todo!()
+        }
 
-//         let datawriter = publisher.create_datawriter(topic, None, None, 0);
+        fn get_status_changes(&self) -> StatusMask {
+            todo!()
+        }
 
-//         assert!(datawriter.is_some());
-//     }
-// }
+        fn enable(&self) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn create_datawriter() {
+        let participant = MockDomainParticipant;
+        let rtps_group = RtpsGroupImpl::new(GUID_UNKNOWN);
+        let data_writer_storage_list = vec![];
+        let publisher_storage = PublisherStorage::new(
+            PublisherQos::default(),
+            rtps_group,
+            data_writer_storage_list,
+        );
+        let publisher_storage_shared = RtpsShared::new(publisher_storage);
+        let publisher = PublisherImpl::new(&participant, publisher_storage_shared.downgrade());
+        let topic_storage = TopicStorage::new(TopicQos::default());
+        let topic_storage_shared = RtpsShared::new(topic_storage);
+        let topic = TopicImpl::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
+
+        let datawriter = publisher.create_datawriter(&topic, None, None, 0);
+
+        assert!(datawriter.is_some());
+    }
+}
