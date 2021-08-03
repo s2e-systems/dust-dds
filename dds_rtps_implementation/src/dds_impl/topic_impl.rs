@@ -11,12 +11,38 @@ use rust_dds_api::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
+use crate::utils::shared_object::RtpsWeak;
+
+pub struct TopicStorage {
+    qos: TopicQos,
+}
+
+impl TopicStorage {
+    pub fn new(qos: TopicQos) -> Self {
+        Self { qos }
+    }
+}
+
 pub struct TopicImpl<'t, T> {
     participant: &'t dyn DomainParticipant,
+    topic_storage: RtpsWeak<TopicStorage>,
     phantom: PhantomData<&'t T>,
 }
 
-impl<'t, T: 'static> rust_dds_api::topic::topic::Topic<T> for TopicImpl<'t, T>{
+impl<'t, T> TopicImpl<'t, T> {
+    pub fn new(
+        participant: &'t dyn DomainParticipant,
+        topic_storage: RtpsWeak<TopicStorage>,
+    ) -> Self {
+        Self {
+            participant,
+            topic_storage,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'t, T: 'static> rust_dds_api::topic::topic::Topic<T> for TopicImpl<'t, T> {
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
