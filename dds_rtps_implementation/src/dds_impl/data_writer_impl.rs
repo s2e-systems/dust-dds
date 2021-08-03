@@ -271,7 +271,7 @@ mod tests {
 
     use super::*;
 
-    #[derive(serde::Serialize)]
+    #[derive(serde::Serialize, serde::Deserialize)]
     struct MockData(u8, u8);
 
     impl DDSType for MockData {
@@ -476,7 +476,7 @@ mod tests {
 
         data_writer
             .write_w_timestamp(
-                MockData(7,3),
+                MockData(7, 3),
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )
