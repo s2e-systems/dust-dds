@@ -220,27 +220,16 @@ impl<'s> Entity for SubscriberImpl<'s> {
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-        todo!()
-        // Ok(self
-        //     .impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .set_qos(qos))
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        let qos = qos.unwrap_or_default();
+        let subscriber_storage = self.subscriber_storage.upgrade()?;
+        let mut subscriber_storage_lock = subscriber_storage.lock();
+        subscriber_storage_lock.qos = qos;
+        Ok(())
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        todo!()
-        // Ok(self
-        //     .impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .get_qos()
-        //     .clone())
+        Ok(self.subscriber_storage.upgrade()?.lock().qos.clone())
     }
 
     fn set_listener(
@@ -319,11 +308,11 @@ mod tests {
             todo!()
         }
 
-        fn ignore_publication(&self, handle: InstanceHandle) -> DDSResult<()> {
+        fn ignore_publication(&self, _handle: InstanceHandle) -> DDSResult<()> {
             todo!()
         }
 
-        fn ignore_subscription(&self, handle: InstanceHandle) -> DDSResult<()> {
+        fn ignore_subscription(&self, _handle: InstanceHandle) -> DDSResult<()> {
             todo!()
         }
 
@@ -339,7 +328,7 @@ mod tests {
             todo!()
         }
 
-        fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
+        fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DDSResult<()> {
             todo!()
         }
 
@@ -349,7 +338,7 @@ mod tests {
 
         fn set_default_subscriber_qos(
             &self,
-            qos: Option<rust_dds_api::infrastructure::qos::SubscriberQos>,
+            _qos: Option<rust_dds_api::infrastructure::qos::SubscriberQos>,
         ) -> DDSResult<()> {
             todo!()
         }
@@ -358,7 +347,7 @@ mod tests {
             todo!()
         }
 
-        fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
+        fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DDSResult<()> {
             todo!()
         }
 
@@ -368,32 +357,32 @@ mod tests {
 
         fn get_discovered_participants(
             &self,
-            participant_handles: &mut [InstanceHandle],
+            _participant_handles: &mut [InstanceHandle],
         ) -> DDSResult<()> {
             todo!()
         }
 
         fn get_discovered_participant_data(
             &self,
-            participant_data: rust_dds_api::builtin_topics::ParticipantBuiltinTopicData,
-            participant_handle: InstanceHandle,
+            _participant_data: rust_dds_api::builtin_topics::ParticipantBuiltinTopicData,
+            _participant_handle: InstanceHandle,
         ) -> DDSResult<()> {
             todo!()
         }
 
-        fn get_discovered_topics(&self, topic_handles: &mut [InstanceHandle]) -> DDSResult<()> {
+        fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DDSResult<()> {
             todo!()
         }
 
         fn get_discovered_topic_data(
             &self,
-            topic_data: rust_dds_api::builtin_topics::TopicBuiltinTopicData,
-            topic_handle: InstanceHandle,
+            _topic_data: rust_dds_api::builtin_topics::TopicBuiltinTopicData,
+            _topic_handle: InstanceHandle,
         ) -> DDSResult<()> {
             todo!()
         }
 
-        fn contains_entity(&self, a_handle: InstanceHandle) -> bool {
+        fn contains_entity(&self, _a_handle: InstanceHandle) -> bool {
             todo!()
         }
 
@@ -406,7 +395,7 @@ mod tests {
         type Qos = DomainParticipantQos;
         type Listener = &'static dyn DomainParticipantListener;
 
-        fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
             todo!()
         }
 
@@ -416,8 +405,8 @@ mod tests {
 
         fn set_listener(
             &self,
-            a_listener: Option<Self::Listener>,
-            mask: StatusMask,
+            _a_listener: Option<Self::Listener>,
+            _mask: StatusMask,
         ) -> DDSResult<()> {
             todo!()
         }
