@@ -139,7 +139,7 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
         let publisher_storage =
             PublisherStorage::new(publisher_qos, rtps_group, data_writer_storage_list);
         let publisher_storage_shared = RtpsShared::new(publisher_storage);
-        let publisher = PublisherImpl::new(self, &publisher_storage_shared);
+        let publisher = PublisherImpl::new(self, publisher_storage_shared.downgrade());
         domain_participant_lock
             .user_defined_publisher_storage
             .push(publisher_storage_shared);
@@ -191,7 +191,7 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for Dom
         let subscriber_storage =
             SubscriberStorage::new(subscriber_qos, rtps_group, data_reader_storage_list);
         let subscriber_storage_shared = RtpsShared::new(subscriber_storage);
-        let subscriber = SubscriberImpl::new(self, &subscriber_storage_shared);
+        let subscriber = SubscriberImpl::new(self, subscriber_storage_shared.downgrade());
         domain_participant_lock
             .user_defined_subscriber_storage
             .push(subscriber_storage_shared);
@@ -217,7 +217,7 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for Dom
         let domain_participant_lock = self.domain_participant_storage.lock();
         let subscriber_storage_shared =
             domain_participant_lock.builtin_subscriber_storage[0].clone();
-        SubscriberImpl::new(self, &subscriber_storage_shared)
+        SubscriberImpl::new(self, subscriber_storage_shared.downgrade())
     }
 }
 

@@ -54,11 +54,11 @@ pub struct PublisherImpl<'p> {
 impl<'p> PublisherImpl<'p> {
     pub fn new(
         participant: &'p dyn DomainParticipant,
-        publisher_storage: &RtpsShared<PublisherStorage>,
+        publisher_storage: RtpsWeak<PublisherStorage>,
     ) -> Self {
         Self {
             participant,
-            publisher_storage: publisher_storage.downgrade(),
+            publisher_storage,
         }
     }
 

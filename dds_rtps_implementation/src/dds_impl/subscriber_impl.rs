@@ -57,11 +57,11 @@ pub struct SubscriberImpl<'s> {
 impl<'s> SubscriberImpl<'s> {
     pub fn new(
         participant: &'s dyn DomainParticipant,
-        subscriber_storage: &RtpsShared<SubscriberStorage>,
+        subscriber_storage: RtpsWeak<SubscriberStorage>,
     ) -> Self {
         Self {
             participant,
-            subscriber_storage: subscriber_storage.downgrade(),
+            subscriber_storage,
         }
     }
 

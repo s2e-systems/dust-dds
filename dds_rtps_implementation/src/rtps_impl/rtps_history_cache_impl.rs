@@ -77,12 +77,12 @@ impl CacheChange {
     }
 }
 
-pub struct RtpsHistoryCacheImpl {
+pub struct HistoryCache {
     changes: Vec<CacheChange>,
     source_timestamp: Option<Time>,
 }
 
-impl RtpsHistoryCacheImpl {
+impl HistoryCache {
     /// Set the Rtps history cache impl's info.
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
@@ -99,7 +99,7 @@ impl RtpsHistoryCacheImpl {
     }
 }
 
-impl RtpsHistoryCache for RtpsHistoryCacheImpl {
+impl RtpsHistoryCache for HistoryCache {
     fn new() -> Self
     where
         Self: Sized,
@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn add_change() {
-        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
+        let mut hc: HistoryCache = HistoryCache::new();
         let change = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -202,7 +202,7 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
+        let mut hc: HistoryCache = HistoryCache::new();
         let change = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn get_change() {
-        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
+        let mut hc: HistoryCache = HistoryCache::new();
         let change = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
+        let mut hc: HistoryCache = HistoryCache::new();
         let change1 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc: RtpsHistoryCacheImpl = RtpsHistoryCacheImpl::new();
+        let mut hc: HistoryCache = HistoryCache::new();
         let change1 = RtpsCacheChange::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
