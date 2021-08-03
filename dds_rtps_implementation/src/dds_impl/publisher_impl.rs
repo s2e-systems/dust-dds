@@ -297,6 +297,7 @@ mod tests {
 
     use super::*;
 
+    #[derive(serde::Serialize)]
     struct MockKeyedType;
 
     impl DDSType for MockKeyedType {

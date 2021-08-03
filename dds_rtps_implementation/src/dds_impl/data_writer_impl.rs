@@ -119,10 +119,11 @@ impl<'dw, T: 'static> rust_dds_api::publication::data_writer::DataWriter<T>
         let writer_storage = self._data_writer_storage.upgrade()?;
         let mut writer_storage_lock = writer_storage.lock();
 
+        let data = &[];
         let change =
             writer_storage_lock
                 .rtps_data_writer
-                .new_change(ChangeKind::Alive, &[], &[], 0);
+                .new_change(ChangeKind::Alive, data, &[], 0);
         let writer_cache = writer_storage_lock.rtps_data_writer.writer_cache_mut();
         let time = rust_rtps_pim::messages::types::Time(0);
         writer_cache.set_source_timestamp(Some(time));
@@ -267,6 +268,7 @@ mod tests {
 
     use super::*;
 
+    #[derive(serde::Serialize)]
     struct MockData;
 
     impl DDSType for MockData {
