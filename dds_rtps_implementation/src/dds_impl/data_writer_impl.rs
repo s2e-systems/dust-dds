@@ -1,7 +1,5 @@
 use crate::{
-    dds_type::DDSType,
-    rtps_impl::rtps_writer_impl::RtpsWriterImpl,
-    utils::shared_object::{RtpsShared, RtpsWeak},
+    dds_type::DDSType, rtps_impl::rtps_writer_impl::RtpsWriterImpl, utils::shared_object::RtpsWeak,
 };
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -46,7 +44,7 @@ impl DataWriterStorage {
 pub struct DataWriterImpl<'dw, T: 'static> {
     _publisher: &'dw dyn Publisher,
     _topic: &'dw dyn Topic<T>,
-    _data_writer_storage: RtpsWeak<DataWriterStorage>,
+    data_writer_storage: RtpsWeak<DataWriterStorage>,
 }
 
 impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
@@ -58,7 +56,7 @@ impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
         Self {
             _publisher: publisher,
             _topic: topic,
-            _data_writer_storage: data_writer_storage,
+            data_writer_storage,
         }
     }
 }
@@ -115,9 +113,9 @@ impl<'dw, T: DDSType + 'static> rust_dds_api::publication::data_writer::DataWrit
         &self,
         data: T,
         _handle: Option<InstanceHandle>,
-        timestamp: rust_dds_api::dcps_psm::Time,
+        _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let writer_storage = self._data_writer_storage.upgrade()?;
+        let writer_storage = self.data_writer_storage.upgrade()?;
         let mut writer_storage_lock = writer_storage.lock();
 
         let data = cdr::serialize::<_, _, cdr::CdrLe>(&data, cdr::Infinite).unwrap();
@@ -208,12 +206,17 @@ impl<'dw, T: 'static> rust_dds_api::infrastructure::entity::Entity for DataWrite
     type Qos = DataWriterQos;
     type Listener = &'static dyn DataWriterListener<DataPIM = T>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent()?;
+        let data_writer_storage = self.data_writer_storage.upgrade()?;
+        let mut data_writer_storage_lock = data_writer_storage.lock();
+        data_writer_storage_lock.qos = qos;
+        Ok(())
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        todo!()
+        Ok(self.data_writer_storage.upgrade()?.lock().qos.clone())
     }
 
     fn set_listener(
@@ -267,7 +270,7 @@ mod tests {
         structure::types::{ReliabilityKind, TopicKind, GUID_UNKNOWN},
     };
 
-    use crate::dds_type::DDSType;
+    use crate::{dds_type::DDSType, utils::shared_object::RtpsShared};
 
     use super::*;
 
@@ -289,7 +292,7 @@ mod tests {
     impl<T: 'static> Topic<T> for MockTopic<T> {
         fn get_inconsistent_topic_status(
             &self,
-            status: &mut rust_dds_api::dcps_psm::InconsistentTopicStatus,
+            _status: &mut rust_dds_api::dcps_psm::InconsistentTopicStatus,
         ) -> DDSResult<()> {
             todo!()
         }
@@ -315,7 +318,7 @@ mod tests {
         type Qos = TopicQos;
         type Listener = &'static dyn TopicListener<DataPIM = T>;
 
-        fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
             todo!()
         }
 
@@ -325,8 +328,8 @@ mod tests {
 
         fn set_listener(
             &self,
-            a_listener: Option<Self::Listener>,
-            mask: StatusMask,
+            _a_listener: Option<Self::Listener>,
+            _mask: StatusMask,
         ) -> DDSResult<()> {
             todo!()
         }
@@ -371,7 +374,7 @@ mod tests {
             todo!()
         }
 
-        fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()> {
+        fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DDSResult<()> {
             todo!()
         }
 
@@ -385,7 +388,7 @@ mod tests {
             todo!()
         }
 
-        fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
+        fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
             todo!()
         }
 
@@ -406,7 +409,7 @@ mod tests {
         type Qos = PublisherQos;
         type Listener = &'static dyn PublisherListener;
 
-        fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
             todo!()
         }
 
@@ -416,8 +419,8 @@ mod tests {
 
         fn set_listener(
             &self,
-            a_listener: Option<Self::Listener>,
-            mask: StatusMask,
+            _a_listener: Option<Self::Listener>,
+            _mask: StatusMask,
         ) -> DDSResult<()> {
             todo!()
         }

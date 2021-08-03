@@ -44,9 +44,23 @@ impl DataReaderStorage {
 }
 
 pub struct DataReaderImpl<'dr, T: 'static> {
-    _subscriber: &'dr dyn Subscriber,
-    _topic: &'dr dyn TopicDescription<T>,
+    subscriber: &'dr dyn Subscriber,
+    topic: &'dr dyn TopicDescription<T>,
     reader: RtpsWeak<DataReaderStorage>,
+}
+
+impl<'dr, T: 'static> DataReaderImpl<'dr, T> {
+    pub fn new(
+        subscriber: &'dr dyn Subscriber,
+        topic: &'dr dyn TopicDescription<T>,
+        reader: RtpsWeak<DataReaderStorage>,
+    ) -> Self {
+        Self {
+            subscriber,
+            topic,
+            reader,
+        }
+    }
 }
 
 impl<'dr, T> rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderImpl<'dr, T>
@@ -288,10 +302,6 @@ where
         todo!()
     }
 
-    // fn get_topicdescription(&self) -> &dyn TopicDescription {
-    //     todo!()
-    // }
-
     fn delete_contained_entities(&self) -> DDSResult<()> {
         todo!()
     }
@@ -315,11 +325,11 @@ where
     fn get_topicdescription(
         &self,
     ) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<T> {
-        todo!()
+        self.topic
     }
 
     fn get_subscriber(&self) -> &dyn rust_dds_api::subscription::subscriber::Subscriber {
-        todo!()
+        self.subscriber
     }
 }
 

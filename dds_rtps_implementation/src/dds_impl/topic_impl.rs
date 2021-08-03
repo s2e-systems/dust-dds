@@ -83,25 +83,17 @@ impl<'t, T: 'static> Entity for TopicImpl<'t, T> {
     type Qos = TopicQos;
     type Listener = &'static dyn TopicListener<DataPIM = T>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-        // self.impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .set_qos(qos)
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent()?;
+        let topic_storage = self.topic_storage.upgrade()?;
+        let mut topic_storage_lock = topic_storage.lock();
+        topic_storage_lock.qos = qos;
+        Ok(())
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        // Ok(self
-        //     .impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .get_qos())
-        todo!()
+        Ok(self.topic_storage.upgrade()?.lock().qos.clone())
     }
 
     fn set_listener(
