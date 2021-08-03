@@ -1,4 +1,5 @@
 use crate::{
+    dds_type::DDSType,
     rtps_impl::rtps_writer_impl::RtpsWriterImpl,
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
@@ -62,7 +63,7 @@ impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
     }
 }
 
-impl<'dw, T: 'static> rust_dds_api::publication::data_writer::DataWriter<T>
+impl<'dw, T: DDSType + 'static> rust_dds_api::publication::data_writer::DataWriter<T>
     for DataWriterImpl<'dw, T>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
@@ -112,18 +113,20 @@ impl<'dw, T: 'static> rust_dds_api::publication::data_writer::DataWriter<T>
 
     fn write_w_timestamp(
         &self,
-        _data: T,
+        data: T,
         _handle: Option<InstanceHandle>,
         timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
         let writer_storage = self._data_writer_storage.upgrade()?;
         let mut writer_storage_lock = writer_storage.lock();
 
-        let data = &[];
-        let change =
-            writer_storage_lock
-                .rtps_data_writer
-                .new_change(ChangeKind::Alive, data, &[], 0);
+        let data = cdr::serialize::<_, _, cdr::CdrLe>(&data, cdr::Infinite).unwrap();
+        let change = writer_storage_lock.rtps_data_writer.new_change(
+            ChangeKind::Alive,
+            data.as_slice(),
+            &[],
+            0,
+        );
         let writer_cache = writer_storage_lock.rtps_data_writer.writer_cache_mut();
         let time = rust_rtps_pim::messages::types::Time(0);
         writer_cache.set_source_timestamp(Some(time));
@@ -269,7 +272,7 @@ mod tests {
     use super::*;
 
     #[derive(serde::Serialize)]
-    struct MockData;
+    struct MockData(u8, u8);
 
     impl DDSType for MockData {
         fn type_name() -> &'static str {
@@ -473,20 +476,19 @@ mod tests {
 
         data_writer
             .write_w_timestamp(
-                MockData,
+                MockData(7,3),
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )
             .unwrap();
 
-        // assert!(data_writer
-        //     .rtps_writer
-        //     .upgrade()
-        //     .unwrap()
-        //     .lock()
-        //     .unwrap()
-        //     .writer_cache()
-        //     .get_change(&(1i64.into()))
-        //     .is_some());
+        let data_writer_storage_lock = data_writer_storage_shared.lock();
+        let change = data_writer_storage_lock
+            .rtps_data_writer
+            .writer_cache()
+            .get_change(&(1i64.into()))
+            .unwrap();
+
+        assert_eq!(change.data_value(), &[0, 1, 0, 0, 7, 3]);
     }
 }

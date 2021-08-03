@@ -65,29 +65,30 @@ where
         let shared_reader = self.reader.upgrade()?;
         let mut reader = shared_reader.lock();
         let reader_cache = reader.rtps_reader_mut().reader_cache_mut();
-        Ok(reader_cache
-            .changes_mut()
-            .iter()
-            .map(|cc| {
-                let data = cc.data();
-                let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
-                let sample_info = SampleInfo {
-                    sample_state: *cc.sample_state_kind(),
-                    view_state: *cc.view_state_kind(),
-                    instance_state: *cc.instance_state_kind(),
-                    disposed_generation_count: 0,
-                    no_writers_generation_count: 0,
-                    sample_rank: 0,
-                    generation_rank: 0,
-                    absolute_generation_rank: 0,
-                    source_timestamp: Time { sec: 0, nanosec: 0 },
-                    instance_handle: 0,
-                    publication_handle: 0,
-                    valid_data: true,
-                };
-                (value, sample_info)
-            })
-            .collect())
+        todo!()
+        // Ok(reader_cache
+        //     .changes_mut()
+        //     .iter()
+        //     .map(|cc| {
+        //         let data = cc.data();
+            //     let value = rust_serde_cdr::deserializer::from_bytes(data).unwrap();
+            //     let sample_info = SampleInfo {
+            //         sample_state: *cc.sample_state_kind(),
+            //         view_state: *cc.view_state_kind(),
+            //         instance_state: *cc.instance_state_kind(),
+            //         disposed_generation_count: 0,
+            //         no_writers_generation_count: 0,
+            //         sample_rank: 0,
+            //         generation_rank: 0,
+            //         absolute_generation_rank: 0,
+            //         source_timestamp: Time { sec: 0, nanosec: 0 },
+            //         instance_handle: 0,
+            //         publication_handle: 0,
+            //         valid_data: true,
+            //     };
+            //     (value, sample_info)
+            // })
+            // .collect())
     }
 
     fn take(

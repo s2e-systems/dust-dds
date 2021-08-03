@@ -50,7 +50,7 @@ impl<'a> RtpsCacheChange<'a> {
     }
 
     /// Get a reference to the rtps cache change's data value.
-    pub fn data_value(&self) -> &&'a [u8] {
+    pub fn data_value(&self) -> &'a [u8] {
         &self.data_value
     }
 
