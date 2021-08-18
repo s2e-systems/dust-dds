@@ -39,6 +39,23 @@ impl DataWriterStorage {
     pub fn rtps_data_writer_mut(&mut self) -> &mut RtpsWriterImpl {
         &mut self.rtps_data_writer
     }
+
+    pub fn write_w_timestamp<T: DDSType + 'static>(
+        &mut self,
+        data: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: rust_dds_api::dcps_psm::Time,
+    ) -> DDSResult<()> {
+        let data = cdr::serialize::<_, _, cdr::CdrLe>(&data, cdr::Infinite).unwrap();
+        let change = self
+            .rtps_data_writer
+            .new_change(ChangeKind::Alive, data.as_slice(), &[], 0);
+        let writer_cache = self.rtps_data_writer.writer_cache_mut();
+        let time = rust_rtps_pim::messages::types::Time(0);
+        writer_cache.set_source_timestamp(Some(time));
+        writer_cache.add_change(&change);
+        Ok(())
+    }
 }
 
 pub struct DataWriterImpl<'dw, T: 'static> {
@@ -112,24 +129,12 @@ impl<'dw, T: DDSType + 'static> rust_dds_api::publication::data_writer::DataWrit
     fn write_w_timestamp(
         &self,
         data: T,
-        _handle: Option<InstanceHandle>,
-        _timestamp: rust_dds_api::dcps_psm::Time,
+        handle: Option<InstanceHandle>,
+        timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
         let writer_storage = self.data_writer_storage.upgrade()?;
         let mut writer_storage_lock = writer_storage.lock();
-
-        let data = cdr::serialize::<_, _, cdr::CdrLe>(&data, cdr::Infinite).unwrap();
-        let change = writer_storage_lock.rtps_data_writer.new_change(
-            ChangeKind::Alive,
-            data.as_slice(),
-            &[],
-            0,
-        );
-        let writer_cache = writer_storage_lock.rtps_data_writer.writer_cache_mut();
-        let time = rust_rtps_pim::messages::types::Time(0);
-        writer_cache.set_source_timestamp(Some(time));
-        writer_cache.add_change(&change);
-        Ok(())
+        writer_storage_lock.write_w_timestamp(data, handle, timestamp)
     }
 
     fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
