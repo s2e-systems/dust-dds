@@ -146,7 +146,7 @@ mod tests {
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
         submessage_elements::SequenceNumberSubmessageElementType,
-        submessages::{DataSubmessage, GapSubmessage},
+        submessages::{DataSubmessage, GapSubmessageTrait},
     };
 
     #[test]
@@ -190,7 +190,7 @@ mod tests {
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
-        let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
+        let gap_submessage = RtpsSubmessageType::Gap(GapSubmessageTrait::new(
             endianness_flag,
             reader_id,
             writer_id,
@@ -300,7 +300,7 @@ mod tests {
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
-        let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
+        let gap_submessage = RtpsSubmessageType::Gap(GapSubmessageTrait::new(
             endianness_flag,
             reader_id,
             writer_id,
@@ -387,7 +387,7 @@ mod tests {
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
-        let gap_submessage = RtpsSubmessageType::Gap(GapSubmessage::new(
+        let gap_submessage = RtpsSubmessageType::Gap(GapSubmessageTrait::new(
             endianness_flag,
             reader_id,
             writer_id,

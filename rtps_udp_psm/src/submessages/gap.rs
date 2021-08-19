@@ -48,7 +48,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for GapSubmessageUdp {
     }
 }
 
-impl rust_rtps_pim::messages::submessages::GapSubmessage for GapSubmessageUdp {
+impl rust_rtps_pim::messages::submessages::GapSubmessageTrait for GapSubmessageUdp {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSubmessageElementType = SequenceNumberUdp;
     type SequenceNumberSetSubmessageElementType = SequenceNumberSetUdp;
@@ -126,7 +126,7 @@ mod tests {
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
-        let submessage: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessage::new(
+        let submessage: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessageTrait::new(
             endianness_flag,
             reader_id,
             writer_id,
@@ -160,7 +160,7 @@ mod tests {
         };
         let gap_start = SequenceNumberUdp::new(&5);
         let gap_list = SequenceNumberSetUdp::new(&10, &[]);
-        let expected: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessage::new(
+        let expected: GapSubmessageUdp = rust_rtps_pim::messages::submessages::GapSubmessageTrait::new(
             endianness_flag,
             reader_id,
             writer_id,

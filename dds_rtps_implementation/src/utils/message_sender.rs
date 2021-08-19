@@ -6,7 +6,7 @@ use rust_rtps_pim::{
         writer::reader_locator::RtpsReaderLocator,
     },
     messages::{
-        submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
+        submessages::{DataSubmessage, GapSubmessageTrait, RtpsSubmessagePIM, RtpsSubmessageType},
         RtpsMessage, RtpsMessageHeader,
     },
     structure::{types::Locator, RtpsEntity, RtpsParticipant},
@@ -75,7 +75,7 @@ pub fn send_data<'a, Transport, PSM, Participant>(
     Transport::Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
     PSM: RtpsSubmessagePIM<'a>,
     PSM::DataSubmessageType: DataSubmessage<'a>,
-    PSM::GapSubmessageType: GapSubmessage,
+    PSM::GapSubmessageType: GapSubmessageTrait,
     Participant: RtpsParticipant + RtpsEntity,
 {
     let header = RtpsMessageHeader {

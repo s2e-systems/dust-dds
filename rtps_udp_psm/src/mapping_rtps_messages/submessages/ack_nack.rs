@@ -1,17 +1,26 @@
-// use std::io::Write;
-// use byteorder::ByteOrder;
+use rust_rtps_pim::messages::submessages::AckNackSubmessage;
+
+use crate::serialize::Serialize;
+
+use byteorder::ByteOrder;
+use std::io::Write;
 
 // use crate::{serialize::Serialize, submessage_elements::{CountUdp, EntityIdUdp, SequenceNumberSetUdp}};
 // use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader, Submessage};
 
 // #[derive(Debug, PartialEq)]
 
-
-// impl Serialize for AckNack {
-//     fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
-//         todo!()
-//     }
-// }
+impl<S> Serialize for AckNackSubmessage<S> {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
+        todo!()
+        // pub endianness_flag: SubmessageFlag,
+        // pub final_flag: SubmessageFlag,
+        // pub reader_id: EntityIdSubmessageElement,
+        // pub writer_id: EntityIdSubmessageElement,
+        // pub reader_sn_state: SequenceNumberSetSubmessageElement<S>,
+        // pub count: CountSubmessageElement,
+    }
+}
 // impl<'de> crate::deserialize::Deserialize<'de> for AckNackUdp {
 //     fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
 //         todo!()

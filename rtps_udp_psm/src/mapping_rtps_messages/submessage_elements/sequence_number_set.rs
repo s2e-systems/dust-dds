@@ -1,11 +1,14 @@
 use std::{io::Write, iter::FromIterator};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{messages::submessage_elements::SequenceNumberSetSubmessageElement, structure::types::SequenceNumber};
+use rust_rtps_pim::{
+    messages::submessage_elements::SequenceNumberSetSubmessageElement,
+    structure::types::SequenceNumber,
+};
 
 use crate::{
     deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
+    serialize::{self, NumberofBytes, Serialize},
 };
 
 impl<T> Serialize for SequenceNumberSetSubmessageElement<T>
@@ -60,6 +63,21 @@ where
     }
 }
 
+impl<T> NumberofBytes for SequenceNumberSetSubmessageElement<T>
+where
+    for<'a> &'a T: IntoIterator<Item = &'a SequenceNumber>,
+{
+    fn number_of_bytes(&self) -> usize {
+        let num_bits = if let Some(&max) = self.set.into_iter().max() {
+            max - self.base + 1
+        } else {
+            0
+        } as usize;
+        let number_of_bitmap_elements = (num_bits + 31) / 32; // aka "M"
+        12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,7 +108,10 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
-        let expected = SequenceNumberSetSubmessageElement{base: 2, set: vec![2, 257]};
+        let expected = SequenceNumberSetSubmessageElement {
+            base: 2,
+            set: vec![2, 257],
+        };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -104,8 +125,34 @@ mod tests {
             0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[5] (long)
             0b_000_0000, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[6] (long)
             0b_000_0001, 0b_0000_0000, 0b_0000_0000, 0b_0000_0000, // bitmap[7] (long)
-
         ]).unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn number_of_bytes_max_numbers() {
+        let sequence_number_set = SequenceNumberSetSubmessageElement {
+            base: 2,
+            set: vec![2, 257],
+        };
+        assert_eq!(sequence_number_set.number_of_bytes(), 44);
+    }
+
+    #[test]
+    fn number_of_bytes_empty() {
+        let sequence_number_set = SequenceNumberSetSubmessageElement {
+            base: 2,
+            set: vec![],
+        };
+        assert_eq!(sequence_number_set.number_of_bytes(), 12);
+    }
+
+    #[test]
+    fn number_of_bytes_one() {
+        let sequence_number_set = SequenceNumberSetSubmessageElement {
+            base: 2,
+            set: vec![257],
+        };
+        assert_eq!(sequence_number_set.number_of_bytes(), 44);
     }
 }

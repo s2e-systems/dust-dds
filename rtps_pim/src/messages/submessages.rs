@@ -1,11 +1,4 @@
-use super::{
-    submessage_elements::{
-        EntityIdSubmessageElementType, ParameterListSubmessageElementType,
-        SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
-        SerializedDataSubmessageElementType, TimestampSubmessageElementType,
-    },
-    types::SubmessageFlag,
-};
+use super::{submessage_elements::{CountSubmessageElement, EntityIdSubmessageElement, EntityIdSubmessageElementType, ParameterListSubmessageElementType, SequenceNumberSetSubmessageElement, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElement, SequenceNumberSubmessageElementType, SerializedDataSubmessageElementType, TimestampSubmessageElementType}, types::SubmessageFlag};
 
 pub trait RtpsSubmessagePIM<'a> {
     type AckNackSubmessageType;
@@ -41,7 +34,16 @@ where
     Pad(PSM::PadSubmessageType),
 }
 
-pub trait AckNackSubmessage {
+pub struct AckNackSubmessage<S> {
+    pub endianness_flag: SubmessageFlag,
+    pub final_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub reader_sn_state: SequenceNumberSetSubmessageElement<S>,
+    pub count: CountSubmessageElement,
+}
+
+pub trait AckNackSubmessageTrait {
     type EntityIdSubmessageElementType;
     type SequenceNumberSetSubmessageElementType;
     type CountSubmessageElementType;
@@ -131,7 +133,7 @@ pub trait DataFragSubmessage {
     fn serialized_payload(&self) -> &Self::SerializedDataFragmentSubmessageElementType;
 }
 
-pub trait GapSubmessage {
+pub trait GapSubmessageTrait {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType;
@@ -148,6 +150,17 @@ pub trait GapSubmessage {
     fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
     fn gap_start(&self) -> &Self::SequenceNumberSubmessageElementType;
     fn gap_list(&self) -> &Self::SequenceNumberSetSubmessageElementType;
+    // gap_start_gsn: submessage_elements::SequenceNumber,
+    // gap_end_gsn: submessage_elements::SequenceNumber,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct GapSubmessage<S> {
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub gap_start: SequenceNumberSubmessageElement,
+    pub gap_list: SequenceNumberSetSubmessageElement<S>,
     // gap_start_gsn: submessage_elements::SequenceNumber,
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }

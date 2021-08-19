@@ -9,7 +9,7 @@ use crate::{
             SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
             SerializedDataSubmessageElementType,
         },
-        submessages::{DataSubmessage, GapSubmessage},
+        submessages::{DataSubmessage, GapSubmessageTrait},
     },
     structure::{
         types::{ChangeKind, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
@@ -33,7 +33,7 @@ where
     T::ReaderLocatorType: RtpsReaderLocatorOperations,
     T::HistoryCacheType: RtpsHistoryCache,
     Data: DataSubmessage<'a>,
-    Gap: GapSubmessage,
+    Gap: GapSubmessageTrait,
 {
     type ReaderLocator = T::ReaderLocatorType;
 
@@ -70,7 +70,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
     ReaderLocator: RtpsReaderLocatorOperations,
     WriterCache: RtpsHistoryCache,
     Data: DataSubmessage<'a>,
-    Gap: GapSubmessage,
+    Gap: GapSubmessageTrait,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
