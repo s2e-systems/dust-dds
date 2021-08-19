@@ -54,15 +54,18 @@ pub struct SequenceNumberSetSubmessageElement<T> {
     pub set: T,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct FragmentNumberSubmessageElement {
     pub value: FragmentNumber,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct FragmentNumberSetSubmessageElement<T> {
     pub base: FragmentNumber,
     pub set: T,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct TimestampSubmessageElement {
     pub value: Time,
 }
@@ -73,16 +76,32 @@ pub struct Parameter<'a> {
     pub length: i16,
     pub value: &'a [u8],
 }
+impl<'a> Parameter<'a> {
+    pub fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
+        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
+        Self {
+            parameter_id,
+            length,
+            value,
+        }
+    }
+    // pub fn number_of_bytes(&self) -> usize {
+    //     4 + self.length as usize
+    // }
+}
 
+#[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElement<'a, T> {
     pub parameter: T,
     pub phantom: PhantomData<&'a ()>,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct CountSubmessageElement {
     pub value: Count,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct LocatorListSubmessageElement<T> {
     pub value: T,
 }
@@ -95,6 +114,7 @@ pub struct SerializedDataFragmentSubmessageElement<'a> {
     pub value: &'a [u8],
 }
 
+#[derive(Debug, PartialEq)]
 pub struct GroupDigestSubmessageElement {
     pub value: GroupDigest,
 }
