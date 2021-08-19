@@ -11,20 +11,31 @@ use crate::{
     serialize::{self, Serialize},
 };
 
+impl Serialize for ProtocolVersion {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.major.serialize::<_, B>(&mut writer)?;
+        self.minor.serialize::<_, B>(&mut writer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ProtocolVersion {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self {
+            major: Deserialize::deserialize::<B>(buf)?,
+            minor: Deserialize::deserialize::<B>(buf)?,
+        })
+    }
+}
+
 impl Serialize for ProtocolVersionSubmessageElement {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.major.serialize::<_, B>(&mut writer)?;
-        self.value.minor.serialize::<_, B>(&mut writer)
+        self.value.serialize::<_, B>(&mut writer)
     }
 }
 
 impl<'de> Deserialize<'de> for ProtocolVersionSubmessageElement {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let value = ProtocolVersion {
-            major: Deserialize::deserialize::<B>(buf)?,
-            minor: Deserialize::deserialize::<B>(buf)?,
-        };
-        Ok(Self { value })
+        Ok(Self { value: Deserialize::deserialize::<B>(buf)? })
     }
 }
 
