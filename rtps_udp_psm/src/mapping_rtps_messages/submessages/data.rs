@@ -1,16 +1,25 @@
-use std::{io::Write, iter::FromIterator};
+use std::{io::Write, iter::FromIterator, marker::PhantomData};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{messages::{RtpsSubmessageHeader, submessage_elements::Parameter, submessages::DataSubmessage, types::SubmessageKind}, structure::types::SequenceNumber};
+use rust_rtps_pim::messages::{
+    submessage_elements::{
+        Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
+    },
+    submessages::DataSubmessage,
+    types::SubmessageKind,
+    RtpsSubmessageHeader,
+};
 
-use crate::{deserialize::Deserialize, serialize::{NumberofBytes, Serialize}};
+use crate::{
+    deserialize::Deserialize,
+    serialize::{NumberofBytes, Serialize},
+};
 
 impl<'a, T> Serialize for DataSubmessage<'a, T>
 where
     for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
-
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
         } else {
@@ -59,28 +68,65 @@ where
     }
 }
 
-// impl<'de, T> Deserialize<'de> for GapSubmessage<T>
-// where
-//     T: FromIterator<SequenceNumber>,
-// {
-//     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
-//     where
-//         B: ByteOrder,
-//     {
-//         let header: RtpsSubmessageHeader = Deserialize::deserialize::<B>(buf)?;
-//         let reader_id = Deserialize::deserialize::<B>(buf)?;
-//         let writer_id = Deserialize::deserialize::<B>(buf)?;
-//         let gap_start = Deserialize::deserialize::<B>(buf)?;
-//         let gap_list = Deserialize::deserialize::<B>(buf)?;
-//         Ok(Self {
-//             endianness_flag: header.flags[0],
-//             reader_id,
-//             writer_id,
-//             gap_start,
-//             gap_list,
-//         })
-//     }
-// }
+impl<'de: 'a, 'a, T> Deserialize<'de> for DataSubmessage<'a, T>
+where
+    T: FromIterator<Parameter<'a>>,
+    for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
+{
+    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+    where
+        B: ByteOrder,
+    {
+        let header: RtpsSubmessageHeader = Deserialize::deserialize::<B>(buf)?;
+        let inline_qos_flag = header.flags[1];
+        let data_flag = header.flags[2];
+        let key_flag = header.flags[3];
+        let _extra_flags: u16 = Deserialize::deserialize::<B>(buf)?;
+        let octets_to_inline_qos: u16 = Deserialize::deserialize::<B>(buf)?;
+        let reader_id = Deserialize::deserialize::<B>(buf)?;
+        let writer_id = Deserialize::deserialize::<B>(buf)?;
+        let writer_sn = Deserialize::deserialize::<B>(buf)?;
+
+        let inline_qos = if inline_qos_flag {
+            Deserialize::deserialize::<B>(buf)?
+        } else {
+            ParameterListSubmessageElement {
+                parameter: T::from_iter(std::iter::empty()),
+                phantom: PhantomData,
+            }
+        };
+        let inline_qos_len = if inline_qos_flag {
+            inline_qos.number_of_bytes()
+        } else {
+            0
+        };
+
+        let serialized_payload = if data_flag || key_flag {
+            let serialized_payload_length = header.submessage_length as usize
+                - octets_to_inline_qos as usize
+                - 4
+                - inline_qos_len;
+            let (data, following) = buf.split_at(serialized_payload_length as usize);
+            *buf = following;
+            SerializedDataSubmessageElement { value: &data }
+        } else {
+            SerializedDataSubmessageElement { value: &[] }
+        };
+
+        Ok(Self {
+            endianness_flag: header.flags[0],
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag: header.flags[4],
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -89,7 +135,13 @@ mod tests {
     use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
 
     use super::*;
-    use rust_rtps_pim::{messages::submessage_elements::{EntityIdSubmessageElement, ParameterListSubmessageElement, SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement, SerializedDataSubmessageElement}, structure::types::{EntityId, EntityKind, SequenceNumber}};
+    use rust_rtps_pim::{
+        messages::submessage_elements::{
+            EntityIdSubmessageElement, ParameterListSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+        },
+        structure::types::{EntityId, EntityKind},
+    };
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
@@ -104,12 +156,12 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
         };
-        let writer_sn = SequenceNumberSubmessageElement{ value: 5};
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![],
-            phantom: PhantomData
+            phantom: PhantomData,
         };
-        let serialized_payload = SerializedDataSubmessageElement{ value: &[]};
+        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
         let submessage = DataSubmessage {
             endianness_flag,
             inline_qos_flag,
@@ -134,71 +186,46 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn serialize_gap() {
-    //     let endianness_flag = true;
-    //     let reader_id = EntityIdSubmessageElement {
-    //         value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
-    //     };
-    //     let writer_id = EntityIdSubmessageElement {
-    //         value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
-    //     };
-    //     let gap_start = SequenceNumberSubmessageElement { value: 5 };
-    //     let gap_list: SequenceNumberSetSubmessageElement<[SequenceNumber; 0]> =
-    //         SequenceNumberSetSubmessageElement { base: 10, set: [] };
-    //     let submessage = GapSubmessage {
-    //         endianness_flag,
-    //         reader_id,
-    //         writer_id,
-    //         gap_start,
-    //         gap_list,
-    //     };
-    //     #[rustfmt::skip]
-    //     assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
-    //             0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
-    //             1, 2, 3, 4, // readerId: value[4]
-    //             6, 7, 8, 9, // writerId: value[4]
-    //             0, 0, 0, 0, // gapStart: SequenceNumber: high
-    //             5, 0, 0, 0, // gapStart: SequenceNumber: low
-    //             0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
-    //            10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
-    //             0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
-    //         ]
-    //     );
-    // }
-
-    // #[test]
-    // fn deserialize_gap() {
-    //     let endianness_flag = true;
-    //     let reader_id = EntityIdSubmessageElement {
-    //         value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
-    //     };
-    //     let writer_id = EntityIdSubmessageElement {
-    //         value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
-    //     };
-    //     let gap_start = SequenceNumberSubmessageElement { value: 5 };
-    //     let gap_list = SequenceNumberSetSubmessageElement {
-    //         base: 10,
-    //         set: vec![],
-    //     };
-    //     let expected = GapSubmessage {
-    //         endianness_flag,
-    //         reader_id,
-    //         writer_id,
-    //         gap_start,
-    //         gap_list,
-    //     };
-    //     #[rustfmt::skip]
-    //     let result = from_bytes_le(&[
-    //         0x08, 0b_0000_0001, 28, 0, // Submessage header
-    //         1, 2, 3, 4, // readerId: value[4]
-    //         6, 7, 8, 9, // writerId: value[4]
-    //         0, 0, 0, 0, // gapStart: SequenceNumber: high
-    //         5, 0, 0, 0, // gapStart: SequenceNumber: low
-    //         0, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: high
-    //        10, 0, 0, 0, // gapList: SequenceNumberSet: bitmapBase: low
-    //         0, 0, 0, 0, // gapList: SequenceNumberSet: numBits (ULong)
-    //     ]).unwrap();
-    //     assert_eq!(expected, result);
-    // }
+    #[test]
+    fn deserialize_no_inline_qos_no_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+        };
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: vec![],
+            phantom: PhantomData,
+        };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+        let expected = DataSubmessage {
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        };
+        #[rustfmt::skip]
+        let result = from_bytes_le(&[
+            0x15, 0b_0000_0001, 20, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+        ]).unwrap();
+        assert_eq!(expected, result);
+    }
 }

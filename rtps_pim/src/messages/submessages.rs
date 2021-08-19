@@ -94,6 +94,7 @@ pub trait DataSubmessageTrait<'a> {
     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
 }
 
+#[derive(Debug, PartialEq)]
 pub struct DataSubmessage<'a, P> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
