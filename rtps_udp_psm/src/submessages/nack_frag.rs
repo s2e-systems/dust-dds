@@ -17,7 +17,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for NackFragUdp {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::NackFragSubmessage for NackFragUdp {
+impl<'a> rust_rtps_pim::messages::submessages::NackFragSubmessageTrait for NackFragUdp {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSubmessageElementType = SequenceNumberUdp;
     type FragmentNumberSetSubmessageElementType = FragmentNumberSetUdp;

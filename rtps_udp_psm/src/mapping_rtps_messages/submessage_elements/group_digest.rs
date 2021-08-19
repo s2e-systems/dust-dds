@@ -1,7 +1,9 @@
 use std::io::Write;
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{submessage_elements::GroupDigestSubmessageElement, types::{Count, GroupDigest}};
+use rust_rtps_pim::messages::{
+    submessage_elements::GroupDigestSubmessageElement, types::GroupDigest,
+};
 
 use crate::{
     deserialize::{self, Deserialize},
@@ -14,7 +16,7 @@ impl Serialize for GroupDigest {
     }
 }
 impl<'de> Deserialize<'de> for GroupDigest {
-    fn deserialize<B: ByteOrder>(_buf: &mut &'de[u8]) -> deserialize::Result<Self> {
+    fn deserialize<B: ByteOrder>(_buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(())
     }
 }
@@ -40,14 +42,13 @@ mod tests {
 
     #[test]
     fn serialize_guid_prefix() {
-        let data = GroupDigestSubmessageElement{ value: ()};
+        let data = GroupDigestSubmessageElement { value: () };
         assert_eq!(to_bytes_le(&data).unwrap(), vec![]);
     }
 
     #[test]
     fn deserialize_guid_prefix() {
-        let expected = GroupDigestSubmessageElement{ value: ()};
-        assert_eq!(expected, from_bytes_le(&[
-        ]).unwrap());
+        let expected = GroupDigestSubmessageElement { value: () };
+        assert_eq!(expected, from_bytes_le(&[]).unwrap());
     }
 }

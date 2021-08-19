@@ -18,7 +18,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for HeartbeatFragUdp {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage for HeartbeatFragUdp {
+impl<'a> rust_rtps_pim::messages::submessages::HeartbeatFragSubmessageTrait for HeartbeatFragUdp {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSubmessageElementType = SequenceNumberUdp;
     type FragmentNumberSubmessageElementType = FragmentNumberUdp;

@@ -40,7 +40,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for HeartbeatSubmessageUdp {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessage for HeartbeatSubmessageUdp {
+impl<'a> rust_rtps_pim::messages::submessages::HeartbeatSubmessageTrait for HeartbeatSubmessageUdp {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSubmessageElementType = SequenceNumberUdp;
     type CountSubmessageElementType = CountUdp;
@@ -135,7 +135,7 @@ mod tests {
         let last_sn = SequenceNumberUdp::new(&3);
         let count = CountUdp(5);
         let submessage: HeartbeatSubmessageUdp =
-            rust_rtps_pim::messages::submessages::HeartbeatSubmessage::new(
+            rust_rtps_pim::messages::submessages::HeartbeatSubmessageTrait::new(
                 endianness_flag,
                 final_flag,
                 liveliness_flag,
