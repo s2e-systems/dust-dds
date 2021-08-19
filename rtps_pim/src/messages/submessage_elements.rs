@@ -106,6 +106,7 @@ pub struct LocatorListSubmessageElement<T> {
     pub value: T,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct SerializedDataSubmessageElement<'a> {
     pub value: &'a [u8],
 }

@@ -1,4 +1,4 @@
-use super::{submessage_elements::{CountSubmessageElement, EntityIdSubmessageElement, EntityIdSubmessageElementType, ParameterListSubmessageElementType, SequenceNumberSetSubmessageElement, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElement, SequenceNumberSubmessageElementType, SerializedDataSubmessageElementType, TimestampSubmessageElementType}, types::SubmessageFlag};
+use super::{submessage_elements::{CountSubmessageElement, EntityIdSubmessageElement, EntityIdSubmessageElementType, FragmentNumberSubmessageElement, ParameterListSubmessageElement, ParameterListSubmessageElementType, SequenceNumberSetSubmessageElement, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElement, SequenceNumberSubmessageElementType, SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement, SerializedDataSubmessageElementType, TimestampSubmessageElementType, ULongSubmessageElement, UShortSubmessageElement}, types::SubmessageFlag};
 
 pub trait RtpsSubmessagePIM<'a> {
     type AckNackSubmessageType;
@@ -64,7 +64,7 @@ pub trait AckNackSubmessageTrait {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait DataSubmessage<'a> {
+pub trait DataSubmessageTrait<'a> {
     type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
     type ParameterListSubmessageElementType: ParameterListSubmessageElementType<'a>;
@@ -93,6 +93,20 @@ pub trait DataSubmessage<'a> {
     fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType;
     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
 }
+
+pub struct DataSubmessage<'a, P> {
+    pub endianness_flag: SubmessageFlag,
+    pub inline_qos_flag: SubmessageFlag,
+    pub data_flag: SubmessageFlag,
+    pub key_flag: SubmessageFlag,
+    pub non_standard_payload_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub inline_qos: ParameterListSubmessageElement<'a, P>,
+    pub serialized_payload: SerializedDataSubmessageElement<'a>,
+}
+
 
 pub trait DataFragSubmessage {
     type EntityIdSubmessageElementType;

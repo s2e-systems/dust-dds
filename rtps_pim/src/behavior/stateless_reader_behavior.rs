@@ -4,7 +4,7 @@ use crate::{
             EntityIdSubmessageElementType, ParameterListSubmessageElementType,
             SequenceNumberSubmessageElementType, SerializedDataSubmessageElementType,
         },
-        submessages::DataSubmessage,
+        submessages::DataSubmessageTrait,
     },
     structure::{
         types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
@@ -22,7 +22,7 @@ impl<'a, 'b, T, Data> StatelessReaderBehavior<Data> for T
 where
     T: RtpsReader + RtpsEntity,
     T::HistoryCacheType: RtpsHistoryCache,
-    Data: DataSubmessage<'b>,
+    Data: DataSubmessageTrait<'b>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data) {
         let reader_id = data.reader_id().value();
@@ -205,7 +205,7 @@ mod tests {
         serialized_payload: MockSerializedDataSubmessageElement<'a>,
     }
 
-    impl<'a> DataSubmessage<'a> for MockDataSubmessage<'a> {
+    impl<'a> DataSubmessageTrait<'a> for MockDataSubmessage<'a> {
         type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
         type SequenceNumberSubmessageElementType = MockSequenceNumberSubmessageElement;
         type ParameterListSubmessageElementType = MockParameterListSubmessageElement;

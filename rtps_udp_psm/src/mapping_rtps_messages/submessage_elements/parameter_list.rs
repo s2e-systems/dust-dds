@@ -1,11 +1,17 @@
 use std::{io::Write, iter::FromIterator, marker::PhantomData};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{messages::{submessage_elements::{Parameter, ParameterListSubmessageElement}, types::ParameterId}, structure::types::Locator};
+use rust_rtps_pim::{
+    messages::{
+        submessage_elements::{Parameter, ParameterListSubmessageElement},
+        types::ParameterId,
+    },
+    structure::types::Locator,
+};
 
 use crate::{
     deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
+    serialize::{self, NumberofBytes, Serialize},
 };
 
 const PID_SENTINEL: ParameterId = ParameterId(1);
@@ -21,7 +27,7 @@ impl Serialize for ParameterId {
     }
 }
 impl<'de> Deserialize<'de> for ParameterId {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de[u8]) -> deserialize::Result<Self> {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self(Deserialize::deserialize::<B>(buf)?))
     }
 }
@@ -41,8 +47,8 @@ impl<'a> Serialize for Parameter<'_> {
     }
 }
 
-impl<'de:'a, 'a> Deserialize<'de> for Parameter<'a> {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de[u8]) -> deserialize::Result<Self> {
+impl<'de: 'a, 'a> Deserialize<'de> for Parameter<'a> {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         let parameter_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let length = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
         let (value, following) = buf.split_at(length as usize);
@@ -55,9 +61,9 @@ impl<'de:'a, 'a> Deserialize<'de> for Parameter<'a> {
     }
 }
 
-impl<T> Serialize for ParameterListSubmessageElement<'_, T>
+impl<'a, T> Serialize for ParameterListSubmessageElement<'a, T>
 where
-    for<'a> &'a T: IntoIterator<Item = &'a Parameter<'a>>,
+    for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         for parameter in &self.parameter {
@@ -67,9 +73,9 @@ where
     }
 }
 
-impl<'de:'a, 'a, T> Deserialize<'de> for ParameterListSubmessageElement<'a, T>
+impl<'de: 'a, 'a, T> Deserialize<'de> for ParameterListSubmessageElement<'a, T>
 where
-     T: FromIterator<Parameter<'a>>,
+    T: FromIterator<Parameter<'a>>,
 {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
@@ -85,7 +91,29 @@ where
                 parameter.push(Parameter::from(parameter_i));
             }
         }
-        Ok(Self { parameter: T::from_iter(parameter.into_iter()), phantom: PhantomData })
+        Ok(Self {
+            parameter: T::from_iter(parameter.into_iter()),
+            phantom: PhantomData,
+        })
+    }
+}
+
+impl<'a> NumberofBytes for Parameter<'a> {
+    fn number_of_bytes(&self) -> usize {
+        4 + self.length as usize
+    }
+}
+
+impl<'a, T> NumberofBytes for ParameterListSubmessageElement<'a, T>
+where
+    for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
+{
+    fn number_of_bytes(&self) -> usize {
+        self.parameter
+            .into_iter()
+            .map(|p| p.number_of_bytes())
+            .sum::<usize>()
+            + 4
     }
 }
 
@@ -152,7 +180,6 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-
     #[test]
     fn deserialize_parameter_list() {
         let expected = ParameterListSubmessageElement {
@@ -160,7 +187,7 @@ mod tests {
                 Parameter::new(ParameterId(0x02), &[15, 16, 17, 18]),
                 Parameter::new(ParameterId(0x03), &[25, 26, 27, 28]),
             ],
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
@@ -187,7 +214,7 @@ mod tests {
 
         let expected = ParameterListSubmessageElement {
             parameter: vec![Parameter::new(ParameterId(0x32), parameter_value_expected)],
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
@@ -224,7 +251,7 @@ mod tests {
                 Parameter::new(ParameterId(0x32), parameter_value_expected1),
                 Parameter::new(ParameterId(0x32), parameter_value_expected2),
             ],
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[

@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     messages::{
         submessage_elements::TimestampSubmessageElementType,
         submessages::{
-            DataSubmessage, InfoTimestampSubmessage, RtpsSubmessagePIM, RtpsSubmessageType,
+            DataSubmessageTrait, InfoTimestampSubmessage, RtpsSubmessagePIM, RtpsSubmessageType,
         },
         types::{Time, TIME_INVALID},
         RtpsMessage,
@@ -52,7 +52,7 @@ impl MessageReceiver {
     ) where
         Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
         PSM: RtpsSubmessagePIM<'a> + 'a,
-        PSM::DataSubmessageType: DataSubmessage<'a>,
+        PSM::DataSubmessageType: DataSubmessageTrait<'a>,
         PSM::InfoTimestampSubmessageType: InfoTimestampSubmessage,
     {
         self.dest_guid_prefix = participant_guid_prefix;
@@ -95,7 +95,7 @@ impl MessageReceiver {
         data: &'a Data,
         reader_group_list: &'a [RtpsShared<SubscriberStorage>],
     ) where
-        Data: DataSubmessage<'a>,
+        Data: DataSubmessageTrait<'a>,
     {
         for subscriber in reader_group_list {
             let subscriber_lock = subscriber.lock();

@@ -156,7 +156,7 @@ mod tests {
     use rust_rtps_pim::{
         messages::{
             submessage_elements::SequenceNumberSubmessageElementType,
-            submessages::{DataSubmessage, RtpsSubmessageType},
+            submessages::{DataSubmessageTrait, RtpsSubmessageType},
             RtpsMessage, RtpsMessageHeader,
         },
         structure::types::{

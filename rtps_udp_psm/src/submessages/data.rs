@@ -1,6 +1,6 @@
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{
-    submessages::DataSubmessage, types::SubmessageFlag, RtpsSubmessageHeader, Submessage,
+    submessages::DataSubmessageTrait, types::SubmessageFlag, RtpsSubmessageHeader, Submessage,
 };
 use std::io::Write;
 
@@ -100,7 +100,7 @@ impl<'a, 'de:'a> crate::deserialize::Deserialize<'de> for DataSubmesageUdp<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::DataSubmessage<'a> for DataSubmesageUdp<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::DataSubmessageTrait<'a> for DataSubmesageUdp<'a> {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSubmessageElementType = SequenceNumberUdp;
     type ParameterListSubmessageElementType = ParameterListUdp<'a>;
