@@ -24,7 +24,7 @@ pub struct ULongSubmessageElement {
 pub struct LongSubmessageElement {
     pub value: i32,
 }
-
+#[derive(Debug, PartialEq)]
 pub struct GuidPrefixSubmessageElement {
     pub value: GuidPrefix,
 }
@@ -33,19 +33,22 @@ pub struct GuidPrefixSubmessageElement {
 pub struct EntityIdSubmessageElement {
     pub value: EntityId,
 }
-
+#[derive(Debug, PartialEq)]
 pub struct VendorIdSubmessageElement {
     pub value: VendorId,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ProtocolVersionSubmessageElement {
     pub value: ProtocolVersion,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct SequenceNumberSubmessageElement {
     pub value: SequenceNumber,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct SequenceNumberSetSubmessageElement<T> {
     pub base: SequenceNumber,
     pub set: T,
