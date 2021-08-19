@@ -1,4 +1,7 @@
-use rust_rtps_pim::messages::submessages::RtpsSubmessagePIM;
+use rust_rtps_pim::messages::{
+    submessage_elements::Parameter,
+    submessages::{DataSubmessage, RtpsSubmessagePIM},
+};
 
 use crate::submessages::{
     ack_nack::AckNackUdp, data::DataSubmesageUdp, data_frag::DataFragUdp, gap::GapSubmessageUdp,
@@ -12,7 +15,7 @@ pub struct RtpsUdpPsm;
 
 impl<'a> RtpsSubmessagePIM<'a> for RtpsUdpPsm {
     type AckNackSubmessageType = AckNackUdp;
-    type DataSubmessageType = DataSubmesageUdp<'a>;
+    type DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>;
     type DataFragSubmessageType = DataFragUdp<'a>;
     type GapSubmessageType = GapSubmessageUdp;
     type HeartbeatSubmessageType = HeartbeatSubmessageUdp;

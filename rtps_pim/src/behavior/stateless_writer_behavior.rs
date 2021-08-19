@@ -1,3 +1,5 @@
+use core::marker::PhantomData;
+
 use crate::{
     behavior::writer::{
         reader_locator::RtpsReaderLocatorOperations, stateless_writer::RtpsStatelessWriter,
@@ -5,11 +7,12 @@ use crate::{
     },
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementType, ParameterListSubmessageElementType,
-            SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
-            SerializedDataSubmessageElementType,
+            EntityIdSubmessageElement, EntityIdSubmessageElementType, Parameter,
+            ParameterListSubmessageElement, SequenceNumberSetSubmessageElementType,
+            SequenceNumberSubmessageElement, SequenceNumberSubmessageElementType,
+            SerializedDataSubmessageElement,
         },
-        submessages::{DataSubmessageTrait, GapSubmessageTrait},
+        submessages::{DataSubmessage, GapSubmessageTrait},
     },
     structure::{
         types::{ChangeKind, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
@@ -17,29 +20,28 @@ use crate::{
     },
 };
 
-pub trait StatelessWriterBehavior<'a, Data, Gap> {
+pub trait StatelessWriterBehavior<'a, Gap> {
     type ReaderLocator;
 
     fn send_unsent_data(
         &'a mut self,
-        send_data: impl FnMut(&Self::ReaderLocator, Data),
+        send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
         send_gap: impl FnMut(&Self::ReaderLocator, Gap),
     );
 }
 
-impl<'a, Data, Gap, T> StatelessWriterBehavior<'a, Data, Gap> for T
+impl<'a, Gap, T> StatelessWriterBehavior<'a, Gap> for T
 where
     T: RtpsStatelessWriter + RtpsWriter + RtpsEndpoint,
     T::ReaderLocatorType: RtpsReaderLocatorOperations,
     T::HistoryCacheType: RtpsHistoryCache,
-    Data: DataSubmessageTrait<'a>,
     Gap: GapSubmessageTrait,
 {
     type ReaderLocator = T::ReaderLocatorType;
 
     fn send_unsent_data(
         &'a mut self,
-        mut send_data: impl FnMut(&Self::ReaderLocator, Data),
+        mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a[Parameter<'a>]>),
         mut send_gap: impl FnMut(&Self::ReaderLocator, Gap),
     ) {
         let reliability_level = *self.reliability_level();
@@ -60,16 +62,15 @@ where
     }
 }
 
-fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
+fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Gap>(
     reader_locator: &mut ReaderLocator,
     writer_cache: &'a WriterCache,
     last_change_sequence_number: &SequenceNumber,
-    send_data: &mut impl FnMut(&ReaderLocator, Data),
+    send_data: &mut impl FnMut(&ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
     send_gap: &mut impl FnMut(&ReaderLocator, Gap),
 ) where
     ReaderLocator: RtpsReaderLocatorOperations,
     WriterCache: RtpsHistoryCache,
-    Data: DataSubmessageTrait<'a>,
     Gap: GapSubmessageTrait,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
@@ -82,14 +83,23 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
                 _ => todo!(),
             };
             let non_standard_payload_flag = false;
-            let reader_id = Data::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-            let writer_id =
-                Data::EntityIdSubmessageElementType::new(change.writer_guid().entity_id());
-            let writer_sn =
-                Data::SequenceNumberSubmessageElementType::new(change.sequence_number());
-            let inline_qos = Data::ParameterListSubmessageElementType::new(change.inline_qos());
-            let serialized_payload = Data::SerializedDataSubmessageElementType::new(change.data_value());
-            let data_submessage = Data::new(
+            let reader_id = EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            };
+            let writer_id = EntityIdSubmessageElement {
+                value: *change.writer_guid().entity_id(),
+            };
+            let writer_sn = SequenceNumberSubmessageElement {
+                value: *change.sequence_number(),
+            };
+            let inline_qos = ParameterListSubmessageElement {
+                parameter: *change.inline_qos(),
+                phantom: PhantomData,
+            };
+            let serialized_payload = SerializedDataSubmessageElement {
+                value: change.data_value(),
+            };
+            let data_submessage = DataSubmessage {
                 endianness_flag,
                 inline_qos_flag,
                 data_flag,
@@ -100,7 +110,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Data, Gap>(
                 writer_sn,
                 inline_qos,
                 serialized_payload,
-            );
+            };
             send_data(reader_locator, data_submessage)
         } else {
             let endianness_flag = true;
