@@ -7,6 +7,95 @@ use crate::structure::types::{
 };
 
 use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
+use core::marker::PhantomData;
+
+pub struct UShortSubmessageElement {
+    pub value: u16,
+}
+
+pub struct ShortSubmessageElement {
+    pub value: u16,
+}
+
+pub struct ULongSubmessageElement {
+    pub value: u32,
+}
+
+pub struct LongSubmessageElement {
+    pub value: i32,
+}
+
+pub struct GuidPrefixSubmessageElement {
+    pub value: GuidPrefix,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct EntityIdSubmessageElement {
+    pub value: EntityId,
+}
+
+pub struct VendorIdSubmessageElement {
+    pub value: VendorId,
+}
+
+pub struct ProtocolVersionSubmessageElement {
+    pub value: ProtocolVersion,
+}
+
+pub struct SequenceNumberSubmessageElement {
+    pub value: SequenceNumber,
+}
+
+pub struct SequenceNumberSetSubmessageElement<T> {
+    pub base: SequenceNumber,
+    pub set: T,
+}
+
+pub struct FragmentNumberSubmessageElement {
+    pub value: FragmentNumber,
+}
+
+pub struct FragmentNumberSetSubmessageElement<T> {
+    pub base: FragmentNumber,
+    pub set: T,
+}
+
+pub struct TimestampSubmessageElement {
+    pub value: Time,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Parameter<'a> {
+    pub parameter_id: ParameterId,
+    pub length: i16,
+    pub value: &'a [u8],
+}
+
+pub struct ParameterListSubmessageElement<'a, T> {
+    pub parameter: T,
+    pub phantom: PhantomData<&'a ()>,
+}
+
+pub struct CountSubmessageElement {
+    pub value: Count,
+}
+
+pub struct LocatorListSubmessageElement<T> {
+    pub value: T,
+}
+
+pub struct SerializedDataSubmessageElement<'a> {
+    pub value: &'a [u8],
+}
+
+pub struct SerializedDataFragmentSubmessageElement<'a> {
+    pub value: &'a [u8],
+}
+
+pub struct GroupDigestSubmessageElement {
+    pub value: GroupDigest,
+}
+
 
 pub trait UShortSubmessageElementType {
     fn new(value: &u16) -> Self;
@@ -76,13 +165,6 @@ pub trait FragmentNumberSetSubmessageElementType {
 pub trait TimestampSubmessageElementType {
     fn new(value: &Time) -> Self;
     fn value(&self) -> Time;
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Parameter<'a> {
-    pub parameter_id: ParameterId,
-    pub length: i16,
-    pub value: &'a [u8],
 }
 
 pub trait ParameterListSubmessageElementType<'a> {
