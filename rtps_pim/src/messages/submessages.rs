@@ -77,35 +77,6 @@ pub trait AckNackSubmessageTrait {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait DataSubmessageTrait<'a> {
-    type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
-    type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
-    type ParameterListSubmessageElementType: ParameterListSubmessageElementType<'a>;
-    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>;
-
-    fn new(
-        endianness_flag: SubmessageFlag,
-        inline_qos_flag: SubmessageFlag,
-        data_flag: SubmessageFlag,
-        key_flag: SubmessageFlag,
-        non_standard_payload_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        writer_sn: Self::SequenceNumberSubmessageElementType,
-        inline_qos: Self::ParameterListSubmessageElementType,
-        serialized_payload: Self::SerializedDataSubmessageElementType,
-    ) -> Self;
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn inline_qos_flag(&self) -> SubmessageFlag;
-    fn data_flag(&self) -> SubmessageFlag;
-    fn key_flag(&self) -> SubmessageFlag;
-    fn non_standard_payload_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
-    fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType;
-    fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
-}
 
 pub struct DataFragSubmessage<'a, P> {
     pub endianness_flag: SubmessageFlag,

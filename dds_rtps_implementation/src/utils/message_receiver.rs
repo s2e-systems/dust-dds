@@ -1,18 +1,7 @@
-use rust_rtps_pim::{
-    behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
-    messages::{
-        submessage_elements::TimestampSubmessageElementType,
-        submessages::{
-            DataSubmessageTrait, InfoTimestampSubmessageTrait, RtpsSubmessagePIM, RtpsSubmessageType,
-        },
-        types::{Time, TIME_INVALID},
-        RtpsMessage,
-    },
-    structure::types::{
+use rust_rtps_pim::{behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior}, messages::{RtpsMessage, submessage_elements::{Parameter, TimestampSubmessageElementType}, submessages::{DataSubmessage, InfoTimestampSubmessage, InfoTimestampSubmessageTrait, RtpsSubmessagePIM, RtpsSubmessageType}, types::{Time, TIME_INVALID}}, structure::types::{
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
-    },
-};
+    }};
 
 use crate::dds_impl::subscriber_impl::SubscriberStorage;
 
@@ -51,8 +40,8 @@ impl MessageReceiver {
         message: &'a Message,
     ) where
         Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
-        PSM: RtpsSubmessagePIM<'a> + 'a,
-        PSM::DataSubmessageType: DataSubmessageTrait<'a>,
+        PSM: RtpsSubmessagePIM<'a, DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>>
+            + 'a,
         PSM::InfoTimestampSubmessageType: InfoTimestampSubmessageTrait,
     {
         self.dest_guid_prefix = participant_guid_prefix;
@@ -90,13 +79,11 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a, Data>(
+    fn process_data<'a>(
         &mut self,
-        data: &'a Data,
+        data: &'a DataSubmessage<&'a [Parameter<'a>]>,
         reader_group_list: &'a [RtpsShared<SubscriberStorage>],
-    ) where
-        Data: DataSubmessageTrait<'a>,
-    {
+    ) {
         for subscriber in reader_group_list {
             let subscriber_lock = subscriber.lock();
             for reader in subscriber_lock.readers() {

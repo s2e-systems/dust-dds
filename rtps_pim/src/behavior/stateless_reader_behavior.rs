@@ -1,11 +1,5 @@
 use crate::{
-    messages::{
-        submessage_elements::{
-            EntityIdSubmessageElementType, ParameterListSubmessageElementType,
-            SequenceNumberSubmessageElementType, SerializedDataSubmessageElementType,
-        },
-        submessages::DataSubmessageTrait,
-    },
+    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
         RtpsCacheChange, RtpsEntity, RtpsHistoryCache,
@@ -14,30 +8,30 @@ use crate::{
 
 use super::reader::reader::RtpsReader;
 
-pub trait StatelessReaderBehavior<Data> {
-    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data);
+pub trait StatelessReaderBehavior<P> {
+    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>);
 }
 
-impl<'a, 'b, T, Data> StatelessReaderBehavior<Data> for T
+impl<'a, 'b, T, P> StatelessReaderBehavior<P> for T
 where
     T: RtpsReader + RtpsEntity,
     T::HistoryCacheType: RtpsHistoryCache,
-    Data: DataSubmessageTrait<'b>,
+    P: AsRef<[Parameter<'a>]>,
 {
-    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &Data) {
-        let reader_id = data.reader_id().value();
+    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>) {
+        let reader_id = data.reader_id.value;
         if &reader_id == self.guid().entity_id() || reader_id == ENTITYID_UNKNOWN {
             let reader_cache = self.reader_cache_mut();
-            let kind = match (data.data_flag(), data.key_flag()) {
+            let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
                 _ => todo!(),
             };
-            let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
+            let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
             let instance_handle = 0;
-            let sequence_number = data.writer_sn().value();
-            let data_value = data.serialized_payload().value();
-            let inline_qos = data.inline_qos().parameter();
+            let sequence_number = data.writer_sn.value;
+            let data_value = data.serialized_payload.value;
+            let inline_qos = data.inline_qos.parameter.as_ref();
             let a_change = RtpsCacheChange::new(
                 kind,
                 writer_guid,
@@ -53,10 +47,12 @@ where
 
 #[cfg(test)]
 mod tests {
+    use core::marker::PhantomData;
+
     use crate::{
-        messages::{
-            submessage_elements::{Parameter, ParameterListSubmessageElementType},
-            types::SubmessageFlag,
+        messages::submessage_elements::{
+            EntityIdSubmessageElement, ParameterListSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
         },
         structure::types::{
             EntityId, InstanceHandle, SequenceNumber, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
@@ -149,124 +145,6 @@ mod tests {
         }
     }
 
-    pub struct MockEntityIdSubmessageElement(EntityId);
-
-    impl EntityIdSubmessageElementType for MockEntityIdSubmessageElement {
-        fn new(_value: &crate::structure::types::EntityId) -> Self {
-            todo!()
-        }
-
-        fn value(&self) -> crate::structure::types::EntityId {
-            self.0
-        }
-    }
-    pub struct MockSequenceNumberSubmessageElement(SequenceNumber);
-
-    impl SequenceNumberSubmessageElementType for MockSequenceNumberSubmessageElement {
-        fn new(_value: &crate::structure::types::SequenceNumber) -> Self {
-            todo!()
-        }
-
-        fn value(&self) -> crate::structure::types::SequenceNumber {
-            self.0
-        }
-    }
-
-    pub struct MockParameterListSubmessageElement;
-
-    impl<'a> ParameterListSubmessageElementType<'a> for MockParameterListSubmessageElement {
-        fn new(_parameter: &[crate::messages::submessage_elements::Parameter]) -> Self {
-            todo!()
-        }
-
-        fn parameter(&self) -> &[Parameter<'a>] {
-            &[]
-        }
-    }
-
-    pub struct MockSerializedDataSubmessageElement<'a>(&'a [u8]);
-
-    impl<'a> SerializedDataSubmessageElementType<'a> for MockSerializedDataSubmessageElement<'a> {
-        fn new(_value: &'a [u8]) -> Self {
-            todo!()
-        }
-
-        fn value(&self) -> &'a [u8] {
-            self.0
-        }
-    }
-
-    pub struct MockDataSubmessage<'a> {
-        data_flag: SubmessageFlag,
-        key_flag: SubmessageFlag,
-        reader_id: MockEntityIdSubmessageElement,
-        writer_id: MockEntityIdSubmessageElement,
-        writer_sn: MockSequenceNumberSubmessageElement,
-        serialized_payload: MockSerializedDataSubmessageElement<'a>,
-    }
-
-    impl<'a> DataSubmessageTrait<'a> for MockDataSubmessage<'a> {
-        type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
-        type SequenceNumberSubmessageElementType = MockSequenceNumberSubmessageElement;
-        type ParameterListSubmessageElementType = MockParameterListSubmessageElement;
-        type SerializedDataSubmessageElementType = MockSerializedDataSubmessageElement<'a>;
-
-        fn new(
-            _endianness_flag: crate::messages::types::SubmessageFlag,
-            _inline_qos_flag: crate::messages::types::SubmessageFlag,
-            _data_flag: crate::messages::types::SubmessageFlag,
-            _key_flag: crate::messages::types::SubmessageFlag,
-            _non_standard_payload_flag: crate::messages::types::SubmessageFlag,
-            _reader_id: Self::EntityIdSubmessageElementType,
-            _writer_id: Self::EntityIdSubmessageElementType,
-            _writer_sn: Self::SequenceNumberSubmessageElementType,
-            _inline_qos: Self::ParameterListSubmessageElementType,
-            _serialized_payload: Self::SerializedDataSubmessageElementType,
-        ) -> Self {
-            todo!()
-        }
-
-        fn endianness_flag(&self) -> crate::messages::types::SubmessageFlag {
-            todo!()
-        }
-
-        fn inline_qos_flag(&self) -> crate::messages::types::SubmessageFlag {
-            todo!()
-        }
-
-        fn data_flag(&self) -> crate::messages::types::SubmessageFlag {
-            self.data_flag
-        }
-
-        fn key_flag(&self) -> crate::messages::types::SubmessageFlag {
-            self.key_flag
-        }
-
-        fn non_standard_payload_flag(&self) -> crate::messages::types::SubmessageFlag {
-            todo!()
-        }
-
-        fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
-            &self.reader_id
-        }
-
-        fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
-            &self.writer_id
-        }
-
-        fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
-            &self.writer_sn
-        }
-
-        fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
-            &MockParameterListSubmessageElement
-        }
-
-        fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
-            &self.serialized_payload
-        }
-    }
-
     #[test]
     fn receive_data_one_cache_change() {
         let mut stateless_reader = MockStatelessReader {
@@ -278,13 +156,23 @@ mod tests {
             crate::structure::types::EntityKind::BuiltInWriterWithKey,
         );
         let message_sequence_number = 1;
-        let data = MockDataSubmessage {
+        let data = DataSubmessage {
+            endianness_flag: false,
+            inline_qos_flag: false,
+            non_standard_payload_flag: false,
             data_flag: true,
             key_flag: false,
-            reader_id: MockEntityIdSubmessageElement(ENTITYID_UNKNOWN),
-            writer_id: MockEntityIdSubmessageElement(writer_entity_id),
-            writer_sn: MockSequenceNumberSubmessageElement(message_sequence_number),
-            serialized_payload: MockSerializedDataSubmessageElement(&[3]),
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: writer_entity_id,
+            },
+            writer_sn: SequenceNumberSubmessageElement {
+                value: message_sequence_number,
+            },
+            serialized_payload: SerializedDataSubmessageElement { value: &[3] },
+            inline_qos: ParameterListSubmessageElement { parameter: [], phantom: PhantomData },
         };
         stateless_reader.receive_data(source_guid_prefix, &data);
 
