@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     messages::{
         submessage_elements::TimestampSubmessageElementType,
         submessages::{
-            DataSubmessageTrait, InfoTimestampSubmessage, RtpsSubmessagePIM, RtpsSubmessageType,
+            DataSubmessageTrait, InfoTimestampSubmessageTrait, RtpsSubmessagePIM, RtpsSubmessageType,
         },
         types::{Time, TIME_INVALID},
         RtpsMessage,
@@ -53,7 +53,7 @@ impl MessageReceiver {
         Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
         PSM: RtpsSubmessagePIM<'a> + 'a,
         PSM::DataSubmessageType: DataSubmessageTrait<'a>,
-        PSM::InfoTimestampSubmessageType: InfoTimestampSubmessage,
+        PSM::InfoTimestampSubmessageType: InfoTimestampSubmessageTrait,
     {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header().version;
@@ -114,7 +114,7 @@ impl MessageReceiver {
 
     fn process_info_timestamp_submessage<InfoTimestamp>(&mut self, info_timestamp: &InfoTimestamp)
     where
-        InfoTimestamp: InfoTimestampSubmessage,
+        InfoTimestamp: InfoTimestampSubmessageTrait,
     {
         if info_timestamp.invalidate_flag() == false {
             self.have_timestamp = true;

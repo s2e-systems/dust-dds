@@ -17,7 +17,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for InfoReplyUdp {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::InfoReplySubmessage for InfoReplyUdp {
+impl<'a> rust_rtps_pim::messages::submessages::InfoReplySubmessageTrait for InfoReplyUdp {
     type LocatorListSubmessageElementType = LocatorListUdp;
 
     fn new(

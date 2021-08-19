@@ -18,7 +18,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for InfoSourceUdp {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessage for InfoSourceUdp {
+impl<'a> rust_rtps_pim::messages::submessages::InfoSourceSubmessageTrait for InfoSourceUdp {
     type ProtocolVersionSubmessageElementType = ProtocolVersionUdp;
     type VendorIdSubmessageElementType = VendorIdUdp;
     type GuidPrefixSubmessageElementType = GuidPrefixUdp;

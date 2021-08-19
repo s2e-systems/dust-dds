@@ -18,7 +18,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for InfoTimestampUdp {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::InfoTimestampSubmessage for InfoTimestampUdp {
+impl<'a> rust_rtps_pim::messages::submessages::InfoTimestampSubmessageTrait for InfoTimestampUdp {
     type TimestampSubmessageElementType = TimeUdp;
 
     fn new(
