@@ -6,7 +6,6 @@ use rust_rtps_pim::{
         submessage_elements::{Parameter, ParameterListSubmessageElement},
         types::ParameterId,
     },
-    structure::types::Locator,
 };
 
 use crate::{
