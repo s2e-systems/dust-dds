@@ -13,6 +13,8 @@ pub struct RtpsMessageHeader {
     pub vendor_id: VendorId,
     pub guid_prefix: GuidPrefix,
 }
+
+#[derive(Debug, PartialEq)]
 pub struct RtpsSubmessageHeader {
     pub submessage_id: SubmessageKind,
     pub flags: [SubmessageFlag; 8],
