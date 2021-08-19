@@ -135,13 +135,10 @@ mod tests {
     use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
 
     use super::*;
-    use rust_rtps_pim::{
-        messages::submessage_elements::{
+    use rust_rtps_pim::{messages::{submessage_elements::{
             EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-        },
-        structure::types::{EntityId, EntityKind},
-    };
+        }, types::ParameterId}, structure::types::{EntityId, EntityKind}};
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
@@ -187,6 +184,145 @@ mod tests {
     }
 
     #[test]
+    fn serialize_with_inline_qos_no_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = true;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+        };
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: vec![parameter_1, parameter_2],
+            phantom: PhantomData
+        };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+
+        let submessage = DataSubmessage{
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        };
+        #[rustfmt::skip]
+        assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
+                0x15, 0b_0000_0011, 40, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+                10, 11, 12, 13, // inlineQos: value_1[length_1]
+                7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+                20, 21, 22, 23, // inlineQos: value_2[length_2]
+                1, 0, 0, 0, // inlineQos: Sentinel
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_no_inline_qos_with_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+        };
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: vec![],
+            phantom: PhantomData
+        };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[1_u8, 2, 3, 4] };
+        let submessage = DataSubmessage{
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        };
+        #[rustfmt::skip]
+        assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
+                0x15, 0b_0000_0101, 24, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                1, 2, 3, 4, // serialized payload
+            ]
+        );
+    }
+
+    #[test]
+    fn serialize_no_inline_qos_with_serialized_payload_non_multiple_of_4() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+        };
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: vec![],
+            phantom: PhantomData
+        };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[1_u8, 2, 3] };
+        let submessage = DataSubmessage{
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        };
+        #[rustfmt::skip]
+        assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
+                0x15, 0b_0000_0101, 24, 0, // Submessage header
+                0, 0, 16, 0, // extraFlags, octetsToInlineQos
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // writerSN: high
+                5, 0, 0, 0, // writerSN: low
+                1, 2, 3, 0, // serialized payload
+            ]
+        );
+    }
+
+    #[test]
     fn deserialize_no_inline_qos_no_serialized_payload() {
         let endianness_flag = true;
         let inline_qos_flag = false;
@@ -225,6 +361,101 @@ mod tests {
             6, 7, 8, 9, // writerId: value[4]
             0, 0, 0, 0, // writerSN: high
             5, 0, 0, 0, // writerSN: low
+        ]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+
+    #[test]
+    fn deserialize_no_inline_qos_with_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = false;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+        };
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: vec![],
+            phantom: PhantomData,
+        };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[1, 2, 3, 4] };
+        let expected = DataSubmessage{
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        };
+        #[rustfmt::skip]
+        let result = from_bytes_le(&[
+            0x15, 0b_0000_0101, 24, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+            1, 2, 3, 4, // SerializedPayload
+        ]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_with_inline_qos_no_serialized_payload() {
+        let endianness_flag = true;
+        let inline_qos_flag = true;
+        let data_flag = false;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+        };
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: vec![parameter_1, parameter_2],
+            phantom: PhantomData
+        };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+        let expected = DataSubmessage {
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        };
+        #[rustfmt::skip]
+        let result = from_bytes_le(&[
+            0x15, 0b_0000_0011, 40, 0, // Submessage header
+            0, 0, 16, 0, // extraFlags, octetsToInlineQos
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // writerSN: high
+            5, 0, 0, 0, // writerSN: low
+            6, 0, 4, 0, // inlineQos: parameterId_1, length_1
+            10, 11, 12, 13, // inlineQos: value_1[length_1]
+            7, 0, 4, 0, // inlineQos: parameterId_2, length_2
+            20, 21, 22, 23, // inlineQos: value_2[length_2]
+            1, 0, 0, 0, // inlineQos: Sentinel
         ]).unwrap();
         assert_eq!(expected, result);
     }
