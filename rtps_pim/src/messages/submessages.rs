@@ -1,4 +1,15 @@
-use super::{submessage_elements::{CountSubmessageElement, EntityIdSubmessageElement, EntityIdSubmessageElementType, FragmentNumberSetSubmessageElement, FragmentNumberSubmessageElement, GuidPrefixSubmessageElement, LocatorListSubmessageElement, ParameterListSubmessageElement, ParameterListSubmessageElementType, ProtocolVersionSubmessageElement, SequenceNumberSetSubmessageElement, SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElement, SequenceNumberSubmessageElementType, SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement, SerializedDataSubmessageElementType, TimestampSubmessageElement, TimestampSubmessageElementType, ULongSubmessageElement, UShortSubmessageElement, VendorIdSubmessageElement}, types::SubmessageFlag};
+use super::{
+    submessage_elements::{
+        CountSubmessageElement, EntityIdSubmessageElement, FragmentNumberSetSubmessageElement,
+        FragmentNumberSubmessageElement, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
+        ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
+        SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
+        SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
+        TimestampSubmessageElement, TimestampSubmessageElementType, ULongSubmessageElement,
+        UShortSubmessageElement, VendorIdSubmessageElement,
+    },
+    types::SubmessageFlag,
+};
 
 pub trait RtpsSubmessagePIM<'a> {
     type AckNackSubmessageType;
@@ -76,7 +87,6 @@ pub trait AckNackSubmessageTrait {
     fn reader_sn_state(&self) -> &Self::SequenceNumberSetSubmessageElementType;
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
-
 
 pub struct DataFragSubmessage<'a, P> {
     pub endianness_flag: SubmessageFlag,
@@ -203,27 +213,6 @@ pub trait DataFragSubmessageTrait {
     fn fragment_size(&self) -> &Self::UShortSubmessageElementType;
     fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType;
     fn serialized_payload(&self) -> &Self::SerializedDataFragmentSubmessageElementType;
-}
-
-pub trait GapSubmessageTrait {
-    type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
-    type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
-    type SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType;
-
-    fn new(
-        endianness_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        gap_start: Self::SequenceNumberSubmessageElementType,
-        gap_list: Self::SequenceNumberSetSubmessageElementType,
-    ) -> Self;
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn gap_start(&self) -> &Self::SequenceNumberSubmessageElementType;
-    fn gap_list(&self) -> &Self::SequenceNumberSetSubmessageElementType;
-    // gap_start_gsn: submessage_elements::SequenceNumber,
-    // gap_end_gsn: submessage_elements::SequenceNumber,
 }
 
 pub trait HeartbeatSubmessageTrait {

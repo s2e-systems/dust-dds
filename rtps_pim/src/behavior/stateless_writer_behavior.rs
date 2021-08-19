@@ -1,4 +1,4 @@
-use core::marker::PhantomData;
+use core::{iter::FromIterator, marker::PhantomData};
 
 use crate::{
     behavior::writer::{
@@ -7,12 +7,11 @@ use crate::{
     },
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElement, EntityIdSubmessageElementType, Parameter,
-            ParameterListSubmessageElement, SequenceNumberSetSubmessageElementType,
-            SequenceNumberSubmessageElement, SequenceNumberSubmessageElementType,
+            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+            SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
             SerializedDataSubmessageElement,
         },
-        submessages::{DataSubmessage, GapSubmessageTrait},
+        submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
         types::{ChangeKind, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
@@ -20,29 +19,29 @@ use crate::{
     },
 };
 
-pub trait StatelessWriterBehavior<'a, Gap> {
+pub trait StatelessWriterBehavior<'a, S> {
     type ReaderLocator;
 
     fn send_unsent_data(
         &'a mut self,
         send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
-        send_gap: impl FnMut(&Self::ReaderLocator, Gap),
+        send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
     );
 }
 
-impl<'a, Gap, T> StatelessWriterBehavior<'a, Gap> for T
+impl<'a, S, T> StatelessWriterBehavior<'a, S> for T
 where
     T: RtpsStatelessWriter + RtpsWriter + RtpsEndpoint,
     T::ReaderLocatorType: RtpsReaderLocatorOperations,
     T::HistoryCacheType: RtpsHistoryCache,
-    Gap: GapSubmessageTrait,
+    S: FromIterator<SequenceNumber>,
 {
     type ReaderLocator = T::ReaderLocatorType;
 
     fn send_unsent_data(
         &'a mut self,
-        mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a[Parameter<'a>]>),
-        mut send_gap: impl FnMut(&Self::ReaderLocator, Gap),
+        mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
+        mut send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
     ) {
         let reliability_level = *self.reliability_level();
         let last_change_sequence_number = *self.last_change_sequence_number();
@@ -62,16 +61,16 @@ where
     }
 }
 
-fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Gap>(
+fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, S>(
     reader_locator: &mut ReaderLocator,
     writer_cache: &'a WriterCache,
     last_change_sequence_number: &SequenceNumber,
     send_data: &mut impl FnMut(&ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
-    send_gap: &mut impl FnMut(&ReaderLocator, Gap),
+    send_gap: &mut impl FnMut(&ReaderLocator, GapSubmessage<S>),
 ) where
     ReaderLocator: RtpsReaderLocatorOperations,
     WriterCache: RtpsHistoryCache,
-    Gap: GapSubmessageTrait,
+    S: FromIterator<SequenceNumber>,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
@@ -114,13 +113,22 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, Gap>(
             send_data(reader_locator, data_submessage)
         } else {
             let endianness_flag = true;
-            let reader_id = Gap::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-            let writer_id = Gap::EntityIdSubmessageElementType::new(&ENTITYID_UNKNOWN);
-            let gap_start = Gap::SequenceNumberSubmessageElementType::new(&seq_num);
-            let set = &[];
-            let gap_list = Gap::SequenceNumberSetSubmessageElementType::new(&seq_num, set);
-            let gap_submessage =
-                Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+            let reader_id = EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            };
+            let writer_id = EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            };
+            let gap_start = SequenceNumberSubmessageElement { value: seq_num };
+            let set = core::iter::empty().collect();
+            let gap_list = SequenceNumberSetSubmessageElement { base: seq_num, set };
+            let gap_submessage = GapSubmessage {
+                endianness_flag,
+                reader_id,
+                writer_id,
+                gap_start,
+                gap_list,
+            };
             send_gap(reader_locator, gap_submessage)
         }
     }
