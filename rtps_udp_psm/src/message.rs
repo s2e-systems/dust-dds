@@ -146,7 +146,7 @@ mod tests {
     };
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
     use rust_rtps_pim::messages::{
-        submessage_elements::SequenceNumberSubmessageElementType, submessages::GapSubmessageTrait,
+        submessage_elements::SequenceNumberSubmessageElementType, submessages::GapSubmessage,
     };
 
     #[test]

@@ -36,19 +36,19 @@ impl<'de> Deserialize<'de> for GroupDigestSubmessageElement {
 }
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    // use super::*;
+    // use crate::deserialize::from_bytes_le;
+    // use crate::serialize::to_bytes_le;
 
-    #[test]
-    fn serialize_guid_prefix() {
-        let data = GroupDigestSubmessageElement { value: () };
-        assert_eq!(to_bytes_le(&data).unwrap(), vec![]);
-    }
+    // #[test]
+    // fn serialize_guid_prefix() {
+    //     let data = GroupDigestSubmessageElement { value: () };
+    //     assert_eq!(to_bytes_le(&data).unwrap(), vec![]);
+    // }
 
-    #[test]
-    fn deserialize_guid_prefix() {
-        let expected = GroupDigestSubmessageElement { value: () };
-        assert_eq!(expected, from_bytes_le(&[]).unwrap());
-    }
+    // #[test]
+    // fn deserialize_guid_prefix() {
+    //     let expected = GroupDigestSubmessageElement { value: () };
+    //     assert_eq!(expected, from_bytes_le(&[]).unwrap());
+    // }
 }

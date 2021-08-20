@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, iter::FromIterator};
 
 use rust_rtps_pim::{
     behavior::{
@@ -7,10 +7,13 @@ use rust_rtps_pim::{
     },
     messages::{
         submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessageTrait, RtpsSubmessagePIM, RtpsSubmessageType},
+        submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
         RtpsMessage, RtpsMessageHeader,
     },
-    structure::{types::Locator, RtpsEntity, RtpsParticipant},
+    structure::{
+        types::{Locator, SequenceNumber},
+        RtpsEntity, RtpsParticipant,
+    },
 };
 
 use crate::rtps_impl::rtps_writer_impl::RtpsWriterImpl;
@@ -24,11 +27,16 @@ where
     fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)>;
 }
 
-impl<'a, PSM, T> RtpsSubmessageSender<'a, PSM> for T
+impl<'a, PSM, S, T> RtpsSubmessageSender<'a, PSM> for T
 where
-    T: StatelessWriterBehavior<'a, PSM::GapSubmessageType>,
+    T: StatelessWriterBehavior<'a, S>,
     T::ReaderLocator: RtpsReaderLocator,
-    PSM: RtpsSubmessagePIM<'a, DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>>,
+    PSM: RtpsSubmessagePIM<
+        'a,
+        DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>,
+        GapSubmessageType = GapSubmessage<S>,
+    >,
+    S: FromIterator<SequenceNumber>,
 {
     fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)> {
         let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)> = Vec::new();
@@ -67,16 +75,20 @@ where
     }
 }
 
-pub fn send_data<'a, Transport, PSM, Participant>(
+pub fn send_data<'a, Transport, PSM, Participant, S>(
     participant: &'a Participant,
     writer: &'a mut RtpsWriterImpl,
     transport: &'a mut Transport,
 ) where
     Transport: TransportWrite<'a>,
     Transport::Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
-    PSM: RtpsSubmessagePIM<'a, DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>>,
-    PSM::GapSubmessageType: GapSubmessageTrait,
+    PSM: RtpsSubmessagePIM<
+        'a,
+        DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>,
+        GapSubmessageType = GapSubmessage<S>,
+    >,
     Participant: RtpsParticipant + RtpsEntity,
+    S: FromIterator<SequenceNumber>,
 {
     let header = RtpsMessageHeader {
         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
@@ -100,7 +112,8 @@ mod tests {
         messages::{
             submessage_elements::{
                 EntityIdSubmessageElement, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+                SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
+                SerializedDataSubmessageElement,
             },
             submessages::{DataSubmessage, RtpsSubmessageType},
         },
@@ -116,7 +129,7 @@ mod tests {
         type AckNackSubmessageType = ();
         type DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>;
         type DataFragSubmessageType = ();
-        type GapSubmessageType = ();
+        type GapSubmessageType = GapSubmessage<Vec<SequenceNumber>>;
         type HeartbeatSubmessageType = ();
         type HeartbeatFragSubmessageType = ();
         type InfoDestinationSubmessageType = ();
@@ -143,13 +156,13 @@ mod tests {
     fn submessage_send_empty() {
         struct MockBehavior;
 
-        impl<'a> StatelessWriterBehavior<'a, ()> for MockBehavior {
+        impl<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>> for MockBehavior {
             type ReaderLocator = MockReaderLocator;
 
             fn send_unsent_data(
                 &'a mut self,
                 _send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
-                _send_gap: impl FnMut(&Self::ReaderLocator, ()),
+                _send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<Vec<SequenceNumber>>),
             ) {
             }
         }
@@ -205,13 +218,13 @@ mod tests {
             serialized_payload: SerializedDataSubmessageElement { value: &[4, 5, 6] },
         };
 
-        impl<'a> StatelessWriterBehavior<'a, ()> for MockBehavior {
+        impl<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>> for MockBehavior {
             type ReaderLocator = MockReaderLocator;
 
             fn send_unsent_data(
                 &'a mut self,
                 mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
-                _send_gap: impl FnMut(&Self::ReaderLocator, ()),
+                _send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<Vec<SequenceNumber>>),
             ) {
                 send_data(&MockReaderLocator(LOCATOR_INVALID), DATA_SUBMESSAGE1);
                 send_data(&MockReaderLocator(LOCATOR_INVALID), DATA_SUBMESSAGE2);
@@ -277,13 +290,28 @@ mod tests {
             serialized_payload: SerializedDataSubmessageElement { value: &[4, 5, 6] },
         };
 
-        impl<'a> StatelessWriterBehavior<'a, ()> for MockBehavior {
+        const GAP_SUBMESSAGE1: GapSubmessage<Vec<SequenceNumber>> = GapSubmessage {
+            endianness_flag: true,
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            gap_start: SequenceNumberSubmessageElement { value: 1 },
+            gap_list: SequenceNumberSetSubmessageElement {
+                base: 1,
+                set: vec![],
+            },
+        };
+
+        impl<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>> for MockBehavior {
             type ReaderLocator = MockReaderLocator;
 
             fn send_unsent_data(
                 &'a mut self,
                 mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
-                mut send_gap: impl FnMut(&Self::ReaderLocator, ()),
+                mut send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<Vec<SequenceNumber>>),
             ) {
                 let locator1 = Locator::new(0, 1, [0; 16]);
                 let locator2 = Locator::new(0, 2, [0; 16]);
@@ -291,9 +319,9 @@ mod tests {
                 send_data(&MockReaderLocator(locator1), DATA_SUBMESSAGE2);
 
                 send_data(&MockReaderLocator(locator2), DATA_SUBMESSAGE2);
-                send_gap(&MockReaderLocator(locator1), ());
+                send_gap(&MockReaderLocator(locator1), GAP_SUBMESSAGE1);
 
-                send_gap(&MockReaderLocator(locator2), ());
+                send_gap(&MockReaderLocator(locator2), GAP_SUBMESSAGE1);
             }
         }
 
@@ -315,13 +343,19 @@ mod tests {
             locator1_submessages[1],
             RtpsSubmessageType::Data(DATA_SUBMESSAGE2)
         );
-        assert_eq!(locator1_submessages[2], RtpsSubmessageType::Gap(()));
+        assert_eq!(
+            locator1_submessages[2],
+            RtpsSubmessageType::Gap(GAP_SUBMESSAGE1)
+        );
 
         assert_eq!(locator2_submessages.len(), 2);
         assert_eq!(
             locator2_submessages[0],
             RtpsSubmessageType::Data(DATA_SUBMESSAGE2)
         );
-        assert_eq!(locator2_submessages[1], RtpsSubmessageType::Gap(()));
+        assert_eq!(
+            locator2_submessages[1],
+            RtpsSubmessageType::Gap(GAP_SUBMESSAGE1)
+        );
     }
 }
