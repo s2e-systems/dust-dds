@@ -8,7 +8,7 @@ use rust_rtps_pim::{
     messages::{
         submessage_elements::Parameter,
         submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
-        RtpsMessageTrait, RtpsMessageHeader,
+        RtpsMessageHeader, RtpsMessageTrait,
     },
     structure::{
         types::{Locator, SequenceNumber},
@@ -20,26 +20,31 @@ use crate::rtps_impl::rtps_writer_impl::RtpsWriterImpl;
 
 use super::transport::TransportWrite;
 
-pub trait RtpsSubmessageSender<'a, PSM>
-where
-    PSM: RtpsSubmessagePIM<'a>,
-{
-    fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)>;
+pub trait RtpsSubmessageSender<'a, S> {
+    fn create_submessages(
+        &'a mut self,
+    ) -> Vec<(
+        Locator,
+        Vec<RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>,
+    )>;
 }
 
-impl<'a, PSM, S, T> RtpsSubmessageSender<'a, PSM> for T
+impl<'a, S, T> RtpsSubmessageSender<'a, S> for T
 where
     T: StatelessWriterBehavior<'a, S>,
     T::ReaderLocator: RtpsReaderLocator,
-    PSM: RtpsSubmessagePIM<
-        'a,
-        DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>,
-        GapSubmessageType = GapSubmessage<S>,
-    >,
     S: FromIterator<SequenceNumber>,
 {
-    fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)> {
-        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'a, PSM>>)> = Vec::new();
+    fn create_submessages(
+        &'a mut self,
+    ) -> Vec<(
+        Locator,
+        Vec<RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>,
+    )> {
+        let destined_submessages: Vec<(
+            Locator,
+            Vec<RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>,
+        )> = Vec::new();
         let destined_submessages = RefCell::new(destined_submessages);
         self.send_unsent_data(
             |reader_locator, data| {
@@ -48,12 +53,10 @@ where
                     .iter_mut()
                     .find(|(locator, _)| locator == reader_locator.locator())
                 {
-                    Some((_, submessages)) => {
-                        submessages.push(RtpsSubmessageType::<PSM>::Data(data))
-                    }
+                    Some((_, submessages)) => submessages.push(RtpsSubmessageType::Data(data)),
                     None => destined_submessages_borrow.push((
                         *reader_locator.locator(),
-                        vec![RtpsSubmessageType::<PSM>::Data(data)],
+                        vec![RtpsSubmessageType::Data(data)],
                     )),
                 }
             },
@@ -63,10 +66,10 @@ where
                     .iter_mut()
                     .find(|(locator, _)| locator == reader_locator.locator())
                 {
-                    Some((_, submessages)) => submessages.push(RtpsSubmessageType::<PSM>::Gap(gap)),
+                    Some((_, submessages)) => submessages.push(RtpsSubmessageType::Gap(gap)),
                     None => destined_submessages_borrow.push((
                         *reader_locator.locator(),
-                        vec![RtpsSubmessageType::<PSM>::Gap(gap)],
+                        vec![RtpsSubmessageType::Gap(gap)],
                     )),
                 }
             },
@@ -75,18 +78,14 @@ where
     }
 }
 
-pub fn send_data<'a, Transport, PSM, Participant, S>(
+pub fn send_data<'a, Transport, Participant, S>(
     participant: &'a Participant,
     writer: &'a mut RtpsWriterImpl,
     transport: &'a mut Transport,
 ) where
     Transport: TransportWrite<'a>,
-    Transport::Message: RtpsMessageTrait<SubmessageType = RtpsSubmessageType<'a, PSM>>,
-    PSM: RtpsSubmessagePIM<
-        'a,
-        DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>,
-        GapSubmessageType = GapSubmessage<S>,
-    >,
+    Transport::Message:
+        RtpsMessageTrait<SubmessageType = RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>,
     Participant: RtpsParticipant + RtpsEntity,
     S: FromIterator<SequenceNumber>,
 {
@@ -168,7 +167,7 @@ mod tests {
         }
 
         let mut writer = MockBehavior;
-        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, MockPSM>>)> =
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter],(),()>>)> =
             writer.create_submessages();
 
         assert!(destined_submessages.is_empty());
@@ -232,7 +231,7 @@ mod tests {
         }
 
         let mut writer = MockBehavior;
-        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, MockPSM>>)> =
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter],(),()>>)> =
             writer.create_submessages();
         let (dst_locator, submessages) = &destined_submessages[0];
 
@@ -326,7 +325,7 @@ mod tests {
         }
 
         let mut writer = MockBehavior;
-        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, MockPSM>>)> =
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter],(),()>>)> =
             writer.create_submessages();
 
         let locator1_submessages = &destined_submessages[0].1;

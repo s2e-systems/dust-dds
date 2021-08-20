@@ -27,24 +27,22 @@ pub trait RtpsSubmessagePIM<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageType<'a, PSM>
-where
-    PSM: RtpsSubmessagePIM<'a>,
-{
-    AckNack(PSM::AckNackSubmessageType),
-    Data(PSM::DataSubmessageType),
-    DataFrag(PSM::DataFragSubmessageType),
-    Gap(PSM::GapSubmessageType),
-    Heartbeat(PSM::HeartbeatSubmessageType),
-    HeartbeatFrag(PSM::HeartbeatFragSubmessageType),
-    InfoDestination(PSM::InfoDestinationSubmessageType),
-    InfoReply(PSM::InfoReplySubmessageType),
-    InfoSource(PSM::InfoSourceSubmessageType),
-    InfoTimestamp(PSM::InfoTimestampSubmessageType),
-    NackFrag(PSM::NackFragSubmessageType),
-    Pad(PSM::PadSubmessageType),
+pub enum RtpsSubmessageType<'a, S, P, L, F> {
+    AckNack(AckNackSubmessage<S>),
+    Data(DataSubmessage<'a, P>),
+    DataFrag(DataFragSubmessage<'a, P>),
+    Gap(GapSubmessage<S>),
+    Heartbeat(HeartbeatSubmessage),
+    HeartbeatFrag(HeartbeatFragSubmessage),
+    InfoDestination(InfoDestinationSubmessage),
+    InfoReply(InfoReplySubmessage<L>),
+    InfoSource(InfoSourceSubmessage),
+    InfoTimestamp(InfoTimestampSubmessage),
+    NackFrag(NackFragSubmessage<F>),
+    Pad(PadSubmessage),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct AckNackSubmessage<S> {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
@@ -88,6 +86,7 @@ pub trait AckNackSubmessageTrait {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
+#[derive(Debug, PartialEq)]
 pub struct DataFragSubmessage<'a, P> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
@@ -115,6 +114,7 @@ pub struct GapSubmessage<S> {
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct HeartbeatSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
@@ -131,6 +131,7 @@ pub struct HeartbeatSubmessage {
     // secure_writer_set: submessage_elements::GroupDigest,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct HeartbeatFragSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
@@ -140,11 +141,13 @@ pub struct HeartbeatFragSubmessage {
     pub count: CountSubmessageElement,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct InfoDestinationSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub guid_prefix: GuidPrefixSubmessageElement,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct InfoReplySubmessage<L> {
     pub endianness_flag: SubmessageFlag,
     pub multicast_flag: SubmessageFlag,
@@ -152,6 +155,7 @@ pub struct InfoReplySubmessage<L> {
     pub multicast_locator_list: LocatorListSubmessageElement<L>,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct InfoSourceSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub protocol_version: ProtocolVersionSubmessageElement,
@@ -159,12 +163,14 @@ pub struct InfoSourceSubmessage {
     pub guid_prefix: GuidPrefixSubmessageElement,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct InfoTimestampSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub invalidate_flag: SubmessageFlag,
     pub timestamp: TimestampSubmessageElement,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct NackFragSubmessage<F> {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
@@ -174,6 +180,7 @@ pub struct NackFragSubmessage<F> {
     pub count: CountSubmessageElement,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct PadSubmessage {}
 
 pub trait DataFragSubmessageTrait {

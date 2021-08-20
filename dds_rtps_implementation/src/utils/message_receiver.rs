@@ -10,7 +10,7 @@ use rust_rtps_pim::{
         RtpsMessageTrait,
     },
     structure::types::{
-        GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
+        GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
     },
 };
@@ -44,17 +44,22 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a, PSM, Message>(
+    pub fn process_message<'a, Message>(
         mut self,
         participant_guid_prefix: GuidPrefix,
         reader_group_list: &'a [RtpsShared<SubscriberStorage>],
         source_locator: Locator,
         message: &'a Message,
     ) where
-        Message: RtpsMessageTrait<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
-        PSM: RtpsSubmessagePIM<'a, DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>>
-            + 'a,
-        PSM::InfoTimestampSubmessageType: InfoTimestampSubmessageTrait,
+        Message: RtpsMessageTrait<
+                SubmessageType = RtpsSubmessageType<
+                    'a,
+                    Vec<SequenceNumber>,
+                    &'a [Parameter<'a>],
+                    (),
+                    (),
+                >,
+            > + 'a,
     {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header().version;
@@ -111,13 +116,10 @@ impl MessageReceiver {
         }
     }
 
-    fn process_info_timestamp_submessage<InfoTimestamp>(&mut self, info_timestamp: &InfoTimestamp)
-    where
-        InfoTimestamp: InfoTimestampSubmessageTrait,
-    {
-        if info_timestamp.invalidate_flag() == false {
+    fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
+        if info_timestamp.invalidate_flag == false {
             self.have_timestamp = true;
-            self.timestamp = info_timestamp.timestamp().value();
+            self.timestamp = info_timestamp.timestamp.value;
         } else {
             self.have_timestamp = false;
             self.timestamp = TIME_INVALID;
