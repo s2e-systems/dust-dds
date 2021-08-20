@@ -157,7 +157,7 @@ mod tests {
         messages::{
             submessage_elements::SequenceNumberSubmessageElementType,
             submessages::{DataSubmessage, RtpsSubmessageType},
-            RtpsMessage, RtpsMessageHeader,
+            RtpsMessageHeader, RtpsMessageTrait,
         },
         structure::types::{
             LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID, PROTOCOLVERSION_2_4, VENDOR_ID_S2E,

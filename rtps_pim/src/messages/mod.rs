@@ -21,11 +21,17 @@ pub struct RtpsSubmessageHeader {
     pub submessage_length: u16,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct RtpsMessage<M> {
+    pub header: RtpsMessageHeader,
+    pub submessages: M,
+}
+
 pub trait Submessage {
     fn submessage_header(&self) -> RtpsSubmessageHeader;
 }
 
-pub trait RtpsMessage {
+pub trait RtpsMessageTrait {
     type SubmessageType;
 
     fn new<T: IntoIterator<Item = Self::SubmessageType>>(

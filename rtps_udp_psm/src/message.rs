@@ -18,7 +18,7 @@ pub struct RtpsMessageUdp<'a> {
     submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
 }
 
-impl<'a> rust_rtps_pim::messages::RtpsMessage for RtpsMessageUdp<'a> {
+impl<'a> rust_rtps_pim::messages::RtpsMessageTrait for RtpsMessageUdp<'a> {
     type SubmessageType = RtpsSubmessageType<'a, RtpsUdpPsm>;
 
     fn new<T: IntoIterator<Item = Self::SubmessageType>>(
