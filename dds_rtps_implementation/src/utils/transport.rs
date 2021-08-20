@@ -1,11 +1,15 @@
-use rust_rtps_pim::structure::types::Locator;
+use rust_rtps_pim::{
+    messages::{submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessage},
+    structure::types::{Locator, SequenceNumber},
+};
+
+pub type TransportMessage<'a> =
+    RtpsMessage<Vec<RtpsSubmessageType<'a, Vec<SequenceNumber>, &'a [Parameter<'a>], (), ()>>>;
 
 pub trait TransportWrite {
-    type Message;
-    fn write(&mut self, message: &Self::Message, destination_locator: &Locator);
+    fn write(&mut self, message: &TransportMessage<'_>, destination_locator: &Locator);
 }
 
 pub trait TransportRead {
-    type Message;
-    fn read(&mut self) -> Option<(Locator, Self::Message)>;
+    fn read(&mut self) -> Option<(Locator, TransportMessage<'_>)>;
 }

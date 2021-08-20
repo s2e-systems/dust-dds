@@ -1,11 +1,14 @@
-use std::{marker::PhantomData, net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket}};
+use std::{
+    marker::PhantomData,
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket},
+};
 
 use rust_dds_rtps_implementation::{
     dds_impl::{publisher_impl::PublisherStorage, subscriber_impl::SubscriberStorage},
     utils::{
         message_receiver::MessageReceiver,
         shared_object::RtpsShared,
-        transport::{TransportRead, TransportWrite},
+        transport::{TransportMessage, TransportRead, TransportWrite},
     },
 };
 use rust_rtps_pim::{
@@ -116,10 +119,7 @@ impl<'a> UdpTransport<'a> {
 }
 
 impl<'a> TransportWrite for UdpTransport<'a> {
-    type Message =
-        RtpsMessage<Vec<RtpsSubmessageType<'a, Vec<SequenceNumber>, &'a [Parameter<'a>], (), ()>>>;
-
-    fn write(&mut self, message: &Self::Message, destination_locator: &Locator) {
+    fn write(&mut self, message: &TransportMessage, destination_locator: &Locator) {
         let mut writer = Vec::<u8>::new();
         to_writer_le(message, &mut writer).unwrap();
         self.socket
@@ -132,10 +132,7 @@ impl<'a> TransportWrite for UdpTransport<'a> {
 }
 
 impl<'a> TransportRead for UdpTransport<'a> {
-    type Message =
-        RtpsMessage<Vec<RtpsSubmessageType<'a, Vec<SequenceNumber>, &'a [Parameter<'a>], (), ()>>>;
-
-    fn read(&mut self) -> Option<(Locator, Self::Message)> {
+    fn read(&mut self) -> Option<(Locator, TransportMessage)> {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {

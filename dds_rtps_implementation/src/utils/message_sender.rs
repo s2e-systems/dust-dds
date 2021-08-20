@@ -82,9 +82,7 @@ pub fn send_data<'a, Transport, Participant, S>(
     writer: &'a mut RtpsWriterImpl,
     transport: &mut Transport,
 ) where
-    Transport: TransportWrite<
-        Message = RtpsMessage<Vec<RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>>,
-    >,
+    Transport: TransportWrite,
     Participant: RtpsParticipant + RtpsEntity,
     S: FromIterator<SequenceNumber>,
 {
