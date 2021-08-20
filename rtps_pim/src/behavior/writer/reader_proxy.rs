@@ -15,13 +15,13 @@ pub trait RtpsReaderProxyOperations {
     fn new<L>(
         remote_reader_guid: Guid,
         remote_group_entity_id: EntityId,
-        unicast_locator_list: L,
-        multicast_locator_list: L,
+        unicast_locator_list: &L,
+        multicast_locator_list: &L,
         expects_inline_qos: bool,
         is_active: bool,
     ) -> Self
     where
-        L: IntoIterator<Item = Locator>;
+        for<'a> &'a L: IntoIterator<Item = &'a Locator>;
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber);
     fn next_requested_change(&mut self) -> Option<SequenceNumber>;
     fn next_unsent_change(&mut self) -> Option<SequenceNumber>;

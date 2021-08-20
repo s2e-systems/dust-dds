@@ -4,20 +4,18 @@ use crate::{
     structure::types::{GuidPrefix, ProtocolVersion, VendorId},
 };
 
-pub trait SPDPdiscoveredParticipantData {
-    type LocatorListType;
-
-    fn domain_id(&self) -> DomainId;
-    fn domain_tag(&self) -> &str;
-    fn protocol_version(&self) -> ProtocolVersion;
-    fn guid_prefix(&self) -> GuidPrefix;
-    fn vendor_id(&self) -> VendorId;
-    fn expects_inline_qos(&self) -> bool;
-    fn metatraffic_unicast_locator_list(&self) -> Self::LocatorListType;
-    fn metatraffic_multicast_locator_list(&self) -> Self::LocatorListType;
-    fn default_unicast_locator_list(&self) -> Self::LocatorListType;
-    fn default_multicast_locator_list(&self) -> Self::LocatorListType;
-    fn available_builtin_endpoints(&self) -> BuiltinEndpointSet;
-    fn manual_liveliness_count(&self) -> Count;
-    fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos;
+pub struct SpdpDiscoveredParticipantData<L> {
+    pub domain_id: DomainId,
+    pub domain_tag: &'static str,
+    pub protocol_version: ProtocolVersion,
+    pub guid_prefix: GuidPrefix,
+    pub vendor_id: VendorId,
+    pub expects_inline_qos: bool,
+    pub metatraffic_unicast_locator_list: L,
+    pub metatraffic_multicast_locator_list: L,
+    pub default_unicast_locator_list: L,
+    pub default_multicast_locator_list: L,
+    pub available_builtin_endpoints: BuiltinEndpointSet,
+    pub manual_liveliness_count: Count,
+    pub builtin_endpoint_qos: BuiltinEndpointQos,
 }

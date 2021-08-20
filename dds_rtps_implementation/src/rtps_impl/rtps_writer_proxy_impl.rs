@@ -11,12 +11,12 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
     fn new<L>(
         _remote_writer_guid: rust_rtps_pim::structure::types::Guid,
         _remote_group_entity_id: rust_rtps_pim::structure::types::EntityId,
-        _unicast_locator_list: L,
-        _multicast_locator_list: L,
+        _unicast_locator_list: &L,
+        _multicast_locator_list: &L,
         _data_max_size_serialized: Option<i32>,
     ) -> Self
     where
-        L: IntoIterator<Item = rust_rtps_pim::structure::types::Locator>,
+        for<'a> &'a L: IntoIterator<Item = &'a rust_rtps_pim::structure::types::Locator>,
     {
         todo!()
     }

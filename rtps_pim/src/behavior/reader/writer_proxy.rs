@@ -12,12 +12,12 @@ pub trait RtpsWriterProxyOperations {
     fn new<L>(
         remote_writer_guid: Guid,
         remote_group_entity_id: EntityId,
-        unicast_locator_list: L,
-        multicast_locator_list: L,
+        unicast_locator_list: &L,
+        multicast_locator_list: &L,
         data_max_size_serialized: Option<i32>,
     ) -> Self
     where
-        L: IntoIterator<Item = Locator>;
+        for<'a> &'a L: IntoIterator<Item = &'a Locator>;
     fn available_changes_max(&self) -> &SequenceNumber;
     fn irrelevant_change_set(&mut self, a_seq_num: &SequenceNumber);
     fn lost_changes_update(&mut self, first_available_seq_num: &SequenceNumber);

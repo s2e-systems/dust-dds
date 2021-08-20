@@ -8,10 +8,7 @@ use crate::submessage_elements::{CountUdp, LocatorUdp, ProtocolVersionUdp, Vendo
 use byteorder::{ByteOrder, LittleEndian};
 use rust_rtps_pim::{
     behavior::types::Duration,
-    discovery::{
-        spdp::spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
-        types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
-    },
+    discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
     messages::{
         submessage_elements::{
             CountSubmessageElementType, ProtocolVersionSubmessageElementType,
@@ -19,7 +16,7 @@ use rust_rtps_pim::{
         },
         types::Count,
     },
-    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId, Guid},
+    structure::types::{Guid, Locator, ProtocolVersion, VendorId},
 };
 
 use super::parameterid_list::{
@@ -111,78 +108,6 @@ impl SPDPdiscoveredParticipantDataUdp {
             },
             lease_duration: (*lease_duration).into(),
         }
-    }
-}
-
-impl SPDPdiscoveredParticipantData for SPDPdiscoveredParticipantDataUdp {
-    type LocatorListType = Vec<Locator>;
-
-    fn domain_id(&self) -> DomainId {
-        self.participant_proxy.domain_id
-    }
-
-    fn domain_tag(&self) -> &str {
-        &self.participant_proxy.domain_tag
-    }
-
-    fn protocol_version(&self) -> ProtocolVersion {
-        self.participant_proxy.protocol_version.value()
-    }
-
-    fn guid_prefix(&self) -> GuidPrefix {
-        self.participant_proxy.guid.prefix().into()
-    }
-
-    fn vendor_id(&self) -> VendorId {
-        self.participant_proxy.vendor_id.value()
-    }
-
-    fn expects_inline_qos(&self) -> bool {
-        self.participant_proxy.expects_inline_qos
-    }
-
-    fn metatraffic_unicast_locator_list(&self) -> Self::LocatorListType {
-        self.participant_proxy
-            .metatraffic_unicast_locator_list
-            .iter()
-            .map(|x| x.value())
-            .collect()
-    }
-
-    fn metatraffic_multicast_locator_list(&self) -> Self::LocatorListType {
-        self.participant_proxy
-            .metatraffic_multicast_locator_list
-            .iter()
-            .map(|x| x.value())
-            .collect()
-    }
-
-    fn default_unicast_locator_list(&self) -> Self::LocatorListType {
-        self.participant_proxy
-            .default_unicast_locator_list
-            .iter()
-            .map(|x| x.value())
-            .collect()
-    }
-
-    fn default_multicast_locator_list(&self) -> Self::LocatorListType {
-        self.participant_proxy
-            .default_multicast_locator_list
-            .iter()
-            .map(|x| x.value())
-            .collect()
-    }
-
-    fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        BuiltinEndpointSet(self.participant_proxy.available_builtin_endpoints)
-    }
-
-    fn manual_liveliness_count(&self) -> Count {
-        self.participant_proxy.manual_liveliness_count.value()
-    }
-
-    fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        BuiltinEndpointQos(self.participant_proxy.builtin_endpoint_qos)
     }
 }
 
