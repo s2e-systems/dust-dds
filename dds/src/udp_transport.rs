@@ -21,44 +21,43 @@ use rust_rtps_pim::{
 use rust_rtps_udp_psm::{deserialize::from_bytes_le, serialize::to_writer_le};
 
 const BUFFER_SIZE: usize = 32000;
-pub struct UdpTransport<'a> {
+pub struct UdpTransport {
     socket: UdpSocket,
     receive_buffer: [u8; BUFFER_SIZE],
-    phantom: PhantomData<&'a ()>,
 }
 
-// pub fn send_udp_data<'a>(
-//     rtps_participant: &(impl RtpsParticipant + RtpsEntity),
-//     publishers: &[RtpsShared<PublisherStorage>],
-//     transport: &'a mut UdpTransport<'a>,
-// ) {
-//     for publisher in publishers {
-//         let publisher_lock = publisher.lock();
-//         for data_writer in publisher_lock.data_writer_storage_list() {
-//             let mut data_writer_lock = data_writer.lock();
-//             rust_dds_rtps_implementation::utils::message_sender::send_data(
-//                 rtps_participant,
-//                 &mut data_writer_lock.rtps_data_writer_mut(),
-//                 transport,
-//             );
-//         }
-//     }
-// }
+pub fn send_udp_data(
+    rtps_participant: &(impl RtpsParticipant + RtpsEntity),
+    publishers: &[RtpsShared<PublisherStorage>],
+    transport: &mut UdpTransport,
+) {
+    for publisher in publishers {
+        let publisher_lock = publisher.lock();
+        for data_writer in publisher_lock.data_writer_storage_list() {
+            let mut data_writer_lock = data_writer.lock();
+            rust_dds_rtps_implementation::utils::message_sender::send_data(
+                rtps_participant,
+                &mut data_writer_lock.rtps_data_writer_mut(),
+                transport,
+            );
+        }
+    }
+}
 
-// pub fn receive_udp_data(
-//     rtps_participant: &(impl RtpsParticipant + RtpsEntity),
-//     subscribers: &[RtpsShared<SubscriberStorage>],
-//     transport: &mut UdpTransport,
-// ) {
-//     if let Some((source_locator, message)) = transport.read() {
-//         MessageReceiver::new().process_message(
-//             *rtps_participant.guid().prefix(),
-//             subscribers,
-//             source_locator,
-//             &message,
-//         );
-//     }
-// }
+pub fn receive_udp_data(
+    rtps_participant: &(impl RtpsParticipant + RtpsEntity),
+    subscribers: &[RtpsShared<SubscriberStorage>],
+    transport: &mut UdpTransport,
+) {
+    if let Some((source_locator, message)) = transport.read() {
+        MessageReceiver::new().process_message(
+            *rtps_participant.guid().prefix(),
+            subscribers,
+            source_locator,
+            &message,
+        );
+    }
+}
 
 struct UdpLocator(Locator);
 
@@ -108,17 +107,16 @@ impl From<SocketAddr> for UdpLocator {
     }
 }
 
-impl<'a> UdpTransport<'a> {
+impl UdpTransport {
     pub fn new(socket: UdpSocket) -> Self {
         Self {
             socket,
             receive_buffer: [0; BUFFER_SIZE],
-            phantom: PhantomData,
         }
     }
 }
 
-impl<'a> TransportWrite for UdpTransport<'a> {
+impl<'a> TransportWrite for UdpTransport {
     fn write(&mut self, message: &TransportMessage, destination_locator: &Locator) {
         let mut writer = Vec::<u8>::new();
         to_writer_le(message, &mut writer).unwrap();
@@ -131,7 +129,7 @@ impl<'a> TransportWrite for UdpTransport<'a> {
     }
 }
 
-impl<'a> TransportRead for UdpTransport<'a> {
+impl<'a> TransportRead for UdpTransport {
     fn read(&mut self) -> Option<(Locator, TransportMessage)> {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {

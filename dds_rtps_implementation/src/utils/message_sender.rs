@@ -77,14 +77,13 @@ where
     }
 }
 
-pub fn send_data<'a, Transport, Participant, S>(
+pub fn send_data<Transport, Participant>(
     participant: &Participant,
-    writer: &'a mut RtpsWriterImpl,
+    writer: &mut RtpsWriterImpl,
     transport: &mut Transport,
 ) where
     Transport: TransportWrite,
     Participant: RtpsParticipant + RtpsEntity,
-    S: FromIterator<SequenceNumber>,
 {
     let destined_submessages = writer.create_submessages();
     for (dst_locator, submessages) in destined_submessages {
