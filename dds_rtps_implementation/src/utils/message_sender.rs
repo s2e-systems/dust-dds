@@ -8,7 +8,7 @@ use rust_rtps_pim::{
     messages::{
         submessage_elements::Parameter,
         submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
-        RtpsMessage, RtpsMessageHeader,
+        RtpsMessageTrait, RtpsMessageHeader,
     },
     structure::{
         types::{Locator, SequenceNumber},
@@ -81,7 +81,7 @@ pub fn send_data<'a, Transport, PSM, Participant, S>(
     transport: &'a mut Transport,
 ) where
     Transport: TransportWrite<'a>,
-    Transport::Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>>,
+    Transport::Message: RtpsMessageTrait<SubmessageType = RtpsSubmessageType<'a, PSM>>,
     PSM: RtpsSubmessagePIM<
         'a,
         DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>,

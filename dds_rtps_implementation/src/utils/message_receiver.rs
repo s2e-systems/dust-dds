@@ -1,7 +1,19 @@
-use rust_rtps_pim::{behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior}, messages::{RtpsMessage, submessage_elements::{Parameter, TimestampSubmessageElementType}, submessages::{DataSubmessage, InfoTimestampSubmessage, InfoTimestampSubmessageTrait, RtpsSubmessagePIM, RtpsSubmessageType}, types::{Time, TIME_INVALID}}, structure::types::{
+use rust_rtps_pim::{
+    behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
+    messages::{
+        submessage_elements::{Parameter, TimestampSubmessageElementType},
+        submessages::{
+            DataSubmessage, InfoTimestampSubmessage, InfoTimestampSubmessageTrait,
+            RtpsSubmessagePIM, RtpsSubmessageType,
+        },
+        types::{Time, TIME_INVALID},
+        RtpsMessageTrait,
+    },
+    structure::types::{
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
-    }};
+    },
+};
 
 use crate::dds_impl::subscriber_impl::SubscriberStorage;
 
@@ -39,7 +51,7 @@ impl MessageReceiver {
         source_locator: Locator,
         message: &'a Message,
     ) where
-        Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
+        Message: RtpsMessageTrait<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
         PSM: RtpsSubmessagePIM<'a, DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>>
             + 'a,
         PSM::InfoTimestampSubmessageType: InfoTimestampSubmessageTrait,
