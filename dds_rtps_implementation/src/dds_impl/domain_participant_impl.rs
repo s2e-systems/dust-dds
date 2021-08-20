@@ -86,6 +86,56 @@ impl DomainParticipantStorage {
         }
     }
 
+    pub fn send_builtin_data(&mut self) {
+        for publisher in &self.builtin_publisher_storage {
+            let publisher_lock = publisher.lock();
+            for data_writer in publisher_lock.data_writer_storage_list() {
+                let mut data_writer_lock = data_writer.lock();
+                crate::utils::message_sender::send_data(
+                    &self.rtps_participant,
+                    &mut data_writer_lock.rtps_data_writer_mut(),
+                    &mut *self.metatraffic_transport,
+                );
+            }
+        }
+    }
+
+    pub fn send_user_defined_data(&mut self) {
+        for publisher in &self.user_defined_publisher_storage {
+            let publisher_lock = publisher.lock();
+            for data_writer in publisher_lock.data_writer_storage_list() {
+                let mut data_writer_lock = data_writer.lock();
+                crate::utils::message_sender::send_data(
+                    &self.rtps_participant,
+                    &mut data_writer_lock.rtps_data_writer_mut(),
+                    &mut *self.default_transport,
+                );
+            }
+        }
+    }
+
+    pub fn receive_builtin_data(&mut self) {
+        if let Some((source_locator, message)) = self.metatraffic_transport.read() {
+            crate::utils::message_receiver::MessageReceiver::new().process_message(
+                *self.rtps_participant.guid().prefix(),
+                &self.builtin_subscriber_storage,
+                source_locator,
+                &message,
+            );
+        }
+    }
+
+    pub fn receive_user_defined_data(&mut self) {
+        if let Some((source_locator, message)) = self.default_transport.read() {
+            crate::utils::message_receiver::MessageReceiver::new().process_message(
+                *self.rtps_participant.guid().prefix(),
+                &self.user_defined_subscriber_storage,
+                source_locator,
+                &message,
+            );
+        }
+    }
+
     /// Get a reference to the domain participant storage's builtin subscriber storage.
     pub fn builtin_subscriber_storage(&self) -> &[RtpsShared<SubscriberStorage>] {
         &self.builtin_subscriber_storage
@@ -115,7 +165,7 @@ impl DomainParticipantStorage {
 pub struct DomainParticipantImpl {
     is_enabled: Arc<AtomicBool>,
     domain_participant_storage: RtpsShared<DomainParticipantStorage>,
-    worker_threads: Vec<JoinHandle<()>>,
+    _worker_threads: Vec<JoinHandle<()>>,
 }
 
 impl DomainParticipantImpl {
@@ -123,7 +173,7 @@ impl DomainParticipantImpl {
         Self {
             is_enabled: Arc::new(AtomicBool::new(false)),
             domain_participant_storage,
-            worker_threads: Vec::new(),
+            _worker_threads: Vec::new(),
         }
     }
 }
@@ -436,78 +486,15 @@ impl Entity for DomainParticipantImpl {
         let domain_participant_storage = self.domain_participant_storage.clone();
         std::thread::spawn(move || {
             while is_enabled.load(atomic::Ordering::Relaxed) {
-                {
-                    let mut domain_participant_storage_lock = domain_participant_storage.lock();
-                    let guid_prefix = *domain_participant_storage_lock
-                        .rtps_participant
-                        .guid()
-                        .prefix();
-
-                    // for publisher in &domain_participant_storage_lock.builtin_publisher_storage {
-                    //     let publisher_lock = publisher.lock();
-                    //     for data_writer in publisher_lock.data_writer_storage_list() {
-                    //         let mut data_writer_lock = data_writer.lock();
-                    //         crate::utils::message_sender::send_data(
-                    //             &domain_participant_storage_lock.rtps_participant,
-                    //             &mut data_writer_lock.rtps_data_writer_mut(),
-                    //             &mut *domain_participant_storage_lock.metatraffic_transport,
-                    //         );
-                    //     }
-                    // }
-
-                    // if let Some((source_locator, message)) =
-                    //     domain_participant_storage_lock.metatraffic_transport.read()
-                    // {
-                    //     crate::utils::message_receiver::MessageReceiver::new().process_message(
-                    //         guid_prefix,
-                    //         &domain_participant_storage_lock.builtin_subscriber_storage,
-                    //         source_locator,
-                    //         &message,
-                    //     );
-                    // }
-
-                    // for publisher in &domain_participant_storage_lock.user_defined_publisher_storage
-                    // {
-                    //     let publisher_lock = publisher.lock();
-                    //     for data_writer in publisher_lock.data_writer_storage_list() {
-                    //         let mut data_writer_lock = data_writer.lock();
-                    //         crate::utils::message_sender::send_data(
-                    //             domain_participant_storage_lock.rtps_participant(),
-                    //             &mut data_writer_lock.rtps_data_writer_mut(),
-                    //             domain_participant_storage_lock.default_transport.as_mut(),
-                    //         );
-                    //     }
-                    // }
-
-                    // if let Some((source_locator, message)) =
-                    //     domain_participant_storage_lock.default_transport.read()
-                    // {
-                    //     crate::utils::message_receiver::MessageReceiver::new().process_message(
-                    //         *domain_participant_storage_lock
-                    //             .rtps_participant
-                    //             .guid()
-                    //             .prefix(),
-                    //         &domain_participant_storage_lock.user_defined_subscriber_storage,
-                    //         source_locator,
-                    //         &message,
-                    //     );
-                    // }
-                }
-                // Drop the lock while sleeping
+                domain_participant_storage.lock().send_builtin_data();
+                domain_participant_storage.lock().receive_builtin_data();
+                domain_participant_storage.lock().send_user_defined_data();
+                domain_participant_storage
+                    .lock()
+                    .receive_user_defined_data();
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });
-        // for publisher in publishers {
-        // let publisher_lock = publisher.lock();
-        // for data_writer in publisher_lock.data_writer_storage_list() {
-        // let mut data_writer_lock = data_writer.lock();
-        // crate::utils::message_sender::send_data(
-        // rtps_participant,
-        // &mut data_writer_lock.rtps_data_writer_mut(),
-        // transport,
-        // );
-        // }
-        // }
         Ok(())
     }
 }
