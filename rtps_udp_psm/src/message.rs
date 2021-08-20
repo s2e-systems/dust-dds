@@ -1,7 +1,12 @@
 use std::io::{BufRead, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{submessages::RtpsSubmessageType, RtpsMessageHeader};
+use rust_rtps_pim::{
+    messages::{
+        submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessageHeader,
+    },
+    structure::types::SequenceNumber,
+};
 
 use crate::{
     message_header::RtpsMessageHeaderUdp,
@@ -15,11 +20,11 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct RtpsMessageUdp<'a> {
     header: RtpsMessageHeaderUdp,
-    submessages: Vec<RtpsSubmessageType<'a, RtpsUdpPsm>>,
+    submessages: Vec<RtpsSubmessageType<'a, Vec<SequenceNumber>, &'a [Parameter<'a>], (), ()>>,
 }
 
 impl<'a> rust_rtps_pim::messages::RtpsMessageTrait for RtpsMessageUdp<'a> {
-    type SubmessageType = RtpsSubmessageType<'a, RtpsUdpPsm>;
+    type SubmessageType = RtpsSubmessageType<'a, Vec<SequenceNumber>, &'a [Parameter<'a>], (), ()>;
 
     fn new<T: IntoIterator<Item = Self::SubmessageType>>(
         header: &RtpsMessageHeader,

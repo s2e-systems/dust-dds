@@ -9,21 +9,26 @@ use crate::structure::types::{
 use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
 use core::marker::PhantomData;
 
+#[derive(Debug, PartialEq)]
 pub struct UShortSubmessageElement {
     pub value: u16,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ShortSubmessageElement {
     pub value: u16,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ULongSubmessageElement {
     pub value: u32,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct LongSubmessageElement {
     pub value: i32,
 }
+
 #[derive(Debug, PartialEq)]
 pub struct GuidPrefixSubmessageElement {
     pub value: GuidPrefix,
@@ -33,6 +38,7 @@ pub struct GuidPrefixSubmessageElement {
 pub struct EntityIdSubmessageElement {
     pub value: EntityId,
 }
+
 #[derive(Debug, PartialEq)]
 pub struct VendorIdSubmessageElement {
     pub value: VendorId,
@@ -76,6 +82,7 @@ pub struct Parameter<'a> {
     pub length: i16,
     pub value: &'a [u8],
 }
+
 impl<'a> Parameter<'a> {
     pub fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
         let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
@@ -85,9 +92,6 @@ impl<'a> Parameter<'a> {
             value,
         }
     }
-    // pub fn number_of_bytes(&self) -> usize {
-    //     4 + self.length as usize
-    // }
 }
 
 #[derive(Debug, PartialEq)]
@@ -111,6 +115,7 @@ pub struct SerializedDataSubmessageElement<'a> {
     pub value: &'a [u8],
 }
 
+#[derive(Debug, PartialEq)]
 pub struct SerializedDataFragmentSubmessageElement<'a> {
     pub value: &'a [u8],
 }
