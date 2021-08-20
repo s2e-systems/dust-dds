@@ -8,9 +8,12 @@ use rust_dds_rtps_implementation::{
         transport::{TransportRead, TransportWrite},
     },
 };
-use rust_rtps_pim::structure::{
-    types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
-    RtpsEntity, RtpsParticipant,
+use rust_rtps_pim::{
+    messages::{submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessage},
+    structure::{
+        types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator, SequenceNumber},
+        RtpsEntity, RtpsParticipant,
+    },
 };
 use rust_rtps_udp_psm::{
     deserialize::from_bytes_le, message::RtpsMessageUdp, serialize::to_writer_le,
@@ -113,7 +116,8 @@ impl UdpTransport {
 }
 
 impl<'a> TransportWrite<'a> for UdpTransport {
-    type Message = RtpsMessageUdp<'a>;
+    type Message =
+        RtpsMessage<Vec<RtpsSubmessageType<'a, Vec<SequenceNumber>, &'a [Parameter<'a>], (), ()>>>;
 
     fn write(&mut self, message: &Self::Message, destination_locator: &Locator) {
         let mut writer = Vec::<u8>::new();
@@ -128,13 +132,14 @@ impl<'a> TransportWrite<'a> for UdpTransport {
 }
 
 impl<'a> TransportRead<'a> for UdpTransport {
-    type Message = RtpsMessageUdp<'a>;
+    type Message =
+        RtpsMessage<Vec<RtpsSubmessageType<'a, Vec<SequenceNumber>, &'a [Parameter<'a>], (), ()>>>;
 
     fn read(&'a mut self) -> Option<(Locator, Self::Message)> {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
-                    let message: RtpsMessageUdp = from_bytes_le(&self.receive_buffer[0..bytes])
+                    let message = from_bytes_le(&self.receive_buffer[0..bytes])
                         .expect("Failed to deserialize");
                     let udp_locator: UdpLocator = source_address.into();
                     Some((udp_locator.0, message))
@@ -234,7 +239,10 @@ mod tests {
             socket_port as u32,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
-        let message1: RtpsMessageUdp = RtpsMessageUdp::new(&header, vec![]);
+        let message1 = RtpsMessage {
+            header,
+            submessages: vec![],
+        };
 
         transport.write(&message1, &destination_locator);
         let (_locator, received_message1) = transport.read().unwrap();
