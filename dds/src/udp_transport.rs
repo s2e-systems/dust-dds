@@ -1,62 +1,15 @@
-use std::{
-    marker::PhantomData,
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket},
-};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
-use rust_dds_rtps_implementation::{
-    dds_impl::{publisher_impl::PublisherStorage, subscriber_impl::SubscriberStorage},
-    utils::{
-        message_receiver::MessageReceiver,
-        shared_object::RtpsShared,
-        transport::{TransportMessage, TransportRead, TransportWrite},
-    },
+use rust_dds_rtps_implementation::utils::transport::{
+    TransportMessage, TransportRead, TransportWrite,
 };
-use rust_rtps_pim::{
-    messages::{submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessage},
-    structure::{
-        types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator, SequenceNumber},
-        RtpsEntity, RtpsParticipant,
-    },
-};
+use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
 use rust_rtps_udp_psm::{deserialize::from_bytes_le, serialize::to_writer_le};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
     socket: UdpSocket,
     receive_buffer: [u8; BUFFER_SIZE],
-}
-
-pub fn send_udp_data(
-    rtps_participant: &(impl RtpsParticipant + RtpsEntity),
-    publishers: &[RtpsShared<PublisherStorage>],
-    transport: &mut UdpTransport,
-) {
-    for publisher in publishers {
-        let publisher_lock = publisher.lock();
-        for data_writer in publisher_lock.data_writer_storage_list() {
-            let mut data_writer_lock = data_writer.lock();
-            rust_dds_rtps_implementation::utils::message_sender::send_data(
-                rtps_participant,
-                &mut data_writer_lock.rtps_data_writer_mut(),
-                transport,
-            );
-        }
-    }
-}
-
-pub fn receive_udp_data(
-    rtps_participant: &(impl RtpsParticipant + RtpsEntity),
-    subscribers: &[RtpsShared<SubscriberStorage>],
-    transport: &mut UdpTransport,
-) {
-    if let Some((source_locator, message)) = transport.read() {
-        MessageReceiver::new().process_message(
-            *rtps_participant.guid().prefix(),
-            subscribers,
-            source_locator,
-            &message,
-        );
-    }
 }
 
 struct UdpLocator(Locator);
@@ -154,7 +107,7 @@ mod tests {
     use super::*;
 
     use rust_rtps_pim::{
-        messages::RtpsMessageHeader,
+        messages::{RtpsMessage, RtpsMessageHeader},
         structure::types::{
             LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID, PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
         },

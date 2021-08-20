@@ -82,7 +82,7 @@ pub fn send_data<Transport, Participant>(
     writer: &mut RtpsWriterImpl,
     transport: &mut Transport,
 ) where
-    Transport: TransportWrite,
+    Transport: TransportWrite + ?Sized,
     Participant: RtpsParticipant + RtpsEntity,
 {
     let destined_submessages = writer.create_submessages();
