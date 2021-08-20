@@ -7,7 +7,14 @@ use std::{
     },
 };
 
-use rust_dds_api::{dcps_psm::{DomainId, StatusMask}, domain::{domain_participant::DomainParticipant, domain_participant_listener::DomainParticipantListener}, infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos}};
+use rust_dds_api::{
+    dcps_psm::{DomainId, StatusMask},
+    domain::{
+        domain_participant::DomainParticipant,
+        domain_participant_listener::DomainParticipantListener,
+    },
+    infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
+};
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_writer_impl::DataWriterStorage,
@@ -40,7 +47,7 @@ use rust_rtps_udp_psm::{
     builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp, serialize::to_bytes_le,
 };
 
-use crate::udp_transport::{receive_udp_data, send_udp_data, UdpTransport};
+use crate::udp_transport::UdpTransport;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -88,11 +95,11 @@ impl DomainParticipantFactory {
                 &Ipv4Addr::from_str("127.0.0.1").unwrap(),
             )
             .unwrap();
-        let mut metatraffic_transport = UdpTransport::new(socket);
+        let metatraffic_transport = UdpTransport::new(socket);
 
         let socket = UdpSocket::bind("127.0.0.1:7410").unwrap();
         socket.set_nonblocking(true).unwrap();
-        let mut default_transport = UdpTransport::new(socket);
+        let default_transport = UdpTransport::new(socket);
 
         let rtps_participant = RtpsParticipantImpl::new(guid_prefix);
 
@@ -183,27 +190,27 @@ impl DomainParticipantFactory {
         let communication_thread_handle = std::thread::spawn(move || loop {
             if is_enabled_cloned.load(atomic::Ordering::Relaxed) {
                 let domain_participant_storage_lock = domain_participant_storage_cloned.lock();
-                send_udp_data(
-                    domain_participant_storage_lock.rtps_participant(),
-                    domain_participant_storage_lock.builtin_publisher_storage(),
-                    &mut metatraffic_transport,
-                );
-                receive_udp_data(
-                    domain_participant_storage_lock.rtps_participant(),
-                    domain_participant_storage_lock.builtin_subscriber_storage(),
-                    &mut metatraffic_transport,
-                );
+                // send_udp_data(
+                //     domain_participant_storage_lock.rtps_participant(),
+                //     domain_participant_storage_lock.builtin_publisher_storage(),
+                //     &mut metatraffic_transport,
+                // );
+                // receive_udp_data(
+                //     domain_participant_storage_lock.rtps_participant(),
+                //     domain_participant_storage_lock.builtin_subscriber_storage(),
+                //     &mut metatraffic_transport,
+                // );
 
-                send_udp_data(
-                    domain_participant_storage_lock.rtps_participant(),
-                    domain_participant_storage_lock.user_defined_publisher_storage(),
-                    &mut default_transport,
-                );
-                receive_udp_data(
-                    domain_participant_storage_lock.rtps_participant(),
-                    domain_participant_storage_lock.user_defined_subscriber_storage(),
-                    &mut default_transport,
-                );
+                // send_udp_data(
+                //     domain_participant_storage_lock.rtps_participant(),
+                //     domain_participant_storage_lock.user_defined_publisher_storage(),
+                //     &mut default_transport,
+                // );
+                // receive_udp_data(
+                //     domain_participant_storage_lock.rtps_participant(),
+                //     domain_participant_storage_lock.user_defined_subscriber_storage(),
+                //     &mut default_transport,
+                // );
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });

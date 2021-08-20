@@ -78,12 +78,11 @@ where
 }
 
 pub fn send_data<'a, Transport, Participant, S>(
-    participant: &'a Participant,
+    participant: &Participant,
     writer: &'a mut RtpsWriterImpl,
-    transport: &'a mut Transport,
+    transport: &mut Transport,
 ) where
     Transport: TransportWrite<
-        'a,
         Message = RtpsMessage<Vec<RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>>,
     >,
     Participant: RtpsParticipant + RtpsEntity,
