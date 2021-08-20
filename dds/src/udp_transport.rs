@@ -15,9 +15,7 @@ use rust_rtps_pim::{
         RtpsEntity, RtpsParticipant,
     },
 };
-use rust_rtps_udp_psm::{
-    deserialize::from_bytes_le, message::RtpsMessageUdp, serialize::to_writer_le,
-};
+use rust_rtps_udp_psm::{deserialize::from_bytes_le, serialize::to_writer_le};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
@@ -159,20 +157,10 @@ mod tests {
     use super::*;
 
     use rust_rtps_pim::{
-        messages::{
-            submessage_elements::SequenceNumberSubmessageElementType,
-            submessages::{DataSubmessage, RtpsSubmessageType},
-            RtpsMessageHeader, RtpsMessageTrait,
-        },
+        messages::RtpsMessageHeader,
         structure::types::{
             LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID, PROTOCOLVERSION_2_4, VENDOR_ID_S2E,
         },
-    };
-    use rust_rtps_udp_psm::{
-        message::RtpsMessageUdp,
-        parameter_list::ParameterListUdp,
-        submessage_elements::{EntityIdUdp, SequenceNumberUdp, SerializedDataUdp},
-        submessages::data::DataSubmesageUdp,
     };
 
     use crate::udp_transport::UdpTransport;

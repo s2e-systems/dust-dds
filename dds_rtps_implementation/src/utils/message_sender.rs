@@ -6,9 +6,8 @@ use rust_rtps_pim::{
         writer::reader_locator::RtpsReaderLocator,
     },
     messages::{
-        submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
-        RtpsMessage, RtpsMessageHeader, RtpsMessageTrait,
+        submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessage,
+        RtpsMessageHeader,
     },
     structure::{
         types::{Locator, SequenceNumber},
@@ -118,7 +117,7 @@ mod tests {
                 SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
                 SerializedDataSubmessageElement,
             },
-            submessages::{DataSubmessage, RtpsSubmessageType},
+            submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
         },
         structure::types::{self, ENTITYID_UNKNOWN, LOCATOR_INVALID},
     };

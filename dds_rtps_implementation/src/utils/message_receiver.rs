@@ -1,13 +1,10 @@
 use rust_rtps_pim::{
     behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
     messages::{
-        submessage_elements::{Parameter, TimestampSubmessageElementType},
-        submessages::{
-            DataSubmessage, InfoTimestampSubmessage, InfoTimestampSubmessageTrait,
-            RtpsSubmessagePIM, RtpsSubmessageType,
-        },
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, InfoTimestampSubmessage, RtpsSubmessageType},
         types::{Time, TIME_INVALID},
-        RtpsMessage, RtpsMessageTrait,
+        RtpsMessage,
     },
     structure::types::{
         GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
@@ -44,14 +41,12 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a>(
+    pub fn process_message(
         mut self,
         participant_guid_prefix: GuidPrefix,
-        reader_group_list: &'a [RtpsShared<SubscriberStorage>],
+        reader_group_list: &[RtpsShared<SubscriberStorage>],
         source_locator: Locator,
-        message: &'a RtpsMessage<
-            Vec<RtpsSubmessageType<'a, Vec<SequenceNumber>, &'a [Parameter<'a>], (), ()>>,
-        >,
+        message: &RtpsMessage<Vec<RtpsSubmessageType<Vec<SequenceNumber>, &[Parameter], (), ()>>>,
     ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
