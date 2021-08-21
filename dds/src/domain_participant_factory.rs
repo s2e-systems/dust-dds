@@ -7,7 +7,14 @@ use std::{
     },
 };
 
-use rust_dds_api::{dcps_psm::{DomainId, StatusMask}, domain::{domain_participant::DomainParticipant, domain_participant_listener::DomainParticipantListener}, infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos}};
+use rust_dds_api::{
+    dcps_psm::{DomainId, StatusMask},
+    domain::{
+        domain_participant::DomainParticipant,
+        domain_participant_listener::DomainParticipantListener,
+    },
+    infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
+};
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_writer_impl::DataWriterStorage,
@@ -27,7 +34,10 @@ use rust_rtps_pim::{
         writer::writer::{RtpsWriter, RtpsWriterOperations},
     },
     discovery::{
-        spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
+        spdp::{
+            builtin_endpoints::SpdpBuiltinParticipantWriter,
+            spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
+        },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     messages::types::Count,
@@ -96,14 +106,6 @@ impl DomainParticipantFactory {
 
         let rtps_participant = RtpsParticipantImpl::new(guid_prefix);
 
-        // let spdp_builtin_participant_reader: RTPSReaderImpl =
-        //     SpdpBuiltinParticipantReader::create(guid_prefix);
-
-        // rtps_participant
-        //     .builtin_reader_group
-        //     .lock()
-        //     .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
-
         let spdp_builtin_participant_writer_qos = DataWriterQos::default();
         let spdp_discovery_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -136,23 +138,19 @@ impl DomainParticipantFactory {
             &BuiltinEndpointQos::default(),
             &lease_duration,
         );
-        let spdp_discovered_participant_data_bytes =
-            to_bytes_le(&spdp_discovered_participant_data).unwrap();
-        let cc = spdp_builtin_participant_rtps_writer.new_change(
-            ChangeKind::Alive,
-            &spdp_discovered_participant_data_bytes,
-            &[],
-            1,
-        );
-
-        spdp_builtin_participant_rtps_writer
-            .writer_cache_mut()
-            .add_change(&cc);
 
         let spdp_builtin_participant_writer = RtpsShared::new(DataWriterStorage::new(
             spdp_builtin_participant_writer_qos,
             spdp_builtin_participant_rtps_writer,
         ));
+        spdp_builtin_participant_writer
+            .lock()
+            .write_w_timestamp(
+                spdp_discovered_participant_data,
+                None,
+                rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
 
         let builtin_publisher_storage = vec![RtpsShared::new(PublisherStorage::new(
             PublisherQos::default(),
@@ -214,5 +212,15 @@ impl DomainParticipantFactory {
             DomainParticipantImpl::new(is_enabled, domain_participant_storage, worker_threads);
 
         Some(domain_participant)
+    }
+}
+
+impl rust_dds_rtps_implementation::dds_type::DDSType for SPDPdiscoveredParticipantDataUdp {
+    fn type_name() -> &'static str {
+        todo!()
+    }
+
+    fn has_key() -> bool {
+        todo!()
     }
 }
