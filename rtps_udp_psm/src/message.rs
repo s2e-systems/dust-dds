@@ -10,7 +10,6 @@ use rust_rtps_pim::{
 
 use crate::{
     message_header::RtpsMessageHeaderUdp,
-    psm::RtpsUdpPsm,
     submessage_header::{
         SubmessageHeaderUdp, ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST,
         INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD,
@@ -140,18 +139,8 @@ impl<'a, 'de: 'a> crate::deserialize::Deserialize<'de> for RtpsMessageUdp<'a> {
 mod tests {
     use super::*;
     use crate::{
-        deserialize::from_bytes_le,
-        parameter_list::ParameterListUdp,
         serialize::to_bytes_le,
-        submessage_elements::{
-            EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
-            SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
-        },
-        submessages,
-    };
-    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
-    use rust_rtps_pim::messages::{
-        submessage_elements::SequenceNumberSubmessageElementType, submessages::GapSubmessage,
+        submessage_elements::{GuidPrefixUdp, ProtocolVersionUdp, VendorIdUdp},
     };
 
     #[test]

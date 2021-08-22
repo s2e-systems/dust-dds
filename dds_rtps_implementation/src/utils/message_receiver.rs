@@ -1,13 +1,10 @@
 use rust_rtps_pim::{
     behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
     messages::{
-        submessage_elements::{Parameter, TimestampSubmessageElementType},
-        submessages::{
-            DataSubmessage, InfoTimestampSubmessage, InfoTimestampSubmessageTrait,
-            RtpsSubmessagePIM, RtpsSubmessageType,
-        },
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, InfoTimestampSubmessage, RtpsSubmessageType},
         types::{Time, TIME_INVALID},
-        RtpsMessageTrait,
+        RtpsMessage,
     },
     structure::types::{
         GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
@@ -44,27 +41,17 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a, Message>(
+    pub fn process_message(
         mut self,
         participant_guid_prefix: GuidPrefix,
-        reader_group_list: &'a [RtpsShared<SubscriberStorage>],
+        reader_group_list: &[RtpsShared<SubscriberStorage>],
         source_locator: Locator,
-        message: &'a Message,
-    ) where
-        Message: RtpsMessageTrait<
-                SubmessageType = RtpsSubmessageType<
-                    'a,
-                    Vec<SequenceNumber>,
-                    &'a [Parameter<'a>],
-                    (),
-                    (),
-                >,
-            > + 'a,
-    {
+        message: &RtpsMessage<Vec<RtpsSubmessageType<Vec<SequenceNumber>, &[Parameter], (), ()>>>,
+    ) {
         self.dest_guid_prefix = participant_guid_prefix;
-        self.source_version = message.header().version;
-        self.source_vendor_id = message.header().vendor_id;
-        self.source_guid_prefix = message.header().guid_prefix;
+        self.source_version = message.header.version;
+        self.source_vendor_id = message.header.vendor_id;
+        self.source_guid_prefix = message.header.guid_prefix;
         self.unicast_reply_locator_list.push(Locator::new(
             *source_locator.kind(),
             LOCATOR_PORT_INVALID,
@@ -76,7 +63,7 @@ impl MessageReceiver {
             LOCATOR_ADDRESS_INVALID,
         ));
 
-        for submessage in message.submessages() {
+        for submessage in &message.submessages {
             match submessage {
                 RtpsSubmessageType::AckNack(_) => todo!(),
                 RtpsSubmessageType::Data(data) => self.process_data(data, reader_group_list),
