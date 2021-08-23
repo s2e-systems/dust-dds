@@ -32,6 +32,8 @@ pub fn submessage_kind_into_byte(value: SubmessageKind) -> u8 {
         SubmessageKind::DATA_FRAG => DATA_FRAG,
         SubmessageKind::NACK_FRAG => NACK_FRAG,
         SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
+        SubmessageKind::UNKNOWN => panic!("Can not convert unknown into byte"),
+
     }
 }
 
