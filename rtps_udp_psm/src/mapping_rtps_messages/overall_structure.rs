@@ -1,9 +1,9 @@
 use std::io::Write;
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{messages::{RtpsMessage, submessage_elements::Parameter, submessages::RtpsSubmessageType}, structure::types::SequenceNumber};
+use rust_rtps_pim::{messages::{RtpsMessage, submessages::RtpsSubmessageType}, structure::types::SequenceNumber};
 
-use crate::{deserialize::{Deserialize, self}, serialize::{self, NumberOfBytes, Serialize}};
+use crate::{serialize::{self, NumberOfBytes, Serialize}};
 
 impl<'a, P:Serialize + NumberOfBytes> Serialize for RtpsMessage<Vec<RtpsSubmessageType<'a, Vec<SequenceNumber>, P, (), ()>>> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
@@ -44,19 +44,10 @@ impl<'a, P:Serialize + NumberOfBytes> Serialize for RtpsMessage<Vec<RtpsSubmessa
 mod tests {
     use super::*;
     use crate::{
-        deserialize::from_bytes_le,
-        parameter_list::ParameterListUdp,
         serialize::to_bytes_le,
-        submessage_elements::{
-            EntityIdUdp, GuidPrefixUdp, ProtocolVersionUdp, SequenceNumberSetUdp,
-            SequenceNumberUdp, SerializedDataUdp, VendorIdUdp,
-        },
-        submessages,
     };
-    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementType;
-    use rust_rtps_pim::messages::{
-        submessage_elements::SequenceNumberSubmessageElementType, submessages::GapSubmessage,
-    };
+    use rust_rtps_pim::messages::submessage_elements::{Parameter, };
+
     use rust_rtps_pim::messages::{types::ProtocolId, RtpsMessageHeader};
     use rust_rtps_pim::structure::types::ProtocolVersion;
 

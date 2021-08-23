@@ -15,9 +15,7 @@ use crate::{
     serialize::{NumberOfBytes, Serialize},
 };
 
-impl<'a, T: Serialize + NumberOfBytes> Serialize for DataSubmessage<'a, T>
-// where for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
-{
+impl<T: Serialize + NumberOfBytes> Serialize for DataSubmessage<'_, T> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()

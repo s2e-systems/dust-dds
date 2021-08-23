@@ -1,13 +1,12 @@
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader, Submessage};
 use std::io::Write;
 
 use crate::{
     parameter_list::ParameterListUdp,
     submessage_elements::{
-        flags_to_byte, is_bit_set, EntityIdUdp, SequenceNumberUdp, SerializedDataUdp,
+         is_bit_set, EntityIdUdp, SequenceNumberUdp, SerializedDataUdp,
     },
-    submessage_header::{SubmessageHeaderUdp, DATA},
+    submessage_header::{SubmessageHeaderUdp},
 };
 
 #[derive(Debug, PartialEq)]
@@ -23,7 +22,7 @@ pub struct DataSubmesageUdp<'a> {
 }
 
 impl<'a> crate::serialize::Serialize for DataSubmesageUdp<'a> {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
         todo!()
         // self.header.serialize::<_, B>(&mut writer)?;
         // self.extra_flags.serialize::<_, B>(&mut writer)?;

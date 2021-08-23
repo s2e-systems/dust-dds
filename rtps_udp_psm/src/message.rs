@@ -50,7 +50,7 @@ impl<'a> crate::serialize::Serialize for RtpsMessageUdp<'a> {
         for submessage in &self.submessages {
             match submessage {
                 RtpsSubmessageType::AckNack(s) => s.serialize::<_, B>(&mut writer)?,
-                RtpsSubmessageType::Data(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+                RtpsSubmessageType::Data(_s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
                 RtpsSubmessageType::DataFrag(s) => s.serialize::<_, B>(&mut writer)?,
                 RtpsSubmessageType::Gap(s) => s.serialize::<_, B>(&mut writer)?,
                 RtpsSubmessageType::Heartbeat(s) => s.serialize::<_, B>(&mut writer)?,

@@ -31,7 +31,7 @@ impl<'de> Deserialize<'de> for ParameterId {
     }
 }
 
-impl<'a> Serialize for Parameter<'_> {
+impl Serialize for Parameter<'_> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         self.parameter_id.serialize::<_, B>(&mut writer)?;
         self.length.serialize::<_, B>(&mut writer)?;
@@ -66,14 +66,8 @@ impl<'a> NumberOfBytes for Parameter<'a> {
     }
 }
 
-impl<'a, T: Serialize> Serialize for ParameterListSubmessageElement<'a, T>
-// where
-//     for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
-{
+impl<T: Serialize> Serialize for ParameterListSubmessageElement<'_, T> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        // for parameter in &self.parameter {
-        //     parameter.serialize::<_, B>(&mut writer)?;
-        // }
         &self.parameter.serialize::<_, B>(&mut writer)?;
         SENTINEL.serialize::<_, B>(&mut writer)
     }

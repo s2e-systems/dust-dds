@@ -1,13 +1,12 @@
 use std::io::Write;
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 
 use crate::{
     submessage_elements::{
-        flags_to_byte, is_bit_set, EntityIdUdp, SequenceNumberSetUdp, SequenceNumberUdp,
+        EntityIdUdp, SequenceNumberSetUdp, SequenceNumberUdp,
     },
-    submessage_header::{SubmessageHeaderUdp, GAP},
+    submessage_header::{SubmessageHeaderUdp},
 };
 
 #[derive(Debug, PartialEq)]
