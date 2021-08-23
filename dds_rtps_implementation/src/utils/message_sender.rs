@@ -103,8 +103,6 @@ pub fn send_data<Transport, Participant>(
 
 #[cfg(test)]
 mod tests {
-    use std::marker::PhantomData;
-
     use rust_rtps_pim::{
         discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         messages::{
@@ -113,30 +111,12 @@ mod tests {
                 SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
                 SerializedDataSubmessageElement,
             },
-            submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
+            submessages::{DataSubmessage, GapSubmessage, RtpsSubmessageType},
         },
         structure::types::{self, ENTITYID_UNKNOWN, LOCATOR_INVALID},
     };
 
     use super::*;
-
-    #[derive(PartialEq, Debug)]
-    struct MockPSM;
-
-    impl<'a> RtpsSubmessagePIM<'a> for MockPSM {
-        type AckNackSubmessageType = ();
-        type DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>;
-        type DataFragSubmessageType = ();
-        type GapSubmessageType = GapSubmessage<Vec<SequenceNumber>>;
-        type HeartbeatSubmessageType = ();
-        type HeartbeatFragSubmessageType = ();
-        type InfoDestinationSubmessageType = ();
-        type InfoReplySubmessageType = ();
-        type InfoSourceSubmessageType = ();
-        type InfoTimestampSubmessageType = ();
-        type NackFragSubmessageType = ();
-        type PadSubmessageType = ();
-    }
 
     struct MockReaderLocator(Locator);
 
@@ -191,10 +171,7 @@ mod tests {
                 value: ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
-                parameter: &[],
-                phantom: PhantomData,
-            },
+            inline_qos: ParameterListSubmessageElement::<&[Parameter]> { parameter: &[] },
             serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3] },
         };
 
@@ -211,10 +188,7 @@ mod tests {
                 value: ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
-                parameter: &[],
-                phantom: PhantomData,
-            },
+            inline_qos: ParameterListSubmessageElement::<&[Parameter]> { parameter: &[] },
             serialized_payload: SerializedDataSubmessageElement { value: &[4, 5, 6] },
         };
 
@@ -265,10 +239,7 @@ mod tests {
                 value: ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
-                parameter: &[],
-                phantom: PhantomData,
-            },
+            inline_qos: ParameterListSubmessageElement::<&[Parameter]> { parameter: &[] },
             serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3] },
         };
 
@@ -285,10 +256,7 @@ mod tests {
                 value: ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
-                parameter: &[],
-                phantom: PhantomData,
-            },
+            inline_qos: ParameterListSubmessageElement::<&[Parameter]> { parameter: &[] },
             serialized_payload: SerializedDataSubmessageElement { value: &[4, 5, 6] },
         };
 

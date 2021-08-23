@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
     types::{SubmessageFlag, SubmessageKind},
     RtpsSubmessageHeader,
@@ -62,10 +62,11 @@ impl Serialize for RtpsSubmessageHeader {
             SubmessageKind::DATA_FRAG => DATA_FRAG,
             SubmessageKind::NACK_FRAG => NACK_FRAG,
             SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
+            SubmessageKind::UNKNOWN => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Unknow submessage kind not allowed")),
         };
         submessage_id.serialize::<_, B>(&mut writer)?;
         self.flags.serialize::<_, B>(&mut writer)?;
-        self.submessage_length.serialize::<_, B>(&mut writer)
+        writer.write_u16::<B>(self.submessage_length)
     }
 }
 
@@ -85,15 +86,10 @@ impl<'de> Deserialize<'de> for RtpsSubmessageHeader {
             DATA_FRAG => SubmessageKind::DATA_FRAG,
             NACK_FRAG => SubmessageKind::NACK_FRAG,
             HEARTBEAT_FRAG => SubmessageKind::HEARTBEAT_FRAG,
-            _ => {
-                return deserialize::Result::Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Invalid Submessage ID",
-                ))
-            }
+            _ => SubmessageKind::UNKNOWN,
         };
         let flags = Deserialize::deserialize::<B>(buf)?;
-        let submessage_length = Deserialize::deserialize::<B>(buf)?;
+        let submessage_length = buf.read_u16::<B>()?;
         Ok(Self {
             submessage_id,
             flags,

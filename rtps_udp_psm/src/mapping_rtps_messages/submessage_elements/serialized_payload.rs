@@ -3,15 +3,16 @@ use std::io::Write;
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElement;
 
-use crate::{serialize::{self, NumberofBytes, Serialize}};
+use crate::serialize::{self, NumberOfBytes, Serialize};
 
 impl<'a> Serialize for SerializedDataSubmessageElement<'a> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.serialize::<_, B>(&mut writer)
+        writer.write_all(self.value)?;
+        Ok(())
     }
 }
 
-impl<'a> NumberofBytes for  SerializedDataSubmessageElement<'a> {
+impl<'a> NumberOfBytes for SerializedDataSubmessageElement<'a> {
     fn number_of_bytes(&self) -> usize {
         self.value.len()
     }

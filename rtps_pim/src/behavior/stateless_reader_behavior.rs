@@ -47,7 +47,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use core::marker::PhantomData;
 
     use crate::{
         messages::submessage_elements::{
@@ -172,7 +171,7 @@ mod tests {
                 value: message_sequence_number,
             },
             serialized_payload: SerializedDataSubmessageElement { value: &[3] },
-            inline_qos: ParameterListSubmessageElement { parameter: [], phantom: PhantomData },
+            inline_qos: ParameterListSubmessageElement { parameter: [] },
         };
         stateless_reader.receive_data(source_guid_prefix, &data);
 

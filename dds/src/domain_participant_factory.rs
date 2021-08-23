@@ -30,7 +30,9 @@ use rust_rtps_pim::{
         writer::writer::{RtpsWriter, RtpsWriterOperations},
     },
     discovery::{
-        spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
+        spdp::{
+            builtin_endpoints::SpdpBuiltinParticipantWriter,
+        },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     messages::types::Count,
@@ -39,9 +41,7 @@ use rust_rtps_pim::{
         RtpsEntity, RtpsHistoryCache, RtpsParticipant,
     },
 };
-use rust_rtps_udp_psm::{
-    builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp, serialize::to_bytes_le,
-};
+use rust_rtps_udp_psm::serialize::to_bytes_le;
 
 use crate::udp_transport::UdpTransport;
 
@@ -99,14 +99,6 @@ impl DomainParticipantFactory {
 
         let rtps_participant = RtpsParticipantImpl::new(guid_prefix);
 
-        // let spdp_builtin_participant_reader: RTPSReaderImpl =
-        //     SpdpBuiltinParticipantReader::create(guid_prefix);
-
-        // rtps_participant
-        //     .builtin_reader_group
-        //     .lock()
-        //     .add_reader(RtpsShared::new(spdp_builtin_participant_reader));
-
         let spdp_builtin_participant_writer_qos = DataWriterQos::default();
         let spdp_discovery_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -120,42 +112,38 @@ impl DomainParticipantFactory {
             seconds: 30,
             fraction: 0,
         };
-        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
-            &(domain_id as u32),
-            &"abc",
-            rtps_participant.protocol_version(),
-            rtps_participant.guid(),
-            rtps_participant.vendor_id(),
-            &false,
-            &[],
-            &[spdp_discovery_locator],
-            &[],
-            &[],
-            &BuiltinEndpointSet::new(
-                BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-                    | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
-            ),
-            &Count(0),
-            &BuiltinEndpointQos::default(),
-            &lease_duration,
-        );
-        let spdp_discovered_participant_data_bytes =
-            to_bytes_le(&spdp_discovered_participant_data).unwrap();
-        let cc = spdp_builtin_participant_rtps_writer.new_change(
-            ChangeKind::Alive,
-            &spdp_discovered_participant_data_bytes,
-            &[],
-            1,
-        );
-
-        spdp_builtin_participant_rtps_writer
-            .writer_cache_mut()
-            .add_change(&cc);
+        // let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+        //     &(domain_id as u32),
+        //     &"abc",
+        //     rtps_participant.protocol_version(),
+        //     rtps_participant.guid(),
+        //     rtps_participant.vendor_id(),
+        //     &false,
+        //     &[],
+        //     &[spdp_discovery_locator],
+        //     &[],
+        //     &[],
+        //     &BuiltinEndpointSet::new(
+        //         BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+        //             | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+        //     ),
+        //     &Count(0),
+        //     &BuiltinEndpointQos::default(),
+        //     &lease_duration,
+        // );
 
         let spdp_builtin_participant_writer = RtpsShared::new(DataWriterStorage::new(
             spdp_builtin_participant_writer_qos,
             spdp_builtin_participant_rtps_writer,
         ));
+        // spdp_builtin_participant_writer
+        //     .lock()
+        //     .write_w_timestamp(
+        //         spdp_discovered_participant_data,
+        //         None,
+        //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+        //     )
+        //     .unwrap();
 
         let builtin_publisher_storage = vec![RtpsShared::new(PublisherStorage::new(
             PublisherQos::default(),
@@ -188,3 +176,13 @@ impl DomainParticipantFactory {
         Some(domain_participant)
     }
 }
+
+// impl rust_dds_rtps_implementation::dds_type::DDSType for SPDPdiscoveredParticipantDataUdp {
+//     fn type_name() -> &'static str {
+//         todo!()
+//     }
+
+//     fn has_key() -> bool {
+//         todo!()
+//     }
+// }
