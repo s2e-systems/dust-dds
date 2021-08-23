@@ -1,4 +1,4 @@
-use core::{iter::FromIterator, marker::PhantomData};
+use core::iter::FromIterator;
 
 use crate::{
     behavior::writer::{
@@ -93,7 +93,6 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, S>(
             };
             let inline_qos = ParameterListSubmessageElement {
                 parameter: *change.inline_qos(),
-                phantom: PhantomData,
             };
             let serialized_payload = SerializedDataSubmessageElement {
                 value: change.data_value(),

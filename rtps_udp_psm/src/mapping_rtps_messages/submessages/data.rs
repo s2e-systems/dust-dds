@@ -1,4 +1,4 @@
-use std::{io::Write, iter::FromIterator, marker::PhantomData};
+use std::{io::Write, iter::FromIterator};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{
@@ -15,11 +15,7 @@ use crate::{
     serialize::{NumberOfBytes, Serialize},
 };
 
-impl<'a, T> Serialize for DataSubmessage<'a, T>
-where
-    for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
-    T: NumberOfBytes,
-{
+impl Serialize for DataSubmessage<'_, &[Parameter<'_>]> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -92,7 +88,6 @@ where
         } else {
             ParameterListSubmessageElement {
                 parameter: T::from_iter(std::iter::empty()),
-                phantom: PhantomData,
             }
         };
         let inline_qos_len = if inline_qos_flag {
@@ -130,8 +125,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::marker::PhantomData;
-
     use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
 
     use super::*;
@@ -161,8 +154,7 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement {
-            parameter: Vec::<Parameter>::new(),
-            phantom: PhantomData,
+            parameter: [].as_ref(),
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
         let submessage = DataSubmessage {
@@ -206,8 +198,7 @@ mod tests {
         let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
-            parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData,
+            parameter: [parameter_1, parameter_2].as_ref(),
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
@@ -255,8 +246,7 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement {
-            parameter: Vec::<Parameter>::new(),
-            phantom: PhantomData,
+            parameter: [].as_ref(),
         };
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1_u8, 2, 3, 4],
@@ -301,8 +291,7 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement {
-            parameter: Vec::<Parameter>::new(),
-            phantom: PhantomData,
+            parameter: [].as_ref(),
         };
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1_u8, 2, 3],
@@ -346,10 +335,7 @@ mod tests {
             value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: vec![],
-            phantom: PhantomData,
-        };
+        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
         let expected = DataSubmessage {
             endianness_flag,
@@ -389,10 +375,7 @@ mod tests {
             value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: vec![],
-            phantom: PhantomData,
-        };
+        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1, 2, 3, 4],
         };
@@ -439,7 +422,6 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
         let expected = DataSubmessage {

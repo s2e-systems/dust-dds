@@ -12,21 +12,16 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, NumberOfBytes, Serialize},
-};
+use crate::{deserialize::Deserialize, serialize::Serialize};
 
 use super::submessages::submessage_header::{
     ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
     INFO_TS, NACK_FRAG, PAD,
 };
 
-impl<'a, S, P, L, F> Serialize for RtpsSubmessageType<'a, S, P, L, F>
+impl<'a, S, L, F> Serialize for RtpsSubmessageType<'a, S, &Parameter<'_>, L, F>
 where
     for<'b> &'b S: IntoIterator<Item = &'b SequenceNumber>,
-    for<'b> &'b P: IntoIterator<Item = &'b Parameter<'a>>,
-    P: NumberOfBytes,
 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         match self {
@@ -47,8 +42,8 @@ where
     }
 }
 
-impl<'a> Serialize
-    for RtpsMessage<Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &'a [Parameter<'_>], (), ()>>>
+impl Serialize
+    for RtpsMessage<Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter<'_>], (), ()>>>
 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         self.header.serialize::<_, B>(&mut writer)?;

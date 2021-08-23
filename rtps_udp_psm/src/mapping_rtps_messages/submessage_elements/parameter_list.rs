@@ -1,4 +1,4 @@
-use std::{io::Write, iter::FromIterator, marker::PhantomData};
+use std::{io::Write, iter::FromIterator};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
@@ -99,19 +99,16 @@ impl<'a> NumberOfBytes for Parameter<'a> {
     }
 }
 
-impl<T> Serialize for ParameterListSubmessageElement<'_, T>
-where
-    for<'b> &'b T: IntoIterator<Item = &'a Parameter<'a>>,
-{
+impl Serialize for ParameterListSubmessageElement<&[Parameter<'_>]> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        for parameter in &self.parameter {
+        for parameter in self.parameter {
             parameter.serialize::<_, B>(&mut writer)?;
         }
         SENTINEL.serialize::<_, B>(&mut writer)
     }
 }
 
-impl<'de: 'a, 'a, T> Deserialize<'de> for ParameterListSubmessageElement<'a, T>
+impl<'de: 'a, 'a, T> Deserialize<'de> for ParameterListSubmessageElement<T>
 where
     T: FromIterator<Parameter<'a>>,
 {
@@ -131,12 +128,11 @@ where
         }
         Ok(Self {
             parameter: T::from_iter(parameter.into_iter()),
-            phantom: PhantomData,
         })
     }
 }
 
-impl<'a, T: NumberOfBytes> NumberOfBytes for ParameterListSubmessageElement<'a, T> {
+impl<'a, T: NumberOfBytes> NumberOfBytes for ParameterListSubmessageElement<T> {
     fn number_of_bytes(&self) -> usize {
         self.parameter.number_of_bytes() + 4 /* Sentinel */
     }
@@ -144,7 +140,6 @@ impl<'a, T: NumberOfBytes> NumberOfBytes for ParameterListSubmessageElement<'a, 
 
 #[cfg(test)]
 mod tests {
-    use std::marker::PhantomData;
 
     use super::*;
     use crate::deserialize::from_bytes_le;
@@ -211,11 +206,11 @@ mod tests {
     #[test]
     fn serialize_parameter_list() {
         let parameter = ParameterListSubmessageElement {
-            parameter: vec![
-                Parameter::new(ParameterId(2), &[51, 61, 71, 81]),
-                Parameter::new(ParameterId(3), &[52, 62]),
-            ],
-            phantom: PhantomData,
+            parameter: [
+                Parameter::new(ParameterId(2), [51, 61, 71, 81].as_ref()),
+                Parameter::new(ParameterId(3), [52, 62].as_ref()),
+            ]
+            .as_ref(),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
@@ -231,8 +226,7 @@ mod tests {
     #[test]
     fn serialize_parameter_list_empty() {
         let parameter = ParameterListSubmessageElement {
-            parameter: Vec::<Parameter>::new(),
-            phantom: PhantomData,
+            parameter: [].as_ref(),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
@@ -248,7 +242,6 @@ mod tests {
                 Parameter::new(ParameterId(0x02), &[15, 16, 17, 18]),
                 Parameter::new(ParameterId(0x03), &[25, 26, 27, 28]),
             ],
-            phantom: PhantomData,
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
@@ -275,7 +268,6 @@ mod tests {
 
         let expected = ParameterListSubmessageElement {
             parameter: vec![Parameter::new(ParameterId(0x32), parameter_value_expected)],
-            phantom: PhantomData,
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
@@ -312,7 +304,6 @@ mod tests {
                 Parameter::new(ParameterId(0x32), parameter_value_expected1),
                 Parameter::new(ParameterId(0x32), parameter_value_expected2),
             ],
-            phantom: PhantomData,
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
