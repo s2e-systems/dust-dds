@@ -121,6 +121,7 @@ mod tests {
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 8,       // value
         ]);
+        assert_eq!(parameter.number_of_bytes(), 8)
     }
 
     #[test]
@@ -131,6 +132,7 @@ mod tests {
             0x02, 0x00, 4, 0, // Parameter | length
             5, 6, 7, 0,       // value
         ]);
+        assert_eq!(parameter.number_of_bytes(), 8)
     }
 
     #[test]
@@ -142,6 +144,7 @@ mod tests {
             0x02, 0x00, 0, 0, // Parameter | length
         ]
         );
+        assert_eq!(parameter.number_of_bytes(), 4)
     }
 
     #[test]
@@ -166,6 +169,39 @@ mod tests {
             9, 10, 11, 12,       // value
         ]).unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn serialize_parameter_list() {
+        let parameter = ParameterListSubmessageElement {
+            parameter: vec![
+                Parameter::new(ParameterId(2), &[51, 61, 71, 81]),
+                Parameter::new(ParameterId(3), &[52, 62]),
+            ],
+            phantom: PhantomData,
+        };
+        #[rustfmt::skip]
+        assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
+            0x02, 0x00, 4, 0, // Parameter ID | length
+            51, 61, 71, 81,   // value
+            0x03, 0x00, 4, 0, // Parameter ID | length
+            52, 62, 0, 0,   // value
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ]);
+        assert_eq!(parameter.number_of_bytes(), 20);
+    }
+
+    #[test]
+    fn serialize_parameter_list_empty() {
+        let parameter = ParameterListSubmessageElement {
+            parameter: Vec::<Parameter>::new(),
+            phantom: PhantomData,
+        };
+        #[rustfmt::skip]
+        assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
+            0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
+        ]);
+        assert_eq!(parameter.number_of_bytes(), 4);
     }
 
     #[test]
