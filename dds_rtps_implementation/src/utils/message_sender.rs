@@ -6,9 +6,8 @@ use rust_rtps_pim::{
         writer::reader_locator::RtpsReaderLocator,
     },
     messages::{
-        submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
-        RtpsMessageHeader, RtpsMessageTrait,
+        submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessage,
+        RtpsMessageHeader,
     },
     structure::{
         types::{Locator, SequenceNumber},
@@ -78,26 +77,26 @@ where
     }
 }
 
-pub fn send_data<'a, Transport, Participant, S>(
-    participant: &'a Participant,
-    writer: &'a mut RtpsWriterImpl,
-    transport: &'a mut Transport,
+pub fn send_data<Transport, Participant>(
+    participant: &Participant,
+    writer: &mut RtpsWriterImpl,
+    transport: &mut Transport,
 ) where
-    Transport: TransportWrite<'a>,
-    Transport::Message:
-        RtpsMessageTrait<SubmessageType = RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>,
+    Transport: TransportWrite + ?Sized,
     Participant: RtpsParticipant + RtpsEntity,
-    S: FromIterator<SequenceNumber>,
 {
-    let header = RtpsMessageHeader {
-        protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-        version: *participant.protocol_version(),
-        vendor_id: *participant.vendor_id(),
-        guid_prefix: *participant.guid().prefix(),
-    };
     let destined_submessages = writer.create_submessages();
     for (dst_locator, submessages) in destined_submessages {
-        let message = Transport::Message::new(&header, submessages);
+        let header = RtpsMessageHeader {
+            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+            version: *participant.protocol_version(),
+            vendor_id: *participant.vendor_id(),
+            guid_prefix: *participant.guid().prefix(),
+        };
+        let message = RtpsMessage {
+            header,
+            submessages,
+        };
         transport.write(&message, &dst_locator);
     }
 }
@@ -114,7 +113,7 @@ mod tests {
                 SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
                 SerializedDataSubmessageElement,
             },
-            submessages::{DataSubmessage, RtpsSubmessageType},
+            submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
         },
         structure::types::{self, ENTITYID_UNKNOWN, LOCATOR_INVALID},
     };
@@ -167,8 +166,10 @@ mod tests {
         }
 
         let mut writer = MockBehavior;
-        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter],(),()>>)> =
-            writer.create_submessages();
+        let destined_submessages: Vec<(
+            Locator,
+            Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter], (), ()>>,
+        )> = writer.create_submessages();
 
         assert!(destined_submessages.is_empty());
     }
@@ -231,8 +232,10 @@ mod tests {
         }
 
         let mut writer = MockBehavior;
-        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter],(),()>>)> =
-            writer.create_submessages();
+        let destined_submessages: Vec<(
+            Locator,
+            Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter], (), ()>>,
+        )> = writer.create_submessages();
         let (dst_locator, submessages) = &destined_submessages[0];
 
         assert_eq!(dst_locator, &LOCATOR_INVALID);
@@ -325,8 +328,10 @@ mod tests {
         }
 
         let mut writer = MockBehavior;
-        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter],(),()>>)> =
-            writer.create_submessages();
+        let destined_submessages: Vec<(
+            Locator,
+            Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter], (), ()>>,
+        )> = writer.create_submessages();
 
         let locator1_submessages = &destined_submessages[0].1;
         let locator2_submessages = &destined_submessages[1].1;
