@@ -2,7 +2,7 @@ use rust_rtps_pim::messages::{types::SubmessageFlag, RtpsSubmessageHeader};
 use std::io::Write;
 use byteorder::ByteOrder;
 
-use crate::{parameter_list::ParameterListUdp, submessage_elements::{
+use crate::{submessage_elements::{
         EntityIdUdp, FragmentNumberUdp, SequenceNumberUdp, SerializedDataUdp, ULongUdp, UShortUdp,
     }};
 
@@ -28,7 +28,7 @@ impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessageTrait for DataF
     type FragmentNumberSubmessageElementType = FragmentNumberUdp;
     type UShortSubmessageElementType = UShortUdp;
     type ULongSubmessageElementType = ULongUdp;
-    type ParameterListSubmessageElementType = ParameterListUdp<'a>;
+    type ParameterListSubmessageElementType = ();
     type SerializedDataFragmentSubmessageElementType = SerializedDataUdp<'a>;
 
     fn new(

@@ -139,14 +139,14 @@ impl DomainParticipantFactory {
             spdp_builtin_participant_writer_qos,
             spdp_builtin_participant_rtps_writer,
         ));
-        spdp_builtin_participant_writer
-            .lock()
-            .write_w_timestamp(
-                spdp_discovered_participant_data,
-                None,
-                rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-            )
-            .unwrap();
+        // spdp_builtin_participant_writer
+        //     .lock()
+        //     .write_w_timestamp(
+        //         spdp_discovered_participant_data,
+        //         None,
+        //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+        //     )
+        //     .unwrap();
 
         let builtin_publisher_storage = vec![RtpsShared::new(PublisherStorage::new(
             PublisherQos::default(),
@@ -180,12 +180,12 @@ impl DomainParticipantFactory {
     }
 }
 
-impl rust_dds_rtps_implementation::dds_type::DDSType for SPDPdiscoveredParticipantDataUdp {
-    fn type_name() -> &'static str {
-        todo!()
-    }
+// impl rust_dds_rtps_implementation::dds_type::DDSType for SPDPdiscoveredParticipantDataUdp {
+//     fn type_name() -> &'static str {
+//         todo!()
+//     }
 
-    fn has_key() -> bool {
-        todo!()
-    }
-}
+//     fn has_key() -> bool {
+//         todo!()
+//     }
+// }

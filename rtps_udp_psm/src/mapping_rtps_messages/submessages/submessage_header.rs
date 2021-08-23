@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
     types::{SubmessageFlag, SubmessageKind},
     RtpsSubmessageHeader,
@@ -66,7 +66,7 @@ impl Serialize for RtpsSubmessageHeader {
         };
         submessage_id.serialize::<_, B>(&mut writer)?;
         self.flags.serialize::<_, B>(&mut writer)?;
-        self.submessage_length.serialize::<_, B>(&mut writer)
+        writer.write_u16::<B>(self.submessage_length)
     }
 }
 
@@ -89,7 +89,7 @@ impl<'de> Deserialize<'de> for RtpsSubmessageHeader {
             _ => SubmessageKind::UNKNOWN,
         };
         let flags = Deserialize::deserialize::<B>(buf)?;
-        let submessage_length = Deserialize::deserialize::<B>(buf)?;
+        let submessage_length = buf.read_u16::<B>()?;
         Ok(Self {
             submessage_id,
             flags,

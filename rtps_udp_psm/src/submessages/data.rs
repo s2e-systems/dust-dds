@@ -2,7 +2,6 @@ use byteorder::ByteOrder;
 use std::io::Write;
 
 use crate::{
-    parameter_list::ParameterListUdp,
     submessage_elements::{
          is_bit_set, EntityIdUdp, SequenceNumberUdp, SerializedDataUdp,
     },
@@ -17,7 +16,7 @@ pub struct DataSubmesageUdp<'a> {
     reader_id: EntityIdUdp,
     writer_id: EntityIdUdp,
     writer_sn: SequenceNumberUdp,
-    inline_qos: ParameterListUdp<'a>,
+    // inline_qos: ParameterListUdp<'a>,
     serialized_payload: SerializedDataUdp<'a>,
 }
 
@@ -52,51 +51,7 @@ impl<'a, 'de: 'a> crate::deserialize::Deserialize<'de> for DataSubmesageUdp<'a> 
     where
         B: ByteOrder,
     {
-        let header: SubmessageHeaderUdp = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        let inline_qos_flag = is_bit_set(header.flags, 1);
-        let data_flag = is_bit_set(header.flags, 2);
-        let key_flag = is_bit_set(header.flags, 3);
-        // let non_standard_payload_flag = header.flags.is_bit_set(4);
-        let extra_flags = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        let octets_to_inline_qos = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        let reader_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        let writer_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        let writer_sn = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-
-        let inline_qos: ParameterListUdp = if inline_qos_flag {
-            crate::deserialize::Deserialize::deserialize::<B>(buf)?
-        } else {
-            ParameterListUdp { parameter: vec![] }
-        };
-        let inline_qos_len = if inline_qos_flag {
-            inline_qos.number_of_bytes()
-        } else {
-            0
-        };
-
-        let serialized_payload: SerializedDataUdp = if data_flag || key_flag {
-            let serialized_payload_length = header.submessage_length as usize
-                - octets_to_inline_qos as usize
-                - 4
-                - inline_qos_len;
-            let (data, following) = buf.split_at(serialized_payload_length as usize);
-            *buf = following;
-
-            SerializedDataUdp(&data)
-        } else {
-            SerializedDataUdp(&[])
-        };
-
-        Ok(DataSubmesageUdp {
-            header,
-            extra_flags,
-            octets_to_inline_qos,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        })
+        todo!()
     }
 }
 

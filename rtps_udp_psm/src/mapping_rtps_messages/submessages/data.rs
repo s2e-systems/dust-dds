@@ -1,6 +1,6 @@
 use std::{io::Write, iter::FromIterator, marker::PhantomData};
 
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
     submessage_elements::{
         Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
@@ -42,8 +42,8 @@ impl<T: Serialize + NumberOfBytes> Serialize for DataSubmessage<'_, T> {
         header.serialize::<_, B>(&mut writer)?;
         const OCTETS_TO_INLIE_QOS: u16 = 16;
         const EXTRA_FLAGS: u16 = 0;
-        EXTRA_FLAGS.serialize::<_, B>(&mut writer)?;
-        OCTETS_TO_INLIE_QOS.serialize::<_, B>(&mut writer)?;
+        writer.write_u16::<B>(EXTRA_FLAGS)?;
+        writer.write_u16::<B>(OCTETS_TO_INLIE_QOS)?;
         self.reader_id.serialize::<_, B>(&mut writer)?;
         self.writer_id.serialize::<_, B>(&mut writer)?;
         self.writer_sn.serialize::<_, B>(&mut writer)?;
@@ -77,8 +77,8 @@ where
         let inline_qos_flag = header.flags[1];
         let data_flag = header.flags[2];
         let key_flag = header.flags[3];
-        let _extra_flags: u16 = Deserialize::deserialize::<B>(buf)?;
-        let octets_to_inline_qos: u16 = Deserialize::deserialize::<B>(buf)?;
+        let _extra_flags: u16 = buf.read_u16::<B>()?;
+        let octets_to_inline_qos: u16 = buf.read_u16::<B>()?;
         let reader_id = Deserialize::deserialize::<B>(buf)?;
         let writer_id = Deserialize::deserialize::<B>(buf)?;
         let writer_sn = Deserialize::deserialize::<B>(buf)?;

@@ -1,11 +1,10 @@
 use std::io::Write;
 use std::marker::PhantomData;
 
-use crate::parameter_list::ParameterListUdp;
 use crate::serialize::{NumberOfBytes, Serialize};
 
 use crate::submessage_elements::{CountUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp};
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
@@ -216,7 +215,7 @@ impl<'a, W: Write, B: ByteOrder> ParameterSerializer<'a, W, B> {
         parameter_id: u16,
         parameter: &S,
     ) -> crate::serialize::Result {
-        parameter_id.serialize::<_, B>(&mut self.writer)?;
+        self.writer.write_u16::<B>(parameter_id)?;
         let length = parameter.number_of_bytes();
         let padding: &[u8] = match length % 4 {
             1 => &[0; 3],
@@ -225,7 +224,7 @@ impl<'a, W: Write, B: ByteOrder> ParameterSerializer<'a, W, B> {
             _ => &[],
         };
         let length_with_padding = (length + padding.len()) as u16;
-        length_with_padding.serialize::<_, B>(&mut self.writer)?;
+        self.writer.write_u16::<B>(length_with_padding)?;
         parameter.serialize::<_, B>(&mut self.writer)?;
         padding.serialize::<_, B>(&mut self.writer)
     }
@@ -306,97 +305,98 @@ impl<'de> crate::deserialize::Deserialize<'de> for SPDPdiscoveredParticipantData
     where
         B: ByteOrder,
     {
-        let _representation: [u8; 4] = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        let parameter_list: ParameterListUdp =
-            crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        // let _representation: [u8; 4] = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        // let parameter_list: () = ();
+        //     // crate::deserialize::Deserialize::deserialize::<B>(buf)?;
 
-        let domain_id = parameter_list
-            .get(PID_DOMAIN_ID)
-            .ok_or(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Missing PID_DOMAIN_ID parameter",
-            ))?;
+        // let domain_id = parameter_list
+        //     .get(PID_DOMAIN_ID)
+        //     .ok_or(std::io::Error::new(
+        //         std::io::ErrorKind::Other,
+        //         "Missing PID_DOMAIN_ID parameter",
+        //     ))?;
 
-        let domain_tag = parameter_list
-            .get(PID_DOMAIN_TAG)
-            .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
+        // let domain_tag = parameter_list
+        //     .get(PID_DOMAIN_TAG)
+        //     .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
 
-        let protocol_version: ProtocolVersionUdp =
-            parameter_list
-                .get(PID_PROTOCOL_VERSION)
-                .ok_or(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Missing PID_PROTOCOL_VERSION parameter",
-                ))?;
+        // let protocol_version: ProtocolVersionUdp =
+        //     parameter_list
+        //         .get(PID_PROTOCOL_VERSION)
+        //         .ok_or(std::io::Error::new(
+        //             std::io::ErrorKind::Other,
+        //             "Missing PID_PROTOCOL_VERSION parameter",
+        //         ))?;
 
-        let guid: GuidUdp = parameter_list
-            .get(PID_PARTICIPANT_GUID)
-            .ok_or(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Missing PID_PARTICIPANT_GUID parameter",
-            ))?;
+        // let guid: GuidUdp = parameter_list
+        //     .get(PID_PARTICIPANT_GUID)
+        //     .ok_or(std::io::Error::new(
+        //         std::io::ErrorKind::Other,
+        //         "Missing PID_PARTICIPANT_GUID parameter",
+        //     ))?;
 
-        let vendor_id: VendorIdUdp = parameter_list.get(PID_VENDORID).ok_or(
-            std::io::Error::new(std::io::ErrorKind::Other, "Missing PID_VENDORID parameter"),
-        )?;
+        // let vendor_id: VendorIdUdp = parameter_list.get(PID_VENDORID).ok_or(
+        //     std::io::Error::new(std::io::ErrorKind::Other, "Missing PID_VENDORID parameter"),
+        // )?;
 
-        let expects_inline_qos = parameter_list
-            .get(PID_EXPECTS_INLINE_QOS)
-            .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
+        // let expects_inline_qos = parameter_list
+        //     .get(PID_EXPECTS_INLINE_QOS)
+        //     .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
 
-        let metatraffic_unicast_locator_list =
-            parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
+        // let metatraffic_unicast_locator_list =
+        //     parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
 
-        let metatraffic_multicast_locator_list =
-            parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
+        // let metatraffic_multicast_locator_list =
+        //     parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
 
-        let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
+        // let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
 
-        let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
+        // let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
 
-        let available_builtin_endpoints =
-            parameter_list
-                .get(PID_BUILTIN_ENDPOINT_SET)
-                .ok_or(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Missing PID_BUILTIN_ENDPOINT_SET parameter",
-                ))?;
+        // let available_builtin_endpoints =
+        //     parameter_list
+        //         .get(PID_BUILTIN_ENDPOINT_SET)
+        //         .ok_or(std::io::Error::new(
+        //             std::io::ErrorKind::Other,
+        //             "Missing PID_BUILTIN_ENDPOINT_SET parameter",
+        //         ))?;
 
-        let manual_liveliness_count = parameter_list
-            .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
-            .ok_or(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter",
-            ))?;
+        // let manual_liveliness_count = parameter_list
+        //     .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
+        //     .ok_or(std::io::Error::new(
+        //         std::io::ErrorKind::Other,
+        //         "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter",
+        //     ))?;
 
-        let builtin_endpoint_qos = parameter_list
-            .get(PID_BUILTIN_ENDPOINT_QOS)
-            .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
+        // let builtin_endpoint_qos = parameter_list
+        //     .get(PID_BUILTIN_ENDPOINT_QOS)
+        //     .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
 
-        let lease_duration = parameter_list
-            .get(PID_PARTICIPANT_LEASE_DURATION)
-            .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
+        // let lease_duration = parameter_list
+        //     .get(PID_PARTICIPANT_LEASE_DURATION)
+        //     .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
 
-        let participant_proxy = ParticipantProxy {
-            domain_id,
-            domain_tag,
-            protocol_version,
-            guid,
-            vendor_id,
-            expects_inline_qos,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            available_builtin_endpoints,
-            manual_liveliness_count,
-            builtin_endpoint_qos,
-        };
+        // let participant_proxy = ParticipantProxy {
+        //     domain_id,
+        //     domain_tag,
+        //     protocol_version,
+        //     guid,
+        //     vendor_id,
+        //     expects_inline_qos,
+        //     metatraffic_unicast_locator_list,
+        //     metatraffic_multicast_locator_list,
+        //     default_unicast_locator_list,
+        //     default_multicast_locator_list,
+        //     available_builtin_endpoints,
+        //     manual_liveliness_count,
+        //     builtin_endpoint_qos,
+        // };
 
-        Ok(Self {
-            participant_proxy: participant_proxy,
-            lease_duration: lease_duration,
-        })
+        // Ok(Self {
+        //     participant_proxy: participant_proxy,
+        //     lease_duration: lease_duration,
+        // })
+        todo!()
     }
 }
 #[cfg(test)]

@@ -1,6 +1,6 @@
 use std::{io::Write, iter::FromIterator, marker::PhantomData};
 
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::{
     messages::{
         submessage_elements::{Parameter, ParameterListSubmessageElement},
@@ -20,21 +20,56 @@ const SENTINEL: Parameter = Parameter {
     value: &[],
 };
 
-impl Serialize for ParameterId {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.0.serialize::<_, B>(&mut writer)
-    }
-}
-impl<'de> Deserialize<'de> for ParameterId {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self(Deserialize::deserialize::<B>(buf)?))
-    }
-}
+
+// impl crate::serialize::Serialize for u16 {
+//     fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+//         &self,
+//         mut writer: W,
+//     ) -> crate::serialize::Result {
+//         writer.write_u16::<B>(*self)
+//     }
+// }
+// impl<'de> crate::deserialize::Deserialize<'de> for u16 {
+//     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+//     where
+//         B: byteorder::ByteOrder,
+//     {
+//         buf.read_u16::<B>()
+//     }
+// }
+// impl crate::serialize::Serialize for i16 {
+//     fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
+//         &self,
+//         mut writer: W,
+//     ) -> crate::serialize::Result {
+//         writer.write_i16::<B>(*self)
+//     }
+// }
+// impl<'de> crate::deserialize::Deserialize<'de> for i16 {
+//     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
+//     where
+//         B: byteorder::ByteOrder,
+//     {
+//         buf.read_i16::<B>()
+//     }
+// }
+
+// impl Serialize for ParameterId {
+//     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+//         // self.0.serialize::<_, B>(&mut writer)
+//         writer.write_u16::<B>(self.0)
+//     }
+// }
+// impl<'de> Deserialize<'de> for ParameterId {
+//     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+//         Ok(Self(Deserialize::deserialize::<B>(buf)?))
+//     }
+// }
 
 impl Serialize for Parameter<'_> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.parameter_id.serialize::<_, B>(&mut writer)?;
-        self.length.serialize::<_, B>(&mut writer)?;
+        writer.write_u16::<B>(self.parameter_id.0)?;
+        writer.write_i16::<B>(self.length)?;
         self.value.serialize::<_, B>(&mut writer)?;
         let padding: &[u8] = match self.value.len() % 4 {
             1 => &[0; 3],
@@ -48,8 +83,8 @@ impl Serialize for Parameter<'_> {
 
 impl<'de: 'a, 'a> Deserialize<'de> for Parameter<'a> {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let parameter_id = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        let length = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let parameter_id = ParameterId(buf.read_u16::<B>()?);
+        let length = buf.read_i16::<B>()?;
         let (value, following) = buf.split_at(length as usize);
         *buf = following;
         Ok(Self {
