@@ -11,5 +11,5 @@ pub trait TransportWrite {
 }
 
 pub trait TransportRead {
-    fn read(&mut self) -> Option<(Locator, TransportMessage<'_>)>;
+    fn read(&mut self) -> Option<(Locator, RtpsMessage<Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, Vec<Parameter<'_>>, (), ()>>>)>;
 }

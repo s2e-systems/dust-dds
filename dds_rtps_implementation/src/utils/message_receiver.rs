@@ -41,13 +41,13 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message(
+    pub fn process_message<'a, P>(
         mut self,
         participant_guid_prefix: GuidPrefix,
-        reader_group_list: &[RtpsShared<SubscriberStorage>],
+        reader_group_list: &'a [RtpsShared<SubscriberStorage>],
         source_locator: Locator,
-        message: &RtpsMessage<Vec<RtpsSubmessageType<Vec<SequenceNumber>, &[Parameter], (), ()>>>,
-    ) {
+        message: &'a RtpsMessage<Vec<RtpsSubmessageType<Vec<SequenceNumber>, P, (), ()>>>,
+    ) where P: AsRef<[Parameter<'a>]>{
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
         self.source_vendor_id = message.header.vendor_id;
@@ -83,9 +83,9 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a>(
+    fn process_data<'a, P: AsRef<[Parameter<'a>]>>(
         &mut self,
-        data: &'a DataSubmessage<&'a [Parameter<'a>]>,
+        data: &'a DataSubmessage<P>,
         reader_group_list: &'a [RtpsShared<SubscriberStorage>],
     ) {
         for subscriber in reader_group_list {

@@ -3,13 +3,13 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 use rust_dds_rtps_implementation::utils::transport::{
     TransportMessage, TransportRead, TransportWrite,
 };
-use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
-use rust_rtps_udp_psm::serialize::to_writer_le;
+use rust_rtps_pim::{messages::{RtpsMessage, submessage_elements::Parameter, submessages::RtpsSubmessageType}, structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator, SequenceNumber}};
+use rust_rtps_udp_psm::{deserialize::from_bytes_le, serialize::to_writer_le};
 
-//const BUFFER_SIZE: usize = 32000;
+const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
     socket: UdpSocket,
-    //receive_buffer: [u8; BUFFER_SIZE],
+    receive_buffer: [u8; BUFFER_SIZE],
 }
 
 struct UdpLocator(Locator);
@@ -64,7 +64,7 @@ impl UdpTransport {
     pub fn new(socket: UdpSocket) -> Self {
         Self {
             socket,
-            //receive_buffer: [0; BUFFER_SIZE],
+            receive_buffer: [0; BUFFER_SIZE],
         }
     }
 }
@@ -82,22 +82,21 @@ impl<'a> TransportWrite for UdpTransport {
     }
 }
 
-impl<'a> TransportRead for UdpTransport {
-    fn read(&mut self) -> Option<(Locator, TransportMessage)> {
-        // match self.socket.recv_from(&mut self.receive_buffer) {
-        //     Ok((bytes, source_address)) => {
-        //         if bytes > 0 {
-        //             let message = from_bytes_le(&self.receive_buffer[0..bytes])
-        //                 .expect("Failed to deserialize");
-        //             let udp_locator: UdpLocator = source_address.into();
-        //             Some((udp_locator.0, message))
-        //         } else {
-        //             None
-        //         }
-        //     }
-        //     Err(_) => None,
-        // }
-        todo!()
+impl TransportRead for UdpTransport {
+    fn read(&mut self) -> Option<(Locator, RtpsMessage<Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, Vec<Parameter<'_>>, (), ()>>>)> {
+        match self.socket.recv_from(&mut self.receive_buffer) {
+            Ok((bytes, source_address)) => {
+                if bytes > 0 {
+                    let message = from_bytes_le(&self.receive_buffer[0..bytes])
+                        .expect("Failed to deserialize");
+                    let udp_locator: UdpLocator = source_address.into();
+                    Some((udp_locator.0, message))
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        }
     }
 }
 

@@ -510,14 +510,9 @@ mod tests {
     struct MockTransport;
 
     impl TransportRead for MockTransport {
-        fn read(
-            &mut self,
-        ) -> Option<(
-            rust_rtps_pim::structure::types::Locator,
-            crate::utils::transport::TransportMessage<'_>,
-        )> {
-            todo!()
-        }
+        fn read(&mut self) -> Option<(rust_rtps_pim::structure::types::Locator, rust_rtps_pim::messages::RtpsMessage<Vec<rust_rtps_pim::messages::submessages::RtpsSubmessageType<'_, Vec<rust_rtps_pim::structure::types::SequenceNumber>, Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'_>>, (), ()>>>)> {
+        todo!()
+    }
     }
 
     impl TransportWrite for MockTransport {
