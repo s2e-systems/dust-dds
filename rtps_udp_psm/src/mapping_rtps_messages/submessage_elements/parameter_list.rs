@@ -205,12 +205,12 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
+        let parameter_list = [
+            Parameter::new(ParameterId(2), &[51, 61, 71, 81][..]),
+            Parameter::new(ParameterId(3), &[52, 62][..]),
+        ];
         let parameter = ParameterListSubmessageElement {
-            parameter: [
-                Parameter::new(ParameterId(2), [51, 61, 71, 81].as_ref()),
-                Parameter::new(ParameterId(3), [52, 62].as_ref()),
-            ]
-            .as_ref(),
+            parameter: parameter_list.as_ref(),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![

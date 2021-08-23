@@ -113,30 +113,12 @@ mod tests {
                 SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
                 SerializedDataSubmessageElement,
             },
-            submessages::{DataSubmessage, GapSubmessage, RtpsSubmessagePIM, RtpsSubmessageType},
+            submessages::{DataSubmessage, GapSubmessage, RtpsSubmessageType},
         },
         structure::types::{self, ENTITYID_UNKNOWN, LOCATOR_INVALID},
     };
 
     use super::*;
-
-    #[derive(PartialEq, Debug)]
-    struct MockPSM;
-
-    impl<'a> RtpsSubmessagePIM<'a> for MockPSM {
-        type AckNackSubmessageType = ();
-        type DataSubmessageType = DataSubmessage<'a, &'a [Parameter<'a>]>;
-        type DataFragSubmessageType = ();
-        type GapSubmessageType = GapSubmessage<Vec<SequenceNumber>>;
-        type HeartbeatSubmessageType = ();
-        type HeartbeatFragSubmessageType = ();
-        type InfoDestinationSubmessageType = ();
-        type InfoReplySubmessageType = ();
-        type InfoSourceSubmessageType = ();
-        type InfoTimestampSubmessageType = ();
-        type NackFragSubmessageType = ();
-        type PadSubmessageType = ();
-    }
 
     struct MockReaderLocator(Locator);
 
@@ -193,7 +175,6 @@ mod tests {
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
             inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
                 parameter: &[],
-                phantom: PhantomData,
             },
             serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3] },
         };
@@ -213,7 +194,6 @@ mod tests {
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
             inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
                 parameter: &[],
-                phantom: PhantomData,
             },
             serialized_payload: SerializedDataSubmessageElement { value: &[4, 5, 6] },
         };
@@ -267,7 +247,6 @@ mod tests {
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
             inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
                 parameter: &[],
-                phantom: PhantomData,
             },
             serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3] },
         };
@@ -287,7 +266,6 @@ mod tests {
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
             inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
                 parameter: &[],
-                phantom: PhantomData,
             },
             serialized_payload: SerializedDataSubmessageElement { value: &[4, 5, 6] },
         };

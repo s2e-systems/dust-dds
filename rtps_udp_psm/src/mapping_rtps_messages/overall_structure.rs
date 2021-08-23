@@ -207,7 +207,7 @@ mod tests {
         let value = RtpsMessage {
             header,
             submessages:
-                Vec::<RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()>>::new(),
+                Vec::<RtpsSubmessageType<Vec<SequenceNumber>, &[Parameter], (), ()>>::new(),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&value).unwrap(), vec![
@@ -241,12 +241,13 @@ mod tests {
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_list = [parameter_1, parameter_2];
         let inline_qos = ParameterListSubmessageElement {
-            parameter: vec![parameter_1, parameter_2],
+            parameter: parameter_list.as_ref(),
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
-        let submessage: RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()> =
+        let submessage: RtpsSubmessageType<Vec<SequenceNumber>, &[Parameter], (), ()> =
             RtpsSubmessageType::Data(DataSubmessage {
                 endianness_flag,
                 inline_qos_flag,

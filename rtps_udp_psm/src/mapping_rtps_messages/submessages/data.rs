@@ -197,8 +197,9 @@ mod tests {
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_list = [parameter_1, parameter_2];
         let inline_qos = ParameterListSubmessageElement {
-            parameter: [parameter_1, parameter_2].as_ref(),
+            parameter: parameter_list.as_ref(),
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
