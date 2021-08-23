@@ -45,19 +45,19 @@ impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
     fn new<L>(
         remote_reader_guid: Guid,
         remote_group_entity_id: EntityId,
-        unicast_locator_list: L,
-        multicast_locator_list: L,
+        unicast_locator_list: &L,
+        multicast_locator_list: &L,
         expects_inline_qos: bool,
         is_active: bool,
     ) -> Self
     where
-        L: IntoIterator<Item = Locator>,
+        for<'a> &'a L: IntoIterator<Item = &'a Locator>,
     {
         Self {
             remote_reader_guid,
             remote_group_entity_id,
-            unicast_locator_list: unicast_locator_list.into_iter().collect(),
-            multicast_locator_list: multicast_locator_list.into_iter().collect(),
+            unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
+            multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
             expects_inline_qos,
             is_active,
             _last_sent_sequence_number: 0.into(),

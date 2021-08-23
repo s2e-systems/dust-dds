@@ -32,7 +32,6 @@ use rust_rtps_pim::{
     discovery::{
         spdp::{
             builtin_endpoints::SpdpBuiltinParticipantWriter,
-            spdp_discovered_participant_data::SPDPdiscoveredParticipantData,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
