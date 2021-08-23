@@ -6,7 +6,7 @@ use rust_rtps_pim::{
     structure::types::{EntityId, EntityKind, Guid},
 };
 
-use crate::{serialize::NumberofBytes, submessage_elements::{EntityIdUdp, GuidPrefixUdp, u8_into_entity_kind}};
+use crate::{serialize::NumberOfBytes, submessage_elements::{EntityIdUdp, GuidPrefixUdp, u8_into_entity_kind}};
 
 impl crate::serialize::Serialize for bool {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
@@ -33,7 +33,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for bool {
         }
     }
 }
-impl NumberofBytes for bool {
+impl NumberOfBytes for bool {
     fn number_of_bytes(&self) -> usize {
         1
     }
@@ -93,7 +93,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for DurationUdp {
         Ok(Self{seconds, fraction})
     }
 }
-impl NumberofBytes for DurationUdp {
+impl NumberOfBytes for DurationUdp {
     fn number_of_bytes(&self) -> usize {
         8
     }
@@ -151,7 +151,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for GuidUdp {
         Ok(Self { prefix, entity_id })
     }
 }
-impl NumberofBytes for GuidUdp {
+impl NumberOfBytes for GuidUdp {
     fn number_of_bytes(&self) -> usize {
         16
     }
@@ -195,7 +195,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for String {
         String::from_utf8(string_buf).map_err(|_err| std::io::ErrorKind::Other.into())
     }
 }
-impl NumberofBytes for String {
+impl NumberOfBytes for String {
     fn number_of_bytes(&self) -> usize {
         4 + self.len() + 1
     }

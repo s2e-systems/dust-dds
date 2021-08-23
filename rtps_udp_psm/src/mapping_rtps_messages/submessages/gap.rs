@@ -6,7 +6,7 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-use crate::{deserialize::Deserialize, serialize::NumberofBytes};
+use crate::{deserialize::Deserialize, serialize::NumberOfBytes};
 
 impl<T> crate::serialize::Serialize for GapSubmessage<T>
 where

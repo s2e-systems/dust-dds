@@ -12,12 +12,11 @@ use rust_rtps_pim::messages::{
 
 use crate::{
     deserialize::Deserialize,
-    serialize::{NumberofBytes, Serialize},
+    serialize::{NumberOfBytes, Serialize},
 };
 
-impl<'a, T> Serialize for DataSubmessage<'a, T>
-where
-    for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
+impl<'a, T: Serialize + NumberOfBytes> Serialize for DataSubmessage<'a, T>
+// where for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
         let inline_qos_len = if self.inline_qos_flag {
@@ -70,8 +69,7 @@ where
 
 impl<'de: 'a, 'a, T> Deserialize<'de> for DataSubmessage<'a, T>
 where
-    T: FromIterator<Parameter<'a>>,
-    for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
+    T: FromIterator<Parameter<'a>> + NumberOfBytes,
 {
     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
     where
@@ -155,7 +153,7 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement {
-            parameter: vec![],
+            parameter: Vec::<Parameter>::new(),
             phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
@@ -249,7 +247,7 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement {
-            parameter: vec![],
+            parameter: Vec::<Parameter>::new(),
             phantom: PhantomData
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[1_u8, 2, 3, 4] };
@@ -293,7 +291,7 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement {
-            parameter: vec![],
+            parameter: Vec::<Parameter>::new(),
             phantom: PhantomData
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[1_u8, 2, 3] };

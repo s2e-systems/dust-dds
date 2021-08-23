@@ -10,7 +10,7 @@ use rust_rtps_pim::{
 
 use crate::{
     deserialize::{self, Deserialize},
-    serialize::{self, NumberofBytes, Serialize},
+    serialize::{self, NumberOfBytes, Serialize},
 };
 
 const PID_SENTINEL: ParameterId = ParameterId(1);
@@ -60,14 +60,21 @@ impl<'de: 'a, 'a> Deserialize<'de> for Parameter<'a> {
     }
 }
 
-impl<'a, T> Serialize for ParameterListSubmessageElement<'a, T>
-where
-    for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
+impl<'a> NumberOfBytes for Parameter<'a> {
+    fn number_of_bytes(&self) -> usize {
+        4 /* parameter_id and length */ + self.length as usize
+    }
+}
+
+impl<'a, T: Serialize> Serialize for ParameterListSubmessageElement<'a, T>
+// where
+//     for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        for parameter in &self.parameter {
-            parameter.serialize::<_, B>(&mut writer)?;
-        }
+        // for parameter in &self.parameter {
+        //     parameter.serialize::<_, B>(&mut writer)?;
+        // }
+        &self.parameter.serialize::<_, B>(&mut writer)?;
         SENTINEL.serialize::<_, B>(&mut writer)
     }
 }
@@ -97,22 +104,10 @@ where
     }
 }
 
-impl<'a> NumberofBytes for Parameter<'a> {
-    fn number_of_bytes(&self) -> usize {
-        4 + self.length as usize
-    }
-}
 
-impl<'a, T> NumberofBytes for ParameterListSubmessageElement<'a, T>
-where
-    for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
-{
+impl<'a, T: NumberOfBytes> NumberOfBytes for ParameterListSubmessageElement<'a, T> {
     fn number_of_bytes(&self) -> usize {
-        self.parameter
-            .into_iter()
-            .map(|p| p.number_of_bytes())
-            .sum::<usize>()
-            + 4
+        self.parameter.number_of_bytes() + 4 /* Sentinel */
     }
 }
 

@@ -8,7 +8,7 @@ use rust_rtps_pim::{
 
 use crate::{
     deserialize::{self, Deserialize},
-    serialize::{self, NumberofBytes, Serialize},
+    serialize::{self, NumberOfBytes, Serialize},
 };
 
 impl<T> Serialize for SequenceNumberSetSubmessageElement<T>
@@ -63,7 +63,7 @@ where
     }
 }
 
-impl<T> NumberofBytes for SequenceNumberSetSubmessageElement<T>
+impl<T> NumberOfBytes for SequenceNumberSetSubmessageElement<T>
 where
     for<'a> &'a T: IntoIterator<Item = &'a SequenceNumber>,
 {

@@ -9,7 +9,7 @@ use rust_rtps_pim::{
     structure::types::{EntityId, EntityKind, GuidPrefix, Locator, ProtocolVersion},
 };
 
-use crate::serialize::NumberofBytes;
+use crate::serialize::NumberOfBytes;
 
 pub fn is_bit_set(value: u8, index: usize) -> bool {
     value & (0b_0000_0001 << index) != 0
@@ -338,7 +338,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for ProtocolVersionUdp {
         Ok(Self { major, minor })
     }
 }
-impl NumberofBytes for ProtocolVersionUdp {
+impl NumberOfBytes for ProtocolVersionUdp {
     fn number_of_bytes(&self) -> usize {
         2
     }
@@ -420,7 +420,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for VendorIdUdp {
         )?))
     }
 }
-impl NumberofBytes for VendorIdUdp {
+impl NumberOfBytes for VendorIdUdp {
     fn number_of_bytes(&self) -> usize {
         2
     }
@@ -482,7 +482,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for CountUdp {
         )?))
     }
 }
-impl NumberofBytes for CountUdp {
+impl NumberOfBytes for CountUdp {
     fn number_of_bytes(&self) -> usize {
         4
     }
@@ -594,7 +594,7 @@ impl LocatorUdp {
         Locator::new(self.kind, self.port, self.address)
     }
 }
-impl NumberofBytes for LocatorUdp {
+impl NumberOfBytes for LocatorUdp {
     fn number_of_bytes(&self) -> usize {
         24
     }
@@ -614,7 +614,7 @@ impl<'de, const N: usize> crate::deserialize::Deserialize<'de> for [u8; N] {
         Ok(this)
     }
 }
-impl<const N: usize> NumberofBytes for [u8; N] {
+impl<const N: usize> NumberOfBytes for [u8; N] {
     fn number_of_bytes(&self) -> usize {
         N
     }
@@ -660,7 +660,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for u32 {
         buf.read_u32::<B>()
     }
 }
-impl NumberofBytes for u32 {
+impl NumberOfBytes for u32 {
     fn number_of_bytes(&self) -> usize {
         4
     }
