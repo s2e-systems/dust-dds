@@ -19,11 +19,11 @@ use super::submessages::submessage_header::{
     INFO_TS, NACK_FRAG, PAD,
 };
 
-impl<'a, S, L, F> Serialize for RtpsSubmessageType<'a, S, &Parameter<'_>, L, F>
+impl<'a, S, L, F> Serialize for RtpsSubmessageType<'a, S, &[Parameter<'_>], L, F>
 where
     for<'b> &'b S: IntoIterator<Item = &'b SequenceNumber>,
 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
         match self {
             RtpsSubmessageType::AckNack(s) => s.serialize::<_, B>(&mut writer)?,
             RtpsSubmessageType::Data(s) => s.serialize::<_, B>(&mut writer)?,
@@ -45,7 +45,7 @@ where
 impl Serialize
     for RtpsMessage<Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter<'_>], (), ()>>>
 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
         self.header.serialize::<_, B>(&mut writer)?;
         for submessage in &self.submessages {
             submessage.serialize::<_, B>(&mut writer)?;
@@ -117,7 +117,7 @@ impl<'a, 'de: 'a, M> Deserialize<'de> for RtpsMessage<M>
 where
     M: FromIterator<RtpsSubmessageType<'a, Vec<SequenceNumber>, Vec<Parameter<'a>>, (), ()>>,
 {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self> {
         let header = Deserialize::deserialize::<B>(buf)?;
         const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
         let mut submessages = vec![];
@@ -182,7 +182,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::marker::PhantomData;
 
     use super::*;
     use crate::deserialize::from_bytes_le;
@@ -244,7 +243,6 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
@@ -335,7 +333,6 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
@@ -402,7 +399,6 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
