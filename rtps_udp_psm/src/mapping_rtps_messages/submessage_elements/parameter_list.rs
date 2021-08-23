@@ -99,9 +99,14 @@ impl<'a> NumberOfBytes for Parameter<'a> {
     }
 }
 
-impl<T: Serialize> Serialize for ParameterListSubmessageElement<'_, T> {
+impl<T> Serialize for ParameterListSubmessageElement<'_, T>
+where
+    for<'b> &'b T: IntoIterator<Item = &'a Parameter<'a>>,
+{
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        &self.parameter.serialize::<_, B>(&mut writer)?;
+        for parameter in &self.parameter {
+            parameter.serialize::<_, B>(&mut writer)?;
+        }
         SENTINEL.serialize::<_, B>(&mut writer)
     }
 }

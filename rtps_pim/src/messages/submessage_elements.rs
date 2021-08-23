@@ -95,9 +95,8 @@ impl<'a> Parameter<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ParameterListSubmessageElement<'a, T> {
+pub struct ParameterListSubmessageElement<T> {
     pub parameter: T,
-    pub phantom: PhantomData<&'a ()>,
 }
 
 

@@ -69,7 +69,7 @@ impl<'de, const N: usize> Deserialize<'de> for [u8; N] {
     where
         B: ByteOrder,
     {
-        let mut value: [u8; N];
+        let mut value = [0; N];
         buf.read_exact(value.as_mut())?;
         Ok(value)
     }

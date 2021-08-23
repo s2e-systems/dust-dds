@@ -22,10 +22,11 @@ use super::submessages::submessage_header::{
     INFO_TS, NACK_FRAG, PAD,
 };
 
-impl<S, P, L, F> Serialize for RtpsSubmessageType<'_, S, P, L, F>
+impl<'a, S, P, L, F> Serialize for RtpsSubmessageType<'a, S, P, L, F>
 where
-    for<'a> &'a S: IntoIterator<Item = &'a SequenceNumber>,
-    P: Serialize + NumberOfBytes,
+    for<'b> &'b S: IntoIterator<Item = &'b SequenceNumber>,
+    for<'b> &'b P: IntoIterator<Item = &'b Parameter<'a>>,
+    P: NumberOfBytes,
 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         match self {
@@ -46,11 +47,8 @@ where
     }
 }
 
-impl<M> Serialize for RtpsMessage<M>
-where
-    for<'a> &'a M: IntoIterator<
-        Item = &'a RtpsSubmessageType<'a, Vec<SequenceNumber>, Vec<Parameter<'a>>, (), ()>,
-    >,
+impl<'a> Serialize
+    for RtpsMessage<Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &'a [Parameter<'_>], (), ()>>>
 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         self.header.serialize::<_, B>(&mut writer)?;

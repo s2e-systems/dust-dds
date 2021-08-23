@@ -15,7 +15,11 @@ use crate::{
     serialize::{NumberOfBytes, Serialize},
 };
 
-impl<T: Serialize + NumberOfBytes> Serialize for DataSubmessage<'_, T> {
+impl<'a, T> Serialize for DataSubmessage<'a, T>
+where
+    for<'b> &'b T: IntoIterator<Item = &'b Parameter<'a>>,
+    T: NumberOfBytes,
+{
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -40,10 +44,10 @@ impl<T: Serialize + NumberOfBytes> Serialize for DataSubmessage<'_, T> {
             submessage_length: submessage_length as u16,
         };
         header.serialize::<_, B>(&mut writer)?;
-        const OCTETS_TO_INLIE_QOS: u16 = 16;
+        const OCTETS_TO_INLINE_QOS: u16 = 16;
         const EXTRA_FLAGS: u16 = 0;
-        EXTRA_FLAGS.serialize::<_, B>(writer)?;
-        OCTETS_TO_INLIE_QOS.serialize::<_, B>(writer)?;
+        EXTRA_FLAGS.serialize::<_, B>(&mut writer)?;
+        OCTETS_TO_INLINE_QOS.serialize::<_, B>(&mut writer)?;
         self.reader_id.serialize::<_, B>(&mut writer)?;
         self.writer_id.serialize::<_, B>(&mut writer)?;
         self.writer_sn.serialize::<_, B>(&mut writer)?;

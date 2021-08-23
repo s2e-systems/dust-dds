@@ -42,9 +42,7 @@ use rust_rtps_pim::{
         RtpsEntity, RtpsHistoryCache, RtpsParticipant,
     },
 };
-use rust_rtps_udp_psm::{
-    builtin_endpoints::data::SPDPdiscoveredParticipantDataUdp, serialize::to_bytes_le,
-};
+use rust_rtps_udp_psm::serialize::to_bytes_le;
 
 use crate::udp_transport::UdpTransport;
 
@@ -115,25 +113,25 @@ impl DomainParticipantFactory {
             seconds: 30,
             fraction: 0,
         };
-        let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
-            &(domain_id as u32),
-            &"abc",
-            rtps_participant.protocol_version(),
-            rtps_participant.guid(),
-            rtps_participant.vendor_id(),
-            &false,
-            &[],
-            &[spdp_discovery_locator],
-            &[],
-            &[],
-            &BuiltinEndpointSet::new(
-                BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-                    | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
-            ),
-            &Count(0),
-            &BuiltinEndpointQos::default(),
-            &lease_duration,
-        );
+        // let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
+        //     &(domain_id as u32),
+        //     &"abc",
+        //     rtps_participant.protocol_version(),
+        //     rtps_participant.guid(),
+        //     rtps_participant.vendor_id(),
+        //     &false,
+        //     &[],
+        //     &[spdp_discovery_locator],
+        //     &[],
+        //     &[],
+        //     &BuiltinEndpointSet::new(
+        //         BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+        //             | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+        //     ),
+        //     &Count(0),
+        //     &BuiltinEndpointQos::default(),
+        //     &lease_duration,
+        // );
 
         let spdp_builtin_participant_writer = RtpsShared::new(DataWriterStorage::new(
             spdp_builtin_participant_writer_qos,
