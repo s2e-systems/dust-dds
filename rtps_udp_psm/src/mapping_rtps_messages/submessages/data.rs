@@ -1,6 +1,6 @@
 use std::{io::Write, iter::FromIterator, marker::PhantomData};
 
-use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
+use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{
     submessage_elements::{
         Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
@@ -42,8 +42,8 @@ impl<T: Serialize + NumberOfBytes> Serialize for DataSubmessage<'_, T> {
         header.serialize::<_, B>(&mut writer)?;
         const OCTETS_TO_INLIE_QOS: u16 = 16;
         const EXTRA_FLAGS: u16 = 0;
-        writer.write_u16::<B>(EXTRA_FLAGS)?;
-        writer.write_u16::<B>(OCTETS_TO_INLIE_QOS)?;
+        EXTRA_FLAGS.serialize::<_, B>(writer)?;
+        OCTETS_TO_INLIE_QOS.serialize::<_, B>(writer)?;
         self.reader_id.serialize::<_, B>(&mut writer)?;
         self.writer_id.serialize::<_, B>(&mut writer)?;
         self.writer_sn.serialize::<_, B>(&mut writer)?;
@@ -77,8 +77,8 @@ where
         let inline_qos_flag = header.flags[1];
         let data_flag = header.flags[2];
         let key_flag = header.flags[3];
-        let _extra_flags: u16 = buf.read_u16::<B>()?;
-        let octets_to_inline_qos: u16 = buf.read_u16::<B>()?;
+        let _extra_flags: u16 = Deserialize::deserialize::<B>(buf)?;
+        let octets_to_inline_qos: u16 = Deserialize::deserialize::<B>(buf)?;
         let reader_id = Deserialize::deserialize::<B>(buf)?;
         let writer_id = Deserialize::deserialize::<B>(buf)?;
         let writer_sn = Deserialize::deserialize::<B>(buf)?;
@@ -131,10 +131,16 @@ mod tests {
     use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
 
     use super::*;
-    use rust_rtps_pim::{messages::{submessage_elements::{
-            EntityIdSubmessageElement, ParameterListSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-        }, types::ParameterId}, structure::types::{EntityId, EntityKind}};
+    use rust_rtps_pim::{
+        messages::{
+            submessage_elements::{
+                EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            },
+            types::ParameterId,
+        },
+        structure::types::{EntityId, EntityKind},
+    };
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
@@ -197,11 +203,11 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
-        let submessage = DataSubmessage{
+        let submessage = DataSubmessage {
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -246,10 +252,12 @@ mod tests {
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement {
             parameter: Vec::<Parameter>::new(),
-            phantom: PhantomData
+            phantom: PhantomData,
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[1_u8, 2, 3, 4] };
-        let submessage = DataSubmessage{
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: &[1_u8, 2, 3, 4],
+        };
+        let submessage = DataSubmessage {
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -290,10 +298,12 @@ mod tests {
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement {
             parameter: Vec::<Parameter>::new(),
-            phantom: PhantomData
+            phantom: PhantomData,
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[1_u8, 2, 3] };
-        let submessage = DataSubmessage{
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: &[1_u8, 2, 3],
+        };
+        let submessage = DataSubmessage {
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -361,7 +371,6 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-
     #[test]
     fn deserialize_no_inline_qos_with_serialized_payload() {
         let endianness_flag = true;
@@ -380,8 +389,10 @@ mod tests {
             parameter: vec![],
             phantom: PhantomData,
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[1, 2, 3, 4] };
-        let expected = DataSubmessage{
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: &[1, 2, 3, 4],
+        };
+        let expected = DataSubmessage {
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -424,7 +435,7 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
         let expected = DataSubmessage {

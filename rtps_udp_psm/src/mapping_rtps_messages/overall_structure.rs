@@ -1,15 +1,31 @@
-use std::{io::{BufRead, Write}, iter::FromIterator};
+use std::{
+    io::{BufRead, Write},
+    iter::FromIterator,
+};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{messages::{RtpsMessage, RtpsSubmessageHeader, submessage_elements::Parameter, submessages::RtpsSubmessageType}, structure::types::SequenceNumber};
+use rust_rtps_pim::{
+    messages::{
+        submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessage,
+        RtpsSubmessageHeader,
+    },
+    structure::types::SequenceNumber,
+};
 
-use crate::{deserialize::{self, Deserialize}, serialize::{self, NumberOfBytes, Serialize}};
+use crate::{
+    deserialize::{self, Deserialize},
+    serialize::{self, NumberOfBytes, Serialize},
+};
 
-use super::submessages::submessage_header::{ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC, INFO_TS, NACK_FRAG, PAD};
+use super::submessages::submessage_header::{
+    ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
+    INFO_TS, NACK_FRAG, PAD,
+};
 
-impl<S, P, L, F> Serialize for RtpsSubmessageType<'_, S, P, L, F> where
+impl<S, P, L, F> Serialize for RtpsSubmessageType<'_, S, P, L, F>
+where
     for<'a> &'a S: IntoIterator<Item = &'a SequenceNumber>,
-    P: Serialize + NumberOfBytes
+    P: Serialize + NumberOfBytes,
 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         match self {
@@ -30,13 +46,20 @@ impl<S, P, L, F> Serialize for RtpsSubmessageType<'_, S, P, L, F> where
     }
 }
 
-impl<M: Serialize> Serialize for RtpsMessage<M> {
+impl<M> Serialize for RtpsMessage<M>
+where
+    for<'a> &'a M: IntoIterator<
+        Item = &'a RtpsSubmessageType<'a, Vec<SequenceNumber>, Vec<Parameter<'a>>, (), ()>,
+    >,
+{
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         self.header.serialize::<_, B>(&mut writer)?;
-        self.submessages.serialize::<_, B>(&mut writer)
+        for submessage in &self.submessages {
+            submessage.serialize::<_, B>(&mut writer)?;
+        }
+        Ok(())
     }
 }
-
 
 // impl<'a, 'de:'a, S, P, L, F> Deserialize<'de> for RtpsSubmessageType<'a, S, P, L, F> where
 //     S: FromIterator<SequenceNumber>,
@@ -97,9 +120,10 @@ impl<M: Serialize> Serialize for RtpsMessage<M> {
 //     }
 // }
 
-
-impl<'a, 'de:'a, M> Deserialize<'de> for RtpsMessage<M> where
-M: FromIterator<RtpsSubmessageType<'a, Vec<SequenceNumber>, Vec<Parameter<'a>>, (), ()>>, {
+impl<'a, 'de: 'a, M> Deserialize<'de> for RtpsMessage<M>
+where
+    M: FromIterator<RtpsSubmessageType<'a, Vec<SequenceNumber>, Vec<Parameter<'a>>, (), ()>>,
+{
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         let header = Deserialize::deserialize::<B>(buf)?;
         const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
@@ -114,9 +138,8 @@ M: FromIterator<RtpsSubmessageType<'a, Vec<SequenceNumber>, Vec<Parameter<'a>>, 
                 ACKNACK => RtpsSubmessageType::AckNack(
                     crate::deserialize::Deserialize::deserialize::<B>(buf)?,
                 ),
-                DATA =>
-                  RtpsSubmessageType::Data(
-                  crate::deserialize::Deserialize::deserialize::<B>(buf)?,
+                DATA => RtpsSubmessageType::Data(
+                    crate::deserialize::Deserialize::deserialize::<B>(buf)?,
                 ),
                 DATA_FRAG => RtpsSubmessageType::DataFrag(
                     crate::deserialize::Deserialize::deserialize::<B>(buf)?,
@@ -170,10 +193,11 @@ mod tests {
 
     use super::*;
     use crate::deserialize::from_bytes_le;
-    use crate::{
-        serialize::to_bytes_le,
+    use crate::serialize::to_bytes_le;
+    use rust_rtps_pim::messages::submessage_elements::{
+        EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     };
-    use rust_rtps_pim::messages::submessage_elements::{EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement, SequenceNumberSubmessageElement, SerializedDataSubmessageElement};
 
     use rust_rtps_pim::messages::submessages::DataSubmessage;
     use rust_rtps_pim::messages::types::ParameterId;
@@ -190,7 +214,8 @@ mod tests {
         };
         let value = RtpsMessage {
             header,
-            submessages: Vec::<RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()>>::new(),
+            submessages:
+                Vec::<RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()>>::new(),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&value).unwrap(), vec![
@@ -226,22 +251,23 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
-        let submessage: RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()> = RtpsSubmessageType::Data(DataSubmessage{
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        });
+        let submessage: RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()> =
+            RtpsSubmessageType::Data(DataSubmessage {
+                endianness_flag,
+                inline_qos_flag,
+                data_flag,
+                key_flag,
+                non_standard_payload_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                inline_qos,
+                serialized_payload,
+            });
         let value = RtpsMessage {
             header,
             submessages: vec![submessage],
@@ -278,7 +304,8 @@ mod tests {
 
         let expected = RtpsMessage {
             header,
-            submessages: Vec::<RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()>>::new(),
+            submessages:
+                Vec::<RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()>>::new(),
         };
         #[rustfmt::skip]
         let result: RtpsMessage<Vec<RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()>>> = from_bytes_le(&[
@@ -315,22 +342,23 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
-        let submessage: RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()> = RtpsSubmessageType::Data(DataSubmessage{
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        });
+        let submessage: RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()> =
+            RtpsSubmessageType::Data(DataSubmessage {
+                endianness_flag,
+                inline_qos_flag,
+                data_flag,
+                key_flag,
+                non_standard_payload_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                inline_qos,
+                serialized_payload,
+            });
         let expected = RtpsMessage {
             header,
             submessages: vec![submessage],
@@ -381,22 +409,23 @@ mod tests {
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
-            phantom: PhantomData
+            phantom: PhantomData,
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[] };
 
-        let submessage: RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()> = RtpsSubmessageType::Data(DataSubmessage{
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        });
+        let submessage: RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter>, (), ()> =
+            RtpsSubmessageType::Data(DataSubmessage {
+                endianness_flag,
+                inline_qos_flag,
+                data_flag,
+                key_flag,
+                non_standard_payload_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                inline_qos,
+                serialized_payload,
+            });
         let expected = RtpsMessage {
             header,
             submessages: vec![submessage],

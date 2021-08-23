@@ -14,7 +14,7 @@ impl Serialize for Count {
     }
 }
 impl<'de> Deserialize<'de> for Count {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de[u8]) -> deserialize::Result<Self> {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self(Deserialize::deserialize::<B>(buf)?))
     }
 }
@@ -40,17 +40,24 @@ mod tests {
 
     #[test]
     fn serialize_guid_prefix() {
-        let data = CountSubmessageElement{ value: Count(7)};
-        assert_eq!(to_bytes_le(&data).unwrap(), vec![
+        let data = CountSubmessageElement { value: Count(7) };
+        assert_eq!(
+            to_bytes_le(&data).unwrap(),
+            vec![
             7, 0, 0,0 , //value (long)
-        ]);
+        ]
+        );
     }
 
     #[test]
     fn deserialize_guid_prefix() {
-        let expected = CountSubmessageElement{ value: Count(7)};
-        assert_eq!(expected, from_bytes_le(&[
+        let expected = CountSubmessageElement { value: Count(7) };
+        assert_eq!(
+            expected,
+            from_bytes_le(&[
             7, 0, 0,0 , //value (long)
-        ]).unwrap());
+        ])
+            .unwrap()
+        );
     }
 }

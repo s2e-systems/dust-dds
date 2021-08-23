@@ -1,11 +1,9 @@
 use std::{io::Write, iter::FromIterator, marker::PhantomData};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
-use rust_rtps_pim::{
-    messages::{
-        submessage_elements::{Parameter, ParameterListSubmessageElement},
-        types::ParameterId,
-    },
+use rust_rtps_pim::messages::{
+    submessage_elements::{Parameter, ParameterListSubmessageElement},
+    types::ParameterId,
 };
 
 use crate::{
@@ -19,7 +17,6 @@ const SENTINEL: Parameter = Parameter {
     length: 0,
     value: &[],
 };
-
 
 // impl crate::serialize::Serialize for u16 {
 //     fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
@@ -70,14 +67,15 @@ impl Serialize for Parameter<'_> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         writer.write_u16::<B>(self.parameter_id.0)?;
         writer.write_i16::<B>(self.length)?;
-        self.value.serialize::<_, B>(&mut writer)?;
+        writer.write_all(&self.value)?;
         let padding: &[u8] = match self.value.len() % 4 {
             1 => &[0; 3],
             2 => &[0; 2],
             3 => &[0; 1],
             _ => &[],
         };
-        padding.serialize::<_, B>(&mut writer)
+        writer.write_all(padding)?;
+        Ok(())
     }
 }
 
@@ -132,7 +130,6 @@ where
         })
     }
 }
-
 
 impl<'a, T: NumberOfBytes> NumberOfBytes for ParameterListSubmessageElement<'a, T> {
     fn number_of_bytes(&self) -> usize {

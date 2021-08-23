@@ -1,4 +1,4 @@
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use std::io::Write;
 
 pub type Result = std::result::Result<(), std::io::Error>;
@@ -7,22 +7,46 @@ pub trait Serialize {
     fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result;
 }
 
-impl<T: Serialize> Serialize for [T] {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
-        for i in self {
-            i.serialize::<_,B>(&mut writer)?;
-        }
+impl Serialize for u8 {
+    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result {
+        writer.write_u8(*self)
+    }
+}
+
+impl Serialize for i8 {
+    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result {
+        writer.write_i8(*self)
+    }
+}
+
+impl Serialize for u16 {
+    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result {
+        writer.write_u16::<B>(*self)
+    }
+}
+
+impl Serialize for i16 {
+    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result {
+        writer.write_i16::<B>(*self)
+    }
+}
+
+impl Serialize for u32 {
+    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result {
+        writer.write_u32::<B>(*self)
+    }
+}
+
+impl Serialize for i32 {
+    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result {
+        writer.write_i32::<B>(*self)
+    }
+}
+
+impl<const N: usize> Serialize for [u8; N] {
+    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result {
+        writer.write_all(self)?;
         Ok(())
-    }
-}
-impl<T: Serialize> Serialize for &[T] {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
-        (*self).serialize::<_, B>(&mut writer)
-    }
-}
-impl<T: Serialize> Serialize for Vec<T> {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
-        self.as_slice().serialize::<_, B>(&mut writer)
     }
 }
 
