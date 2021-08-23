@@ -18,7 +18,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for InfoDestinationUdp {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::InfoDestinationSubmessage for InfoDestinationUdp {
+impl<'a> rust_rtps_pim::messages::submessages::InfoDestinationSubmessageTrait for InfoDestinationUdp {
     type GuidPrefixSubmessageElementType = GuidPrefixUdp;
     fn new(_endianness_flag: SubmessageFlag, _guid_prefix: GuidPrefixUdp) -> Self {
         todo!()

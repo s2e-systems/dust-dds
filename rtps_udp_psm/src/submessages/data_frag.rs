@@ -22,7 +22,7 @@ impl<'a:'de, 'de> crate::deserialize::Deserialize<'de> for DataFragUdp<'a> {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessage for DataFragUdp<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::DataFragSubmessageTrait for DataFragUdp<'a> {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSubmessageElementType = SequenceNumberUdp;
     type FragmentNumberSubmessageElementType = FragmentNumberUdp;

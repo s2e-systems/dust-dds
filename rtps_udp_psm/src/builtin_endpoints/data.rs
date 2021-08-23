@@ -2,7 +2,7 @@ use std::io::Write;
 use std::marker::PhantomData;
 
 use crate::parameter_list::ParameterListUdp;
-use crate::serialize::{NumberofBytes, Serialize};
+use crate::serialize::{NumberOfBytes, Serialize};
 
 use crate::submessage_elements::{CountUdp, LocatorUdp, ProtocolVersionUdp, VendorIdUdp};
 use byteorder::{ByteOrder, LittleEndian};
@@ -201,7 +201,7 @@ impl<'a, W: Write, B: ByteOrder> ParameterSerializer<'a, W, B> {
         }
     }
 
-    fn serialize_list<S: Serialize + NumberofBytes>(
+    fn serialize_list<S: Serialize + NumberOfBytes>(
         &mut self,
         parameter_id: u16,
         parameter: &[S],
@@ -211,7 +211,7 @@ impl<'a, W: Write, B: ByteOrder> ParameterSerializer<'a, W, B> {
         }
         Ok(())
     }
-    fn serialize<S: Serialize + NumberofBytes>(
+    fn serialize<S: Serialize + NumberOfBytes>(
         &mut self,
         parameter_id: u16,
         parameter: &S,

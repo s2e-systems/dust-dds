@@ -1,8 +1,12 @@
 use super::{
     submessage_elements::{
-        EntityIdSubmessageElementType, ParameterListSubmessageElementType,
-        SequenceNumberSetSubmessageElementType, SequenceNumberSubmessageElementType,
-        SerializedDataSubmessageElementType, TimestampSubmessageElementType,
+        CountSubmessageElement, EntityIdSubmessageElement, FragmentNumberSetSubmessageElement,
+        FragmentNumberSubmessageElement, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
+        ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
+        SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
+        SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
+        TimestampSubmessageElement, TimestampSubmessageElementType, ULongSubmessageElement,
+        UShortSubmessageElement, VendorIdSubmessageElement,
     },
     types::SubmessageFlag,
 };
@@ -23,25 +27,45 @@ pub trait RtpsSubmessagePIM<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageType<'a, PSM>
-where
-    PSM: RtpsSubmessagePIM<'a>,
-{
-    AckNack(PSM::AckNackSubmessageType),
-    Data(PSM::DataSubmessageType),
-    DataFrag(PSM::DataFragSubmessageType),
-    Gap(PSM::GapSubmessageType),
-    Heartbeat(PSM::HeartbeatSubmessageType),
-    HeartbeatFrag(PSM::HeartbeatFragSubmessageType),
-    InfoDestination(PSM::InfoDestinationSubmessageType),
-    InfoReply(PSM::InfoReplySubmessageType),
-    InfoSource(PSM::InfoSourceSubmessageType),
-    InfoTimestamp(PSM::InfoTimestampSubmessageType),
-    NackFrag(PSM::NackFragSubmessageType),
-    Pad(PSM::PadSubmessageType),
+pub enum RtpsSubmessageType<'a, S, P, L, F> {
+    AckNack(AckNackSubmessage<S>),
+    Data(DataSubmessage<'a, P>),
+    DataFrag(DataFragSubmessage<'a, P>),
+    Gap(GapSubmessage<S>),
+    Heartbeat(HeartbeatSubmessage),
+    HeartbeatFrag(HeartbeatFragSubmessage),
+    InfoDestination(InfoDestinationSubmessage),
+    InfoReply(InfoReplySubmessage<L>),
+    InfoSource(InfoSourceSubmessage),
+    InfoTimestamp(InfoTimestampSubmessage),
+    NackFrag(NackFragSubmessage<F>),
+    Pad(PadSubmessage),
 }
 
-pub trait AckNackSubmessage {
+#[derive(Debug, PartialEq)]
+pub struct AckNackSubmessage<S> {
+    pub endianness_flag: SubmessageFlag,
+    pub final_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub reader_sn_state: SequenceNumberSetSubmessageElement<S>,
+    pub count: CountSubmessageElement,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct DataSubmessage<'a, P> {
+    pub endianness_flag: SubmessageFlag,
+    pub inline_qos_flag: SubmessageFlag,
+    pub data_flag: SubmessageFlag,
+    pub key_flag: SubmessageFlag,
+    pub non_standard_payload_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub inline_qos: ParameterListSubmessageElement<'a, P>,
+    pub serialized_payload: SerializedDataSubmessageElement<'a>,
+}
+pub trait AckNackSubmessageTrait {
     type EntityIdSubmessageElementType;
     type SequenceNumberSetSubmessageElementType;
     type CountSubmessageElementType;
@@ -62,37 +86,104 @@ pub trait AckNackSubmessage {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait DataSubmessage<'a> {
-    type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
-    type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
-    type ParameterListSubmessageElementType: ParameterListSubmessageElementType<'a>;
-    type SerializedDataSubmessageElementType: SerializedDataSubmessageElementType<'a>;
-
-    fn new(
-        endianness_flag: SubmessageFlag,
-        inline_qos_flag: SubmessageFlag,
-        data_flag: SubmessageFlag,
-        key_flag: SubmessageFlag,
-        non_standard_payload_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        writer_sn: Self::SequenceNumberSubmessageElementType,
-        inline_qos: Self::ParameterListSubmessageElementType,
-        serialized_payload: Self::SerializedDataSubmessageElementType,
-    ) -> Self;
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn inline_qos_flag(&self) -> SubmessageFlag;
-    fn data_flag(&self) -> SubmessageFlag;
-    fn key_flag(&self) -> SubmessageFlag;
-    fn non_standard_payload_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
-    fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType;
-    fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
+#[derive(Debug, PartialEq)]
+pub struct DataFragSubmessage<'a, P> {
+    pub endianness_flag: SubmessageFlag,
+    pub inline_qos_flag: SubmessageFlag,
+    pub non_standard_payload_flag: SubmessageFlag,
+    pub key_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub fragment_starting_num: FragmentNumberSubmessageElement,
+    pub fragments_in_submessage: UShortSubmessageElement,
+    pub data_size: ULongSubmessageElement,
+    pub fragment_size: UShortSubmessageElement,
+    pub inline_qos: ParameterListSubmessageElement<'a, P>,
+    pub serialized_payload: SerializedDataFragmentSubmessageElement<'a>,
 }
 
-pub trait DataFragSubmessage {
+#[derive(Debug, PartialEq)]
+pub struct GapSubmessage<S> {
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub gap_start: SequenceNumberSubmessageElement,
+    pub gap_list: SequenceNumberSetSubmessageElement<S>,
+    // gap_start_gsn: submessage_elements::SequenceNumber,
+    // gap_end_gsn: submessage_elements::SequenceNumber,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct HeartbeatSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub final_flag: SubmessageFlag,
+    pub liveliness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub first_sn: SequenceNumberSubmessageElement,
+    pub last_sn: SequenceNumberSubmessageElement,
+    pub count: CountSubmessageElement,
+    // current_gsn: submessage_elements::SequenceNumber,
+    // first_gsn: submessage_elements::SequenceNumber,
+    // last_gsn: submessage_elements::SequenceNumber,
+    // writer_set: submessage_elements::GroupDigest,
+    // secure_writer_set: submessage_elements::GroupDigest,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct HeartbeatFragSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub last_fragment_num: FragmentNumberSubmessageElement,
+    pub count: CountSubmessageElement,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct InfoDestinationSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub guid_prefix: GuidPrefixSubmessageElement,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct InfoReplySubmessage<L> {
+    pub endianness_flag: SubmessageFlag,
+    pub multicast_flag: SubmessageFlag,
+    pub unicast_locator_list: LocatorListSubmessageElement<L>,
+    pub multicast_locator_list: LocatorListSubmessageElement<L>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct InfoSourceSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub protocol_version: ProtocolVersionSubmessageElement,
+    pub vendor_id: VendorIdSubmessageElement,
+    pub guid_prefix: GuidPrefixSubmessageElement,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct InfoTimestampSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub invalidate_flag: SubmessageFlag,
+    pub timestamp: TimestampSubmessageElement,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct NackFragSubmessage<F> {
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub fragment_number_state: FragmentNumberSetSubmessageElement<F>,
+    pub count: CountSubmessageElement,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct PadSubmessage {}
+
+pub trait DataFragSubmessageTrait {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type FragmentNumberSubmessageElementType;
@@ -131,28 +222,7 @@ pub trait DataFragSubmessage {
     fn serialized_payload(&self) -> &Self::SerializedDataFragmentSubmessageElementType;
 }
 
-pub trait GapSubmessage {
-    type EntityIdSubmessageElementType: EntityIdSubmessageElementType;
-    type SequenceNumberSubmessageElementType: SequenceNumberSubmessageElementType;
-    type SequenceNumberSetSubmessageElementType: SequenceNumberSetSubmessageElementType;
-
-    fn new(
-        endianness_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        gap_start: Self::SequenceNumberSubmessageElementType,
-        gap_list: Self::SequenceNumberSetSubmessageElementType,
-    ) -> Self;
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn gap_start(&self) -> &Self::SequenceNumberSubmessageElementType;
-    fn gap_list(&self) -> &Self::SequenceNumberSetSubmessageElementType;
-    // gap_start_gsn: submessage_elements::SequenceNumber,
-    // gap_end_gsn: submessage_elements::SequenceNumber,
-}
-
-pub trait HeartbeatSubmessage {
+pub trait HeartbeatSubmessageTrait {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type CountSubmessageElementType;
@@ -182,7 +252,7 @@ pub trait HeartbeatSubmessage {
     // secure_writer_set: submessage_elements::GroupDigest,
 }
 
-pub trait HeartbeatFragSubmessage {
+pub trait HeartbeatFragSubmessageTrait {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type FragmentNumberSubmessageElementType;
@@ -204,7 +274,7 @@ pub trait HeartbeatFragSubmessage {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait InfoDestinationSubmessage {
+pub trait InfoDestinationSubmessageTrait {
     type GuidPrefixSubmessageElementType;
     fn new(
         endianness_flag: SubmessageFlag,
@@ -214,7 +284,7 @@ pub trait InfoDestinationSubmessage {
     fn guid_prefix(&self) -> &Self::GuidPrefixSubmessageElementType;
 }
 
-pub trait InfoReplySubmessage {
+pub trait InfoReplySubmessageTrait {
     type LocatorListSubmessageElementType;
 
     fn new(
@@ -229,7 +299,7 @@ pub trait InfoReplySubmessage {
     fn multicast_locator_list(&self) -> &Self::LocatorListSubmessageElementType;
 }
 
-pub trait InfoSourceSubmessage {
+pub trait InfoSourceSubmessageTrait {
     type ProtocolVersionSubmessageElementType;
     type VendorIdSubmessageElementType;
     type GuidPrefixSubmessageElementType;
@@ -246,7 +316,7 @@ pub trait InfoSourceSubmessage {
     fn guid_prefix(&self) -> &Self::GuidPrefixSubmessageElementType;
 }
 
-pub trait InfoTimestampSubmessage {
+pub trait InfoTimestampSubmessageTrait {
     type TimestampSubmessageElementType: TimestampSubmessageElementType;
     fn new(
         endianness_flag: SubmessageFlag,
@@ -258,7 +328,7 @@ pub trait InfoTimestampSubmessage {
     fn timestamp(&self) -> &Self::TimestampSubmessageElementType;
 }
 
-pub trait NackFragSubmessage {
+pub trait NackFragSubmessageTrait {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type FragmentNumberSetSubmessageElementType;
@@ -280,4 +350,4 @@ pub trait NackFragSubmessage {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait PadSubmessage {}
+pub trait PadSubmessageTrait {}

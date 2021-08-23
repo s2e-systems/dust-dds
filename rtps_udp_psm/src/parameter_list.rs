@@ -83,11 +83,11 @@ impl<'de> crate::deserialize::Deserialize<'de> for i16 {
     }
 }
 
-impl<'a> crate::serialize::Serialize for &'a [u8] {
-    fn serialize<W: std::io::Write, B: ByteOrder>(&self, mut writer: W) -> std::io::Result<()> {
-        writer.write_all(self)
-    }
-}
+// impl<'a> crate::serialize::Serialize for &'a [u8] {
+//     fn serialize<W: std::io::Write, B: ByteOrder>(&self, mut writer: W) -> std::io::Result<()> {
+//         writer.write_all(self)
+//     }
+// }
 
 impl<'a> crate::serialize::Serialize for ParameterUdp<'a> {
     fn serialize<W: std::io::Write, B: ByteOrder>(

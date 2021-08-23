@@ -1,15 +1,13 @@
 use rust_rtps_pim::{
     behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
     messages::{
-        submessage_elements::TimestampSubmessageElementType,
-        submessages::{
-            DataSubmessage, InfoTimestampSubmessage, RtpsSubmessagePIM, RtpsSubmessageType,
-        },
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, InfoTimestampSubmessage, RtpsSubmessageType},
         types::{Time, TIME_INVALID},
         RtpsMessage,
     },
     structure::types::{
-        GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
+        GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
     },
 };
@@ -43,22 +41,17 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a, PSM, Message>(
+    pub fn process_message<'a, P>(
         mut self,
         participant_guid_prefix: GuidPrefix,
         reader_group_list: &'a [RtpsShared<SubscriberStorage>],
         source_locator: Locator,
-        message: &'a Message,
-    ) where
-        Message: RtpsMessage<SubmessageType = RtpsSubmessageType<'a, PSM>> + 'a,
-        PSM: RtpsSubmessagePIM<'a> + 'a,
-        PSM::DataSubmessageType: DataSubmessage<'a>,
-        PSM::InfoTimestampSubmessageType: InfoTimestampSubmessage,
-    {
+        message: &'a RtpsMessage<Vec<RtpsSubmessageType<Vec<SequenceNumber>, P, (), ()>>>,
+    ) where P: AsRef<[Parameter<'a>]>{
         self.dest_guid_prefix = participant_guid_prefix;
-        self.source_version = message.header().version;
-        self.source_vendor_id = message.header().vendor_id;
-        self.source_guid_prefix = message.header().guid_prefix;
+        self.source_version = message.header.version;
+        self.source_vendor_id = message.header.vendor_id;
+        self.source_guid_prefix = message.header.guid_prefix;
         self.unicast_reply_locator_list.push(Locator::new(
             *source_locator.kind(),
             LOCATOR_PORT_INVALID,
@@ -70,7 +63,7 @@ impl MessageReceiver {
             LOCATOR_ADDRESS_INVALID,
         ));
 
-        for submessage in message.submessages() {
+        for submessage in &message.submessages {
             match submessage {
                 RtpsSubmessageType::AckNack(_) => todo!(),
                 RtpsSubmessageType::Data(data) => self.process_data(data, reader_group_list),
@@ -90,13 +83,11 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a, Data>(
+    fn process_data<'a, P: AsRef<[Parameter<'a>]>>(
         &mut self,
-        data: &'a Data,
+        data: &'a DataSubmessage<P>,
         reader_group_list: &'a [RtpsShared<SubscriberStorage>],
-    ) where
-        Data: DataSubmessage<'a>,
-    {
+    ) {
         for subscriber in reader_group_list {
             let subscriber_lock = subscriber.lock();
             for reader in subscriber_lock.readers() {
@@ -112,13 +103,10 @@ impl MessageReceiver {
         }
     }
 
-    fn process_info_timestamp_submessage<InfoTimestamp>(&mut self, info_timestamp: &InfoTimestamp)
-    where
-        InfoTimestamp: InfoTimestampSubmessage,
-    {
-        if info_timestamp.invalidate_flag() == false {
+    fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
+        if info_timestamp.invalidate_flag == false {
             self.have_timestamp = true;
-            self.timestamp = info_timestamp.timestamp().value();
+            self.timestamp = info_timestamp.timestamp.value;
         } else {
             self.have_timestamp = false;
             self.timestamp = TIME_INVALID;

@@ -18,7 +18,7 @@ impl<'de> crate::deserialize::Deserialize<'de> for AckNackUdp {
     }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::AckNackSubmessage for AckNackUdp {
+impl<'a> rust_rtps_pim::messages::submessages::AckNackSubmessageTrait for AckNackUdp {
     type EntityIdSubmessageElementType = EntityIdUdp;
     type SequenceNumberSetSubmessageElementType = SequenceNumberSetUdp;
     type CountSubmessageElementType = CountUdp;
