@@ -59,7 +59,7 @@ impl<T: Serialize + NumberOfBytes> Serialize for DataSubmessage<'_, T> {
                 3 => &[0; 1],
                 _ => &[],
             };
-            padding.serialize::<_, B>(&mut writer)?;
+            writer.write_all(padding)?;
         }
         Ok(())
     }
