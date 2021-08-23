@@ -103,8 +103,6 @@ pub fn send_data<Transport, Participant>(
 
 #[cfg(test)]
 mod tests {
-    use std::marker::PhantomData;
-
     use rust_rtps_pim::{
         discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         messages::{
@@ -173,9 +171,7 @@ mod tests {
                 value: ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
-                parameter: &[],
-            },
+            inline_qos: ParameterListSubmessageElement::<&[Parameter]> { parameter: &[] },
             serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3] },
         };
 
@@ -192,9 +188,7 @@ mod tests {
                 value: ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
-                parameter: &[],
-            },
+            inline_qos: ParameterListSubmessageElement::<&[Parameter]> { parameter: &[] },
             serialized_payload: SerializedDataSubmessageElement { value: &[4, 5, 6] },
         };
 
@@ -245,9 +239,7 @@ mod tests {
                 value: ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
-                parameter: &[],
-            },
+            inline_qos: ParameterListSubmessageElement::<&[Parameter]> { parameter: &[] },
             serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3] },
         };
 
@@ -264,9 +256,7 @@ mod tests {
                 value: ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement::<&[Parameter]> {
-                parameter: &[],
-            },
+            inline_qos: ParameterListSubmessageElement::<&[Parameter]> { parameter: &[] },
             serialized_payload: SerializedDataSubmessageElement { value: &[4, 5, 6] },
         };
 
