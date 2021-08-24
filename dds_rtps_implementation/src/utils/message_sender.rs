@@ -1,12 +1,11 @@
-use std::{cell::RefCell, iter::FromIterator};
+use std::{cell::RefCell};
 
 use rust_rtps_pim::{
     behavior::{
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::reader_locator::RtpsReaderLocator,
     },
-    messages::{
-        submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessage,
+    messages::{submessages::RtpsSubmessageType, RtpsMessage,
         RtpsMessageHeader,
     },
     structure::{
@@ -17,33 +16,19 @@ use rust_rtps_pim::{
 
 use crate::rtps_impl::rtps_writer_impl::RtpsWriterImpl;
 
-use super::transport::TransportWrite;
+use super::transport::{RtpsSubmessageWrite, TransportWrite};
 
-pub trait RtpsSubmessageSender<'a, S> {
-    fn create_submessages(
-        &'a mut self,
-    ) -> Vec<(
-        Locator,
-        Vec<RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>,
-    )>;
+pub trait RtpsSubmessageSender<'a> {
+    fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'a>>)>;
 }
 
-impl<'a, S, T> RtpsSubmessageSender<'a, S> for T
+impl<'a, T> RtpsSubmessageSender<'a> for T
 where
-    T: StatelessWriterBehavior<'a, S>,
+    T: StatelessWriterBehavior<'a, Vec<SequenceNumber>>,
     T::ReaderLocator: RtpsReaderLocator,
-    S: FromIterator<SequenceNumber>,
 {
-    fn create_submessages(
-        &'a mut self,
-    ) -> Vec<(
-        Locator,
-        Vec<RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>,
-    )> {
-        let destined_submessages: Vec<(
-            Locator,
-            Vec<RtpsSubmessageType<'a, S, &'a [Parameter<'a>], (), ()>>,
-        )> = Vec::new();
+    fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'a>>)> {
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageWrite>)> = Vec::new();
         let destined_submessages = RefCell::new(destined_submessages);
         self.send_unsent_data(
             |reader_locator, data| {
@@ -103,18 +88,7 @@ pub fn send_data<Transport, Participant>(
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::{
-        discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        messages::{
-            submessage_elements::{
-                EntityIdSubmessageElement, ParameterListSubmessageElement,
-                SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-                SerializedDataSubmessageElement,
-            },
-            submessages::{DataSubmessage, GapSubmessage, RtpsSubmessageType},
-        },
-        structure::types::{self, ENTITYID_UNKNOWN, LOCATOR_INVALID},
-    };
+    use rust_rtps_pim::{discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, messages::{submessage_elements::{EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement, SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement, SerializedDataSubmessageElement}, submessages::{DataSubmessage, GapSubmessage, RtpsSubmessageType}}, structure::types::{self, ENTITYID_UNKNOWN, LOCATOR_INVALID}};
 
     use super::*;
 
@@ -146,10 +120,8 @@ mod tests {
         }
 
         let mut writer = MockBehavior;
-        let destined_submessages: Vec<(
-            Locator,
-            Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter], (), ()>>,
-        )> = writer.create_submessages();
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageWrite>)> =
+            writer.create_submessages();
 
         assert!(destined_submessages.is_empty());
     }
@@ -206,10 +178,8 @@ mod tests {
         }
 
         let mut writer = MockBehavior;
-        let destined_submessages: Vec<(
-            Locator,
-            Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter], (), ()>>,
-        )> = writer.create_submessages();
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageWrite>)> =
+            writer.create_submessages();
         let (dst_locator, submessages) = &destined_submessages[0];
 
         assert_eq!(dst_locator, &LOCATOR_INVALID);
@@ -296,10 +266,8 @@ mod tests {
         }
 
         let mut writer = MockBehavior;
-        let destined_submessages: Vec<(
-            Locator,
-            Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, &[Parameter], (), ()>>,
-        )> = writer.create_submessages();
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageWrite>)> =
+            writer.create_submessages();
 
         let locator1_submessages = &destined_submessages[0].1;
         let locator2_submessages = &destined_submessages[1].1;

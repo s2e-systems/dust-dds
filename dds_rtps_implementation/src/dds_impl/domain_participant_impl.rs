@@ -518,7 +518,7 @@ mod tests {
     impl TransportWrite for MockTransport {
         fn write(
             &mut self,
-            _message: &crate::utils::transport::TransportMessage<'_>,
+            _message: &crate::utils::transport::RtpsMessageWrite<'_>,
             _destination_locator: &rust_rtps_pim::structure::types::Locator,
         ) {
             todo!()
