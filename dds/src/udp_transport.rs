@@ -1,8 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
-use rust_dds_rtps_implementation::utils::transport::{
-    RtpsMessageWrite, TransportRead, TransportWrite,
-};
+use rust_dds_rtps_implementation::utils::transport::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageRead, TransportRead, TransportWrite};
 use rust_rtps_pim::{messages::{RtpsMessage, submessage_elements::Parameter, submessages::RtpsSubmessageType}, structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator, SequenceNumber}};
 use rust_rtps_udp_psm::{deserialize::from_bytes_le, serialize::to_writer_le};
 
@@ -83,7 +81,7 @@ impl<'a> TransportWrite for UdpTransport {
 }
 
 impl TransportRead for UdpTransport {
-    fn read(&mut self) -> Option<(Locator, RtpsMessage<Vec<RtpsSubmessageType<'_, Vec<SequenceNumber>, Vec<Parameter<'_>>, (), ()>>>)> {
+    fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
