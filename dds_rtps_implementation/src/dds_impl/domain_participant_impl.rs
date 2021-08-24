@@ -501,16 +501,19 @@ impl Entity for DomainParticipantImpl {
 
 #[cfg(test)]
 mod tests {
+    use crate::utils::transport::RtpsMessageRead;
+
     use super::*;
 
     use rust_dds_api::domain::domain_participant::DomainParticipant;
+    use rust_rtps_pim::structure::types::Locator;
 
     struct MockDDSType;
 
     struct MockTransport;
 
     impl TransportRead for MockTransport {
-        fn read(&mut self) -> Option<(rust_rtps_pim::structure::types::Locator, rust_rtps_pim::messages::RtpsMessage<Vec<rust_rtps_pim::messages::submessages::RtpsSubmessageType<'_, Vec<rust_rtps_pim::structure::types::SequenceNumber>, Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'_>>, (), ()>>>)> {
+        fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
         todo!()
     }
     }
@@ -518,8 +521,8 @@ mod tests {
     impl TransportWrite for MockTransport {
         fn write(
             &mut self,
-            _message: &crate::utils::transport::TransportMessage<'_>,
-            _destination_locator: &rust_rtps_pim::structure::types::Locator,
+            _message: &crate::utils::transport::RtpsMessageWrite<'_>,
+            _destination_locator: &Locator,
         ) {
             todo!()
         }

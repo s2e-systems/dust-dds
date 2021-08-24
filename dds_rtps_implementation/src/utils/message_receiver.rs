@@ -14,7 +14,7 @@ use rust_rtps_pim::{
 
 use crate::dds_impl::subscriber_impl::SubscriberStorage;
 
-use super::shared_object::RtpsShared;
+use super::{shared_object::RtpsShared, transport::RtpsMessageRead};
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -41,13 +41,13 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a, P>(
+    pub fn process_message<'a>(
         mut self,
         participant_guid_prefix: GuidPrefix,
         reader_group_list: &'a [RtpsShared<SubscriberStorage>],
         source_locator: Locator,
-        message: &'a RtpsMessage<Vec<RtpsSubmessageType<Vec<SequenceNumber>, P, (), ()>>>,
-    ) where P: AsRef<[Parameter<'a>]>{
+        message: &'a RtpsMessageRead,
+    ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
         self.source_vendor_id = message.header.vendor_id;
