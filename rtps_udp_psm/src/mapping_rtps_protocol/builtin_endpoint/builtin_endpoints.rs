@@ -9,15 +9,21 @@ use rust_rtps_pim::{
     structure::types::Locator,
 };
 
-use crate::mapping_rtps_protocol::builtin_endpoint::parameter_id_values::{
-    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID,
-    PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
-    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_SENTINEL, PID_VENDORID,
+use crate::{deserialize, serialize::{self, NumberOfBytes, Serialize}};
+use crate::{
+    deserialize::Deserialize,
+    mapping_rtps_protocol::builtin_endpoint::parameter_id_values::{
+        PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_UNICAST_LOCATOR,
+        PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
+        PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
+        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_SENTINEL, PID_VENDORID,
+    },
 };
-use crate::serialize::{self, NumberOfBytes, Serialize};
 
-use super::parameter_id_values::{DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION};
+use super::parameter_id_values::{
+    DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS,
+    DEFAULT_PARTICIPANT_LEASE_DURATION,
+};
 
 const PL_CDR_BE: [u8; 4] = [0x00, 0x02, 0x00, 0x00];
 const PL_CDR_LE: [u8; 4] = [0x00, 0x03, 0x00, 0x00];
@@ -75,6 +81,22 @@ impl<'a, W: Write, B: ByteOrder> ParameterSerializer<'a, W, B> {
     }
 }
 
+struct ParameterDeserializer<'de, B: ByteOrder> {
+    buf: &'de mut &'de [u8],
+    byteorder: PhantomData<B>,
+}
+
+impl<'de, B: ByteOrder> ParameterDeserializer<'de, B> {
+    fn new(buf: &'de mut &'de [u8]) -> Self {
+        Self {
+            buf,
+            byteorder: PhantomData,
+        }
+    }
+    fn get<D: Deserialize<'de>>(&self, parameter_id: u16) -> D {
+        todo!()
+    }
+}
 
 impl Serialize for BuiltinEndpointSet {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
@@ -98,7 +120,7 @@ impl NumberOfBytes for BuiltinEndpointQos {
     }
 }
 
-impl Serialize for SpdpDiscoveredParticipantData<Vec<Locator>> {
+impl Serialize for SpdpDiscoveredParticipantData<&[Locator]> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         RepresentationIdentifier.serialize::<_, B>(&mut writer)?;
 
@@ -144,108 +166,112 @@ impl Serialize for SpdpDiscoveredParticipantData<Vec<Locator>> {
     }
 }
 
-// impl<'de> crate::deserialize::Deserialize<'de> for SPDPdiscoveredParticipantDataUdp {
-//     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
-//     where
-//         B: ByteOrder,
-//     {
-//         let _representation: [u8; 4] = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-//         let parameter_list: ParameterListUdp =
-//             crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+impl<'de> deserialize::Deserialize<'de> for SpdpDiscoveredParticipantData<Vec<Locator>> {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        //         let _representation: [u8; 4] = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        //         let parameter_list: ParameterListUdp =
+        //             crate::deserialize::Deserialize::deserialize::<B>(buf)?;
 
-//         let domain_id = parameter_list
-//             .get(PID_DOMAIN_ID)
-//             .ok_or(std::io::Error::new(
-//                 std::io::ErrorKind::Other,
-//                 "Missing PID_DOMAIN_ID parameter",
-//             ))?;
+        //         let domain_id = parameter_list
+        //             .get(PID_DOMAIN_ID)
+        //             .ok_or(std::io::Error::new(
+        //                 std::io::ErrorKind::Other,
+        //                 "Missing PID_DOMAIN_ID parameter",
+        //             ))?;
 
-//         let domain_tag = parameter_list
-//             .get(PID_DOMAIN_TAG)
-//             .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
+        //         let domain_tag = parameter_list
+        //             .get(PID_DOMAIN_TAG)
+        //             .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
 
-//         let protocol_version: ProtocolVersionUdp =
-//             parameter_list
-//                 .get(PID_PROTOCOL_VERSION)
-//                 .ok_or(std::io::Error::new(
-//                     std::io::ErrorKind::Other,
-//                     "Missing PID_PROTOCOL_VERSION parameter",
-//                 ))?;
+        //         let protocol_version: ProtocolVersionUdp =
+        //             parameter_list
+        //                 .get(PID_PROTOCOL_VERSION)
+        //                 .ok_or(std::io::Error::new(
+        //                     std::io::ErrorKind::Other,
+        //                     "Missing PID_PROTOCOL_VERSION parameter",
+        //                 ))?;
 
-//         let guid: GuidUdp = parameter_list
-//             .get(PID_PARTICIPANT_GUID)
-//             .ok_or(std::io::Error::new(
-//                 std::io::ErrorKind::Other,
-//                 "Missing PID_PARTICIPANT_GUID parameter",
-//             ))?;
+        //         let guid: GuidUdp = parameter_list
+        //             .get(PID_PARTICIPANT_GUID)
+        //             .ok_or(std::io::Error::new(
+        //                 std::io::ErrorKind::Other,
+        //                 "Missing PID_PARTICIPANT_GUID parameter",
+        //             ))?;
 
-//         let vendor_id: VendorIdUdp = parameter_list.get(PID_VENDORID).ok_or(
-//             std::io::Error::new(std::io::ErrorKind::Other, "Missing PID_VENDORID parameter"),
-//         )?;
+        //         let vendor_id: VendorIdUdp = parameter_list.get(PID_VENDORID).ok_or(
+        //             std::io::Error::new(std::io::ErrorKind::Other, "Missing PID_VENDORID parameter"),
+        //         )?;
 
-//         let expects_inline_qos = parameter_list
-//             .get(PID_EXPECTS_INLINE_QOS)
-//             .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
+        //         let expects_inline_qos = parameter_list
+        //             .get(PID_EXPECTS_INLINE_QOS)
+        //             .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
 
-//         let metatraffic_unicast_locator_list =
-//             parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
+        //         let metatraffic_unicast_locator_list =
+        //             parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
 
-//         let metatraffic_multicast_locator_list =
-//             parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
+        //         let metatraffic_multicast_locator_list =
+        //             parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
 
-//         let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
+        //         let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
 
-//         let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
+        //         let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
 
-//         let available_builtin_endpoints =
-//             parameter_list
-//                 .get(PID_BUILTIN_ENDPOINT_SET)
-//                 .ok_or(std::io::Error::new(
-//                     std::io::ErrorKind::Other,
-//                     "Missing PID_BUILTIN_ENDPOINT_SET parameter",
-//                 ))?;
+        //         let available_builtin_endpoints =
+        //             parameter_list
+        //                 .get(PID_BUILTIN_ENDPOINT_SET)
+        //                 .ok_or(std::io::Error::new(
+        //                     std::io::ErrorKind::Other,
+        //                     "Missing PID_BUILTIN_ENDPOINT_SET parameter",
+        //                 ))?;
 
-//         let manual_liveliness_count = parameter_list
-//             .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
-//             .ok_or(std::io::Error::new(
-//                 std::io::ErrorKind::Other,
-//                 "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter",
-//             ))?;
+        //         let manual_liveliness_count = parameter_list
+        //             .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
+        //             .ok_or(std::io::Error::new(
+        //                 std::io::ErrorKind::Other,
+        //                 "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter",
+        //             ))?;
 
-//         let builtin_endpoint_qos = parameter_list
-//             .get(PID_BUILTIN_ENDPOINT_QOS)
-//             .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
+        //         let builtin_endpoint_qos = parameter_list
+        //             .get(PID_BUILTIN_ENDPOINT_QOS)
+        //             .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
 
-//         let lease_duration = parameter_list
-//             .get(PID_PARTICIPANT_LEASE_DURATION)
-//             .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
+        //         let lease_duration = parameter_list
+        //             .get(PID_PARTICIPANT_LEASE_DURATION)
+        //             .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
 
-//         let participant_proxy = ParticipantProxy {
-//             domain_id,
-//             domain_tag,
-//             protocol_version,
-//             guid,
-//             vendor_id,
-//             expects_inline_qos,
-//             metatraffic_unicast_locator_list,
-//             metatraffic_multicast_locator_list,
-//             default_unicast_locator_list,
-//             default_multicast_locator_list,
-//             available_builtin_endpoints,
-//             manual_liveliness_count,
-//             builtin_endpoint_qos,
-//         };
+        //         let participant_proxy = ParticipantProxy {
+        //             domain_id,
+        //             domain_tag,
+        //             protocol_version,
+        //             guid,
+        //             vendor_id,
+        //             expects_inline_qos,
+        //             metatraffic_unicast_locator_list,
+        //             metatraffic_multicast_locator_list,
+        //             default_unicast_locator_list,
+        //             default_multicast_locator_list,
+        //             available_builtin_endpoints,
+        //             manual_liveliness_count,
+        //             builtin_endpoint_qos,
+        //         };
 
-//         Ok(Self {
-//             participant_proxy: participant_proxy,
-//             lease_duration: lease_duration,
-//         })
-//     }
-// }
+        //         Ok(Self {
+        //             participant_proxy: participant_proxy,
+        //             lease_duration: lease_duration,
+        //         })
+        //     }
+        todo!()
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::{behavior::types::Duration, discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet}, messages::types::Count, structure::types::{Locator, ProtocolVersion}};
+    use rust_rtps_pim::{
+        behavior::types::Duration,
+        discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
+        messages::types::Count,
+        structure::types::{Locator, ProtocolVersion},
+    };
 
     use crate::serialize::to_bytes_le;
 
@@ -259,14 +285,14 @@ mod tests {
             guid_prefix: [3; 12],
             vendor_id: [35, 65],
             expects_inline_qos: true,
-            metatraffic_unicast_locator_list: vec![Locator {
+            metatraffic_unicast_locator_list: &[Locator {
                 kind: 1,
                 port: 2,
                 address: [3; 16],
-            }],
-            metatraffic_multicast_locator_list: vec![],
-            default_unicast_locator_list: vec![],
-            default_multicast_locator_list: vec![],
+            }][..],
+            metatraffic_multicast_locator_list: &[],
+            default_unicast_locator_list: &[],
+            default_multicast_locator_list: &[],
             available_builtin_endpoints: BuiltinEndpointSet(7),
             lease_duration: Duration {
                 seconds: 42,
@@ -313,7 +339,6 @@ mod tests {
         );
     }
 }
-
 
 // #[cfg(test)]
 // mod tests {
