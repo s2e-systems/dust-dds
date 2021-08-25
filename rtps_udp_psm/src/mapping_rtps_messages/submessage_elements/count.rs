@@ -3,10 +3,7 @@ use std::io::Write;
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{submessage_elements::CountSubmessageElement, types::Count};
 
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
-};
+use crate::{deserialize::{self, Deserialize}, serialize::{self, NumberOfBytes, Serialize}};
 
 impl Serialize for Count {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
@@ -16,6 +13,11 @@ impl Serialize for Count {
 impl<'de> Deserialize<'de> for Count {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self(Deserialize::deserialize::<B>(buf)?))
+    }
+}
+impl NumberOfBytes for Count {
+    fn number_of_bytes(&self) -> usize {
+        4
     }
 }
 

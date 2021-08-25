@@ -50,6 +50,25 @@ impl<const N: usize> Serialize for [u8; N] {
     }
 }
 
+impl Serialize for &str {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+        let length = self.as_bytes().len() as u32 + 1;
+        length.serialize::<_, B>(&mut writer)?;
+        writer.write_all(self.as_bytes())?;
+        writer.write_u8(0)
+    }
+}
+
+impl Serialize for bool {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+        if *self {
+            1_u8
+        } else {
+            0
+        }.serialize::<_, B>(&mut writer)
+    }
+}
+
 pub fn to_writer_le<S: Serialize, W: Write>(value: &S, mut writer: W) -> Result {
     value.serialize::<_, LittleEndian>(&mut writer)
 }
@@ -62,6 +81,26 @@ pub fn to_bytes_le<S: Serialize>(value: &S) -> std::result::Result<Vec<u8>, std:
 
 pub trait NumberOfBytes {
     fn number_of_bytes(&self) -> usize;
+}
+impl NumberOfBytes for bool {
+    fn number_of_bytes(&self) -> usize {
+        1
+    }
+}
+impl NumberOfBytes for u8 {
+    fn number_of_bytes(&self) -> usize {
+        1
+    }
+}
+impl NumberOfBytes for u32 {
+    fn number_of_bytes(&self) -> usize {
+        4
+    }
+}
+impl NumberOfBytes for &str {
+    fn number_of_bytes(&self) -> usize {
+        4 + self.as_bytes().len() + 1
+    }
 }
 
 impl<T: NumberOfBytes> NumberOfBytes for [T] {
@@ -81,5 +120,10 @@ impl<T: NumberOfBytes> NumberOfBytes for Vec<T> {
 impl<T: NumberOfBytes> NumberOfBytes for &[T] {
     fn number_of_bytes(&self) -> usize {
         (*self).number_of_bytes()
+    }
+}
+impl<T: NumberOfBytes, const N: usize> NumberOfBytes for [T;N] {
+    fn number_of_bytes(&self) -> usize {
+        self.as_ref().number_of_bytes()
     }
 }

@@ -78,9 +78,9 @@ pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = [0; 16];
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Locator {
-    kind: LocatorKind,
-    port: LocatorPort,
-    address: LocatorAddress,
+    pub kind: LocatorKind,
+    pub port: LocatorPort,
+    pub address: LocatorAddress,
 }
 
 pub const LOCATOR_INVALID: Locator = Locator {

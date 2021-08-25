@@ -1,8 +1,4 @@
-use crate::{
-    discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
-    messages::types::Count,
-    structure::types::{GuidPrefix, ProtocolVersion, VendorId},
-};
+use crate::{behavior::types::Duration, discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId}, messages::types::Count, structure::types::{GuidPrefix, ProtocolVersion, VendorId}};
 
 pub struct SpdpDiscoveredParticipantData<L> {
     pub domain_id: DomainId,
@@ -16,6 +12,7 @@ pub struct SpdpDiscoveredParticipantData<L> {
     pub default_unicast_locator_list: L,
     pub default_multicast_locator_list: L,
     pub available_builtin_endpoints: BuiltinEndpointSet,
+    pub lease_duration: Duration,
     pub manual_liveliness_count: Count,
     pub builtin_endpoint_qos: BuiltinEndpointQos,
 }

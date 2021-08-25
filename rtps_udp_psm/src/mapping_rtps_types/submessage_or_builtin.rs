@@ -7,10 +7,7 @@ use rust_rtps_pim::{
     structure::types::Locator,
 };
 
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
-};
+use crate::{deserialize::{self, Deserialize}, serialize::{self, NumberOfBytes, Serialize}};
 
 impl Serialize for Time {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
@@ -45,6 +42,12 @@ impl<'de> Deserialize<'de> for Duration {
     }
 }
 
+impl NumberOfBytes for Duration {
+    fn number_of_bytes(&self) -> usize {
+        8
+    }
+}
+
 impl Serialize for Locator {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         self.kind().serialize::<_, B>(&mut writer)?;
@@ -59,6 +62,12 @@ impl<'de> Deserialize<'de> for Locator {
         let port = Deserialize::deserialize::<B>(buf)?;
         let address = Deserialize::deserialize::<B>(buf)?;
         Ok(Self::new(kind, port, address))
+    }
+}
+
+impl NumberOfBytes for Locator {
+    fn number_of_bytes(&self) -> usize {
+        24
     }
 }
 
