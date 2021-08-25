@@ -27,8 +27,8 @@ pub enum EntityKind {
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct EntityId {
-    entity_key: [u8; 3],
-    entity_kind: EntityKind,
+    pub entity_key: [u8; 3],
+    pub entity_kind: EntityKind,
 }
 
 impl EntityId {
