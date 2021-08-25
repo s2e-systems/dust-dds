@@ -8,22 +8,6 @@ use crate::{
     serialize::{self, Serialize},
 };
 
-impl Serialize for Locator {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.kind().serialize::<_, B>(&mut writer)?;
-        self.port().serialize::<_, B>(&mut writer)?;
-        self.address().serialize::<_, B>(&mut writer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Locator {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de[u8]) -> deserialize::Result<Self> {
-        let kind = Deserialize::deserialize::<B>(buf)?;
-        let port = Deserialize::deserialize::<B>(buf)?;
-        let address = Deserialize::deserialize::<B>(buf)?;
-        Ok(Self::new(kind, port, address))
-    }
-}
 
 impl<T> Serialize for LocatorListSubmessageElement<T>
 where
@@ -59,35 +43,6 @@ mod tests {
     use super::*;
     use crate::deserialize::from_bytes_le;
     use crate::serialize::to_bytes_le;
-
-    #[test]
-    fn serialize_locator() {
-        let locator = Locator::new(1, 2, [3; 16]);
-        assert_eq!(to_bytes_le(&locator).unwrap(), vec![
-            1, 0, 0, 0, // kind (long)
-            2, 0, 0, 0, // port (unsigned long)
-            3, 3, 3, 3, // address (octet[16])
-            3, 3, 3, 3, // address (octet[16])
-            3, 3, 3, 3, // address (octet[16])
-            3, 3, 3, 3, // address (octet[16])
-        ]);
-    }
-
-    #[test]
-    fn deserialize_locator() {
-        let expected = Locator::new(1, 2, [3; 16]);
-        #[rustfmt::skip]
-        let result = from_bytes_le(&[
-            1, 0, 0, 0, // kind (long)
-            2, 0, 0, 0, // port (unsigned long)
-            3, 3, 3, 3, // address (octet[16])
-            3, 3, 3, 3, // address (octet[16])
-            3, 3, 3, 3, // address (octet[16])
-            3, 3, 3, 3, // address (octet[16])
-
-        ]).unwrap();
-        assert_eq!(expected, result);
-    }
 
     #[test]
     fn serialize_locator_list() {

@@ -44,4 +44,5 @@ pub struct ParameterId(pub u16);
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct FragmentNumber(pub u32);
 
-pub type GroupDigest = ();
+#[derive(Debug, PartialEq)]
+pub struct GroupDigest(pub [u8; 4]);
