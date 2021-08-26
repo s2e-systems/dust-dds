@@ -4,19 +4,19 @@ use std::io::Write;
 
 pub type Result = std::result::Result<(), std::io::Error>;
 
-pub trait Mapping {
-    fn mapping<W: Write>(&self, writer: W) -> Result;
+pub trait MappingWrite {
+    fn write<W: Write>(&self, writer: W) -> Result;
 }
 
-impl<T> Mapping for T where T: SerializeSubmessage {
-    fn mapping<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
+impl<T> MappingWrite for T where T: SerializeSubmessage {
+    fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
         self.serialize_submessage(&mut writer)
     }
 }
 
 pub trait SerializeSubmessage {
     fn serialize_submessage<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
-        self.submessage_header().mapping(&mut writer)?;
+        self.submessage_header().write(&mut writer)?;
         if self.submessage_header().flags[0] {
             self.serialize_submessage_elements::<_, LittleEndian>(&mut writer)
         } else {
@@ -36,8 +36,8 @@ impl Serialize for u8 {
         writer.write_u8(*self)
     }
 }
-impl Mapping for u8 {
-    fn mapping<W: Write>(&self, mut writer: W) -> Result {
+impl MappingWrite for u8 {
+    fn write<W: Write>(&self, mut writer: W) -> Result {
         writer.write_u8(*self)
     }
 }
@@ -78,8 +78,8 @@ impl<const N: usize> Serialize for [u8; N] {
         Ok(())
     }
 }
-impl<const N: usize> Mapping for [u8; N] {
-    fn mapping<W: Write>(&self, mut writer: W) -> Result {
+impl<const N: usize> MappingWrite for [u8; N] {
+    fn write<W: Write>(&self, mut writer: W) -> Result {
         writer.write_all(self)
     }
 }
@@ -113,9 +113,9 @@ pub fn to_bytes_le<S: Serialize>(value: &S) -> std::result::Result<Vec<u8>, std:
     Ok(writer)
 }
 
-pub fn to_bytes<S: Mapping>(value: &S) -> std::result::Result<Vec<u8>, std::io::Error> {
+pub fn to_bytes<S: MappingWrite>(value: &S) -> std::result::Result<Vec<u8>, std::io::Error> {
     let mut writer = Vec::<u8>::new();
-    value.mapping(&mut writer)?;
+    value.write(&mut writer)?;
     Ok(writer)
 }
 

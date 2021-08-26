@@ -5,17 +5,17 @@ use rust_rtps_pim::messages::{types::ProtocolId, RtpsMessageHeader};
 
 use crate::{
     deserialize::{self, Deserialize, MappingRead},
-    serialize::{self, Mapping},
+    serialize::{self, MappingWrite},
 };
 
-impl Mapping for RtpsMessageHeader {
-    fn mapping<W: Write>(&self, mut writer: W) -> serialize::Result {
+impl MappingWrite for RtpsMessageHeader {
+    fn write<W: Write>(&self, mut writer: W) -> serialize::Result {
         match self.protocol {
-            ProtocolId::PROTOCOL_RTPS => b"RTPS".mapping(&mut writer)?,
+            ProtocolId::PROTOCOL_RTPS => b"RTPS".write(&mut writer)?,
         }
-        self.version.mapping(&mut writer)?;
-        self.vendor_id.mapping(&mut writer)?;
-        self.guid_prefix.mapping(&mut writer)
+        self.version.write(&mut writer)?;
+        self.vendor_id.write(&mut writer)?;
+        self.guid_prefix.write(&mut writer)
     }
 }
 

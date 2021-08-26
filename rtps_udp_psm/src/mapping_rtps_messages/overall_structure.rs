@@ -10,7 +10,7 @@ use rust_rtps_pim::{
 
 use crate::{
     deserialize::{self, MappingRead},
-    serialize::Mapping,
+    serialize::MappingWrite,
 };
 
 use super::submessages::submessage_header::{
@@ -26,11 +26,11 @@ type RtpsSubmessageRead<'a> =
 pub type RtpsMessageWrite<'a> = RtpsMessage<Vec<RtpsSubmessageWrite<'a>>>;
 pub type RtpsMessageRead<'a> = RtpsMessage<Vec<RtpsSubmessageRead<'a>>>;
 
-impl Mapping for RtpsSubmessageWrite<'_> {
-    fn mapping<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
+impl MappingWrite for RtpsSubmessageWrite<'_> {
+    fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
         match self {
             RtpsSubmessageType::AckNack(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::Data(s) => s.mapping(&mut writer)?,
+            RtpsSubmessageType::Data(s) => s.write(&mut writer)?,
             RtpsSubmessageType::DataFrag(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
             RtpsSubmessageType::Gap(s) => todo!(),      //s.serialize::<_, B>(&mut writer)?,
             RtpsSubmessageType::Heartbeat(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
@@ -46,11 +46,11 @@ impl Mapping for RtpsSubmessageWrite<'_> {
     }
 }
 
-impl Mapping for RtpsMessageWrite<'_> {
-    fn mapping<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
-        self.header.mapping(&mut writer)?;
+impl MappingWrite for RtpsMessageWrite<'_> {
+    fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
+        self.header.write(&mut writer)?;
         for submessage in &self.submessages {
-            submessage.mapping(&mut writer)?;
+            submessage.write(&mut writer)?;
         }
         Ok(())
     }

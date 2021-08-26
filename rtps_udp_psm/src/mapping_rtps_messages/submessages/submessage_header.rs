@@ -6,7 +6,7 @@ use rust_rtps_pim::messages::{
     RtpsSubmessageHeader,
 };
 
-use crate::{deserialize::{self, Deserialize, MappingRead}, serialize::{self, Mapping, Serialize}};
+use crate::{deserialize::{self, Deserialize, MappingRead}, serialize::{self, MappingWrite, Serialize}};
 
 
 pub trait Submessage {
@@ -38,8 +38,8 @@ impl Serialize for [SubmessageFlag; 8] {
     }
 }
 
-impl Mapping for [SubmessageFlag; 8] {
-    fn mapping<W: Write>(&self, mut writer: W) -> serialize::Result {
+impl MappingWrite for [SubmessageFlag; 8] {
+    fn write<W: Write>(&self, mut writer: W) -> serialize::Result {
         let mut flags = 0b_0000_0000_u8;
         for (i, &item) in self.iter().enumerate() {
             if item {
@@ -72,8 +72,8 @@ impl<'de> MappingRead<'de> for  [SubmessageFlag; 8] {
     }
 }
 
-impl Mapping for RtpsSubmessageHeader {
-    fn mapping<W: Write>(&self, mut writer: W) -> serialize::Result {
+impl MappingWrite for RtpsSubmessageHeader {
+    fn write<W: Write>(&self, mut writer: W) -> serialize::Result {
         let submessage_id = match self.submessage_id {
             SubmessageKind::DATA => DATA,
             SubmessageKind::GAP => GAP,
@@ -94,8 +94,8 @@ impl Mapping for RtpsSubmessageHeader {
                 ))
             }
         };
-        submessage_id.mapping(&mut writer)?;
-        self.flags.mapping(&mut writer)?;
+        submessage_id.write(&mut writer)?;
+        self.flags.write(&mut writer)?;
         if self.flags[0] {
             self.submessage_length
                 .serialize::<_, LittleEndian>(&mut writer)
