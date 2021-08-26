@@ -24,13 +24,13 @@ use crate::utils::shared_object::RtpsWeak;
 
 use super::data_reader::DataReader;
 
-pub struct DataReaderImpl<'dr, T: 'static> {
+pub struct DataReaderProxy<'dr, T: 'static> {
     subscriber: &'dr dyn Subscriber,
     topic: &'dr dyn TopicDescription<T>,
     reader: RtpsWeak<DataReader>,
 }
 
-impl<'dr, T: 'static> DataReaderImpl<'dr, T> {
+impl<'dr, T: 'static> DataReaderProxy<'dr, T> {
     pub fn new(
         subscriber: &'dr dyn Subscriber,
         topic: &'dr dyn TopicDescription<T>,
@@ -44,7 +44,7 @@ impl<'dr, T: 'static> DataReaderImpl<'dr, T> {
     }
 }
 
-impl<'dr, T> rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderImpl<'dr, T>
+impl<'dr, T> rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderProxy<'dr, T>
 where
     T: for<'de> serde::Deserialize<'de>,
 {
@@ -314,7 +314,7 @@ where
     }
 }
 
-impl<'dr, T> Entity for DataReaderImpl<'dr, T> {
+impl<'dr, T> Entity for DataReaderProxy<'dr, T> {
     type Qos = DataReaderQos;
     type Listener = &'static dyn DataReaderListener<DataPIM = T>;
 
@@ -355,7 +355,7 @@ impl<'dr, T> Entity for DataReaderImpl<'dr, T> {
     }
 }
 
-impl<'dr, T> AnyDataReader for DataReaderImpl<'dr, T> {}
+impl<'dr, T> AnyDataReader for DataReaderProxy<'dr, T> {}
 
 #[cfg(test)]
 mod tests {

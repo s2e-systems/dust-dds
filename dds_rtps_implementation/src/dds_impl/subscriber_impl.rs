@@ -29,7 +29,7 @@ use crate::{
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{data_reader::DataReader, data_reader_impl::DataReaderImpl, topic_impl::TopicImpl};
+use super::{data_reader::DataReader, data_reader_impl::DataReaderProxy, topic_impl::TopicImpl};
 
 pub struct SubscriberStorage {
     qos: SubscriberQos,
@@ -88,7 +88,7 @@ where
     T: for<'de> serde::Deserialize<'de>,
 {
     type TopicType = TopicImpl<'t, T>;
-    type DataReaderType = DataReaderImpl<'dr, T>;
+    type DataReaderType = DataReaderProxy<'dr, T>;
 
     fn create_datareader(
         &'dr self,
@@ -144,7 +144,7 @@ where
         );
         let reader_storage = DataReader::new(rtps_reader, qos);
         let reader_storage_shared = RtpsShared::new(reader_storage);
-        let data_reader = DataReaderImpl::new(self, a_topic, reader_storage_shared.downgrade());
+        let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_shared.downgrade());
         Some(data_reader)
     }
 
