@@ -29,12 +29,12 @@ use crate::{
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{data_reader::DataReader, data_reader_impl::DataReaderProxy, topic_impl::TopicImpl};
+use super::{data_reader::DataReaderImpl, data_reader_impl::DataReaderProxy, topic_impl::TopicImpl};
 
 pub struct SubscriberStorage {
     qos: SubscriberQos,
     rtps_group: RtpsGroupImpl,
-    data_reader_storage_list: Vec<RtpsShared<DataReader>>,
+    data_reader_storage_list: Vec<RtpsShared<DataReaderImpl>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -43,7 +43,7 @@ impl SubscriberStorage {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
-        data_reader_storage_list: Vec<RtpsShared<DataReader>>,
+        data_reader_storage_list: Vec<RtpsShared<DataReaderImpl>>,
     ) -> Self {
         Self {
             qos,
@@ -55,7 +55,7 @@ impl SubscriberStorage {
     }
 
     /// Get a reference to the subscriber storage's readers.
-    pub fn readers(&self) -> &[RtpsShared<DataReader>] {
+    pub fn readers(&self) -> &[RtpsShared<DataReaderImpl>] {
         self.data_reader_storage_list.as_slice()
     }
 }
@@ -142,7 +142,7 @@ where
             heartbeat_supression_duration,
             expects_inline_qos,
         );
-        let reader_storage = DataReader::new(rtps_reader, qos);
+        let reader_storage = DataReaderImpl::new(rtps_reader, qos);
         let reader_storage_shared = RtpsShared::new(reader_storage);
         let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_shared.downgrade());
         Some(data_reader)

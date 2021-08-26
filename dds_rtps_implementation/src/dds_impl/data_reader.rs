@@ -2,12 +2,12 @@ use rust_dds_api::{infrastructure::qos::DataReaderQos, return_type::DDSResult};
 
 use crate::rtps_impl::rtps_reader_impl::RtpsReaderImpl;
 
-pub struct DataReader {
+pub struct DataReaderImpl {
     rtps_reader: RtpsReaderImpl,
     qos: DataReaderQos,
 }
 
-impl DataReader {
+impl DataReaderImpl {
     pub fn new(rtps_reader: RtpsReaderImpl, qos: DataReaderQos) -> Self {
         Self { rtps_reader, qos }
     }

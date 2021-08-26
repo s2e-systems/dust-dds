@@ -22,19 +22,19 @@ use rust_rtps_pim::behavior::reader::reader::RtpsReader;
 
 use crate::utils::shared_object::RtpsWeak;
 
-use super::data_reader::DataReader;
+use super::data_reader::DataReaderImpl;
 
 pub struct DataReaderProxy<'dr, T: 'static> {
     subscriber: &'dr dyn Subscriber,
     topic: &'dr dyn TopicDescription<T>,
-    reader: RtpsWeak<DataReader>,
+    reader: RtpsWeak<DataReaderImpl>,
 }
 
 impl<'dr, T: 'static> DataReaderProxy<'dr, T> {
     pub fn new(
         subscriber: &'dr dyn Subscriber,
         topic: &'dr dyn TopicDescription<T>,
-        reader: RtpsWeak<DataReader>,
+        reader: RtpsWeak<DataReaderImpl>,
     ) -> Self {
         Self {
             subscriber,
