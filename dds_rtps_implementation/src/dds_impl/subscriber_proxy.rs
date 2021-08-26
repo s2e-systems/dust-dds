@@ -29,7 +29,7 @@ use crate::{
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy, topic_impl::TopicProxy};
+use super::{data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy, topic_proxy::TopicProxy};
 
 pub struct SubscriberImpl {
     qos: SubscriberQos,
@@ -267,7 +267,7 @@ mod tests {
     };
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    use crate::{dds_impl::topic_impl::TopicImpl, dds_type::DDSType};
+    use crate::{dds_impl::topic_proxy::TopicImpl, dds_type::DDSType};
 
     use super::*;
 

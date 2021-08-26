@@ -33,9 +33,9 @@ use crate::{
 };
 
 use super::{
-    publisher_impl::{PublisherProxy, PublisherImpl},
-    subscriber_impl::{SubscriberProxy, SubscriberImpl},
-    topic_impl::{TopicProxy, TopicImpl},
+    publisher_proxy::{PublisherProxy, PublisherImpl},
+    subscriber_proxy::{SubscriberProxy, SubscriberImpl},
+    topic_proxy::{TopicProxy, TopicImpl},
 };
 
 pub trait Transport: TransportRead + TransportWrite + Send {}

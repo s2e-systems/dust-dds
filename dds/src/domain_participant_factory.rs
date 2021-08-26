@@ -13,10 +13,10 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_writer_impl::DataWriterImpl,
-        domain_participant_impl::{DomainParticipantProxy, DomainParticipantImpl},
-        publisher_impl::PublisherImpl,
-        subscriber_impl::SubscriberImpl,
+        data_writer_proxy::DataWriterImpl,
+        domain_participant_proxy::{DomainParticipantProxy, DomainParticipantImpl},
+        publisher_proxy::PublisherImpl,
+        subscriber_proxy::SubscriberImpl,
     },
     rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,

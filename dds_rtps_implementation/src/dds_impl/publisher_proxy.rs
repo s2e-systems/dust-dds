@@ -27,8 +27,8 @@ use crate::{
 };
 
 use super::{
-    data_writer_impl::{DataWriterProxy, DataWriterImpl},
-    topic_impl::TopicProxy,
+    data_writer_proxy::{DataWriterProxy, DataWriterImpl},
+    topic_proxy::TopicProxy,
 };
 
 pub struct PublisherImpl {
@@ -282,7 +282,7 @@ mod tests {
     };
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    use crate::dds_impl::topic_impl::TopicImpl;
+    use crate::dds_impl::topic_proxy::TopicImpl;
 
     use super::*;
 
