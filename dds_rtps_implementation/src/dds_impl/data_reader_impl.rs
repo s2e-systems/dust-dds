@@ -20,40 +20,21 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::behavior::reader::reader::RtpsReader;
 
-use crate::{rtps_impl::rtps_reader_impl::RtpsReaderImpl, utils::shared_object::RtpsWeak};
+use crate::utils::shared_object::RtpsWeak;
 
-pub struct DataReaderStorage {
-    rtps_reader: RtpsReaderImpl,
-    qos: DataReaderQos,
-}
-
-impl DataReaderStorage {
-    pub fn new(rtps_reader: RtpsReaderImpl, qos: DataReaderQos) -> Self {
-        Self { rtps_reader, qos }
-    }
-
-    /// Get a reference to the data reader storage's reader.
-    pub fn rtps_reader(&self) -> &RtpsReaderImpl {
-        &self.rtps_reader
-    }
-
-    /// Get a mutable reference to the data reader storage's reader.
-    pub fn rtps_reader_mut(&mut self) -> &mut RtpsReaderImpl {
-        &mut self.rtps_reader
-    }
-}
+use super::data_reader::DataReader;
 
 pub struct DataReaderImpl<'dr, T: 'static> {
     subscriber: &'dr dyn Subscriber,
     topic: &'dr dyn TopicDescription<T>,
-    reader: RtpsWeak<DataReaderStorage>,
+    reader: RtpsWeak<DataReader>,
 }
 
 impl<'dr, T: 'static> DataReaderImpl<'dr, T> {
     pub fn new(
         subscriber: &'dr dyn Subscriber,
         topic: &'dr dyn TopicDescription<T>,
-        reader: RtpsWeak<DataReaderStorage>,
+        reader: RtpsWeak<DataReader>,
     ) -> Self {
         Self {
             subscriber,
@@ -338,12 +319,11 @@ impl<'dr, T> Entity for DataReaderImpl<'dr, T> {
     type Listener = &'static dyn DataReaderListener<DataPIM = T>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.reader.upgrade()?.lock().qos = qos.unwrap_or_default();
-        Ok(())
+        self.reader.upgrade()?.lock().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.reader.upgrade()?.lock().qos.clone())
+        Ok(self.reader.upgrade()?.lock().get_qos()?.clone())
     }
 
     fn set_listener(
