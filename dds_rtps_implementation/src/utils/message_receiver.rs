@@ -83,9 +83,9 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a, P: AsRef<[Parameter<'a>]>>(
+    fn process_data<'a>(
         &mut self,
-        data: &'a DataSubmessage<P>,
+        data: &'a DataSubmessage<Vec<Parameter<'a>>>,
         reader_group_list: &'a [RtpsShared<SubscriberStorage>],
     ) {
         for subscriber in reader_group_list {
