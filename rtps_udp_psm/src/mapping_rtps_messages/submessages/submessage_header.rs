@@ -6,10 +6,7 @@ use rust_rtps_pim::messages::{
     RtpsSubmessageHeader,
 };
 
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Mapping, Serialize},
-};
+use crate::{deserialize::{self, Deserialize, MappingRead}, serialize::{self, Mapping, Serialize}};
 
 
 pub trait Submessage {
@@ -56,6 +53,17 @@ impl Mapping for [SubmessageFlag; 8] {
 impl<'de> Deserialize<'de> for [SubmessageFlag; 8] {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         let value: u8 = Deserialize::deserialize::<B>(buf)?;
+        let mut flags = [false; 8];
+        for (index, flag) in flags.iter_mut().enumerate() {
+            *flag = value & (0b_0000_0001 << index) != 0;
+        }
+        Ok(flags)
+    }
+}
+
+impl<'de> MappingRead<'de> for  [SubmessageFlag; 8] {
+    fn read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let value: u8 = MappingRead::read(buf)?;
         let mut flags = [false; 8];
         for (index, flag) in flags.iter_mut().enumerate() {
             *flag = value & (0b_0000_0001 << index) != 0;
@@ -123,6 +131,38 @@ impl Serialize for RtpsSubmessageHeader {
         submessage_id.serialize::<_, B>(&mut writer)?;
         self.flags.serialize::<_, B>(&mut writer)?;
         writer.write_u16::<B>(self.submessage_length)
+    }
+}
+
+impl<'de> MappingRead<'de> for RtpsSubmessageHeader {
+    fn read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let submessage_id: u8 = MappingRead::read(buf)?;
+        let submessage_id = match submessage_id {
+            DATA => SubmessageKind::DATA,
+            GAP => SubmessageKind::GAP,
+            HEARTBEAT => SubmessageKind::HEARTBEAT,
+            ACKNACK => SubmessageKind::ACKNACK,
+            PAD => SubmessageKind::PAD,
+            INFO_TS => SubmessageKind::INFO_TS,
+            INFO_REPLY => SubmessageKind::INFO_REPLY,
+            INFO_DST => SubmessageKind::INFO_DST,
+            INFO_SRC => SubmessageKind::INFO_SRC,
+            DATA_FRAG => SubmessageKind::DATA_FRAG,
+            NACK_FRAG => SubmessageKind::NACK_FRAG,
+            HEARTBEAT_FRAG => SubmessageKind::HEARTBEAT_FRAG,
+            _ => SubmessageKind::UNKNOWN,
+        };
+        let flags:[SubmessageFlag; 8] = MappingRead::read(buf)?;
+        let submessage_length = if flags[0] {
+            Deserialize::deserialize::<LittleEndian>(buf)?
+        } else {
+            Deserialize::deserialize::<BigEndian>(buf)?
+        };
+        Ok(Self {
+            submessage_id,
+            flags,
+            submessage_length,
+        })
     }
 }
 

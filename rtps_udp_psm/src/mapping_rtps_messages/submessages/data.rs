@@ -11,7 +11,7 @@ use rust_rtps_pim::messages::{
 };
 
 use crate::{
-    deserialize::Deserialize,
+    deserialize::{self, Deserialize, DeserializeSubmessage},
     serialize::{NumberOfBytes, Serialize, SerializeSubmessage},
 };
 
@@ -68,15 +68,14 @@ impl SerializeSubmessage for DataSubmessage<'_, &[Parameter<'_>]> {
     }
 }
 
-impl<'de: 'a, 'a, T> Deserialize<'de> for DataSubmessage<'a, T>
+impl<'de: 'a, 'a, T> DeserializeSubmessage<'de> for DataSubmessage<'a, T>
 where
     T: FromIterator<Parameter<'a>> + NumberOfBytes,
 {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
-    where
-        B: ByteOrder,
-    {
-        let header: RtpsSubmessageHeader = Deserialize::deserialize::<B>(buf)?;
+    fn deserialize_submessage<B: ByteOrder>(
+        buf: &mut &'de [u8],
+        header: RtpsSubmessageHeader,
+    ) -> deserialize::Result<Self> {
         let inline_qos_flag = header.flags[1];
         let data_flag = header.flags[2];
         let key_flag = header.flags[3];
@@ -128,7 +127,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{deserialize::from_bytes_le, serialize::to_bytes};
+    use crate::{deserialize::from_bytes, serialize::to_bytes};
 
     use super::*;
     use rust_rtps_pim::{
@@ -354,7 +353,7 @@ mod tests {
             serialized_payload,
         };
         #[rustfmt::skip]
-        let result = from_bytes_le(&[
+        let result = from_bytes(&[
             0x15, 0b_0000_0001, 20, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -396,7 +395,7 @@ mod tests {
             serialized_payload,
         };
         #[rustfmt::skip]
-        let result = from_bytes_le(&[
+        let result = from_bytes(&[
             0x15, 0b_0000_0101, 24, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]
@@ -441,7 +440,7 @@ mod tests {
             serialized_payload,
         };
         #[rustfmt::skip]
-        let result = from_bytes_le(&[
+        let result = from_bytes(&[
             0x15, 0b_0000_0011, 40, 0, // Submessage header
             0, 0, 16, 0, // extraFlags, octetsToInlineQos
             1, 2, 3, 4, // readerId: value[4]

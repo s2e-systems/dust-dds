@@ -9,7 +9,7 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-use crate::{deserialize::Deserialize, serialize::{Mapping, Serialize}};
+use crate::{deserialize::{Deserialize, MappingRead}, serialize::{Mapping, Serialize}};
 
 use super::submessages::submessage_header::{
     ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
@@ -67,7 +67,7 @@ impl<'a, 'de: 'a> Deserialize<'de> for RtpsMessageRead<'a> {
             let submessage_id = buf[0];
             let submessage = match submessage_id {
                 ACKNACK => RtpsSubmessageType::AckNack(Deserialize::deserialize::<B>(buf)?),
-                DATA => RtpsSubmessageType::Data(Deserialize::deserialize::<B>(buf)?),
+                DATA => RtpsSubmessageType::Data(MappingRead::read(buf)?),
                 DATA_FRAG => RtpsSubmessageType::DataFrag(Deserialize::deserialize::<B>(buf)?),
                 GAP => RtpsSubmessageType::Gap(Deserialize::deserialize::<B>(buf)?),
                 HEARTBEAT => RtpsSubmessageType::Heartbeat(Deserialize::deserialize::<B>(buf)?),
