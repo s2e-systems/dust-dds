@@ -29,36 +29,9 @@ use crate::{
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy, topic_proxy::TopicProxy};
+use super::{data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy, subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy};
 
-pub struct SubscriberImpl {
-    qos: SubscriberQos,
-    rtps_group: RtpsGroupImpl,
-    data_reader_storage_list: Vec<RtpsShared<DataReaderImpl>>,
-    user_defined_data_reader_counter: u8,
-    default_data_reader_qos: DataReaderQos,
-}
 
-impl SubscriberImpl {
-    pub fn new(
-        qos: SubscriberQos,
-        rtps_group: RtpsGroupImpl,
-        data_reader_storage_list: Vec<RtpsShared<DataReaderImpl>>,
-    ) -> Self {
-        Self {
-            qos,
-            rtps_group,
-            data_reader_storage_list,
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-        }
-    }
-
-    /// Get a reference to the subscriber storage's readers.
-    pub fn readers(&self) -> &[RtpsShared<DataReaderImpl>] {
-        self.data_reader_storage_list.as_slice()
-    }
-}
 
 pub struct SubscriberProxy<'s> {
     participant: &'s dyn DomainParticipant,
@@ -267,7 +240,7 @@ mod tests {
     };
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    use crate::{dds_impl::topic_proxy::TopicImpl, dds_type::DDSType};
+    use crate::{dds_impl::topic_impl::TopicImpl, dds_type::DDSType};
 
     use super::*;
 

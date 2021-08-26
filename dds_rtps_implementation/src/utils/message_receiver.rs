@@ -12,7 +12,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::dds_impl::subscriber_proxy::SubscriberImpl;
+use crate::dds_impl::subscriber_impl::SubscriberImpl;
 
 use super::{shared_object::RtpsShared, transport::RtpsMessageRead};
 

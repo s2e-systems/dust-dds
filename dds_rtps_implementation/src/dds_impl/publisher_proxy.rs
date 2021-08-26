@@ -26,38 +26,9 @@ use crate::{
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{
-    data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy, topic_proxy::TopicProxy,
-};
+use super::{data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy, publisher_impl::PublisherImpl, topic_proxy::TopicProxy};
 
-pub struct PublisherImpl {
-    qos: PublisherQos,
-    rtps_group: RtpsGroupImpl,
-    data_writer_storage_list: Vec<RtpsShared<DataWriterImpl>>,
-    user_defined_data_writer_counter: u8,
-    default_datawriter_qos: DataWriterQos,
-}
 
-impl PublisherImpl {
-    pub fn new(
-        qos: PublisherQos,
-        rtps_group: RtpsGroupImpl,
-        data_writer_storage_list: Vec<RtpsShared<DataWriterImpl>>,
-    ) -> Self {
-        Self {
-            qos,
-            rtps_group,
-            data_writer_storage_list,
-            user_defined_data_writer_counter: 0,
-            default_datawriter_qos: DataWriterQos::default(),
-        }
-    }
-
-    /// Get a reference to the publisher storage's data writer storage list.
-    pub fn data_writer_storage_list(&self) -> &[RtpsShared<DataWriterImpl>] {
-        self.data_writer_storage_list.as_slice()
-    }
-}
 
 pub struct PublisherProxy<'p> {
     participant: &'p dyn DomainParticipant,
@@ -282,7 +253,7 @@ mod tests {
     };
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    use crate::dds_impl::topic_proxy::TopicImpl;
+    use crate::dds_impl::topic_impl::TopicImpl;
 
     use super::*;
 

@@ -13,9 +13,7 @@ use rust_dds_api::{
 
 use crate::utils::shared_object::RtpsWeak;
 
-pub struct TopicImpl {
-    qos: TopicQos,
-}
+use super::topic_impl::TopicImpl;
 
 impl TopicImpl {
     pub fn new(qos: TopicQos) -> Self {

@@ -25,14 +25,14 @@ use rust_rtps_pim::structure::{
 };
 
 use crate::{
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl,},
+    rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
         shared_object::RtpsShared,
         transport::{TransportRead, TransportWrite},
     },
 };
 
-use super::{domain_participant_impl::DomainParticipantImpl, publisher_proxy::{PublisherProxy, PublisherImpl}, subscriber_proxy::{SubscriberProxy, SubscriberImpl}, topic_proxy::{TopicProxy, TopicImpl}};
+use super::{domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy, subscriber_impl::SubscriberImpl, subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl, topic_proxy::TopicProxy};
 
 pub trait Transport: TransportRead + TransportWrite + Send {}
 
@@ -101,7 +101,9 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
     }
 }
 
-impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for DomainParticipantProxy {
+impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
+    for DomainParticipantProxy
+{
     type SubscriberType = SubscriberProxy<'s>;
 
     fn create_subscriber(
@@ -377,7 +379,9 @@ impl Entity for DomainParticipantProxy {
 
 #[cfg(test)]
 mod tests {
-    use crate::{rtps_impl::rtps_participant_impl::RtpsParticipantImpl, utils::transport::RtpsMessageRead};
+    use crate::{
+        rtps_impl::rtps_participant_impl::RtpsParticipantImpl, utils::transport::RtpsMessageRead,
+    };
 
     use super::*;
 
@@ -390,8 +394,8 @@ mod tests {
 
     impl TransportRead for MockTransport {
         fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-        todo!()
-    }
+            todo!()
+        }
     }
 
     impl TransportWrite for MockTransport {

@@ -7,10 +7,7 @@ use crate::{
     rtps_impl::rtps_participant_impl::RtpsParticipantImpl, utils::shared_object::RtpsShared,
 };
 
-use super::{
-    domain_participant_proxy::Transport, publisher_proxy::PublisherImpl,
-    subscriber_proxy::SubscriberImpl, topic_proxy::TopicImpl,
-};
+use super::{domain_participant_proxy::Transport, publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl};
 
 pub struct DomainParticipantImpl {
     pub rtps_participant: RtpsParticipantImpl,

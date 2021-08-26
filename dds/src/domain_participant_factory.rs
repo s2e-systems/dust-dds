@@ -11,10 +11,18 @@ use rust_dds_api::{
     },
     infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
 };
-use rust_dds_rtps_implementation::{dds_impl::{data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl, domain_participant_proxy::DomainParticipantProxy, publisher_proxy::PublisherImpl, subscriber_proxy::SubscriberImpl}, rtps_impl::{
+use rust_dds_rtps_implementation::{
+    dds_impl::{
+        data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
+        domain_participant_proxy::DomainParticipantProxy, publisher_impl::PublisherImpl,
+        subscriber_impl::SubscriberImpl,
+    },
+    rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
         rtps_writer_impl::RtpsWriterImpl,
-    }, utils::shared_object::RtpsShared};
+    },
+    utils::shared_object::RtpsShared,
+};
 use rust_rtps_pim::{
     behavior::{
         types::Duration,
