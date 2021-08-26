@@ -27,10 +27,6 @@ pub struct RtpsMessage<M> {
     pub submessages: M,
 }
 
-pub trait Submessage {
-    fn submessage_header(&self) -> RtpsSubmessageHeader;
-}
-
 pub trait RtpsMessageTrait {
     type SubmessageType;
 

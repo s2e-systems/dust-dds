@@ -1,7 +1,31 @@
-use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
+use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
+use rust_rtps_pim::messages::RtpsSubmessageHeader;
 use std::io::Write;
 
 pub type Result = std::result::Result<(), std::io::Error>;
+
+pub trait Mapping {
+    fn mapping<W: Write>(&self, writer: W) -> Result;
+}
+
+impl<T> Mapping for T where T: SerializeSubmessage {
+    fn mapping<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
+        self.serialize_submessage(&mut writer)
+    }
+}
+
+pub trait SerializeSubmessage {
+    fn serialize_submessage<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
+        self.submessage_header().mapping(&mut writer)?;
+        if self.submessage_header().flags[0] {
+            self.serialize_submessage_elements::<_, LittleEndian>(&mut writer)
+        } else {
+            self.serialize_submessage_elements::<_, BigEndian>(&mut writer)
+        }
+    }
+    fn submessage_header(&self) -> RtpsSubmessageHeader;
+    fn serialize_submessage_elements<W: Write, B: ByteOrder>(&self, writer: W) -> crate::serialize::Result;
+}
 
 pub trait Serialize {
     fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result;
@@ -9,6 +33,11 @@ pub trait Serialize {
 
 impl Serialize for u8 {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+        writer.write_u8(*self)
+    }
+}
+impl Mapping for u8 {
+    fn mapping<W: Write>(&self, mut writer: W) -> Result {
         writer.write_u8(*self)
     }
 }
@@ -76,6 +105,12 @@ pub fn to_writer_le<S: Serialize, W: Write>(value: &S, mut writer: W) -> Result 
 pub fn to_bytes_le<S: Serialize>(value: &S) -> std::result::Result<Vec<u8>, std::io::Error> {
     let mut writer = Vec::<u8>::new();
     value.serialize::<_, LittleEndian>(&mut writer)?;
+    Ok(writer)
+}
+
+pub fn to_bytes<S: Mapping>(value: &S) -> std::result::Result<Vec<u8>, std::io::Error> {
+    let mut writer = Vec::<u8>::new();
+    value.mapping(&mut writer)?;
     Ok(writer)
 }
 

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
+use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
     types::{SubmessageFlag, SubmessageKind},
     RtpsSubmessageHeader,
@@ -8,8 +8,13 @@ use rust_rtps_pim::messages::{
 
 use crate::{
     deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
+    serialize::{self, Mapping, Serialize},
 };
+
+
+pub trait Submessage {
+    fn submessage_header(&self) -> RtpsSubmessageHeader;
+}
 
 pub const DATA: u8 = 0x15;
 pub const GAP: u8 = 0x08;
@@ -36,6 +41,18 @@ impl Serialize for [SubmessageFlag; 8] {
     }
 }
 
+impl Mapping for [SubmessageFlag; 8] {
+    fn mapping<W: Write>(&self, mut writer: W) -> serialize::Result {
+        let mut flags = 0b_0000_0000_u8;
+        for (i, &item) in self.iter().enumerate() {
+            if item {
+                flags |= 0b_0000_0001 << i
+            }
+        }
+        writer.write_u8(flags)
+    }
+}
+
 impl<'de> Deserialize<'de> for [SubmessageFlag; 8] {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         let value: u8 = Deserialize::deserialize::<B>(buf)?;
@@ -44,6 +61,40 @@ impl<'de> Deserialize<'de> for [SubmessageFlag; 8] {
             *flag = value & (0b_0000_0001 << index) != 0;
         }
         Ok(flags)
+    }
+}
+
+impl Mapping for RtpsSubmessageHeader {
+    fn mapping<W: Write>(&self, mut writer: W) -> serialize::Result {
+        let submessage_id = match self.submessage_id {
+            SubmessageKind::DATA => DATA,
+            SubmessageKind::GAP => GAP,
+            SubmessageKind::HEARTBEAT => HEARTBEAT,
+            SubmessageKind::ACKNACK => ACKNACK,
+            SubmessageKind::PAD => PAD,
+            SubmessageKind::INFO_TS => INFO_TS,
+            SubmessageKind::INFO_REPLY => INFO_REPLY,
+            SubmessageKind::INFO_DST => INFO_DST,
+            SubmessageKind::INFO_SRC => INFO_SRC,
+            SubmessageKind::DATA_FRAG => DATA_FRAG,
+            SubmessageKind::NACK_FRAG => NACK_FRAG,
+            SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
+            SubmessageKind::UNKNOWN => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Unknow submessage kind not allowed",
+                ))
+            }
+        };
+        submessage_id.mapping(&mut writer)?;
+        self.flags.mapping(&mut writer)?;
+        if self.flags[0] {
+            self.submessage_length
+                .serialize::<_, LittleEndian>(&mut writer)
+        } else {
+            self.submessage_length
+                .serialize::<_, BigEndian>(&mut writer)
+        }
     }
 }
 
@@ -62,7 +113,12 @@ impl Serialize for RtpsSubmessageHeader {
             SubmessageKind::DATA_FRAG => DATA_FRAG,
             SubmessageKind::NACK_FRAG => NACK_FRAG,
             SubmessageKind::HEARTBEAT_FRAG => HEARTBEAT_FRAG,
-            SubmessageKind::UNKNOWN => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Unknow submessage kind not allowed")),
+            SubmessageKind::UNKNOWN => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Unknow submessage kind not allowed",
+                ))
+            }
         };
         submessage_id.serialize::<_, B>(&mut writer)?;
         self.flags.serialize::<_, B>(&mut writer)?;

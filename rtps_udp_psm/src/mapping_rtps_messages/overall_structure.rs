@@ -9,7 +9,7 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-use crate::{deserialize::Deserialize, serialize::Serialize};
+use crate::{deserialize::Deserialize, serialize::{Mapping, Serialize}};
 
 use super::submessages::submessage_header::{
     ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
@@ -28,7 +28,7 @@ impl<'a> Serialize for RtpsSubmessageWrite<'_> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
         match self {
             RtpsSubmessageType::AckNack(s) => s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::Data(s) => s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::Data(s) => s.mapping(&mut writer)?,
             RtpsSubmessageType::DataFrag(s) => s.serialize::<_, B>(&mut writer)?,
             RtpsSubmessageType::Gap(s) => s.serialize::<_, B>(&mut writer)?,
             RtpsSubmessageType::Heartbeat(s) => s.serialize::<_, B>(&mut writer)?,

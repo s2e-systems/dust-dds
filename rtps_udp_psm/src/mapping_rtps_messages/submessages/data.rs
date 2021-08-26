@@ -12,20 +12,19 @@ use rust_rtps_pim::messages::{
 
 use crate::{
     deserialize::Deserialize,
-    serialize::{NumberOfBytes, Serialize},
+    serialize::{NumberOfBytes, Serialize, SerializeSubmessage},
 };
 
-impl Serialize for DataSubmessage<'_, &[Parameter<'_>]> {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+impl SerializeSubmessage for DataSubmessage<'_, &[Parameter<'_>]> {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
         } else {
             0
         };
         let serialized_payload_len_padded = self.serialized_payload.number_of_bytes() + 3 & !3; //ceil to multiple of 4
-        let submessage_length = 20 + inline_qos_len + serialized_payload_len_padded;
-
-        let header = RtpsSubmessageHeader {
+        let octets_to_next_header = 20 + inline_qos_len + serialized_payload_len_padded;
+        RtpsSubmessageHeader {
             submessage_id: SubmessageKind::DATA,
             flags: [
                 self.endianness_flag,
@@ -37,9 +36,13 @@ impl Serialize for DataSubmessage<'_, &[Parameter<'_>]> {
                 false,
                 false,
             ],
-            submessage_length: submessage_length as u16,
-        };
-        header.serialize::<_, B>(&mut writer)?;
+            submessage_length: octets_to_next_header as u16,
+        }
+    }
+    fn serialize_submessage_elements<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> crate::serialize::Result {
         const OCTETS_TO_INLINE_QOS: u16 = 16;
         const EXTRA_FLAGS: u16 = 0;
         EXTRA_FLAGS.serialize::<_, B>(&mut writer)?;
@@ -125,7 +128,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
+    use crate::{deserialize::from_bytes_le, serialize::to_bytes};
 
     use super::*;
     use rust_rtps_pim::{
@@ -170,7 +173,7 @@ mod tests {
             serialized_payload,
         };
         #[rustfmt::skip]
-        assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
+        assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -216,7 +219,7 @@ mod tests {
             serialized_payload,
         };
         #[rustfmt::skip]
-        assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
+        assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x15, 0b_0000_0011, 40, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -265,7 +268,7 @@ mod tests {
             serialized_payload,
         };
         #[rustfmt::skip]
-        assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
+        assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
@@ -310,7 +313,7 @@ mod tests {
             serialized_payload,
         };
         #[rustfmt::skip]
-        assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
+        assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
                 0, 0, 16, 0, // extraFlags, octetsToInlineQos
                 1, 2, 3, 4, // readerId: value[4]
