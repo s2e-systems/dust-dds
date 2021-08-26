@@ -19,20 +19,16 @@ use rust_dds_api::{
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::{
-    types::{EntityId, EntityKind, Guid},
-    RtpsEntity,
+
+use crate::utils::{
+    shared_object::RtpsShared,
+    transport::{TransportRead, TransportWrite},
 };
 
-use crate::{
-    rtps_impl::rtps_group_impl::RtpsGroupImpl,
-    utils::{
-        shared_object::RtpsShared,
-        transport::{TransportRead, TransportWrite},
-    },
+use super::{
+    domain_participant_impl::DomainParticipantImpl, publisher_proxy::PublisherProxy,
+    subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy,
 };
-
-use super::{domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy, subscriber_impl::SubscriberImpl, subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl, topic_proxy::TopicProxy};
 
 pub trait Transport: TransportRead + TransportWrite + Send {}
 
@@ -59,40 +55,23 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
     fn create_publisher(
         &'p self,
         qos: Option<PublisherQos>,
-        _a_listener: Option<&'static dyn PublisherListener>,
-        _mask: StatusMask,
+        a_listener: Option<&'static dyn PublisherListener>,
+        mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let mut domain_participant_lock = self.domain_participant_storage.lock();
-        let publisher_qos = qos.unwrap_or(domain_participant_lock.default_publisher_qos.clone());
-        domain_participant_lock.user_defined_publisher_counter += 1;
-        let entity_id = EntityId::new(
-            [domain_participant_lock.user_defined_publisher_counter, 0, 0],
-            EntityKind::UserDefinedWriterGroup,
-        );
-        let guid = Guid::new(
-            *domain_participant_lock.rtps_participant.guid().prefix(),
-            entity_id,
-        );
-        let rtps_group = RtpsGroupImpl::new(guid);
-        let data_writer_storage_list = Vec::new();
-        let publisher_storage =
-            PublisherImpl::new(publisher_qos, rtps_group, data_writer_storage_list);
-        let publisher_storage_shared = RtpsShared::new(publisher_storage);
-        let publisher = PublisherProxy::new(self, publisher_storage_shared.downgrade());
-        domain_participant_lock
-            .user_defined_publisher_storage
-            .push(publisher_storage_shared);
+        let publisher_storage_weak = self
+            .domain_participant_storage
+            .lock()
+            .create_publisher(qos, a_listener, mask)?;
+        let publisher = PublisherProxy::new(self, publisher_storage_weak);
+
         Some(publisher)
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.get_participant(), self) {
-            let publisher_storage = a_publisher.publisher_storage().upgrade()?;
-            let mut domain_participant_lock = self.domain_participant_storage.lock();
-            domain_participant_lock
-                .user_defined_publisher_storage
-                .retain(|x| x != &publisher_storage);
-            Ok(())
+            self.domain_participant_storage
+                .lock()
+                .delete_publisher(a_publisher.publisher_storage())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",
@@ -109,44 +88,22 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     fn create_subscriber(
         &'s self,
         qos: Option<SubscriberQos>,
-        _a_listener: Option<&'static dyn SubscriberListener>,
-        _mask: StatusMask,
+        a_listener: Option<&'static dyn SubscriberListener>,
+        mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
-        let mut domain_participant_lock = self.domain_participant_storage.lock();
-        let subscriber_qos = qos.unwrap_or(domain_participant_lock.default_subscriber_qos.clone());
-        domain_participant_lock.user_defined_subscriber_counter += 1;
-        let entity_id = EntityId::new(
-            [
-                domain_participant_lock.user_defined_subscriber_counter,
-                0,
-                0,
-            ],
-            EntityKind::UserDefinedWriterGroup,
-        );
-        let guid = Guid::new(
-            *domain_participant_lock.rtps_participant.guid().prefix(),
-            entity_id,
-        );
-        let rtps_group = RtpsGroupImpl::new(guid);
-        let data_reader_storage_list = Vec::new();
-        let subscriber_storage =
-            SubscriberImpl::new(subscriber_qos, rtps_group, data_reader_storage_list);
-        let subscriber_storage_shared = RtpsShared::new(subscriber_storage);
-        let subscriber = SubscriberProxy::new(self, subscriber_storage_shared.downgrade());
-        domain_participant_lock
-            .user_defined_subscriber_storage
-            .push(subscriber_storage_shared);
+        let subscriber_storage_weak = self
+            .domain_participant_storage
+            .lock()
+            .create_subscriber(qos, a_listener, mask)?;
+        let subscriber = SubscriberProxy::new(self, subscriber_storage_weak);
         Some(subscriber)
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         if std::ptr::eq(a_subscriber.get_participant(), self) {
-            let subscriber_storage = a_subscriber.subscriber_storage().upgrade()?;
-            let mut domain_participant_lock = self.domain_participant_storage.lock();
-            domain_participant_lock
-                .user_defined_subscriber_storage
-                .retain(|x| x != &subscriber_storage);
-            Ok(())
+            self.domain_participant_storage
+                .lock()
+                .delete_subscriber(a_subscriber.subscriber_storage())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant",
@@ -155,10 +112,11 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     }
 
     fn get_builtin_subscriber(&'s self) -> Self::SubscriberType {
-        let domain_participant_lock = self.domain_participant_storage.lock();
-        let subscriber_storage_shared =
-            domain_participant_lock.builtin_subscriber_storage[0].clone();
-        SubscriberProxy::new(self, subscriber_storage_shared.downgrade())
+        let subscriber_storage_weak = self
+            .domain_participant_storage
+            .lock()
+            .get_builtin_subscriber();
+        SubscriberProxy::new(self, subscriber_storage_weak)
     }
 }
 
@@ -169,24 +127,16 @@ impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicFactory<'t, 
 
     fn create_topic(
         &'t self,
-        _topic_name: &str,
+        topic_name: &str,
         qos: Option<TopicQos>,
-        _a_listener: Option<&'static dyn TopicListener<DataPIM = T>>,
-        _mask: StatusMask,
+        a_listener: Option<&'static dyn TopicListener<DataPIM = T>>,
+        mask: StatusMask,
     ) -> Option<Self::TopicType> {
-        let topic_qos = qos.unwrap_or(
-            self.domain_participant_storage
-                .lock()
-                .default_topic_qos
-                .clone(),
-        );
-        let topic_storage = TopicImpl::new(topic_qos);
-        let topic_storage_shared = RtpsShared::new(topic_storage);
-        let topic = TopicProxy::new(self, topic_storage_shared.downgrade());
-        self.domain_participant_storage
+        let topic_storage_weak = self
+            .domain_participant_storage
             .lock()
-            .topic_storage
-            .push(topic_storage_shared);
+            .create_topic(topic_name, qos, a_listener, mask)?;
+        let topic = TopicProxy::new(self, topic_storage_weak);
         Some(topic)
     }
 
@@ -237,42 +187,41 @@ impl rust_dds_api::domain::domain_participant::DomainParticipant for DomainParti
     }
 
     fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
-        self.domain_participant_storage.lock().default_publisher_qos = qos.unwrap_or_default();
-        Ok(())
+        self.domain_participant_storage
+            .lock()
+            .set_default_publisher_qos(qos)
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
         self.domain_participant_storage
             .lock()
-            .default_publisher_qos
+            .get_default_publisher_qos()
             .clone()
     }
 
     fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()> {
         self.domain_participant_storage
             .lock()
-            .default_subscriber_qos = qos.unwrap_or_default();
-        Ok(())
+            .set_default_subscriber_qos(qos)
     }
 
     fn get_default_subscriber_qos(&self) -> SubscriberQos {
         self.domain_participant_storage
             .lock()
-            .default_subscriber_qos
+            .get_default_subscriber_qos()
             .clone()
     }
 
     fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
-        let topic_qos = qos.unwrap_or_default();
-        topic_qos.is_consistent()?;
-        self.domain_participant_storage.lock().default_topic_qos = topic_qos;
-        Ok(())
+        self.domain_participant_storage
+            .lock()
+            .set_default_topic_qos(qos)
     }
 
     fn get_default_topic_qos(&self) -> TopicQos {
         self.domain_participant_storage
             .lock()
-            .default_topic_qos
+            .get_default_topic_qos()
             .clone()
     }
 
@@ -317,18 +266,11 @@ impl Entity for DomainParticipantProxy {
     type Listener = &'static dyn DomainParticipantListener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.domain_participant_storage
-            .lock()
-            .domain_participant_qos = qos.unwrap_or_default();
-        Ok(())
+        self.domain_participant_storage.lock().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self
-            .domain_participant_storage
-            .lock()
-            .domain_participant_qos
-            .clone())
+        Ok(self.domain_participant_storage.lock().get_qos().clone())
     }
 
     fn set_listener(
