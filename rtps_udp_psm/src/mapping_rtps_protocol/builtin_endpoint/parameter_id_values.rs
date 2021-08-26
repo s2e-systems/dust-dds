@@ -49,7 +49,7 @@ pub const PID_ENDPOINT_GUID: u16 = 0x005a;
 
 
 // Constant value from Table 9.14 - ParameterId mapping and default values
-pub const DEFAULT_DOMAIN_TAG: String = String::new();
+pub const DEFAULT_DOMAIN_TAG: &str = "";
 pub const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
 pub const DEFAULT_BUILTIN_ENDPOINT_QOS: BuiltinEndpointQos = BuiltinEndpointQos(0);
 pub const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration {

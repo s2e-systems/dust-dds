@@ -1,9 +1,9 @@
 use crate::{behavior::types::Duration, discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId}, messages::types::Count, structure::types::{GuidPrefix, ProtocolVersion, VendorId}};
 
 #[derive(Debug, PartialEq)]
-pub struct SpdpDiscoveredParticipantData<L> {
+pub struct SpdpDiscoveredParticipantData<'a, L> {
     pub domain_id: DomainId,
-    pub domain_tag: &'static str,
+    pub domain_tag: &'a str,
     pub protocol_version: ProtocolVersion,
     pub guid_prefix: GuidPrefix,
     pub vendor_id: VendorId,

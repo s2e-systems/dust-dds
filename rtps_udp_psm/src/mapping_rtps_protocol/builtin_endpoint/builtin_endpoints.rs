@@ -206,7 +206,7 @@ impl NumberOfBytes for BuiltinEndpointQos {
     }
 }
 
-impl Serialize for SpdpDiscoveredParticipantData<&[Locator]> {
+impl Serialize for SpdpDiscoveredParticipantData<'_, &[Locator]> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         RepresentationIdentifier.serialize::<_, B>(&mut writer)?;
 
@@ -252,13 +252,13 @@ impl Serialize for SpdpDiscoveredParticipantData<&[Locator]> {
     }
 }
 
-impl<'de> Deserialize<'de> for SpdpDiscoveredParticipantData<Vec<Locator>> {
+impl<'a, 'de:'a> Deserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         let representation = Deserialize::deserialize::<B>(buf)?;
         let mut de = ParameterDeserializer::new(buf, representation);
         Ok(Self {
             domain_id: de.get(PID_DOMAIN_ID)?,
-            domain_tag: "abc", //de.get(PID_DOMAIN_TAG).unwrap_or(DEFAULT_DOMAIN_TAG),
+            domain_tag: de.get(PID_DOMAIN_TAG).unwrap_or(DEFAULT_DOMAIN_TAG),
             protocol_version: de.get(PID_PROTOCOL_VERSION)?,
             guid_prefix: [3; 12],
             vendor_id: de.get(PID_VENDORID)?,

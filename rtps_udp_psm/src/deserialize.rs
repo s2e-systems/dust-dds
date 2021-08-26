@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{BufRead, Read};
 
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt};
 
@@ -87,13 +87,15 @@ impl<'de> Deserialize<'de> for bool {
     }
 }
 
-impl<'de> Deserialize<'de> for String {
+impl<'de> Deserialize<'de> for &'de str {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self> {
         let length: u32 = Deserialize::deserialize::<B>(buf)?;
-        let mut string_buf = vec![0_u8; length as usize];
-        buf.read_exact(&mut string_buf[..])?;
-        string_buf.pop();
-        String::from_utf8(string_buf).map_err(|_err| std::io::ErrorKind::Other.into())
+        let length = length as usize;
+        let result = std::str::from_utf8(&buf[..length - 1]).map_err(
+            |err|std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
+        )?;
+        buf.consume(length);
+        Ok(result)
     }
 }
 
