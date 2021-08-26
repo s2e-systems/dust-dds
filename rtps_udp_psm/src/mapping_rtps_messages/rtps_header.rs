@@ -1,20 +1,12 @@
 use std::io::Write;
 
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{types::ProtocolId, RtpsMessageHeader};
 
-use crate::{deserialize::{self, Deserialize}, serialize::{self, Mapping, Serialize}};
-
-// impl Serialize for RtpsMessageHeader {
-//     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-//         match self.protocol {
-//             ProtocolId::PROTOCOL_RTPS => b"RTPS".serialize::<_, B>(&mut writer)?,
-//         }
-//         self.version.serialize::<_, B>(&mut writer)?;
-//         self.vendor_id.serialize::<_, B>(&mut writer)?;
-//         self.guid_prefix.serialize::<_, B>(&mut writer)
-//     }
-// }
+use crate::{
+    deserialize::{self, Deserialize, MappingRead},
+    serialize::{self, Mapping},
+};
 
 impl Mapping for RtpsMessageHeader {
     fn mapping<W: Write>(&self, mut writer: W) -> serialize::Result {
@@ -46,13 +38,34 @@ impl<'de> Deserialize<'de> for RtpsMessageHeader {
         })
     }
 }
+
+impl<'de> MappingRead<'de> for RtpsMessageHeader {
+    fn read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let protocol: [u8; 4] = MappingRead::read(buf)?;
+        let protocol = if &protocol == b"RTPS" {
+            ProtocolId::PROTOCOL_RTPS
+        } else {
+            return deserialize::Result::Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Protocol not valid",
+            ));
+        };
+        Ok(Self {
+            protocol,
+            version: MappingRead::read(buf)?,
+            vendor_id: MappingRead::read(buf)?,
+            guid_prefix: MappingRead::read(buf)?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rust_rtps_pim::structure::types::ProtocolVersion;
 
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::{to_bytes, to_bytes_le};
+    use crate::deserialize::from_bytes;
+    use crate::serialize::to_bytes;
 
     #[test]
     fn serialize_rtps_header() {
@@ -81,7 +94,7 @@ mod tests {
             guid_prefix: [3; 12],
         };
         #[rustfmt::skip]
-        let result = from_bytes_le(&[
+        let result = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

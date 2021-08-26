@@ -108,7 +108,13 @@ impl<'de, const N: usize> Deserialize<'de> for [u8; N] {
         Ok(value)
     }
 }
-
+impl<'de, const N: usize> MappingRead<'de> for  [u8; N] {
+    fn read(buf: &mut &'de [u8]) -> Result<Self> {
+        let mut value = [0; N];
+        buf.read_exact(value.as_mut())?;
+        Ok(value)
+    }
+}
 
 impl<'de> Deserialize<'de> for bool {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self> {
