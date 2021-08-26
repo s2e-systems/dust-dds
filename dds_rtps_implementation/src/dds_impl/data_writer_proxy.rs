@@ -1,6 +1,4 @@
-use crate::{
-    dds_type::DDSType, rtps_impl::rtps_writer_impl::RtpsWriterImpl, utils::shared_object::RtpsWeak,
-};
+use crate::{dds_type::DDSType, utils::shared_object::RtpsWeak};
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -12,14 +10,8 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::topic::Topic,
 };
-use rust_rtps_pim::{
-    behavior::writer::writer::{RtpsWriter, RtpsWriterOperations},
-    structure::{types::ChangeKind, RtpsHistoryCache},
-};
 
 use super::data_writer_impl::DataWriterImpl;
-
-
 
 pub struct DataWriterProxy<'dw, T: 'static> {
     _publisher: &'dw dyn Publisher,
@@ -229,8 +221,11 @@ mod tests {
         topic::{topic_description::TopicDescription, topic_listener::TopicListener},
     };
     use rust_rtps_pim::{
-        behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
-        structure::types::{ReliabilityKind, TopicKind, GUID_UNKNOWN},
+        behavior::writer::{stateful_writer::RtpsStatefulWriterOperations, writer::RtpsWriter},
+        structure::{
+            types::{ReliabilityKind, TopicKind, GUID_UNKNOWN},
+            RtpsHistoryCache,
+        },
     };
 
     use crate::{dds_type::DDSType, utils::shared_object::RtpsShared};

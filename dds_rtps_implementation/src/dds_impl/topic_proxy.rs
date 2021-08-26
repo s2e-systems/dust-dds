@@ -15,12 +15,6 @@ use crate::utils::shared_object::RtpsWeak;
 
 use super::topic_impl::TopicImpl;
 
-impl TopicImpl {
-    pub fn new(qos: TopicQos) -> Self {
-        Self { qos }
-    }
-}
-
 pub struct TopicProxy<'t, T> {
     participant: &'t dyn DomainParticipant,
     topic_storage: RtpsWeak<TopicImpl>,
@@ -28,10 +22,7 @@ pub struct TopicProxy<'t, T> {
 }
 
 impl<'t, T> TopicProxy<'t, T> {
-    pub fn new(
-        participant: &'t dyn DomainParticipant,
-        topic_storage: RtpsWeak<TopicImpl>,
-    ) -> Self {
+    pub fn new(participant: &'t dyn DomainParticipant, topic_storage: RtpsWeak<TopicImpl>) -> Self {
         Self {
             participant,
             topic_storage,
@@ -82,16 +73,11 @@ impl<'t, T: 'static> Entity for TopicProxy<'t, T> {
     type Listener = &'static dyn TopicListener<DataPIM = T>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        let qos = qos.unwrap_or_default();
-        qos.is_consistent()?;
-        let topic_storage = self.topic_storage.upgrade()?;
-        let mut topic_storage_lock = topic_storage.lock();
-        topic_storage_lock.qos = qos;
-        Ok(())
+        self.topic_storage.upgrade()?.lock().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.topic_storage.upgrade()?.lock().qos.clone())
+        Ok(self.topic_storage.upgrade()?.lock().get_qos().clone())
     }
 
     fn set_listener(

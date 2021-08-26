@@ -22,13 +22,14 @@ use rust_rtps_pim::{
 
 use crate::{
     dds_type::DDSType,
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
+    rtps_impl::{rtps_writer_impl::RtpsWriterImpl},
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy, publisher_impl::PublisherImpl, topic_proxy::TopicProxy};
-
-
+use super::{
+    data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy,
+    publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
+};
 
 pub struct PublisherProxy<'p> {
     participant: &'p dyn DomainParticipant,
@@ -253,7 +254,7 @@ mod tests {
     };
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    use crate::dds_impl::topic_impl::TopicImpl;
+    use crate::{dds_impl::topic_impl::TopicImpl, rtps_impl::rtps_group_impl::RtpsGroupImpl};
 
     use super::*;
 
