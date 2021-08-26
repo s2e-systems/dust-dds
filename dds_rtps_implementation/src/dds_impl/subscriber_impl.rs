@@ -29,7 +29,7 @@ use crate::{
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{data_reader::DataReaderImpl, data_reader_impl::DataReaderProxy, topic_impl::TopicImpl};
+use super::{data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy, topic_impl::TopicImpl};
 
 pub struct SubscriberStorage {
     qos: SubscriberQos,
