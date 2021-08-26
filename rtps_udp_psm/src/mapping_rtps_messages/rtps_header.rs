@@ -1,21 +1,29 @@
 use std::io::Write;
 
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder, LittleEndian};
 use rust_rtps_pim::messages::{types::ProtocolId, RtpsMessageHeader};
 
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
-};
+use crate::{deserialize::{self, Deserialize}, serialize::{self, Mapping, Serialize}};
 
-impl Serialize for RtpsMessageHeader {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+// impl Serialize for RtpsMessageHeader {
+//     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+//         match self.protocol {
+//             ProtocolId::PROTOCOL_RTPS => b"RTPS".serialize::<_, B>(&mut writer)?,
+//         }
+//         self.version.serialize::<_, B>(&mut writer)?;
+//         self.vendor_id.serialize::<_, B>(&mut writer)?;
+//         self.guid_prefix.serialize::<_, B>(&mut writer)
+//     }
+// }
+
+impl Mapping for RtpsMessageHeader {
+    fn mapping<W: Write>(&self, mut writer: W) -> serialize::Result {
         match self.protocol {
-            ProtocolId::PROTOCOL_RTPS => b"RTPS".serialize::<_, B>(&mut writer)?,
+            ProtocolId::PROTOCOL_RTPS => b"RTPS".mapping(&mut writer)?,
         }
-        self.version.serialize::<_, B>(&mut writer)?;
-        self.vendor_id.serialize::<_, B>(&mut writer)?;
-        self.guid_prefix.serialize::<_, B>(&mut writer)
+        self.version.mapping(&mut writer)?;
+        self.vendor_id.mapping(&mut writer)?;
+        self.guid_prefix.mapping(&mut writer)
     }
 }
 
@@ -44,7 +52,7 @@ mod tests {
 
     use super::*;
     use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::serialize::{to_bytes, to_bytes_le};
 
     #[test]
     fn serialize_rtps_header() {
@@ -55,7 +63,7 @@ mod tests {
             guid_prefix: [3; 12],
         };
         #[rustfmt::skip]
-        assert_eq!(to_bytes_le(&value).unwrap(), vec![
+        assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

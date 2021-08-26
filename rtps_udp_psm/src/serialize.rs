@@ -78,6 +78,11 @@ impl<const N: usize> Serialize for [u8; N] {
         Ok(())
     }
 }
+impl<const N: usize> Mapping for [u8; N] {
+    fn mapping<W: Write>(&self, mut writer: W) -> Result {
+        writer.write_all(self)
+    }
+}
 
 impl Serialize for &str {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {

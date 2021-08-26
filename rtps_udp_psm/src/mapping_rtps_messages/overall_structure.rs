@@ -44,11 +44,31 @@ impl<'a> Serialize for RtpsSubmessageWrite<'_> {
     }
 }
 
-impl Serialize for RtpsMessageWrite<'_> {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
-        self.header.serialize::<_, B>(&mut writer)?;
+impl Mapping for RtpsSubmessageWrite<'_> {
+    fn mapping<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
+        match self {
+            RtpsSubmessageType::AckNack(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::Data(s) => s.mapping(&mut writer)?,
+            RtpsSubmessageType::DataFrag(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::Gap(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::Heartbeat(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::HeartbeatFrag(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::InfoDestination(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::InfoReply(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::InfoSource(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::InfoTimestamp(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::NackFrag(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::Pad(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+        };
+        Ok(())
+    }
+}
+
+impl Mapping for RtpsMessageWrite<'_> {
+    fn mapping<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
+        self.header.mapping(&mut writer)?;
         for submessage in &self.submessages {
-            submessage.serialize::<_, B>(&mut writer)?;
+            submessage.mapping(&mut writer)?;
         }
         Ok(())
     }
@@ -103,7 +123,7 @@ mod tests {
 
     use super::*;
     use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::serialize::{to_bytes, to_bytes_le};
     use rust_rtps_pim::messages::submessage_elements::{
         EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
         SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
@@ -127,7 +147,7 @@ mod tests {
             submessages: Vec::new(),
         };
         #[rustfmt::skip]
-        assert_eq!(to_bytes_le(&value).unwrap(), vec![
+        assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix
@@ -181,7 +201,7 @@ mod tests {
             submessages: vec![submessage],
         };
         #[rustfmt::skip]
-        assert_eq!(to_bytes_le(&value).unwrap(), vec![
+        assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

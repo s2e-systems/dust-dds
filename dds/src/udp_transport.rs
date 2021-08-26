@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
 use rust_dds_rtps_implementation::utils::transport::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageRead, TransportRead, TransportWrite};
 use rust_rtps_pim::{messages::{RtpsMessage, submessage_elements::Parameter, submessages::RtpsSubmessageType}, structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator, SequenceNumber}};
-use rust_rtps_udp_psm::{deserialize::from_bytes_le, serialize::to_writer_le};
+use rust_rtps_udp_psm::{deserialize::from_bytes_le, serialize::{to_bytes, to_writer_le}};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
@@ -69,10 +69,9 @@ impl UdpTransport {
 
 impl<'a> TransportWrite for UdpTransport {
     fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
-        let mut writer = Vec::<u8>::new();
-        to_writer_le(message, &mut writer).unwrap();
+        let buf = to_bytes(message).unwrap();
         self.socket
-            .send_to(writer.as_slice(), UdpLocator(*destination_locator))
+            .send_to(buf.as_slice(), UdpLocator(*destination_locator))
             .expect(&format!(
                 "Error sending message to {:?}",
                 destination_locator
