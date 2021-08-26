@@ -175,16 +175,11 @@ impl<'dw, T: 'static> rust_dds_api::infrastructure::entity::Entity for DataWrite
     type Listener = &'static dyn DataWriterListener<DataPIM = T>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        let qos = qos.unwrap_or_default();
-        qos.is_consistent()?;
-        let data_writer_storage = self.data_writer_storage.upgrade()?;
-        let mut data_writer_storage_lock = data_writer_storage.lock();
-        data_writer_storage_lock.qos = qos;
-        Ok(())
+        self.data_writer_storage.upgrade()?.lock().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.data_writer_storage.upgrade()?.lock().qos.clone())
+        Ok(self.data_writer_storage.upgrade()?.lock().get_qos().clone())
     }
 
     fn set_listener(
@@ -455,7 +450,7 @@ mod tests {
 
         let data_writer_storage_lock = data_writer_storage_shared.lock();
         let change = data_writer_storage_lock
-            .rtps_data_writer
+            .rtps_data_writer()
             .writer_cache()
             .get_change(&(1i64.into()))
             .unwrap();
