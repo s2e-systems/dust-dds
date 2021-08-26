@@ -75,6 +75,28 @@ impl<'de, const N: usize> Deserialize<'de> for [u8; N] {
     }
 }
 
+
+impl<'de> Deserialize<'de> for bool {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self> {
+        let value: u8 = Deserialize::deserialize::<B>(buf)?;
+        match value {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "bool not valid"))
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for String {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self> {
+        let length: u32 = Deserialize::deserialize::<B>(buf)?;
+        let mut string_buf = vec![0_u8; length as usize];
+        buf.read_exact(&mut string_buf[..])?;
+        string_buf.pop();
+        String::from_utf8(string_buf).map_err(|_err| std::io::ErrorKind::Other.into())
+    }
+}
+
 pub fn from_bytes_le<'de, D: Deserialize<'de>>(mut buf: &'de [u8]) -> Result<D> {
     D::deserialize::<LittleEndian>(&mut buf)
 }

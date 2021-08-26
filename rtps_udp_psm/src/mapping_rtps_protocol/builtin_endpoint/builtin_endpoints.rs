@@ -1,28 +1,34 @@
-use std::{io::Write, marker::PhantomData};
-
-use byteorder::{BigEndian, ByteOrder};
-use rust_rtps_pim::{
-    discovery::{
-        spdp::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
-    structure::types::Locator,
+use std::{
+    io::{BufRead, Write},
+    marker::PhantomData,
 };
 
-use crate::{deserialize, serialize::{self, NumberOfBytes, Serialize}};
-use crate::{
-    deserialize::Deserialize,
-    mapping_rtps_protocol::builtin_endpoint::parameter_id_values::{
-        PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_UNICAST_LOCATOR,
-        PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
-        PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
-        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_SENTINEL, PID_VENDORID,
+use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use rust_rtps_pim::{
+    behavior::types::Duration,
+    discovery::{
+        spdp::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
     },
+    messages::types::Count,
+    structure::types::{Locator, ProtocolVersion},
+};
+
+use crate::mapping_rtps_protocol::builtin_endpoint::parameter_id_values::{
+    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID,
+    PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
+    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_SENTINEL,
+    PID_UNICAST_LOCATOR, PID_VENDORID,
+};
+use crate::{
+    deserialize::{self, Deserialize},
+    serialize::{self, NumberOfBytes, Serialize},
 };
 
 use super::parameter_id_values::{
     DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS,
-    DEFAULT_PARTICIPANT_LEASE_DURATION,
+    DEFAULT_PARTICIPANT_LEASE_DURATION, PID_DEFAULT_MULTICAST_LOCATOR,
 };
 
 const PL_CDR_BE: [u8; 4] = [0x00, 0x02, 0x00, 0x00];
@@ -81,20 +87,55 @@ impl<'a, W: Write, B: ByteOrder> ParameterSerializer<'a, W, B> {
     }
 }
 
-struct ParameterDeserializer<'de, B: ByteOrder> {
-    buf: &'de mut &'de [u8],
+struct ParameterDeserializer<'de, 'a, B: ByteOrder> {
+    buf: &'a mut &'de [u8],
     byteorder: PhantomData<B>,
 }
 
-impl<'de, B: ByteOrder> ParameterDeserializer<'de, B> {
-    fn new(buf: &'de mut &'de [u8]) -> Self {
+impl<'de, 'a, B: ByteOrder> ParameterDeserializer<'de, 'a, B> {
+    fn new(buf: &'a mut &'de [u8]) -> Self {
         Self {
             buf,
             byteorder: PhantomData,
         }
     }
-    fn get<D: Deserialize<'de>>(&self, parameter_id: u16) -> D {
-        todo!()
+    fn get<D: Deserialize<'de>>(&mut self, parameter_id: u16) -> deserialize::Result<D> {
+        let mut buf = *self.buf;
+        const MAX_PARAMETERS: usize = 2_usize.pow(16);
+        for _ in 0..MAX_PARAMETERS {
+            let parameter_id_i: u16 = Deserialize::deserialize::<B>(&mut buf)?;
+            let length: i16 = Deserialize::deserialize::<B>(&mut buf)?;
+            if parameter_id_i == PID_SENTINEL {
+                break;
+            }
+            if parameter_id_i == parameter_id {
+                return Ok(D::deserialize::<B>(&mut buf)?);
+            } else {
+                buf.consume(length as usize);
+            };
+        }
+        Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("Parameter ID {:x} not found", parameter_id),
+        ))
+    }
+    fn get_list<D: Deserialize<'de>>(&mut self, parameter_id: u16) -> deserialize::Result<Vec<D>> {
+        const MAX_PARAMETERS: usize = 2_usize.pow(16);
+        let mut buf = *self.buf;
+        let mut result = vec![];
+        for _ in 0..MAX_PARAMETERS {
+            let parameter_id_i: u16 = Deserialize::deserialize::<B>(&mut buf)?;
+            let length: i16 = Deserialize::deserialize::<B>(&mut buf)?;
+            if parameter_id_i == PID_SENTINEL {
+                break;
+            }
+            if parameter_id_i == parameter_id {
+                result.push(D::deserialize::<B>(&mut buf)?);
+            } else {
+                buf.consume(length as usize);
+            };
+        }
+        Ok(result)
     }
 }
 
@@ -103,6 +144,13 @@ impl Serialize for BuiltinEndpointSet {
         self.0.serialize::<_, B>(&mut writer)
     }
 }
+
+impl<'de> Deserialize<'de> for BuiltinEndpointSet {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self(Deserialize::deserialize::<B>(buf)?))
+    }
+}
+
 impl NumberOfBytes for BuiltinEndpointSet {
     fn number_of_bytes(&self) -> usize {
         4
@@ -114,6 +162,13 @@ impl Serialize for BuiltinEndpointQos {
         self.0.serialize::<_, B>(&mut writer)
     }
 }
+
+impl<'de> Deserialize<'de> for BuiltinEndpointQos {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self(Deserialize::deserialize::<B>(buf)?))
+    }
+}
+
 impl NumberOfBytes for BuiltinEndpointQos {
     fn number_of_bytes(&self) -> usize {
         4
@@ -166,101 +221,44 @@ impl Serialize for SpdpDiscoveredParticipantData<&[Locator]> {
     }
 }
 
-impl<'de> deserialize::Deserialize<'de> for SpdpDiscoveredParticipantData<Vec<Locator>> {
+impl<'de> Deserialize<'de> for SpdpDiscoveredParticipantData<Vec<Locator>> {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        //         let _representation: [u8; 4] = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        //         let parameter_list: ParameterListUdp =
-        //             crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let representation: [u8; 4] = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
+        let mut de = match representation {
+            // PL_CDR_BE => ParameterDeserializer::<BigEndian>::new(buf),
+            PL_CDR_LE => ParameterDeserializer::<LittleEndian>::new(buf),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Representation identifier invalid",
+                ))
+            }
+        };
 
-        //         let domain_id = parameter_list
-        //             .get(PID_DOMAIN_ID)
-        //             .ok_or(std::io::Error::new(
-        //                 std::io::ErrorKind::Other,
-        //                 "Missing PID_DOMAIN_ID parameter",
-        //             ))?;
+        let _domain_tag: String = de.get(PID_DOMAIN_TAG)?;
 
-        //         let domain_tag = parameter_list
-        //             .get(PID_DOMAIN_TAG)
-        //             .unwrap_or(Self::DEFAULT_DOMAIN_TAG);
-
-        //         let protocol_version: ProtocolVersionUdp =
-        //             parameter_list
-        //                 .get(PID_PROTOCOL_VERSION)
-        //                 .ok_or(std::io::Error::new(
-        //                     std::io::ErrorKind::Other,
-        //                     "Missing PID_PROTOCOL_VERSION parameter",
-        //                 ))?;
-
-        //         let guid: GuidUdp = parameter_list
-        //             .get(PID_PARTICIPANT_GUID)
-        //             .ok_or(std::io::Error::new(
-        //                 std::io::ErrorKind::Other,
-        //                 "Missing PID_PARTICIPANT_GUID parameter",
-        //             ))?;
-
-        //         let vendor_id: VendorIdUdp = parameter_list.get(PID_VENDORID).ok_or(
-        //             std::io::Error::new(std::io::ErrorKind::Other, "Missing PID_VENDORID parameter"),
-        //         )?;
-
-        //         let expects_inline_qos = parameter_list
-        //             .get(PID_EXPECTS_INLINE_QOS)
-        //             .unwrap_or(Self::DEFAULT_EXPECTS_INLINE_QOS);
-
-        //         let metatraffic_unicast_locator_list =
-        //             parameter_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR);
-
-        //         let metatraffic_multicast_locator_list =
-        //             parameter_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR);
-
-        //         let default_unicast_locator_list = parameter_list.get_list(PID_DEFAULT_UNICAST_LOCATOR);
-
-        //         let default_multicast_locator_list = parameter_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR);
-
-        //         let available_builtin_endpoints =
-        //             parameter_list
-        //                 .get(PID_BUILTIN_ENDPOINT_SET)
-        //                 .ok_or(std::io::Error::new(
-        //                     std::io::ErrorKind::Other,
-        //                     "Missing PID_BUILTIN_ENDPOINT_SET parameter",
-        //                 ))?;
-
-        //         let manual_liveliness_count = parameter_list
-        //             .get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
-        //             .ok_or(std::io::Error::new(
-        //                 std::io::ErrorKind::Other,
-        //                 "Missing PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT parameter",
-        //             ))?;
-
-        //         let builtin_endpoint_qos = parameter_list
-        //             .get(PID_BUILTIN_ENDPOINT_QOS)
-        //             .unwrap_or(Self::DEFAULT_BUILTIN_ENDPOINT_QOS);
-
-        //         let lease_duration = parameter_list
-        //             .get(PID_PARTICIPANT_LEASE_DURATION)
-        //             .unwrap_or(Self::DEFAULT_PARTICIPANT_LEASE_DURATION);
-
-        //         let participant_proxy = ParticipantProxy {
-        //             domain_id,
-        //             domain_tag,
-        //             protocol_version,
-        //             guid,
-        //             vendor_id,
-        //             expects_inline_qos,
-        //             metatraffic_unicast_locator_list,
-        //             metatraffic_multicast_locator_list,
-        //             default_unicast_locator_list,
-        //             default_multicast_locator_list,
-        //             available_builtin_endpoints,
-        //             manual_liveliness_count,
-        //             builtin_endpoint_qos,
-        //         };
-
-        //         Ok(Self {
-        //             participant_proxy: participant_proxy,
-        //             lease_duration: lease_duration,
-        //         })
-        //     }
-        todo!()
+        Ok(Self {
+            domain_id: de.get(PID_DOMAIN_ID)?,
+            domain_tag: "abc", //de.get(PID_DOMAIN_TAG).unwrap_or(DEFAULT_DOMAIN_TAG),
+            protocol_version: de.get(PID_PROTOCOL_VERSION)?,
+            guid_prefix: [3; 12],
+            vendor_id: de.get(PID_VENDORID)?,
+            expects_inline_qos: de
+                .get(PID_EXPECTS_INLINE_QOS)
+                .unwrap_or(DEFAULT_EXPECTS_INLINE_QOS),
+            metatraffic_unicast_locator_list: de.get_list(PID_METATRAFFIC_UNICAST_LOCATOR)?,
+            metatraffic_multicast_locator_list: de.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR)?,
+            default_unicast_locator_list: de.get_list(PID_DEFAULT_UNICAST_LOCATOR)?,
+            default_multicast_locator_list: de.get_list(PID_DEFAULT_MULTICAST_LOCATOR)?,
+            available_builtin_endpoints: de.get(PID_BUILTIN_ENDPOINT_SET)?,
+            lease_duration: de
+                .get(PID_PARTICIPANT_LEASE_DURATION)
+                .unwrap_or(DEFAULT_PARTICIPANT_LEASE_DURATION),
+            manual_liveliness_count: de.get(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?,
+            builtin_endpoint_qos: de
+                .get(PID_BUILTIN_ENDPOINT_QOS)
+                .unwrap_or(DEFAULT_BUILTIN_ENDPOINT_QOS),
+        })
     }
 }
 
@@ -273,7 +271,7 @@ mod tests {
         structure::types::{Locator, ProtocolVersion},
     };
 
-    use crate::serialize::to_bytes_le;
+    use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
 
     use super::*;
     #[test]
@@ -336,6 +334,69 @@ mod tests {
                 43, 0x00, 0x00, 0x00, // Duration: fraction
                 0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length
             ]
+        );
+    }
+
+    #[test]
+    fn deserialize_spdp_discovered_participant_data() {
+        let expected = SpdpDiscoveredParticipantData {
+            domain_id: 76,
+            domain_tag: "abc",
+            protocol_version: ProtocolVersion { major: 2, minor: 4 },
+            guid_prefix: [3; 12],
+            vendor_id: [35, 65],
+            expects_inline_qos: true,
+            metatraffic_unicast_locator_list: vec![Locator {
+                kind: 1,
+                port: 2,
+                address: [3; 16],
+            }],
+            metatraffic_multicast_locator_list: vec![],
+            default_unicast_locator_list: vec![],
+            default_multicast_locator_list: vec![],
+            available_builtin_endpoints: BuiltinEndpointSet(7),
+            lease_duration: Duration {
+                seconds: 42,
+                fraction: 43,
+            },
+            manual_liveliness_count: Count(8),
+            builtin_endpoint_qos: BuiltinEndpointQos(9),
+        };
+
+        assert_eq!(
+            expected,
+            from_bytes_le(&vec![
+                0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+                0x0f, 0x00, 4, 0x00, // PID_DOMAIN_ID, Length
+                76, 0x00, 0x00, 0x00, // DomainId
+                0x14, 0x40, 8, 0x00, // PID_DOMAIN_TAG, Length
+                4, 0, 0, 0, // Length: 4
+                b'a', b'b', b'c', 0x00, // DomainTag
+                0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
+                2, 4, 0x00, 0x00, // ProtocolVersion: major, minor
+                0x16, 0x00, 4, 0x00, // PID_VENDORID, Length
+                35, 65, 0x00, 0x00, // VendorId
+                0x43, 0x00, 4, 0x00, // PID_EXPECTS_INLINE_QOS, Length
+                0x01, 0x00, 0x00, 0x00, // True
+                0x32, 0x00, 24, 0x00, // PID_METATRAFFIC_UNICAST_LOCATOR, Length
+                0x01, 0x00, 0x00, 0x00, // Locator: kind
+                0x02, 0x00, 0x00, 0x00, // Locator: port
+                0x03, 0x03, 0x03, 0x03, // Locator: address
+                0x03, 0x03, 0x03, 0x03, // Locator: address
+                0x03, 0x03, 0x03, 0x03, // Locator: address
+                0x03, 0x03, 0x03, 0x03, // Locator: address
+                0x58, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_SET, Length
+                7, 0x00, 0x00, 0x00, //
+                0x34, 0x00, 4, 0x00, // PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, Length
+                8, 0x00, 0x00, 0x00, // Count
+                0x77, 0x00, 4, 0x00, // PID_BUILTIN_ENDPOINT_QOS, Length: 4
+                9, 0x00, 0x00, 0x00, //
+                0x02, 0x00, 8, 0x00, // PID_PARTICIPANT_LEASE_DURATION, Length
+                42, 0x00, 0x00, 0x00, // Duration: seconds
+                43, 0x00, 0x00, 0x00, // Duration: fraction
+                0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, Length
+            ])
+            .unwrap()
         );
     }
 }

@@ -1,5 +1,6 @@
 use crate::{behavior::types::Duration, discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId}, messages::types::Count, structure::types::{GuidPrefix, ProtocolVersion, VendorId}};
 
+#[derive(Debug, PartialEq)]
 pub struct SpdpDiscoveredParticipantData<L> {
     pub domain_id: DomainId,
     pub domain_tag: &'static str,
