@@ -1,18 +1,17 @@
 use rust_rtps_pim::messages::submessages::AckNackSubmessage;
 
-use crate::serialize::Serialize;
+use crate::{deserialize::{self, MappingRead}, serialize::{self, MappingWrite}};
 
-use byteorder::ByteOrder;
 use std::io::Write;
 
 
-impl<S> Serialize for AckNackSubmessage<S> {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
+impl<S> MappingWrite for AckNackSubmessage<S> {
+    fn write<W: Write>(&self, mut _writer: W) -> serialize::Result {
         todo!()
     }
 }
-impl<'de, S> crate::deserialize::Deserialize<'de> for AckNackSubmessage<S> {
-    fn deserialize<B>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> where B: ByteOrder {
+impl<'de, S> MappingRead<'de> for AckNackSubmessage<S> {
+    fn read(_buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         todo!()
     }
 }

@@ -6,16 +6,18 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-use crate::{deserialize::Deserialize, serialize::NumberOfBytes};
+use crate::{
+    deserialize::{self, Deserialize, DeserializeSubmessage},
+    serialize::{self, NumberOfBytes, Serialize, SerializeSubmessage},
+};
 
-impl<T> crate::serialize::Serialize for GapSubmessage<T>
+impl<T> SerializeSubmessage for GapSubmessage<T>
 where
     for<'a> &'a T: IntoIterator<Item = &'a SequenceNumber>,
 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> crate::serialize::Result {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         let submessage_length = 16 + self.gap_list.number_of_bytes();
-
-        let header = RtpsSubmessageHeader {
+        RtpsSubmessageHeader {
             submessage_id: SubmessageKind::GAP,
             flags: [
                 self.endianness_flag,
@@ -28,23 +30,28 @@ where
                 false,
             ],
             submessage_length: submessage_length as u16,
-        };
-        header.serialize::<_, B>(&mut writer)?;
+        }
+    }
+
+    fn serialize_submessage_elements<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> serialize::Result {
         self.reader_id.serialize::<_, B>(&mut writer)?;
         self.writer_id.serialize::<_, B>(&mut writer)?;
         self.gap_start.serialize::<_, B>(&mut writer)?;
         self.gap_list.serialize::<_, B>(&mut writer)
     }
 }
-impl<'de, T> Deserialize<'de> for GapSubmessage<T>
+
+impl<'de, T> DeserializeSubmessage<'de> for GapSubmessage<T>
 where
     T: FromIterator<SequenceNumber>,
 {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
-    where
-        B: ByteOrder,
-    {
-        let header: RtpsSubmessageHeader = Deserialize::deserialize::<B>(buf)?;
+    fn deserialize_submessage<B: ByteOrder>(
+        buf: &mut &'de [u8],
+        header: RtpsSubmessageHeader,
+    ) -> deserialize::Result<Self> {
         let reader_id = Deserialize::deserialize::<B>(buf)?;
         let writer_id = Deserialize::deserialize::<B>(buf)?;
         let gap_start = Deserialize::deserialize::<B>(buf)?;
@@ -61,7 +68,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{deserialize::from_bytes_le, serialize::to_bytes_le};
+    use crate::{deserialize::from_bytes, serialize::to_bytes};
 
     use super::*;
     use rust_rtps_pim::{
@@ -91,7 +98,7 @@ mod tests {
             gap_list,
         };
         #[rustfmt::skip]
-        assert_eq!(to_bytes_le(&submessage).unwrap(), vec![
+        assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
                 1, 2, 3, 4, // readerId: value[4]
                 6, 7, 8, 9, // writerId: value[4]
@@ -126,7 +133,7 @@ mod tests {
             gap_list,
         };
         #[rustfmt::skip]
-        let result = from_bytes_le(&[
+        let result = from_bytes(&[
             0x08, 0b_0000_0001, 28, 0, // Submessage header
             1, 2, 3, 4, // readerId: value[4]
             6, 7, 8, 9, // writerId: value[4]

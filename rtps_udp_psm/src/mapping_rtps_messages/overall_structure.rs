@@ -29,18 +29,18 @@ pub type RtpsMessageRead<'a> = RtpsMessage<Vec<RtpsSubmessageRead<'a>>>;
 impl MappingWrite for RtpsSubmessageWrite<'_> {
     fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
         match self {
-            RtpsSubmessageType::AckNack(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::AckNack(s) => s.write(&mut writer)?,
             RtpsSubmessageType::Data(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::DataFrag(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::Gap(s) => todo!(),      //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::Heartbeat(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::HeartbeatFrag(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::InfoDestination(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::InfoReply(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::InfoSource(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::InfoTimestamp(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::NackFrag(s) => todo!(), //s.serialize::<_, B>(&mut writer)?,
-            RtpsSubmessageType::Pad(s) => todo!(),      //s.serialize::<_, B>(&mut writer)?,
+            RtpsSubmessageType::DataFrag(s) => s.write(&mut writer)?,
+            RtpsSubmessageType::Gap(s) => s.write(&mut writer)?,
+            RtpsSubmessageType::Heartbeat(s) => s.write(&mut writer)?,
+            RtpsSubmessageType::HeartbeatFrag(s) => s.write(&mut writer)?,
+            RtpsSubmessageType::InfoDestination(s) => s.write(&mut writer)?,
+            RtpsSubmessageType::InfoReply(s) => s.write(&mut writer)?,
+            RtpsSubmessageType::InfoSource(s) => s.write(&mut writer)?,
+            RtpsSubmessageType::InfoTimestamp(s) => s.write(&mut writer)?,
+            RtpsSubmessageType::NackFrag(s) => s.write(&mut writer)?,
+            RtpsSubmessageType::Pad(s) => s.write(&mut writer)?,
         };
         Ok(())
     }
@@ -68,18 +68,18 @@ impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessageRead<'a> {
             // Preview byte only (to allow full deserialization of submessage header)
             let submessage_id = buf[0];
             let submessage = match submessage_id {
-                ACKNACK => todo!(), //RtpsSubmessageType::AckNack(MappingRead::read(buf)?),
+                ACKNACK => RtpsSubmessageType::AckNack(MappingRead::read(buf)?),
                 DATA => RtpsSubmessageType::Data(MappingRead::read(buf)?),
-                DATA_FRAG => todo!(), //RtpsSubmessageType::DataFrag(MappingRead::read(buf)?),
-                GAP => todo!(),       //RtpsSubmessageType::Gap(MappingRead::read(buf)?),
-                HEARTBEAT => todo!(), //RtpsSubmessageType::Heartbeat(MappingRead::read(buf)?),
-                HEARTBEAT_FRAG => todo!(), //RtpsSubmessageType::HeartbeatFrag(MappingRead::read(buf)?)
-                INFO_DST => todo!(), //RtpsSubmessageType::InfoDestination(MappingRead::read(buf)?)
-                INFO_REPLY => todo!(), // RtpsSubmessageType::InfoReply(MappingRead::read(buf)?),
-                INFO_SRC => todo!(), //RtpsSubmessageType::InfoSource(MappingRead::read(buf)?),
-                INFO_TS => todo!(),  //RtpsSubmessageType::InfoTimestamp(MappingRead::read(buf)?),
-                NACK_FRAG => todo!(), //RtpsSubmessageType::NackFrag(MappingRead::read(buf)?),
-                PAD => todo!(),      //RtpsSubmessageType::Pad(MappingRead::read(buf)?),
+                DATA_FRAG => RtpsSubmessageType::DataFrag(MappingRead::read(buf)?),
+                GAP => RtpsSubmessageType::Gap(MappingRead::read(buf)?),
+                HEARTBEAT => RtpsSubmessageType::Heartbeat(MappingRead::read(buf)?),
+                HEARTBEAT_FRAG => RtpsSubmessageType::HeartbeatFrag(MappingRead::read(buf)?),
+                INFO_DST => RtpsSubmessageType::InfoDestination(MappingRead::read(buf)?),
+                INFO_REPLY => RtpsSubmessageType::InfoReply(MappingRead::read(buf)?),
+                INFO_SRC => RtpsSubmessageType::InfoSource(MappingRead::read(buf)?),
+                INFO_TS => RtpsSubmessageType::InfoTimestamp(MappingRead::read(buf)?),
+                NACK_FRAG => RtpsSubmessageType::NackFrag(MappingRead::read(buf)?),
+                PAD => RtpsSubmessageType::Pad(MappingRead::read(buf)?),
                 _ => {
                     let submessage_header: RtpsSubmessageHeader = MappingRead::read(buf)?;
                     buf.consume(submessage_header.submessage_length as usize);

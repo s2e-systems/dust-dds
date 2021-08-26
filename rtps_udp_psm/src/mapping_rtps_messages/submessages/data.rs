@@ -12,7 +12,7 @@ use rust_rtps_pim::messages::{
 
 use crate::{
     deserialize::{self, Deserialize, DeserializeSubmessage},
-    serialize::{NumberOfBytes, Serialize, SerializeSubmessage},
+    serialize::{self, NumberOfBytes, Serialize, SerializeSubmessage},
 };
 
 impl SerializeSubmessage for DataSubmessage<'_, &[Parameter<'_>]> {
@@ -42,7 +42,7 @@ impl SerializeSubmessage for DataSubmessage<'_, &[Parameter<'_>]> {
     fn serialize_submessage_elements<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
-    ) -> crate::serialize::Result {
+    ) -> serialize::Result {
         const OCTETS_TO_INLINE_QOS: u16 = 16;
         const EXTRA_FLAGS: u16 = 0;
         EXTRA_FLAGS.serialize::<_, B>(&mut writer)?;
