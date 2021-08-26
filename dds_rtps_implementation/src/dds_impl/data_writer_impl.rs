@@ -17,12 +17,12 @@ use rust_rtps_pim::{
     structure::{types::ChangeKind, RtpsHistoryCache},
 };
 
-pub struct DataWriterStorage {
+pub struct DataWriterImpl {
     qos: DataWriterQos,
     rtps_data_writer: RtpsWriterImpl,
 }
 
-impl DataWriterStorage {
+impl DataWriterImpl {
     pub fn new(qos: DataWriterQos, rtps_data_writer: RtpsWriterImpl) -> Self {
         Self {
             qos,
@@ -58,17 +58,17 @@ impl DataWriterStorage {
     }
 }
 
-pub struct DataWriterImpl<'dw, T: 'static> {
+pub struct DataWriterProxy<'dw, T: 'static> {
     _publisher: &'dw dyn Publisher,
     _topic: &'dw dyn Topic<T>,
-    data_writer_storage: RtpsWeak<DataWriterStorage>,
+    data_writer_storage: RtpsWeak<DataWriterImpl>,
 }
 
-impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
+impl<'dw, T: 'static> DataWriterProxy<'dw, T> {
     pub fn new(
         publisher: &'dw dyn Publisher,
         topic: &'dw dyn Topic<T>,
-        data_writer_storage: RtpsWeak<DataWriterStorage>,
+        data_writer_storage: RtpsWeak<DataWriterImpl>,
     ) -> Self {
         Self {
             _publisher: publisher,
@@ -79,7 +79,7 @@ impl<'dw, T: 'static> DataWriterImpl<'dw, T> {
 }
 
 impl<'dw, T: DDSType + 'static> rust_dds_api::publication::data_writer::DataWriter<T>
-    for DataWriterImpl<'dw, T>
+    for DataWriterProxy<'dw, T>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -207,7 +207,7 @@ impl<'dw, T: DDSType + 'static> rust_dds_api::publication::data_writer::DataWrit
     }
 }
 
-impl<'dw, T: 'static> rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, T> {
+impl<'dw, T: 'static> rust_dds_api::infrastructure::entity::Entity for DataWriterProxy<'dw, T> {
     type Qos = DataWriterQos;
     type Listener = &'static dyn DataWriterListener<DataPIM = T>;
 
@@ -254,7 +254,7 @@ impl<'dw, T: 'static> rust_dds_api::infrastructure::entity::Entity for DataWrite
 }
 
 impl<'dw, T: 'static> rust_dds_api::publication::data_writer::AnyDataWriter
-    for DataWriterImpl<'dw, T>
+    for DataWriterProxy<'dw, T>
 {
 }
 
@@ -477,10 +477,10 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        let data_writer_storage = DataWriterStorage::new(DataWriterQos::default(), rtps_writer);
+        let data_writer_storage = DataWriterImpl::new(DataWriterQos::default(), rtps_writer);
         let data_writer_storage_shared = RtpsShared::new(data_writer_storage);
         let data_writer =
-            DataWriterImpl::new(&publisher, &topic, data_writer_storage_shared.downgrade());
+            DataWriterProxy::new(&publisher, &topic, data_writer_storage_shared.downgrade());
 
         data_writer
             .write_w_timestamp(

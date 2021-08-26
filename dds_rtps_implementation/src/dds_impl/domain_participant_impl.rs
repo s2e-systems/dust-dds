@@ -33,38 +33,38 @@ use crate::{
 };
 
 use super::{
-    publisher_impl::{PublisherImpl, PublisherStorage},
-    subscriber_impl::{SubscriberImpl, SubscriberStorage},
-    topic_impl::{TopicImpl, TopicStorage},
+    publisher_impl::{PublisherProxy, PublisherImpl},
+    subscriber_impl::{SubscriberProxy, SubscriberImpl},
+    topic_impl::{TopicProxy, TopicImpl},
 };
 
 pub trait Transport: TransportRead + TransportWrite + Send {}
 
 impl<T> Transport for T where T: TransportRead + TransportWrite + Send {}
 
-pub struct DomainParticipantStorage {
+pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipantImpl,
     domain_participant_qos: DomainParticipantQos,
-    builtin_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
-    builtin_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
-    user_defined_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
+    builtin_subscriber_storage: Vec<RtpsShared<SubscriberImpl>>,
+    builtin_publisher_storage: Vec<RtpsShared<PublisherImpl>>,
+    user_defined_subscriber_storage: Vec<RtpsShared<SubscriberImpl>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
+    user_defined_publisher_storage: Vec<RtpsShared<PublisherImpl>>,
     user_defined_publisher_counter: u8,
     default_publisher_qos: PublisherQos,
-    topic_storage: Vec<RtpsShared<TopicStorage>>,
+    topic_storage: Vec<RtpsShared<TopicImpl>>,
     default_topic_qos: TopicQos,
     metatraffic_transport: Box<dyn Transport>,
     default_transport: Box<dyn Transport>,
 }
 
-impl DomainParticipantStorage {
+impl DomainParticipantImpl {
     pub fn new(
         domain_participant_qos: DomainParticipantQos,
         rtps_participant: RtpsParticipantImpl,
-        builtin_subscriber_storage: Vec<RtpsShared<SubscriberStorage>>,
-        builtin_publisher_storage: Vec<RtpsShared<PublisherStorage>>,
+        builtin_subscriber_storage: Vec<RtpsShared<SubscriberImpl>>,
+        builtin_publisher_storage: Vec<RtpsShared<PublisherImpl>>,
         metatraffic_transport: Box<dyn Transport>,
         default_transport: Box<dyn Transport>,
     ) -> Self {
@@ -137,7 +137,7 @@ impl DomainParticipantStorage {
     }
 
     /// Get a reference to the domain participant storage's builtin subscriber storage.
-    pub fn builtin_subscriber_storage(&self) -> &[RtpsShared<SubscriberStorage>] {
+    pub fn builtin_subscriber_storage(&self) -> &[RtpsShared<SubscriberImpl>] {
         &self.builtin_subscriber_storage
     }
 
@@ -147,29 +147,29 @@ impl DomainParticipantStorage {
     }
 
     /// Get a reference to the domain participant storage's builtin publisher storage.
-    pub fn builtin_publisher_storage(&self) -> &[RtpsShared<PublisherStorage>] {
+    pub fn builtin_publisher_storage(&self) -> &[RtpsShared<PublisherImpl>] {
         &self.builtin_publisher_storage
     }
 
     /// Get a reference to the domain participant storage's user defined subscriber storage.
-    pub fn user_defined_subscriber_storage(&self) -> &[RtpsShared<SubscriberStorage>] {
+    pub fn user_defined_subscriber_storage(&self) -> &[RtpsShared<SubscriberImpl>] {
         self.user_defined_subscriber_storage.as_slice()
     }
 
     /// Get a reference to the domain participant storage's user defined publisher storage.
-    pub fn user_defined_publisher_storage(&self) -> &[RtpsShared<PublisherStorage>] {
+    pub fn user_defined_publisher_storage(&self) -> &[RtpsShared<PublisherImpl>] {
         self.user_defined_publisher_storage.as_slice()
     }
 }
 
-pub struct DomainParticipantImpl {
+pub struct DomainParticipantProxy {
     is_enabled: Arc<AtomicBool>,
-    domain_participant_storage: RtpsShared<DomainParticipantStorage>,
+    domain_participant_storage: RtpsShared<DomainParticipantImpl>,
     _worker_threads: Vec<JoinHandle<()>>,
 }
 
-impl DomainParticipantImpl {
-    pub fn new(domain_participant_storage: RtpsShared<DomainParticipantStorage>) -> Self {
+impl DomainParticipantProxy {
+    pub fn new(domain_participant_storage: RtpsShared<DomainParticipantImpl>) -> Self {
         Self {
             is_enabled: Arc::new(AtomicBool::new(false)),
             domain_participant_storage,
@@ -178,8 +178,8 @@ impl DomainParticipantImpl {
     }
 }
 
-impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for DomainParticipantImpl {
-    type PublisherType = PublisherImpl<'p>;
+impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for DomainParticipantProxy {
+    type PublisherType = PublisherProxy<'p>;
     fn create_publisher(
         &'p self,
         qos: Option<PublisherQos>,
@@ -200,9 +200,9 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
         let rtps_group = RtpsGroupImpl::new(guid);
         let data_writer_storage_list = Vec::new();
         let publisher_storage =
-            PublisherStorage::new(publisher_qos, rtps_group, data_writer_storage_list);
+            PublisherImpl::new(publisher_qos, rtps_group, data_writer_storage_list);
         let publisher_storage_shared = RtpsShared::new(publisher_storage);
-        let publisher = PublisherImpl::new(self, publisher_storage_shared.downgrade());
+        let publisher = PublisherProxy::new(self, publisher_storage_shared.downgrade());
         domain_participant_lock
             .user_defined_publisher_storage
             .push(publisher_storage_shared);
@@ -225,8 +225,8 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
     }
 }
 
-impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for DomainParticipantImpl {
-    type SubscriberType = SubscriberImpl<'s>;
+impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for DomainParticipantProxy {
+    type SubscriberType = SubscriberProxy<'s>;
 
     fn create_subscriber(
         &'s self,
@@ -252,9 +252,9 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for Dom
         let rtps_group = RtpsGroupImpl::new(guid);
         let data_reader_storage_list = Vec::new();
         let subscriber_storage =
-            SubscriberStorage::new(subscriber_qos, rtps_group, data_reader_storage_list);
+            SubscriberImpl::new(subscriber_qos, rtps_group, data_reader_storage_list);
         let subscriber_storage_shared = RtpsShared::new(subscriber_storage);
-        let subscriber = SubscriberImpl::new(self, subscriber_storage_shared.downgrade());
+        let subscriber = SubscriberProxy::new(self, subscriber_storage_shared.downgrade());
         domain_participant_lock
             .user_defined_subscriber_storage
             .push(subscriber_storage_shared);
@@ -280,14 +280,14 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s> for Dom
         let domain_participant_lock = self.domain_participant_storage.lock();
         let subscriber_storage_shared =
             domain_participant_lock.builtin_subscriber_storage[0].clone();
-        SubscriberImpl::new(self, subscriber_storage_shared.downgrade())
+        SubscriberProxy::new(self, subscriber_storage_shared.downgrade())
     }
 }
 
 impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
-    for DomainParticipantImpl
+    for DomainParticipantProxy
 {
-    type TopicType = TopicImpl<'t, T>;
+    type TopicType = TopicProxy<'t, T>;
 
     fn create_topic(
         &'t self,
@@ -302,9 +302,9 @@ impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicFactory<'t, 
                 .default_topic_qos
                 .clone(),
         );
-        let topic_storage = TopicStorage::new(topic_qos);
+        let topic_storage = TopicImpl::new(topic_qos);
         let topic_storage_shared = RtpsShared::new(topic_storage);
-        let topic = TopicImpl::new(self, topic_storage_shared.downgrade());
+        let topic = TopicProxy::new(self, topic_storage_shared.downgrade());
         self.domain_participant_storage
             .lock()
             .topic_storage
@@ -321,7 +321,7 @@ impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicFactory<'t, 
     }
 }
 
-impl rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl {
+impl rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantProxy {
     fn lookup_topicdescription<'t, T>(
         &'t self,
         _name: &'t str,
@@ -434,7 +434,7 @@ impl rust_dds_api::domain::domain_participant::DomainParticipant for DomainParti
     }
 }
 
-impl Entity for DomainParticipantImpl {
+impl Entity for DomainParticipantProxy {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
@@ -531,7 +531,7 @@ mod tests {
     #[test]
     fn set_default_publisher_qos_some_value() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -540,7 +540,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let mut qos = PublisherQos::default();
         qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
@@ -552,7 +552,7 @@ mod tests {
     #[test]
     fn set_default_publisher_qos_none() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -561,7 +561,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let mut qos = PublisherQos::default();
         qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
@@ -577,7 +577,7 @@ mod tests {
     #[test]
     fn set_default_subscriber_qos_some_value() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -586,7 +586,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let mut qos = SubscriberQos::default();
         qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
@@ -598,7 +598,7 @@ mod tests {
     #[test]
     fn set_default_subscriber_qos_none() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -607,7 +607,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let mut qos = SubscriberQos::default();
         qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
@@ -626,7 +626,7 @@ mod tests {
     #[test]
     fn set_default_topic_qos_some_value() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -635,7 +635,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let mut qos = TopicQos::default();
         qos.topic_data.value = &[1, 2, 3, 4];
         domain_participant_impl
@@ -647,7 +647,7 @@ mod tests {
     #[test]
     fn set_default_topic_qos_inconsistent() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -656,7 +656,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let mut qos = TopicQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
         qos.resource_limits.max_samples = 1;
@@ -668,7 +668,7 @@ mod tests {
     #[test]
     fn set_default_topic_qos_none() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -677,7 +677,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let mut qos = TopicQos::default();
         qos.topic_data.value = &[1, 2, 3, 4];
         domain_participant_impl
@@ -694,7 +694,7 @@ mod tests {
     #[test]
     fn create_publisher() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -703,7 +703,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let publisher = domain_participant_impl.create_publisher(None, None, 0);
 
         assert!(publisher.is_some())
@@ -712,7 +712,7 @@ mod tests {
     #[test]
     fn create_subscriber() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -721,7 +721,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let subscriber = domain_participant_impl.create_subscriber(None, None, 0);
 
         assert!(subscriber.is_some())
@@ -730,7 +730,7 @@ mod tests {
     #[test]
     fn create_topic() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant_storage = DomainParticipantStorage::new(
+        let domain_participant_storage = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -739,7 +739,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let domain_participant_impl =
-            DomainParticipantImpl::new(RtpsShared::new(domain_participant_storage));
+            DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
         let topic =
             domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
         assert!(topic.is_some());

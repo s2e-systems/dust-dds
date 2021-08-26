@@ -12,7 +12,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::dds_impl::subscriber_impl::SubscriberStorage;
+use crate::dds_impl::subscriber_impl::SubscriberImpl;
 
 use super::{shared_object::RtpsShared, transport::RtpsMessageRead};
 
@@ -44,7 +44,7 @@ impl MessageReceiver {
     pub fn process_message<'a>(
         mut self,
         participant_guid_prefix: GuidPrefix,
-        reader_group_list: &'a [RtpsShared<SubscriberStorage>],
+        reader_group_list: &'a [RtpsShared<SubscriberImpl>],
         source_locator: Locator,
         message: &'a RtpsMessageRead,
     ) {
@@ -86,7 +86,7 @@ impl MessageReceiver {
     fn process_data<'a>(
         &mut self,
         data: &'a DataSubmessage<Vec<Parameter<'a>>>,
-        reader_group_list: &'a [RtpsShared<SubscriberStorage>],
+        reader_group_list: &'a [RtpsShared<SubscriberImpl>],
     ) {
         for subscriber in reader_group_list {
             let subscriber_lock = subscriber.lock();

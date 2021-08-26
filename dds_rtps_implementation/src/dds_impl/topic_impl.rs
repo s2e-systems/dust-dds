@@ -13,26 +13,26 @@ use rust_dds_api::{
 
 use crate::utils::shared_object::RtpsWeak;
 
-pub struct TopicStorage {
+pub struct TopicImpl {
     qos: TopicQos,
 }
 
-impl TopicStorage {
+impl TopicImpl {
     pub fn new(qos: TopicQos) -> Self {
         Self { qos }
     }
 }
 
-pub struct TopicImpl<'t, T> {
+pub struct TopicProxy<'t, T> {
     participant: &'t dyn DomainParticipant,
-    topic_storage: RtpsWeak<TopicStorage>,
+    topic_storage: RtpsWeak<TopicImpl>,
     phantom: PhantomData<&'t T>,
 }
 
-impl<'t, T> TopicImpl<'t, T> {
+impl<'t, T> TopicProxy<'t, T> {
     pub fn new(
         participant: &'t dyn DomainParticipant,
-        topic_storage: RtpsWeak<TopicStorage>,
+        topic_storage: RtpsWeak<TopicImpl>,
     ) -> Self {
         Self {
             participant,
@@ -42,7 +42,7 @@ impl<'t, T> TopicImpl<'t, T> {
     }
 }
 
-impl<'t, T: 'static> rust_dds_api::topic::topic::Topic<T> for TopicImpl<'t, T> {
+impl<'t, T: 'static> rust_dds_api::topic::topic::Topic<T> for TopicProxy<'t, T> {
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
@@ -51,7 +51,7 @@ impl<'t, T: 'static> rust_dds_api::topic::topic::Topic<T> for TopicImpl<'t, T> {
     }
 }
 
-impl<'t, T: 'static> TopicDescription<T> for TopicImpl<'t, T> {
+impl<'t, T: 'static> TopicDescription<T> for TopicProxy<'t, T> {
     fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
         self.participant
     }
@@ -79,7 +79,7 @@ impl<'t, T: 'static> TopicDescription<T> for TopicImpl<'t, T> {
     }
 }
 
-impl<'t, T: 'static> Entity for TopicImpl<'t, T> {
+impl<'t, T: 'static> Entity for TopicProxy<'t, T> {
     type Qos = TopicQos;
     type Listener = &'static dyn TopicListener<DataPIM = T>;
 

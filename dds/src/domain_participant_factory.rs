@@ -13,10 +13,10 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_writer_impl::DataWriterStorage,
-        domain_participant_impl::{DomainParticipantImpl, DomainParticipantStorage},
-        publisher_impl::PublisherStorage,
-        subscriber_impl::SubscriberStorage,
+        data_writer_impl::DataWriterImpl,
+        domain_participant_impl::{DomainParticipantProxy, DomainParticipantImpl},
+        publisher_impl::PublisherImpl,
+        subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
@@ -132,7 +132,7 @@ impl DomainParticipantFactory {
         //     &lease_duration,
         // );
 
-        let spdp_builtin_participant_writer = RtpsShared::new(DataWriterStorage::new(
+        let spdp_builtin_participant_writer = RtpsShared::new(DataWriterImpl::new(
             spdp_builtin_participant_writer_qos,
             spdp_builtin_participant_rtps_writer,
         ));
@@ -145,7 +145,7 @@ impl DomainParticipantFactory {
         //     )
         //     .unwrap();
 
-        let builtin_publisher_storage = vec![RtpsShared::new(PublisherStorage::new(
+        let builtin_publisher_storage = vec![RtpsShared::new(PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
@@ -153,7 +153,7 @@ impl DomainParticipantFactory {
             )),
             vec![spdp_builtin_participant_writer],
         ))];
-        let builtin_subscriber_storage = vec![RtpsShared::new(SubscriberStorage::new(
+        let builtin_subscriber_storage = vec![RtpsShared::new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
@@ -162,7 +162,7 @@ impl DomainParticipantFactory {
             Vec::new(),
         ))];
 
-        let domain_participant_storage = RtpsShared::new(DomainParticipantStorage::new(
+        let domain_participant_storage = RtpsShared::new(DomainParticipantImpl::new(
             qos.unwrap_or_default(),
             rtps_participant,
             builtin_subscriber_storage,
@@ -171,7 +171,7 @@ impl DomainParticipantFactory {
             default_transport,
         ));
 
-        let domain_participant = DomainParticipantImpl::new(domain_participant_storage);
+        let domain_participant = DomainParticipantProxy::new(domain_participant_storage);
 
         Some(domain_participant)
     }

@@ -29,9 +29,9 @@ use crate::{
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
-use super::{data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy, topic_impl::TopicImpl};
+use super::{data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy, topic_impl::TopicProxy};
 
-pub struct SubscriberStorage {
+pub struct SubscriberImpl {
     qos: SubscriberQos,
     rtps_group: RtpsGroupImpl,
     data_reader_storage_list: Vec<RtpsShared<DataReaderImpl>>,
@@ -39,7 +39,7 @@ pub struct SubscriberStorage {
     default_data_reader_qos: DataReaderQos,
 }
 
-impl SubscriberStorage {
+impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
@@ -60,15 +60,15 @@ impl SubscriberStorage {
     }
 }
 
-pub struct SubscriberImpl<'s> {
+pub struct SubscriberProxy<'s> {
     participant: &'s dyn DomainParticipant,
-    subscriber_storage: RtpsWeak<SubscriberStorage>,
+    subscriber_storage: RtpsWeak<SubscriberImpl>,
 }
 
-impl<'s> SubscriberImpl<'s> {
+impl<'s> SubscriberProxy<'s> {
     pub fn new(
         participant: &'s dyn DomainParticipant,
-        subscriber_storage: RtpsWeak<SubscriberStorage>,
+        subscriber_storage: RtpsWeak<SubscriberImpl>,
     ) -> Self {
         Self {
             participant,
@@ -77,17 +77,17 @@ impl<'s> SubscriberImpl<'s> {
     }
 
     /// Get a reference to the subscriber impl's subscriber storage.
-    pub(crate) fn subscriber_storage(&self) -> &RtpsWeak<SubscriberStorage> {
+    pub(crate) fn subscriber_storage(&self) -> &RtpsWeak<SubscriberImpl> {
         &self.subscriber_storage
     }
 }
 
 impl<'dr, 's: 'dr, 't: 'dr, T: DDSType + 'static>
-    rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T> for SubscriberImpl<'s>
+    rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T> for SubscriberProxy<'s>
 where
     T: for<'de> serde::Deserialize<'de>,
 {
-    type TopicType = TopicImpl<'t, T>;
+    type TopicType = TopicProxy<'t, T>;
     type DataReaderType = DataReaderProxy<'dr, T>;
 
     fn create_datareader(
@@ -160,7 +160,7 @@ where
     }
 }
 
-impl<'s> rust_dds_api::subscription::subscriber::Subscriber for SubscriberImpl<'s> {
+impl<'s> rust_dds_api::subscription::subscriber::Subscriber for SubscriberProxy<'s> {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
     }
@@ -213,7 +213,7 @@ impl<'s> rust_dds_api::subscription::subscriber::Subscriber for SubscriberImpl<'
     }
 }
 
-impl<'s> Entity for SubscriberImpl<'s> {
+impl<'s> Entity for SubscriberProxy<'s> {
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 
@@ -267,7 +267,7 @@ mod tests {
     };
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    use crate::{dds_impl::topic_impl::TopicStorage, dds_type::DDSType};
+    use crate::{dds_impl::topic_impl::TopicImpl, dds_type::DDSType};
 
     use super::*;
 
@@ -434,16 +434,16 @@ mod tests {
         let participant = MockDomainParticipant;
         let rtps_group = RtpsGroupImpl::new(GUID_UNKNOWN);
         let data_reader_storage_list = vec![];
-        let subscriber_storage = SubscriberStorage::new(
+        let subscriber_storage = SubscriberImpl::new(
             SubscriberQos::default(),
             rtps_group,
             data_reader_storage_list,
         );
         let subscriber_storage_shared = RtpsShared::new(subscriber_storage);
-        let subscriber = SubscriberImpl::new(&participant, subscriber_storage_shared.downgrade());
-        let topic_storage = TopicStorage::new(TopicQos::default());
+        let subscriber = SubscriberProxy::new(&participant, subscriber_storage_shared.downgrade());
+        let topic_storage = TopicImpl::new(TopicQos::default());
         let topic_storage_shared = RtpsShared::new(topic_storage);
-        let topic = TopicImpl::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
+        let topic = TopicProxy::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
 
         let datareader = subscriber.create_datareader(&topic, None, None, 0);
 

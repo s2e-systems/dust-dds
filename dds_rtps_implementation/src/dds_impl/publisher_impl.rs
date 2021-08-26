@@ -27,23 +27,23 @@ use crate::{
 };
 
 use super::{
-    data_writer_impl::{DataWriterImpl, DataWriterStorage},
-    topic_impl::TopicImpl,
+    data_writer_impl::{DataWriterProxy, DataWriterImpl},
+    topic_impl::TopicProxy,
 };
 
-pub struct PublisherStorage {
+pub struct PublisherImpl {
     qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
-    data_writer_storage_list: Vec<RtpsShared<DataWriterStorage>>,
+    data_writer_storage_list: Vec<RtpsShared<DataWriterImpl>>,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
 }
 
-impl PublisherStorage {
+impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        data_writer_storage_list: Vec<RtpsShared<DataWriterStorage>>,
+        data_writer_storage_list: Vec<RtpsShared<DataWriterImpl>>,
     ) -> Self {
         Self {
             qos,
@@ -55,20 +55,20 @@ impl PublisherStorage {
     }
 
     /// Get a reference to the publisher storage's data writer storage list.
-    pub fn data_writer_storage_list(&self) -> &[RtpsShared<DataWriterStorage>] {
+    pub fn data_writer_storage_list(&self) -> &[RtpsShared<DataWriterImpl>] {
         self.data_writer_storage_list.as_slice()
     }
 }
 
-pub struct PublisherImpl<'p> {
+pub struct PublisherProxy<'p> {
     participant: &'p dyn DomainParticipant,
-    publisher_storage: RtpsWeak<PublisherStorage>,
+    publisher_storage: RtpsWeak<PublisherImpl>,
 }
 
-impl<'p> PublisherImpl<'p> {
+impl<'p> PublisherProxy<'p> {
     pub fn new(
         participant: &'p dyn DomainParticipant,
-        publisher_storage: RtpsWeak<PublisherStorage>,
+        publisher_storage: RtpsWeak<PublisherImpl>,
     ) -> Self {
         Self {
             participant,
@@ -77,16 +77,16 @@ impl<'p> PublisherImpl<'p> {
     }
 
     /// Get a reference to the publisher impl's publisher storage.
-    pub(crate) fn publisher_storage(&self) -> &RtpsWeak<PublisherStorage> {
+    pub(crate) fn publisher_storage(&self) -> &RtpsWeak<PublisherImpl> {
         &self.publisher_storage
     }
 }
 
 impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterFactory<'dw, 't, T>
-    for PublisherImpl<'p>
+    for PublisherProxy<'p>
 {
-    type TopicType = TopicImpl<'t, T>;
-    type DataWriterType = DataWriterImpl<'dw, T>;
+    type TopicType = TopicProxy<'t, T>;
+    type DataWriterType = DataWriterProxy<'dw, T>;
 
     fn create_datawriter(
         &'dw self,
@@ -142,9 +142,9 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterFactory<'dw, 't, T>
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        let data_writer_storage = DataWriterStorage::new(qos, rtps_writer);
+        let data_writer_storage = DataWriterImpl::new(qos, rtps_writer);
         let data_writer_storage_shared = RtpsShared::new(data_writer_storage);
-        let datawriter = DataWriterImpl::new(self, a_topic, data_writer_storage_shared.downgrade());
+        let datawriter = DataWriterProxy::new(self, a_topic, data_writer_storage_shared.downgrade());
         publisher_storage_lock
             .data_writer_storage_list
             .push(data_writer_storage_shared);
@@ -169,7 +169,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterFactory<'dw, 't, T>
     }
 }
 
-impl<'p> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p> {
+impl<'p> rust_dds_api::publication::publisher::Publisher for PublisherProxy<'p> {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
@@ -226,7 +226,7 @@ impl<'p> rust_dds_api::publication::publisher::Publisher for PublisherImpl<'p> {
     }
 }
 
-impl<'p> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'p> {
+impl<'p> rust_dds_api::infrastructure::entity::Entity for PublisherProxy<'p> {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 
@@ -282,7 +282,7 @@ mod tests {
     };
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    use crate::dds_impl::topic_impl::TopicStorage;
+    use crate::dds_impl::topic_impl::TopicImpl;
 
     use super::*;
 
@@ -449,16 +449,16 @@ mod tests {
         let participant = MockDomainParticipant;
         let rtps_group = RtpsGroupImpl::new(GUID_UNKNOWN);
         let data_writer_storage_list = vec![];
-        let publisher_storage = PublisherStorage::new(
+        let publisher_storage = PublisherImpl::new(
             PublisherQos::default(),
             rtps_group,
             data_writer_storage_list,
         );
         let publisher_storage_shared = RtpsShared::new(publisher_storage);
-        let publisher = PublisherImpl::new(&participant, publisher_storage_shared.downgrade());
-        let topic_storage = TopicStorage::new(TopicQos::default());
+        let publisher = PublisherProxy::new(&participant, publisher_storage_shared.downgrade());
+        let topic_storage = TopicImpl::new(TopicQos::default());
         let topic_storage_shared = RtpsShared::new(topic_storage);
-        let topic = TopicImpl::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
+        let topic = TopicProxy::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
 
         let datawriter = publisher.create_datawriter(&topic, None, None, 0);
 
