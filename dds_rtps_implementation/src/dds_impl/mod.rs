@@ -1,6 +1,7 @@
 pub mod data_reader_impl;
 pub mod data_reader_proxy;
 
+pub mod data_writer_impl;
 pub mod data_writer_proxy;
 
 pub mod domain_participant_proxy;

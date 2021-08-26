@@ -27,8 +27,7 @@ use crate::{
 };
 
 use super::{
-    data_writer_proxy::{DataWriterProxy, DataWriterImpl},
-    topic_proxy::TopicProxy,
+    data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy, topic_proxy::TopicProxy,
 };
 
 pub struct PublisherImpl {
@@ -144,7 +143,8 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterFactory<'dw, 't, T>
         );
         let data_writer_storage = DataWriterImpl::new(qos, rtps_writer);
         let data_writer_storage_shared = RtpsShared::new(data_writer_storage);
-        let datawriter = DataWriterProxy::new(self, a_topic, data_writer_storage_shared.downgrade());
+        let datawriter =
+            DataWriterProxy::new(self, a_topic, data_writer_storage_shared.downgrade());
         publisher_storage_lock
             .data_writer_storage_list
             .push(data_writer_storage_shared);
@@ -458,7 +458,8 @@ mod tests {
         let publisher = PublisherProxy::new(&participant, publisher_storage_shared.downgrade());
         let topic_storage = TopicImpl::new(TopicQos::default());
         let topic_storage_shared = RtpsShared::new(topic_storage);
-        let topic = TopicProxy::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
+        let topic =
+            TopicProxy::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
 
         let datawriter = publisher.create_datawriter(&topic, None, None, 0);
 
