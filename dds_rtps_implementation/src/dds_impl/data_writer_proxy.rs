@@ -1,6 +1,4 @@
-use crate::{
-    dds_type::DDSType, rtps_impl::rtps_writer_impl::RtpsWriterImpl, utils::shared_object::RtpsWeak,
-};
+use crate::{dds_type::DDSType, utils::shared_object::RtpsWeak};
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -12,14 +10,8 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::topic::Topic,
 };
-use rust_rtps_pim::{
-    behavior::writer::writer::{RtpsWriter, RtpsWriterOperations},
-    structure::{types::ChangeKind, RtpsHistoryCache},
-};
 
 use super::data_writer_impl::DataWriterImpl;
-
-
 
 pub struct DataWriterProxy<'dw, T: 'static> {
     _publisher: &'dw dyn Publisher,
@@ -175,16 +167,11 @@ impl<'dw, T: 'static> rust_dds_api::infrastructure::entity::Entity for DataWrite
     type Listener = &'static dyn DataWriterListener<DataPIM = T>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        let qos = qos.unwrap_or_default();
-        qos.is_consistent()?;
-        let data_writer_storage = self.data_writer_storage.upgrade()?;
-        let mut data_writer_storage_lock = data_writer_storage.lock();
-        data_writer_storage_lock.qos = qos;
-        Ok(())
+        self.data_writer_storage.upgrade()?.lock().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.data_writer_storage.upgrade()?.lock().qos.clone())
+        Ok(self.data_writer_storage.upgrade()?.lock().get_qos().clone())
     }
 
     fn set_listener(
@@ -234,8 +221,11 @@ mod tests {
         topic::{topic_description::TopicDescription, topic_listener::TopicListener},
     };
     use rust_rtps_pim::{
-        behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
-        structure::types::{ReliabilityKind, TopicKind, GUID_UNKNOWN},
+        behavior::writer::{stateful_writer::RtpsStatefulWriterOperations, writer::RtpsWriter},
+        structure::{
+            types::{ReliabilityKind, TopicKind, GUID_UNKNOWN},
+            RtpsHistoryCache,
+        },
     };
 
     use crate::{dds_type::DDSType, utils::shared_object::RtpsShared};
@@ -455,7 +445,7 @@ mod tests {
 
         let data_writer_storage_lock = data_writer_storage_shared.lock();
         let change = data_writer_storage_lock
-            .rtps_data_writer
+            .rtps_data_writer()
             .writer_cache()
             .get_change(&(1i64.into()))
             .unwrap();

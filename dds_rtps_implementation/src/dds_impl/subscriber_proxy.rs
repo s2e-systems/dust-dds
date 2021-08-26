@@ -7,7 +7,6 @@ use rust_dds_api::{
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
-        qos_policy::ReliabilityQosPolicyKind,
     },
     return_type::DDSResult,
     subscription::{
@@ -15,23 +14,12 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::{
-    behavior::reader::stateful_reader::RtpsStatefulReaderOperations,
-    structure::{
-        types::{EntityId, EntityKind, Guid, ReliabilityKind, TopicKind},
-        RtpsEntity,
-    },
+
+use crate::{dds_type::DDSType, utils::shared_object::RtpsWeak};
+
+use super::{
+    data_reader_proxy::DataReaderProxy, subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy,
 };
-
-use crate::{
-    dds_type::DDSType,
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl},
-    utils::shared_object::{RtpsShared, RtpsWeak},
-};
-
-use super::{data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy, subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy};
-
-
 
 pub struct SubscriberProxy<'s> {
     participant: &'s dyn DomainParticipant,
@@ -67,57 +55,16 @@ where
         &'dr self,
         a_topic: &'dr Self::TopicType,
         qos: Option<DataReaderQos>,
-        _a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
-        _mask: StatusMask,
+        a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
+        mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
-        let subscriber_storage = self.subscriber_storage.upgrade().ok()?;
-        let subscriber_storage_lock = subscriber_storage.lock();
-        let qos = qos.unwrap_or(subscriber_storage_lock.default_data_reader_qos.clone());
-        qos.is_consistent().ok()?;
-
-        let (entity_kind, topic_kind) = match T::has_key() {
-            true => (EntityKind::UserDefinedWriterWithKey, TopicKind::WithKey),
-            false => (EntityKind::UserDefinedWriterNoKey, TopicKind::NoKey),
-        };
-        let entity_id = EntityId::new(
-            [
-                subscriber_storage_lock
-                    .rtps_group
-                    .guid()
-                    .entity_id()
-                    .entity_key()[0],
-                subscriber_storage_lock.user_defined_data_reader_counter,
-                0,
-            ],
-            entity_kind,
-        );
-        let guid = Guid::new(
-            *subscriber_storage_lock.rtps_group.guid().prefix(),
-            entity_id,
-        );
-        let reliability_level = match qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        };
-
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let expects_inline_qos = false;
-        let rtps_reader = RtpsReaderImpl::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            heartbeat_response_delay,
-            heartbeat_supression_duration,
-            expects_inline_qos,
-        );
-        let reader_storage = DataReaderImpl::new(rtps_reader, qos);
-        let reader_storage_shared = RtpsShared::new(reader_storage);
-        let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_shared.downgrade());
+        let reader_storage_weak = self
+            .subscriber_storage
+            .upgrade()
+            .ok()?
+            .lock()
+            .create_datareader((), qos, a_listener, mask)?;
+        let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
         Some(data_reader)
     }
 
@@ -191,15 +138,11 @@ impl<'s> Entity for SubscriberProxy<'s> {
     type Listener = &'static dyn SubscriberListener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        let qos = qos.unwrap_or_default();
-        let subscriber_storage = self.subscriber_storage.upgrade()?;
-        let mut subscriber_storage_lock = subscriber_storage.lock();
-        subscriber_storage_lock.qos = qos;
-        Ok(())
+        self.subscriber_storage.upgrade()?.lock().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.subscriber_storage.upgrade()?.lock().qos.clone())
+        Ok(self.subscriber_storage.upgrade()?.lock().get_qos().clone())
     }
 
     fn set_listener(
@@ -240,7 +183,10 @@ mod tests {
     };
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    use crate::{dds_impl::topic_impl::TopicImpl, dds_type::DDSType};
+    use crate::{
+        dds_impl::topic_impl::TopicImpl, dds_type::DDSType,
+        rtps_impl::rtps_group_impl::RtpsGroupImpl, utils::shared_object::RtpsShared,
+    };
 
     use super::*;
 
@@ -416,7 +362,8 @@ mod tests {
         let subscriber = SubscriberProxy::new(&participant, subscriber_storage_shared.downgrade());
         let topic_storage = TopicImpl::new(TopicQos::default());
         let topic_storage_shared = RtpsShared::new(topic_storage);
-        let topic = TopicProxy::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
+        let topic =
+            TopicProxy::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
 
         let datareader = subscriber.create_datareader(&topic, None, None, 0);
 

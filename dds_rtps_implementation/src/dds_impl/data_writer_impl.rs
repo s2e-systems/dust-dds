@@ -4,8 +4,8 @@ use rust_rtps_pim::{behavior::writer::writer::{RtpsWriter, RtpsWriterOperations}
 use crate::{dds_type::DDSType, rtps_impl::rtps_writer_impl::RtpsWriterImpl};
 
 pub struct DataWriterImpl {
-    pub qos: DataWriterQos,
-    pub rtps_data_writer: RtpsWriterImpl,
+    qos: DataWriterQos,
+    rtps_data_writer: RtpsWriterImpl,
 }
 
 impl DataWriterImpl {
@@ -25,6 +25,19 @@ impl DataWriterImpl {
     pub fn rtps_data_writer_mut(&mut self) -> &mut RtpsWriterImpl {
         &mut self.rtps_data_writer
     }
+
+    pub fn set_qos(&mut self, qos: Option<DataWriterQos>) -> DDSResult<()> {
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent()?;
+        self.qos = qos;
+        Ok(())
+    }
+
+    pub fn get_qos(&self) -> &DataWriterQos {
+        &self.qos
+    }
+
+
 
     pub fn write_w_timestamp<T: DDSType + 'static>(
         &mut self,

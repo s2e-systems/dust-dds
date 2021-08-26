@@ -4,7 +4,6 @@ use rust_dds_api::{
     infrastructure::{
         entity::StatusCondition,
         qos::{DataWriterQos, PublisherQos, TopicQos},
-        qos_policy::ReliabilityQosPolicyKind,
     },
     publication::{
         data_writer::DataWriter, data_writer_listener::DataWriterListener,
@@ -12,23 +11,12 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::{
-    behavior::writer::stateless_writer::RtpsStatelessWriterOperations,
-    structure::{
-        types::{EntityId, EntityKind, Guid, ReliabilityKind, TopicKind},
-        RtpsEntity,
-    },
+
+use crate::{dds_type::DDSType, utils::shared_object::RtpsWeak};
+
+use super::{
+    data_writer_proxy::DataWriterProxy, publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
 };
-
-use crate::{
-    dds_type::DDSType,
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
-    utils::shared_object::{RtpsShared, RtpsWeak},
-};
-
-use super::{data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy, publisher_impl::PublisherImpl, topic_proxy::TopicProxy};
-
-
 
 pub struct PublisherProxy<'p> {
     participant: &'p dyn DomainParticipant,
@@ -62,63 +50,17 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterFactory<'dw, 't, T>
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
-        _a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
-        _mask: StatusMask,
+        a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
+        mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let publisher_storage = self.publisher_storage.upgrade().ok()?;
-        let mut publisher_storage_lock = publisher_storage.lock();
-        let qos = qos.unwrap_or(publisher_storage_lock.default_datawriter_qos.clone());
-        publisher_storage_lock.user_defined_data_writer_counter += 1;
-        let (entity_kind, topic_kind) = match T::has_key() {
-            true => (EntityKind::UserDefinedWriterWithKey, TopicKind::WithKey),
-            false => (EntityKind::UserDefinedWriterNoKey, TopicKind::NoKey),
-        };
-        let entity_id = EntityId::new(
-            [
-                publisher_storage_lock
-                    .rtps_group
-                    .guid()
-                    .entity_id()
-                    .entity_key()[0],
-                publisher_storage_lock.user_defined_data_writer_counter,
-                0,
-            ],
-            entity_kind,
-        );
-        let guid = Guid::new(
-            *publisher_storage_lock.rtps_group.guid().prefix(),
-            entity_id,
-        );
-        let reliability_level = match qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        };
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let push_mode = true;
-        let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
-        let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let data_max_size_serialized = None;
-        let rtps_writer = RtpsWriterImpl::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
-        let data_writer_storage = DataWriterImpl::new(qos, rtps_writer);
-        let data_writer_storage_shared = RtpsShared::new(data_writer_storage);
-        let datawriter =
-            DataWriterProxy::new(self, a_topic, data_writer_storage_shared.downgrade());
-        publisher_storage_lock
-            .data_writer_storage_list
-            .push(data_writer_storage_shared);
+        let data_writer_weak = self
+            .publisher_storage
+            .upgrade()
+            .ok()?
+            .lock()
+            .create_datawriter((), qos, a_listener, mask)?;
+        let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
+
         Some(datawriter)
     }
 
@@ -202,15 +144,11 @@ impl<'p> rust_dds_api::infrastructure::entity::Entity for PublisherProxy<'p> {
     type Listener = &'static dyn PublisherListener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        let qos = qos.unwrap_or_default();
-        let publisher_storage = self.publisher_storage.upgrade()?;
-        let mut publisher_storage_lock = publisher_storage.lock();
-        publisher_storage_lock.qos = qos;
-        Ok(())
+        self.publisher_storage.upgrade()?.lock().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.publisher_storage.upgrade()?.lock().qos.clone())
+        Ok(self.publisher_storage.upgrade()?.lock().get_qos().clone())
     }
 
     fn set_listener(
@@ -253,7 +191,10 @@ mod tests {
     };
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    use crate::dds_impl::topic_impl::TopicImpl;
+    use crate::{
+        dds_impl::topic_impl::TopicImpl, rtps_impl::rtps_group_impl::RtpsGroupImpl,
+        utils::shared_object::RtpsShared,
+    };
 
     use super::*;
 
