@@ -5,24 +5,25 @@ use std::{
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use rust_rtps_pim::{
-    behavior::types::Duration,
     discovery::{
         spdp::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
+        types::{BuiltinEndpointQos, BuiltinEndpointSet, },
     },
-    messages::types::Count,
-    structure::types::{Locator, ProtocolVersion},
+    structure::types::{Locator, },
 };
 
-use crate::mapping_rtps_protocol::builtin_endpoint::parameter_id_values::{
-    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID,
-    PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
-    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_SENTINEL,
-    PID_UNICAST_LOCATOR, PID_VENDORID,
+use crate::{
+    deserialize::Deserialize,
+    mapping_rtps_protocol::builtin_endpoint::parameter_id_values::{
+        PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_UNICAST_LOCATOR,
+        PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
+        PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
+        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_SENTINEL,
+        PID_VENDORID,
+    },
 };
 use crate::{
-    deserialize::{self, Deserialize},
+    deserialize::{self},
     serialize::{self, NumberOfBytes, Serialize},
 };
 
@@ -87,55 +88,85 @@ impl<'a, W: Write, B: ByteOrder> ParameterSerializer<'a, W, B> {
     }
 }
 
-struct ParameterDeserializer<'de, 'a, B: ByteOrder> {
+struct ParameterDeserializer<'de, 'a> {
     buf: &'a mut &'de [u8],
-    byteorder: PhantomData<B>,
+    representation: [u8; 4],
 }
 
-impl<'de, 'a, B: ByteOrder> ParameterDeserializer<'de, 'a, B> {
-    fn new(buf: &'a mut &'de [u8]) -> Self {
+fn deserialize_parameter<'de, D: Deserialize<'de>, B: ByteOrder>(
+    mut buf: &'de [u8],
+    parameter_id: u16,
+) -> deserialize::Result<D> {
+    const MAX_PARAMETERS: usize = 2_usize.pow(16);
+    for _ in 0..MAX_PARAMETERS {
+        let parameter_id_i: u16 = Deserialize::deserialize::<B>(&mut buf)?;
+        let length: i16 = Deserialize::deserialize::<B>(&mut buf)?;
+        if parameter_id_i == PID_SENTINEL {
+            break;
+        }
+        if parameter_id_i == parameter_id {
+            return Ok(D::deserialize::<B>(&mut buf)?);
+        } else {
+            buf.consume(length as usize);
+        };
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        format!("Parameter ID {:x} not found", parameter_id),
+    ))
+}
+
+fn deserialize_parameter_list<'de, D: Deserialize<'de>, B: ByteOrder>(
+    mut buf: &'de [u8],
+    parameter_id: u16,
+) -> deserialize::Result<Vec<D>> {
+    const MAX_PARAMETERS: usize = 2_usize.pow(16);
+    let mut result = vec![];
+    for _ in 0..MAX_PARAMETERS {
+        let parameter_id_i: u16 = Deserialize::deserialize::<B>(&mut buf)?;
+        let length: i16 = Deserialize::deserialize::<B>(&mut buf)?;
+        if parameter_id_i == PID_SENTINEL {
+            break;
+        }
+        if parameter_id_i == parameter_id {
+            result.push(D::deserialize::<B>(&mut buf)?);
+        } else {
+            buf.consume(length as usize);
+        };
+    }
+    Ok(result)
+}
+
+impl<'de, 'a> ParameterDeserializer<'de, 'a> {
+    fn new(buf: &'a mut &'de [u8], representation: [u8; 4]) -> Self {
         Self {
             buf,
-            byteorder: PhantomData,
+            representation,
         }
     }
     fn get<D: Deserialize<'de>>(&mut self, parameter_id: u16) -> deserialize::Result<D> {
-        let mut buf = *self.buf;
-        const MAX_PARAMETERS: usize = 2_usize.pow(16);
-        for _ in 0..MAX_PARAMETERS {
-            let parameter_id_i: u16 = Deserialize::deserialize::<B>(&mut buf)?;
-            let length: i16 = Deserialize::deserialize::<B>(&mut buf)?;
-            if parameter_id_i == PID_SENTINEL {
-                break;
+        match self.representation {
+            PL_CDR_BE => deserialize_parameter::<D, BigEndian>(*self.buf, parameter_id),
+            PL_CDR_LE => deserialize_parameter::<D, LittleEndian>(*self.buf, parameter_id),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Representation identifier invalid",
+                ))
             }
-            if parameter_id_i == parameter_id {
-                return Ok(D::deserialize::<B>(&mut buf)?);
-            } else {
-                buf.consume(length as usize);
-            };
         }
-        Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("Parameter ID {:x} not found", parameter_id),
-        ))
     }
     fn get_list<D: Deserialize<'de>>(&mut self, parameter_id: u16) -> deserialize::Result<Vec<D>> {
-        const MAX_PARAMETERS: usize = 2_usize.pow(16);
-        let mut buf = *self.buf;
-        let mut result = vec![];
-        for _ in 0..MAX_PARAMETERS {
-            let parameter_id_i: u16 = Deserialize::deserialize::<B>(&mut buf)?;
-            let length: i16 = Deserialize::deserialize::<B>(&mut buf)?;
-            if parameter_id_i == PID_SENTINEL {
-                break;
+        match self.representation {
+            PL_CDR_BE => deserialize_parameter_list::<D, BigEndian>(*self.buf, parameter_id),
+            PL_CDR_LE => deserialize_parameter_list::<D, LittleEndian>(*self.buf, parameter_id),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Representation identifier invalid",
+                ))
             }
-            if parameter_id_i == parameter_id {
-                result.push(D::deserialize::<B>(&mut buf)?);
-            } else {
-                buf.consume(length as usize);
-            };
         }
-        Ok(result)
     }
 }
 
@@ -223,20 +254,8 @@ impl Serialize for SpdpDiscoveredParticipantData<&[Locator]> {
 
 impl<'de> Deserialize<'de> for SpdpDiscoveredParticipantData<Vec<Locator>> {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let representation: [u8; 4] = crate::deserialize::Deserialize::deserialize::<B>(buf)?;
-        let mut de = match representation {
-            // PL_CDR_BE => ParameterDeserializer::<BigEndian>::new(buf),
-            PL_CDR_LE => ParameterDeserializer::<LittleEndian>::new(buf),
-            _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "Representation identifier invalid",
-                ))
-            }
-        };
-
-        let _domain_tag: String = de.get(PID_DOMAIN_TAG)?;
-
+        let representation = Deserialize::deserialize::<B>(buf)?;
+        let mut de = ParameterDeserializer::new(buf, representation);
         Ok(Self {
             domain_id: de.get(PID_DOMAIN_ID)?,
             domain_tag: "abc", //de.get(PID_DOMAIN_TAG).unwrap_or(DEFAULT_DOMAIN_TAG),
