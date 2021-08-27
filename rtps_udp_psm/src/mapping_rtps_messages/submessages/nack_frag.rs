@@ -1,18 +1,17 @@
 use rust_rtps_pim::messages::submessages::NackFragSubmessage;
 
-use crate::{deserialize::Deserialize, serialize::Serialize};
+use crate::{deserialize::{self, MappingRead}, serialize::{self, MappingWrite}};
 
-use byteorder::ByteOrder;
 use std::io::Write;
 
 
-impl<F> Serialize for NackFragSubmessage<F> {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
+impl<F> MappingWrite for NackFragSubmessage<F> {
+    fn write<W: Write>(&self, mut _writer: W) -> serialize::Result {
         todo!()
     }
 }
-impl<'de, F> Deserialize<'de> for NackFragSubmessage<F> {
-    fn deserialize<B: ByteOrder>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> {
+impl<'de, F> MappingRead<'de> for NackFragSubmessage<F> {
+    fn read(_buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         todo!()
     }
 }

@@ -1,18 +1,17 @@
 use rust_rtps_pim::messages::submessages::InfoReplySubmessage;
 
-use crate::{deserialize::Deserialize, serialize::Serialize};
+use crate::{deserialize::{self, MappingRead}, serialize::{self, MappingWrite}};
 
-use byteorder::ByteOrder;
 use std::io::Write;
 
 
-impl<L> Serialize for InfoReplySubmessage<L> {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut _writer: W) -> crate::serialize::Result {
+impl<L> MappingWrite for InfoReplySubmessage<L> {
+    fn write<W: Write>(&self, mut _writer: W) -> serialize::Result {
         todo!()
     }
 }
-impl<'de, L> Deserialize<'de> for InfoReplySubmessage<L> {
-    fn deserialize<B: ByteOrder>(_buf: &mut &'de[u8]) -> crate::deserialize::Result<Self> {
+impl<'de, L> MappingRead<'de> for InfoReplySubmessage<L> {
+    fn read(_buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         todo!()
     }
 }

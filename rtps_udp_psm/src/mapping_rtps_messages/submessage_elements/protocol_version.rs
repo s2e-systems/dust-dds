@@ -6,7 +6,7 @@ use rust_rtps_pim::{
     structure::types::ProtocolVersion,
 };
 
-use crate::{deserialize::{self, Deserialize}, serialize::{self, NumberOfBytes, Serialize}};
+use crate::{deserialize::{self, Deserialize, MappingRead}, serialize::{self, MappingWrite, NumberOfBytes, Serialize}};
 
 impl Serialize for ProtocolVersion {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
@@ -15,11 +15,27 @@ impl Serialize for ProtocolVersion {
     }
 }
 
+impl MappingWrite for ProtocolVersion {
+    fn write<W: Write>(&self, mut writer: W) -> serialize::Result {
+        self.major.write(&mut writer)?;
+        self.minor.write(&mut writer)
+    }
+}
+
 impl<'de> Deserialize<'de> for ProtocolVersion {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self {
             major: Deserialize::deserialize::<B>(buf)?,
             minor: Deserialize::deserialize::<B>(buf)?,
+        })
+    }
+}
+
+impl<'de> MappingRead<'de> for ProtocolVersion {
+    fn read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self {
+            major: MappingRead::read(buf)?,
+            minor: MappingRead::read(buf)?,
         })
     }
 }
