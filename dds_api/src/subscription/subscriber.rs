@@ -15,11 +15,11 @@ use super::{
     subscriber_listener::SubscriberListener,
 };
 
-pub trait DataReaderFactory<'dr, 't: 'dr, T: 'static>: Subscriber {
+pub trait DataReaderGAT<'dr, 't: 'dr, T: 'static>: Subscriber {
     type TopicType: Topic<T>;
     type DataReaderType: DataReader<T> + AnyDataReader;
 
-    fn create_datareader(
+    fn create_datareader_gat(
         &'dr self,
         a_topic: &'dr Self::TopicType,
         qos: Option<DataReaderQos>,
@@ -27,9 +27,9 @@ pub trait DataReaderFactory<'dr, 't: 'dr, T: 'static>: Subscriber {
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>;
 
-    fn delete_datareader(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>;
+    fn delete_datareader_gat(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>;
 
-    fn lookup_datareader(&'dr self, topic: &'dr Self::TopicType) -> Option<Self::DataReaderType>;
+    fn lookup_datareader_gat(&'dr self, topic: &'dr Self::TopicType) -> Option<Self::DataReaderType>;
 }
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
@@ -78,9 +78,9 @@ pub trait Subscriber:
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>
     where
-        Self: DataReaderFactory<'dr, 't, T> + Sized,
+        Self: DataReaderGAT<'dr, 't, T> + Sized,
     {
-        <Self as DataReaderFactory<'dr, 't, T>>::create_datareader(
+        <Self as DataReaderGAT<'dr, 't, T>>::create_datareader_gat(
             self, a_topic, qos, a_listener, mask,
         )
     }
@@ -99,9 +99,9 @@ pub trait Subscriber:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datareader<'dr, 't, T>(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>
     where
-        Self: DataReaderFactory<'dr, 't, T> + Sized,
+        Self: DataReaderGAT<'dr, 't, T> + Sized,
     {
-        <Self as DataReaderFactory<'dr, 't, T>>::delete_datareader(self, a_datareader)
+        <Self as DataReaderGAT<'dr, 't, T>>::delete_datareader_gat(self, a_datareader)
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -114,9 +114,9 @@ pub trait Subscriber:
         topic: &'dr Self::TopicType,
     ) -> Option<Self::DataReaderType>
     where
-        Self: DataReaderFactory<'dr, 't, T> + Sized,
+        Self: DataReaderGAT<'dr, 't, T> + Sized,
     {
-        <Self as DataReaderFactory<'dr, 't, T>>::lookup_datareader(self, topic)
+        <Self as DataReaderGAT<'dr, 't, T>>::lookup_datareader_gat(self, topic)
     }
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to

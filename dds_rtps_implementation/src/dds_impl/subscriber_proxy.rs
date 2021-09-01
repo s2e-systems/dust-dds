@@ -44,14 +44,14 @@ impl<'s> SubscriberProxy<'s> {
 }
 
 impl<'dr, 's: 'dr, 't: 'dr, T: DDSType + 'static>
-    rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T> for SubscriberProxy<'s>
+    rust_dds_api::subscription::subscriber::DataReaderGAT<'dr, 't, T> for SubscriberProxy<'s>
 where
     T: for<'de> serde::Deserialize<'de>,
 {
     type TopicType = TopicProxy<'t, T>;
     type DataReaderType = DataReaderProxy<'dr, T>;
 
-    fn create_datareader(
+    fn create_datareader_gat(
         &'dr self,
         a_topic: &'dr Self::TopicType,
         qos: Option<DataReaderQos>,
@@ -68,11 +68,11 @@ where
         Some(data_reader)
     }
 
-    fn delete_datareader(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
+    fn delete_datareader_gat(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_datareader<'a>(
+    fn lookup_datareader_gat<'a>(
         &'a self,
         _topic: &'a Self::TopicType,
     ) -> Option<Self::DataReaderType> {
