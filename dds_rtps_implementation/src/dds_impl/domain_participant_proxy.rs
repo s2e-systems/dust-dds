@@ -50,9 +50,9 @@ impl DomainParticipantProxy {
     }
 }
 
-impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for DomainParticipantProxy {
+impl<'p> rust_dds_api::domain::domain_participant::PublisherGAT<'p> for DomainParticipantProxy {
     type PublisherType = PublisherProxy<'p>;
-    fn create_publisher(
+    fn create_publisher_gat(
         &'p self,
         qos: Option<PublisherQos>,
         a_listener: Option<&'static dyn PublisherListener>,
@@ -67,7 +67,7 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
         Some(publisher)
     }
 
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+    fn delete_publisher_gat(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.get_participant(), self) {
             self.domain_participant_storage
                 .lock()
@@ -80,12 +80,12 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherFactory<'p> for Doma
     }
 }
 
-impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
+impl<'s> rust_dds_api::domain::domain_participant::SubscriberGAT<'s>
     for DomainParticipantProxy
 {
     type SubscriberType = SubscriberProxy<'s>;
 
-    fn create_subscriber(
+    fn create_subscriber_gat(
         &'s self,
         qos: Option<SubscriberQos>,
         a_listener: Option<&'static dyn SubscriberListener>,
@@ -99,7 +99,7 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
         Some(subscriber)
     }
 
-    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+    fn delete_subscriber_gat(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         if std::ptr::eq(a_subscriber.get_participant(), self) {
             self.domain_participant_storage
                 .lock()
@@ -111,7 +111,7 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
         }
     }
 
-    fn get_builtin_subscriber(&'s self) -> Self::SubscriberType {
+    fn get_builtin_subscriber_gat(&'s self) -> Self::SubscriberType {
         let subscriber_storage_weak = self
             .domain_participant_storage
             .lock()
@@ -120,12 +120,12 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     }
 }
 
-impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicFactory<'t, T>
+impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicGAT<'t, T>
     for DomainParticipantProxy
 {
     type TopicType = TopicProxy<'t, T>;
 
-    fn create_topic(
+    fn create_topic_gat(
         &'t self,
         topic_name: &str,
         qos: Option<TopicQos>,
@@ -140,11 +140,11 @@ impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicFactory<'t, 
         Some(topic)
     }
 
-    fn delete_topic(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {
+    fn delete_topic_gat(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {
         todo!()
     }
 
-    fn find_topic(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
+    fn find_topic_gat(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
         todo!()
     }
 }
