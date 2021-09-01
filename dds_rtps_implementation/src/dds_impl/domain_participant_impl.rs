@@ -191,7 +191,7 @@ impl DomainParticipantImpl {
                 let mut data_writer_lock = data_writer.lock();
                 crate::utils::message_sender::send_data(
                     &self.rtps_participant,
-                    &mut data_writer_lock.rtps_data_writer_mut(),
+                    data_writer_lock.rtps_data_writer_mut(),
                     &mut *self.metatraffic_transport,
                 );
             }
@@ -205,7 +205,7 @@ impl DomainParticipantImpl {
                 let mut data_writer_lock = data_writer.lock();
                 crate::utils::message_sender::send_data(
                     &self.rtps_participant,
-                    &mut data_writer_lock.rtps_data_writer_mut(),
+                    data_writer_lock.rtps_data_writer_mut(),
                     &mut *self.default_transport,
                 );
             }
