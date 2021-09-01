@@ -83,10 +83,10 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a>(
+    fn process_data(
         &mut self,
-        data: &'a DataSubmessage<Vec<Parameter<'a>>>,
-        reader_group_list: &'a [RtpsShared<SubscriberImpl>],
+        data: &DataSubmessage<Vec<Parameter<'_>>>,
+        reader_group_list: &[RtpsShared<SubscriberImpl>],
     ) {
         for subscriber in reader_group_list {
             let subscriber_lock = subscriber.lock();
