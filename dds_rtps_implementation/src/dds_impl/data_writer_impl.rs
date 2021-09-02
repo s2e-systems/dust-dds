@@ -14,25 +14,25 @@ use crate::{dds_type::DDSType, rtps_impl::rtps_writer_impl::RtpsWriterImpl};
 
 pub struct DataWriterImpl {
     qos: DataWriterQos,
-    rtps_data_writer: RtpsWriterImpl,
+    rtps_writer_impl: RtpsWriterImpl,
 }
 
 impl DataWriterImpl {
-    pub fn new(qos: DataWriterQos, rtps_data_writer: RtpsWriterImpl) -> Self {
+    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterImpl) -> Self {
         Self {
             qos,
-            rtps_data_writer,
+            rtps_writer_impl,
         }
     }
 
     /// Get a reference to the data writer storage's rtps data writer.
     pub fn rtps_data_writer(&self) -> &RtpsWriterImpl {
-        &self.rtps_data_writer
+        &self.rtps_writer_impl
     }
 
     /// Get a mutable reference to the data writer storage's rtps data writer.
     pub fn rtps_data_writer_mut(&mut self) -> &mut RtpsWriterImpl {
-        &mut self.rtps_data_writer
+        &mut self.rtps_writer_impl
     }
 
     pub fn set_qos(&mut self, qos: Option<DataWriterQos>) -> DDSResult<()> {
@@ -48,19 +48,20 @@ impl DataWriterImpl {
 
     pub fn write_w_timestamp<T: DDSType + 'static>(
         &mut self,
-        data: T,
+        _data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let data = cdr::serialize::<_, _, cdr::CdrLe>(&data, cdr::Infinite).unwrap();
-        let change = self
-            .rtps_data_writer
-            .new_change(ChangeKind::Alive, data.as_slice(), &[], 0);
-        let writer_cache = self.rtps_data_writer.writer_cache_mut();
-        let time = rust_rtps_pim::messages::types::Time(0);
-        writer_cache.set_source_timestamp(Some(time));
-        writer_cache.add_change(&change);
-        Ok(())
+        todo!()
+        // let data = cdr::serialize::<_, _, cdr::CdrLe>(&data, cdr::Infinite).unwrap();
+        // let change = self
+        //     .rtps_writer_impl
+        //     .new_change(ChangeKind::Alive, data.as_slice(), &[], 0);
+        // let writer_cache = self.rtps_writer_impl.writer_cache_mut();
+        // let time = rust_rtps_pim::messages::types::Time(0);
+        // writer_cache.set_source_timestamp(Some(time));
+        // writer_cache.add_change(&change);
+        // Ok(())
     }
 }
 

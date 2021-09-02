@@ -681,40 +681,4 @@ mod tests {
             0
         );
     }
-
-    //     #[test]
-    //     fn create_subscriber() {
-    //         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-    //         let domain_participant_storage = DomainParticipantImpl::new(
-    //             DomainParticipantQos::default(),
-    //             rtps_participant,
-    //             vec![],
-    //             vec![],
-    //             Box::new(MockTransport),
-    //             Box::new(MockTransport),
-    //         );
-    //         let domain_participant_impl =
-    //             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-    //         let subscriber = domain_participant_impl.create_subscriber(None, None, 0);
-
-    //         assert!(subscriber.is_some())
-    //     }
-
-    //     #[test]
-    //     fn create_topic() {
-    //         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-    //         let domain_participant_storage = DomainParticipantImpl::new(
-    //             DomainParticipantQos::default(),
-    //             rtps_participant,
-    //             vec![],
-    //             vec![],
-    //             Box::new(MockTransport),
-    //             Box::new(MockTransport),
-    //         );
-    //         let domain_participant_impl =
-    //             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-    //         let topic =
-    //             domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
-    //         assert!(topic.is_some());
-    //     }
 }
