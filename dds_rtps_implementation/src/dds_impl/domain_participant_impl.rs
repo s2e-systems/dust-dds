@@ -1,6 +1,6 @@
 use std::sync::{
     atomic::{self, AtomicBool, AtomicU8},
-    Arc, Mutex, RwLock,
+    Arc, Mutex,
 };
 
 use rust_dds_api::{
@@ -49,12 +49,12 @@ pub struct DomainParticipantImpl {
     builtin_publisher_storage: Arc<Vec<RtpsShared<PublisherImpl>>>,
     user_defined_subscriber_storage: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
     user_defined_subscriber_counter: u8,
-    default_subscriber_qos: RwLock<SubscriberQos>,
+    default_subscriber_qos: SubscriberQos,
     user_defined_publisher_storage: Arc<Mutex<Vec<RtpsShared<PublisherImpl>>>>,
     user_defined_publisher_counter: AtomicU8,
-    default_publisher_qos: RwLock<PublisherQos>,
+    default_publisher_qos: PublisherQos,
     topic_storage: Vec<RtpsShared<TopicImpl>>,
-    default_topic_qos: RwLock<TopicQos>,
+    default_topic_qos: TopicQos,
     metatraffic_transport: Arc<Mutex<Box<dyn Transport>>>,
     default_transport: Arc<Mutex<Box<dyn Transport>>>,
     is_enabled: Arc<AtomicBool>,
@@ -78,12 +78,12 @@ impl DomainParticipantImpl {
             default_transport: Arc::new(Mutex::new(default_transport)),
             user_defined_subscriber_storage: Arc::new(Mutex::new(Vec::new())),
             user_defined_subscriber_counter: 0,
-            default_subscriber_qos: RwLock::new(SubscriberQos::default()),
+            default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_storage: Arc::new(Mutex::new(Vec::new())),
             user_defined_publisher_counter: AtomicU8::new(0),
-            default_publisher_qos: RwLock::new(PublisherQos::default()),
+            default_publisher_qos: PublisherQos::default(),
             topic_storage: Vec::new(),
-            default_topic_qos: RwLock::new(TopicQos::default()),
+            default_topic_qos: TopicQos::default(),
             is_enabled: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -127,7 +127,7 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
         _a_listener: Option<&'static dyn PublisherListener>,
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let publisher_qos = qos.unwrap_or(self.default_publisher_qos.read().unwrap().clone());
+        let publisher_qos = qos.unwrap_or(self.default_publisher_qos.clone());
         let user_defined_publisher_counter = self
             .user_defined_publisher_counter
             .fetch_add(1, atomic::Ordering::SeqCst);
@@ -305,33 +305,33 @@ impl DomainParticipant for DomainParticipantImpl {
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
-        *self.default_publisher_qos.write().unwrap() = qos.unwrap_or_default();
+    fn set_default_publisher_qos(&mut self, qos: Option<PublisherQos>) -> DDSResult<()> {
+        self.default_publisher_qos = qos.unwrap_or_default();
         Ok(())
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
-        self.default_publisher_qos.read().unwrap().clone()
+        self.default_publisher_qos.clone()
     }
 
-    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()> {
-        *self.default_subscriber_qos.write().unwrap() = qos.unwrap_or_default();
+    fn set_default_subscriber_qos(&mut self, qos: Option<SubscriberQos>) -> DDSResult<()> {
+        self.default_subscriber_qos = qos.unwrap_or_default();
         Ok(())
     }
 
     fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        self.default_subscriber_qos.read().unwrap().clone()
+        self.default_subscriber_qos.clone()
     }
 
-    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
+    fn set_default_topic_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()> {
         let topic_qos = qos.unwrap_or_default();
         topic_qos.is_consistent()?;
-        *self.default_topic_qos.write().unwrap() = topic_qos;
+        self.default_topic_qos = topic_qos;
         Ok(())
     }
 
     fn get_default_topic_qos(&self) -> TopicQos {
-        self.default_topic_qos.read().unwrap().clone()
+        self.default_topic_qos.clone()
     }
 
     fn get_discovered_participants(
@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn set_default_publisher_qos_some_value() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -522,7 +522,7 @@ mod tests {
     #[test]
     fn set_default_publisher_qos_none() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn set_default_subscriber_qos_some_value() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -562,7 +562,7 @@ mod tests {
     #[test]
     fn set_default_subscriber_qos_none() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -586,7 +586,7 @@ mod tests {
     #[test]
     fn set_default_topic_qos_some_value() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -605,7 +605,7 @@ mod tests {
     #[test]
     fn set_default_topic_qos_inconsistent() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -624,7 +624,7 @@ mod tests {
     #[test]
     fn set_default_topic_qos_none() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -656,6 +656,7 @@ mod tests {
             Box::new(MockTransport),
             Box::new(MockTransport),
         );
+
         let publisher_counter_before = domain_participant
             .user_defined_publisher_counter
             .load(atomic::Ordering::Relaxed);

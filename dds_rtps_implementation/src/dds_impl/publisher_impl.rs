@@ -1,6 +1,6 @@
 use std::sync::{
     atomic::{self, AtomicU8},
-    Mutex, RwLock,
+    Mutex,
 };
 
 use rust_dds_api::{
@@ -42,7 +42,7 @@ pub struct PublisherImpl {
     rtps_group: RtpsGroupImpl,
     data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
-    default_datawriter_qos: RwLock<DataWriterQos>,
+    default_datawriter_qos: DataWriterQos,
 }
 
 impl PublisherImpl {
@@ -56,7 +56,7 @@ impl PublisherImpl {
             rtps_group,
             data_writer_impl_list: Mutex::new(data_writer_impl_list),
             user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: RwLock::new(DataWriterQos::default()),
+            default_datawriter_qos: DataWriterQos::default(),
         }
     }
 }
@@ -75,7 +75,7 @@ where
         _a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let qos = qos.unwrap_or(self.default_datawriter_qos.read().unwrap().clone());
+        let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         let user_defined_data_writer_counter = self
             .user_defined_data_writer_counter
             .fetch_add(1, atomic::Ordering::SeqCst);
@@ -169,15 +169,15 @@ impl Publisher for PublisherImpl {
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
+    fn set_default_datawriter_qos(&mut self, qos: Option<DataWriterQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
-        *self.default_datawriter_qos.write().unwrap() = qos;
+        self.default_datawriter_qos = qos;
         Ok(())
     }
 
     fn get_default_datawriter_qos(&self) -> DataWriterQos {
-        self.default_datawriter_qos.read().unwrap().clone()
+        self.default_datawriter_qos.clone()
     }
 
     fn copy_from_topic_qos(
@@ -237,7 +237,7 @@ impl RtpsSubmessageSender for PublisherImpl {
         let combined_submessages = vec![];
         let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
         for data_writer in &*data_writer_impl_list_lock {
-            let submessages = data_writer.read().create_submessages();
+            let _submessages = data_writer.read().create_submessages();
         }
 
         combined_submessages
@@ -266,7 +266,7 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_some_value() {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+        let mut publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = &[1, 2, 3, 4];
@@ -280,7 +280,7 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_none() {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+        let mut publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = &[1, 2, 3, 4];

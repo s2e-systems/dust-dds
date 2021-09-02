@@ -119,7 +119,7 @@ impl<'p, P> Publisher for PublisherProxy<'p, P> {
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
+    fn set_default_datawriter_qos(&mut self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
         //     .set_default_datawriter_qos(qos)
