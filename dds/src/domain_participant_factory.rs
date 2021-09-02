@@ -14,7 +14,7 @@ use rust_dds_api::{
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
-        domain_participant_proxy::DomainParticipantProxy, publisher_impl::PublisherImpl,
+        publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
@@ -159,16 +159,14 @@ impl DomainParticipantFactory {
             Vec::new(),
         ))];
 
-        let domain_participant_storage = RtpsShared::new(DomainParticipantImpl::new(
+        let domain_participant = DomainParticipantImpl::new(
             qos.unwrap_or_default(),
             rtps_participant,
             builtin_subscriber_storage,
             builtin_publisher_storage,
             metatraffic_transport,
             default_transport,
-        ));
-
-        let domain_participant = DomainParticipantProxy::new(domain_participant_storage);
+        );
 
         Some(domain_participant)
     }
