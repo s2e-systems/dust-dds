@@ -1,14 +1,8 @@
-use crate::{
-    // dcps_psm::{
-    //     LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-    //     SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
-    // },
-    infrastructure::listener::Listener,
-};
+
 
 // use super::data_reader::DataReader;
 
-pub trait DataReaderListener: Listener {
+pub trait DataReaderListener {
     type DataPIM;
     // fn on_data_available(&self, the_reader: &dyn DataReader<Self::DataPIM>);
     // fn on_sample_rejected(

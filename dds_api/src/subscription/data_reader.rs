@@ -5,17 +5,12 @@ use crate::{
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
         SubscriptionMatchedStatus, ViewStateKind,
     },
-    infrastructure::{
-        entity::Entity, qos::DataReaderQos, read_condition::ReadCondition, sample_info::SampleInfo,
-    },
+    infrastructure::{read_condition::ReadCondition, sample_info::SampleInfo},
     return_type::DDSResult,
     topic::topic_description::TopicDescription,
 };
 
-use super::{
-    data_reader_listener::DataReaderListener, query_condition::QueryCondition,
-    subscriber::Subscriber,
-};
+use super::{query_condition::QueryCondition, subscriber::Subscriber};
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
@@ -28,10 +23,8 @@ use super::{
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub trait DataReader<T: 'static>:
-    Entity<Qos = DataReaderQos, Listener = &'static dyn DataReaderListener<DataPIM = T>>
-{
-    type Samples: IntoIterator<Item=(T, SampleInfo)>;
+pub trait DataReader<T> {
+    type Samples;
 
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy

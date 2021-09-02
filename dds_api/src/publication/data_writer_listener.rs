@@ -1,14 +1,11 @@
-use crate::{
-    dcps_psm::{
-        LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-        PublicationMatchedStatus,
-    },
-    infrastructure::listener::Listener,
+use crate::dcps_psm::{
+    LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+    PublicationMatchedStatus,
 };
 
 use super::data_writer::DataWriter;
 
-pub trait DataWriterListener: Listener {
+pub trait DataWriterListener {
     type DataPIM;
     fn on_liveliness_lost(
         &self,

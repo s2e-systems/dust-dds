@@ -1,20 +1,15 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
-    infrastructure::{
-        entity::Entity,
-        qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-    },
-    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos},
+    publication::publisher_listener::PublisherListener,
     return_type::DDSResult,
-    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
-    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
+    subscription::subscriber_listener::SubscriberListener,
+    topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-use super::domain_participant_listener::DomainParticipantListener;
-
 pub trait SubscriberGAT<'s> {
-    type SubscriberType: Subscriber;
+    type SubscriberType;
 
     fn create_subscriber_gat(
         &'s self,
@@ -28,7 +23,7 @@ pub trait SubscriberGAT<'s> {
     fn get_builtin_subscriber_gat(&'s self) -> Self::SubscriberType;
 }
 pub trait TopicGAT<'t, T: 'static> {
-    type TopicType: Topic<T>;
+    type TopicType;
 
     fn create_topic_gat(
         &'t self,
@@ -44,7 +39,7 @@ pub trait TopicGAT<'t, T: 'static> {
 }
 
 pub trait PublisherGAT<'p> {
-    type PublisherType: Publisher;
+    type PublisherType;
 
     fn create_publisher_gat(
         &'p self,
@@ -56,9 +51,7 @@ pub trait PublisherGAT<'p> {
     fn delete_publisher_gat(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
 }
 
-pub trait DomainParticipant:
-    Entity<Qos = DomainParticipantQos, Listener = &'static dyn DomainParticipantListener>
-{
+pub trait DomainParticipant {
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
     /// The special value PUBLISHER_QOS_DEFAULT can be used to indicate that the Publisher should be created with the default

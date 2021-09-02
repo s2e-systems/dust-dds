@@ -1,23 +1,15 @@
 use crate::{
     dcps_psm::{Duration, StatusMask},
     domain::domain_participant::DomainParticipant,
-    infrastructure::{
-        entity::Entity,
-        qos::{DataWriterQos, PublisherQos, TopicQos},
-    },
+    infrastructure::qos::{DataWriterQos, TopicQos},
     return_type::DDSResult,
-    topic::topic::Topic,
 };
 
-use super::{
-    data_writer::{AnyDataWriter, DataWriter},
-    data_writer_listener::DataWriterListener,
-    publisher_listener::PublisherListener,
-};
+use super::data_writer_listener::DataWriterListener;
 
-pub trait DataWriterGAT<'dw, 't: 'dw, T: 'static>: Publisher {
-    type TopicType: Topic<T>;
-    type DataWriterType: DataWriter<T> + AnyDataWriter;
+pub trait DataWriterGAT<'dw, 't, T>: Publisher {
+    type TopicType;
+    type DataWriterType;
 
     fn create_datawriter_gat(
         &'dw self,
@@ -29,7 +21,10 @@ pub trait DataWriterGAT<'dw, 't: 'dw, T: 'static>: Publisher {
 
     fn delete_datawriter_gat(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()>;
 
-    fn lookup_datawriter_gat(&'dw self, topic: &'dw Self::TopicType) -> Option<Self::DataWriterType>;
+    fn lookup_datawriter_gat(
+        &'dw self,
+        topic: &'dw Self::TopicType,
+    ) -> Option<Self::DataWriterType>;
 }
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
@@ -38,7 +33,7 @@ pub trait DataWriterGAT<'dw, 't: 'dw, T: 'static>: Publisher {
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub trait Publisher: Entity<Qos = PublisherQos, Listener = &'static dyn PublisherListener> {
+pub trait Publisher {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class

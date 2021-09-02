@@ -5,7 +5,7 @@ use crate::{
 
 pub struct StatusCondition;
 
-pub trait DomainEntity: Entity {}
+pub trait DomainEntity {}
 
 pub trait Entity {
     type Qos;

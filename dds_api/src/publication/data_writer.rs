@@ -4,16 +4,13 @@ use crate::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, Time,
     },
-    infrastructure::{entity::Entity, qos::DataWriterQos},
     return_type::DDSResult,
     topic::topic::Topic,
 };
 
-use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
+use super::publisher::Publisher;
 
-pub trait DataWriter<T: 'static>:
-    Entity<Qos = DataWriterQos, Listener = &'static dyn DataWriterListener<DataPIM = T>>
-{
+pub trait DataWriter<T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose

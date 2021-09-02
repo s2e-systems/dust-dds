@@ -5,7 +5,6 @@ use crate::{
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
         SampleRejectedStatus, SubscriptionMatchedStatus,
     },
-    infrastructure::listener::Listener,
     publication::data_writer::AnyDataWriter,
     subscription::{data_reader::AnyDataReader, subscriber::Subscriber},
     topic::topic_description::AnyTopicDescription,
@@ -15,7 +14,7 @@ use crate::{
 /// captured by more specific listeners attached to the DomainEntity objects. When a relevant status change occurs, the DCPS
 /// Service will first attempt to notify the listener attached to the concerned DomainEntity if one is installed. Otherwise, the
 /// DCPS Service will notify the Listener attached to the DomainParticipant.
-pub trait DomainParticipantListener: Listener {
+pub trait DomainParticipantListener {
     fn on_inconsistent_topic(
         &self,
         the_topic: &dyn AnyTopicDescription,

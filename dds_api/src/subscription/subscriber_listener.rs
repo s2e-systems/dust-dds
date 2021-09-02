@@ -1,14 +1,11 @@
-use crate::{
-    dcps_psm::{
-        LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-        SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
-    },
-    infrastructure::listener::Listener,
+use crate::dcps_psm::{
+    LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+    SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
 };
 
 use super::{data_reader::AnyDataReader, subscriber::Subscriber};
 
-pub trait SubscriberListener: Listener {
+pub trait SubscriberListener {
     fn on_data_on_readers(&self, the_subscriber: &dyn Subscriber);
     fn on_data_available(&self, the_reader: &dyn AnyDataReader);
     fn on_sample_rejected(&self, the_reader: &dyn AnyDataReader, status: SampleRejectedStatus);

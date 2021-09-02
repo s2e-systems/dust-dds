@@ -1,23 +1,15 @@
 use crate::{
     dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
     domain::domain_participant::DomainParticipant,
-    infrastructure::{
-        entity::Entity,
-        qos::{DataReaderQos, SubscriberQos, TopicQos},
-    },
+    infrastructure::qos::{DataReaderQos, TopicQos},
     return_type::DDSResult,
-    topic::topic::Topic,
 };
 
-use super::{
-    data_reader::{AnyDataReader, DataReader},
-    data_reader_listener::DataReaderListener,
-    subscriber_listener::SubscriberListener,
-};
+use super::{data_reader::AnyDataReader, data_reader_listener::DataReaderListener};
 
-pub trait DataReaderGAT<'dr, 't: 'dr, T: 'static>: Subscriber {
-    type TopicType: Topic<T>;
-    type DataReaderType: DataReader<T> + AnyDataReader;
+pub trait DataReaderGAT<'dr, 't, T>: Subscriber {
+    type TopicType;
+    type DataReaderType;
 
     fn create_datareader_gat(
         &'dr self,
@@ -29,7 +21,10 @@ pub trait DataReaderGAT<'dr, 't: 'dr, T: 'static>: Subscriber {
 
     fn delete_datareader_gat(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>;
 
-    fn lookup_datareader_gat(&'dr self, topic: &'dr Self::TopicType) -> Option<Self::DataReaderType>;
+    fn lookup_datareader_gat(
+        &'dr self,
+        topic: &'dr Self::TopicType,
+    ) -> Option<Self::DataReaderType>;
 }
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
@@ -40,9 +35,7 @@ pub trait DataReaderGAT<'dr, 't: 'dr, T: 'static>: Subscriber {
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-pub trait Subscriber:
-    Entity<Qos = SubscriberQos, Listener = &'static dyn SubscriberListener>
-{
+pub trait Subscriber {
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
     /// The DataReader returned by the create_datareader operation will in fact be a derived class, specific to the data-type
