@@ -22,19 +22,17 @@ use rust_rtps_pim::behavior::reader::reader::RtpsReader;
 
 use crate::utils::shared_object::RtpsWeak;
 
-use super::data_reader_impl::DataReaderImpl;
-
-pub struct DataReaderProxy<'dr, T: 'static> {
+pub struct DataReaderProxy<'dr, T, DR> {
     subscriber: &'dr dyn Subscriber,
     topic: &'dr dyn TopicDescription<T>,
-    reader: RtpsWeak<DataReaderImpl>,
+    reader: RtpsWeak<DR>,
 }
 
-impl<'dr, T: 'static> DataReaderProxy<'dr, T> {
+impl<'dr, T, DR> DataReaderProxy<'dr, T, DR> {
     pub fn new(
         subscriber: &'dr dyn Subscriber,
         topic: &'dr dyn TopicDescription<T>,
-        reader: RtpsWeak<DataReaderImpl>,
+        reader: RtpsWeak<DR>,
     ) -> Self {
         Self {
             subscriber,
@@ -44,9 +42,8 @@ impl<'dr, T: 'static> DataReaderProxy<'dr, T> {
     }
 }
 
-impl<'dr, T> rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderProxy<'dr, T>
-where
-    T: for<'de> serde::Deserialize<'de>,
+impl<'dr, T, DR> rust_dds_api::subscription::data_reader::DataReader<T>
+    for DataReaderProxy<'dr, T, DR>
 {
     type Samples = Vec<(T, SampleInfo)>;
 
@@ -57,32 +54,33 @@ where
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        let shared_reader = self.reader.upgrade()?;
-        let mut reader = shared_reader.lock();
-        let reader_cache = reader.rtps_reader_mut().reader_cache_mut();
-        Ok(reader_cache
-            .changes_mut()
-            .iter()
-            .map(|cc| {
-                let data = cc.data();
-                let value = cdr::deserialize(data).unwrap();
-                let sample_info = SampleInfo {
-                    sample_state: *cc.sample_state_kind(),
-                    view_state: *cc.view_state_kind(),
-                    instance_state: *cc.instance_state_kind(),
-                    disposed_generation_count: 0,
-                    no_writers_generation_count: 0,
-                    sample_rank: 0,
-                    generation_rank: 0,
-                    absolute_generation_rank: 0,
-                    source_timestamp: Time { sec: 0, nanosec: 0 },
-                    instance_handle: 0,
-                    publication_handle: 0,
-                    valid_data: true,
-                };
-                (value, sample_info)
-            })
-            .collect())
+        todo!()
+        // let shared_reader = self.reader.upgrade()?;
+        // let mut reader = shared_reader.lock();
+        // let reader_cache = reader.rtps_reader_mut().reader_cache_mut();
+        // Ok(reader_cache
+        //     .changes_mut()
+        //     .iter()
+        //     .map(|cc| {
+        //         let data = cc.data();
+        //         let value = cdr::deserialize(data).unwrap();
+        //         let sample_info = SampleInfo {
+        //             sample_state: *cc.sample_state_kind(),
+        //             view_state: *cc.view_state_kind(),
+        //             instance_state: *cc.instance_state_kind(),
+        //             disposed_generation_count: 0,
+        //             no_writers_generation_count: 0,
+        //             sample_rank: 0,
+        //             generation_rank: 0,
+        //             absolute_generation_rank: 0,
+        //             source_timestamp: Time { sec: 0, nanosec: 0 },
+        //             instance_handle: 0,
+        //             publication_handle: 0,
+        //             valid_data: true,
+        //         };
+        //         (value, sample_info)
+        //     })
+        //     .collect())
     }
 
     fn take(
@@ -314,16 +312,21 @@ where
     }
 }
 
-impl<'dr, T> Entity for DataReaderProxy<'dr, T> {
+impl<'dr, T, DR> Entity for DataReaderProxy<'dr, T, DR>
+where
+    T: 'static,
+{
     type Qos = DataReaderQos;
     type Listener = &'static dyn DataReaderListener<DataPIM = T>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.reader.upgrade()?.lock().set_qos(qos)
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+        todo!()
+        // self.reader.upgrade()?.lock().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.reader.upgrade()?.lock().get_qos()?.clone())
+        todo!()
+        // Ok(self.reader.upgrade()?.lock().get_qos()?.clone())
     }
 
     fn set_listener(
@@ -355,7 +358,7 @@ impl<'dr, T> Entity for DataReaderProxy<'dr, T> {
     }
 }
 
-impl<'dr, T> AnyDataReader for DataReaderProxy<'dr, T> {}
+impl<'dr, T, DR> AnyDataReader for DataReaderProxy<'dr, T, DR> {}
 
 #[cfg(test)]
 mod tests {

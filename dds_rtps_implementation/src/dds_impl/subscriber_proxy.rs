@@ -18,7 +18,8 @@ use rust_dds_api::{
 use crate::{dds_type::DDSType, utils::shared_object::RtpsWeak};
 
 use super::{
-    data_reader_proxy::DataReaderProxy, subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy,
+    data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy,
+    subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy,
 };
 
 pub struct SubscriberProxy<'s> {
@@ -49,7 +50,7 @@ where
     T: for<'de> serde::Deserialize<'de>,
 {
     type TopicType = TopicProxy<'t, T>;
-    type DataReaderType = DataReaderProxy<'dr, T>;
+    type DataReaderType = DataReaderProxy<'dr, T, DataReaderImpl>;
 
     fn create_datareader_gat(
         &'dr self,
