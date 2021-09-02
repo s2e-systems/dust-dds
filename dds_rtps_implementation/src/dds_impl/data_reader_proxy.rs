@@ -24,20 +24,24 @@ use crate::utils::shared_object::RtpsWeak;
 pub struct DataReaderProxy<'dr, T, DR> {
     subscriber: &'dr dyn Subscriber,
     topic: &'dr dyn TopicDescription<T>,
-    reader: RtpsWeak<DR>,
+    data_reader_impl: RtpsWeak<DR>,
 }
 
 impl<'dr, T, DR> DataReaderProxy<'dr, T, DR> {
-    pub fn new(
+    pub(crate) fn new(
         subscriber: &'dr dyn Subscriber,
         topic: &'dr dyn TopicDescription<T>,
-        reader: RtpsWeak<DR>,
+        data_reader_impl: RtpsWeak<DR>,
     ) -> Self {
         Self {
             subscriber,
             topic,
-            reader,
+            data_reader_impl,
         }
+    }
+
+    pub(crate) fn data_reader_impl(&self) -> &RtpsWeak<DR> {
+        &self.data_reader_impl
     }
 }
 
@@ -54,9 +58,12 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        self.reader
-            .upgrade()?
-            .read(max_samples, sample_states, view_states, instance_states)
+        self.data_reader_impl.upgrade()?.read(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 
     fn take(
@@ -294,35 +301,37 @@ where
     type Listener = DR::Listener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.reader.upgrade()?.set_qos(qos)
+        self.data_reader_impl.upgrade()?.set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.reader.upgrade()?.get_qos()
+        self.data_reader_impl.upgrade()?.get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        self.reader.upgrade()?.set_listener(a_listener, mask)
+        self.data_reader_impl
+            .upgrade()?
+            .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.reader.upgrade()?.get_listener()
+        self.data_reader_impl.upgrade()?.get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.reader.upgrade()?.get_statuscondition()
+        self.data_reader_impl.upgrade()?.get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.reader.upgrade()?.get_status_changes()
+        self.data_reader_impl.upgrade()?.get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.reader.upgrade()?.enable()
+        self.data_reader_impl.upgrade()?.enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.reader.upgrade()?.get_instance_handle()
+        self.data_reader_impl.upgrade()?.get_instance_handle()
     }
 }
 

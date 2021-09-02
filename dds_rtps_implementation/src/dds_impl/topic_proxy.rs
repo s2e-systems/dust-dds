@@ -26,40 +26,31 @@ impl<'t, T, TT> TopicProxy<'t, T, TT> {
     }
 }
 
-impl<'t, T, TT> Topic<T> for TopicProxy<'t, T, TT> {
-    fn get_inconsistent_topic_status(
-        &self,
-        _status: &mut InconsistentTopicStatus,
-    ) -> DDSResult<()> {
-        todo!()
+impl<'t, T, TT> Topic<T> for TopicProxy<'t, T, TT>
+where
+    TT: Topic<T>,
+{
+    fn get_inconsistent_topic_status(&self, status: &mut InconsistentTopicStatus) -> DDSResult<()> {
+        self.topic_impl
+            .upgrade()?
+            .get_inconsistent_topic_status(status)
     }
 }
 
-impl<'t, T, TT> TopicDescription<T> for TopicProxy<'t, T, TT> {
+impl<'t, T, TT> TopicDescription<T> for TopicProxy<'t, T, TT>
+where
+    TT: TopicDescription<T> + 't,
+{
     fn get_participant(&self) -> &dyn DomainParticipant {
         self.participant
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
-        // Ok(self
-        //     .impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .get_type_name())
-        todo!()
+        self.topic_impl.upgrade()?.get_type_name()
     }
 
-    fn get_name(&self) -> DDSResult<&'t str> {
-        // Ok(self
-        //     .impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .get_name())
-        todo!()
+    fn get_name(&self) -> DDSResult<&'static str> {
+        self.topic_impl.upgrade()?.get_name()
     }
 }
 
@@ -71,54 +62,34 @@ where
     type Listener = TT::Listener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        // self.topic_storage.upgrade()?.lock().set_qos(qos)
-        todo!()
+        self.topic_impl.upgrade()?.set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        // Ok(self.topic_storage.upgrade()?.lock().get_qos().clone())
-        todo!()
+        self.topic_impl.upgrade()?.get_qos()
     }
 
-    fn set_listener(
-        &self,
-        _a_listener: Option<Self::Listener>,
-        _mask: StatusMask,
-    ) -> DDSResult<()> {
-        // Ok(self
-        //     .impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .set_listener(a_listener, mask))
-        todo!()
+    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+        self.topic_impl.upgrade()?.set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        // Ok(self
-        //     .impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .get_listener())
-        todo!()
+        self.topic_impl.upgrade()?.get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        todo!()
+        self.topic_impl.upgrade()?.get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        todo!()
+        self.topic_impl.upgrade()?.get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        todo!()
+        self.topic_impl.upgrade()?.enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        todo!()
+        self.topic_impl.upgrade()?.get_instance_handle()
     }
 }

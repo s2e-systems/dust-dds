@@ -48,6 +48,13 @@ impl<'s, S> SubscriberProxy<'s, S> {
 impl<'dr, 's, 't, T, S> DataReaderGAT<'dr, 't, T> for SubscriberProxy<'s, S>
 where
     T: 't + 'dr,
+    S: for<'a, 'b> DataReaderGAT<
+        'a,
+        'b,
+        T,
+        TopicType = (),
+        DataReaderType = RtpsWeak<DataReaderImpl>,
+    >,
 {
     type TopicType = TopicProxy<'t, T, TopicImpl>;
     type DataReaderType = DataReaderProxy<'dr, T, DataReaderImpl>;
@@ -59,15 +66,13 @@ where
         a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
-        todo!()
-        // let reader_storage_weak = self
-        //     .subscriber_storage
-        //     .upgrade()
-        //     .ok()?
-        //     .lock()
-        //     .create_datareader((), qos, a_listener, mask)?;
-        // let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
-        // Some(data_reader)
+        let reader_storage_weak =
+            self.subscriber_impl
+                .upgrade()
+                .ok()?
+                .create_datareader(&(), qos, a_listener, mask)?;
+        let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
+        Some(data_reader)
     }
 
     fn delete_datareader_gat(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
