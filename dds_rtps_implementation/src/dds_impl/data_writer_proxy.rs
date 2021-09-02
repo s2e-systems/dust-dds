@@ -42,36 +42,36 @@ impl<'dw, T, DW> DataWriter<T> for DataWriterProxy<'dw, T, DW>
 where
     DW: DataWriter<T>,
 {
-    fn register_instance(&self, instance: T) -> DDSResult<Option<InstanceHandle>> {
+    fn register_instance(&mut self, instance: T) -> DDSResult<Option<InstanceHandle>> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.register_instance_w_timestamp(instance, timestamp)
     }
 
     fn register_instance_w_timestamp(
-        &self,
+        &mut self,
         instance: T,
         timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
         self.data_writer_impl
             .upgrade()?
-            .read()
+            .write()
             .register_instance_w_timestamp(instance, timestamp)
     }
 
-    fn unregister_instance(&self, instance: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn unregister_instance(&mut self, instance: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     fn unregister_instance_w_timestamp(
-        &self,
+        &mut self,
         instance: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
         self.data_writer_impl
             .upgrade()?
-            .read()
+            .write()
             .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
@@ -83,29 +83,29 @@ where
         todo!()
     }
 
-    fn write(&self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.write_w_timestamp(data, handle, timestamp)
     }
 
     fn write_w_timestamp(
-        &self,
+        &mut self,
         data: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
         self.data_writer_impl
             .upgrade()?
-            .read()
+            .write()
             .write_w_timestamp(data, handle, timestamp)
     }
 
-    fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn dispose(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         todo!()
     }
 
     fn dispose_w_timestamp(
-        &self,
+        &mut self,
         _data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,

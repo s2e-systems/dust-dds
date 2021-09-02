@@ -133,13 +133,13 @@ impl DomainParticipantFactory {
         //     &lease_duration,
         // );
 
-        let spdp_builtin_participant_writer = RtpsShared::new(DataWriterImpl::new(
+        let mut spdp_builtin_participant_writer = RtpsShared::new(DataWriterImpl::new(
             spdp_builtin_participant_writer_qos,
             spdp_builtin_participant_rtps_writer,
         ));
 
         spdp_builtin_participant_writer
-            .read()
+            .write()
             .write_w_timestamp(
                 (1, 2),
                 None,
