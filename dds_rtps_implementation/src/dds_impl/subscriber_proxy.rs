@@ -8,20 +8,18 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, TopicQos},
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
     subscription::{
-        data_reader::AnyDataReader,
+        data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
         subscriber::{DataReaderGAT, Subscriber},
     },
+    topic::topic_description::TopicDescription,
 };
 
 use crate::utils::shared_object::RtpsWeak;
 
-use super::{
-    data_reader_impl::DataReaderImpl, data_reader_proxy::DataReaderProxy, topic_impl::TopicImpl,
-    topic_proxy::TopicProxy,
-};
+use super::{data_reader_proxy::DataReaderProxy, topic_proxy::TopicProxy};
 
 pub struct SubscriberProxy<'s, S> {
     participant: &'s dyn DomainParticipant,
@@ -29,7 +27,7 @@ pub struct SubscriberProxy<'s, S> {
 }
 
 impl<'s, S> SubscriberProxy<'s, S> {
-    pub(crate) fn new(
+    pub(crate) fn _new(
         participant: &'s dyn DomainParticipant,
         subscriber_impl: RtpsWeak<S>,
     ) -> Self {
@@ -40,24 +38,20 @@ impl<'s, S> SubscriberProxy<'s, S> {
     }
 
     /// Get a reference to the subscriber impl's subscriber storage.
-    pub(crate) fn subscriber_impl(&self) -> &RtpsWeak<S> {
+    pub(crate) fn _subscriber_impl(&self) -> &RtpsWeak<S> {
         &self.subscriber_impl
     }
 }
 
-impl<'dr, 's, 't, T, S> DataReaderGAT<'dr, 't, T> for SubscriberProxy<'s, S>
+impl<'dr, 's, 't, T, S, DR, I> DataReaderGAT<'dr, 't, T> for SubscriberProxy<'s, S>
 where
     T: 't + 'dr,
-    S: for<'a, 'b> DataReaderGAT<
-        'a,
-        'b,
-        T,
-        TopicType = (),
-        DataReaderType = RtpsWeak<DataReaderImpl>,
-    >,
+    I: TopicDescription<T> + 't,
+    DR: DataReader<T>,
+    S: for<'a, 'b> DataReaderGAT<'a, 'b, T, TopicType = RtpsWeak<I>, DataReaderType = RtpsWeak<DR>>,
 {
-    type TopicType = TopicProxy<'t, T, TopicImpl>;
-    type DataReaderType = DataReaderProxy<'dr, T, DataReaderImpl>;
+    type TopicType = TopicProxy<'t, T, I>;
+    type DataReaderType = DataReaderProxy<'dr, T, DR>;
 
     fn create_datareader_gat(
         &'dr self,
@@ -66,17 +60,26 @@ where
         a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
-        let reader_storage_weak =
-            self.subscriber_impl
-                .upgrade()
-                .ok()?
-                .create_datareader(&(), qos, a_listener, mask)?;
+        let reader_storage_weak = self.subscriber_impl.upgrade().ok()?.create_datareader(
+            a_topic.topic_impl(),
+            qos,
+            a_listener,
+            mask,
+        )?;
         let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
         Some(data_reader)
     }
 
-    fn delete_datareader_gat(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
-        todo!()
+    fn delete_datareader_gat(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()> {
+        if std::ptr::eq(a_datareader.get_subscriber(), self) {
+            self.subscriber_impl
+                .upgrade()?
+                .delete_datareader(a_datareader.data_reader_impl())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Data writer can only be deleted from its parent publisher",
+            ))
+        }
     }
 
     fn lookup_datareader_gat<'a>(

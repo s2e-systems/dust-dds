@@ -11,14 +11,12 @@ use rust_dds_api::{
         publisher::{DataWriterGAT, Publisher},
     },
     return_type::{DDSError, DDSResult},
+    topic::topic::Topic,
 };
 
 use crate::utils::shared_object::RtpsWeak;
 
-use super::{
-    data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy, topic_impl::TopicImpl,
-    topic_proxy::TopicProxy,
-};
+use super::{data_writer_proxy::DataWriterProxy, topic_proxy::TopicProxy};
 
 pub struct PublisherProxy<'p, P> {
     participant: &'p dyn DomainParticipant,
@@ -26,7 +24,10 @@ pub struct PublisherProxy<'p, P> {
 }
 
 impl<'p, P> PublisherProxy<'p, P> {
-    pub(crate) fn new(participant: &'p dyn DomainParticipant, publisher_impl: RtpsWeak<P>) -> Self {
+    pub(crate) fn _new(
+        participant: &'p dyn DomainParticipant,
+        publisher_impl: RtpsWeak<P>,
+    ) -> Self {
         Self {
             participant,
             publisher_impl,
@@ -34,24 +35,20 @@ impl<'p, P> PublisherProxy<'p, P> {
     }
 
     /// Get a reference to the publisher impl's publisher storage.
-    pub(crate) fn publisher_impl(&self) -> &RtpsWeak<P> {
+    pub(crate) fn _publisher_impl(&self) -> &RtpsWeak<P> {
         &self.publisher_impl
     }
 }
 
-impl<'dw, 'p, 't, T, P> DataWriterGAT<'dw, 't, T> for PublisherProxy<'p, P>
+impl<'dw, 'p, 't, T, P, DW, I> DataWriterGAT<'dw, 't, T> for PublisherProxy<'p, P>
 where
-    P: for<'a, 'b> DataWriterGAT<
-        'a,
-        'b,
-        T,
-        TopicType = (),
-        DataWriterType = RtpsWeak<DataWriterImpl>,
-    >,
+    DW: DataWriter<T>,
+    I: Topic<T>,
+    P: for<'a, 'b> DataWriterGAT<'a, 'b, T, TopicType = RtpsWeak<I>, DataWriterType = RtpsWeak<DW>>,
     T: 't + 'dw,
 {
-    type TopicType = TopicProxy<'t, T, TopicImpl>;
-    type DataWriterType = DataWriterProxy<'dw, T, DataWriterImpl>;
+    type TopicType = TopicProxy<'t, T, I>;
+    type DataWriterType = DataWriterProxy<'dw, T, DW>;
 
     fn create_datawriter_gat(
         &'dw self,
@@ -61,7 +58,7 @@ where
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let data_writer_weak = self.publisher_impl.upgrade().ok()?.create_datawriter_gat(
-            &(),
+            a_topic.topic_impl(),
             qos,
             a_listener,
             mask,

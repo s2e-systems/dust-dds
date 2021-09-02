@@ -1,5 +1,4 @@
-use std::marker::PhantomData;
-
+use crate::utils::shared_object::RtpsWeak;
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     domain::domain_participant::DomainParticipant,
@@ -7,28 +6,31 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::{topic::Topic, topic_description::TopicDescription},
 };
+use std::marker::PhantomData;
 
-use crate::utils::shared_object::RtpsWeak;
-
-pub struct TopicProxy<'t, T, TT> {
+pub struct TopicProxy<'t, T, I> {
     participant: &'t dyn DomainParticipant,
-    topic_impl: RtpsWeak<TT>,
+    topic_impl: RtpsWeak<I>,
     phantom: PhantomData<&'t T>,
 }
 
-impl<'t, T, TT> TopicProxy<'t, T, TT> {
-    pub fn new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<TT>) -> Self {
+impl<'t, T, I> TopicProxy<'t, T, I> {
+    pub(crate) fn _new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<I>) -> Self {
         Self {
             participant,
             topic_impl,
             phantom: PhantomData,
         }
     }
+
+    pub(crate) fn topic_impl(&self) -> &RtpsWeak<I> {
+        &self.topic_impl
+    }
 }
 
-impl<'t, T, TT> Topic<T> for TopicProxy<'t, T, TT>
+impl<'t, T, I> Topic<T> for TopicProxy<'t, T, I>
 where
-    TT: Topic<T>,
+    I: Topic<T>,
 {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         self.topic_impl.upgrade()?.get_inconsistent_topic_status()

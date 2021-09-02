@@ -1,3 +1,4 @@
+use crate::utils::shared_object::RtpsWeak;
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
@@ -18,8 +19,6 @@ use rust_dds_api::{
     },
     topic::topic_description::TopicDescription,
 };
-
-use crate::utils::shared_object::RtpsWeak;
 
 pub struct DataReaderProxy<'dr, T, DR> {
     subscriber: &'dr dyn Subscriber,
