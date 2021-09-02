@@ -1,6 +1,6 @@
 use std::sync::{
-    atomic::{self, AtomicU8},
-    Mutex, RwLock,
+    atomic::{self, AtomicBool, AtomicU8},
+    Arc, Mutex, RwLock,
 };
 
 use rust_dds_api::{
@@ -38,16 +38,16 @@ use super::{
     topic_proxy::TopicProxy,
 };
 
-pub trait Transport: TransportRead + TransportWrite + Send {}
+pub trait Transport: TransportRead + TransportWrite + Send + Sync {}
 
-impl<T> Transport for T where T: TransportRead + TransportWrite + Send {}
+impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
 
 pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipantImpl,
     qos: DomainParticipantQos,
-    builtin_subscriber_storage: Vec<RtpsShared<SubscriberImpl>>,
+    builtin_subscriber_storage: Arc<Vec<RtpsShared<SubscriberImpl>>>,
     builtin_publisher_storage: Vec<RtpsShared<PublisherImpl>>,
-    user_defined_subscriber_storage: Vec<RtpsShared<SubscriberImpl>>,
+    user_defined_subscriber_storage: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: RwLock<SubscriberQos>,
     user_defined_publisher_storage: Mutex<Vec<RtpsShared<PublisherImpl>>>,
@@ -55,8 +55,9 @@ pub struct DomainParticipantImpl {
     default_publisher_qos: RwLock<PublisherQos>,
     topic_storage: Vec<RtpsShared<TopicImpl>>,
     default_topic_qos: RwLock<TopicQos>,
-    metatraffic_transport: Box<dyn Transport>,
-    default_transport: Box<dyn Transport>,
+    metatraffic_transport: Arc<Mutex<Box<dyn Transport>>>,
+    default_transport: Arc<Mutex<Box<dyn Transport>>>,
+    is_enabled: Arc<AtomicBool>,
 }
 
 impl DomainParticipantImpl {
@@ -71,11 +72,11 @@ impl DomainParticipantImpl {
         Self {
             rtps_participant,
             qos: domain_participant_qos,
-            builtin_subscriber_storage,
+            builtin_subscriber_storage: Arc::new(builtin_subscriber_storage),
             builtin_publisher_storage,
-            metatraffic_transport,
-            default_transport,
-            user_defined_subscriber_storage: Vec::new(),
+            metatraffic_transport: Arc::new(Mutex::new(metatraffic_transport)),
+            default_transport: Arc::new(Mutex::new(default_transport)),
+            user_defined_subscriber_storage: Arc::new(Mutex::new(Vec::new())),
             user_defined_subscriber_counter: 0,
             default_subscriber_qos: RwLock::new(SubscriberQos::default()),
             user_defined_publisher_storage: Mutex::new(Vec::new()),
@@ -83,6 +84,7 @@ impl DomainParticipantImpl {
             default_publisher_qos: RwLock::new(PublisherQos::default()),
             topic_storage: Vec::new(),
             default_topic_qos: RwLock::new(TopicQos::default()),
+            is_enabled: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -114,28 +116,6 @@ impl DomainParticipantImpl {
         //         );
         //     }
         // }
-    }
-
-    pub fn receive_builtin_data(&mut self) {
-        if let Some((source_locator, message)) = self.metatraffic_transport.read() {
-            crate::utils::message_receiver::MessageReceiver::new().process_message(
-                *self.rtps_participant.guid().prefix(),
-                &self.builtin_subscriber_storage,
-                source_locator,
-                &message,
-            );
-        }
-    }
-
-    pub fn receive_user_defined_data(&mut self) {
-        if let Some((source_locator, message)) = self.default_transport.read() {
-            crate::utils::message_receiver::MessageReceiver::new().process_message(
-                *self.rtps_participant.guid().prefix(),
-                &self.user_defined_subscriber_storage,
-                source_locator,
-                &message,
-            );
-        }
     }
 }
 
@@ -435,19 +415,43 @@ impl Entity for DomainParticipantImpl {
 
     fn enable(&self) -> DDSResult<()> {
         // self.is_enabled.store(true, atomic::Ordering::Release);
-        // let is_enabled = self.is_enabled.clone();
-        // let domain_participant_storage = self.domain_participant_storage.clone();
-        // std::thread::spawn(move || {
-        //     while is_enabled.load(atomic::Ordering::Relaxed) {
-        //         domain_participant_storage.lock().send_builtin_data();
-        //         domain_participant_storage.lock().receive_builtin_data();
-        //         domain_participant_storage.lock().send_user_defined_data();
-        //         domain_participant_storage
-        //             .lock()
-        //             .receive_user_defined_data();
-        //         std::thread::sleep(std::time::Duration::from_millis(100));
-        //     }
-        // });
+        let is_enabled = self.is_enabled.clone();
+        let default_transport = self.default_transport.clone();
+        let metatraffic_transport = self.metatraffic_transport.clone();
+        let guid_prefix = *self.rtps_participant.guid().prefix();
+        let builtin_subscriber_storage = self.builtin_subscriber_storage.clone();
+        let user_defined_subscriber_storage = self.user_defined_subscriber_storage.clone();
+
+        std::thread::spawn(move || {
+            while is_enabled.load(atomic::Ordering::Relaxed) {
+                //         domain_participant_storage.lock().send_builtin_data();
+
+                //receive_builtin_data();
+                if let Some((source_locator, message)) =
+                    metatraffic_transport.lock().unwrap().read()
+                {
+                    crate::utils::message_receiver::MessageReceiver::new().process_message(
+                        guid_prefix,
+                        &builtin_subscriber_storage,
+                        source_locator,
+                        &message,
+                    );
+                }
+                //         domain_participant_storage.lock().send_user_defined_data();
+
+                //receive_user_defined_data();
+                if let Some((source_locator, message)) = default_transport.lock().unwrap().read() {
+                    crate::utils::message_receiver::MessageReceiver::new().process_message(
+                        guid_prefix,
+                        &user_defined_subscriber_storage.lock().unwrap(),
+                        source_locator,
+                        &message,
+                    );
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        });
         Ok(())
     }
 }
