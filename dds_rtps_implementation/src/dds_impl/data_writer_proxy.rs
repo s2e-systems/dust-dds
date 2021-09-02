@@ -1,72 +1,76 @@
-use crate::{dds_type::DDSType, utils::shared_object::RtpsWeak};
+use crate::utils::shared_object::RtpsWeak;
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
-        OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask,
+        OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
-    infrastructure::{entity::StatusCondition, qos::DataWriterQos},
-    publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        qos::DataWriterQos,
+    },
+    publication::{
+        data_writer::{AnyDataWriter, DataWriter},
+        data_writer_listener::DataWriterListener,
+        publisher::Publisher,
+    },
     return_type::DDSResult,
     topic::topic::Topic,
 };
 
-use super::data_writer_impl::DataWriterImpl;
-
-pub struct DataWriterProxy<'dw, T: 'static> {
-    _publisher: &'dw dyn Publisher,
-    _topic: &'dw dyn Topic<T>,
-    data_writer_storage: RtpsWeak<DataWriterImpl>,
+pub struct DataWriterProxy<'dw, T, DW> {
+    publisher: &'dw dyn Publisher,
+    topic: &'dw dyn Topic<T>,
+    data_writer_impl: RtpsWeak<DW>,
 }
 
-impl<'dw, T: 'static> DataWriterProxy<'dw, T> {
+impl<'dw, T, DW> DataWriterProxy<'dw, T, DW> {
     pub fn new(
         publisher: &'dw dyn Publisher,
         topic: &'dw dyn Topic<T>,
-        data_writer_storage: RtpsWeak<DataWriterImpl>,
+        data_writer_storage: RtpsWeak<DW>,
     ) -> Self {
         Self {
-            _publisher: publisher,
-            _topic: topic,
-            data_writer_storage,
+            publisher,
+            topic,
+            data_writer_impl: data_writer_storage,
         }
     }
 }
 
-impl<'dw, T: DDSType + 'static> rust_dds_api::publication::data_writer::DataWriter<T>
-    for DataWriterProxy<'dw, T>
+impl<'dw, T, DW> DataWriter<T> for DataWriterProxy<'dw, T, DW>
+where
+    DW: DataWriter<T>,
 {
-    fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
-        todo!()
-        // let timestamp = self.parent.0.parent.get_current_time()?;
-        // self.register_instance_w_timestamp(instance, timestamp)
+    fn register_instance(&self, instance: T) -> DDSResult<Option<InstanceHandle>> {
+        let timestamp = self.publisher.get_participant().get_current_time()?;
+        self.register_instance_w_timestamp(instance, timestamp)
     }
 
     fn register_instance_w_timestamp(
         &self,
-        _instance: T,
-        _timestamp: rust_dds_api::dcps_psm::Time,
+        instance: T,
+        timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
-        // let writer = self
-        //     .rtps_writer_impl
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?;
-        // let writer_guard = writer.lock().unwrap();
-        // let _c = writer_guard.writer_cache();
-        todo!()
+        self.data_writer_impl
+            .upgrade()?
+            .register_instance_w_timestamp(instance, timestamp)
     }
 
-    fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
-        todo!()
+    fn unregister_instance(&self, instance: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
+        let timestamp = self.publisher.get_participant().get_current_time()?;
+        self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     fn unregister_instance_w_timestamp(
         &self,
-        _instance: T,
-        _handle: Option<InstanceHandle>,
-        _timestamp: rust_dds_api::dcps_psm::Time,
+        instance: T,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
     ) -> DDSResult<()> {
-        todo!()
+        self.data_writer_impl
+            .upgrade()?
+            .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> DDSResult<()> {
@@ -77,20 +81,20 @@ impl<'dw, T: DDSType + 'static> rust_dds_api::publication::data_writer::DataWrit
         todo!()
     }
 
-    fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
-        todo!()
+    fn write(&self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
+        let timestamp = self.publisher.get_participant().get_current_time()?;
+        self.write_w_timestamp(data, handle, timestamp)
     }
 
     fn write_w_timestamp(
         &self,
         data: T,
         handle: Option<InstanceHandle>,
-        timestamp: rust_dds_api::dcps_psm::Time,
+        timestamp: Time,
     ) -> DDSResult<()> {
-        todo!()
-        // let writer_storage = self.data_writer_storage.upgrade()?;
-        // let mut writer_storage_lock = writer_storage.lock();
-        // writer_storage_lock.write_w_timestamp(data, handle, timestamp)
+        self.data_writer_impl
+            .upgrade()?
+            .write_w_timestamp(data, handle, timestamp)
     }
 
     fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
@@ -101,7 +105,7 @@ impl<'dw, T: DDSType + 'static> rust_dds_api::publication::data_writer::DataWrit
         &self,
         _data: T,
         _handle: Option<InstanceHandle>,
-        _timestamp: rust_dds_api::dcps_psm::Time,
+        _timestamp: Time,
     ) -> DDSResult<()> {
         todo!()
     }
@@ -155,61 +159,58 @@ impl<'dw, T: DDSType + 'static> rust_dds_api::publication::data_writer::DataWrit
     }
 
     fn get_topic(&self) -> &dyn Topic<T> {
-        todo!()
+        self.topic
     }
 
     fn get_publisher(&self) -> &dyn Publisher {
-        todo!()
+        self.publisher
     }
 }
 
-impl<'dw, T: 'static> rust_dds_api::infrastructure::entity::Entity for DataWriterProxy<'dw, T> {
-    type Qos = DataWriterQos;
-    type Listener = &'static dyn DataWriterListener<DataPIM = T>;
+impl<'dw, T, DW> Entity for DataWriterProxy<'dw, T, DW>
+where
+    T: 'static,
+    DW: Entity<Qos = DataWriterQos, Listener = &'static dyn DataWriterListener<DataPIM = T>>,
+{
+    type Qos = DW::Qos;
+    type Listener = DW::Listener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        // self.data_writer_storage.upgrade()?.lock().set_qos(qos)
-        todo!()
+        self.data_writer_impl.upgrade()?.set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        // Ok(self.data_writer_storage.upgrade()?.lock().get_qos().clone())
-        todo!()
+        self.data_writer_impl.upgrade()?.get_qos()
     }
 
-    fn set_listener(
-        &self,
-        _a_listener: Option<Self::Listener>,
-        _mask: StatusMask,
-    ) -> DDSResult<()> {
-        todo!()
+    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+        self.data_writer_impl
+            .upgrade()?
+            .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        todo!()
+        self.data_writer_impl.upgrade()?.get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        todo!()
+        self.data_writer_impl.upgrade()?.get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        todo!()
+        self.data_writer_impl.upgrade()?.get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        todo!()
+        self.data_writer_impl.upgrade()?.enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        todo!()
+        self.data_writer_impl.upgrade()?.get_instance_handle()
     }
 }
 
-impl<'dw, T: 'static> rust_dds_api::publication::data_writer::AnyDataWriter
-    for DataWriterProxy<'dw, T>
-{
-}
+impl<'dw, T, DW> AnyDataWriter for DataWriterProxy<'dw, T, DW> {}
 
 // #[cfg(test)]
 // mod tests {

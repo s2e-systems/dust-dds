@@ -15,7 +15,8 @@ use rust_dds_api::{
 use crate::{dds_type::DDSType, utils::shared_object::RtpsWeak};
 
 use super::{
-    data_writer_proxy::DataWriterProxy, publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
+    data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy,
+    publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
 };
 
 pub struct PublisherProxy<'p> {
@@ -40,11 +41,9 @@ impl<'p> PublisherProxy<'p> {
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterGAT<'dw, 't, T>
-    for PublisherProxy<'p>
-{
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterGAT<'dw, 't, T> for PublisherProxy<'p> {
     type TopicType = TopicProxy<'t, T>;
-    type DataWriterType = DataWriterProxy<'dw, T>;
+    type DataWriterType = DataWriterProxy<'dw, T, DataWriterImpl>;
 
     fn create_datawriter_gat(
         &'dw self,
@@ -66,19 +65,22 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterGAT<'dw, 't, T>
     }
 
     fn delete_datawriter_gat(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
-        if std::ptr::eq(a_datawriter.get_publisher(), self) {
+        // if std::ptr::eq(a_datawriter.get_publisher(), self) {
             todo!()
             // self.rtps_writer_group_impl
             // .upgrade()?
             // .delete_datawriter(a_datawriter.get_instance_handle()?)
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher",
-            ))
-        }
+        // } else {
+            // Err(DDSError::PreconditionNotMet(
+                // "Data writer can only be deleted from its parent publisher",
+            // ))
+        // }
     }
 
-    fn lookup_datawriter_gat(&'dw self, _topic: &'dw Self::TopicType) -> Option<Self::DataWriterType> {
+    fn lookup_datawriter_gat(
+        &'dw self,
+        _topic: &'dw Self::TopicType,
+    ) -> Option<Self::DataWriterType> {
         todo!()
     }
 }
