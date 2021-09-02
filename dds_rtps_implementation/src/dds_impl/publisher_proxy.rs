@@ -53,15 +53,16 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterGAT<'dw, 't, T>
         a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let data_writer_weak = self
-            .publisher_storage
-            .upgrade()
-            .ok()?
-            .lock()
-            .create_datawriter((), qos, a_listener, mask)?;
-        let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
+        // let data_writer_weak = self
+        //     .publisher_storage
+        //     .upgrade()
+        //     .ok()?
+        //     .lock()
+        //     .create_datawriter((), qos, a_listener, mask)?;
+        // let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
 
-        Some(datawriter)
+        // Some(datawriter)
+        todo!()
     }
 
     fn delete_datawriter_gat(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
@@ -144,11 +145,13 @@ impl<'p> rust_dds_api::infrastructure::entity::Entity for PublisherProxy<'p> {
     type Listener = &'static dyn PublisherListener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.publisher_storage.upgrade()?.lock().set_qos(qos)
+        // self.publisher_storage.upgrade()?.lock().set_qos(qos)
+        todo!()
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.publisher_storage.upgrade()?.lock().get_qos().clone())
+        // Ok(self.publisher_storage.upgrade()?.lock().get_qos().clone())
+        todo!()
     }
 
     fn set_listener(

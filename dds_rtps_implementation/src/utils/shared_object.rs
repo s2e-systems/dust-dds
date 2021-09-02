@@ -1,27 +1,19 @@
 use std::{
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, MutexGuard, Weak},
+    sync::{Arc, MutexGuard, Weak},
 };
 
 use rust_dds_api::return_type::{DDSError, DDSResult};
 
-pub struct RtpsShared<T>(Arc<Mutex<T>>);
+pub struct RtpsShared<T>(Arc<T>);
 
 impl<T> RtpsShared<T> {
     pub fn new(value: T) -> Self {
-        Self(Arc::new(Mutex::new(value)))
+        Self(Arc::new(value))
     }
 
     pub fn downgrade(&self) -> RtpsWeak<T> {
         RtpsWeak(Arc::downgrade(&self.0))
-    }
-
-    pub fn lock(&self) -> RtpsLock<'_, T> {
-        RtpsLock(self.0.lock().unwrap())
-    }
-
-    pub fn try_lock(&self) -> Option<RtpsLock<'_, T>> {
-        Some(RtpsLock(self.0.try_lock().ok()?))
     }
 }
 
@@ -53,19 +45,19 @@ impl<'a, T> DerefMut for RtpsLock<'a, T> {
     }
 }
 
-impl<'a,T> AsRef<T> for RtpsLock<'a, T> {
+impl<'a, T> AsRef<T> for RtpsLock<'a, T> {
     fn as_ref(&self) -> &T {
         &self.0
     }
 }
 
-impl<'a,T> AsMut<T> for RtpsLock<'a, T> {
+impl<'a, T> AsMut<T> for RtpsLock<'a, T> {
     fn as_mut(&mut self) -> &mut T {
         &mut self.0
     }
 }
 
-pub struct RtpsWeak<T>(Weak<Mutex<T>>);
+pub struct RtpsWeak<T>(Weak<T>);
 
 impl<T> RtpsWeak<T> {
     pub fn upgrade(&self) -> DDSResult<RtpsShared<T>> {

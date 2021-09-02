@@ -59,14 +59,15 @@ where
         a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
-        let reader_storage_weak = self
-            .subscriber_storage
-            .upgrade()
-            .ok()?
-            .lock()
-            .create_datareader((), qos, a_listener, mask)?;
-        let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
-        Some(data_reader)
+        todo!()
+        // let reader_storage_weak = self
+        //     .subscriber_storage
+        //     .upgrade()
+        //     .ok()?
+        //     .lock()
+        //     .create_datareader((), qos, a_listener, mask)?;
+        // let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
+        // Some(data_reader)
     }
 
     fn delete_datareader_gat(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
@@ -139,11 +140,13 @@ impl<'s> Entity for SubscriberProxy<'s> {
     type Listener = &'static dyn SubscriberListener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.subscriber_storage.upgrade()?.lock().set_qos(qos)
+        // self.subscriber_storage.upgrade()?.lock().set_qos(qos)
+        todo!()
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.subscriber_storage.upgrade()?.lock().get_qos().clone())
+        // Ok(self.subscriber_storage.upgrade()?.lock().get_qos().clone())
+        todo!()
     }
 
     fn set_listener(

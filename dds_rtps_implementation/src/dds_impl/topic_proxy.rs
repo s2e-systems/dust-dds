@@ -73,11 +73,13 @@ impl<'t, T: 'static> Entity for TopicProxy<'t, T> {
     type Listener = &'static dyn TopicListener<DataPIM = T>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.topic_storage.upgrade()?.lock().set_qos(qos)
+        // self.topic_storage.upgrade()?.lock().set_qos(qos)
+        todo!()
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.topic_storage.upgrade()?.lock().get_qos().clone())
+        // Ok(self.topic_storage.upgrade()?.lock().get_qos().clone())
+        todo!()
     }
 
     fn set_listener(

@@ -85,21 +85,22 @@ impl MessageReceiver {
 
     fn process_data<'a>(
         &mut self,
-        data: &DataSubmessage<Vec<Parameter<'_>>>,
+        _data: &DataSubmessage<Vec<Parameter<'_>>>,
         reader_group_list: impl IntoIterator<Item = &'a RtpsShared<SubscriberImpl>>,
     ) {
-        for subscriber in reader_group_list {
-            let subscriber_lock = subscriber.lock();
-            for reader in subscriber_lock.readers() {
-                let mut reader_lock = reader.lock();
-                reader_lock
-                    .rtps_reader_mut()
-                    .reader_cache_mut()
-                    .set_source_timestamp(Some(self.timestamp));
-                reader_lock
-                    .rtps_reader_mut()
-                    .receive_data(self.source_guid_prefix, data);
-            }
+        for _subscriber in reader_group_list {
+            todo!()
+            // let subscriber_lock = subscriber.lock();
+            // for reader in subscriber_lock.readers() {
+            //     let mut reader_lock = reader.lock();
+            //     reader_lock
+            //         .rtps_reader_mut()
+            //         .reader_cache_mut()
+            //         .set_source_timestamp(Some(self.timestamp));
+            //     reader_lock
+            //         .rtps_reader_mut()
+            //         .receive_data(self.source_guid_prefix, data);
+            // }
         }
     }
 

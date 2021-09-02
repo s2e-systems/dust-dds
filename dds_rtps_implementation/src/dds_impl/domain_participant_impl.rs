@@ -198,31 +198,33 @@ impl DomainParticipantImpl {
     }
 
     pub fn send_builtin_data(&mut self) {
-        for publisher in &self.builtin_publisher_storage {
-            let publisher_lock = publisher.lock();
-            for data_writer in publisher_lock.data_writer_storage_list() {
-                let mut data_writer_lock = data_writer.lock();
-                crate::utils::message_sender::send_data(
-                    &self.rtps_participant,
-                    data_writer_lock.rtps_data_writer_mut(),
-                    &mut *self.metatraffic_transport,
-                );
-            }
-        }
+        // for publisher in &self.builtin_publisher_storage {
+        //     let publisher_lock = publisher.lock();
+        //     for data_writer in publisher_lock.data_writer_storage_list() {
+        //         let mut data_writer_lock = data_writer.lock();
+        //         crate::utils::message_sender::send_data(
+        //             &self.rtps_participant,
+        //             data_writer_lock.rtps_data_writer_mut(),
+        //             &mut *self.metatraffic_transport,
+        //         );
+        //     }
+        // }
+        todo!()
     }
 
     pub fn send_user_defined_data(&mut self) {
-        for publisher in &self.user_defined_publisher_storage {
-            let publisher_lock = publisher.lock();
-            for data_writer in publisher_lock.data_writer_storage_list() {
-                let mut data_writer_lock = data_writer.lock();
-                crate::utils::message_sender::send_data(
-                    &self.rtps_participant,
-                    data_writer_lock.rtps_data_writer_mut(),
-                    &mut *self.default_transport,
-                );
-            }
-        }
+        todo!()
+        // for publisher in &self.user_defined_publisher_storage {
+        //     let publisher_lock = publisher.lock();
+        //     for data_writer in publisher_lock.data_writer_storage_list() {
+        //         let mut data_writer_lock = data_writer.lock();
+        //         crate::utils::message_sender::send_data(
+        //             &self.rtps_participant,
+        //             data_writer_lock.rtps_data_writer_mut(),
+        //             &mut *self.default_transport,
+        //         );
+        //     }
+        // }
     }
 
     pub fn receive_builtin_data(&mut self) {
