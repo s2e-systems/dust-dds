@@ -12,5 +12,5 @@ pub trait Topic<T> {
     /// invoked and can also be monitored by means of the associated StatusCondition.
     /// The complete list of communication status, their values, and the DomainEntities they apply to is provided in 2.2.4.1,
     /// Communication Status.
-    fn get_inconsistent_topic_status(&self, status: &mut InconsistentTopicStatus) -> DDSResult<()>;
+    fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus>;
 }

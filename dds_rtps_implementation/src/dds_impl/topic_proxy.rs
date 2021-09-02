@@ -30,10 +30,8 @@ impl<'t, T, TT> Topic<T> for TopicProxy<'t, T, TT>
 where
     TT: Topic<T>,
 {
-    fn get_inconsistent_topic_status(&self, status: &mut InconsistentTopicStatus) -> DDSResult<()> {
-        self.topic_impl
-            .upgrade()?
-            .get_inconsistent_topic_status(status)
+    fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
+        self.topic_impl.upgrade()?.get_inconsistent_topic_status()
     }
 }
 

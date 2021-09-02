@@ -1,4 +1,5 @@
 use rust_dds_api::{
+    dcps_psm::InconsistentTopicStatus,
     infrastructure::qos::TopicQos,
     return_type::DDSResult,
     topic::{topic::Topic, topic_description::TopicDescription},
@@ -26,10 +27,7 @@ impl TopicImpl {
 }
 
 impl<T> Topic<T> for TopicImpl {
-    fn get_inconsistent_topic_status(
-        &self,
-        _status: &mut rust_dds_api::dcps_psm::InconsistentTopicStatus,
-    ) -> DDSResult<()> {
+    fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         todo!()
     }
 }
