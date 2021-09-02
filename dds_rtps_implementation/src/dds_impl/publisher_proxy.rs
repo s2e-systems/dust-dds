@@ -7,7 +7,7 @@ use rust_dds_api::{
     },
     publication::{
         data_writer::DataWriter, data_writer_listener::DataWriterListener,
-        publisher::DataWriterFactory, publisher_listener::PublisherListener,
+        publisher::DataWriterGAT, publisher_listener::PublisherListener,
     },
     return_type::{DDSError, DDSResult},
 };
@@ -40,13 +40,13 @@ impl<'p> PublisherProxy<'p> {
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterFactory<'dw, 't, T>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterGAT<'dw, 't, T>
     for PublisherProxy<'p>
 {
     type TopicType = TopicProxy<'t, T>;
     type DataWriterType = DataWriterProxy<'dw, T>;
 
-    fn create_datawriter(
+    fn create_datawriter_gat(
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
@@ -64,7 +64,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterFactory<'dw, 't, T>
         Some(datawriter)
     }
 
-    fn delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
+    fn delete_datawriter_gat(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
         if std::ptr::eq(a_datawriter.get_publisher(), self) {
             todo!()
             // self.rtps_writer_group_impl
@@ -77,7 +77,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType + 'static> DataWriterFactory<'dw, 't, T>
         }
     }
 
-    fn lookup_datawriter(&'dw self, _topic: &'dw Self::TopicType) -> Option<Self::DataWriterType> {
+    fn lookup_datawriter_gat(&'dw self, _topic: &'dw Self::TopicType) -> Option<Self::DataWriterType> {
         todo!()
     }
 }
@@ -373,7 +373,7 @@ mod tests {
         let topic =
             TopicProxy::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
 
-        let datawriter = publisher.create_datawriter(&topic, None, None, 0);
+        let datawriter = publisher.create_datawriter_gat(&topic, None, None, 0);
 
         assert!(datawriter.is_some());
     }

@@ -15,11 +15,11 @@ use super::{
     publisher_listener::PublisherListener,
 };
 
-pub trait DataWriterFactory<'dw, 't: 'dw, T: 'static>: Publisher {
+pub trait DataWriterGAT<'dw, 't: 'dw, T: 'static>: Publisher {
     type TopicType: Topic<T>;
     type DataWriterType: DataWriter<T> + AnyDataWriter;
 
-    fn create_datawriter(
+    fn create_datawriter_gat(
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
@@ -27,9 +27,9 @@ pub trait DataWriterFactory<'dw, 't: 'dw, T: 'static>: Publisher {
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>;
 
-    fn delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()>;
+    fn delete_datawriter_gat(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()>;
 
-    fn lookup_datawriter(&'dw self, topic: &'dw Self::TopicType) -> Option<Self::DataWriterType>;
+    fn lookup_datawriter_gat(&'dw self, topic: &'dw Self::TopicType) -> Option<Self::DataWriterType>;
 }
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
@@ -68,9 +68,9 @@ pub trait Publisher: Entity<Qos = PublisherQos, Listener = &'static dyn Publishe
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>
     where
-        Self: DataWriterFactory<'dw, 't, T> + Sized,
+        Self: DataWriterGAT<'dw, 't, T> + Sized,
     {
-        <Self as DataWriterFactory<'dw, 't, T>>::create_datawriter(
+        <Self as DataWriterGAT<'dw, 't, T>>::create_datawriter_gat(
             self, a_topic, qos, a_listener, mask,
         )
     }
@@ -88,9 +88,9 @@ pub trait Publisher: Entity<Qos = PublisherQos, Listener = &'static dyn Publishe
         a_datawriter: &'dw Self::DataWriterType,
     ) -> DDSResult<()>
     where
-        Self: DataWriterFactory<'dw, 't, T> + Sized,
+        Self: DataWriterGAT<'dw, 't, T> + Sized,
     {
-        <Self as DataWriterFactory<'dw, 't, T>>::delete_datawriter(self, a_datawriter)
+        <Self as DataWriterGAT<'dw, 't, T>>::delete_datawriter_gat(self, a_datawriter)
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
@@ -102,9 +102,9 @@ pub trait Publisher: Entity<Qos = PublisherQos, Listener = &'static dyn Publishe
         topic: &'dw Self::TopicType,
     ) -> Option<Self::DataWriterType>
     where
-        Self: DataWriterFactory<'dw, 't, T> + Sized,
+        Self: DataWriterGAT<'dw, 't, T> + Sized,
     {
-        <Self as DataWriterFactory<'dw, 't, T>>::lookup_datawriter(self, topic)
+        <Self as DataWriterGAT<'dw, 't, T>>::lookup_datawriter_gat(self, topic)
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
