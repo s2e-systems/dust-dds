@@ -181,7 +181,7 @@ impl Entity for DataWriterImpl {
     type Qos = DataWriterQos;
     type Listener = &'static dyn DataWriterListener<DataPIM = ()>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // let qos = qos.unwrap_or_default();
         // qos.is_consistent()?;
         // self.qos = qos;

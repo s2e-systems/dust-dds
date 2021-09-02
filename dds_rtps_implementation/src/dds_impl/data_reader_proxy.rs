@@ -57,7 +57,7 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        self.data_reader_impl.upgrade()?.read(
+        self.data_reader_impl.upgrade()?.read().read(
             max_samples,
             sample_states,
             view_states,
@@ -299,38 +299,45 @@ where
     type Qos = DR::Qos;
     type Listener = DR::Listener;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.data_reader_impl.upgrade()?.set_qos(qos)
+    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self.data_reader_impl.upgrade()?.write().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.data_reader_impl.upgrade()?.get_qos()
+        self.data_reader_impl.upgrade()?.read().get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
         self.data_reader_impl
             .upgrade()?
+            .read()
             .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.data_reader_impl.upgrade()?.get_listener()
+        self.data_reader_impl.upgrade()?.read().get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.data_reader_impl.upgrade()?.get_statuscondition()
+        self.data_reader_impl
+            .upgrade()?
+            .read()
+            .get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.data_reader_impl.upgrade()?.get_status_changes()
+        self.data_reader_impl.upgrade()?.read().get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.data_reader_impl.upgrade()?.enable()
+        self.data_reader_impl.upgrade()?.read().enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.data_reader_impl.upgrade()?.get_instance_handle()
+        self.data_reader_impl
+            .upgrade()?
+            .read()
+            .get_instance_handle()
     }
 }
 

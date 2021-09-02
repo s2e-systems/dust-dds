@@ -326,7 +326,7 @@ impl Entity for DataReaderImpl {
 
     type Listener = &'static dyn DataReaderListener<DataPIM = ()>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 

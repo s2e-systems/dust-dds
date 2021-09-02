@@ -54,6 +54,7 @@ where
     ) -> DDSResult<Option<InstanceHandle>> {
         self.data_writer_impl
             .upgrade()?
+            .read()
             .register_instance_w_timestamp(instance, timestamp)
     }
 
@@ -70,6 +71,7 @@ where
     ) -> DDSResult<()> {
         self.data_writer_impl
             .upgrade()?
+            .read()
             .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
@@ -94,6 +96,7 @@ where
     ) -> DDSResult<()> {
         self.data_writer_impl
             .upgrade()?
+            .read()
             .write_w_timestamp(data, handle, timestamp)
     }
 
@@ -174,38 +177,45 @@ where
     type Qos = DW::Qos;
     type Listener = DW::Listener;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.data_writer_impl.upgrade()?.set_qos(qos)
+    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self.data_writer_impl.upgrade()?.write().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.data_writer_impl.upgrade()?.get_qos()
+        self.data_writer_impl.upgrade()?.read().get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
         self.data_writer_impl
             .upgrade()?
+            .read()
             .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.data_writer_impl.upgrade()?.get_listener()
+        self.data_writer_impl.upgrade()?.read().get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.data_writer_impl.upgrade()?.get_statuscondition()
+        self.data_writer_impl
+            .upgrade()?
+            .read()
+            .get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.data_writer_impl.upgrade()?.get_status_changes()
+        self.data_writer_impl.upgrade()?.read().get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.data_writer_impl.upgrade()?.enable()
+        self.data_writer_impl.upgrade()?.read().enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.data_writer_impl.upgrade()?.get_instance_handle()
+        self.data_writer_impl
+            .upgrade()?
+            .read()
+            .get_instance_handle()
     }
 }
 

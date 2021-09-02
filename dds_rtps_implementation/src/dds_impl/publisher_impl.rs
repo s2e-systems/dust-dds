@@ -193,7 +193,7 @@ impl Entity for PublisherImpl {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 
@@ -237,7 +237,7 @@ impl RtpsSubmessageSender for PublisherImpl {
         let combined_submessages = vec![];
         let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
         for data_writer in &*data_writer_impl_list_lock {
-            let submessages = data_writer.create_submessages();
+            let submessages = data_writer.read().create_submessages();
         }
 
         combined_submessages

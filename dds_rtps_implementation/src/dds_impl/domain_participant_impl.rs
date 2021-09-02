@@ -374,7 +374,7 @@ impl Entity for DomainParticipantImpl {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.qos = qos.unwrap_or_default();
         // Ok(())
         todo!()

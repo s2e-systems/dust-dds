@@ -24,10 +24,7 @@ pub struct PublisherProxy<'p, P> {
 }
 
 impl<'p, P> PublisherProxy<'p, P> {
-    pub(crate) fn new(
-        participant: &'p dyn DomainParticipant,
-        publisher_impl: RtpsWeak<P>,
-    ) -> Self {
+    pub(crate) fn new(participant: &'p dyn DomainParticipant, publisher_impl: RtpsWeak<P>) -> Self {
         Self {
             participant,
             publisher_impl,
@@ -57,12 +54,12 @@ where
         a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let data_writer_weak = self.publisher_impl.upgrade().ok()?.create_datawriter_gat(
-            a_topic.topic_impl(),
-            qos,
-            a_listener,
-            mask,
-        )?;
+        let data_writer_weak = self
+            .publisher_impl
+            .upgrade()
+            .ok()?
+            .read()
+            .create_datawriter_gat(a_topic.topic_impl(), qos, a_listener, mask)?;
 
         let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
 
@@ -73,6 +70,7 @@ where
         if std::ptr::eq(a_datawriter.get_publisher(), self) {
             self.publisher_impl
                 .upgrade()?
+                .read()
                 .delete_datawriter(a_datawriter.data_writer_impl())
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -153,38 +151,39 @@ where
     type Qos = P::Qos;
     type Listener = P::Listener;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.publisher_impl.upgrade()?.set_qos(qos)
+    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self.publisher_impl.upgrade()?.write().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.publisher_impl.upgrade()?.get_qos()
+        self.publisher_impl.upgrade()?.read().get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
         self.publisher_impl
             .upgrade()?
+            .read()
             .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.publisher_impl.upgrade()?.get_listener()
+        self.publisher_impl.upgrade()?.read().get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.publisher_impl.upgrade()?.get_statuscondition()
+        self.publisher_impl.upgrade()?.read().get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.publisher_impl.upgrade()?.get_status_changes()
+        self.publisher_impl.upgrade()?.read().get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.publisher_impl.upgrade()?.enable()
+        self.publisher_impl.upgrade()?.read().enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.publisher_impl.upgrade()?.get_instance_handle()
+        self.publisher_impl.upgrade()?.read().get_instance_handle()
     }
 }
 

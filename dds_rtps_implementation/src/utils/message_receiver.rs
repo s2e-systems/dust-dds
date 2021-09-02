@@ -63,7 +63,7 @@ impl MessageReceiver {
                 RtpsSubmessageType::AckNack(_) => todo!(),
                 RtpsSubmessageType::Data(data) => {
                     for reader in reader_group_list {
-                        reader.process_data_submessage(data)
+                        reader.write().process_data_submessage(data)
                     }
                 }
                 RtpsSubmessageType::DataFrag(_) => todo!(),
@@ -204,6 +204,6 @@ mod tests {
             &message,
         );
 
-        assert_eq!(*reader_group_list[0].called.borrow(), true);
+        assert_eq!(*reader_group_list[0].read().called.borrow(), true);
     }
 }

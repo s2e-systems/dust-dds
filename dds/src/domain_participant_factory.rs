@@ -139,6 +139,7 @@ impl DomainParticipantFactory {
         ));
 
         spdp_builtin_participant_writer
+            .read()
             .write_w_timestamp(
                 (1, 2),
                 None,

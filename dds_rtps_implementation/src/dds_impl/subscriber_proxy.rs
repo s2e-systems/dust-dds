@@ -60,12 +60,12 @@ where
         a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
-        let reader_storage_weak = self.subscriber_impl.upgrade().ok()?.create_datareader(
-            a_topic.topic_impl(),
-            qos,
-            a_listener,
-            mask,
-        )?;
+        let reader_storage_weak = self
+            .subscriber_impl
+            .upgrade()
+            .ok()?
+            .read()
+            .create_datareader(a_topic.topic_impl(), qos, a_listener, mask)?;
         let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
         Some(data_reader)
     }
@@ -74,6 +74,7 @@ where
         if std::ptr::eq(a_datareader.get_subscriber(), self) {
             self.subscriber_impl
                 .upgrade()?
+                .read()
                 .delete_datareader(a_datareader.data_reader_impl())
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -150,37 +151,38 @@ where
     type Qos = S::Qos;
     type Listener = S::Listener;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.subscriber_impl.upgrade()?.set_qos(qos)
+    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self.subscriber_impl.upgrade()?.write().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.subscriber_impl.upgrade()?.get_qos()
+        self.subscriber_impl.upgrade()?.read().get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
         self.subscriber_impl
             .upgrade()?
+            .read()
             .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.subscriber_impl.upgrade()?.get_listener()
+        self.subscriber_impl.upgrade()?.read().get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.subscriber_impl.upgrade()?.get_statuscondition()
+        self.subscriber_impl.upgrade()?.read().get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.subscriber_impl.upgrade()?.get_status_changes()
+        self.subscriber_impl.upgrade()?.read().get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.subscriber_impl.upgrade()?.enable()
+        self.subscriber_impl.upgrade()?.read().enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.subscriber_impl.upgrade()?.get_instance_handle()
+        self.subscriber_impl.upgrade()?.read().get_instance_handle()
     }
 }
