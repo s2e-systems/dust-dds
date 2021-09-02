@@ -26,7 +26,7 @@ use super::data_writer_impl::DataWriterImpl;
 pub struct PublisherImpl {
     qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
-    data_writer_storage_list: Vec<RtpsShared<DataWriterImpl>>,
+    data_writer_impl_list: Vec<RtpsShared<DataWriterImpl>>,
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
 }
@@ -35,12 +35,12 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        data_writer_storage_list: Vec<RtpsShared<DataWriterImpl>>,
+        data_writer_impl_list: Vec<RtpsShared<DataWriterImpl>>,
     ) -> Self {
         Self {
             qos,
             rtps_group,
-            data_writer_storage_list,
+            data_writer_impl_list,
             user_defined_data_writer_counter: 0,
             default_datawriter_qos: DataWriterQos::default(),
         }
@@ -48,7 +48,7 @@ impl PublisherImpl {
 
     /// Get a reference to the publisher storage's data writer storage list.
     pub fn data_writer_storage_list(&self) -> &[RtpsShared<DataWriterImpl>] {
-        self.data_writer_storage_list.as_slice()
+        self.data_writer_impl_list.as_slice()
     }
 
     pub fn create_datawriter<T: DDSType + 'static>(
@@ -99,8 +99,7 @@ impl PublisherImpl {
         let data_writer_storage = DataWriterImpl::new(qos, rtps_writer);
         let data_writer_storage_shared = RtpsShared::new(data_writer_storage);
         let data_writer_storage_weak = data_writer_storage_shared.downgrade();
-        self.data_writer_storage_list
-            .push(data_writer_storage_shared);
+        self.data_writer_impl_list.push(data_writer_storage_shared);
         Some(data_writer_storage_weak)
     }
 

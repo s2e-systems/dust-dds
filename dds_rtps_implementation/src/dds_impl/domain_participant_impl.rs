@@ -1,4 +1,7 @@
-use std::sync::{Mutex, RwLock};
+use std::sync::{
+    atomic::{self, AtomicU8},
+    Mutex, RwLock,
+};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -11,8 +14,8 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::publisher_listener::PublisherListener,
-    return_type::DDSResult,
+    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    return_type::{DDSError, DDSResult},
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
@@ -24,7 +27,7 @@ use rust_rtps_pim::structure::{
 use crate::{
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
     utils::{
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::RtpsShared,
         transport::{TransportRead, TransportWrite},
     },
 };
@@ -47,8 +50,8 @@ pub struct DomainParticipantImpl {
     user_defined_subscriber_storage: Vec<RtpsShared<SubscriberImpl>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: RwLock<SubscriberQos>,
-    user_defined_publisher_storage: Vec<RtpsShared<PublisherImpl>>,
-    user_defined_publisher_counter: u8,
+    user_defined_publisher_storage: Mutex<Vec<RtpsShared<PublisherImpl>>>,
+    user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: RwLock<PublisherQos>,
     topic_storage: Vec<RtpsShared<TopicImpl>>,
     default_topic_qos: RwLock<TopicQos>,
@@ -75,8 +78,8 @@ impl DomainParticipantImpl {
             user_defined_subscriber_storage: Vec::new(),
             user_defined_subscriber_counter: 0,
             default_subscriber_qos: RwLock::new(SubscriberQos::default()),
-            user_defined_publisher_storage: Vec::new(),
-            user_defined_publisher_counter: 0,
+            user_defined_publisher_storage: Mutex::new(Vec::new()),
+            user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: RwLock::new(PublisherQos::default()),
             topic_storage: Vec::new(),
             default_topic_qos: RwLock::new(TopicQos::default()),
@@ -140,53 +143,48 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
     type PublisherType = PublisherProxy<'p, PublisherImpl>;
     fn create_publisher_gat(
         &'p self,
-        _qos: Option<PublisherQos>,
+        qos: Option<PublisherQos>,
         _a_listener: Option<&'static dyn PublisherListener>,
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        // let publisher_qos = qos.unwrap_or(self.default_publisher_qos.clone());
-        // self.user_defined_publisher_counter += 1;
-        // let entity_id = EntityId::new(
-        //     [self.user_defined_publisher_counter, 0, 0],
-        //     EntityKind::UserDefinedWriterGroup,
-        // );
-        // let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
-        // let rtps_group = RtpsGroupImpl::new(guid);
-        // let data_writer_storage_list = Vec::new();
-        // let publisher_storage =
-        //     PublisherImpl::new(publisher_qos, rtps_group, data_writer_storage_list);
-        // let publisher_storage_shared = RtpsShared::new(publisher_storage);
-        // let publisher_storage_weak = publisher_storage_shared.downgrade();
-        // self.user_defined_publisher_storage
-        //     .push(publisher_storage_shared);
-        // Some(publisher_storage_weak)
+        let publisher_qos = qos.unwrap_or(self.default_publisher_qos.read().unwrap().clone());
+        let user_defined_publisher_counter = self
+            .user_defined_publisher_counter
+            .fetch_add(1, atomic::Ordering::SeqCst);
+        let entity_id = EntityId::new(
+            [user_defined_publisher_counter, 0, 0],
+            EntityKind::UserDefinedWriterGroup,
+        );
+        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroupImpl::new(guid);
+        let data_writer_impl_list = Vec::new();
+        let publisher_impl = PublisherImpl::new(publisher_qos, rtps_group, data_writer_impl_list);
+        let publisher_impl_shared = RtpsShared::new(publisher_impl);
+        let publisher_impl_weak = publisher_impl_shared.downgrade();
+        self.user_defined_publisher_storage
+            .lock()
+            .unwrap()
+            .push(publisher_impl_shared);
+        let publisher = PublisherProxy::new(self, publisher_impl_weak);
 
-        // let publisher_storage_weak = self
-        //     .domain_participant_storage
-        //     .lock()
-        //     .create_publisher(qos, a_listener, mask)?;
-        // let publisher = PublisherProxy::new(self, publisher_storage_weak);
-
-        // Some(publisher)
-        todo!()
+        Some(publisher)
     }
 
-    fn delete_publisher_gat(&self, _a_publisher: &Self::PublisherType) -> DDSResult<()> {
+    fn delete_publisher_gat(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         // let publisher_storage = a_publisher.upgrade()?;
-        // self.user_defined_publisher_storage
-        //     .retain(|x| x != &publisher_storage);
-        // Ok(())
 
-        // if std::ptr::eq(a_publisher.get_participant(), self) {
-        //     self.domain_participant_storage
-        //         .lock()
-        //         .delete_publisher(a_publisher.publisher_storage())
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Publisher can only be deleted from its parent participant",
-        //     ))
-        // }
-        todo!()
+        if std::ptr::eq(a_publisher.get_participant(), self) {
+            let publisher_impl_shared = a_publisher.publisher_impl().upgrade()?;
+            self.user_defined_publisher_storage
+                .lock()
+                .unwrap()
+                .retain(|x| x != &publisher_impl_shared);
+            Ok(())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
+        }
     }
 }
 
@@ -628,23 +626,61 @@ mod tests {
         );
     }
 
-    //     #[test]
-    //     fn create_publisher() {
-    //         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-    //         let domain_participant_storage = DomainParticipantImpl::new(
-    //             DomainParticipantQos::default(),
-    //             rtps_participant,
-    //             vec![],
-    //             vec![],
-    //             Box::new(MockTransport),
-    //             Box::new(MockTransport),
-    //         );
-    //         let domain_participant_impl =
-    //             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-    //         let publisher = domain_participant_impl.create_publisher(None, None, 0);
+    #[test]
+    fn create_publisher() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant = DomainParticipantImpl::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+            Box::new(MockTransport),
+            Box::new(MockTransport),
+        );
+        let publisher_counter_before = domain_participant
+            .user_defined_publisher_counter
+            .load(atomic::Ordering::Relaxed);
+        let publisher = domain_participant.create_publisher(None, None, 0);
 
-    //         assert!(publisher.is_some())
-    //     }
+        let publisher_counter_after = domain_participant
+            .user_defined_publisher_counter
+            .load(atomic::Ordering::Relaxed);
+
+        assert_eq!(
+            domain_participant
+                .user_defined_publisher_storage
+                .lock()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_ne!(publisher_counter_before, publisher_counter_after);
+        assert!(publisher.is_some())
+    }
+
+    #[test]
+    fn delete_publisher() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant = DomainParticipantImpl::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+            Box::new(MockTransport),
+            Box::new(MockTransport),
+        );
+        let a_publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+
+        domain_participant.delete_publisher(&a_publisher).unwrap();
+        assert_eq!(
+            domain_participant
+                .user_defined_publisher_storage
+                .lock()
+                .unwrap()
+                .len(),
+            0
+        );
+    }
 
     //     #[test]
     //     fn create_subscriber() {
