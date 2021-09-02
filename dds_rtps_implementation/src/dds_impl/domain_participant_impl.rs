@@ -43,14 +43,14 @@ pub trait Transport: TransportRead + TransportWrite + Send + Sync {}
 impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
 
 pub struct DomainParticipantImpl {
-    rtps_participant: RtpsParticipantImpl,
+    rtps_participant: Arc<RtpsParticipantImpl>,
     qos: DomainParticipantQos,
     builtin_subscriber_storage: Arc<Vec<RtpsShared<SubscriberImpl>>>,
-    builtin_publisher_storage: Vec<RtpsShared<PublisherImpl>>,
+    builtin_publisher_storage: Arc<Vec<RtpsShared<PublisherImpl>>>,
     user_defined_subscriber_storage: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
     user_defined_subscriber_counter: u8,
     default_subscriber_qos: RwLock<SubscriberQos>,
-    user_defined_publisher_storage: Mutex<Vec<RtpsShared<PublisherImpl>>>,
+    user_defined_publisher_storage: Arc<Mutex<Vec<RtpsShared<PublisherImpl>>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: RwLock<PublisherQos>,
     topic_storage: Vec<RtpsShared<TopicImpl>>,
@@ -70,16 +70,16 @@ impl DomainParticipantImpl {
         default_transport: Box<dyn Transport>,
     ) -> Self {
         Self {
-            rtps_participant,
+            rtps_participant: Arc::new(rtps_participant),
             qos: domain_participant_qos,
             builtin_subscriber_storage: Arc::new(builtin_subscriber_storage),
-            builtin_publisher_storage,
+            builtin_publisher_storage: Arc::new(builtin_publisher_storage),
             metatraffic_transport: Arc::new(Mutex::new(metatraffic_transport)),
             default_transport: Arc::new(Mutex::new(default_transport)),
             user_defined_subscriber_storage: Arc::new(Mutex::new(Vec::new())),
             user_defined_subscriber_counter: 0,
             default_subscriber_qos: RwLock::new(SubscriberQos::default()),
-            user_defined_publisher_storage: Mutex::new(Vec::new()),
+            user_defined_publisher_storage: Arc::new(Mutex::new(Vec::new())),
             user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: RwLock::new(PublisherQos::default()),
             topic_storage: Vec::new(),
@@ -419,12 +419,20 @@ impl Entity for DomainParticipantImpl {
         let default_transport = self.default_transport.clone();
         let metatraffic_transport = self.metatraffic_transport.clone();
         let guid_prefix = *self.rtps_participant.guid().prefix();
+        let rtps_participant = self.rtps_participant.clone();
         let builtin_subscriber_storage = self.builtin_subscriber_storage.clone();
+        let builtin_publisher_storage = self.builtin_publisher_storage.clone();
         let user_defined_subscriber_storage = self.user_defined_subscriber_storage.clone();
+        let user_defined_publisher_storage = self.user_defined_publisher_storage.clone();
 
         std::thread::spawn(move || {
-            while is_enabled.load(atomic::Ordering::Relaxed) {
-                //         domain_participant_storage.lock().send_builtin_data();
+            while is_enabled.load(atomic::Ordering::SeqCst) {
+                // send_builtin_data();
+                crate::utils::message_sender::send_data(
+                    rtps_participant.as_ref(),
+                    &builtin_publisher_storage,
+                    metatraffic_transport.lock().unwrap().as_mut(),
+                );
 
                 //receive_builtin_data();
                 if let Some((source_locator, message)) =
@@ -437,7 +445,13 @@ impl Entity for DomainParticipantImpl {
                         &message,
                     );
                 }
-                //         domain_participant_storage.lock().send_user_defined_data();
+
+                // send_user_defined_data();
+                crate::utils::message_sender::send_data(
+                    rtps_participant.as_ref(),
+                    &user_defined_publisher_storage.lock().unwrap(),
+                    default_transport.lock().unwrap().as_mut(),
+                );
 
                 //receive_user_defined_data();
                 if let Some((source_locator, message)) = default_transport.lock().unwrap().read() {
@@ -452,6 +466,7 @@ impl Entity for DomainParticipantImpl {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });
+        self.is_enabled.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }
 }

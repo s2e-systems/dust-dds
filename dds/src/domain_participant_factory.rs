@@ -10,12 +10,12 @@ use rust_dds_api::{
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
+    publication::data_writer::DataWriter,
 };
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
-        publisher_impl::PublisherImpl,
-        subscriber_impl::SubscriberImpl,
+        publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
@@ -137,14 +137,14 @@ impl DomainParticipantFactory {
             spdp_builtin_participant_writer_qos,
             spdp_builtin_participant_rtps_writer,
         ));
-        // spdp_builtin_participant_writer
-        //     .lock()
-        //     .write_w_timestamp(
-        //         spdp_discovered_participant_data,
-        //         None,
-        //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-        //     )
-        //     .unwrap();
+
+        spdp_builtin_participant_writer
+            .write_w_timestamp(
+                (1, 2),
+                None,
+                rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
 
         let builtin_publisher_storage = vec![RtpsShared::new(PublisherImpl::new(
             PublisherQos::default(),

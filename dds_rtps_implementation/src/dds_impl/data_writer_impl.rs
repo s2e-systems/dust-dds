@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::{cell::RefCell, sync::Mutex};
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -10,11 +10,25 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 use rust_rtps_pim::{
-    behavior::writer::writer::{RtpsWriter, RtpsWriterOperations},
-    structure::{types::ChangeKind, RtpsHistoryCache},
+    behavior::{
+        stateless_writer_behavior::StatelessWriterBehavior,
+        writer::{
+            reader_locator::RtpsReaderLocator,
+            writer::{RtpsWriter, RtpsWriterOperations},
+        },
+    },
+    messages::submessages::RtpsSubmessageType,
+    structure::{
+        types::{ChangeKind, Locator},
+        RtpsHistoryCache,
+    },
 };
 
-use crate::{dds_type::DDSType, rtps_impl::rtps_writer_impl::RtpsWriterImpl};
+use crate::{
+    dds_type::DDSType,
+    rtps_impl::rtps_writer_impl::RtpsWriterImpl,
+    utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite},
+};
 
 pub struct DataWriterImpl {
     qos: DataWriterQos,
@@ -208,6 +222,43 @@ impl Entity for DataWriterImpl {
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
+    }
+}
+
+impl RtpsSubmessageSender for DataWriterImpl {
+    fn create_submessages(&self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)> {
+        // let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageWrite>)> = Vec::new();
+        // let destined_submessages = RefCell::new(destined_submessages);
+        // self.rtps_writer_impl.lock().unwrap().send_unsent_data(
+        //     |reader_locator, data| {
+        //         let mut destined_submessages_borrow = destined_submessages.borrow_mut();
+        //         match destined_submessages_borrow
+        //             .iter_mut()
+        //             .find(|(locator, _)| locator == reader_locator.locator())
+        //         {
+        //             Some((_, submessages)) => submessages.push(RtpsSubmessageType::Data(data)),
+        //             None => destined_submessages_borrow.push((
+        //                 *reader_locator.locator(),
+        //                 vec![RtpsSubmessageType::Data(data)],
+        //             )),
+        //         }
+        //     },
+        //     |reader_locator, gap| {
+        //         let mut destined_submessages_borrow = destined_submessages.borrow_mut();
+        //         match destined_submessages_borrow
+        //             .iter_mut()
+        //             .find(|(locator, _)| locator == reader_locator.locator())
+        //         {
+        //             Some((_, submessages)) => submessages.push(RtpsSubmessageType::Gap(gap)),
+        //             None => destined_submessages_borrow.push((
+        //                 *reader_locator.locator(),
+        //                 vec![RtpsSubmessageType::Gap(gap)],
+        //             )),
+        //         }
+        //     },
+        // );
+        // destined_submessages.take()
+        vec![]
     }
 }
 

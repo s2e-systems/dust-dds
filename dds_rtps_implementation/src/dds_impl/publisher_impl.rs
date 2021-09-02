@@ -20,7 +20,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
     structure::{
-        types::{EntityId, EntityKind, Guid, ReliabilityKind, TopicKind},
+        types::{EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind},
         RtpsEntity,
     },
 };
@@ -28,7 +28,11 @@ use rust_rtps_pim::{
 use crate::{
     dds_type::DDSType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
-    utils::shared_object::{RtpsShared, RtpsWeak},
+    utils::{
+        message_sender::RtpsSubmessageSender,
+        shared_object::{RtpsShared, RtpsWeak},
+        transport::RtpsSubmessageWrite,
+    },
 };
 
 use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
@@ -225,6 +229,18 @@ impl Entity for PublisherImpl {
 
     fn get_instance_handle(&self) -> DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
         todo!()
+    }
+}
+
+impl RtpsSubmessageSender for PublisherImpl {
+    fn create_submessages(&self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)> {
+        let combined_submessages = vec![];
+        let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
+        for data_writer in &*data_writer_impl_list_lock {
+            let submessages = data_writer.create_submessages();
+        }
+
+        combined_submessages
     }
 }
 
