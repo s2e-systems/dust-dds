@@ -1,7 +1,12 @@
+use std::sync::{Mutex, RwLock};
+
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
-    domain::domain_participant_listener::DomainParticipantListener,
+    domain::{
+        domain_participant::{DomainParticipant, PublisherGAT, SubscriberGAT, TopicGAT},
+        domain_participant_listener::DomainParticipantListener,
+    },
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
@@ -41,12 +46,12 @@ pub struct DomainParticipantImpl {
     builtin_publisher_storage: Vec<RtpsShared<PublisherImpl>>,
     user_defined_subscriber_storage: Vec<RtpsShared<SubscriberImpl>>,
     user_defined_subscriber_counter: u8,
-    default_subscriber_qos: SubscriberQos,
+    default_subscriber_qos: RwLock<SubscriberQos>,
     user_defined_publisher_storage: Vec<RtpsShared<PublisherImpl>>,
     user_defined_publisher_counter: u8,
-    default_publisher_qos: PublisherQos,
+    default_publisher_qos: RwLock<PublisherQos>,
     topic_storage: Vec<RtpsShared<TopicImpl>>,
-    default_topic_qos: TopicQos,
+    default_topic_qos: RwLock<TopicQos>,
     metatraffic_transport: Box<dyn Transport>,
     default_transport: Box<dyn Transport>,
 }
@@ -69,12 +74,12 @@ impl DomainParticipantImpl {
             default_transport,
             user_defined_subscriber_storage: Vec::new(),
             user_defined_subscriber_counter: 0,
-            default_subscriber_qos: SubscriberQos::default(),
+            default_subscriber_qos: RwLock::new(SubscriberQos::default()),
             user_defined_publisher_storage: Vec::new(),
             user_defined_publisher_counter: 0,
-            default_publisher_qos: PublisherQos::default(),
+            default_publisher_qos: RwLock::new(PublisherQos::default()),
             topic_storage: Vec::new(),
-            default_topic_qos: TopicQos::default(),
+            default_topic_qos: RwLock::new(TopicQos::default()),
         }
     }
 
@@ -84,22 +89,23 @@ impl DomainParticipantImpl {
         _a_listener: Option<&'static dyn PublisherListener>,
         _mask: StatusMask,
     ) -> Option<RtpsWeak<PublisherImpl>> {
-        let publisher_qos = qos.unwrap_or(self.default_publisher_qos.clone());
-        self.user_defined_publisher_counter += 1;
-        let entity_id = EntityId::new(
-            [self.user_defined_publisher_counter, 0, 0],
-            EntityKind::UserDefinedWriterGroup,
-        );
-        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
-        let data_writer_storage_list = Vec::new();
-        let publisher_storage =
-            PublisherImpl::new(publisher_qos, rtps_group, data_writer_storage_list);
-        let publisher_storage_shared = RtpsShared::new(publisher_storage);
-        let publisher_storage_weak = publisher_storage_shared.downgrade();
-        self.user_defined_publisher_storage
-            .push(publisher_storage_shared);
-        Some(publisher_storage_weak)
+        todo!()
+        // let publisher_qos = qos.unwrap_or(self.default_publisher_qos.clone());
+        // self.user_defined_publisher_counter += 1;
+        // let entity_id = EntityId::new(
+        //     [self.user_defined_publisher_counter, 0, 0],
+        //     EntityKind::UserDefinedWriterGroup,
+        // );
+        // let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
+        // let rtps_group = RtpsGroupImpl::new(guid);
+        // let data_writer_storage_list = Vec::new();
+        // let publisher_storage =
+        //     PublisherImpl::new(publisher_qos, rtps_group, data_writer_storage_list);
+        // let publisher_storage_shared = RtpsShared::new(publisher_storage);
+        // let publisher_storage_weak = publisher_storage_shared.downgrade();
+        // self.user_defined_publisher_storage
+        //     .push(publisher_storage_shared);
+        // Some(publisher_storage_weak)
     }
 
     pub fn delete_publisher(&mut self, a_publisher: &RtpsWeak<PublisherImpl>) -> DDSResult<()> {
@@ -115,22 +121,23 @@ impl DomainParticipantImpl {
         _a_listener: Option<&'static dyn SubscriberListener>,
         _mask: StatusMask,
     ) -> Option<RtpsWeak<SubscriberImpl>> {
-        let subscriber_qos = qos.unwrap_or(self.default_subscriber_qos.clone());
-        self.user_defined_subscriber_counter += 1;
-        let entity_id = EntityId::new(
-            [self.user_defined_subscriber_counter, 0, 0],
-            EntityKind::UserDefinedWriterGroup,
-        );
-        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
-        let data_reader_storage_list = Vec::new();
-        let subscriber_storage =
-            SubscriberImpl::new(subscriber_qos, rtps_group, data_reader_storage_list);
-        let subscriber_storage_shared = RtpsShared::new(subscriber_storage);
-        let subscriber_storage_weak = subscriber_storage_shared.downgrade();
-        self.user_defined_subscriber_storage
-            .push(subscriber_storage_shared);
-        Some(subscriber_storage_weak)
+        todo!()
+        // let subscriber_qos = qos.unwrap_or(self.default_subscriber_qos.clone());
+        // self.user_defined_subscriber_counter += 1;
+        // let entity_id = EntityId::new(
+        //     [self.user_defined_subscriber_counter, 0, 0],
+        //     EntityKind::UserDefinedWriterGroup,
+        // );
+        // let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
+        // let rtps_group = RtpsGroupImpl::new(guid);
+        // let data_reader_storage_list = Vec::new();
+        // let subscriber_storage =
+        //     SubscriberImpl::new(subscriber_qos, rtps_group, data_reader_storage_list);
+        // let subscriber_storage_shared = RtpsShared::new(subscriber_storage);
+        // let subscriber_storage_weak = subscriber_storage_shared.downgrade();
+        // self.user_defined_subscriber_storage
+        //     .push(subscriber_storage_shared);
+        // Some(subscriber_storage_weak)
     }
 
     pub fn delete_subscriber(&mut self, a_subscriber: &RtpsWeak<SubscriberImpl>) -> DDSResult<()> {
@@ -151,41 +158,13 @@ impl DomainParticipantImpl {
         _a_listener: Option<&'static dyn TopicListener<DataPIM = T>>,
         _mask: StatusMask,
     ) -> Option<RtpsWeak<TopicImpl>> {
-        let topic_qos = qos.unwrap_or(self.default_topic_qos.clone());
-        let topic_storage = TopicImpl::new(topic_qos);
-        let topic_storage_shared = RtpsShared::new(topic_storage);
-        let topic_storage_weak = topic_storage_shared.downgrade();
-        self.topic_storage.push(topic_storage_shared);
-        Some(topic_storage_weak)
-    }
-
-    pub fn set_default_publisher_qos(&mut self, qos: Option<PublisherQos>) -> DDSResult<()> {
-        self.default_publisher_qos = qos.unwrap_or_default();
-        Ok(())
-    }
-
-    pub fn get_default_publisher_qos(&self) -> &PublisherQos {
-        &self.default_publisher_qos
-    }
-
-    pub fn set_default_subscriber_qos(&mut self, qos: Option<SubscriberQos>) -> DDSResult<()> {
-        self.default_subscriber_qos = qos.unwrap_or_default();
-        Ok(())
-    }
-
-    pub fn get_default_subscriber_qos(&self) -> &SubscriberQos {
-        &self.default_subscriber_qos
-    }
-
-    pub fn set_default_topic_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()> {
-        let topic_qos = qos.unwrap_or_default();
-        topic_qos.is_consistent()?;
-        self.default_topic_qos = topic_qos;
-        Ok(())
-    }
-
-    pub fn get_default_topic_qos(&self) -> &TopicQos {
-        &self.default_topic_qos
+        todo!()
+        // let topic_qos = qos.unwrap_or(self.default_topic_qos.clone());
+        // let topic_storage = TopicImpl::new(topic_qos);
+        // let topic_storage_shared = RtpsShared::new(topic_storage);
+        // let topic_storage_weak = topic_storage_shared.downgrade();
+        // self.topic_storage.push(topic_storage_shared);
+        // Some(topic_storage_weak)
     }
 
     pub fn set_qos(&mut self, qos: Option<DomainParticipantQos>) -> DDSResult<()> {
@@ -275,7 +254,7 @@ impl DomainParticipantImpl {
     }
 }
 
-impl<'p> rust_dds_api::domain::domain_participant::PublisherGAT<'p> for DomainParticipantImpl {
+impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
     type PublisherType = PublisherProxy<'p, PublisherImpl>;
     fn create_publisher_gat(
         &'p self,
@@ -307,7 +286,7 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherGAT<'p> for DomainPa
     }
 }
 
-impl<'s> rust_dds_api::domain::domain_participant::SubscriberGAT<'s> for DomainParticipantImpl {
+impl<'s> SubscriberGAT<'s> for DomainParticipantImpl {
     type SubscriberType = SubscriberProxy<'s, SubscriberImpl>;
 
     fn create_subscriber_gat(
@@ -348,9 +327,7 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberGAT<'s> for DomainP
     }
 }
 
-impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicGAT<'t, T>
-    for DomainParticipantImpl
-{
+impl<'t, T: 'static> TopicGAT<'t, T> for DomainParticipantImpl {
     type TopicType = TopicProxy<'t, T, TopicImpl>;
 
     fn create_topic_gat(
@@ -378,7 +355,7 @@ impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicGAT<'t, T>
     }
 }
 
-impl rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl {
+impl DomainParticipant for DomainParticipantImpl {
     fn lookup_topicdescription<'t, T>(
         &'t self,
         _name: &'t str,
@@ -415,49 +392,33 @@ impl rust_dds_api::domain::domain_participant::DomainParticipant for DomainParti
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DDSResult<()> {
-        // self.domain_participant_storage
-        //     .lock()
-        //     .set_default_publisher_qos(qos)
-        todo!()
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
+        *self.default_publisher_qos.write().unwrap() = qos.unwrap_or_default();
+        Ok(())
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
-        // self.domain_participant_storage
-        //     .lock()
-        //     .get_default_publisher_qos()
-        //     .clone()
-        todo!()
+        self.default_publisher_qos.read().unwrap().clone()
     }
 
-    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
-        // self.domain_participant_storage
-        //     .lock()
-        //     .set_default_subscriber_qos(qos)
-        todo!()
+    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()> {
+        *self.default_subscriber_qos.write().unwrap() = qos.unwrap_or_default();
+        Ok(())
     }
 
     fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        // self.domain_participant_storage
-        //     .lock()
-        //     .get_default_subscriber_qos()
-        //     .clone()
-        todo!()
+        self.default_subscriber_qos.read().unwrap().clone()
     }
 
-    fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DDSResult<()> {
-        // self.domain_participant_storage
-        // .lock()
-        // .set_default_topic_qos(qos)
-        todo!()
+    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
+        let topic_qos = qos.unwrap_or_default();
+        topic_qos.is_consistent()?;
+        *self.default_topic_qos.write().unwrap() = topic_qos;
+        Ok(())
     }
 
     fn get_default_topic_qos(&self) -> TopicQos {
-        todo!()
-        // self.domain_participant_storage
-        //     .lock()
-        //     .get_default_topic_qos()
-        //     .clone()
+        self.default_topic_qos.read().unwrap().clone()
     }
 
     fn get_discovered_participants(
@@ -556,251 +517,231 @@ impl Entity for DomainParticipantImpl {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::{
-//         rtps_impl::rtps_participant_impl::RtpsParticipantImpl, utils::transport::RtpsMessageRead,
-//     };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        rtps_impl::rtps_participant_impl::RtpsParticipantImpl, utils::transport::RtpsMessageRead,
+    };
+    use rust_dds_api::return_type::DDSError;
+    use rust_rtps_pim::structure::types::Locator;
 
-//     use super::*;
+    //     struct MockDDSType;
 
-//     use rust_dds_api::domain::domain_participant::DomainParticipant;
-//     use rust_rtps_pim::structure::types::Locator;
+    struct MockTransport;
 
-//     struct MockDDSType;
+    impl TransportRead for MockTransport {
+        fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
+            todo!()
+        }
+    }
 
-//     struct MockTransport;
+    impl TransportWrite for MockTransport {
+        fn write(
+            &mut self,
+            _message: &crate::utils::transport::RtpsMessageWrite<'_>,
+            _destination_locator: &Locator,
+        ) {
+            todo!()
+        }
+    }
 
-//     impl TransportRead for MockTransport {
-//         fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-//             todo!()
-//         }
-//     }
+    #[test]
+    fn set_default_publisher_qos_some_value() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant = DomainParticipantImpl::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+            Box::new(MockTransport),
+            Box::new(MockTransport),
+        );
+        let mut qos = PublisherQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant
+            .set_default_publisher_qos(Some(qos.clone()))
+            .unwrap();
+        assert!(domain_participant.get_default_publisher_qos() == qos);
+    }
 
-//     impl TransportWrite for MockTransport {
-//         fn write(
-//             &mut self,
-//             _message: &crate::utils::transport::RtpsMessageWrite<'_>,
-//             _destination_locator: &Locator,
-//         ) {
-//             todo!()
-//         }
-//     }
+    #[test]
+    fn set_default_publisher_qos_none() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant = DomainParticipantImpl::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+            Box::new(MockTransport),
+            Box::new(MockTransport),
+        );
+        let mut qos = PublisherQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant
+            .set_default_publisher_qos(Some(qos.clone()))
+            .unwrap();
 
-//     #[test]
-//     fn set_default_publisher_qos_some_value() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let mut qos = PublisherQos::default();
-//         qos.group_data.value = &[1, 2, 3, 4];
-//         domain_participant_impl
-//             .set_default_publisher_qos(Some(qos.clone()))
-//             .unwrap();
-//         assert!(domain_participant_impl.get_default_publisher_qos() == qos);
-//     }
+        domain_participant.set_default_publisher_qos(None).unwrap();
+        assert!(domain_participant.get_default_publisher_qos() == PublisherQos::default());
+    }
 
-//     #[test]
-//     fn set_default_publisher_qos_none() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let mut qos = PublisherQos::default();
-//         qos.group_data.value = &[1, 2, 3, 4];
-//         domain_participant_impl
-//             .set_default_publisher_qos(Some(qos.clone()))
-//             .unwrap();
+    #[test]
+    fn set_default_subscriber_qos_some_value() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant = DomainParticipantImpl::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+            Box::new(MockTransport),
+            Box::new(MockTransport),
+        );
+        let mut qos = SubscriberQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant
+            .set_default_subscriber_qos(Some(qos.clone()))
+            .unwrap();
+        assert_eq!(domain_participant.get_default_subscriber_qos(), qos);
+    }
 
-//         domain_participant_impl
-//             .set_default_publisher_qos(None)
-//             .unwrap();
-//         assert!(domain_participant_impl.get_default_publisher_qos() == PublisherQos::default());
-//     }
+    #[test]
+    fn set_default_subscriber_qos_none() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant = DomainParticipantImpl::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+            Box::new(MockTransport),
+            Box::new(MockTransport),
+        );
+        let mut qos = SubscriberQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant
+            .set_default_subscriber_qos(Some(qos.clone()))
+            .unwrap();
 
-//     #[test]
-//     fn set_default_subscriber_qos_some_value() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let mut qos = SubscriberQos::default();
-//         qos.group_data.value = &[1, 2, 3, 4];
-//         domain_participant_impl
-//             .set_default_subscriber_qos(Some(qos.clone()))
-//             .unwrap();
-//         assert_eq!(domain_participant_impl.get_default_subscriber_qos(), qos);
-//     }
+        domain_participant.set_default_subscriber_qos(None).unwrap();
+        assert_eq!(
+            domain_participant.get_default_subscriber_qos(),
+            SubscriberQos::default()
+        );
+    }
 
-//     #[test]
-//     fn set_default_subscriber_qos_none() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let mut qos = SubscriberQos::default();
-//         qos.group_data.value = &[1, 2, 3, 4];
-//         domain_participant_impl
-//             .set_default_subscriber_qos(Some(qos.clone()))
-//             .unwrap();
+    #[test]
+    fn set_default_topic_qos_some_value() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant = DomainParticipantImpl::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+            Box::new(MockTransport),
+            Box::new(MockTransport),
+        );
+        let mut qos = TopicQos::default();
+        qos.topic_data.value = &[1, 2, 3, 4];
+        domain_participant
+            .set_default_topic_qos(Some(qos.clone()))
+            .unwrap();
+        assert_eq!(domain_participant.get_default_topic_qos(), qos);
+    }
 
-//         domain_participant_impl
-//             .set_default_subscriber_qos(None)
-//             .unwrap();
-//         assert_eq!(
-//             domain_participant_impl.get_default_subscriber_qos(),
-//             SubscriberQos::default()
-//         );
-//     }
+    #[test]
+    fn set_default_topic_qos_inconsistent() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant = DomainParticipantImpl::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+            Box::new(MockTransport),
+            Box::new(MockTransport),
+        );
+        let mut qos = TopicQos::default();
+        qos.resource_limits.max_samples_per_instance = 2;
+        qos.resource_limits.max_samples = 1;
+        let set_default_topic_qos_result =
+            domain_participant.set_default_topic_qos(Some(qos.clone()));
+        assert!(set_default_topic_qos_result == Err(DDSError::InconsistentPolicy));
+    }
 
-//     #[test]
-//     fn set_default_topic_qos_some_value() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let mut qos = TopicQos::default();
-//         qos.topic_data.value = &[1, 2, 3, 4];
-//         domain_participant_impl
-//             .set_default_topic_qos(Some(qos.clone()))
-//             .unwrap();
-//         assert_eq!(domain_participant_impl.get_default_topic_qos(), qos);
-//     }
+    #[test]
+    fn set_default_topic_qos_none() {
+        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+        let domain_participant = DomainParticipantImpl::new(
+            DomainParticipantQos::default(),
+            rtps_participant,
+            vec![],
+            vec![],
+            Box::new(MockTransport),
+            Box::new(MockTransport),
+        );
+        let mut qos = TopicQos::default();
+        qos.topic_data.value = &[1, 2, 3, 4];
+        domain_participant
+            .set_default_topic_qos(Some(qos.clone()))
+            .unwrap();
 
-//     #[test]
-//     fn set_default_topic_qos_inconsistent() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let mut qos = TopicQos::default();
-//         qos.resource_limits.max_samples_per_instance = 2;
-//         qos.resource_limits.max_samples = 1;
-//         let set_default_topic_qos_result =
-//             domain_participant_impl.set_default_topic_qos(Some(qos.clone()));
-//         assert!(set_default_topic_qos_result == Err(DDSError::InconsistentPolicy));
-//     }
+        domain_participant.set_default_topic_qos(None).unwrap();
+        assert_eq!(
+            domain_participant.get_default_topic_qos(),
+            TopicQos::default()
+        );
+    }
 
-//     #[test]
-//     fn set_default_topic_qos_none() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let mut qos = TopicQos::default();
-//         qos.topic_data.value = &[1, 2, 3, 4];
-//         domain_participant_impl
-//             .set_default_topic_qos(Some(qos.clone()))
-//             .unwrap();
+    //     #[test]
+    //     fn create_publisher() {
+    //         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+    //         let domain_participant_storage = DomainParticipantImpl::new(
+    //             DomainParticipantQos::default(),
+    //             rtps_participant,
+    //             vec![],
+    //             vec![],
+    //             Box::new(MockTransport),
+    //             Box::new(MockTransport),
+    //         );
+    //         let domain_participant_impl =
+    //             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
+    //         let publisher = domain_participant_impl.create_publisher(None, None, 0);
 
-//         domain_participant_impl.set_default_topic_qos(None).unwrap();
-//         assert_eq!(
-//             domain_participant_impl.get_default_topic_qos(),
-//             TopicQos::default()
-//         );
-//     }
+    //         assert!(publisher.is_some())
+    //     }
 
-//     #[test]
-//     fn create_publisher() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let publisher = domain_participant_impl.create_publisher(None, None, 0);
+    //     #[test]
+    //     fn create_subscriber() {
+    //         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+    //         let domain_participant_storage = DomainParticipantImpl::new(
+    //             DomainParticipantQos::default(),
+    //             rtps_participant,
+    //             vec![],
+    //             vec![],
+    //             Box::new(MockTransport),
+    //             Box::new(MockTransport),
+    //         );
+    //         let domain_participant_impl =
+    //             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
+    //         let subscriber = domain_participant_impl.create_subscriber(None, None, 0);
 
-//         assert!(publisher.is_some())
-//     }
+    //         assert!(subscriber.is_some())
+    //     }
 
-//     #[test]
-//     fn create_subscriber() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let subscriber = domain_participant_impl.create_subscriber(None, None, 0);
-
-//         assert!(subscriber.is_some())
-//     }
-
-//     #[test]
-//     fn create_topic() {
-//         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-//         let domain_participant_storage = DomainParticipantImpl::new(
-//             DomainParticipantQos::default(),
-//             rtps_participant,
-//             vec![],
-//             vec![],
-//             Box::new(MockTransport),
-//             Box::new(MockTransport),
-//         );
-//         let domain_participant_impl =
-//             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
-//         let topic =
-//             domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
-//         assert!(topic.is_some());
-//     }
-// }
+    //     #[test]
+    //     fn create_topic() {
+    //         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
+    //         let domain_participant_storage = DomainParticipantImpl::new(
+    //             DomainParticipantQos::default(),
+    //             rtps_participant,
+    //             vec![],
+    //             vec![],
+    //             Box::new(MockTransport),
+    //             Box::new(MockTransport),
+    //         );
+    //         let domain_participant_impl =
+    //             DomainParticipantProxy::new(RtpsShared::new(domain_participant_storage));
+    //         let topic =
+    //             domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
+    //         assert!(topic.is_some());
+    //     }
+}
