@@ -1,33 +1,29 @@
-use std::{cell::RefCell};
+use std::cell::RefCell;
 
 use rust_rtps_pim::{
     behavior::{
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::reader_locator::RtpsReaderLocator,
     },
-    messages::{submessages::RtpsSubmessageType, RtpsMessage,
-        RtpsMessageHeader,
-    },
+    messages::{submessages::RtpsSubmessageType, RtpsMessage, RtpsMessageHeader},
     structure::{
         types::{Locator, SequenceNumber},
         RtpsEntity, RtpsParticipant,
     },
 };
 
-use crate::rtps_impl::rtps_writer_impl::RtpsWriterImpl;
-
 use super::transport::{RtpsSubmessageWrite, TransportWrite};
 
-pub trait RtpsSubmessageSender<'a> {
-    fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'a>>)>;
+pub trait RtpsSubmessageSender {
+    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)>;
 }
 
-impl<'a, T> RtpsSubmessageSender<'a> for T
+impl<T, U> RtpsSubmessageSender for T
 where
-    T: StatelessWriterBehavior<'a, Vec<SequenceNumber>>,
-    T::ReaderLocator: RtpsReaderLocator,
+    U: RtpsReaderLocator,
+    T: for<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>, ReaderLocator = U>,
 {
-    fn create_submessages(&'a mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'a>>)> {
+    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)> {
         let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageWrite>)> = Vec::new();
         let destined_submessages = RefCell::new(destined_submessages);
         self.send_unsent_data(
@@ -62,14 +58,11 @@ where
     }
 }
 
-pub fn send_data<Transport, Participant>(
-    participant: &Participant,
-    writer: &mut RtpsWriterImpl,
-    transport: &mut Transport,
-) where
-    Transport: TransportWrite + ?Sized,
-    Participant: RtpsParticipant + RtpsEntity,
-{
+pub fn send_data(
+    participant: &(impl RtpsParticipant + RtpsEntity),
+    writer: &mut impl RtpsSubmessageSender,
+    transport: &mut (impl TransportWrite + ?Sized),
+) {
     let destined_submessages = writer.create_submessages();
     for (dst_locator, submessages) in destined_submessages {
         let header = RtpsMessageHeader {
@@ -88,7 +81,18 @@ pub fn send_data<Transport, Participant>(
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::{discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, messages::{submessage_elements::{EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement, SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement, SerializedDataSubmessageElement}, submessages::{DataSubmessage, GapSubmessage, RtpsSubmessageType}}, structure::types::{self, ENTITYID_UNKNOWN, LOCATOR_INVALID}};
+    use rust_rtps_pim::{
+        discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        messages::{
+            submessage_elements::{
+                EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+                SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
+                SerializedDataSubmessageElement,
+            },
+            submessages::{DataSubmessage, GapSubmessage, RtpsSubmessageType},
+        },
+        structure::types::{self, ENTITYID_UNKNOWN, LOCATOR_INVALID},
+    };
 
     use super::*;
 
