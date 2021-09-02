@@ -7,14 +7,12 @@ use rust_dds_api::{
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
-        qos::DataReaderQos,
         read_condition::ReadCondition,
         sample_info::SampleInfo,
     },
     return_type::DDSResult,
     subscription::{
         data_reader::{AnyDataReader, DataReader},
-        data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
         subscriber::Subscriber,
     },
@@ -290,8 +288,7 @@ where
 
 impl<'dr, T, DR> Entity for DataReaderProxy<'dr, T, DR>
 where
-    T: 'static,
-    DR: Entity<Qos = DataReaderQos, Listener = &'static dyn DataReaderListener<DataPIM = T>>,
+    DR: Entity,
 {
     type Qos = DR::Qos;
     type Listener = DR::Listener;

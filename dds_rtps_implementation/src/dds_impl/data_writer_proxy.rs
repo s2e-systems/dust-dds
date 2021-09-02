@@ -28,13 +28,17 @@ impl<'dw, T, DW> DataWriterProxy<'dw, T, DW> {
     pub fn new(
         publisher: &'dw dyn Publisher,
         topic: &'dw dyn Topic<T>,
-        data_writer_storage: RtpsWeak<DW>,
+        data_writer_impl: RtpsWeak<DW>,
     ) -> Self {
         Self {
             publisher,
             topic,
-            data_writer_impl: data_writer_storage,
+            data_writer_impl,
         }
+    }
+
+    pub(crate) fn data_writer_impl(&self) -> &RtpsWeak<DW> {
+        &self.data_writer_impl
     }
 }
 
@@ -169,8 +173,7 @@ where
 
 impl<'dw, T, DW> Entity for DataWriterProxy<'dw, T, DW>
 where
-    T: 'static,
-    DW: Entity<Qos = DataWriterQos, Listener = &'static dyn DataWriterListener<DataPIM = T>>,
+    DW: Entity,
 {
     type Qos = DW::Qos;
     type Listener = DW::Listener;

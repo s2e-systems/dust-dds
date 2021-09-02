@@ -276,7 +276,7 @@ impl DomainParticipantImpl {
 }
 
 impl<'p> rust_dds_api::domain::domain_participant::PublisherGAT<'p> for DomainParticipantImpl {
-    type PublisherType = PublisherProxy<'p>;
+    type PublisherType = PublisherProxy<'p, PublisherImpl>;
     fn create_publisher_gat(
         &'p self,
         _qos: Option<PublisherQos>,
@@ -351,7 +351,7 @@ impl<'s> rust_dds_api::domain::domain_participant::SubscriberGAT<'s> for DomainP
 impl<'t, T: 'static> rust_dds_api::domain::domain_participant::TopicGAT<'t, T>
     for DomainParticipantImpl
 {
-    type TopicType = TopicProxy<'t, T>;
+    type TopicType = TopicProxy<'t, T, TopicImpl>;
 
     fn create_topic_gat(
         &'t self,

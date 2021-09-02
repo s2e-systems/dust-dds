@@ -3,35 +3,30 @@ use std::marker::PhantomData;
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     domain::domain_participant::DomainParticipant,
-    infrastructure::{
-        entity::{Entity, StatusCondition},
-        qos::TopicQos,
-    },
+    infrastructure::entity::{Entity, StatusCondition},
     return_type::DDSResult,
-    topic::{topic_description::TopicDescription, topic_listener::TopicListener},
+    topic::{topic::Topic, topic_description::TopicDescription},
 };
 
 use crate::utils::shared_object::RtpsWeak;
 
-use super::topic_impl::TopicImpl;
-
-pub struct TopicProxy<'t, T> {
+pub struct TopicProxy<'t, T, TT> {
     participant: &'t dyn DomainParticipant,
-    topic_storage: RtpsWeak<TopicImpl>,
+    topic_impl: RtpsWeak<TT>,
     phantom: PhantomData<&'t T>,
 }
 
-impl<'t, T> TopicProxy<'t, T> {
-    pub fn new(participant: &'t dyn DomainParticipant, topic_storage: RtpsWeak<TopicImpl>) -> Self {
+impl<'t, T, TT> TopicProxy<'t, T, TT> {
+    pub fn new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<TT>) -> Self {
         Self {
             participant,
-            topic_storage,
+            topic_impl,
             phantom: PhantomData,
         }
     }
 }
 
-impl<'t, T: 'static> rust_dds_api::topic::topic::Topic<T> for TopicProxy<'t, T> {
+impl<'t, T, TT> Topic<T> for TopicProxy<'t, T, TT> {
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
@@ -40,8 +35,8 @@ impl<'t, T: 'static> rust_dds_api::topic::topic::Topic<T> for TopicProxy<'t, T> 
     }
 }
 
-impl<'t, T: 'static> TopicDescription<T> for TopicProxy<'t, T> {
-    fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
+impl<'t, T, TT> TopicDescription<T> for TopicProxy<'t, T, TT> {
+    fn get_participant(&self) -> &dyn DomainParticipant {
         self.participant
     }
 
@@ -68,9 +63,12 @@ impl<'t, T: 'static> TopicDescription<T> for TopicProxy<'t, T> {
     }
 }
 
-impl<'t, T: 'static> Entity for TopicProxy<'t, T> {
-    type Qos = TopicQos;
-    type Listener = &'static dyn TopicListener<DataPIM = T>;
+impl<'t, T, TT> Entity for TopicProxy<'t, T, TT>
+where
+    TT: Entity,
+{
+    type Qos = TT::Qos;
+    type Listener = TT::Listener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.topic_storage.upgrade()?.lock().set_qos(qos)
