@@ -72,8 +72,12 @@ impl DomainParticipantFactory {
     /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    ///
+    /// Developer note: Ideally this method should return impl DomainParticipant. However because of the GAT workaround used there is no way
+    /// to call,e.g. create_topic(), because we can't write impl DomainParticipant + for<'t, T> TopicGAT<'t, T> on the return. This issue will
+    /// probably be solved once the GAT functionality is available on stable.
     pub fn create_participant(
-        domain_id: DomainId,
+        _domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
