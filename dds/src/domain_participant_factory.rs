@@ -77,7 +77,7 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<impl DomainParticipant> {
+    ) -> Option<DomainParticipantImpl> {
         let guid_prefix = [3; 12];
 
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
