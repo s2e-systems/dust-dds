@@ -5,13 +5,9 @@ use rust_dds_api::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
-    infrastructure::{
-        entity::{Entity, StatusCondition},
-        qos::DataWriterQos,
-    },
+    infrastructure::entity::{Entity, StatusCondition},
     publication::{
         data_writer::{AnyDataWriter, DataWriter},
-        data_writer_listener::DataWriterListener,
         publisher::Publisher,
     },
     return_type::DDSResult,

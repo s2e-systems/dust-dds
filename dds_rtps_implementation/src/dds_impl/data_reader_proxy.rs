@@ -43,9 +43,9 @@ impl<'dr, T, DR> DataReaderProxy<'dr, T, DR> {
 
 impl<'dr, T, DR> DataReader<T> for DataReaderProxy<'dr, T, DR>
 where
-    DR: DataReader<T, Samples = Vec<(T, SampleInfo)>>,
+    DR: DataReader<T>,
 {
-    type Samples = Vec<(T, SampleInfo)>;
+    type Samples = DR::Samples;
 
     fn read(
         &self,

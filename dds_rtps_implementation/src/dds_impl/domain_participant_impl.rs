@@ -308,7 +308,7 @@ impl<'p> rust_dds_api::domain::domain_participant::PublisherGAT<'p> for DomainPa
 }
 
 impl<'s> rust_dds_api::domain::domain_participant::SubscriberGAT<'s> for DomainParticipantImpl {
-    type SubscriberType = SubscriberProxy<'s>;
+    type SubscriberType = SubscriberProxy<'s, SubscriberImpl>;
 
     fn create_subscriber_gat(
         &'s self,
