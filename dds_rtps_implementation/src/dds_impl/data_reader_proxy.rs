@@ -13,12 +13,13 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
     subscription::{
-        data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
-        query_condition::QueryCondition, subscriber::Subscriber,
+        data_reader::{AnyDataReader, DataReader},
+        data_reader_listener::DataReaderListener,
+        query_condition::QueryCondition,
+        subscriber::Subscriber,
     },
     topic::topic_description::TopicDescription,
 };
-use rust_rtps_pim::behavior::reader::reader::RtpsReader;
 
 use crate::utils::shared_object::RtpsWeak;
 
@@ -42,45 +43,22 @@ impl<'dr, T, DR> DataReaderProxy<'dr, T, DR> {
     }
 }
 
-impl<'dr, T, DR> rust_dds_api::subscription::data_reader::DataReader<T>
-    for DataReaderProxy<'dr, T, DR>
+impl<'dr, T, DR> DataReader<T> for DataReaderProxy<'dr, T, DR>
+where
+    DR: DataReader<T, Samples = Vec<(T, SampleInfo)>>,
 {
     type Samples = Vec<(T, SampleInfo)>;
 
     fn read(
         &self,
-        _max_samples: i32,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        todo!()
-        // let shared_reader = self.reader.upgrade()?;
-        // let mut reader = shared_reader.lock();
-        // let reader_cache = reader.rtps_reader_mut().reader_cache_mut();
-        // Ok(reader_cache
-        //     .changes_mut()
-        //     .iter()
-        //     .map(|cc| {
-        //         let data = cc.data();
-        //         let value = cdr::deserialize(data).unwrap();
-        //         let sample_info = SampleInfo {
-        //             sample_state: *cc.sample_state_kind(),
-        //             view_state: *cc.view_state_kind(),
-        //             instance_state: *cc.instance_state_kind(),
-        //             disposed_generation_count: 0,
-        //             no_writers_generation_count: 0,
-        //             sample_rank: 0,
-        //             generation_rank: 0,
-        //             absolute_generation_rank: 0,
-        //             source_timestamp: Time { sec: 0, nanosec: 0 },
-        //             instance_handle: 0,
-        //             publication_handle: 0,
-        //             valid_data: true,
-        //         };
-        //         (value, sample_info)
-        //     })
-        //     .collect())
+        self.reader
+            .upgrade()?
+            .read(max_samples, sample_states, view_states, instance_states)
     }
 
     fn take(
@@ -301,13 +279,11 @@ impl<'dr, T, DR> rust_dds_api::subscription::data_reader::DataReader<T>
         todo!()
     }
 
-    fn get_topicdescription(
-        &self,
-    ) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<T> {
+    fn get_topicdescription(&self) -> &dyn TopicDescription<T> {
         self.topic
     }
 
-    fn get_subscriber(&self) -> &dyn rust_dds_api::subscription::subscriber::Subscriber {
+    fn get_subscriber(&self) -> &dyn Subscriber {
         self.subscriber
     }
 }
@@ -315,46 +291,41 @@ impl<'dr, T, DR> rust_dds_api::subscription::data_reader::DataReader<T>
 impl<'dr, T, DR> Entity for DataReaderProxy<'dr, T, DR>
 where
     T: 'static,
+    DR: Entity<Qos = DataReaderQos, Listener = &'static dyn DataReaderListener<DataPIM = T>>,
 {
-    type Qos = DataReaderQos;
-    type Listener = &'static dyn DataReaderListener<DataPIM = T>;
+    type Qos = DR::Qos;
+    type Listener = DR::Listener;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-        todo!()
-        // self.reader.upgrade()?.lock().set_qos(qos)
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self.reader.upgrade()?.set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        todo!()
-        // Ok(self.reader.upgrade()?.lock().get_qos()?.clone())
+        self.reader.upgrade()?.get_qos()
     }
 
-    fn set_listener(
-        &self,
-        _a_listener: Option<Self::Listener>,
-        _mask: StatusMask,
-    ) -> DDSResult<()> {
-        todo!()
+    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+        self.reader.upgrade()?.set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        todo!()
+        self.reader.upgrade()?.get_listener()
     }
 
-    fn get_statuscondition(&self) -> StatusCondition {
-        todo!()
+    fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
+        self.reader.upgrade()?.get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> StatusMask {
-        todo!()
+    fn get_status_changes(&self) -> DDSResult<StatusMask> {
+        self.reader.upgrade()?.get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        todo!()
+        self.reader.upgrade()?.enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        todo!()
+        self.reader.upgrade()?.get_instance_handle()
     }
 }
 
@@ -362,181 +333,6 @@ impl<'dr, T, DR> AnyDataReader for DataReaderProxy<'dr, T, DR> {}
 
 #[cfg(test)]
 mod tests {
-    use std::marker::PhantomData;
-
-    use rust_dds_api::{
-        infrastructure::qos::{SubscriberQos, TopicQos},
-        topic::topic_listener::TopicListener,
-    };
-
-    struct MockSubcriber;
-    impl rust_dds_api::subscription::subscriber::Subscriber for MockSubcriber {
-        fn begin_access(&self) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn end_access(&self) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn get_datareaders(
-            &self,
-            _readers: &mut [&mut dyn rust_dds_api::subscription::data_reader::AnyDataReader],
-            _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-            _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-            _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-        ) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn notify_datareaders(&self) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn get_participant(
-            &self,
-        ) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
-            todo!()
-        }
-
-        fn get_sample_lost_status(
-            &self,
-            _status: &mut rust_dds_api::dcps_psm::SampleLostStatus,
-        ) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn delete_contained_entities(&self) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn set_default_datareader_qos(
-            &self,
-            _qos: Option<rust_dds_api::infrastructure::qos::DataReaderQos>,
-        ) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn get_default_datareader_qos(
-            &self,
-        ) -> rust_dds_api::return_type::DDSResult<rust_dds_api::infrastructure::qos::DataReaderQos>
-        {
-            todo!()
-        }
-
-        fn copy_from_topic_qos(
-            &self,
-            _a_datareader_qos: &mut rust_dds_api::infrastructure::qos::DataReaderQos,
-            _a_topic_qos: &rust_dds_api::infrastructure::qos::TopicQos,
-        ) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-    }
-
-    impl rust_dds_api::infrastructure::entity::Entity for MockSubcriber {
-        type Qos = SubscriberQos;
-        type Listener =
-            &'static dyn rust_dds_api::subscription::subscriber_listener::SubscriberListener;
-
-        fn set_qos(&self, _qos: Option<Self::Qos>) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn get_qos(&self) -> rust_dds_api::return_type::DDSResult<Self::Qos> {
-            todo!()
-        }
-
-        fn set_listener(
-            &self,
-            _a_listener: Option<Self::Listener>,
-            _mask: rust_dds_api::dcps_psm::StatusMask,
-        ) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn get_listener(&self) -> rust_dds_api::return_type::DDSResult<Option<Self::Listener>> {
-            todo!()
-        }
-
-        fn get_statuscondition(&self) -> rust_dds_api::infrastructure::entity::StatusCondition {
-            todo!()
-        }
-
-        fn get_status_changes(&self) -> rust_dds_api::dcps_psm::StatusMask {
-            todo!()
-        }
-
-        fn enable(&self) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn get_instance_handle(
-            &self,
-        ) -> rust_dds_api::return_type::DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
-            todo!()
-        }
-    }
-
-    struct MockTopic<T>(PhantomData<T>);
-
-    impl<T: 'static> rust_dds_api::topic::topic_description::TopicDescription<T> for MockTopic<T> {
-        fn get_participant(
-            &self,
-        ) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
-            todo!()
-        }
-
-        fn get_type_name(&self) -> rust_dds_api::return_type::DDSResult<&'static str> {
-            todo!()
-        }
-
-        fn get_name(&self) -> rust_dds_api::return_type::DDSResult<&str> {
-            todo!()
-        }
-    }
-
-    impl<T: 'static> rust_dds_api::infrastructure::entity::Entity for MockTopic<T> {
-        type Qos = TopicQos;
-        type Listener = &'static dyn TopicListener<DataPIM = T>;
-
-        fn set_qos(&self, _qos: Option<Self::Qos>) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn get_qos(&self) -> rust_dds_api::return_type::DDSResult<Self::Qos> {
-            todo!()
-        }
-
-        fn set_listener(
-            &self,
-            _a_listener: Option<Self::Listener>,
-            _mask: rust_dds_api::dcps_psm::StatusMask,
-        ) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn get_listener(&self) -> rust_dds_api::return_type::DDSResult<Option<Self::Listener>> {
-            todo!()
-        }
-
-        fn get_statuscondition(&self) -> rust_dds_api::infrastructure::entity::StatusCondition {
-            todo!()
-        }
-
-        fn get_status_changes(&self) -> rust_dds_api::dcps_psm::StatusMask {
-            todo!()
-        }
-
-        fn enable(&self) -> rust_dds_api::return_type::DDSResult<()> {
-            todo!()
-        }
-
-        fn get_instance_handle(
-            &self,
-        ) -> rust_dds_api::return_type::DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
-            todo!()
-        }
-    }
 
     // #[test]
     // fn read() {

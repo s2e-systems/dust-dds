@@ -19,9 +19,9 @@ pub trait Entity {
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>>;
 
-    fn get_statuscondition(&self) -> StatusCondition;
+    fn get_statuscondition(&self) -> DDSResult<StatusCondition>;
 
-    fn get_status_changes(&self) -> StatusMask;
+    fn get_status_changes(&self) -> DDSResult<StatusMask>;
 
     fn enable(&self) -> DDSResult<()>;
 

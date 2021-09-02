@@ -29,6 +29,14 @@ impl<T> PartialEq for RtpsShared<T> {
     }
 }
 
+impl<T> Deref for RtpsShared<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 pub struct RtpsLock<'a, T>(MutexGuard<'a, T>);
 
 impl<'a, T> Deref for RtpsLock<'a, T> {

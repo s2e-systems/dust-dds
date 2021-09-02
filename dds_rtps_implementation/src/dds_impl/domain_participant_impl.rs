@@ -522,11 +522,11 @@ impl Entity for DomainParticipantImpl {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> StatusCondition {
+    fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
         todo!()
     }
 
-    fn get_status_changes(&self) -> StatusMask {
+    fn get_status_changes(&self) -> DDSResult<StatusMask> {
         todo!()
     }
 
