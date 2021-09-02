@@ -7,15 +7,22 @@ use rust_dds_api::{
     return_type::DDSResult,
     subscription::data_reader_listener::DataReaderListener,
 };
-use rust_rtps_pim::{behavior::reader::stateful_reader::RtpsStatefulReaderOperations, structure::{
-    types::{EntityId, EntityKind, Guid, ReliabilityKind, TopicKind},
-    RtpsEntity,
-}};
+use rust_rtps_pim::{
+    behavior::reader::stateful_reader::RtpsStatefulReaderOperations,
+    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
+    structure::{
+        types::{EntityId, EntityKind, Guid, ReliabilityKind, TopicKind},
+        RtpsEntity,
+    },
+};
 
 use crate::{
     dds_type::DDSType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl},
-    utils::shared_object::{RtpsShared, RtpsWeak},
+    utils::{
+        message_receiver::ProcessDataSubmessage,
+        shared_object::{RtpsShared, RtpsWeak},
+    },
 };
 
 use super::data_reader_impl::DataReaderImpl;
@@ -106,5 +113,11 @@ impl SubscriberImpl {
 
     pub fn get_qos(&self) -> &SubscriberQos {
         &self.qos
+    }
+}
+
+impl ProcessDataSubmessage for SubscriberImpl {
+    fn process_data_submessage(&self, _data: &DataSubmessage<Vec<Parameter<'_>>>) {
+        todo!()
     }
 }

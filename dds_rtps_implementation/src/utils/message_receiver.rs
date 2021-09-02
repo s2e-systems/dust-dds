@@ -1,20 +1,15 @@
+use super::{shared_object::RtpsShared, transport::RtpsMessageRead};
 use rust_rtps_pim::{
-    behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
     messages::{
         submessage_elements::Parameter,
         submessages::{DataSubmessage, InfoTimestampSubmessage, RtpsSubmessageType},
         types::{Time, TIME_INVALID},
-        RtpsMessage,
     },
     structure::types::{
-        GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
+        GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
     },
 };
-
-use crate::dds_impl::subscriber_impl::SubscriberImpl;
-
-use super::{shared_object::RtpsShared, transport::RtpsMessageRead};
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -44,7 +39,7 @@ impl MessageReceiver {
     pub fn process_message<'a>(
         mut self,
         participant_guid_prefix: GuidPrefix,
-        reader_group_list: &'a [RtpsShared<SubscriberImpl>],
+        reader_group_list: &'a [RtpsShared<impl ProcessDataSubmessage>],
         source_locator: Locator,
         message: &'a RtpsMessageRead,
     ) {
@@ -66,7 +61,11 @@ impl MessageReceiver {
         for submessage in &message.submessages {
             match submessage {
                 RtpsSubmessageType::AckNack(_) => todo!(),
-                RtpsSubmessageType::Data(data) => self.process_data(data, reader_group_list),
+                RtpsSubmessageType::Data(data) => {
+                    for reader in reader_group_list {
+                        reader.process_data_submessage(data)
+                    }
+                }
                 RtpsSubmessageType::DataFrag(_) => todo!(),
                 RtpsSubmessageType::Gap(_) => todo!(),
                 RtpsSubmessageType::Heartbeat(_) => todo!(),
@@ -83,27 +82,6 @@ impl MessageReceiver {
         }
     }
 
-    fn process_data<'a>(
-        &mut self,
-        _data: &DataSubmessage<Vec<Parameter<'_>>>,
-        reader_group_list: impl IntoIterator<Item = &'a RtpsShared<SubscriberImpl>>,
-    ) {
-        for _subscriber in reader_group_list {
-            todo!()
-            // let subscriber_lock = subscriber.lock();
-            // for reader in subscriber_lock.readers() {
-            //     let mut reader_lock = reader.lock();
-            //     reader_lock
-            //         .rtps_reader_mut()
-            //         .reader_cache_mut()
-            //         .set_source_timestamp(Some(self.timestamp));
-            //     reader_lock
-            //         .rtps_reader_mut()
-            //         .receive_data(self.source_guid_prefix, data);
-            // }
-        }
-    }
-
     fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
         if info_timestamp.invalidate_flag == false {
             self.have_timestamp = true;
@@ -115,229 +93,117 @@ impl MessageReceiver {
     }
 }
 
+pub trait ProcessDataSubmessage {
+    fn process_data_submessage(&self, _data: &DataSubmessage<Vec<Parameter<'_>>>);
+}
+
 #[cfg(test)]
 mod tests {
-    // use rust_rtps_pim::{
-    //     messages::{
-    //         submessage_elements::{
-    //             EntityIdSubmessageElementType, Parameter, ParameterListSubmessageElementType,
-    //             SequenceNumberSubmessageElementType, SerializedDataSubmessageElementType,
-    //         },
-    //         types::SubmessageFlag,
-    //     },
-    //     structure::types::{EntityId, SequenceNumber},
-    // };
+    use std::cell::RefCell;
 
-    // use super::*;
+    use rust_rtps_pim::{
+        messages::{
+            submessage_elements::{
+                EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+                TimestampSubmessageElement,
+            },
+            types::ProtocolId,
+            RtpsMessage, RtpsMessageHeader,
+        },
+        structure::types::{EntityId, EntityKind, PROTOCOLVERSION_2_4},
+    };
 
-    // struct MockEntityIdSubmessageElement(EntityId);
+    use super::*;
 
-    // impl EntityIdSubmessageElementType for MockEntityIdSubmessageElement {
-    //     fn new(_value: &EntityId) -> Self {
-    //         todo!()
-    //     }
+    #[test]
+    fn process_info_timestamp_submessage_valid_time() {
+        let mut message_receiver = MessageReceiver::new();
+        let info_timestamp = InfoTimestampSubmessage {
+            endianness_flag: true,
+            invalidate_flag: false,
+            timestamp: TimestampSubmessageElement { value: Time(100) },
+        };
+        message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
-    //     fn value(&self) -> EntityId {
-    //         todo!()
-    //     }
-    // }
+        assert_eq!(message_receiver.have_timestamp, true);
+        assert_eq!(message_receiver.timestamp, Time(100));
+    }
 
-    // struct MockSequenceNumberSubmessageElement(SequenceNumber);
+    #[test]
+    fn process_info_timestamp_submessage_invalid_time() {
+        let mut message_receiver = MessageReceiver::new();
+        let info_timestamp = InfoTimestampSubmessage {
+            endianness_flag: true,
+            invalidate_flag: true,
+            timestamp: TimestampSubmessageElement { value: Time(100) },
+        };
+        message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
-    // impl SequenceNumberSubmessageElementType for MockSequenceNumberSubmessageElement {
-    //     fn new(_value: &SequenceNumber) -> Self {
-    //         todo!()
-    //     }
+        assert_eq!(message_receiver.have_timestamp, false);
+        assert_eq!(message_receiver.timestamp, TIME_INVALID);
+    }
 
-    //     fn value(&self) -> SequenceNumber {
-    //         todo!()
-    //     }
-    // }
+    #[test]
+    fn process_data() {
+        struct MockProcessDataSubmessage {
+            called: RefCell<bool>,
+        }
 
-    // struct MockParameterListSubmessageElement;
+        impl ProcessDataSubmessage for MockProcessDataSubmessage {
+            fn process_data_submessage(&self, _data: &DataSubmessage<Vec<Parameter<'_>>>) {
+                *self.called.borrow_mut() = true
+            }
+        }
 
-    // impl<'a> ParameterListSubmessageElementType<'a> for MockParameterListSubmessageElement {
-    //     fn new(_parameter: &[Parameter]) -> Self {
-    //         todo!()
-    //     }
+        let data_submessage = DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: false,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: EntityId::new([1; 3], EntityKind::BuiltInReaderWithKey),
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: EntityId::new([1; 3], EntityKind::BuiltInWriterWithKey),
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: 1 },
+            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3] },
+        };
+        let participant_guid_prefix = [1; 12];
+        let reader_group_list = vec![RtpsShared::new(MockProcessDataSubmessage {
+            called: RefCell::new(false),
+        })];
+        let source_locator = Locator::new(1, 7400, [1; 16]);
+        let header = RtpsMessageHeader {
+            protocol: ProtocolId::PROTOCOL_RTPS,
+            version: PROTOCOLVERSION_2_4,
+            vendor_id: [99, 99],
+            guid_prefix: [1; 12],
+        };
+        let submessages: Vec<
+            rust_rtps_pim::messages::submessages::RtpsSubmessageType<
+                '_,
+                Vec<i64>,
+                Vec<Parameter<'_>>,
+                (),
+                (),
+            >,
+        > = vec![RtpsSubmessageType::Data(data_submessage)];
+        let message = RtpsMessage {
+            header,
+            submessages,
+        };
 
-    //     fn parameter(&self) -> &[Parameter<'a>] {
-    //         todo!()
-    //     }
-    // }
+        MessageReceiver::new().process_message(
+            participant_guid_prefix,
+            &reader_group_list,
+            source_locator,
+            &message,
+        );
 
-    // struct MockSerializedDataSubmessageElement;
-
-    // impl<'a> SerializedDataSubmessageElementType<'a> for MockSerializedDataSubmessageElement {
-    //     fn new(_value: &'a [u8]) -> Self {
-    //         todo!()
-    //     }
-
-    //     fn value(&self) -> &'a [u8] {
-    //         todo!()
-    //     }
-    // }
-
-    // struct MockTimestampSubmessageElement(Time);
-
-    // impl TimestampSubmessageElementType for MockTimestampSubmessageElement {
-    //     fn new(_value: &Time) -> Self {
-    //         todo!()
-    //     }
-
-    //     fn value(&self) -> Time {
-    //         self.0.clone()
-    //     }
-    // }
-
-    // struct MockDataSubmessage;
-
-    // impl<'a> DataSubmessage<'a> for MockDataSubmessage {
-    //     type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
-    //     type SequenceNumberSubmessageElementType = MockSequenceNumberSubmessageElement;
-    //     type ParameterListSubmessageElementType = MockParameterListSubmessageElement;
-    //     type SerializedDataSubmessageElementType = MockSerializedDataSubmessageElement;
-
-    //     fn new(
-    //         _endianness_flag: SubmessageFlag,
-    //         _inline_qos_flag: SubmessageFlag,
-    //         _data_flag: SubmessageFlag,
-    //         _key_flag: SubmessageFlag,
-    //         _non_standard_payload_flag: SubmessageFlag,
-    //         _reader_id: Self::EntityIdSubmessageElementType,
-    //         _writer_id: Self::EntityIdSubmessageElementType,
-    //         _writer_sn: Self::SequenceNumberSubmessageElementType,
-    //         _inline_qos: Self::ParameterListSubmessageElementType,
-    //         _serialized_payload: Self::SerializedDataSubmessageElementType,
-    //     ) -> Self {
-    //         todo!()
-    //     }
-
-    //     fn endianness_flag(&self) -> SubmessageFlag {
-    //         todo!()
-    //     }
-
-    //     fn inline_qos_flag(&self) -> SubmessageFlag {
-    //         todo!()
-    //     }
-
-    //     fn data_flag(&self) -> SubmessageFlag {
-    //         todo!()
-    //     }
-
-    //     fn key_flag(&self) -> SubmessageFlag {
-    //         todo!()
-    //     }
-
-    //     fn non_standard_payload_flag(&self) -> SubmessageFlag {
-    //         todo!()
-    //     }
-
-    //     fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
-    //         todo!()
-    //     }
-
-    //     fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
-    //         todo!()
-    //     }
-
-    //     fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
-    //         todo!()
-    //     }
-
-    //     fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
-    //         todo!()
-    //     }
-
-    //     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
-    //         todo!()
-    //     }
-    // }
-
-    // struct MockInfoTimestampSubmessage {
-    //     invalidate_flag: SubmessageFlag,
-    //     timestamp: MockTimestampSubmessageElement,
-    // }
-
-    // impl InfoTimestampSubmessage for MockInfoTimestampSubmessage {
-    //     type TimestampSubmessageElementType = MockTimestampSubmessageElement;
-
-    //     fn new(
-    //         _endianness_flag: SubmessageFlag,
-    //         _invalidate_flag: SubmessageFlag,
-    //         _timestamp: Self::TimestampSubmessageElementType,
-    //     ) -> Self {
-    //         todo!()
-    //     }
-
-    //     fn endianness_flag(&self) -> SubmessageFlag {
-    //         todo!()
-    //     }
-
-    //     fn invalidate_flag(&self) -> SubmessageFlag {
-    //         self.invalidate_flag
-    //     }
-
-    //     fn timestamp(&self) -> &Self::TimestampSubmessageElementType {
-    //         &self.timestamp
-    //     }
-    // }
-
-    // #[test]
-    // fn process_info_timestamp_submessage_valid_time() {
-    //     let mut message_receiver = MessageReceiver::new();
-    //     let info_timestamp = MockInfoTimestampSubmessage {
-    //         invalidate_flag: false,
-    //         timestamp: MockTimestampSubmessageElement(Time(100)),
-    //     };
-    //     message_receiver.process_info_timestamp_submessage(&info_timestamp);
-
-    //     assert_eq!(message_receiver.have_timestamp, true);
-    //     assert_eq!(message_receiver.timestamp, Time(100));
-    // }
-
-    // #[test]
-    // fn process_info_timestamp_submessage_invalid_time() {
-    //     let mut message_receiver = MessageReceiver::new();
-    //     let info_timestamp = MockInfoTimestampSubmessage {
-    //         invalidate_flag: true,
-    //         timestamp: MockTimestampSubmessageElement(Time(100)),
-    //     };
-    //     message_receiver.process_info_timestamp_submessage(&info_timestamp);
-
-    //     assert_eq!(message_receiver.have_timestamp, false);
-    //     assert_eq!(message_receiver.timestamp, TIME_INVALID);
-    // }
-
-    // #[test]
-    // fn process_data() {
-    //     struct MockReaderGroup(Option<MockReader>);
-
-    //     impl<'a> RTPSGroup for &'a mut MockReaderGroup {
-    //         type Endpoints = core::option::IterMut<'a, MockReader>;
-
-    //         fn endpoints(self) -> Self::Endpoints {
-    //             self.0.iter_mut()
-    //         }
-    //     }
-
-    //     struct MockReader(bool);
-
-    //     impl<'a> StatelessReaderBehavior<MockDataSubmessage> for MockReader {
-    //         fn receive_data(
-    //             &mut self,
-    //             _source_guid_prefix: GuidPrefix,
-    //             _data: &MockDataSubmessage,
-    //         ) {
-    //             self.0 = true;
-    //         }
-    //     }
-
-    //     let mut message_receiver = MessageReceiver::new();
-    //     let data = MockDataSubmessage;
-    //     let reader = MockReader(false);
-    //     let mut reader_groups = MockReaderGroup(Some(reader));
-    //     message_receiver.process_data(&data, &mut reader_groups);
-    //     assert_eq!(reader_groups.0.unwrap().0, true);
-    // }
+        assert_eq!(*reader_group_list[0].called.borrow(), true);
+    }
 }
