@@ -233,11 +233,12 @@ impl Entity for PublisherImpl {
 }
 
 impl RtpsSubmessageSender for PublisherImpl {
-    fn create_submessages(&self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)> {
+    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)> {
         let combined_submessages = vec![];
         let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
         for data_writer in &*data_writer_impl_list_lock {
-            let _submessages = data_writer.read().create_submessages();
+            let _submessages = data_writer.write().create_submessages();
+            // combined_submessages = submessages;
         }
 
         combined_submessages
@@ -266,7 +267,8 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_some_value() {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
-        let mut publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+        let mut publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = &[1, 2, 3, 4];
@@ -280,7 +282,8 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_none() {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
-        let mut publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+        let mut publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = &[1, 2, 3, 4];
