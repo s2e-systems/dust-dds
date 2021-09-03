@@ -17,23 +17,9 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
-    structure::{
-        types::{EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind},
-        RtpsEntity,
-    },
-};
+use rust_rtps_pim::{behavior::writer::stateful_writer::RtpsStatefulWriterOperations, messages::{RtpsMessage, RtpsMessageHeader}, structure::{RtpsEntity, RtpsParticipant, types::{EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind}}};
 
-use crate::{
-    dds_type::DDSType,
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
-    utils::{
-        message_sender::RtpsSubmessageSender,
-        shared_object::{RtpsShared, RtpsWeak},
-        transport::RtpsSubmessageWrite,
-    },
-};
+use crate::{dds_type::DDSType, rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl}, utils::{message_sender::RtpsSubmessageSender, shared_object::{RtpsShared, RtpsWeak}, transport::{RtpsSubmessageWrite, TransportWrite}}};
 
 use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
 
@@ -57,6 +43,30 @@ impl PublisherImpl {
             data_writer_impl_list: Mutex::new(data_writer_impl_list),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
+        }
+    }
+
+    pub fn send_data(
+        &self,
+        participant: &(impl RtpsParticipant + RtpsEntity),
+        transport: &mut (impl TransportWrite + ?Sized),
+    ) {
+        for writer in self.data_writer_impl_list.lock().unwrap().iter() {
+            let mut writer_lock = writer.write();
+            let destined_submessages = writer_lock.create_submessages();
+            for (dst_locator, submessages) in destined_submessages {
+                let header = RtpsMessageHeader {
+                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                    version: *participant.protocol_version(),
+                    vendor_id: *participant.vendor_id(),
+                    guid_prefix: *participant.guid().prefix(),
+                };
+                let message = RtpsMessage {
+                    header,
+                    submessages,
+                };
+                transport.write(&message, &dst_locator);
+            }
         }
     }
 }

@@ -87,36 +87,6 @@ impl DomainParticipantImpl {
             is_enabled: Arc::new(AtomicBool::new(false)),
         }
     }
-
-    pub fn send_builtin_data(&mut self) {
-        // for publisher in &self.builtin_publisher_storage {
-        //     let publisher_lock = publisher.lock();
-        //     for data_writer in publisher_lock.data_writer_storage_list() {
-        //         let mut data_writer_lock = data_writer.lock();
-        //         crate::utils::message_sender::send_data(
-        //             &self.rtps_participant,
-        //             data_writer_lock.rtps_data_writer_mut(),
-        //             &mut *self.metatraffic_transport,
-        //         );
-        //     }
-        // }
-        todo!()
-    }
-
-    pub fn send_user_defined_data(&mut self) {
-        todo!()
-        // for publisher in &self.user_defined_publisher_storage {
-        //     let publisher_lock = publisher.lock();
-        //     for data_writer in publisher_lock.data_writer_storage_list() {
-        //         let mut data_writer_lock = data_writer.lock();
-        //         crate::utils::message_sender::send_data(
-        //             &self.rtps_participant,
-        //             data_writer_lock.rtps_data_writer_mut(),
-        //             &mut *self.default_transport,
-        //         );
-        //     }
-        // }
-    }
 }
 
 impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
@@ -428,11 +398,12 @@ impl Entity for DomainParticipantImpl {
         std::thread::spawn(move || {
             while is_enabled.load(atomic::Ordering::SeqCst) {
                 // send_builtin_data();
-                crate::utils::message_sender::send_data(
-                    rtps_participant.as_ref(),
-                    &builtin_publisher_storage,
-                    metatraffic_transport.lock().unwrap().as_mut(),
-                );
+                for builtin_publisher in builtin_publisher_storage.iter() {
+                    builtin_publisher.read().send_data(
+                        rtps_participant.as_ref(),
+                        metatraffic_transport.lock().unwrap().as_mut(),
+                    );
+                }
 
                 //receive_builtin_data();
                 if let Some((source_locator, message)) =
@@ -447,6 +418,12 @@ impl Entity for DomainParticipantImpl {
                 }
 
                 // send_user_defined_data();
+                for user_defined_publisher in user_defined_publisher_storage.lock().unwrap().iter() {
+                    user_defined_publisher.read().send_data(
+                        rtps_participant.as_ref(),
+                        metatraffic_transport.lock().unwrap().as_mut(),
+                    );
+                }
                 crate::utils::message_sender::send_data(
                     rtps_participant.as_ref(),
                     &user_defined_publisher_storage.lock().unwrap(),
@@ -648,7 +625,7 @@ mod tests {
     #[test]
     fn create_publisher() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],
@@ -674,8 +651,9 @@ mod tests {
                 .len(),
             1
         );
+
         assert_ne!(publisher_counter_before, publisher_counter_after);
-        assert!(publisher.is_some())
+        assert!(publisher.is_some());
     }
 
     #[test]

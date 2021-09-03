@@ -141,7 +141,7 @@ impl DomainParticipantFactory {
         spdp_builtin_participant_writer
             .write()
             .write_w_timestamp(
-                (1, 2),
+                (1u8, 2u8),
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )
