@@ -1,7 +1,9 @@
 use rust_dds_api::{
+    dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
     infrastructure::{entity::Entity, qos::DataReaderQos},
     return_type::DDSResult,
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
+    topic::topic_description::TopicDescription,
 };
 
 use crate::rtps_impl::rtps_reader_impl::RtpsReaderImpl;
@@ -266,30 +268,22 @@ impl<T> DataReader<T> for DataReaderImpl {
         todo!()
     }
 
-    fn get_sample_lost_status(
-        &self,
-        status: &mut rust_dds_api::dcps_psm::SampleLostStatus,
-    ) -> DDSResult<()> {
+    fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_sample_rejected_status(
-        &self,
-        status: &mut rust_dds_api::dcps_psm::SampleRejectedStatus,
-    ) -> DDSResult<()> {
+    fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> DDSResult<()> {
         todo!()
     }
 
     fn get_subscription_matched_status(
         &self,
-        status: &mut rust_dds_api::dcps_psm::SubscriptionMatchedStatus,
+        status: &mut SubscriptionMatchedStatus,
     ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_topicdescription(
-        &self,
-    ) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<T> {
+    fn get_topicdescription(&self) -> &dyn TopicDescription<T> {
         todo!()
     }
 
@@ -326,7 +320,7 @@ impl Entity for DataReaderImpl {
 
     type Listener = &'static dyn DataReaderListener<DataPIM = ()>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 

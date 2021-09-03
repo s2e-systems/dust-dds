@@ -18,7 +18,7 @@ use super::{
 };
 
 pub trait RtpsSubmessageSender {
-    fn create_submessages(&self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)>;
+    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)>;
 }
 
 // impl<T, U> RtpsSubmessageSender for T
@@ -67,7 +67,8 @@ pub fn send_data(
     transport: &mut (impl TransportWrite + ?Sized),
 ) {
     for writer in writer_list {
-        let destined_submessages = writer.create_submessages();
+        let mut writer_lock = writer.write();
+        let destined_submessages = writer_lock.create_submessages();
         for (dst_locator, submessages) in destined_submessages {
             let header = RtpsMessageHeader {
                 protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,

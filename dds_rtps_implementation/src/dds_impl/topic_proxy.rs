@@ -33,7 +33,10 @@ where
     I: Topic<T>,
 {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
-        self.topic_impl.upgrade()?.get_inconsistent_topic_status()
+        self.topic_impl
+            .upgrade()?
+            .read()
+            .get_inconsistent_topic_status()
     }
 }
 
@@ -46,11 +49,11 @@ where
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
-        self.topic_impl.upgrade()?.get_type_name()
+        self.topic_impl.upgrade()?.read().get_type_name()
     }
 
     fn get_name(&self) -> DDSResult<&'static str> {
-        self.topic_impl.upgrade()?.get_name()
+        self.topic_impl.upgrade()?.read().get_name()
     }
 }
 
@@ -61,35 +64,38 @@ where
     type Qos = TT::Qos;
     type Listener = TT::Listener;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.topic_impl.upgrade()?.set_qos(qos)
+    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self.topic_impl.upgrade()?.write().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.topic_impl.upgrade()?.get_qos()
+        self.topic_impl.upgrade()?.read().get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        self.topic_impl.upgrade()?.set_listener(a_listener, mask)
+        self.topic_impl
+            .upgrade()?
+            .write()
+            .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.topic_impl.upgrade()?.get_listener()
+        self.topic_impl.upgrade()?.read().get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.topic_impl.upgrade()?.get_statuscondition()
+        self.topic_impl.upgrade()?.read().get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.topic_impl.upgrade()?.get_status_changes()
+        self.topic_impl.upgrade()?.read().get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.topic_impl.upgrade()?.enable()
+        self.topic_impl.upgrade()?.read().enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.topic_impl.upgrade()?.get_instance_handle()
+        self.topic_impl.upgrade()?.read().get_instance_handle()
     }
 }

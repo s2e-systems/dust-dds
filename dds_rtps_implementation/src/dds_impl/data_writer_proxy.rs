@@ -42,34 +42,36 @@ impl<'dw, T, DW> DataWriter<T> for DataWriterProxy<'dw, T, DW>
 where
     DW: DataWriter<T>,
 {
-    fn register_instance(&self, instance: T) -> DDSResult<Option<InstanceHandle>> {
+    fn register_instance(&mut self, instance: T) -> DDSResult<Option<InstanceHandle>> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.register_instance_w_timestamp(instance, timestamp)
     }
 
     fn register_instance_w_timestamp(
-        &self,
+        &mut self,
         instance: T,
         timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
         self.data_writer_impl
             .upgrade()?
+            .write()
             .register_instance_w_timestamp(instance, timestamp)
     }
 
-    fn unregister_instance(&self, instance: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn unregister_instance(&mut self, instance: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     fn unregister_instance_w_timestamp(
-        &self,
+        &mut self,
         instance: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
         self.data_writer_impl
             .upgrade()?
+            .write()
             .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
@@ -81,28 +83,29 @@ where
         todo!()
     }
 
-    fn write(&self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.write_w_timestamp(data, handle, timestamp)
     }
 
     fn write_w_timestamp(
-        &self,
+        &mut self,
         data: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
         self.data_writer_impl
             .upgrade()?
+            .write()
             .write_w_timestamp(data, handle, timestamp)
     }
 
-    fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn dispose(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         todo!()
     }
 
     fn dispose_w_timestamp(
-        &self,
+        &mut self,
         _data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
@@ -174,38 +177,45 @@ where
     type Qos = DW::Qos;
     type Listener = DW::Listener;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.data_writer_impl.upgrade()?.set_qos(qos)
+    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self.data_writer_impl.upgrade()?.write().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.data_writer_impl.upgrade()?.get_qos()
+        self.data_writer_impl.upgrade()?.read().get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
         self.data_writer_impl
             .upgrade()?
+            .read()
             .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.data_writer_impl.upgrade()?.get_listener()
+        self.data_writer_impl.upgrade()?.read().get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.data_writer_impl.upgrade()?.get_statuscondition()
+        self.data_writer_impl
+            .upgrade()?
+            .read()
+            .get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.data_writer_impl.upgrade()?.get_status_changes()
+        self.data_writer_impl.upgrade()?.read().get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.data_writer_impl.upgrade()?.enable()
+        self.data_writer_impl.upgrade()?.read().enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.data_writer_impl.upgrade()?.get_instance_handle()
+        self.data_writer_impl
+            .upgrade()?
+            .read()
+            .get_instance_handle()
     }
 }
 

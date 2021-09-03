@@ -1,6 +1,6 @@
 use std::sync::{
     atomic::{self, AtomicU8},
-    Mutex, RwLock,
+    Mutex,
 };
 
 use rust_dds_api::{
@@ -17,23 +17,9 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
-    structure::{
-        types::{EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind},
-        RtpsEntity,
-    },
-};
+use rust_rtps_pim::{behavior::writer::stateful_writer::RtpsStatefulWriterOperations, messages::{RtpsMessage, RtpsMessageHeader}, structure::{RtpsEntity, RtpsParticipant, types::{EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind}}};
 
-use crate::{
-    dds_type::DDSType,
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
-    utils::{
-        message_sender::RtpsSubmessageSender,
-        shared_object::{RtpsShared, RtpsWeak},
-        transport::RtpsSubmessageWrite,
-    },
-};
+use crate::{dds_type::DDSType, rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl}, utils::{message_sender::RtpsSubmessageSender, shared_object::{RtpsShared, RtpsWeak}, transport::{RtpsSubmessageWrite, TransportWrite}}};
 
 use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
 
@@ -42,7 +28,7 @@ pub struct PublisherImpl {
     rtps_group: RtpsGroupImpl,
     data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
-    default_datawriter_qos: RwLock<DataWriterQos>,
+    default_datawriter_qos: DataWriterQos,
 }
 
 impl PublisherImpl {
@@ -56,7 +42,31 @@ impl PublisherImpl {
             rtps_group,
             data_writer_impl_list: Mutex::new(data_writer_impl_list),
             user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: RwLock::new(DataWriterQos::default()),
+            default_datawriter_qos: DataWriterQos::default(),
+        }
+    }
+
+    pub fn send_data(
+        &self,
+        participant: &(impl RtpsParticipant + RtpsEntity),
+        transport: &mut (impl TransportWrite + ?Sized),
+    ) {
+        for writer in self.data_writer_impl_list.lock().unwrap().iter() {
+            let mut writer_lock = writer.write();
+            let destined_submessages = writer_lock.create_submessages();
+            for (dst_locator, submessages) in destined_submessages {
+                let header = RtpsMessageHeader {
+                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                    version: *participant.protocol_version(),
+                    vendor_id: *participant.vendor_id(),
+                    guid_prefix: *participant.guid().prefix(),
+                };
+                let message = RtpsMessage {
+                    header,
+                    submessages,
+                };
+                transport.write(&message, &dst_locator);
+            }
         }
     }
 }
@@ -75,7 +85,7 @@ where
         _a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let qos = qos.unwrap_or(self.default_datawriter_qos.read().unwrap().clone());
+        let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         let user_defined_data_writer_counter = self
             .user_defined_data_writer_counter
             .fetch_add(1, atomic::Ordering::SeqCst);
@@ -169,15 +179,15 @@ impl Publisher for PublisherImpl {
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
+    fn set_default_datawriter_qos(&mut self, qos: Option<DataWriterQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
-        *self.default_datawriter_qos.write().unwrap() = qos;
+        self.default_datawriter_qos = qos;
         Ok(())
     }
 
     fn get_default_datawriter_qos(&self) -> DataWriterQos {
-        self.default_datawriter_qos.read().unwrap().clone()
+        self.default_datawriter_qos.clone()
     }
 
     fn copy_from_topic_qos(
@@ -193,7 +203,7 @@ impl Entity for PublisherImpl {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 
@@ -233,11 +243,12 @@ impl Entity for PublisherImpl {
 }
 
 impl RtpsSubmessageSender for PublisherImpl {
-    fn create_submessages(&self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)> {
+    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)> {
         let combined_submessages = vec![];
         let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
         for data_writer in &*data_writer_impl_list_lock {
-            let submessages = data_writer.create_submessages();
+            let _submessages = data_writer.write().create_submessages();
+            // combined_submessages = submessages;
         }
 
         combined_submessages
@@ -266,7 +277,8 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_some_value() {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+        let mut publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = &[1, 2, 3, 4];
@@ -280,7 +292,8 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_none() {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+        let mut publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = &[1, 2, 3, 4];

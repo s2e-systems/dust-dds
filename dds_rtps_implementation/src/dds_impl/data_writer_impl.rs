@@ -32,14 +32,14 @@ use crate::{
 
 pub struct DataWriterImpl {
     qos: DataWriterQos,
-    rtps_writer_impl: Mutex<RtpsWriterImpl>,
+    rtps_writer_impl: RtpsWriterImpl,
 }
 
 impl DataWriterImpl {
     pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterImpl) -> Self {
         Self {
             qos,
-            rtps_writer_impl: Mutex::new(rtps_writer_impl),
+            rtps_writer_impl,
         }
     }
 }
@@ -48,24 +48,28 @@ impl<T> DataWriter<T> for DataWriterImpl
 where
     T: serde::Serialize,
 {
-    fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
+    fn register_instance(&mut self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
     }
 
     fn register_instance_w_timestamp(
-        &self,
+        &mut self,
         _instance: T,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<Option<InstanceHandle>> {
         todo!()
     }
 
-    fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn unregister_instance(
+        &mut self,
+        _instance: T,
+        _handle: Option<InstanceHandle>,
+    ) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn unregister_instance_w_timestamp(
-        &self,
+        &mut self,
         _instance: T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
@@ -81,32 +85,33 @@ where
         todo!()
     }
 
-    fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn write_w_timestamp(
-        &self,
+        &mut self,
         data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
         let data = cdr::serialize::<_, _, cdr::CdrLe>(&data, cdr::Infinite).unwrap();
-        let mut rtps_writer_impl_lock = self.rtps_writer_impl.lock().unwrap();
-        let change = rtps_writer_impl_lock.new_change(ChangeKind::Alive, data.as_slice(), &[], 0);
-        let writer_cache = rtps_writer_impl_lock.writer_cache_mut();
+        let change = self
+            .rtps_writer_impl
+            .new_change(ChangeKind::Alive, data.as_slice(), &[], 0);
+        let writer_cache = self.rtps_writer_impl.writer_cache_mut();
         let time = rust_rtps_pim::messages::types::Time(0);
         writer_cache.set_source_timestamp(Some(time));
         writer_cache.add_change(&change);
         Ok(())
     }
 
-    fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn dispose(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn dispose_w_timestamp(
-        &self,
+        &mut self,
         _data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
@@ -181,7 +186,7 @@ impl Entity for DataWriterImpl {
     type Qos = DataWriterQos;
     type Listener = &'static dyn DataWriterListener<DataPIM = ()>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // let qos = qos.unwrap_or_default();
         // qos.is_consistent()?;
         // self.qos = qos;
@@ -226,39 +231,38 @@ impl Entity for DataWriterImpl {
 }
 
 impl RtpsSubmessageSender for DataWriterImpl {
-    fn create_submessages(&self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)> {
-        // let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageWrite>)> = Vec::new();
-        // let destined_submessages = RefCell::new(destined_submessages);
-        // self.rtps_writer_impl.lock().unwrap().send_unsent_data(
-        //     |reader_locator, data| {
-        //         let mut destined_submessages_borrow = destined_submessages.borrow_mut();
-        //         match destined_submessages_borrow
-        //             .iter_mut()
-        //             .find(|(locator, _)| locator == reader_locator.locator())
-        //         {
-        //             Some((_, submessages)) => submessages.push(RtpsSubmessageType::Data(data)),
-        //             None => destined_submessages_borrow.push((
-        //                 *reader_locator.locator(),
-        //                 vec![RtpsSubmessageType::Data(data)],
-        //             )),
-        //         }
-        //     },
-        //     |reader_locator, gap| {
-        //         let mut destined_submessages_borrow = destined_submessages.borrow_mut();
-        //         match destined_submessages_borrow
-        //             .iter_mut()
-        //             .find(|(locator, _)| locator == reader_locator.locator())
-        //         {
-        //             Some((_, submessages)) => submessages.push(RtpsSubmessageType::Gap(gap)),
-        //             None => destined_submessages_borrow.push((
-        //                 *reader_locator.locator(),
-        //                 vec![RtpsSubmessageType::Gap(gap)],
-        //             )),
-        //         }
-        //     },
-        // );
-        // destined_submessages.take()
-        vec![]
+    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)> {
+        let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageWrite>)> = Vec::new();
+        let destined_submessages = RefCell::new(destined_submessages);
+        self.rtps_writer_impl.send_unsent_data(
+            |reader_locator, data| {
+                let mut destined_submessages_borrow = destined_submessages.borrow_mut();
+                match destined_submessages_borrow
+                    .iter_mut()
+                    .find(|(locator, _)| locator == reader_locator.locator())
+                {
+                    Some((_, submessages)) => submessages.push(RtpsSubmessageType::Data(data)),
+                    None => destined_submessages_borrow.push((
+                        *reader_locator.locator(),
+                        vec![RtpsSubmessageType::Data(data)],
+                    )),
+                }
+            },
+            |reader_locator, gap| {
+                let mut destined_submessages_borrow = destined_submessages.borrow_mut();
+                match destined_submessages_borrow
+                    .iter_mut()
+                    .find(|(locator, _)| locator == reader_locator.locator())
+                {
+                    Some((_, submessages)) => submessages.push(RtpsSubmessageType::Gap(gap)),
+                    None => destined_submessages_borrow.push((
+                        *reader_locator.locator(),
+                        vec![RtpsSubmessageType::Gap(gap)],
+                    )),
+                }
+            },
+        );
+        destined_submessages.take()
     }
 }
 
@@ -295,7 +299,7 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        let data_writer_impl = DataWriterImpl::new(DataWriterQos::default(), rtps_writer);
+        let mut data_writer_impl = DataWriterImpl::new(DataWriterQos::default(), rtps_writer);
 
         data_writer_impl
             .write_w_timestamp(
@@ -305,8 +309,8 @@ mod tests {
             )
             .unwrap();
 
-        let rtps_writer_lock = data_writer_impl.rtps_writer_impl.lock().unwrap();
-        let change = rtps_writer_lock
+        let change = data_writer_impl
+            .rtps_writer_impl
             .writer_cache()
             .get_change(&(1i64.into()))
             .unwrap();

@@ -285,7 +285,7 @@ pub trait DomainParticipant {
     /// The special value PUBLISHER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_publisher_qos
     /// operation had never been called.
-    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()>;
+    fn set_default_publisher_qos(&mut self, qos: Option<PublisherQos>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
     /// Publisher entities in the case where the QoS policies are defaulted in the create_publisher operation.
@@ -301,7 +301,7 @@ pub trait DomainParticipant {
     /// The special value SUBSCRIBER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_subscriber_qos
     /// operation had never been called.
-    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()>;
+    fn set_default_subscriber_qos(&mut self, qos: Option<SubscriberQos>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
     /// Subscriber entities in the case where the QoS policies are defaulted in the create_subscriber operation.
@@ -317,7 +317,7 @@ pub trait DomainParticipant {
     /// The special value TOPIC_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the values that would be used if the set_default_topic_qos operation
     /// had never been called.
-    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()>;
+    fn set_default_topic_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
     /// entities in the case where the QoS policies are defaulted in the create_topic operation.
