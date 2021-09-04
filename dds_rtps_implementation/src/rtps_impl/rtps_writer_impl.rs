@@ -122,7 +122,7 @@ impl RtpsWriterOperations for RtpsWriterImpl {
     ) -> RtpsCacheChange<'a, &'a [u8]>
     where
         Self: RtpsWriter,
-        <Self as RtpsWriter>::HistoryCacheType: RtpsHistoryCache,
+        <Self as RtpsWriter>::HistoryCacheType: RtpsHistoryCache<'a>,
     {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RtpsCacheChange {

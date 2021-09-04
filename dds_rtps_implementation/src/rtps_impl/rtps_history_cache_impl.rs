@@ -99,7 +99,9 @@ impl HistoryCache {
     }
 }
 
-impl RtpsHistoryCache for HistoryCache {
+impl<'a> RtpsHistoryCache<'a> for HistoryCache {
+    type CacheChangeDataType = &'a [u8];
+
     fn new() -> Self
     where
         Self: Sized,

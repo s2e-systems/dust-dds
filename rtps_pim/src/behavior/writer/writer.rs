@@ -45,5 +45,5 @@ pub trait RtpsWriterOperations {
     ) -> RtpsCacheChange<'a, &'a [u8]>
     where
         Self: RtpsWriter,
-        Self::HistoryCacheType: RtpsHistoryCache;
+        Self::HistoryCacheType: RtpsHistoryCache<'a>;
 }
