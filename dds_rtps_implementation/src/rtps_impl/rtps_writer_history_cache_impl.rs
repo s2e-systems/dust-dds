@@ -1,4 +1,4 @@
-use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
+use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
     messages::types::Time,
     structure::{
@@ -7,33 +7,31 @@ use rust_rtps_pim::{
     },
 };
 
-struct ReaderCacheChange {
+struct WriterCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     data: Vec<u8>,
     _source_timestamp: Option<Time>,
-    _reception_timestamp: Option<Time>,
-    _sample_state_kind: SampleStateKind,
     _view_state_kind: ViewStateKind,
     _instance_state_kind: InstanceStateKind,
 }
 
-pub struct ReaderHistoryCache {
-    changes: Vec<ReaderCacheChange>,
+pub struct WriterHistoryCache {
+    changes: Vec<WriterCacheChange>,
     source_timestamp: Option<Time>,
 }
 
-impl ReaderHistoryCache {
+impl WriterHistoryCache {
     /// Set the Rtps history cache impl's info.
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
     }
 }
 
-impl<'a> RtpsHistoryCache<'a> for ReaderHistoryCache {
-    type CacheChangeDataType = &'a [u8];
+impl<'a> RtpsHistoryCache<'a> for WriterHistoryCache {
+    type CacheChangeDataType = Vec<u8>;
 
     fn new() -> Self
     where
@@ -45,7 +43,7 @@ impl<'a> RtpsHistoryCache<'a> for ReaderHistoryCache {
         }
     }
 
-    fn add_change(&mut self, change: RtpsCacheChange<&[u8]>) {
+    fn add_change(&mut self, change: RtpsCacheChange<Self::CacheChangeDataType>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -53,23 +51,13 @@ impl<'a> RtpsHistoryCache<'a> for ReaderHistoryCache {
             ChangeKind::NotAliveUnregistered => todo!(),
         };
 
-        let current_time = std::time::SystemTime::now();
-        let reception_timestamp = Time(
-            current_time
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-        );
-
-        let local_change = ReaderCacheChange {
+        let local_change = WriterCacheChange {
             kind: change.kind,
             writer_guid: change.writer_guid,
             sequence_number: change.sequence_number,
             instance_handle: change.instance_handle,
-            data: change.data_value.iter().cloned().collect(),
+            data: change.data_value,
             _source_timestamp: self.source_timestamp,
-            _reception_timestamp: Some(reception_timestamp),
-            _sample_state_kind: SampleStateKind::NotRead,
             _view_state_kind: ViewStateKind::New,
             _instance_state_kind: instance_state_kind,
         };
@@ -116,19 +104,18 @@ impl<'a> RtpsHistoryCache<'a> for ReaderHistoryCache {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::types::GUID_UNKNOWN;
-
     use super::*;
+    use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
     #[test]
     fn add_change() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc = WriterHistoryCache::new();
         let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
+            data_value: vec![],
             inline_qos: &[],
         };
         hc.add_change(change);
@@ -137,13 +124,13 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc = WriterHistoryCache::new();
         let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
+            data_value: vec![],
             inline_qos: &[],
         };
         hc.add_change(change);
@@ -153,13 +140,13 @@ mod tests {
 
     #[test]
     fn get_change() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc = WriterHistoryCache::new();
         let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
+            data_value: vec![],
             inline_qos: &[],
         };
         hc.add_change(change);
@@ -169,13 +156,13 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc = WriterHistoryCache::new();
         let change1 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
+            data_value: vec![],
             inline_qos: &[],
         };
         let change2 = RtpsCacheChange {
@@ -183,7 +170,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 2,
-            data_value: &[][..],
+            data_value: vec![],
             inline_qos: &[],
         };
         hc.add_change(change1);
@@ -193,13 +180,13 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc = WriterHistoryCache::new();
         let change1 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
+            data_value: vec![],
             inline_qos: &[],
         };
         let change2 = RtpsCacheChange {
@@ -207,7 +194,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 2,
-            data_value: &[][..],
+            data_value: vec![],
             inline_qos: &[],
         };
         hc.add_change(change1);
