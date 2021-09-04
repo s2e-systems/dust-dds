@@ -7,99 +7,32 @@ use rust_rtps_pim::{
     },
 };
 
-pub struct CacheChange {
+struct ReaderCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     data: Vec<u8>,
-    source_timestamp: Option<Time>,
-    creation_timestamp: Time,
-    sample_state_kind: SampleStateKind,
-    view_state_kind: ViewStateKind,
-    instance_state_kind: InstanceStateKind,
+    _source_timestamp: Option<Time>,
+    _creation_timestamp: Time,
+    _sample_state_kind: SampleStateKind,
+    _view_state_kind: ViewStateKind,
+    _instance_state_kind: InstanceStateKind,
 }
 
-impl CacheChange {
-    /// Get a reference to the cache change's kind.
-    pub fn kind(&self) -> &ChangeKind {
-        &self.kind
-    }
-
-    /// Get a reference to the cache change's writer guid.
-    pub fn writer_guid(&self) -> &Guid {
-        &self.writer_guid
-    }
-
-    /// Get a reference to the cache change's sequence number.
-    pub fn sequence_number(&self) -> &SequenceNumber {
-        &self.sequence_number
-    }
-
-    /// Get a reference to the cache change's instance handle.
-    pub fn instance_handle(&self) -> &InstanceHandle {
-        &self.instance_handle
-    }
-
-    /// Get a reference to the cache change's data.
-    pub fn data(&self) -> &[u8] {
-        self.data.as_slice()
-    }
-
-    /// Get a reference to the cache change's source timestamp.
-    pub fn source_timestamp(&self) -> Option<&Time> {
-        self.source_timestamp.as_ref()
-    }
-
-    /// Get a reference to the cache change's creation timestamp.
-    pub fn creation_timestamp(&self) -> &Time {
-        &self.creation_timestamp
-    }
-
-    /// Get a reference to the cache change's sample state kind.
-    pub fn sample_state_kind(&self) -> &SampleStateKind {
-        &self.sample_state_kind
-    }
-
-    /// Get a reference to the cache change's view state kind.
-    pub fn view_state_kind(&self) -> &ViewStateKind {
-        &self.view_state_kind
-    }
-
-    /// Get a reference to the cache change's instance state kind.
-    pub fn instance_state_kind(&self) -> &InstanceStateKind {
-        &self.instance_state_kind
-    }
-
-    /// Mark the cache change as read
-    pub fn mark_read(&mut self) {
-        self.sample_state_kind = SampleStateKind::Read;
-    }
-}
-
-pub struct HistoryCache {
-    changes: Vec<CacheChange>,
+pub struct ReaderHistoryCache {
+    changes: Vec<ReaderCacheChange>,
     source_timestamp: Option<Time>,
 }
 
-impl HistoryCache {
+impl ReaderHistoryCache {
     /// Set the Rtps history cache impl's info.
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
     }
-
-    /// Get a reference to the rtps history cache impl's changes.
-    pub fn changes(&self) -> &[CacheChange] {
-        self.changes.as_slice()
-    }
-
-    /// Get a mutable reference to the rtps history cache impl's changes.
-    pub fn changes_mut(&mut self) -> &mut Vec<CacheChange> {
-        &mut self.changes
-    }
 }
 
-impl<'a> RtpsHistoryCache<'a> for HistoryCache {
+impl<'a> RtpsHistoryCache<'a> for ReaderHistoryCache {
     type CacheChangeDataType = &'a [u8];
 
     fn new() -> Self
@@ -128,17 +61,17 @@ impl<'a> RtpsHistoryCache<'a> for HistoryCache {
                 .as_secs(),
         );
 
-        let local_change = CacheChange {
+        let local_change = ReaderCacheChange {
             kind: change.kind,
             writer_guid: change.writer_guid,
             sequence_number: change.sequence_number,
             instance_handle: change.instance_handle,
             data: change.data_value.iter().cloned().collect(),
-            source_timestamp: self.source_timestamp,
-            creation_timestamp,
-            sample_state_kind: SampleStateKind::NotRead,
-            view_state_kind: ViewStateKind::New,
-            instance_state_kind,
+            _source_timestamp: self.source_timestamp,
+            _creation_timestamp: creation_timestamp,
+            _sample_state_kind: SampleStateKind::NotRead,
+            _view_state_kind: ViewStateKind::New,
+            _instance_state_kind: instance_state_kind,
         };
 
         self.changes.push(local_change)
@@ -189,7 +122,7 @@ mod tests {
 
     #[test]
     fn add_change() {
-        let mut hc: HistoryCache = HistoryCache::new();
+        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
         let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
@@ -204,7 +137,7 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc: HistoryCache = HistoryCache::new();
+        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
         let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
@@ -220,7 +153,7 @@ mod tests {
 
     #[test]
     fn get_change() {
-        let mut hc: HistoryCache = HistoryCache::new();
+        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
         let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
@@ -236,7 +169,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc: HistoryCache = HistoryCache::new();
+        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
         let change1 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
@@ -260,7 +193,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc: HistoryCache = HistoryCache::new();
+        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
         let change1 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,

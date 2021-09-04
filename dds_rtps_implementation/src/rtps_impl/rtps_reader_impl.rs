@@ -14,7 +14,7 @@ use rust_rtps_pim::{
 };
 
 use super::{
-    rtps_reader_history_cache_impl::HistoryCache, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    rtps_reader_history_cache_impl::ReaderHistoryCache, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 
 pub struct RtpsReaderImpl {
@@ -26,7 +26,7 @@ pub struct RtpsReaderImpl {
     heartbeat_response_delay: Duration,
     heartbeat_supression_duration: Duration,
     expects_inline_qos: bool,
-    reader_cache: HistoryCache,
+    reader_cache: ReaderHistoryCache,
 }
 
 impl RtpsEntity for RtpsReaderImpl {
@@ -36,7 +36,7 @@ impl RtpsEntity for RtpsReaderImpl {
 }
 
 impl RtpsReader for RtpsReaderImpl {
-    type HistoryCacheType = HistoryCache;
+    type HistoryCacheType = ReaderHistoryCache;
 
     fn heartbeat_response_delay(&self) -> &Duration {
         &self.heartbeat_response_delay
@@ -79,7 +79,7 @@ impl RtpsReaderOperations for RtpsReaderImpl {
             heartbeat_response_delay,
             heartbeat_supression_duration,
             expects_inline_qos,
-            reader_cache: HistoryCache::new(),
+            reader_cache: ReaderHistoryCache::new(),
         }
     }
 }
