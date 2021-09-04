@@ -32,14 +32,14 @@ where
             let sequence_number = data.writer_sn.value;
             let data_value = data.serialized_payload.value;
             let inline_qos = data.inline_qos.parameter.as_ref();
-            let a_change = RtpsCacheChange::new(
+            let a_change = RtpsCacheChange {
                 kind,
                 writer_guid,
                 instance_handle,
                 sequence_number,
                 data_value,
                 inline_qos,
-            );
+            };
             reader_cache.add_change(&a_change);
         }
     }
@@ -81,11 +81,11 @@ mod tests {
 
         fn add_change(&mut self, change: &RtpsCacheChange) {
             self.0 = Some(MockCacheChange {
-                kind: *change.kind(),
-                writer_guid: *change.writer_guid(),
-                sequence_number: *change.sequence_number(),
-                instance_handle: *change.instance_handle(),
-                data: [change.data_value()[0].clone()],
+                kind: change.kind,
+                writer_guid: change.writer_guid,
+                sequence_number: change.sequence_number,
+                instance_handle: change.instance_handle,
+                data: [change.data_value[0].clone()],
                 inline_qos: (),
             });
         }

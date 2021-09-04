@@ -125,14 +125,14 @@ impl RtpsWriterOperations for RtpsWriterImpl {
         <Self as RtpsWriter>::HistoryCacheType: RtpsHistoryCache,
     {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
-        RtpsCacheChange::new(
+        RtpsCacheChange {
             kind,
-            self.guid,
-            handle,
-            self.last_change_sequence_number,
-            data,
+            writer_guid: self.guid,
+            instance_handle: handle,
+            sequence_number: self.last_change_sequence_number,
+            data_value: data,
             inline_qos,
-        )
+        }
     }
 }
 
@@ -327,8 +327,8 @@ mod tests {
         let change1 = writer.new_change(ChangeKind::Alive, &[], &[], 0);
         let change2 = writer.new_change(ChangeKind::Alive, &[], &[], 0);
 
-        assert_eq!(change1.sequence_number(), &1);
-        assert_eq!(change2.sequence_number(), &2);
+        assert_eq!(change1.sequence_number, 1);
+        assert_eq!(change2.sequence_number, 2);
     }
 
     #[test]

@@ -315,6 +315,6 @@ mod tests {
             .get_change(&(1i64.into()))
             .unwrap();
 
-        assert_eq!(change.data_value(), &[0, 1, 0, 0, 7, 3]);
+        assert_eq!(change.data_value, &[0, 1, 0, 0, 7, 3]);
     }
 }
