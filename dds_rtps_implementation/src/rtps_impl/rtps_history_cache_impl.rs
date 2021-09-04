@@ -110,7 +110,7 @@ impl RtpsHistoryCache for HistoryCache {
         }
     }
 
-    fn add_change(&mut self, change: RtpsCacheChange) {
+    fn add_change(&mut self, change: RtpsCacheChange<&[u8]>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -146,7 +146,7 @@ impl RtpsHistoryCache for HistoryCache {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
 
-    fn get_change(&self, seq_num: &SequenceNumber) -> Option<RtpsCacheChange> {
+    fn get_change(&self, seq_num: &SequenceNumber) -> Option<RtpsCacheChange<&[u8]>> {
         let local_change = self
             .changes
             .iter()
@@ -193,7 +193,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[],
+            data_value: &[][..],
             inline_qos: &[],
         };
         hc.add_change(change);
@@ -208,7 +208,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[],
+            data_value: &[][..],
             inline_qos: &[],
         };
         hc.add_change(change);
@@ -224,7 +224,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[],
+            data_value: &[][..],
             inline_qos: &[],
         };
         hc.add_change(change);
@@ -240,7 +240,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[],
+            data_value: &[][..],
             inline_qos: &[],
         };
         let change2 = RtpsCacheChange {
@@ -248,7 +248,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 2,
-            data_value: &[],
+            data_value: &[][..],
             inline_qos: &[],
         };
         hc.add_change(change1);
@@ -264,7 +264,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[],
+            data_value: &[][..],
             inline_qos: &[],
         };
         let change2 = RtpsCacheChange {
@@ -272,7 +272,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 2,
-            data_value: &[],
+            data_value: &[][..],
             inline_qos: &[],
         };
         hc.add_change(change1);

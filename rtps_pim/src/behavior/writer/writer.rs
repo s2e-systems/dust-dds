@@ -3,9 +3,9 @@ use crate::{
     messages::submessage_elements::Parameter,
     structure::{
         types::{
-            ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, Guid,
+            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
         },
-        RtpsHistoryCache, RtpsCacheChange,
+        RtpsCacheChange, RtpsHistoryCache,
     },
 };
 
@@ -42,7 +42,7 @@ pub trait RtpsWriterOperations {
         data: &'a [u8],
         inline_qos: &'a [Parameter<'a>],
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<'a>
+    ) -> RtpsCacheChange<'a, &'a [u8]>
     where
         Self: RtpsWriter,
         Self::HistoryCacheType: RtpsHistoryCache;

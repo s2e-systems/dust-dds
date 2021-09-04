@@ -119,7 +119,7 @@ impl RtpsWriterOperations for RtpsWriterImpl {
         data: &'a [u8],
         inline_qos: &'a [Parameter<'a>],
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<'a>
+    ) -> RtpsCacheChange<'a, &'a [u8]>
     where
         Self: RtpsWriter,
         <Self as RtpsWriter>::HistoryCacheType: RtpsHistoryCache,

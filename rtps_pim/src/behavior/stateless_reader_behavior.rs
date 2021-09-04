@@ -79,7 +79,7 @@ mod tests {
             todo!()
         }
 
-        fn add_change(&mut self, change: RtpsCacheChange) {
+        fn add_change(&mut self, change: RtpsCacheChange<&[u8]>) {
             self.0 = Some(MockCacheChange {
                 kind: change.kind,
                 writer_guid: change.writer_guid,
@@ -97,7 +97,7 @@ mod tests {
         fn get_change(
             &self,
             _seq_num: &crate::structure::types::SequenceNumber,
-        ) -> Option<RtpsCacheChange> {
+        ) -> Option<RtpsCacheChange<&[u8]>> {
             todo!()
         }
 
