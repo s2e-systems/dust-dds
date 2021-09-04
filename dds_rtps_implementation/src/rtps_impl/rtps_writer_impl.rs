@@ -19,8 +19,8 @@ use rust_rtps_pim::{
 };
 
 use super::{
-    rtps_reader_history_cache_impl::ReaderHistoryCache, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
-    rtps_reader_proxy_impl::RtpsReaderProxyImpl,
+    rtps_reader_locator_impl::RtpsReaderLocatorImpl, rtps_reader_proxy_impl::RtpsReaderProxyImpl,
+    rtps_writer_history_cache_impl::WriterHistoryCache,
 };
 
 pub struct RtpsWriterImpl {
@@ -37,7 +37,7 @@ pub struct RtpsWriterImpl {
     data_max_size_serialized: Option<i32>,
     reader_locators: Vec<RtpsReaderLocatorImpl>,
     matched_readers: Vec<RtpsReaderProxyImpl>,
-    writer_cache: ReaderHistoryCache,
+    writer_cache: WriterHistoryCache,
 }
 
 impl RtpsEntity for RtpsWriterImpl {
@@ -47,7 +47,7 @@ impl RtpsEntity for RtpsWriterImpl {
 }
 
 impl RtpsWriter for RtpsWriterImpl {
-    type HistoryCacheType = ReaderHistoryCache;
+    type HistoryCacheType = WriterHistoryCache;
 
     fn push_mode(&self) -> bool {
         self.push_mode
@@ -73,11 +73,11 @@ impl RtpsWriter for RtpsWriterImpl {
         &self.data_max_size_serialized
     }
 
-    fn writer_cache(&self) -> &ReaderHistoryCache {
+    fn writer_cache(&self) -> &WriterHistoryCache {
         &self.writer_cache
     }
 
-    fn writer_cache_mut(&mut self) -> &mut ReaderHistoryCache {
+    fn writer_cache_mut(&mut self) -> &mut WriterHistoryCache {
         &mut self.writer_cache
     }
 }
@@ -109,17 +109,20 @@ impl RtpsWriterOperations for RtpsWriterImpl {
             last_change_sequence_number: 0.into(),
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: ReaderHistoryCache::new(),
+            writer_cache: WriterHistoryCache::new(),
         }
     }
 
     fn new_change<'a>(
         &mut self,
         kind: ChangeKind,
-        data: &'a [u8],
+        data: <<Self as RtpsWriter>::HistoryCacheType as RtpsHistoryCache<'a>>::CacheChangeDataType,
         inline_qos: &'a [Parameter<'a>],
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<'a, &'a [u8]>
+    ) -> RtpsCacheChange<
+        'a,
+        <<Self as RtpsWriter>::HistoryCacheType as RtpsHistoryCache<'a>>::CacheChangeDataType,
+    >
     where
         Self: RtpsWriter,
         <Self as RtpsWriter>::HistoryCacheType: RtpsHistoryCache<'a>,
@@ -300,8 +303,9 @@ mod tests {
     };
 
     use crate::rtps_impl::{
-        rtps_reader_history_cache_impl::ReaderHistoryCache, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_reader_locator_impl::RtpsReaderLocatorImpl,
         rtps_reader_proxy_impl::RtpsReaderProxyImpl,
+        rtps_writer_history_cache_impl::WriterHistoryCache,
     };
 
     use super::RtpsWriterImpl;
@@ -322,10 +326,10 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: ReaderHistoryCache::new(),
+            writer_cache: WriterHistoryCache::new(),
         };
-        let change1 = writer.new_change(ChangeKind::Alive, &[], &[], 0);
-        let change2 = writer.new_change(ChangeKind::Alive, &[], &[], 0);
+        let change1 = writer.new_change(ChangeKind::Alive, vec![], &[], 0);
+        let change2 = writer.new_change(ChangeKind::Alive, vec![], &[], 0);
 
         assert_eq!(change1.sequence_number, 1);
         assert_eq!(change2.sequence_number, 2);
@@ -347,7 +351,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: ReaderHistoryCache::new(),
+            writer_cache: WriterHistoryCache::new(),
         };
         let reader_locator1 = RtpsReaderLocatorImpl::new(Locator::new(1, 1, [1; 16]), false);
         let reader_locator2 = RtpsReaderLocatorImpl::new(Locator::new(2, 2, [2; 16]), false);
@@ -373,7 +377,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: ReaderHistoryCache::new(),
+            writer_cache: WriterHistoryCache::new(),
         };
 
         let reader_locator1 = RtpsReaderLocatorImpl::new(Locator::new(1, 1, [1; 16]), false);
@@ -401,7 +405,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: ReaderHistoryCache::new(),
+            writer_cache: WriterHistoryCache::new(),
         };
         let unknown_remote_group_entity_id = EntityId::new([0; 3], EntityKind::UserDefinedUnknown);
         let reader_proxy_guid1 = Guid::new(
@@ -449,7 +453,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: ReaderHistoryCache::new(),
+            writer_cache: WriterHistoryCache::new(),
         };
 
         let unknown_remote_group_entity_id = EntityId::new([0; 3], EntityKind::UserDefinedUnknown);
@@ -500,7 +504,7 @@ mod tests {
             data_max_size_serialized: None,
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
-            writer_cache: ReaderHistoryCache::new(),
+            writer_cache: WriterHistoryCache::new(),
         };
 
         let unknown_remote_group_entity_id = EntityId::new([0; 3], EntityKind::UserDefinedUnknown);

@@ -98,7 +98,7 @@ where
         let data = cdr::serialize::<_, _, cdr::CdrLe>(&data, cdr::Infinite).unwrap();
         let change = self
             .rtps_writer_impl
-            .new_change(ChangeKind::Alive, data.as_slice(), &[], 0);
+            .new_change(ChangeKind::Alive, data, &[], 0);
         let writer_cache = self.rtps_writer_impl.writer_cache_mut();
         let time = rust_rtps_pim::messages::types::Time(0);
         writer_cache.set_source_timestamp(Some(time));
