@@ -102,7 +102,7 @@ where
         let writer_cache = self.rtps_writer_impl.writer_cache_mut();
         let time = rust_rtps_pim::messages::types::Time(0);
         writer_cache.set_source_timestamp(Some(time));
-        writer_cache.add_change(&change);
+        writer_cache.add_change(change);
         Ok(())
     }
 

@@ -10,7 +10,7 @@ pub trait RtpsHistoryCache {
     /// This operation will only fail if there are not enough resources to add the change to the HistoryCache. It is the responsibility
     /// of the DDS service implementation to configure the HistoryCache in a manner consistent with the DDS Entity RESOURCE_LIMITS QoS
     /// and to propagate any errors to the DDS-user in the manner specified by the DDS specification.
-    fn add_change(&mut self, change: &RtpsCacheChange);
+    fn add_change(&mut self, change: RtpsCacheChange);
 
     /// This operation indicates that a previously-added CacheChange has become irrelevant and the details regarding the CacheChange need
     /// not be maintained in the HistoryCache. The determination of irrelevance is made based on the QoS associated with the related DDS

@@ -110,7 +110,7 @@ impl RtpsHistoryCache for HistoryCache {
         }
     }
 
-    fn add_change(&mut self, change: &RtpsCacheChange) {
+    fn add_change(&mut self, change: RtpsCacheChange) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn add_change() {
         let mut hc: HistoryCache = HistoryCache::new();
-        let change = RtpsCacheChange{
+        let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
@@ -196,14 +196,14 @@ mod tests {
             data_value: &[],
             inline_qos: &[],
         };
-        hc.add_change(&change);
+        hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
     }
 
     #[test]
     fn remove_change() {
         let mut hc: HistoryCache = HistoryCache::new();
-        let change = RtpsCacheChange{
+        let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
@@ -211,7 +211,7 @@ mod tests {
             data_value: &[],
             inline_qos: &[],
         };
-        hc.add_change(&change);
+        hc.add_change(change);
         hc.remove_change(&1);
         assert!(hc.get_change(&1).is_none());
     }
@@ -219,7 +219,7 @@ mod tests {
     #[test]
     fn get_change() {
         let mut hc: HistoryCache = HistoryCache::new();
-        let change = RtpsCacheChange{
+        let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
@@ -227,7 +227,7 @@ mod tests {
             data_value: &[],
             inline_qos: &[],
         };
-        hc.add_change(&change);
+        hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
         assert!(hc.get_change(&2).is_none());
     }
@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn get_seq_num_min() {
         let mut hc: HistoryCache = HistoryCache::new();
-        let change1 = RtpsCacheChange{
+        let change1 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
@@ -243,7 +243,7 @@ mod tests {
             data_value: &[],
             inline_qos: &[],
         };
-        let change2 = RtpsCacheChange{
+        let change2 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
@@ -251,15 +251,15 @@ mod tests {
             data_value: &[],
             inline_qos: &[],
         };
-        hc.add_change(&change1);
-        hc.add_change(&change2);
+        hc.add_change(change1);
+        hc.add_change(change2);
         assert_eq!(hc.get_seq_num_min(), Some(1));
     }
 
     #[test]
     fn get_seq_num_max() {
         let mut hc: HistoryCache = HistoryCache::new();
-        let change1 = RtpsCacheChange{
+        let change1 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
@@ -267,7 +267,7 @@ mod tests {
             data_value: &[],
             inline_qos: &[],
         };
-        let change2 = RtpsCacheChange{
+        let change2 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
@@ -275,8 +275,8 @@ mod tests {
             data_value: &[],
             inline_qos: &[],
         };
-        hc.add_change(&change1);
-        hc.add_change(&change2);
+        hc.add_change(change1);
+        hc.add_change(change2);
         assert_eq!(hc.get_seq_num_max(), Some(2));
     }
 }

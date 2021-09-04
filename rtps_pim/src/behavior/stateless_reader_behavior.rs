@@ -40,7 +40,7 @@ where
                 data_value,
                 inline_qos,
             };
-            reader_cache.add_change(&a_change);
+            reader_cache.add_change(a_change);
         }
     }
 }
@@ -79,7 +79,7 @@ mod tests {
             todo!()
         }
 
-        fn add_change(&mut self, change: &RtpsCacheChange) {
+        fn add_change(&mut self, change: RtpsCacheChange) {
             self.0 = Some(MockCacheChange {
                 kind: change.kind,
                 writer_guid: change.writer_guid,
