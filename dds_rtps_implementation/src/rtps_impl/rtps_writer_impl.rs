@@ -19,7 +19,7 @@ use rust_rtps_pim::{
 };
 
 use super::{
-    rtps_history_cache_impl::HistoryCache, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+    rtps_reader_history_cache_impl::HistoryCache, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
     rtps_reader_proxy_impl::RtpsReaderProxyImpl,
 };
 
@@ -300,7 +300,7 @@ mod tests {
     };
 
     use crate::rtps_impl::{
-        rtps_history_cache_impl::HistoryCache, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_reader_history_cache_impl::HistoryCache, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
         rtps_reader_proxy_impl::RtpsReaderProxyImpl,
     };
 

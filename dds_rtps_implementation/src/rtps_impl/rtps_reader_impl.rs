@@ -13,7 +13,9 @@ use rust_rtps_pim::{
     },
 };
 
-use super::{rtps_history_cache_impl::HistoryCache, rtps_writer_proxy_impl::RtpsWriterProxyImpl};
+use super::{
+    rtps_reader_history_cache_impl::HistoryCache, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+};
 
 pub struct RtpsReaderImpl {
     guid: Guid,
