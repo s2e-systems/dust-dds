@@ -36,33 +36,3 @@ pub trait DdsType {
 pub trait DdsSerialize {
     fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DDSResult<()>;
 }
-
-#[derive(Debug, PartialEq)]
-struct ParameterSerialize<T> {
-    parameter_id: u16,
-    value: T,
-}
-
-impl<T: serde::Serialize> ParameterSerialize<T> {
-    fn new(parameter_id: u16, value: T) -> Self {
-        Self {
-            parameter_id,
-            value,
-        }
-    }
-}
-const PID_SENTINEL: u16 = 1;
-
-type ParameterListSerialize = Vec<ParameterSerialize<Box<dyn erased_serde::Serialize>>>;
-impl DdsSerialize for ParameterListSerialize {
-    fn serialize<W: Write, E: Endianness>(&self, mut writer: W) -> DDSResult<()> {
-        E::REPRESENTATION_IDENTIFIER.write(&mut writer)?;
-        E::REPRESENTATION_OPTIONS.write(&mut writer)?;
-        for parameter_i in self {
-            parameter_i.serialize::<_, E>(&mut writer).unwrap();
-        }
-        PID_SENTINEL.serialize::<_, E>(&mut writer)?;
-        [0,0].serialize::<_, E>(&mut writer)?;
-        Ok(())
-    }
-}
