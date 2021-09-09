@@ -25,20 +25,12 @@ use rust_dds_rtps_implementation::{
     },
     utils::shared_object::RtpsShared,
 };
-use rust_rtps_pim::{
-    behavior::types::Duration,
-    discovery::{
+use rust_rtps_pim::{behavior::types::Duration, discovery::{
         spdp::{
             builtin_endpoints::SpdpBuiltinParticipantWriter, participant_proxy::ParticipantProxy,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
-    messages::types::Count,
-    structure::{
-        types::{EntityId, EntityKind, Guid, LOCATOR_KIND_UDPv4, Locator},
-        RtpsParticipant,
-    },
-};
+    }, messages::types::Count, structure::{RtpsParticipant, types::{EntityId, EntityKind, Guid, LOCATOR_INVALID, LOCATOR_KIND_UDPv4, Locator}}};
 
 use crate::udp_transport::UdpTransport;
 
@@ -120,7 +112,7 @@ impl DomainParticipantFactory {
             guid_prefix,
             vendor_id: *rtps_participant.vendor_id(),
             expects_inline_qos: false,
-            metatraffic_unicast_locator_list: vec![],
+            metatraffic_unicast_locator_list: vec![LOCATOR_INVALID],
             metatraffic_multicast_locator_list: vec![],
             default_unicast_locator_list: vec![],
             default_multicast_locator_list: vec![],

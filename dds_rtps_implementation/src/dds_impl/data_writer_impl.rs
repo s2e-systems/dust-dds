@@ -25,7 +25,7 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    dds_type::DdsSerialize,
+    dds_type::{DdsSerialize, LittleEndian},
     rtps_impl::rtps_writer_impl::RtpsWriterImpl,
     utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite},
 };
@@ -96,7 +96,7 @@ where
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
         let mut bytes = Vec::new();
-        data.serialize(&mut bytes);
+        data.serialize::<_, LittleEndian>(&mut bytes)?;
         let change = self
             .rtps_writer_impl
             .new_change(ChangeKind::Alive, bytes, &[], 0);
@@ -278,6 +278,18 @@ mod tests {
 
     #[test]
     fn write_w_timestamp() {
+        struct MockData<'a>(&'a [u8]);
+
+        impl DdsSerialize for MockData<'_> {
+            fn serialize<W: std::io::Write, R: crate::dds_type::Endianness>(
+                &self,
+                mut writer: W,
+            ) -> DDSResult<()> {
+                writer.write(self.0).unwrap();
+                Ok(())
+            }
+        }
+
         let guid = GUID_UNKNOWN;
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
@@ -302,9 +314,10 @@ mod tests {
         );
         let mut data_writer_impl = DataWriterImpl::new(DataWriterQos::default(), rtps_writer);
 
+        let data_value = [0, 1, 0, 0, 7, 3];
         data_writer_impl
             .write_w_timestamp(
-                (7u8, 3u8),
+                MockData(&data_value),
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )
@@ -316,6 +329,6 @@ mod tests {
             .get_change(&(1i64.into()))
             .unwrap();
 
-        assert_eq!(change.data_value, &[0, 1, 0, 0, 7, 3]);
+        assert_eq!(change.data_value, &data_value);
     }
 }
