@@ -28,7 +28,7 @@ pub trait TopicGAT<'t, T: 'static> {
     fn create_topic_gat(
         &'t self,
         topic_name: &str,
-        qos: Option<TopicQos>,
+        qos: Option<TopicQos<'static>>,
         a_listener: Option<&'static dyn TopicListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>;
@@ -132,7 +132,7 @@ pub trait DomainParticipant {
     fn create_topic<'t, T: 'static>(
         &'t self,
         topic_name: &str,
-        qos: Option<TopicQos>,
+        qos: Option<TopicQos<'static>>,
         a_listener: Option<&'static dyn TopicListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>
@@ -317,13 +317,13 @@ pub trait DomainParticipant {
     /// The special value TOPIC_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the values that would be used if the set_default_topic_qos operation
     /// had never been called.
-    fn set_default_topic_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()>;
+    fn set_default_topic_qos(&mut self, qos: Option<TopicQos<'static>>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
     /// entities in the case where the QoS policies are defaulted in the create_topic operation.
     /// The values retrieved get_default_topic_qos will match the set of values specified on the last successful call to
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
-    fn get_default_topic_qos(&self) -> TopicQos;
+    fn get_default_topic_qos(&self) -> TopicQos<'static>;
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the DomainParticipant ignore_participant operation.

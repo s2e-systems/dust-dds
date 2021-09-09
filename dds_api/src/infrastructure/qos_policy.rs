@@ -100,17 +100,17 @@ impl Default for UserDataQosPolicy {
 /// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
 /// these QoS can assist an application to extend the provided QoS.
 #[derive(Debug, PartialEq, Clone)]
-pub struct TopicDataQosPolicy {
-    pub value: &'static [u8],
+pub struct TopicDataQosPolicy<'a> {
+    pub value: &'a [u8],
 }
 
-impl QosPolicy for TopicDataQosPolicy {
+impl QosPolicy for TopicDataQosPolicy<'_> {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for TopicDataQosPolicy {
+impl Default for TopicDataQosPolicy<'_> {
     fn default() -> Self {
         Self { value: &[] }
     }

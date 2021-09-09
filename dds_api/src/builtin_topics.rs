@@ -32,7 +32,7 @@ pub struct TopicBuiltinTopicData<'a> {
     pub history: HistoryQosPolicy,
     pub resource_limits: ResourceLimitsQosPolicy,
     pub ownership: OwnershipQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
+    pub topic_data: TopicDataQosPolicy<'a>,
 }
 pub struct PublicationBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
@@ -54,7 +54,7 @@ pub struct PublicationBuiltinTopicData<'a> {
 
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
+    pub topic_data: TopicDataQosPolicy<'a>,
     pub group_data: GroupDataQosPolicy,
 }
 pub struct SubscriptionBuiltinTopicData<'a> {
@@ -75,6 +75,6 @@ pub struct SubscriptionBuiltinTopicData<'a> {
 
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
+    pub topic_data: TopicDataQosPolicy<'a>,
     pub group_data: GroupDataQosPolicy,
 }

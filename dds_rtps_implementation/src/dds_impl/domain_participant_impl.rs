@@ -54,7 +54,7 @@ pub struct DomainParticipantImpl {
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
     _topic_storage: Vec<RtpsShared<TopicImpl>>,
-    default_topic_qos: TopicQos,
+    default_topic_qos: TopicQos<'static>,
     metatraffic_transport: Arc<Mutex<Box<dyn Transport>>>,
     default_transport: Arc<Mutex<Box<dyn Transport>>>,
     is_enabled: Arc<AtomicBool>,
@@ -293,14 +293,14 @@ impl DomainParticipant for DomainParticipantImpl {
         self.default_subscriber_qos.clone()
     }
 
-    fn set_default_topic_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()> {
+    fn set_default_topic_qos(&mut self, qos: Option<TopicQos<'static>>) -> DDSResult<()> {
         let topic_qos = qos.unwrap_or_default();
         topic_qos.is_consistent()?;
         self.default_topic_qos = topic_qos;
         Ok(())
     }
 
-    fn get_default_topic_qos(&self) -> TopicQos {
+    fn get_default_topic_qos(&self) -> TopicQos<'static> {
         self.default_topic_qos.clone()
     }
 
