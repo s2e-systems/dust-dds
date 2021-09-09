@@ -15,7 +15,7 @@ pub trait StatelessReaderBehavior<P> {
 impl<'a, 'b, T, P> StatelessReaderBehavior<P> for T
 where
     T: RtpsReader + RtpsEntity,
-    T::HistoryCacheType: RtpsHistoryCache,
+    T::HistoryCacheType: for<'c> RtpsHistoryCache<'c, CacheChangeDataType = &'c [u8]>,
     P: AsRef<[Parameter<'a>]>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>) {
@@ -32,15 +32,15 @@ where
             let sequence_number = data.writer_sn.value;
             let data_value = data.serialized_payload.value;
             let inline_qos = data.inline_qos.parameter.as_ref();
-            let a_change = RtpsCacheChange::new(
+            let a_change = RtpsCacheChange {
                 kind,
                 writer_guid,
                 instance_handle,
                 sequence_number,
                 data_value,
                 inline_qos,
-            );
-            reader_cache.add_change(&a_change);
+            };
+            reader_cache.add_change(a_change);
         }
     }
 }
@@ -71,7 +71,9 @@ mod tests {
 
     struct MockHistoryCache(Option<MockCacheChange>);
 
-    impl<'a> RtpsHistoryCache for MockHistoryCache {
+    impl<'a> RtpsHistoryCache<'a> for MockHistoryCache {
+        type CacheChangeDataType = &'a [u8];
+
         fn new() -> Self
         where
             Self: Sized,
@@ -79,13 +81,13 @@ mod tests {
             todo!()
         }
 
-        fn add_change(&mut self, change: &RtpsCacheChange) {
+        fn add_change(&mut self, change: RtpsCacheChange<&[u8]>) {
             self.0 = Some(MockCacheChange {
-                kind: *change.kind(),
-                writer_guid: *change.writer_guid(),
-                sequence_number: *change.sequence_number(),
-                instance_handle: *change.instance_handle(),
-                data: [change.data_value()[0].clone()],
+                kind: change.kind,
+                writer_guid: change.writer_guid,
+                sequence_number: change.sequence_number,
+                instance_handle: change.instance_handle,
+                data: [change.data_value[0].clone()],
                 inline_qos: (),
             });
         }
@@ -97,7 +99,7 @@ mod tests {
         fn get_change(
             &self,
             _seq_num: &crate::structure::types::SequenceNumber,
-        ) -> Option<RtpsCacheChange> {
+        ) -> Option<RtpsCacheChange<&[u8]>> {
             todo!()
         }
 

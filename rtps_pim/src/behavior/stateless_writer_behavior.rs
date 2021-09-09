@@ -33,7 +33,7 @@ impl<'a, S, T> StatelessWriterBehavior<'a, S> for T
 where
     T: RtpsStatelessWriter + RtpsWriter + RtpsEndpoint,
     T::ReaderLocatorType: RtpsReaderLocatorOperations,
-    T::HistoryCacheType: RtpsHistoryCache,
+    T::HistoryCacheType: RtpsHistoryCache<'a>,
     S: FromIterator<SequenceNumber>,
 {
     type ReaderLocator = T::ReaderLocatorType;
@@ -69,14 +69,14 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, S>(
     send_gap: &mut impl FnMut(&ReaderLocator, GapSubmessage<S>),
 ) where
     ReaderLocator: RtpsReaderLocatorOperations,
-    WriterCache: RtpsHistoryCache,
+    WriterCache: RtpsHistoryCache<'a>,
     S: FromIterator<SequenceNumber>,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
         if let Some(change) = writer_cache.get_change(&seq_num) {
             let endianness_flag = true;
             let inline_qos_flag = true;
-            let (data_flag, key_flag) = match change.kind() {
+            let (data_flag, key_flag) = match change.kind {
                 ChangeKind::Alive => (true, false),
                 ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
                 _ => todo!(),
@@ -86,16 +86,16 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, S>(
                 value: ENTITYID_UNKNOWN,
             };
             let writer_id = EntityIdSubmessageElement {
-                value: *change.writer_guid().entity_id(),
+                value: *change.writer_guid.entity_id(),
             };
             let writer_sn = SequenceNumberSubmessageElement {
-                value: *change.sequence_number(),
+                value: change.sequence_number,
             };
             let inline_qos = ParameterListSubmessageElement {
-                parameter: *change.inline_qos(),
+                parameter: change.inline_qos,
             };
             let serialized_payload = SerializedDataSubmessageElement {
-                value: change.data_value(),
+                value: change.data_value,
             };
             let data_submessage = DataSubmessage {
                 endianness_flag,
