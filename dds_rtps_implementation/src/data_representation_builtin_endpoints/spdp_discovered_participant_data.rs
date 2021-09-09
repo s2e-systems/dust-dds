@@ -10,7 +10,7 @@ use crate::{
         PID_PARTICIPANT_LEASE_DURATION, PID_USER_DATA,
     },
     data_serialize_deserialize::ParameterSerializer,
-    dds_type::DdsSerialize,
+    dds_type::{DdsDeserialize, DdsSerialize},
 };
 
 pub struct SpdpDiscoveredParticipantData<'a, L> {
@@ -57,6 +57,12 @@ impl<'a> DdsSerialize for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
     }
 }
 
+impl<'a, 'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
+    fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+        todo!()
+    }
+}
+
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "Duration")]
 struct DurationDef {
@@ -80,3 +86,8 @@ struct LocatorSerdeSerialize<'a>(#[serde(with = "LocatorDef")] &'a Locator);
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 struct LocatorSerdeDeserialize(#[serde(with = "LocatorDef")] Locator);
+
+#[cfg(test)]
+mod tests {
+
+}

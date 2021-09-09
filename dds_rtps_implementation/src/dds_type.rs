@@ -36,3 +36,7 @@ pub trait DdsType {
 pub trait DdsSerialize {
     fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DDSResult<()>;
 }
+
+pub trait DdsDeserialize<'de>: Sized {
+    fn deserialize(buf: &mut &'de [u8]) -> DDSResult<Self>;
+}
