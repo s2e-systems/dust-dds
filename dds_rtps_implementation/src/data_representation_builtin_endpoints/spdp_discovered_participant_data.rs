@@ -9,9 +9,7 @@ use crate::{
         PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR,
         PID_PARTICIPANT_LEASE_DURATION, PID_USER_DATA,
     },
-    data_serialize_deserialize::{
-        MappingWriteByteOrdered, ParameterListSerialize, ParameterSerialize,
-    },
+    data_serialize_deserialize::ParameterSerializer,
     dds_type::DdsSerialize,
 };
 
@@ -26,37 +24,35 @@ impl<'a> DdsSerialize for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
         &self,
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
-        let mut parameter_list: Vec<
-            ParameterSerialize<Box<dyn erased_serde::Serialize + 'static>>,
-        > = vec![
-            ParameterSerialize::new(
+        let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
+        parameter_list_serializer
+            .serialize_parameter(
                 PID_PARTICIPANT_LEASE_DURATION,
-                Box::new(DurationSerde(self.lease_duration)),
-            ),
-            ParameterSerialize::new(
-                PID_DOMAIN_TAG,
-                Box::new(self.participant_proxy.domain_tag.to_string()),
-            ),
-            ParameterSerialize::new(
+                DurationSerde(self.lease_duration),
+            )
+            .unwrap();
+        parameter_list_serializer
+            .serialize_parameter(PID_DOMAIN_TAG, self.participant_proxy.domain_tag)
+            .unwrap();
+        parameter_list_serializer
+            .serialize_parameter(
                 PID_EXPECTS_INLINE_QOS,
-                Box::new(self.participant_proxy.expects_inline_qos),
-            ),
-            ParameterSerialize::new(
-                PID_USER_DATA,
-                Box::new(self.dds_participant_data.user_data.value),
-            ),
-        ];
+                self.participant_proxy.expects_inline_qos,
+            )
+            .unwrap();
+        parameter_list_serializer
+            .serialize_parameter(PID_USER_DATA, self.dds_participant_data.user_data.value)
+            .unwrap();
+
         for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
         {
-            parameter_list.push(ParameterSerialize::new(
-                PID_METATRAFFIC_UNICAST_LOCATOR,
-                Box::new(LocatorSerde(*metatraffic_unicast_locator)),
-            ));
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_METATRAFFIC_UNICAST_LOCATOR,
+                    LocatorSerde(*metatraffic_unicast_locator),
+                )
+                .unwrap();
         }
-
-        ParameterListSerialize(parameter_list)
-            .write_ordered::<_, E>(writer)
-            .unwrap();
         Ok(())
     }
 }

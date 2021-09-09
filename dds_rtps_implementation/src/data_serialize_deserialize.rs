@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{io::Write, marker::PhantomData};
 
 use cdr::Serializer;
 
@@ -26,13 +26,13 @@ where
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ParameterSerialize<T> {
+struct ParameterSerialize<T> {
     parameter_id: u16,
     value: T,
 }
 
 impl<T: serde::Serialize> ParameterSerialize<T> {
-    pub fn new(parameter_id: u16, value: T) -> Self {
+    fn new(parameter_id: u16, value: T) -> Self {
         Self {
             parameter_id,
             value,
@@ -65,7 +65,7 @@ impl<T: serde::Serialize> MappingWriteByteOrdered for ParameterSerialize<T> {
 
 const PID_SENTINEL: u16 = 1;
 
-pub struct ParameterListSerialize(pub Vec<ParameterSerialize<Box<dyn erased_serde::Serialize>>>);
+pub struct ParameterListSerialize(Vec<ParameterSerialize<Box<dyn erased_serde::Serialize>>>);
 impl MappingWriteByteOrdered for ParameterListSerialize {
     fn write_ordered<W: Write, E: Endianness>(
         &self,
@@ -76,8 +76,56 @@ impl MappingWriteByteOrdered for ParameterListSerialize {
         for parameter_i in &self.0 {
             parameter_i.write_ordered::<_, E>(&mut writer).unwrap();
         }
-        PID_SENTINEL.write_ordered::<_, E>(&mut writer)?;
-        [0_u8, 0].write_ordered::<_, E>(&mut writer)?;
+
         Ok(())
+    }
+}
+
+pub struct ParameterSerializer<W, E>
+where
+    W: std::io::Write,
+    E: Endianness,
+{
+    writer: W,
+    phantom: PhantomData<E>,
+}
+
+impl<W, E> ParameterSerializer<W, E>
+where
+    W: std::io::Write,
+    E: Endianness,
+{
+    pub fn new(mut writer: W) -> Self {
+        writer.write(&E::REPRESENTATION_IDENTIFIER).unwrap();
+        writer.write(&E::REPRESENTATION_OPTIONS).unwrap();
+
+        Self {
+            writer,
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn serialize_parameter<T>(
+        &mut self,
+        parameter_id: u16,
+        value: T,
+    ) -> std::result::Result<(), std::io::Error>
+    where
+        T: serde::Serialize,
+    {
+        ParameterSerialize::new(parameter_id, value).write_ordered::<_, E>(&mut self.writer)
+    }
+}
+
+impl<W, E> Drop for ParameterSerializer<W, E>
+where
+    W: std::io::Write,
+    E: Endianness,
+{
+    fn drop(&mut self) {
+        PID_SENTINEL
+            .write_ordered::<_, E>(&mut self.writer)
+            .unwrap();
+        [0_u8, 0].write_ordered::<_, E>(&mut self.writer).unwrap();
     }
 }
