@@ -10,10 +10,7 @@ use crate::{
         },
     },
     discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-    structure::{
-        types::{Guid, Locator, ENTITYID_UNKNOWN},
-        RtpsParticipant,
-    },
+    structure::types::{Guid, Locator, ENTITYID_UNKNOWN},
 };
 
 use super::{
@@ -26,12 +23,12 @@ use super::{
         },
         sedp_participant::SedpParticipant,
     },
-    spdp::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    spdp::spdp_discovered_participant_data::ParticipantProxy,
     types::BuiltinEndpointSet,
 };
 
 pub trait ParticipantDiscovery<L> {
-    fn discovered_participant_add(&mut self, participant_data: &SpdpDiscoveredParticipantData<L>);
+    fn discovered_participant_add(&mut self, participant_data: &ParticipantProxy<L>);
     fn discovered_participant_remove(&mut self, a_guid: &Guid);
 }
 
@@ -58,7 +55,7 @@ where
     <Participant::BuiltinTopicsReader as RtpsStatefulReader>::WriterProxyType:
         RtpsWriterProxyOperations,
 {
-    fn discovered_participant_add(&mut self, participant_data: &SpdpDiscoveredParticipantData<L>) {
+    fn discovered_participant_add(&mut self, participant_data: &ParticipantProxy<L>) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
         // communicate with the discovered participant.
