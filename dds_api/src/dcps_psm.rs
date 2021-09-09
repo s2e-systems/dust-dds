@@ -6,6 +6,7 @@ pub type BuiltInTopicKeyTypeNative = i32;
 pub type DomainId = DomainIdTypeNative;
 pub type InstanceHandle = HandleTypeNative;
 
+#[derive(Debug, PartialEq)]
 pub struct BuiltInTopicKey {
     pub value: [BuiltInTopicKeyTypeNative; 3],
 }

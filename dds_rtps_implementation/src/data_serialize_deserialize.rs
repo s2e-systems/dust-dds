@@ -1,8 +1,9 @@
-use std::{io::Write, marker::PhantomData};
+use std::{io::{BufRead, Read, Write}, marker::PhantomData};
 
+use byteorder::{ByteOrder, ReadBytesExt};
 use cdr::Serializer;
 
-use crate::dds_type::Endianness;
+use crate::dds_type::{Endianness, BigEndian, LittleEndian};
 
 pub trait MappingWriteByteOrdered {
     fn write_ordered<W: Write, E: Endianness>(
@@ -26,12 +27,12 @@ where
 }
 
 #[derive(Debug, PartialEq)]
-struct ParameterSerialize<T> {
+struct Parameter<T> {
     parameter_id: u16,
     value: T,
 }
 
-impl<T: serde::Serialize> ParameterSerialize<T> {
+impl<T: serde::Serialize> Parameter<T> {
     fn new(parameter_id: u16, value: T) -> Self {
         Self {
             parameter_id,
@@ -40,7 +41,7 @@ impl<T: serde::Serialize> ParameterSerialize<T> {
     }
 }
 
-impl<T: serde::Serialize> MappingWriteByteOrdered for ParameterSerialize<T> {
+impl<T: serde::Serialize> MappingWriteByteOrdered for Parameter<T> {
     fn write_ordered<W: Write, E: Endianness>(
         &self,
         mut writer: W,
@@ -65,7 +66,7 @@ impl<T: serde::Serialize> MappingWriteByteOrdered for ParameterSerialize<T> {
 
 const PID_SENTINEL: u16 = 1;
 
-pub struct ParameterListSerialize(Vec<ParameterSerialize<Box<dyn erased_serde::Serialize>>>);
+pub struct ParameterListSerialize(Vec<Parameter<Box<dyn erased_serde::Serialize>>>);
 impl MappingWriteByteOrdered for ParameterListSerialize {
     fn write_ordered<W: Write, E: Endianness>(
         &self,
@@ -113,7 +114,7 @@ where
     where
         T: serde::Serialize,
     {
-        ParameterSerialize::new(parameter_id, value).write_ordered::<_, E>(&mut self.writer)
+        Parameter::new(parameter_id, value).write_ordered::<_, E>(&mut self.writer)
     }
 }
 
@@ -127,5 +128,136 @@ where
             .write_ordered::<_, E>(&mut self.writer)
             .unwrap();
         [0_u8, 0].write_ordered::<_, E>(&mut self.writer).unwrap();
+    }
+}
+
+
+pub trait MappingRead<'de>: Sized {
+    fn read(buf: &mut &'de [u8]) -> Result<Self, std::io::Error>;
+}
+
+
+impl<'de: 'a, 'a> Parameter<&'a [u8]> {
+    fn read<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
+        let parameter_id = buf.read_u16::<B>()?;
+        let length = buf.read_i16::<B>()?;
+        let (value, following) = buf.split_at(length as usize);
+        *buf = following;
+        Ok(Self {
+            parameter_id,
+            value,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum RepresentationIdentifier {
+    PlCdrBe,
+    PlCdrLe,
+}
+
+impl<'de> MappingRead<'de> for RepresentationIdentifier {
+    fn read(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
+        let mut representation_identifier = [0; 2];
+        buf.read(&mut representation_identifier)?;
+        match representation_identifier {
+            BigEndian::REPRESENTATION_IDENTIFIER => Ok(RepresentationIdentifier::PlCdrBe),
+            LittleEndian::REPRESENTATION_IDENTIFIER => Ok(RepresentationIdentifier::PlCdrLe),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid representation identifier",
+            )),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ParameterList<'a> {
+    parameter: Vec<Parameter<&'a [u8]>>,
+    representation_identifier: RepresentationIdentifier,
+}
+
+impl<'de: 'a, 'a> MappingRead<'de> for ParameterList<'a> {
+    fn read(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
+        let representation_identifier = MappingRead::read(buf)?;
+        // ignore representation_options
+        buf.consume(2);
+
+        let mut parameter = vec![];
+        loop {
+            let parameter_i = match representation_identifier {
+                RepresentationIdentifier::PlCdrBe => {
+                    Parameter::<&[u8]>::read::<byteorder::BigEndian>(buf)?
+                }
+                RepresentationIdentifier::PlCdrLe => {
+                    Parameter::<&[u8]>::read::<byteorder::LittleEndian>(buf)?
+                }
+            };
+            if parameter_i.parameter_id == PID_SENTINEL {
+                break;
+            } else {
+                parameter.push(parameter_i);
+            }
+        }
+        Ok(Self {
+            parameter,
+            representation_identifier,
+        })
+    }
+}
+
+
+impl<'de> ParameterList<'de> {
+    pub fn get<T: serde::Deserialize<'de>>(&self, parameter_id: u16) -> Result<T, std::io::Error> {
+        for parameter in self.parameter.iter() {
+            if parameter.parameter_id == parameter_id {
+                return Ok(self.deserialize_parameter(parameter)?);
+            }
+        }
+        Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("Parameter with id {} not found", parameter_id),
+        ))
+    }
+
+    pub fn get_list<T: serde::Deserialize<'de>>(
+        &self,
+        parameter_id: u16,
+    ) -> Result<Vec<T>, std::io::Error> {
+        let mut result = vec![];
+        for parameter in self.parameter.iter() {
+            if parameter.parameter_id == parameter_id {
+                if let Ok(result_i) = self.deserialize_parameter(parameter) {
+                    result.push(result_i);
+                }
+            }
+        }
+        Ok(result)
+    }
+
+    fn deserialize_parameter<T: serde::Deserialize<'de>>(
+        &self,
+        parameter: &Parameter<&[u8]>,
+    ) -> Result<T, std::io::Error> {
+        Ok(match self.representation_identifier {
+            RepresentationIdentifier::PlCdrBe => {
+                let mut deserializer = cdr::Deserializer::<_, _, byteorder::BigEndian>::new(
+                    parameter.value,
+                    cdr::Infinite,
+                );
+                serde::Deserialize::deserialize(&mut deserializer).map_err(|err| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
+                })?
+            }
+            RepresentationIdentifier::PlCdrLe => {
+                let mut deserializer = cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(
+                    parameter.value,
+                    cdr::Infinite,
+                );
+                serde::Deserialize::deserialize(&mut deserializer).map_err(|err| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
+                })?
+            }
+        })
     }
 }

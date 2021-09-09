@@ -10,6 +10,7 @@ use crate::{
     },
 };
 
+#[derive(Debug, PartialEq)]
 pub struct ParticipantBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub user_data: UserDataQosPolicy,
