@@ -1,9 +1,33 @@
-use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
-use rust_rtps_pim::{behavior::types::Duration, discovery::{spdp::participant_proxy::ParticipantProxy, types::{BuiltinEndpointQos, BuiltinEndpointSet}}, messages::types::Count, structure::types::{Locator, ProtocolVersion}};
+use rust_dds_api::{
+    builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey,
+    infrastructure::qos_policy::UserDataQosPolicy,
+};
+use rust_rtps_pim::{
+    behavior::types::Duration,
+    discovery::{
+        spdp::participant_proxy::ParticipantProxy,
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    },
+    messages::types::Count,
+    structure::types::{
+        EntityId, EntityKind, Guid, GuidPrefix, Locator, ProtocolVersion, ENTITYID_PARTICIPANT,
+    },
+};
 
-use crate::{data_representation_builtin_endpoints::parameter_id_values::{PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION, PID_USER_DATA}, data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer}, dds_type::{DdsDeserialize, DdsSerialize}};
+use crate::{
+    data_representation_builtin_endpoints::parameter_id_values::{
+        PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+        PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION, PID_USER_DATA,
+    },
+    data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer},
+    dds_type::{DdsDeserialize, DdsSerialize},
+};
 
-use super::parameter_id_values::{PID_DOMAIN_ID, PID_PROTOCOL_VERSION};
+use super::parameter_id_values::{
+    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+    PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct SpdpDiscoveredParticipantData<'a, L> {
@@ -18,35 +42,41 @@ impl<'a> DdsSerialize for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
         let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
+
         parameter_list_serializer
-            .serialize_parameter(
-                PID_DOMAIN_ID,
-                &self.participant_proxy.domain_id,
-            )
+            .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)
             .unwrap();
+
         parameter_list_serializer
             .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)
             .unwrap();
-        parameter_list_serializer
-            .serialize_parameter(PID_PROTOCOL_VERSION, &ProtocolVersionSerdeSerialize(&self.participant_proxy.protocol_version))
-            .unwrap();
-        // parameter_list_serializer
-        //     .serialize_parameter(PID_PARTICIPANT_GUID, &ProtocolVersionSerdeSerialize(&self.participant_proxy.guid_prefix))
-        //     .unwrap();
+
         parameter_list_serializer
             .serialize_parameter(
-                PID_PARTICIPANT_LEASE_DURATION,
-                &DurationSerdeSerialize(&self.lease_duration),
+                PID_PROTOCOL_VERSION,
+                &ProtocolVersionSerdeSerialize(&self.participant_proxy.protocol_version),
             )
             .unwrap();
+
+        parameter_list_serializer
+            .serialize_parameter(
+                PID_PARTICIPANT_GUID,
+                &GuidSerdeSerialize(&Guid {
+                    prefix: self.participant_proxy.guid_prefix,
+                    entity_id: ENTITYID_PARTICIPANT,
+                }),
+            )
+            .unwrap();
+
+        parameter_list_serializer
+            .serialize_parameter(PID_VENDORID, &self.participant_proxy.vendor_id)
+            .unwrap();
+
         parameter_list_serializer
             .serialize_parameter(
                 PID_EXPECTS_INLINE_QOS,
                 &self.participant_proxy.expects_inline_qos,
             )
-            .unwrap();
-        parameter_list_serializer
-            .serialize_parameter(PID_USER_DATA, &self.dds_participant_data.user_data.value)
             .unwrap();
 
         for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
@@ -58,11 +88,73 @@ impl<'a> DdsSerialize for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
                 )
                 .unwrap();
         }
+
+        for metatraffic_multicast_locator in
+            &self.participant_proxy.metatraffic_multicast_locator_list
+        {
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_METATRAFFIC_MULTICAST_LOCATOR,
+                    &LocatorSerdeSerialize(metatraffic_multicast_locator),
+                )
+                .unwrap();
+        }
+
+        for default_unicast_locator in &self.participant_proxy.default_unicast_locator_list {
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_DEFAULT_UNICAST_LOCATOR,
+                    &LocatorSerdeSerialize(default_unicast_locator),
+                )
+                .unwrap();
+        }
+
+        for default_multicast_locator in &self.participant_proxy.default_multicast_locator_list {
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_DEFAULT_MULTICAST_LOCATOR,
+                    &LocatorSerdeSerialize(default_multicast_locator),
+                )
+                .unwrap();
+        }
+
+        parameter_list_serializer
+            .serialize_parameter(
+                PID_BUILTIN_ENDPOINT_SET,
+                &BuiltinEndpointSetSerdeSerialize(
+                    &self.participant_proxy.available_builtin_endpoints,
+                ),
+            )
+            .unwrap();
+
+        parameter_list_serializer
+            .serialize_parameter(
+                PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+                &CountSerdeSerialize(&self.participant_proxy.manual_liveliness_count),
+            )
+            .unwrap();
+
+        parameter_list_serializer
+            .serialize_parameter(
+                PID_BUILTIN_ENDPOINT_QOS,
+                &BuiltinEndpointQosSerdeSerialize(&self.participant_proxy.builtin_endpoint_qos),
+            )
+            .unwrap();
+
+        parameter_list_serializer
+            .serialize_parameter(
+                PID_PARTICIPANT_LEASE_DURATION,
+                &DurationSerdeSerialize(&self.lease_duration),
+            )
+            .unwrap();
+
+        // parameter_list_serializer
+        //     .serialize_parameter(PID_USER_DATA, &self.dds_participant_data.user_data.value)
+        //     .unwrap();
+
         Ok(())
     }
 }
-
-
 
 impl<'a, 'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
@@ -81,9 +173,13 @@ impl<'a, 'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Loca
         let guid_prefix = [8; 12];
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
-        let metatraffic_unicast_locator_list = param_list.get_list::<LocatorSerdeDeserialize>(PID_METATRAFFIC_UNICAST_LOCATOR).unwrap();
+        let metatraffic_unicast_locator_list = param_list
+            .get_list::<LocatorSerdeDeserialize>(PID_METATRAFFIC_UNICAST_LOCATOR)
+            .unwrap();
         let metatraffic_multicast_locator_list = vec![locator1];
-        let default_unicast_locator_list = param_list.get_list::<LocatorSerdeDeserialize>(PID_DEFAULT_UNICAST_LOCATOR).unwrap();
+        let default_unicast_locator_list = param_list
+            .get_list::<LocatorSerdeDeserialize>(PID_DEFAULT_UNICAST_LOCATOR)
+            .unwrap();
         let default_multicast_locator_list = vec![locator1];
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
@@ -92,22 +188,31 @@ impl<'a, 'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Loca
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );
 
-        let participant_proxy = ParticipantProxy{
+        let participant_proxy = ParticipantProxy {
             domain_id,
             domain_tag,
             protocol_version,
             guid_prefix,
             vendor_id,
             expects_inline_qos,
-            metatraffic_unicast_locator_list: metatraffic_unicast_locator_list.into_iter().map(|l|l.0).collect(),
+            metatraffic_unicast_locator_list: metatraffic_unicast_locator_list
+                .into_iter()
+                .map(|l| l.0)
+                .collect(),
             metatraffic_multicast_locator_list,
-            default_unicast_locator_list: default_unicast_locator_list.into_iter().map(|l|l.0).collect(),
+            default_unicast_locator_list: default_unicast_locator_list
+                .into_iter()
+                .map(|l| l.0)
+                .collect(),
             default_multicast_locator_list,
             available_builtin_endpoints,
             manual_liveliness_count,
             builtin_endpoint_qos,
         };
-        let lease_duration  = param_list.get::<DurationSerdeDeserialize>(PID_PARTICIPANT_LEASE_DURATION).unwrap().0;
+        let lease_duration = param_list
+            .get::<DurationSerdeDeserialize>(PID_PARTICIPANT_LEASE_DURATION)
+            .unwrap()
+            .0;
         Ok(Self {
             dds_participant_data,
             participant_proxy,
@@ -128,8 +233,6 @@ struct DurationSerdeSerialize<'a>(#[serde(with = "DurationDef")] &'a Duration);
 #[derive(Debug, PartialEq, serde::Deserialize)]
 struct DurationSerdeDeserialize(#[serde(with = "DurationDef")] Duration);
 
-
-
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "Locator")]
 struct LocatorDef {
@@ -143,9 +246,6 @@ struct LocatorSerdeSerialize<'a>(#[serde(with = "LocatorDef")] &'a Locator);
 #[derive(Debug, PartialEq, serde::Deserialize)]
 struct LocatorSerdeDeserialize(#[serde(with = "LocatorDef")] Locator);
 
-
-
-
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "ProtocolVersion")]
 struct ProtocolVersionDef {
@@ -158,7 +258,72 @@ struct ProtocolVersionSerdeSerialize<'a>(#[serde(with = "ProtocolVersionDef")] &
 #[derive(Debug, PartialEq, serde::Deserialize)]
 struct ProtocolVersionSerdeDeserialize(#[serde(with = "ProtocolVersionDef")] ProtocolVersion);
 
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "Guid")]
+struct GuidDef {
+    prefix: GuidPrefix,
+    #[serde(with = "EntityIdDef")]
+    entity_id: EntityId,
+}
 
+#[derive(Debug, PartialEq, serde::Serialize)]
+struct GuidSerdeSerialize<'a>(#[serde(with = "GuidDef")] &'a Guid);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+struct GuidSerdeDeserialize(#[serde(with = "GuidDef")] Guid);
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "EntityId")]
+struct EntityIdDef {
+    entity_key: [u8; 3],
+    #[serde(with = "EntityKindDef")]
+    entity_kind: EntityKind,
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "EntityKind")]
+enum EntityKindDef {
+    UserDefinedUnknown,
+    BuiltInUnknown,
+    BuiltInParticipant,
+    UserDefinedWriterWithKey,
+    BuiltInWriterWithKey,
+    UserDefinedWriterNoKey,
+    BuiltInWriterNoKey,
+    UserDefinedReaderWithKey,
+    BuiltInReaderWithKey,
+    UserDefinedReaderNoKey,
+    BuiltInReaderNoKey,
+    UserDefinedWriterGroup,
+    BuiltInWriterGroup,
+    UserDefinedReaderGroup,
+    BuiltInReaderGroup,
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "BuiltinEndpointSet")]
+struct BuiltinEndpointSetDef(u32);
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+struct BuiltinEndpointSetSerdeSerialize<'a>(
+    #[serde(with = "BuiltinEndpointSetDef")] &'a BuiltinEndpointSet,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "Count")]
+struct CountDef(i32);
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+struct CountSerdeSerialize<'a>(#[serde(with = "CountDef")] &'a Count);
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "BuiltinEndpointQos")]
+struct BuiltinEndpointQosDef(u32);
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+struct BuiltinEndpointQosSerdeSerialize<'a>(
+    #[serde(with = "BuiltinEndpointQosDef")] &'a BuiltinEndpointQos,
+);
 
 #[cfg(test)]
 mod tests {
@@ -293,7 +458,8 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result: SpdpDiscoveredParticipantData<Vec<Locator>> = DdsDeserialize::deserialize(&mut data).unwrap();
+        let result: SpdpDiscoveredParticipantData<Vec<Locator>> =
+            DdsDeserialize::deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 
