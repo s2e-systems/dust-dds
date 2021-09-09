@@ -6,22 +6,22 @@ use rust_dds_api::{
 };
 
 pub struct TopicImpl {
-    qos: TopicQos<'static>,
+    qos: TopicQos,
 }
 
 impl TopicImpl {
-    pub fn new(qos: TopicQos<'static>) -> Self {
+    pub fn new(qos: TopicQos) -> Self {
         Self { qos }
     }
 
-    pub fn set_qos(&mut self, qos: Option<TopicQos<'static>>) -> DDSResult<()> {
+    pub fn set_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
         self.qos = qos;
         Ok(())
     }
 
-    pub fn get_qos(&self) -> &TopicQos<'static> {
+    pub fn get_qos(&self) -> &TopicQos {
         &self.qos
     }
 }
