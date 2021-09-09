@@ -1,2 +1,2 @@
-pub mod spdp_discovered_participant_data;
+pub mod participant_proxy;
 pub mod builtin_endpoints;

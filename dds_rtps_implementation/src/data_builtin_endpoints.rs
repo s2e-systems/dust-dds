@@ -1,6 +1,6 @@
 use rust_dds_api::builtin_topics::ParticipantBuiltinTopicData;
 use rust_rtps_pim::{
-    behavior::types::Duration, discovery::spdp::spdp_discovered_participant_data::ParticipantProxy,
+    behavior::types::Duration, discovery::spdp::participant_proxy::ParticipantProxy,
 };
 
 pub struct SpdpDiscoveredParticipantData<'a, L> {

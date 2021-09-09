@@ -23,7 +23,7 @@ use super::{
         },
         sedp_participant::SedpParticipant,
     },
-    spdp::spdp_discovered_participant_data::ParticipantProxy,
+    spdp::participant_proxy::ParticipantProxy,
     types::BuiltinEndpointSet,
 };
 
