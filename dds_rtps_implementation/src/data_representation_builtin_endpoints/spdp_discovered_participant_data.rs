@@ -17,7 +17,7 @@ use rust_rtps_pim::{
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
         PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-        PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION, PID_USER_DATA,
+        PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
     },
     data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer},
     dds_type::{DdsDeserialize, DdsSerialize},
@@ -280,24 +280,40 @@ struct EntityIdDef {
     entity_kind: EntityKind,
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "EntityKind")]
-enum EntityKindDef {
-    UserDefinedUnknown,
-    BuiltInUnknown,
-    BuiltInParticipant,
-    UserDefinedWriterWithKey,
-    BuiltInWriterWithKey,
-    UserDefinedWriterNoKey,
-    BuiltInWriterNoKey,
-    UserDefinedReaderWithKey,
-    BuiltInReaderWithKey,
-    UserDefinedReaderNoKey,
-    BuiltInReaderNoKey,
-    UserDefinedWriterGroup,
-    BuiltInWriterGroup,
-    UserDefinedReaderGroup,
-    BuiltInReaderGroup,
+#[derive(Debug, PartialEq)]
+enum EntityKindDef {}
+
+impl EntityKindDef {
+    fn serialize<S>(this: &EntityKind, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Table 9.1 - entityKind octet of an EntityId_t
+        match this {
+            EntityKind::UserDefinedUnknown => serializer.serialize_u8(0x00),
+            EntityKind::BuiltInUnknown => serializer.serialize_u8(0xc0),
+            EntityKind::BuiltInParticipant => serializer.serialize_u8(0xc1),
+            EntityKind::UserDefinedWriterWithKey => serializer.serialize_u8(0x02),
+            EntityKind::BuiltInWriterWithKey => serializer.serialize_u8(0xc2),
+            EntityKind::UserDefinedWriterNoKey => serializer.serialize_u8(0x03),
+            EntityKind::BuiltInWriterNoKey => serializer.serialize_u8(0xc3),
+            EntityKind::UserDefinedReaderWithKey => serializer.serialize_u8(0x07),
+            EntityKind::BuiltInReaderWithKey => serializer.serialize_u8(0xc7),
+            EntityKind::UserDefinedReaderNoKey => serializer.serialize_u8(0x04),
+            EntityKind::BuiltInReaderNoKey => serializer.serialize_u8(0xc4),
+            EntityKind::UserDefinedWriterGroup => serializer.serialize_u8(0x08),
+            EntityKind::BuiltInWriterGroup => serializer.serialize_u8(0xc8),
+            EntityKind::UserDefinedReaderGroup => serializer.serialize_u8(0x09),
+            EntityKind::BuiltInReaderGroup => serializer.serialize_u8(0xc9),
+        }
+    }
+
+    fn deserialize<'de, D>(deserializer: D) -> Result<EntityKind, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        todo!()
+    }
 }
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -524,10 +540,11 @@ mod tests {
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x50, 0x00, 12, 0x00, // PID_PARTICIPANT_GUID, Length
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
+            0, 0, 1, 0xc1, // EntityId
             0x16, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
             0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
