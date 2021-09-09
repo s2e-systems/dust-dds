@@ -1,4 +1,4 @@
-use std::{cell::RefCell};
+use std::cell::RefCell;
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -25,6 +25,7 @@ use rust_rtps_pim::{
 };
 
 use crate::{
+    dds_type::DdsSerialize,
     rtps_impl::rtps_writer_impl::RtpsWriterImpl,
     utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite},
 };
@@ -45,7 +46,7 @@ impl DataWriterImpl {
 
 impl<T> DataWriter<T> for DataWriterImpl
 where
-    T: serde::Serialize,
+    T: DdsSerialize,
 {
     fn register_instance(&mut self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
@@ -94,10 +95,11 @@ where
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let data = cdr::serialize::<_, _, cdr::CdrLe>(&data, cdr::Infinite).unwrap();
+        let mut bytes = Vec::new();
+        data.serialize(&mut bytes);
         let change = self
             .rtps_writer_impl
-            .new_change(ChangeKind::Alive, data, &[], 0);
+            .new_change(ChangeKind::Alive, bytes, &[], 0);
         let writer_cache = self.rtps_writer_impl.writer_cache_mut();
         let time = rust_rtps_pim::messages::types::Time(0);
         writer_cache.set_source_timestamp(Some(time));
