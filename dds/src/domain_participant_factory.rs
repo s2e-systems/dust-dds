@@ -133,22 +133,22 @@ impl DomainParticipantFactory {
             )
             .unwrap();
 
-        let builtin_publisher_storage = vec![RtpsShared::new(PublisherImpl::new(
+        let builtin_publisher_storage = RtpsShared::new(PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
                 EntityId::new([0, 0, 0], EntityKind::BuiltInWriterGroup),
             )),
             vec![spdp_builtin_participant_writer],
-        ))];
-        let builtin_subscriber_storage = vec![RtpsShared::new(SubscriberImpl::new(
+        ));
+        let builtin_subscriber_storage = RtpsShared::new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
                 EntityId::new([0, 0, 0], EntityKind::BuiltInReaderGroup),
             )),
             Vec::new(),
-        ))];
+        ));
 
         let domain_participant = DomainParticipantImpl::new(
             qos.unwrap_or_default(),
