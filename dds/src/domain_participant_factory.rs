@@ -124,7 +124,7 @@ impl DomainParticipantFactory {
             builtin_endpoint_qos: BuiltinEndpointQos::default(),
         };
         let lease_duration = Duration {
-            seconds: 30,
+            seconds: 100,
             fraction: 0,
         };
 

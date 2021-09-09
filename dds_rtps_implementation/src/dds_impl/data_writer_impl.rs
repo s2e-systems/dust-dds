@@ -24,11 +24,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::{
-    dds_type::{DdsSerialize, LittleEndian},
-    rtps_impl::rtps_writer_impl::RtpsWriterImpl,
-    utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite},
-};
+use crate::{dds_type::{BigEndian, DdsSerialize, LittleEndian}, rtps_impl::rtps_writer_impl::RtpsWriterImpl, utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite}};
 
 pub struct DataWriterImpl {
     _qos: DataWriterQos,
@@ -96,7 +92,7 @@ where
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
         let mut bytes = Vec::new();
-        data.serialize::<_, LittleEndian>(&mut bytes)?;
+        data.serialize::<_, BigEndian>(&mut bytes)?;
         let change = self
             .rtps_writer_impl
             .new_change(ChangeKind::Alive, bytes, &[], 0);

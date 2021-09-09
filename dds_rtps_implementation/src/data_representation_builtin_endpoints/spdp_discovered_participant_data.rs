@@ -24,9 +24,19 @@ impl<'a, L> DdsSerialize for SpdpDiscoveredParticipantData<'a, L> {
     ) -> rust_dds_api::return_type::DDSResult<()> {
         let parameter_list = ParameterListSerialize(vec![ParameterSerialize::new(
             PID_PARTICIPANT_LEASE_DURATION,
-            Box::new([30,30]),
+            Box::new(DurationSerde(self.lease_duration)),
         )]);
         parameter_list.write_ordered::<_, E>(writer).unwrap();
         Ok(())
     }
 }
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "Duration")]
+struct DurationDef {
+    seconds: i32,
+    fraction: u32,
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+struct DurationSerde(#[serde(with = "DurationDef")] Duration);
