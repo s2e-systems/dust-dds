@@ -27,7 +27,7 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    dds_type::DDSType,
+    dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
     utils::{
         message_sender::RtpsSubmessageSender,
@@ -88,7 +88,7 @@ impl PublisherImpl {
 
 impl<T> DataWriterGAT<'_, '_, T> for PublisherImpl
 where
-    T: DDSType,
+    T: DdsType,
 {
     type TopicType = RtpsWeak<TopicImpl>;
     type DataWriterType = RtpsWeak<DataWriterImpl>;
@@ -279,7 +279,7 @@ mod tests {
 
     struct MockDDSType;
 
-    impl DDSType for MockDDSType {
+    impl DdsType for MockDDSType {
         fn type_name() -> &'static str {
             todo!()
         }

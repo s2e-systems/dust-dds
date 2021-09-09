@@ -17,7 +17,7 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    dds_type::DDSType,
+    dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl},
     utils::{
         message_receiver::ProcessDataSubmessage,
@@ -55,7 +55,7 @@ impl SubscriberImpl {
         self.data_reader_storage_list.as_slice()
     }
 
-    pub fn create_datareader<T: DDSType + 'static>(
+    pub fn create_datareader<T: DdsType + 'static>(
         &mut self,
         _a_topic: (),
         qos: Option<DataReaderQos>,

@@ -4,12 +4,17 @@ use std::{
 };
 
 use rust_dds_api::{
-    dcps_psm::{DomainId, StatusMask},
+    builtin_topics::ParticipantBuiltinTopicData,
+    dcps_psm::{BuiltInTopicKey, DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
+    infrastructure::{
+        qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
+        qos_policy::UserDataQosPolicy,
+    },
     publication::data_writer::DataWriter,
 };
 use rust_dds_rtps_implementation::{
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     dds_impl::{
         data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
         publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
@@ -22,8 +27,17 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::types::Duration,
-    discovery::spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
-    structure::types::{EntityId, EntityKind, Guid, LOCATOR_KIND_UDPv4, Locator},
+    discovery::{
+        spdp::{
+            builtin_endpoints::SpdpBuiltinParticipantWriter, participant_proxy::ParticipantProxy,
+        },
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    },
+    messages::types::Count,
+    structure::{
+        types::{EntityId, EntityKind, Guid, LOCATOR_KIND_UDPv4, Locator},
+        RtpsParticipant,
+    },
 };
 
 use crate::udp_transport::UdpTransport;
@@ -63,7 +77,7 @@ impl DomainParticipantFactory {
     /// to call,e.g. create_topic(), because we can't write impl DomainParticipant + for<'t, T> TopicGAT<'t, T> on the return. This issue will
     /// probably be solved once the GAT functionality is available on stable.
     pub fn create_participant(
-        _domain_id: DomainId,
+        domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
@@ -95,29 +109,38 @@ impl DomainParticipantFactory {
         let spdp_builtin_participant_rtps_writer: RtpsWriterImpl =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
-        let _lease_duration = Duration {
+        let dds_participant_data = ParticipantBuiltinTopicData {
+            key: BuiltInTopicKey { value: [0; 3] },
+            user_data: UserDataQosPolicy { value: &[] },
+        };
+        let participant_proxy = ParticipantProxy {
+            domain_id: domain_id as u32,
+            domain_tag: &"abc",
+            protocol_version: *rtps_participant.protocol_version(),
+            guid_prefix,
+            vendor_id: *rtps_participant.vendor_id(),
+            expects_inline_qos: false,
+            metatraffic_unicast_locator_list: vec![],
+            metatraffic_multicast_locator_list: vec![],
+            default_unicast_locator_list: vec![],
+            default_multicast_locator_list: vec![],
+            available_builtin_endpoints: BuiltinEndpointSet::new(
+                BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+                    | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+            ),
+            manual_liveliness_count: Count(0),
+            builtin_endpoint_qos: BuiltinEndpointQos::default(),
+        };
+        let lease_duration = Duration {
             seconds: 30,
             fraction: 0,
         };
-        // let spdp_discovered_participant_data = SPDPdiscoveredParticipantDataUdp::new(
-        //     &(domain_id as u32),
-        //     &"abc",
-        //     rtps_participant.protocol_version(),
-        //     rtps_participant.guid(),
-        //     rtps_participant.vendor_id(),
-        //     &false,
-        //     &[],
-        //     &[spdp_discovery_locator],
-        //     &[],
-        //     &[],
-        //     &BuiltinEndpointSet::new(
-        //         BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-        //             | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
-        //     ),
-        //     &Count(0),
-        //     &BuiltinEndpointQos::default(),
-        //     &lease_duration,
-        // );
+
+        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+            dds_participant_data,
+            participant_proxy,
+            lease_duration,
+        };
 
         let spdp_builtin_participant_writer = RtpsShared::new(DataWriterImpl::new(
             spdp_builtin_participant_writer_qos,
@@ -127,7 +150,7 @@ impl DomainParticipantFactory {
         spdp_builtin_participant_writer
             .write()
             .write_w_timestamp(
-                (1u8, 2u8),
+                spdp_discovered_participant_data,
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )
