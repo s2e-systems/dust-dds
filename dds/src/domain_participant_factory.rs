@@ -103,7 +103,7 @@ impl DomainParticipantFactory {
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: BuiltInTopicKey { value: [0; 3] },
-            user_data: UserDataQosPolicy { value: &[] },
+            user_data: UserDataQosPolicy { value: &[1,2,3] },
         };
         let participant_proxy = ParticipantProxy {
             domain_id: domain_id as u32,
@@ -112,7 +112,7 @@ impl DomainParticipantFactory {
             guid_prefix,
             vendor_id: *rtps_participant.vendor_id(),
             expects_inline_qos: false,
-            metatraffic_unicast_locator_list: vec![LOCATOR_INVALID],
+            metatraffic_unicast_locator_list: vec![LOCATOR_INVALID, LOCATOR_INVALID],
             metatraffic_multicast_locator_list: vec![],
             default_unicast_locator_list: vec![],
             default_multicast_locator_list: vec![],
