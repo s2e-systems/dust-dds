@@ -28,20 +28,20 @@ impl<'a> DdsSerialize for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
         parameter_list_serializer
             .serialize_parameter(
                 PID_PARTICIPANT_LEASE_DURATION,
-                DurationSerde(self.lease_duration),
+                &DurationSerdeSerialize(&self.lease_duration),
             )
             .unwrap();
         parameter_list_serializer
-            .serialize_parameter(PID_DOMAIN_TAG, self.participant_proxy.domain_tag)
+            .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)
             .unwrap();
         parameter_list_serializer
             .serialize_parameter(
                 PID_EXPECTS_INLINE_QOS,
-                self.participant_proxy.expects_inline_qos,
+                &self.participant_proxy.expects_inline_qos,
             )
             .unwrap();
         parameter_list_serializer
-            .serialize_parameter(PID_USER_DATA, self.dds_participant_data.user_data.value)
+            .serialize_parameter(PID_USER_DATA, &self.dds_participant_data.user_data.value)
             .unwrap();
 
         for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
@@ -49,7 +49,7 @@ impl<'a> DdsSerialize for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_METATRAFFIC_UNICAST_LOCATOR,
-                    LocatorSerde(*metatraffic_unicast_locator),
+                    &LocatorSerdeSerialize(metatraffic_unicast_locator),
                 )
                 .unwrap();
         }
@@ -64,8 +64,8 @@ struct DurationDef {
     fraction: u32,
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-struct DurationSerde(#[serde(with = "DurationDef")] Duration);
+#[derive(Debug, PartialEq, serde::Serialize)]
+struct DurationSerdeSerialize<'a>(#[serde(with = "DurationDef")] &'a Duration);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "Locator")]
@@ -75,5 +75,8 @@ struct LocatorDef {
     address: [u8; 16],
 }
 
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-struct LocatorSerde(#[serde(with = "LocatorDef")] Locator);
+#[derive(Debug, PartialEq, serde::Serialize)]
+struct LocatorSerdeSerialize<'a>(#[serde(with = "LocatorDef")] &'a Locator);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+struct LocatorSerdeDeserialize(#[serde(with = "LocatorDef")] Locator);

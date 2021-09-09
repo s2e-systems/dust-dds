@@ -108,7 +108,7 @@ where
     pub fn serialize_parameter<T>(
         &mut self,
         parameter_id: u16,
-        value: T,
+        value: &T,
     ) -> std::result::Result<(), std::io::Error>
     where
         T: serde::Serialize,

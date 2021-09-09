@@ -24,7 +24,11 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::{dds_type::{BigEndian, DdsSerialize, LittleEndian}, rtps_impl::rtps_writer_impl::RtpsWriterImpl, utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite}};
+use crate::{
+    dds_type::{BigEndian, DdsSerialize},
+    rtps_impl::rtps_writer_impl::RtpsWriterImpl,
+    utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite},
+};
 
 pub struct DataWriterImpl {
     _qos: DataWriterQos,
