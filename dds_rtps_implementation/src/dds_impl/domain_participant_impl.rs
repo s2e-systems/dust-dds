@@ -44,16 +44,16 @@ impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
 
 pub struct DomainParticipantImpl {
     rtps_participant: Arc<RtpsParticipantImpl>,
-    qos: DomainParticipantQos,
+    _qos: DomainParticipantQos,
     builtin_subscriber_storage: Arc<Vec<RtpsShared<SubscriberImpl>>>,
     builtin_publisher_storage: Arc<Vec<RtpsShared<PublisherImpl>>>,
     user_defined_subscriber_storage: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
-    user_defined_subscriber_counter: u8,
+    _user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_storage: Arc<Mutex<Vec<RtpsShared<PublisherImpl>>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    topic_storage: Vec<RtpsShared<TopicImpl>>,
+    _topic_storage: Vec<RtpsShared<TopicImpl>>,
     default_topic_qos: TopicQos,
     metatraffic_transport: Arc<Mutex<Box<dyn Transport>>>,
     default_transport: Arc<Mutex<Box<dyn Transport>>>,
@@ -71,18 +71,18 @@ impl DomainParticipantImpl {
     ) -> Self {
         Self {
             rtps_participant: Arc::new(rtps_participant),
-            qos: domain_participant_qos,
+            _qos: domain_participant_qos,
             builtin_subscriber_storage: Arc::new(builtin_subscriber_storage),
             builtin_publisher_storage: Arc::new(builtin_publisher_storage),
             metatraffic_transport: Arc::new(Mutex::new(metatraffic_transport)),
             default_transport: Arc::new(Mutex::new(default_transport)),
             user_defined_subscriber_storage: Arc::new(Mutex::new(Vec::new())),
-            user_defined_subscriber_counter: 0,
+            _user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_storage: Arc::new(Mutex::new(Vec::new())),
             user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: PublisherQos::default(),
-            topic_storage: Vec::new(),
+            _topic_storage: Vec::new(),
             default_topic_qos: TopicQos::default(),
             is_enabled: Arc::new(AtomicBool::new(false)),
         }
@@ -625,7 +625,7 @@ mod tests {
     #[test]
     fn create_publisher() {
         let rtps_participant = RtpsParticipantImpl::new([1; 12]);
-        let mut domain_participant = DomainParticipantImpl::new(
+        let domain_participant = DomainParticipantImpl::new(
             DomainParticipantQos::default(),
             rtps_participant,
             vec![],

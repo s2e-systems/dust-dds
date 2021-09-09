@@ -1,15 +1,6 @@
-use std::cell::RefCell;
-
 use rust_rtps_pim::{
-    behavior::{
-        stateless_writer_behavior::StatelessWriterBehavior,
-        writer::reader_locator::RtpsReaderLocator,
-    },
-    messages::{submessages::RtpsSubmessageType, RtpsMessage, RtpsMessageHeader},
-    structure::{
-        types::{Locator, SequenceNumber},
-        RtpsEntity, RtpsParticipant,
-    },
+    messages::{RtpsMessage, RtpsMessageHeader},
+    structure::{types::Locator, RtpsEntity, RtpsParticipant},
 };
 
 use super::{
@@ -87,25 +78,14 @@ pub fn send_data(
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::{
-        discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        messages::{
-            submessage_elements::{
-                EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-                SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-                SerializedDataSubmessageElement,
-            },
-            submessages::{DataSubmessage, GapSubmessage, RtpsSubmessageType},
-        },
-        structure::types::{self, ENTITYID_UNKNOWN, LOCATOR_INVALID},
-    };
+    use rust_rtps_pim::behavior::writer::reader_locator::RtpsReaderLocator;
 
     use super::*;
 
     struct MockReaderLocator(Locator);
 
     impl RtpsReaderLocator for MockReaderLocator {
-        fn locator(&self) -> &types::Locator {
+        fn locator(&self) -> &rust_rtps_pim::structure::types::Locator {
             &self.0
         }
 

@@ -1,8 +1,10 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
-use rust_dds_rtps_implementation::utils::transport::{RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageRead, TransportRead, TransportWrite};
-use rust_rtps_pim::{messages::{RtpsMessage, submessage_elements::Parameter, submessages::RtpsSubmessageType}, structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator, SequenceNumber}};
-use rust_rtps_udp_psm::{deserialize::{from_bytes, from_bytes_le}, serialize::{to_bytes, to_writer_le}};
+use rust_dds_rtps_implementation::utils::transport::{
+    RtpsMessageRead, RtpsMessageWrite, TransportRead, TransportWrite,
+};
+use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
+use rust_rtps_udp_psm::{deserialize::from_bytes, serialize::to_bytes};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
@@ -84,8 +86,8 @@ impl TransportRead for UdpTransport {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
-                    let message = from_bytes(&self.receive_buffer[0..bytes])
-                        .expect("Failed to deserialize");
+                    let message =
+                        from_bytes(&self.receive_buffer[0..bytes]).expect("Failed to deserialize");
                     let udp_locator: UdpLocator = source_address.into();
                     Some((udp_locator.0, message))
                 } else {
@@ -103,11 +105,7 @@ mod tests {
 
     use super::*;
 
-    use rust_rtps_pim::{
-        structure::types::{
-            LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID,
-        },
-    };
+    use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID};
 
     #[test]
     fn udpv4_locator_conversion_address1() {

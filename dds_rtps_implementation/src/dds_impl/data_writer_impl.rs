@@ -1,4 +1,4 @@
-use std::{cell::RefCell, sync::Mutex};
+use std::{cell::RefCell};
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -25,20 +25,19 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    dds_type::DDSType,
     rtps_impl::rtps_writer_impl::RtpsWriterImpl,
     utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite},
 };
 
 pub struct DataWriterImpl {
-    qos: DataWriterQos,
+    _qos: DataWriterQos,
     rtps_writer_impl: RtpsWriterImpl,
 }
 
 impl DataWriterImpl {
     pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterImpl) -> Self {
         Self {
-            qos,
+            _qos: qos,
             rtps_writer_impl,
         }
     }

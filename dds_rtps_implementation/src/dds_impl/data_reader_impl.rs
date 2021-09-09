@@ -102,183 +102,183 @@ impl<T> DataReader<T> for DataReaderImpl {
 
     fn take_w_condition(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-        max_samples: i32,
-        a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
+        _data_values: &mut [T],
+        _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _max_samples: i32,
+        _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn read_next_sample(
         &self,
-        data_value: &mut [T],
-        sample_info: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _data_value: &mut [T],
+        _sample_info: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn take_next_sample(
         &self,
-        data_value: &mut [T],
-        sample_info: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _data_value: &mut [T],
+        _sample_info: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn read_instance(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-        max_samples: i32,
-        a_handle: rust_dds_api::dcps_psm::InstanceHandle,
-        sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-        view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-        instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _max_samples: i32,
+        _a_handle: rust_dds_api::dcps_psm::InstanceHandle,
+        _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
+        _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
+        _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn take_instance(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-        max_samples: i32,
-        a_handle: rust_dds_api::dcps_psm::InstanceHandle,
-        sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-        view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-        instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _max_samples: i32,
+        _a_handle: rust_dds_api::dcps_psm::InstanceHandle,
+        _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
+        _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
+        _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn read_next_instance(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-        max_samples: i32,
-        previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
-        sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-        view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-        instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _max_samples: i32,
+        _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
+        _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
+        _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
+        _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn take_next_instance(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-        max_samples: i32,
-        previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
-        sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-        view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-        instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _max_samples: i32,
+        _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
+        _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
+        _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
+        _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn read_next_instance_w_condition(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-        max_samples: i32,
-        previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
-        a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
+        _data_values: &mut [T],
+        _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _max_samples: i32,
+        _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
+        _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn take_next_instance_w_condition(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-        max_samples: i32,
-        previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
-        a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
+        _data_values: &mut [T],
+        _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _max_samples: i32,
+        _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
+        _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn return_loan(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
+        _data_values: &mut [T],
+        _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_key_value(
         &self,
-        key_holder: &mut T,
-        handle: rust_dds_api::dcps_psm::InstanceHandle,
+        _key_holder: &mut T,
+        _handle: rust_dds_api::dcps_psm::InstanceHandle,
     ) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_instance(&self, instance: &T) -> rust_dds_api::dcps_psm::InstanceHandle {
+    fn lookup_instance(&self, _instance: &T) -> rust_dds_api::dcps_psm::InstanceHandle {
         todo!()
     }
 
     fn create_readcondition(
         &self,
-        sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-        view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-        instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
+        _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
+        _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
+        _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> rust_dds_api::infrastructure::read_condition::ReadCondition {
         todo!()
     }
 
     fn create_querycondition(
         &self,
-        sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-        view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-        instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-        query_expression: &'static str,
-        query_parameters: &[&'static str],
+        _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
+        _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
+        _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
+        _query_expression: &'static str,
+        _query_parameters: &[&'static str],
     ) -> rust_dds_api::subscription::query_condition::QueryCondition {
         todo!()
     }
 
     fn delete_readcondition(
         &self,
-        a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
+        _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_liveliness_changed_status(
         &self,
-        status: &mut rust_dds_api::dcps_psm::LivelinessChangedStatus,
+        _status: &mut rust_dds_api::dcps_psm::LivelinessChangedStatus,
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_requested_deadline_missed_status(
         &self,
-        status: &mut rust_dds_api::dcps_psm::RequestedDeadlineMissedStatus,
+        _status: &mut rust_dds_api::dcps_psm::RequestedDeadlineMissedStatus,
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_requested_incompatible_qos_status(
         &self,
-        status: &mut rust_dds_api::dcps_psm::RequestedIncompatibleQosStatus,
+        _status: &mut rust_dds_api::dcps_psm::RequestedIncompatibleQosStatus,
     ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()> {
+    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> DDSResult<()> {
+    fn get_sample_rejected_status(&self, _status: &mut SampleRejectedStatus) -> DDSResult<()> {
         todo!()
     }
 
     fn get_subscription_matched_status(
         &self,
-        status: &mut SubscriptionMatchedStatus,
+        _status: &mut SubscriptionMatchedStatus,
     ) -> DDSResult<()> {
         todo!()
     }
@@ -301,15 +301,15 @@ impl<T> DataReader<T> for DataReaderImpl {
 
     fn get_matched_publication_data(
         &self,
-        publication_data: &mut rust_dds_api::builtin_topics::PublicationBuiltinTopicData,
-        publication_handle: rust_dds_api::dcps_psm::InstanceHandle,
+        _publication_data: &mut rust_dds_api::builtin_topics::PublicationBuiltinTopicData,
+        _publication_handle: rust_dds_api::dcps_psm::InstanceHandle,
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_match_publication(
         &self,
-        publication_handles: &mut [rust_dds_api::dcps_psm::InstanceHandle],
+        _publication_handles: &mut [rust_dds_api::dcps_psm::InstanceHandle],
     ) -> DDSResult<()> {
         todo!()
     }
@@ -320,7 +320,7 @@ impl Entity for DataReaderImpl {
 
     type Listener = &'static dyn DataReaderListener<DataPIM = ()>;
 
-    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 
@@ -330,8 +330,8 @@ impl Entity for DataReaderImpl {
 
     fn set_listener(
         &self,
-        a_listener: Option<Self::Listener>,
-        mask: rust_dds_api::dcps_psm::StatusMask,
+        _a_listener: Option<Self::Listener>,
+        _mask: rust_dds_api::dcps_psm::StatusMask,
     ) -> DDSResult<()> {
         todo!()
     }

@@ -17,14 +17,29 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{behavior::writer::stateful_writer::RtpsStatefulWriterOperations, messages::{RtpsMessage, RtpsMessageHeader}, structure::{RtpsEntity, RtpsParticipant, types::{EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind}}};
+use rust_rtps_pim::{
+    behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
+    messages::{RtpsMessage, RtpsMessageHeader},
+    structure::{
+        types::{EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind},
+        RtpsEntity, RtpsParticipant,
+    },
+};
 
-use crate::{dds_type::DDSType, rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl}, utils::{message_sender::RtpsSubmessageSender, shared_object::{RtpsShared, RtpsWeak}, transport::{RtpsSubmessageWrite, TransportWrite}}};
+use crate::{
+    dds_type::DDSType,
+    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
+    utils::{
+        message_sender::RtpsSubmessageSender,
+        shared_object::{RtpsShared, RtpsWeak},
+        transport::{RtpsSubmessageWrite, TransportWrite},
+    },
+};
 
 use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
 
 pub struct PublisherImpl {
-    qos: PublisherQos,
+    _qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
     data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
@@ -38,7 +53,7 @@ impl PublisherImpl {
         data_writer_impl_list: Vec<RtpsShared<DataWriterImpl>>,
     ) -> Self {
         Self {
-            qos,
+            _qos: qos,
             rtps_group,
             data_writer_impl_list: Mutex::new(data_writer_impl_list),
             user_defined_data_writer_counter: AtomicU8::new(0),

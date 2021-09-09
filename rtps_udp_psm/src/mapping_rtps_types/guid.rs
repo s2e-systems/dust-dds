@@ -1,7 +1,7 @@
-use std::io::{Read, Write};
+use std::io::Write;
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::structure::types::{EntityId, EntityKind, Guid, GuidPrefix};
+use rust_rtps_pim::structure::types::{EntityId, EntityKind, Guid};
 
 use crate::{
     deserialize::{self, Deserialize},

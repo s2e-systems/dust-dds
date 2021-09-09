@@ -5,10 +5,7 @@ use std::{
 
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
-    domain::{
-        domain_participant::DomainParticipant,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
     publication::data_writer::DataWriter,
 };
@@ -24,21 +21,10 @@ use rust_dds_rtps_implementation::{
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
-    behavior::{
-        types::Duration,
-        writer::writer::{RtpsWriter, RtpsWriterOperations},
-    },
-    discovery::{
-        spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
-        types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
-    messages::types::Count,
-    structure::{
-        types::{ChangeKind, EntityId, EntityKind, Guid, LOCATOR_KIND_UDPv4, Locator},
-        RtpsEntity, RtpsHistoryCache, RtpsParticipant,
-    },
+    behavior::types::Duration,
+    discovery::spdp::builtin_endpoints::SpdpBuiltinParticipantWriter,
+    structure::types::{EntityId, EntityKind, Guid, LOCATOR_KIND_UDPv4, Locator},
 };
-use rust_rtps_udp_psm::serialize::to_bytes_le;
 
 use crate::udp_transport::UdpTransport;
 
@@ -106,10 +92,10 @@ impl DomainParticipantFactory {
             7400,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
-        let mut spdp_builtin_participant_rtps_writer: RtpsWriterImpl =
+        let spdp_builtin_participant_rtps_writer: RtpsWriterImpl =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
-        let lease_duration = Duration {
+        let _lease_duration = Duration {
             seconds: 30,
             fraction: 0,
         };
@@ -133,7 +119,7 @@ impl DomainParticipantFactory {
         //     &lease_duration,
         // );
 
-        let mut spdp_builtin_participant_writer = RtpsShared::new(DataWriterImpl::new(
+        let spdp_builtin_participant_writer = RtpsShared::new(DataWriterImpl::new(
             spdp_builtin_participant_writer_qos,
             spdp_builtin_participant_rtps_writer,
         ));
