@@ -79,17 +79,17 @@ pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 /// and ignore_topic these QoS can assist an application to define and enforce its own security policies. The use of this QoS is not
 /// limited to security, rather it offers a simple, yet flexible extensibility mechanism.
 #[derive(Debug, PartialEq, Clone)]
-pub struct UserDataQosPolicy {
-    pub value: &'static [u8],
+pub struct UserDataQosPolicy<'a> {
+    pub value: &'a [u8],
 }
 
-impl QosPolicy for UserDataQosPolicy {
+impl QosPolicy for UserDataQosPolicy<'_> {
     fn name(&self) -> &str {
         USERDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for UserDataQosPolicy {
+impl Default for UserDataQosPolicy<'_> {
     fn default() -> Self {
         Self { value: &[] }
     }
@@ -100,17 +100,17 @@ impl Default for UserDataQosPolicy {
 /// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
 /// these QoS can assist an application to extend the provided QoS.
 #[derive(Debug, PartialEq, Clone)]
-pub struct TopicDataQosPolicy {
-    pub value: &'static [u8],
+pub struct TopicDataQosPolicy<'a> {
+    pub value: &'a [u8],
 }
 
-impl QosPolicy for TopicDataQosPolicy {
+impl QosPolicy for TopicDataQosPolicy<'_> {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for TopicDataQosPolicy {
+impl Default for TopicDataQosPolicy<'_> {
     fn default() -> Self {
         Self { value: &[] }
     }
@@ -123,17 +123,17 @@ impl Default for TopicDataQosPolicy {
 /// matching policies similar to those of the PARTITION QoS except the decision can be made based on an application-defined
 /// policy.
 #[derive(Debug, PartialEq, Clone)]
-pub struct GroupDataQosPolicy {
-    pub value: &'static [u8],
+pub struct GroupDataQosPolicy<'a> {
+    pub value: &'a [u8],
 }
 
-impl QosPolicy for GroupDataQosPolicy {
+impl QosPolicy for GroupDataQosPolicy<'_> {
     fn name(&self) -> &str {
         GROUPDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for GroupDataQosPolicy {
+impl Default for GroupDataQosPolicy<'_> {
     fn default() -> Self {
         Self { value: &[] }
     }
@@ -665,17 +665,17 @@ impl Default for TimeBasedFilterQosPolicy {
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
 #[derive(Debug, PartialEq, Clone)]
-pub struct PartitionQosPolicy {
-    pub name: &'static str,
+pub struct PartitionQosPolicy<'a> {
+    pub name: &'a str,
 }
 
-impl QosPolicy for PartitionQosPolicy {
+impl QosPolicy for PartitionQosPolicy<'_> {
     fn name(&self) -> &str {
         PARTITION_QOS_POLICY_NAME
     }
 }
 
-impl Default for PartitionQosPolicy {
+impl Default for PartitionQosPolicy<'_> {
     fn default() -> Self {
         Self { name: "" }
     }

@@ -11,9 +11,9 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct ParticipantBuiltinTopicData {
+pub struct ParticipantBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
-    pub user_data: UserDataQosPolicy,
+    pub user_data: UserDataQosPolicy<'a>,
 }
 
 pub struct TopicBuiltinTopicData<'a> {
@@ -32,7 +32,7 @@ pub struct TopicBuiltinTopicData<'a> {
     pub history: HistoryQosPolicy,
     pub resource_limits: ResourceLimitsQosPolicy,
     pub ownership: OwnershipQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
+    pub topic_data: TopicDataQosPolicy<'a>,
 }
 pub struct PublicationBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
@@ -47,15 +47,15 @@ pub struct PublicationBuiltinTopicData<'a> {
     pub liveliness: LivelinessQosPolicy,
     pub reliability: ReliabilityQosPolicy,
     pub lifespan: LifespanQosPolicy,
-    pub user_data: UserDataQosPolicy,
+    pub user_data: UserDataQosPolicy<'a>,
     pub ownership: OwnershipQosPolicy,
     pub ownership_strength: OwnershipStrengthQosPolicy,
     pub destination_order: DestinationOrderQosPolicy,
 
     pub presentation: PresentationQosPolicy,
-    pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
-    pub group_data: GroupDataQosPolicy,
+    pub partition: PartitionQosPolicy<'a>,
+    pub topic_data: TopicDataQosPolicy<'a>,
+    pub group_data: GroupDataQosPolicy<'a>,
 }
 pub struct SubscriptionBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
@@ -70,11 +70,11 @@ pub struct SubscriptionBuiltinTopicData<'a> {
     pub reliability: ReliabilityQosPolicy,
     pub ownership: OwnershipQosPolicy,
     pub destination_order: DestinationOrderQosPolicy,
-    pub user_data: UserDataQosPolicy,
+    pub user_data: UserDataQosPolicy<'a>,
     pub time_based_filter: TimeBasedFilterQosPolicy,
 
     pub presentation: PresentationQosPolicy,
-    pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
-    pub group_data: GroupDataQosPolicy,
+    pub partition: PartitionQosPolicy<'a>,
+    pub topic_data: TopicDataQosPolicy<'a>,
+    pub group_data: GroupDataQosPolicy<'a>,
 }
