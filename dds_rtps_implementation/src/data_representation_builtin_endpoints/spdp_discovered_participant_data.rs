@@ -16,8 +16,9 @@ use rust_rtps_pim::{
 
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
-        PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-        PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
+        DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, PID_DEFAULT_UNICAST_LOCATOR,
+        PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR,
+        PID_PARTICIPANT_LEASE_DURATION,
     },
     data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer},
     dds_type::{DdsDeserialize, DdsSerialize},
@@ -156,7 +157,10 @@ impl<'a> DdsSerialize for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
     }
 }
 
-impl<'a, 'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
+impl<'a, 'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Locator>>
+where
+    'de: 'a,
+{
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
         let param_list: ParameterList = MappingRead::read(buf).unwrap();
 
@@ -165,22 +169,26 @@ impl<'a, 'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Loca
             user_data: UserDataQosPolicy { value: &[] },
         };
 
-        let locator1 = Locator::new(11, 12, [1; 16]);
-
         let domain_id = param_list.get(PID_DOMAIN_ID).unwrap();
-        let domain_tag = "ab";
+        let domain_tag = param_list.get(PID_DOMAIN_TAG).unwrap();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = [8; 12];
-        let vendor_id = [73, 74];
-        let expects_inline_qos = true;
+        let vendor_id = param_list.get(PID_VENDORID).unwrap();
+        let expects_inline_qos = param_list
+            .get(PID_EXPECTS_INLINE_QOS)
+            .unwrap_or(DEFAULT_EXPECTS_INLINE_QOS);
         let metatraffic_unicast_locator_list = param_list
             .get_list::<LocatorSerdeDeserialize>(PID_METATRAFFIC_UNICAST_LOCATOR)
             .unwrap();
-        let metatraffic_multicast_locator_list = vec![locator1];
+        let metatraffic_multicast_locator_list = param_list
+            .get_list::<LocatorSerdeDeserialize>(PID_METATRAFFIC_MULTICAST_LOCATOR)
+            .unwrap();
         let default_unicast_locator_list = param_list
             .get_list::<LocatorSerdeDeserialize>(PID_DEFAULT_UNICAST_LOCATOR)
             .unwrap();
-        let default_multicast_locator_list = vec![locator1];
+        let default_multicast_locator_list = param_list
+            .get_list::<LocatorSerdeDeserialize>(PID_DEFAULT_MULTICAST_LOCATOR)
+            .unwrap();
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
         let manual_liveliness_count = Count(2);
@@ -199,12 +207,18 @@ impl<'a, 'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Loca
                 .into_iter()
                 .map(|l| l.0)
                 .collect(),
-            metatraffic_multicast_locator_list,
+            metatraffic_multicast_locator_list: metatraffic_multicast_locator_list
+                .into_iter()
+                .map(|l| l.0)
+                .collect(),
             default_unicast_locator_list: default_unicast_locator_list
                 .into_iter()
                 .map(|l| l.0)
                 .collect(),
-            default_multicast_locator_list,
+            default_multicast_locator_list: default_multicast_locator_list
+                .into_iter()
+                .map(|l| l.0)
+                .collect(),
             available_builtin_endpoints,
             manual_liveliness_count,
             builtin_endpoint_qos,
