@@ -47,7 +47,6 @@ pub const PID_TYPE_MAX_SIZE_SERIALIZED: u16 = 0x0060;
 pub const PID_ENTITY_NAME: u16 = 0x0062;
 pub const PID_ENDPOINT_GUID: u16 = 0x005a;
 
-
 // Constant value from Table 9.14 - ParameterId mapping and default values
 pub const DEFAULT_DOMAIN_TAG: &str = "";
 pub const DEFAULT_EXPECTS_INLINE_QOS: bool = false;

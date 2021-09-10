@@ -25,8 +25,9 @@ use crate::{
 };
 
 use super::parameter_id_values::{
-    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-    PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
+    PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID,
+    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
     PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
 };
 
@@ -199,7 +200,9 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<
             .0;
         let builtin_endpoint_qos = param_list
             .get::<BuiltinEndpointQosSerdeDeserialize>(PID_BUILTIN_ENDPOINT_QOS)
-            .unwrap()
+            .unwrap_or(BuiltinEndpointQosSerdeDeserialize(
+                DEFAULT_BUILTIN_ENDPOINT_QOS,
+            ))
             .0;
 
         let participant_proxy = ParticipantProxy {
@@ -231,7 +234,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<
         };
         let lease_duration = param_list
             .get::<DurationSerdeDeserialize>(PID_PARTICIPANT_LEASE_DURATION)
-            .unwrap()
+            .unwrap_or(DurationSerdeDeserialize(DEFAULT_PARTICIPANT_LEASE_DURATION))
             .0;
         Ok(Self {
             dds_participant_data,
