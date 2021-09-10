@@ -157,9 +157,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData<'_, &str, Vec<Locator>> {
     }
 }
 
-impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<Locator>>
-
-{
+impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<Locator>> {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
         let param_list: ParameterList = MappingRead::read(buf).unwrap();
 
@@ -169,8 +167,13 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<
         };
 
         let domain_id = param_list.get(PID_DOMAIN_ID).unwrap();
-        let domain_tag = param_list.get(PID_DOMAIN_TAG).unwrap();
-        let protocol_version = ProtocolVersion { major: 2, minor: 4 };
+        let domain_tag = param_list
+            .get(PID_DOMAIN_TAG)
+            .unwrap_or(DEFAULT_DOMAIN_TAG.to_string());
+        let protocol_version = param_list
+            .get::<ProtocolVersionSerdeDeserialize>(PID_PROTOCOL_VERSION)
+            .unwrap()
+            .0;
         let guid_prefix = [8; 12];
         let vendor_id = param_list.get(PID_VENDORID).unwrap();
         let expects_inline_qos = param_list
@@ -190,10 +193,14 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<
             .unwrap();
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = Count(2);
-        let builtin_endpoint_qos = BuiltinEndpointQos::new(
-            BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
-        );
+        let manual_liveliness_count = param_list
+            .get::<CountSerdeDeserialize>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
+            .unwrap()
+            .0;
+        let builtin_endpoint_qos = param_list
+            .get::<BuiltinEndpointQosSerdeDeserialize>(PID_BUILTIN_ENDPOINT_QOS)
+            .unwrap()
+            .0;
 
         let participant_proxy = ParticipantProxy {
             domain_id,
@@ -345,6 +352,9 @@ struct CountDef(i32);
 #[derive(Debug, PartialEq, serde::Serialize)]
 struct CountSerdeSerialize<'a>(#[serde(with = "CountDef")] &'a Count);
 
+#[derive(Debug, PartialEq, serde::Deserialize)]
+struct CountSerdeDeserialize(#[serde(with = "CountDef")] Count);
+
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointQos")]
 struct BuiltinEndpointQosDef(u32);
@@ -352,6 +362,11 @@ struct BuiltinEndpointQosDef(u32);
 #[derive(Debug, PartialEq, serde::Serialize)]
 struct BuiltinEndpointQosSerdeSerialize<'a>(
     #[serde(with = "BuiltinEndpointQosDef")] &'a BuiltinEndpointQos,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+struct BuiltinEndpointQosSerdeDeserialize(
+    #[serde(with = "BuiltinEndpointQosDef")] BuiltinEndpointQos,
 );
 
 #[cfg(test)]
