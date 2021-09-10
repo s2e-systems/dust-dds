@@ -46,7 +46,7 @@ pub mod size;
 #[doc(inline)]
 pub use crate::size::{Bounded, Infinite, SizeLimit};
 
-use std::io::{Read, Write};
+use std::io::Write;
 
 /// Returns the size that an object would be if serialized with a encapsulation.
 pub fn calc_serialized_size<T: ?Sized>(value: &T) -> u64
@@ -136,9 +136,9 @@ where
     deserializer.reset_pos();
     match v[1] {
         0 | 2 => serde::Deserialize::deserialize(&mut deserializer),
-        1 | 3 => serde::Deserialize::deserialize(
-            &mut Into::<Deserializer<_, LittleEndian>>::into(deserializer),
-        ),
+        1 | 3 => serde::Deserialize::deserialize(&mut Into::<Deserializer<_, LittleEndian>>::into(
+            deserializer,
+        )),
         _ => Err(Error::InvalidEncapsulation),
     }
 }
