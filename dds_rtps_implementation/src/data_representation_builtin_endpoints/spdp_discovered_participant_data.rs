@@ -31,13 +31,13 @@ use super::parameter_id_values::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct SpdpDiscoveredParticipantData<'a, L> {
+pub struct SpdpDiscoveredParticipantData<S, L> {
     pub dds_participant_data: ParticipantBuiltinTopicData,
-    pub participant_proxy: ParticipantProxy<'a, L>,
+    pub participant_proxy: ParticipantProxy<S, L>,
     pub lease_duration: Duration,
 }
 
-impl<'a> DdsSerialize for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
+impl DdsSerialize for SpdpDiscoveredParticipantData<&str, Vec<Locator>> {
     fn serialize<W: std::io::Write, E: crate::dds_type::Endianness>(
         &self,
         writer: W,
@@ -157,9 +157,8 @@ impl<'a> DdsSerialize for SpdpDiscoveredParticipantData<'a, Vec<Locator>> {
     }
 }
 
-impl<'a, 'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, Vec<Locator>>
-where
-    'de: 'a,
+impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<String, Vec<Locator>>
+
 {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
         let param_list: ParameterList = MappingRead::read(buf).unwrap();
@@ -379,7 +378,7 @@ mod tests {
         let locator2 = Locator::new(21, 22, [2; 16]);
 
         let domain_id = 1;
-        let domain_tag = "ab";
+        let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = [8; 12];
         let vendor_id = [73, 74];
@@ -488,7 +487,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result: SpdpDiscoveredParticipantData<Vec<Locator>> =
+        let result: SpdpDiscoveredParticipantData<String, Vec<Locator>> =
             DdsDeserialize::deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }

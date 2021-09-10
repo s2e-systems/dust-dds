@@ -27,14 +27,15 @@ use super::{
     types::BuiltinEndpointSet,
 };
 
-pub trait ParticipantDiscovery<L> {
-    fn discovered_participant_add(&mut self, participant_data: &ParticipantProxy<L>);
+pub trait ParticipantDiscovery<S, L> {
+    fn discovered_participant_add(&mut self, participant_data: &ParticipantProxy<S, L>);
     fn discovered_participant_remove(&mut self, a_guid: &Guid);
 }
 
-impl<Participant, L> ParticipantDiscovery<L> for Participant
+impl<Participant, S, L> ParticipantDiscovery<S, L> for Participant
 where
     for<'a> &'a L: IntoIterator<Item = &'a Locator>,
+    S: for<'a> PartialEq<&'a str>,
     Participant: SedpParticipant,
     Participant::BuiltinPublicationsWriter: RtpsStatefulWriterOperations + RtpsStatefulWriter,
     <Participant::BuiltinPublicationsWriter as RtpsStatefulWriter>::ReaderProxyType:
@@ -55,7 +56,7 @@ where
     <Participant::BuiltinTopicsReader as RtpsStatefulReader>::WriterProxyType:
         RtpsWriterProxyOperations,
 {
-    fn discovered_participant_add(&mut self, participant_data: &ParticipantProxy<L>) {
+    fn discovered_participant_add(&mut self, participant_data: &ParticipantProxy<S, L>) {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
         // communicate with the discovered participant.

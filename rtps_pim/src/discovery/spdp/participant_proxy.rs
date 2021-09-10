@@ -5,9 +5,9 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct ParticipantProxy<'a, L> {
+pub struct ParticipantProxy<S, L> {
     pub domain_id: DomainId,
-    pub domain_tag: &'a str,
+    pub domain_tag: S,
     pub protocol_version: ProtocolVersion,
     pub guid_prefix: GuidPrefix,
     pub vendor_id: VendorId,

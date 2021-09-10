@@ -107,7 +107,7 @@ impl DomainParticipantFactory {
         };
         let participant_proxy = ParticipantProxy {
             domain_id: domain_id as u32,
-            domain_tag: &"ab",
+            domain_tag: "ab",
             protocol_version: *rtps_participant.protocol_version(),
             guid_prefix,
             vendor_id: *rtps_participant.vendor_id(),
