@@ -115,23 +115,21 @@ where
 }
 
 /// Deserializes a slice of bytes into an object.
-pub fn deserialize<'de, T>(bytes: &[u8]) -> Result<T>
+pub fn deserialize<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: serde::Deserialize<'de>,
 {
-    deserialize_from::<_, _, _>(bytes, Infinite)
+    deserialize_from::<_, _>(bytes, Infinite)
 }
 
-/// Deserializes an object directly from a `Read`.
-pub fn deserialize_from<'de, R, T, S>(reader: R, size_limit: S) -> Result<T>
+pub fn deserialize_from<'de, T, S>(reader: &'de [u8], size_limit: S) -> Result<T>
 where
-    R: Read,
     T: serde::Deserialize<'de>,
     S: SizeLimit,
 {
     use crate::encapsulation::ENCAPSULATION_HEADER_SIZE;
 
-    let mut deserializer = Deserializer::<_, S, BigEndian>::new(reader, size_limit);
+    let mut deserializer = Deserializer::<S, BigEndian>::new(reader, size_limit);
 
     let v: [u8; ENCAPSULATION_HEADER_SIZE as usize] =
         serde::Deserialize::deserialize(&mut deserializer)?;
@@ -139,7 +137,7 @@ where
     match v[1] {
         0 | 2 => serde::Deserialize::deserialize(&mut deserializer),
         1 | 3 => serde::Deserialize::deserialize(
-            &mut Into::<Deserializer<_, _, LittleEndian>>::into(deserializer),
+            &mut Into::<Deserializer<_, LittleEndian>>::into(deserializer),
         ),
         _ => Err(Error::InvalidEncapsulation),
     }

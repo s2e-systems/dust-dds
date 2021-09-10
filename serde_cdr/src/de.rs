@@ -9,20 +9,18 @@ use crate::error::{Error, Result};
 use crate::size::{Infinite, SizeLimit};
 
 /// A deserializer that reads bytes from a buffer.
-pub struct Deserializer<R, S, E> {
-    reader: R,
+pub struct Deserializer<'a, S, E> {
+    reader: &'a [u8],
     size_limit: S,
     pos: u64,
     phantom: PhantomData<E>,
 }
 
-impl<R, S, E> Deserializer<R, S, E>
-where
-    R: Read,
+impl<'a, S, E> Deserializer<'a, S, E> where
     S: SizeLimit,
     E: ByteOrder,
 {
-    pub fn new(reader: R, size_limit: S) -> Self {
+    pub fn new(reader: &'a [u8], size_limit: S) -> Self {
         Self {
             reader,
             size_limit,
@@ -93,9 +91,8 @@ macro_rules! impl_deserialize_value {
     };
 }
 
-impl<'de, 'a, R, S, E> de::Deserializer<'de> for &'a mut Deserializer<R, S, E>
+impl<'de:'a, 'a, S, E> de::Deserializer<'de> for &'a mut Deserializer<'de, S, E>
 where
-    R: Read,
     S: SizeLimit,
     E: ByteOrder,
 {
@@ -180,7 +177,7 @@ where
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_bytes(&self.read_bytes()?)
+        visitor.visit_borrowed_bytes(&self.reader)
     }
 
     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>
@@ -230,19 +227,17 @@ where
     where
         V: de::Visitor<'de>,
     {
-        struct Access<'a, R: 'a, S: 'a, E: 'a>
+        struct Access<'de, 'a, S: 'a, E: 'a>
         where
-            R: Read,
             S: SizeLimit,
             E: ByteOrder,
         {
-            deserializer: &'a mut Deserializer<R, S, E>,
+            deserializer: &'a mut Deserializer<'de, S, E>,
             len: usize,
         }
 
-        impl<'de, 'a, R: 'a, S, E> de::SeqAccess<'de> for Access<'a, R, S, E>
+        impl<'de, 'a, S, E> de::SeqAccess<'de> for Access<'de, 'a, S, E>
         where
-            R: Read,
             S: SizeLimit,
             E: ByteOrder,
         {
@@ -312,9 +307,8 @@ where
     where
         V: de::Visitor<'de>,
     {
-        impl<'de, 'a, R: 'a, S, E> de::EnumAccess<'de> for &'a mut Deserializer<R, S, E>
+        impl<'de:'a, 'a, S, E> de::EnumAccess<'de> for &'a mut Deserializer<'de, S, E>
         where
-            R: Read,
             S: SizeLimit,
             E: ByteOrder,
         {
@@ -332,6 +326,7 @@ where
         }
 
         visitor.visit_enum(self)
+        // todo!()
     }
 
     fn deserialize_identifier<V>(self, _visitor: V) -> Result<V::Value>
@@ -353,9 +348,8 @@ where
     }
 }
 
-impl<'de, 'a, R, S, E> de::VariantAccess<'de> for &'a mut Deserializer<R, S, E>
+impl<'de, 'a, S, E> de::VariantAccess<'de> for &'a mut Deserializer<'de, S, E>
 where
-    R: Read,
     S: SizeLimit,
     E: ByteOrder,
 {
@@ -387,9 +381,9 @@ where
     }
 }
 
-impl<R, S> From<Deserializer<R, S, BigEndian>> for Deserializer<R, S, LittleEndian> {
-    fn from(t: Deserializer<R, S, BigEndian>) -> Self {
-        Deserializer::<R, S, LittleEndian> {
+impl<'a, S> From<Deserializer<'a, S, BigEndian>> for Deserializer<'a, S, LittleEndian> {
+    fn from(t: Deserializer<'a, S, BigEndian>) -> Self {
+        Deserializer::<S, LittleEndian> {
             reader: t.reader,
             size_limit: t.size_limit,
             pos: t.pos,
@@ -424,22 +418,21 @@ const UTF8_CHAR_WIDTH: &[u8; 256] = &[
 ];
 
 /// Deserializes a slice of bytes into an object.
-pub fn deserialize_data<'de, T, E>(bytes: &[u8]) -> Result<T>
+pub fn deserialize_data<'de, T, E>(bytes: &'de [u8]) -> Result<T>
 where
     T: de::Deserialize<'de>,
     E: ByteOrder,
 {
-    deserialize_data_from::<_, _, _, E>(bytes, Infinite)
+    deserialize_data_from::<_, _, E>(bytes, Infinite)
 }
 
 /// Deserializes an object directly from a `Read`.
-pub fn deserialize_data_from<'de, R, T, S, E>(reader: R, size_limit: S) -> Result<T>
+pub fn deserialize_data_from<'de, T, S, E>(reader: &'de [u8], size_limit: S) -> Result<T>
 where
-    R: Read,
     T: de::Deserialize<'de>,
     S: SizeLimit,
     E: ByteOrder,
 {
-    let mut deserializer = Deserializer::<_, S, E>::new(reader, size_limit);
+    let mut deserializer = Deserializer::<S, E>::new(reader, size_limit);
     de::Deserialize::deserialize(&mut deserializer)
 }
