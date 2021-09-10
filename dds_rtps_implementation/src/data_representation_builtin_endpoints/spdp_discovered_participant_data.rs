@@ -31,13 +31,13 @@ use super::parameter_id_values::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct SpdpDiscoveredParticipantData<S, L> {
-    pub dds_participant_data: ParticipantBuiltinTopicData,
+pub struct SpdpDiscoveredParticipantData<'a, S, L> {
+    pub dds_participant_data: ParticipantBuiltinTopicData<'a>,
     pub participant_proxy: ParticipantProxy<S, L>,
     pub lease_duration: Duration,
 }
 
-impl DdsSerialize for SpdpDiscoveredParticipantData<&str, Vec<Locator>> {
+impl DdsSerialize for SpdpDiscoveredParticipantData<'_, &str, Vec<Locator>> {
     fn serialize<W: std::io::Write, E: crate::dds_type::Endianness>(
         &self,
         writer: W,
@@ -157,7 +157,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData<&str, Vec<Locator>> {
     }
 }
 
-impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<String, Vec<Locator>>
+impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<Locator>>
 
 {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
@@ -321,7 +321,7 @@ impl EntityKindDef {
         }
     }
 
-    fn deserialize<'de, D>(deserializer: D) -> Result<EntityKind, D::Error>
+    fn deserialize<'de, D>(_deserializer: D) -> Result<EntityKind, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
