@@ -49,9 +49,11 @@ impl DdsSerialize for SpdpDiscoveredParticipantData<'_, &str, Vec<Locator>> {
             .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)
             .unwrap();
 
-        parameter_list_serializer
-            .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)
-            .unwrap();
+        if self.participant_proxy.domain_tag != DEFAULT_DOMAIN_TAG {
+            parameter_list_serializer
+                .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)
+                .unwrap();
+        }
 
         parameter_list_serializer
             .serialize_parameter(
@@ -74,12 +76,14 @@ impl DdsSerialize for SpdpDiscoveredParticipantData<'_, &str, Vec<Locator>> {
             .serialize_parameter(PID_VENDORID, &self.participant_proxy.vendor_id)
             .unwrap();
 
-        parameter_list_serializer
-            .serialize_parameter(
-                PID_EXPECTS_INLINE_QOS,
-                &self.participant_proxy.expects_inline_qos,
-            )
-            .unwrap();
+        if self.participant_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_EXPECTS_INLINE_QOS,
+                    &self.participant_proxy.expects_inline_qos,
+                )
+                .unwrap();
+        }
 
         for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
         {
@@ -136,12 +140,14 @@ impl DdsSerialize for SpdpDiscoveredParticipantData<'_, &str, Vec<Locator>> {
             )
             .unwrap();
 
-        parameter_list_serializer
-            .serialize_parameter(
-                PID_BUILTIN_ENDPOINT_QOS,
-                &BuiltinEndpointQosSerdeSerialize(&self.participant_proxy.builtin_endpoint_qos),
-            )
-            .unwrap();
+        if self.participant_proxy.builtin_endpoint_qos != DEFAULT_BUILTIN_ENDPOINT_QOS {
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_BUILTIN_ENDPOINT_QOS,
+                    &BuiltinEndpointQosSerdeSerialize(&self.participant_proxy.builtin_endpoint_qos),
+                )
+                .unwrap();
+        }
 
         parameter_list_serializer
             .serialize_parameter(
