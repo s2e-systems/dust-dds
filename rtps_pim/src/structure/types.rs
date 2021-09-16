@@ -9,48 +9,32 @@ pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 pub type EntityKind = u8;
 
 // Table 9.1 - entityKind octet of an EntityId_t
-pub const USER_DEFINED_UNKNOWN: u8 = 0x00;
-pub const BUILT_IN_UNKNOWN: u8 = 0xc0;
-pub const BUILT_IN_PARTICIPANT: u8 = 0xc1;
-pub const USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
-pub const BUILT_IN_WRITER_WITH_KEY: u8 = 0xc2;
-pub const USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
-pub const BUILT_IN_WRITER_NO_KEY: u8 = 0xc3;
-pub const USER_DEFINED_READER_WITH_KEY: u8 = 0x07;
-pub const BUILT_IN_READER_WITH_KEY: u8 = 0xc7;
-pub const USER_DEFINED_READER_NO_KEY: u8 = 0x04;
-pub const BUILT_IN_READER_NO_KEY: u8 = 0xc4;
-pub const USER_DEFINED_WRITER_GROUP: u8 = 0x08;
-pub const BUILT_IN_WRITER_GROUP: u8 = 0xc8;
-pub const USER_DEFINED_READER_GROUP: u8 = 0x09;
-pub const BUILT_IN_READER_GROUP: u8 = 0xc9;
+pub const USER_DEFINED_UNKNOWN: EntityKind = 0x00;
+pub const BUILT_IN_UNKNOWN: EntityKind = 0xc0;
+pub const BUILT_IN_PARTICIPANT: EntityKind = 0xc1;
+pub const USER_DEFINED_WRITER_WITH_KEY: EntityKind = 0x02;
+pub const BUILT_IN_WRITER_WITH_KEY: EntityKind = 0xc2;
+pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = 0x03;
+pub const BUILT_IN_WRITER_NO_KEY: EntityKind = 0xc3;
+pub const USER_DEFINED_READER_WITH_KEY: EntityKind = 0x07;
+pub const BUILT_IN_READER_WITH_KEY: EntityKind = 0xc7;
+pub const USER_DEFINED_READER_NO_KEY: EntityKind = 0x04;
+pub const BUILT_IN_READER_NO_KEY: EntityKind = 0xc4;
+pub const USER_DEFINED_WRITER_GROUP: EntityKind = 0x08;
+pub const BUILT_IN_WRITER_GROUP: EntityKind = 0xc8;
+pub const USER_DEFINED_READER_GROUP: EntityKind = 0x09;
+pub const BUILT_IN_READER_GROUP: EntityKind = 0xc9;
 
-// {
-//     UserDefinedUnknown,
-//     BuiltInUnknown,
-//     BuiltInParticipant,
-//     UserDefinedWriterWithKey,
-//     BuiltInWriterWithKey,
-//     UserDefinedWriterNoKey,
-//     BuiltInWriterNoKey,
-//     UserDefinedReaderWithKey,
-//     BuiltInReaderWithKey,
-//     UserDefinedReaderNoKey,
-//     BuiltInReaderNoKey,
-//     UserDefinedWriterGroup,
-//     BuiltInWriterGroup,
-//     UserDefinedReaderGroup,
-//     BuiltInReaderGroup,
-// }
+pub type EntityKey = [u8; 3];
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct EntityId {
-    pub entity_key: [u8; 3],
+    pub entity_key: EntityKey,
     pub entity_kind: EntityKind,
 }
 
 impl EntityId {
-    pub const fn new(entity_key: [u8; 3], entity_kind: EntityKind) -> Self {
+    pub const fn new(entity_key: EntityKey, entity_kind: EntityKind) -> Self {
         Self {
             entity_key,
             entity_kind,

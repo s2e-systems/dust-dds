@@ -11,7 +11,10 @@ use rust_rtps_pim::{
     behavior::reader::stateful_reader::RtpsStatefulReaderOperations,
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
-        types::{EntityId, EntityKind, Guid, ReliabilityKind, TopicKind},
+        types::{
+            EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
+        },
         RtpsEntity,
     },
 };
@@ -66,8 +69,8 @@ impl SubscriberImpl {
         qos.is_consistent().ok()?;
 
         let (entity_kind, topic_kind) = match T::has_key() {
-            true => (EntityKind::UserDefinedWriterWithKey, TopicKind::WithKey),
-            false => (EntityKind::UserDefinedWriterNoKey, TopicKind::NoKey),
+            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
+            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
         };
         let entity_id = EntityId::new(
             [

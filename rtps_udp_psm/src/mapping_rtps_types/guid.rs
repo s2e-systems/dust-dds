@@ -1,34 +1,17 @@
 use std::io::Write;
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::structure::types::{EntityId, EntityKind, Guid};
+use rust_rtps_pim::structure::types::{EntityId, Guid};
 
 use crate::{
     deserialize::{self, Deserialize},
     serialize::{self, Serialize},
 };
 
-// Table 9.1 - entityKind octet of an EntityId_t
-pub const USER_DEFINED_UNKNOWN: u8 = 0x00;
-pub const BUILT_IN_UNKNOWN: u8 = 0xc0;
-pub const BUILT_IN_PARTICIPANT: u8 = 0xc1;
-pub const USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
-pub const BUILT_IN_WRITER_WITH_KEY: u8 = 0xc2;
-pub const USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
-pub const BUILT_IN_WRITER_NO_KEY: u8 = 0xc3;
-pub const USER_DEFINED_READER_WITH_KEY: u8 = 0x07;
-pub const BUILT_IN_READER_WITH_KEY: u8 = 0xc7;
-pub const USER_DEFINED_READER_NO_KEY: u8 = 0x04;
-pub const BUILT_IN_READER_NO_KEY: u8 = 0xc4;
-pub const USER_DEFINED_WRITER_GROUP: u8 = 0x08;
-pub const BUILT_IN_WRITER_GROUP: u8 = 0xc8;
-pub const USER_DEFINED_READER_GROUP: u8 = 0x09;
-pub const BUILT_IN_READER_GROUP: u8 = 0xc9;
-
 impl Serialize for EntityId {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.entity_key().serialize::<_, B>(&mut writer)?;
-        self.entity_kind().serialize::<_, B>(&mut writer)
+        self.entity_key.serialize::<_, B>(&mut writer)?;
+        self.entity_kind.serialize::<_, B>(&mut writer)
     }
 }
 
@@ -62,20 +45,20 @@ impl<'de> Deserialize<'de> for Guid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_rtps_pim::structure::types::{EntityId, EntityKind};
+    use rust_rtps_pim::structure::types::{BUILT_IN_PARTICIPANT, EntityId, USER_DEFINED_READER_NO_KEY};
 
     use crate::deserialize::from_bytes_le;
     use crate::serialize::to_bytes_le;
 
     #[test]
     fn serialize_entity_id() {
-        let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInParticipant);
+        let entity_id = EntityId::new([1, 2, 3], BUILT_IN_PARTICIPANT);
         assert_eq!(to_bytes_le(&entity_id).unwrap(), [1, 2, 3, 0xc1]);
     }
 
     #[test]
     fn deserialize_locator() {
-        let expected = EntityId::new([1, 2, 3], EntityKind::BuiltInParticipant);
+        let expected = EntityId::new([1, 2, 3], BUILT_IN_PARTICIPANT);
         let result = from_bytes_le(&[1, 2, 3, 0xc1]).unwrap();
         assert_eq!(expected, result);
     }
@@ -86,7 +69,7 @@ mod tests {
             prefix: [3; 12],
             entity_id: EntityId {
                 entity_key: [1, 2, 3],
-                entity_kind: EntityKind::UserDefinedReaderNoKey,
+                entity_kind: USER_DEFINED_READER_NO_KEY,
             },
         };
 
@@ -107,7 +90,7 @@ mod tests {
             prefix: [3; 12],
             entity_id: EntityId {
                 entity_key: [1, 2, 3],
-                entity_kind: EntityKind::UserDefinedReaderNoKey,
+                entity_kind: USER_DEFINED_READER_NO_KEY,
             },
         };
 

@@ -20,7 +20,7 @@ use rust_dds_api::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::structure::{
-    types::{EntityId, EntityKind, Guid},
+    types::{EntityId, Guid, USER_DEFINED_WRITER_GROUP},
     RtpsEntity,
 };
 
@@ -103,7 +103,7 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
             .fetch_add(1, atomic::Ordering::SeqCst);
         let entity_id = EntityId::new(
             [user_defined_publisher_counter, 0, 0],
-            EntityKind::UserDefinedWriterGroup,
+            USER_DEFINED_WRITER_GROUP,
         );
         let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
@@ -151,7 +151,7 @@ impl<'s> SubscriberGAT<'s> for DomainParticipantImpl {
         // self.user_defined_subscriber_counter += 1;
         // let entity_id = EntityId::new(
         //     [self.user_defined_subscriber_counter, 0, 0],
-        //     EntityKind::UserDefinedWriterGroup,
+        //     USER_DEFINED_WRITER_GROUP,
         // );
         // let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
         // let rtps_group = RtpsGroupImpl::new(guid);

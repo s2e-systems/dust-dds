@@ -111,7 +111,9 @@ mod tests {
             types::ProtocolId,
             RtpsMessage, RtpsMessageHeader,
         },
-        structure::types::{EntityId, EntityKind, PROTOCOLVERSION_2_4},
+        structure::types::{
+            EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, PROTOCOLVERSION_2_4,
+        },
     };
 
     use super::*;
@@ -163,10 +165,10 @@ mod tests {
             key_flag: false,
             non_standard_payload_flag: false,
             reader_id: EntityIdSubmessageElement {
-                value: EntityId::new([1; 3], EntityKind::BuiltInReaderWithKey),
+                value: EntityId::new([1; 3], BUILT_IN_READER_WITH_KEY),
             },
             writer_id: EntityIdSubmessageElement {
-                value: EntityId::new([1; 3], EntityKind::BuiltInWriterWithKey),
+                value: EntityId::new([1; 3], BUILT_IN_WRITER_WITH_KEY),
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
