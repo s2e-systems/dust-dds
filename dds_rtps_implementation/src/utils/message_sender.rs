@@ -1,6 +1,9 @@
 use rust_rtps_pim::{
     messages::{RtpsMessage, RtpsMessageHeader},
-    structure::{types::Locator, RtpsEntity, RtpsParticipant},
+    structure::{
+        types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
+        RtpsParticipant,
+    },
 };
 
 use super::{
@@ -53,7 +56,9 @@ pub trait RtpsSubmessageSender {
 // }
 
 pub fn send_data(
-    participant: &(impl RtpsParticipant + RtpsEntity),
+    protocol_version: &ProtocolVersion,
+    vendor_id: &VendorId,
+    guid_prefix: &GuidPrefix,
     writer_list: &[RtpsShared<impl RtpsSubmessageSender>],
     transport: &mut (impl TransportWrite + ?Sized),
 ) {
@@ -63,9 +68,9 @@ pub fn send_data(
         for (dst_locator, submessages) in destined_submessages {
             let header = RtpsMessageHeader {
                 protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                version: *participant.protocol_version(),
-                vendor_id: *participant.vendor_id(),
-                guid_prefix: *participant.guid().prefix(),
+                version: *protocol_version,
+                vendor_id: *vendor_id,
+                guid_prefix: *guid_prefix,
             };
             let message = RtpsMessage {
                 header,

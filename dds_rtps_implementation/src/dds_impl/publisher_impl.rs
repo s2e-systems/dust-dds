@@ -17,17 +17,7 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
-    messages::{RtpsMessage, RtpsMessageHeader},
-    structure::{
-        types::{
-            EntityId, Guid, Locator, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-            USER_DEFINED_WRITER_WITH_KEY,
-        },
-        RtpsEntity, RtpsParticipant,
-    },
-};
+use rust_rtps_pim::{behavior::writer::stateful_writer::RtpsStatefulWriterOperations, messages::{RtpsMessage, RtpsMessageHeader}, structure::{RtpsEntity, RtpsParticipant, types::{EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VendorId}}};
 
 use crate::{
     dds_type::DdsType,
@@ -66,7 +56,9 @@ impl PublisherImpl {
 
     pub fn send_data(
         &self,
-        participant: &(impl RtpsParticipant + RtpsEntity),
+        protocol_version: &ProtocolVersion,
+        vendor_id: &VendorId,
+        guid_prefix: &GuidPrefix,
         transport: &mut (impl TransportWrite + ?Sized),
     ) {
         for writer in self.data_writer_impl_list.lock().unwrap().iter() {
@@ -75,9 +67,9 @@ impl PublisherImpl {
             for (dst_locator, submessages) in destined_submessages {
                 let header = RtpsMessageHeader {
                     protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                    version: *participant.protocol_version(),
-                    vendor_id: *participant.vendor_id(),
-                    guid_prefix: *participant.guid().prefix(),
+                    version: *protocol_version,
+                    vendor_id: *vendor_id,
+                    guid_prefix: *guid_prefix,
                 };
                 let message = RtpsMessage {
                     header,

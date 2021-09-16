@@ -43,27 +43,6 @@ impl Guid {
 pub type GuidPrefix = [u8; 12];
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
 
-pub type EntityKind = u8;
-
-// Table 9.1 - entityKind octet of an EntityId_t
-pub const USER_DEFINED_UNKNOWN: EntityKind = 0x00;
-pub const BUILT_IN_UNKNOWN: EntityKind = 0xc0;
-pub const BUILT_IN_PARTICIPANT: EntityKind = 0xc1;
-pub const USER_DEFINED_WRITER_WITH_KEY: EntityKind = 0x02;
-pub const BUILT_IN_WRITER_WITH_KEY: EntityKind = 0xc2;
-pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = 0x03;
-pub const BUILT_IN_WRITER_NO_KEY: EntityKind = 0xc3;
-pub const USER_DEFINED_READER_WITH_KEY: EntityKind = 0x07;
-pub const BUILT_IN_READER_WITH_KEY: EntityKind = 0xc7;
-pub const USER_DEFINED_READER_NO_KEY: EntityKind = 0x04;
-pub const BUILT_IN_READER_NO_KEY: EntityKind = 0xc4;
-pub const USER_DEFINED_WRITER_GROUP: EntityKind = 0x08;
-pub const BUILT_IN_WRITER_GROUP: EntityKind = 0xc8;
-pub const USER_DEFINED_READER_GROUP: EntityKind = 0x09;
-pub const BUILT_IN_READER_GROUP: EntityKind = 0xc9;
-
-pub type EntityKey = [u8; 3];
-
 
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
@@ -104,15 +83,38 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
     entity_kind: BUILT_IN_PARTICIPANT,
 };
 
+pub type EntityKind = u8;
 
-/// SequenceNumber_t - Type used to hold sequence numbers.
+// Table 9.1 - entityKind octet of an EntityId_t
+pub const USER_DEFINED_UNKNOWN: EntityKind = 0x00;
+pub const BUILT_IN_UNKNOWN: EntityKind = 0xc0;
+pub const BUILT_IN_PARTICIPANT: EntityKind = 0xc1;
+pub const USER_DEFINED_WRITER_WITH_KEY: EntityKind = 0x02;
+pub const BUILT_IN_WRITER_WITH_KEY: EntityKind = 0xc2;
+pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = 0x03;
+pub const BUILT_IN_WRITER_NO_KEY: EntityKind = 0xc3;
+pub const USER_DEFINED_READER_WITH_KEY: EntityKind = 0x07;
+pub const BUILT_IN_READER_WITH_KEY: EntityKind = 0xc7;
+pub const USER_DEFINED_READER_NO_KEY: EntityKind = 0x04;
+pub const BUILT_IN_READER_NO_KEY: EntityKind = 0xc4;
+pub const USER_DEFINED_WRITER_GROUP: EntityKind = 0x08;
+pub const BUILT_IN_WRITER_GROUP: EntityKind = 0xc8;
+pub const USER_DEFINED_READER_GROUP: EntityKind = 0x09;
+pub const BUILT_IN_READER_GROUP: EntityKind = 0xc9;
+
+pub type EntityKey = [u8; 3];
+
+
+/// SequenceNumber_t
+/// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
 /// The following values are reserved by the protocol: SEQUENCENUMBER_UNKNOWN
 pub type SequenceNumber = i64;
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
 
 
-/// Locator_t - Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
+/// Locator_t
+/// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
 /// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDPv4 LOCATOR_KIND_UDPv6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
 #[derive(Clone, Copy, PartialEq, Debug)]

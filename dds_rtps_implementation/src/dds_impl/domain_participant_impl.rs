@@ -19,10 +19,7 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::{
-    types::{EntityId, Guid, USER_DEFINED_WRITER_GROUP},
-    RtpsEntity,
-};
+use rust_rtps_pim::structure::{RtpsEntity, RtpsParticipant, types::{EntityId, Guid, USER_DEFINED_WRITER_GROUP}};
 
 use crate::{
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
@@ -399,7 +396,9 @@ impl Entity for DomainParticipantImpl {
             while is_enabled.load(atomic::Ordering::SeqCst) {
                 // send_builtin_data();
                 builtin_publisher_storage.read().send_data(
-                    rtps_participant.as_ref(),
+                    rtps_participant.protocol_version(),
+                    rtps_participant.vendor_id(),
+                    &guid_prefix,
                     metatraffic_transport.lock().unwrap().as_mut(),
                 );
 
@@ -419,12 +418,16 @@ impl Entity for DomainParticipantImpl {
                 for user_defined_publisher in user_defined_publisher_storage.lock().unwrap().iter()
                 {
                     user_defined_publisher.read().send_data(
-                        rtps_participant.as_ref(),
+                        rtps_participant.protocol_version(),
+                        rtps_participant.vendor_id(),
+                        &guid_prefix,
                         metatraffic_transport.lock().unwrap().as_mut(),
                     );
                 }
                 crate::utils::message_sender::send_data(
-                    rtps_participant.as_ref(),
+                    rtps_participant.protocol_version(),
+                    rtps_participant.vendor_id(),
+                    &guid_prefix,
                     &user_defined_publisher_storage.lock().unwrap(),
                     default_transport.lock().unwrap().as_mut(),
                 );

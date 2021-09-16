@@ -1,25 +1,12 @@
-use rust_dds_api::{
-    builtin_topics::ParticipantBuiltinTopicData,
-    dcps_psm::BuiltInTopicKey,
-    infrastructure::{qos::DataWriterQos, qos_policy::UserDataQosPolicy},
-    publication::data_writer::DataWriter,
-};
-use rust_rtps_pim::{
-    behavior::types::Duration,
-    discovery::{
+use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey, infrastructure::{qos::{DataWriterQos, PublisherQos}, qos_policy::UserDataQosPolicy}, publication::data_writer::DataWriter};
+use rust_rtps_pim::{behavior::types::Duration, discovery::{
         spdp::{
             builtin_endpoints::SpdpBuiltinParticipantWriter, participant_proxy::ParticipantProxy,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
-    messages::types::Count,
-    structure::types::{Locator, ProtocolVersion},
-};
+    }, messages::types::Count, structure::{types::{BUILT_IN_WRITER_GROUP, EntityId, Guid, Locator, ProtocolVersion}}};
 
-use crate::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    dds_impl::data_writer_impl::DataWriterImpl, rtps_impl::rtps_writer_impl::RtpsWriterImpl,
-};
+use crate::{data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData, dds_impl::{data_writer_impl::DataWriterImpl, publisher_impl::PublisherImpl}, rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl}, utils::shared_object::RtpsShared};
 
 #[test]
 fn send_discovery_data_happy_path() {
@@ -61,16 +48,28 @@ fn send_discovery_data_happy_path() {
     let spdp_builtin_participant_rtps_writer: RtpsWriterImpl =
         SpdpBuiltinParticipantWriter::create([3; 12], &[], &[], &[spdp_discovery_locator]);
 
-    let mut spdp_builtin_participant_writer = DataWriterImpl::new(
+    let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         spdp_builtin_participant_rtps_writer,
     );
 
-    spdp_builtin_participant_writer
+    data_writer
         .write_w_timestamp(
             spdp_discovered_participant_data,
             None,
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )
         .unwrap();
+
+    let _publisher = PublisherImpl::new(
+        PublisherQos::default(),
+        RtpsGroupImpl::new(Guid::new(
+            [4; 12],
+            EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+        )),
+        vec![RtpsShared::new(data_writer)],
+    );
+
+
+    // publisher.send_data(participant, transport)
 }
