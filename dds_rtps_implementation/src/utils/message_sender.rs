@@ -2,7 +2,6 @@ use rust_rtps_pim::{
     messages::{RtpsMessage, RtpsMessageHeader},
     structure::{
         types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
-        RtpsParticipant,
     },
 };
 

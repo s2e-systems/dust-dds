@@ -17,7 +17,17 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{behavior::writer::stateful_writer::RtpsStatefulWriterOperations, messages::{RtpsMessage, RtpsMessageHeader}, structure::{RtpsEntity, RtpsParticipant, types::{EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VendorId}}};
+use rust_rtps_pim::{
+    behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
+    messages::{RtpsMessage, RtpsMessageHeader},
+    structure::{
+        types::{
+            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind,
+            VendorId, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+        },
+        RtpsEntity,
+    },
+};
 
 use crate::{
     dds_type::DdsType,

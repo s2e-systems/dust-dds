@@ -20,28 +20,17 @@ use rust_dds_rtps_implementation::{
         publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
+        rtps_group_impl::RtpsGroupImpl,
         rtps_writer_impl::RtpsWriterImpl,
     },
     utils::shared_object::RtpsShared,
 };
-use rust_rtps_pim::{
-    behavior::types::Duration,
-    discovery::{
+use rust_rtps_pim::{behavior::types::Duration, discovery::{
         spdp::{
             builtin_endpoints::SpdpBuiltinParticipantWriter, participant_proxy::ParticipantProxy,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
-    messages::types::Count,
-    structure::{
-        types::{
-            EntityId, Guid, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
-            BUILT_IN_WRITER_GROUP, LOCATOR_INVALID,
-        },
-        RtpsParticipant,
-    },
-};
+    }, messages::types::Count, structure::{types::{BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, EntityId, Guid, LOCATOR_INVALID, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E}}};
 
 use crate::udp_transport::UdpTransport;
 
@@ -101,8 +90,6 @@ impl DomainParticipantFactory {
         socket.set_nonblocking(true).unwrap();
         let default_transport = Box::new(UdpTransport::new(socket));
 
-        let rtps_participant = RtpsParticipantImpl::new(guid_prefix);
-
         let spdp_builtin_participant_writer_qos = DataWriterQos::default();
         let spdp_discovery_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -119,9 +106,9 @@ impl DomainParticipantFactory {
         let participant_proxy = ParticipantProxy {
             domain_id: domain_id as u32,
             domain_tag: "ab",
-            protocol_version: *rtps_participant.protocol_version(),
+            protocol_version: PROTOCOLVERSION,
             guid_prefix,
-            vendor_id: *rtps_participant.vendor_id(),
+            vendor_id: VENDOR_ID_S2E,
             expects_inline_qos: false,
             metatraffic_unicast_locator_list: vec![LOCATOR_INVALID, LOCATOR_INVALID],
             metatraffic_multicast_locator_list: vec![],
@@ -177,8 +164,8 @@ impl DomainParticipantFactory {
         ));
 
         let domain_participant = DomainParticipantImpl::new(
+            guid_prefix,
             qos.unwrap_or_default(),
-            rtps_participant,
             builtin_subscriber_storage,
             builtin_publisher_storage,
             metatraffic_transport,

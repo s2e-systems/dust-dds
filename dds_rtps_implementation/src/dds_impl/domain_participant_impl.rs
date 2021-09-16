@@ -19,10 +19,15 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::{RtpsEntity, RtpsParticipant, types::{EntityId, Guid, USER_DEFINED_WRITER_GROUP}};
+use rust_rtps_pim::structure::{
+    types::{
+        EntityId, Guid, GuidPrefix, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP,
+        VENDOR_ID_S2E,
+    },
+};
 
 use crate::{
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
+    rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
         shared_object::RtpsShared,
         transport::{TransportRead, TransportWrite},
@@ -40,7 +45,7 @@ pub trait Transport: TransportRead + TransportWrite + Send + Sync {}
 impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
 
 pub struct DomainParticipantImpl {
-    rtps_participant: Arc<RtpsParticipantImpl>,
+    guid_prefix: GuidPrefix,
     _qos: DomainParticipantQos,
     builtin_subscriber_storage: Arc<RtpsShared<SubscriberImpl>>,
     builtin_publisher_storage: Arc<RtpsShared<PublisherImpl>>,
@@ -59,15 +64,15 @@ pub struct DomainParticipantImpl {
 
 impl DomainParticipantImpl {
     pub fn new(
+        guid_prefix: GuidPrefix,
         domain_participant_qos: DomainParticipantQos,
-        rtps_participant: RtpsParticipantImpl,
         builtin_subscriber_storage: RtpsShared<SubscriberImpl>,
         builtin_publisher_storage: RtpsShared<PublisherImpl>,
         metatraffic_transport: Box<dyn Transport>,
         default_transport: Box<dyn Transport>,
     ) -> Self {
         Self {
-            rtps_participant: Arc::new(rtps_participant),
+            guid_prefix,
             _qos: domain_participant_qos,
             builtin_subscriber_storage: Arc::new(builtin_subscriber_storage),
             builtin_publisher_storage: Arc::new(builtin_publisher_storage),
@@ -102,7 +107,7 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
             [user_defined_publisher_counter, 0, 0],
             USER_DEFINED_WRITER_GROUP,
         );
-        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
+        let guid = Guid::new(self.guid_prefix, entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
         let data_writer_impl_list = Vec::new();
         let publisher_impl = PublisherImpl::new(publisher_qos, rtps_group, data_writer_impl_list);
@@ -381,12 +386,13 @@ impl Entity for DomainParticipantImpl {
     }
 
     fn enable(&self) -> DDSResult<()> {
+        let protocol_version = PROTOCOLVERSION;
+        let vendor_id = VENDOR_ID_S2E;
         // self.is_enabled.store(true, atomic::Ordering::Release);
         let is_enabled = self.is_enabled.clone();
         let default_transport = self.default_transport.clone();
         let metatraffic_transport = self.metatraffic_transport.clone();
-        let guid_prefix = *self.rtps_participant.guid().prefix();
-        let rtps_participant = self.rtps_participant.clone();
+        let guid_prefix = self.guid_prefix;
         let builtin_subscriber_storage = self.builtin_subscriber_storage.clone();
         let builtin_publisher_storage = self.builtin_publisher_storage.clone();
         let user_defined_subscriber_storage = self.user_defined_subscriber_storage.clone();
@@ -396,8 +402,8 @@ impl Entity for DomainParticipantImpl {
             while is_enabled.load(atomic::Ordering::SeqCst) {
                 // send_builtin_data();
                 builtin_publisher_storage.read().send_data(
-                    rtps_participant.protocol_version(),
-                    rtps_participant.vendor_id(),
+                    &protocol_version,
+                    &vendor_id,
                     &guid_prefix,
                     metatraffic_transport.lock().unwrap().as_mut(),
                 );
@@ -418,15 +424,15 @@ impl Entity for DomainParticipantImpl {
                 for user_defined_publisher in user_defined_publisher_storage.lock().unwrap().iter()
                 {
                     user_defined_publisher.read().send_data(
-                        rtps_participant.protocol_version(),
-                        rtps_participant.vendor_id(),
+                        &protocol_version,
+                        &vendor_id,
                         &guid_prefix,
                         metatraffic_transport.lock().unwrap().as_mut(),
                     );
                 }
                 crate::utils::message_sender::send_data(
-                    rtps_participant.protocol_version(),
-                    rtps_participant.vendor_id(),
+                    &protocol_version,
+                    &vendor_id,
                     &guid_prefix,
                     &user_defined_publisher_storage.lock().unwrap(),
                     default_transport.lock().unwrap().as_mut(),
@@ -453,9 +459,7 @@ impl Entity for DomainParticipantImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        rtps_impl::rtps_participant_impl::RtpsParticipantImpl, utils::transport::RtpsMessageRead,
-    };
+    use crate::utils::transport::RtpsMessageRead;
     use rust_dds_api::return_type::DDSError;
     use rust_rtps_pim::structure::types::{Locator, GUID_UNKNOWN};
 
@@ -491,10 +495,9 @@ mod tests {
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
         ));
-        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
         let mut domain_participant = DomainParticipantImpl::new(
+            [3; 12],
             DomainParticipantQos::default(),
-            rtps_participant,
             builtin_subscriber,
             builtin_publisher,
             Box::new(MockTransport),
@@ -520,10 +523,9 @@ mod tests {
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
         ));
-        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
         let mut domain_participant = DomainParticipantImpl::new(
+            [0; 12],
             DomainParticipantQos::default(),
-            rtps_participant,
             builtin_subscriber,
             builtin_publisher,
             Box::new(MockTransport),
@@ -551,10 +553,9 @@ mod tests {
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
         ));
-        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
         let mut domain_participant = DomainParticipantImpl::new(
+            [1; 12],
             DomainParticipantQos::default(),
-            rtps_participant,
             builtin_subscriber,
             builtin_publisher,
             Box::new(MockTransport),
@@ -580,10 +581,9 @@ mod tests {
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
         ));
-        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
         let mut domain_participant = DomainParticipantImpl::new(
+            [1; 12],
             DomainParticipantQos::default(),
-            rtps_participant,
             builtin_subscriber,
             builtin_publisher,
             Box::new(MockTransport),
@@ -614,10 +614,9 @@ mod tests {
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
         ));
-        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
         let mut domain_participant = DomainParticipantImpl::new(
+            [1; 12],
             DomainParticipantQos::default(),
-            rtps_participant,
             builtin_subscriber,
             builtin_publisher,
             Box::new(MockTransport),
@@ -643,10 +642,9 @@ mod tests {
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
         ));
-        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
         let mut domain_participant = DomainParticipantImpl::new(
+            [1; 12],
             DomainParticipantQos::default(),
-            rtps_participant,
             builtin_subscriber,
             builtin_publisher,
             Box::new(MockTransport),
@@ -672,10 +670,9 @@ mod tests {
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
         ));
-        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
         let mut domain_participant = DomainParticipantImpl::new(
+            [1; 12],
             DomainParticipantQos::default(),
-            rtps_participant,
             builtin_subscriber,
             builtin_publisher,
             Box::new(MockTransport),
@@ -706,10 +703,9 @@ mod tests {
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
         ));
-        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
         let domain_participant = DomainParticipantImpl::new(
+            [1; 12],
             DomainParticipantQos::default(),
-            rtps_participant,
             builtin_subscriber,
             builtin_publisher,
             Box::new(MockTransport),
@@ -750,10 +746,9 @@ mod tests {
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
         ));
-        let rtps_participant = RtpsParticipantImpl::new([1; 12]);
         let domain_participant = DomainParticipantImpl::new(
+            [1; 12],
             DomainParticipantQos::default(),
-            rtps_participant,
             builtin_subscriber,
             builtin_publisher,
             Box::new(MockTransport),
