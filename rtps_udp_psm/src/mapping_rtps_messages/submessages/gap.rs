@@ -76,16 +76,18 @@ mod tests {
             EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
             SequenceNumberSubmessageElement,
         },
-        structure::types::{EntityId, EntityKind, SequenceNumber},
+        structure::types::{
+            EntityId, SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
+        },
     };
     #[test]
     fn serialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumberSubmessageElement { value: 5 };
         let gap_list: SequenceNumberSetSubmessageElement<[SequenceNumber; 0]> =
@@ -115,10 +117,10 @@ mod tests {
     fn deserialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumberSubmessageElement { value: 5 };
         let gap_list = SequenceNumberSetSubmessageElement {

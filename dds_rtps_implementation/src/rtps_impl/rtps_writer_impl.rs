@@ -295,8 +295,8 @@ mod tests {
         },
         structure::{
             types::{
-                ChangeKind, EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind,
-                GUID_UNKNOWN,
+                ChangeKind, EntityId, Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN,
+                USER_DEFINED_READER_NO_KEY, USER_DEFINED_UNKNOWN,
             },
             RtpsHistoryCache,
         },
@@ -407,11 +407,9 @@ mod tests {
             matched_readers: Vec::new(),
             writer_cache: WriterHistoryCache::new(),
         };
-        let unknown_remote_group_entity_id = EntityId::new([0; 3], EntityKind::UserDefinedUnknown);
-        let reader_proxy_guid1 = Guid::new(
-            [1; 12],
-            EntityId::new([1; 3], EntityKind::UserDefinedReaderNoKey),
-        );
+        let unknown_remote_group_entity_id = EntityId::new([0; 3], USER_DEFINED_UNKNOWN);
+        let reader_proxy_guid1 =
+            Guid::new([1; 12], EntityId::new([1; 3], USER_DEFINED_READER_NO_KEY));
         let reader_proxy1 = RtpsReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
@@ -420,10 +418,8 @@ mod tests {
             false,
             true,
         );
-        let reader_proxy_guid2 = Guid::new(
-            [2; 12],
-            EntityId::new([2; 3], EntityKind::UserDefinedReaderNoKey),
-        );
+        let reader_proxy_guid2 =
+            Guid::new([2; 12], EntityId::new([2; 3], USER_DEFINED_READER_NO_KEY));
         let reader_proxy2 = RtpsReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
@@ -456,11 +452,9 @@ mod tests {
             writer_cache: WriterHistoryCache::new(),
         };
 
-        let unknown_remote_group_entity_id = EntityId::new([0; 3], EntityKind::UserDefinedUnknown);
-        let reader_proxy_guid1 = Guid::new(
-            [1; 12],
-            EntityId::new([1; 3], EntityKind::UserDefinedReaderNoKey),
-        );
+        let unknown_remote_group_entity_id = EntityId::new([0; 3], USER_DEFINED_UNKNOWN);
+        let reader_proxy_guid1 =
+            Guid::new([1; 12], EntityId::new([1; 3], USER_DEFINED_READER_NO_KEY));
         let reader_proxy1 = RtpsReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
@@ -469,10 +463,8 @@ mod tests {
             false,
             true,
         );
-        let reader_proxy_guid2 = Guid::new(
-            [2; 12],
-            EntityId::new([2; 3], EntityKind::UserDefinedReaderNoKey),
-        );
+        let reader_proxy_guid2 =
+            Guid::new([2; 12], EntityId::new([2; 3], USER_DEFINED_READER_NO_KEY));
         let reader_proxy2 = RtpsReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,
@@ -507,11 +499,9 @@ mod tests {
             writer_cache: WriterHistoryCache::new(),
         };
 
-        let unknown_remote_group_entity_id = EntityId::new([0; 3], EntityKind::UserDefinedUnknown);
-        let reader_proxy_guid1 = Guid::new(
-            [1; 12],
-            EntityId::new([1; 3], EntityKind::UserDefinedReaderNoKey),
-        );
+        let unknown_remote_group_entity_id = EntityId::new([0; 3], USER_DEFINED_UNKNOWN);
+        let reader_proxy_guid1 =
+            Guid::new([1; 12], EntityId::new([1; 3], USER_DEFINED_READER_NO_KEY));
         let reader_proxy1 = RtpsReaderProxyImpl::new(
             reader_proxy_guid1,
             unknown_remote_group_entity_id,
@@ -520,10 +510,8 @@ mod tests {
             false,
             true,
         );
-        let reader_proxy_guid2 = Guid::new(
-            [2; 12],
-            EntityId::new([2; 3], EntityKind::UserDefinedReaderNoKey),
-        );
+        let reader_proxy_guid2 =
+            Guid::new([2; 12], EntityId::new([2; 3], USER_DEFINED_READER_NO_KEY));
         let reader_proxy2 = RtpsReaderProxyImpl::new(
             reader_proxy_guid2,
             unknown_remote_group_entity_id,

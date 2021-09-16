@@ -25,12 +25,23 @@ use rust_dds_rtps_implementation::{
     },
     utils::shared_object::RtpsShared,
 };
-use rust_rtps_pim::{behavior::types::Duration, discovery::{
+use rust_rtps_pim::{
+    behavior::types::Duration,
+    discovery::{
         spdp::{
             builtin_endpoints::SpdpBuiltinParticipantWriter, participant_proxy::ParticipantProxy,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    }, messages::types::Count, structure::{RtpsParticipant, types::{EntityId, EntityKind, Guid, LOCATOR_INVALID, LOCATOR_KIND_UDPv4, Locator}}};
+    },
+    messages::types::Count,
+    structure::{
+        types::{
+            EntityId, Guid, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
+            BUILT_IN_WRITER_GROUP, LOCATOR_INVALID,
+        },
+        RtpsParticipant,
+    },
+};
 
 use crate::udp_transport::UdpTransport;
 
@@ -103,7 +114,7 @@ impl DomainParticipantFactory {
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: BuiltInTopicKey { value: [0; 3] },
-            user_data: UserDataQosPolicy { value: &[1,2,3] },
+            user_data: UserDataQosPolicy { value: &[1, 2, 3] },
         };
         let participant_proxy = ParticipantProxy {
             domain_id: domain_id as u32,
@@ -152,7 +163,7 @@ impl DomainParticipantFactory {
             PublisherQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
-                EntityId::new([0, 0, 0], EntityKind::BuiltInWriterGroup),
+                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
             vec![spdp_builtin_participant_writer],
         ));
@@ -160,7 +171,7 @@ impl DomainParticipantFactory {
             SubscriberQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
-                EntityId::new([0, 0, 0], EntityKind::BuiltInReaderGroup),
+                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
             Vec::new(),
         ));

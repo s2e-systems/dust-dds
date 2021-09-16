@@ -48,15 +48,10 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::{
-        messages::submessage_elements::{
+    use crate::{messages::submessage_elements::{
             EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-        },
-        structure::types::{
-            EntityId, InstanceHandle, SequenceNumber, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
-        },
-    };
+        }, structure::types::{BUILT_IN_WRITER_WITH_KEY, EntityId, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN, InstanceHandle, SequenceNumber}};
 
     use super::*;
 
@@ -154,7 +149,7 @@ mod tests {
         let source_guid_prefix = GUIDPREFIX_UNKNOWN;
         let writer_entity_id = EntityId::new(
             [1, 2, 3],
-            crate::structure::types::EntityKind::BuiltInWriterWithKey,
+            BUILT_IN_WRITER_WITH_KEY,
         );
         let message_sequence_number = 1;
         let data = DataSubmessage {

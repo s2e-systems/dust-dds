@@ -21,7 +21,10 @@ use rust_rtps_pim::{
     behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
     messages::{RtpsMessage, RtpsMessageHeader},
     structure::{
-        types::{EntityId, EntityKind, Guid, Locator, ReliabilityKind, TopicKind},
+        types::{
+            EntityId, Guid, Locator, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
+        },
         RtpsEntity, RtpsParticipant,
     },
 };
@@ -105,8 +108,8 @@ where
             .user_defined_data_writer_counter
             .fetch_add(1, atomic::Ordering::SeqCst);
         let (entity_kind, topic_kind) = match T::has_key() {
-            true => (EntityKind::UserDefinedWriterWithKey, TopicKind::WithKey),
-            false => (EntityKind::UserDefinedWriterNoKey, TopicKind::NoKey),
+            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
+            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
         };
         let entity_id = EntityId::new(
             [
