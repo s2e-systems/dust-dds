@@ -1,19 +1,19 @@
-use crate::structure::types::{EntityId, EntityKind};
+use crate::structure::types::{EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY};
 
 pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
-    EntityId::new([0, 0, 0x02], EntityKind::BuiltInWriterWithKey);
+    EntityId::new([0, 0, 0x02], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId =
-    EntityId::new([0, 0, 0x02], EntityKind::BuiltInReaderWithKey);
+    EntityId::new([0, 0, 0x02], BUILT_IN_READER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
-    EntityId::new([0, 0, 0x03], EntityKind::BuiltInWriterWithKey);
+    EntityId::new([0, 0, 0x03], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId =
-    EntityId::new([0, 0, 0x03], EntityKind::BuiltInReaderWithKey);
+    EntityId::new([0, 0, 0x03], BUILT_IN_READER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
-    EntityId::new([0, 0, 0x04], EntityKind::BuiltInWriterWithKey);
+    EntityId::new([0, 0, 0x04], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
-    EntityId::new([0, 0, 0x04], EntityKind::BuiltInReaderWithKey);
+    EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);

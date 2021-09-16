@@ -305,45 +305,9 @@ struct GuidSerdeDeserialize(#[serde(with = "GuidDef")] Guid);
 #[serde(remote = "EntityId")]
 struct EntityIdDef {
     entity_key: [u8; 3],
-    #[serde(with = "EntityKindDef")]
     entity_kind: EntityKind,
 }
 
-#[derive(Debug, PartialEq)]
-enum EntityKindDef {}
-
-impl EntityKindDef {
-    fn serialize<S>(this: &EntityKind, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        // Table 9.1 - entityKind octet of an EntityId_t
-        match this {
-            EntityKind::UserDefinedUnknown => serializer.serialize_u8(0x00),
-            EntityKind::BuiltInUnknown => serializer.serialize_u8(0xc0),
-            EntityKind::BuiltInParticipant => serializer.serialize_u8(0xc1),
-            EntityKind::UserDefinedWriterWithKey => serializer.serialize_u8(0x02),
-            EntityKind::BuiltInWriterWithKey => serializer.serialize_u8(0xc2),
-            EntityKind::UserDefinedWriterNoKey => serializer.serialize_u8(0x03),
-            EntityKind::BuiltInWriterNoKey => serializer.serialize_u8(0xc3),
-            EntityKind::UserDefinedReaderWithKey => serializer.serialize_u8(0x07),
-            EntityKind::BuiltInReaderWithKey => serializer.serialize_u8(0xc7),
-            EntityKind::UserDefinedReaderNoKey => serializer.serialize_u8(0x04),
-            EntityKind::BuiltInReaderNoKey => serializer.serialize_u8(0xc4),
-            EntityKind::UserDefinedWriterGroup => serializer.serialize_u8(0x08),
-            EntityKind::BuiltInWriterGroup => serializer.serialize_u8(0xc8),
-            EntityKind::UserDefinedReaderGroup => serializer.serialize_u8(0x09),
-            EntityKind::BuiltInReaderGroup => serializer.serialize_u8(0xc9),
-        }
-    }
-
-    fn deserialize<'de, D>(_deserializer: D) -> Result<EntityKind, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        todo!()
-    }
-}
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointSet")]

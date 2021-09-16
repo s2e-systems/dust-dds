@@ -7,18 +7,17 @@ use crate::{
             stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
         },
     },
-    structure::types::{EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind},
+    structure::types::{
+        EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
+        BUILT_IN_WRITER_WITH_KEY,
+    },
 };
 
-pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId = EntityId::new(
-    [0x00, 0x01, 0x00],
-    crate::structure::types::EntityKind::BuiltInWriterWithKey,
-);
+pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
 
-pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId = EntityId::new(
-    [0x00, 0x01, 0x00],
-    crate::structure::types::EntityKind::BuiltInReaderWithKey,
-);
+pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_READER_WITH_KEY);
 
 pub struct SpdpBuiltinParticipantWriter;
 
