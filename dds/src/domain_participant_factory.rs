@@ -13,23 +13,36 @@ use rust_dds_api::{
     },
     publication::data_writer::DataWriter,
 };
-use rust_dds_rtps_implementation::{data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData, dds_impl::{data_reader_impl::{DataReaderImpl, RtpsReaderFlavor}, data_writer_impl::{DataWriterImpl, RtpsWriterFlavor}, domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl}, rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl,
-        rtps_writer_impl::RtpsWriterImpl,
-    }, utils::shared_object::RtpsShared};
-use rust_rtps_pim::{behavior::{types::Duration, writer::stateless_writer::RtpsStatelessWriter}, discovery::{
+use rust_dds_rtps_implementation::{
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    dds_impl::{
+        data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
+        data_writer_impl::{DataWriterImpl, RtpsWriterFlavor},
+        domain_participant_impl::DomainParticipantImpl,
+        publisher_impl::PublisherImpl,
+        subscriber_impl::SubscriberImpl,
+    },
+    rtps_impl::rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+    utils::shared_object::RtpsShared,
+};
+use rust_rtps_pim::{
+    behavior::{types::Duration, writer::reader_locator::RtpsReaderLocatorOperations},
+    discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
             participant_proxy::ParticipantProxy,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    }, messages::types::Count, structure::{
+    },
+    messages::types::Count,
+    structure::{
         types::{
             EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
             BUILT_IN_WRITER_GROUP, LOCATOR_INVALID, PROTOCOLVERSION, VENDOR_ID_S2E,
         },
         RtpsEntity, RtpsGroup,
-    }};
+    },
+};
 
 use crate::udp_transport::UdpTransport;
 
@@ -90,13 +103,20 @@ impl DomainParticipantFactory {
         let default_transport = Box::new(UdpTransport::new(socket));
 
         let spdp_builtin_participant_writer_qos = DataWriterQos::default();
-        let spdp_discovery_locator = Locator::new(
-            LOCATOR_KIND_UDPv4,
-            7400,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
+            Locator::new(
+                LOCATOR_KIND_UDPv4,
+                7400,
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+            ),
+            false,
         );
-        let spdp_builtin_participant_rtps_writer: RtpsWriterFlavor =
-            SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
+        let spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create(
+            guid_prefix,
+            vec![],
+            vec![],
+            vec![spdp_discovery_locator],
+        );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: BuiltInTopicKey { value: [0; 3] },
@@ -133,7 +153,7 @@ impl DomainParticipantFactory {
 
         let spdp_builtin_participant_writer = RtpsShared::new(DataWriterImpl::new(
             spdp_builtin_participant_writer_qos,
-            spdp_builtin_participant_rtps_writer,
+            RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
         ));
 
         let mut spdp_builtin_participant_reader_qos = DataReaderQos::default();

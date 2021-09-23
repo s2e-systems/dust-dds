@@ -1,11 +1,18 @@
 use crate::{
     behavior::{
-        reader::stateless_reader::RtpsStatelessReaderOperations, types::DURATION_ZERO,
-        writer::stateless_writer::RtpsStatelessWriterOperations,
+        reader::stateless_reader::RtpsStatelessReaderOperations,
+        types::DURATION_ZERO,
+        writer::{
+            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
+            writer::RtpsWriter,
+        },
     },
-    structure::types::{
-        EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
-        BUILT_IN_WRITER_WITH_KEY,
+    structure::{
+        types::{
+            EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
+            BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY,
+        },
+        RtpsEndpoint, RtpsEntity, RtpsHistoryCache,
     },
 };
 
@@ -18,36 +25,39 @@ pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
 pub struct SpdpBuiltinParticipantWriter;
 
 impl SpdpBuiltinParticipantWriter {
-    pub fn create<T>(
+    pub fn create<L, C, R>(
         guid_prefix: GuidPrefix,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
-        reader_locators: &[Locator],
-    ) -> T
+        unicast_locator_list: L,
+        multicast_locator_list: L,
+        reader_locators: R,
+    ) -> RtpsStatelessWriter<L, C, R>
     where
-        T: RtpsStatelessWriterOperations,
+        C: for<'a> RtpsHistoryCache<'a>,
     {
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
 
-        let mut spdp_builtin_participant_writer = T::new(
-            spdp_builtin_participant_writer_guid,
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            unicast_locator_list,
-            multicast_locator_list,
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-        );
-
-        for reader_locator in reader_locators {
-            spdp_builtin_participant_writer.reader_locator_add(*reader_locator)
+        RtpsStatelessWriter {
+            writer: RtpsWriter {
+                endpoint: RtpsEndpoint {
+                    entity: RtpsEntity {
+                        guid: spdp_builtin_participant_writer_guid,
+                    },
+                    topic_kind: TopicKind::WithKey,
+                    reliability_level: ReliabilityKind::BestEffort,
+                    unicast_locator_list,
+                    multicast_locator_list,
+                },
+                push_mode: true,
+                heartbeat_period: DURATION_ZERO,
+                nack_response_delay: DURATION_ZERO,
+                nack_suppression_duration: DURATION_ZERO,
+                last_change_sequence_number: 0,
+                data_max_size_serialized: None,
+                writer_cache: C::new(),
+            },
+            reader_locators,
         }
-
-        spdp_builtin_participant_writer
     }
 }
 

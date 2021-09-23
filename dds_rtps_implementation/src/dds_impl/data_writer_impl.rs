@@ -16,15 +16,15 @@ use rust_rtps_pim::{
     behavior::{
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::{
-            reader_locator::{RtpsReaderLocator, RtpsReaderLocatorOperations},
-            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
+            reader_locator::RtpsReaderLocator,
+            stateless_writer::RtpsStatelessWriter,
             writer::{RtpsWriter, RtpsWriterOperations},
         },
     },
     messages::submessages::RtpsSubmessageType,
     structure::{
         types::{ChangeKind, Locator},
-        RtpsEndpoint, RtpsEntity, RtpsHistoryCache,
+        RtpsHistoryCache,
     },
 };
 
@@ -59,58 +59,6 @@ impl DerefMut for RtpsWriterFlavor {
             RtpsWriterFlavor::Stateful => todo!(),
             RtpsWriterFlavor::Stateless(stateless_writer) => &mut stateless_writer.writer,
         }
-    }
-}
-
-impl RtpsStatelessWriterOperations for RtpsWriterFlavor {
-    fn new(
-        guid: rust_rtps_pim::structure::types::Guid,
-        topic_kind: rust_rtps_pim::structure::types::TopicKind,
-        reliability_level: rust_rtps_pim::structure::types::ReliabilityKind,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
-        push_mode: bool,
-        heartbeat_period: rust_rtps_pim::behavior::types::Duration,
-        nack_response_delay: rust_rtps_pim::behavior::types::Duration,
-        nack_suppression_duration: rust_rtps_pim::behavior::types::Duration,
-        data_max_size_serialized: Option<i32>,
-    ) -> Self {
-        Self::Stateless(RtpsStatelessWriter {
-            writer: RtpsWriter {
-                endpoint: RtpsEndpoint {
-                    entity: RtpsEntity { guid },
-                    topic_kind,
-                    reliability_level,
-                    unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
-                    multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
-                },
-                push_mode,
-                heartbeat_period,
-                nack_response_delay,
-                nack_suppression_duration,
-                last_change_sequence_number: 0,
-                data_max_size_serialized,
-                writer_cache: WriterHistoryCache::new(),
-            },
-            reader_locators: vec![],
-        })
-    }
-
-    fn reader_locator_add(&mut self, a_locator: Locator) {
-        match self {
-            RtpsWriterFlavor::Stateful => todo!(),
-            RtpsWriterFlavor::Stateless(stateless_reader) => stateless_reader
-                .reader_locators
-                .push(RtpsReaderLocatorImpl::new(a_locator, false)),
-        }
-    }
-
-    fn reader_locator_remove(&mut self, _a_locator: &Locator) {
-        todo!()
-    }
-
-    fn unsent_changes_reset(&mut self) {
-        todo!()
     }
 }
 

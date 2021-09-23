@@ -22,12 +22,13 @@ use rust_dds_rtps_implementation::{
         subscriber_impl::SubscriberImpl,
     },
     dds_type::DdsDeserialize,
+    rtps_impl::rtps_reader_locator_impl::RtpsReaderLocatorImpl,
     utils::{
         message_receiver::MessageReceiver, shared_object::RtpsShared, transport::TransportRead,
     },
 };
 use rust_rtps_pim::{
-    behavior::types::Duration,
+    behavior::{types::Duration, writer::reader_locator::RtpsReaderLocatorOperations},
     discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
@@ -47,10 +48,13 @@ use rust_rtps_pim::{
 
 #[test]
 fn send_discovery_data_happy_path() {
-    let spdp_discovery_locator = Locator::new(
-        LOCATOR_KIND_UDPv4,
-        7400,
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+    let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
+        Locator::new(
+            LOCATOR_KIND_UDPv4,
+            7400,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+        ),
+        false,
     );
 
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
@@ -87,17 +91,16 @@ fn send_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let spdp_builtin_participant_rtps_writer: RtpsWriterFlavor =
-        SpdpBuiltinParticipantWriter::create(
-            GuidPrefix([3; 12]),
-            &[],
-            &[],
-            &[spdp_discovery_locator],
-        );
+    let spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create(
+        GuidPrefix([3; 12]),
+        vec![],
+        vec![],
+        vec![spdp_discovery_locator],
+    );
 
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        spdp_builtin_participant_rtps_writer,
+        RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
     );
 
     data_writer
