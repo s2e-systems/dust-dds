@@ -5,8 +5,9 @@ use rust_dds_api::{
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
     topic::topic_description::TopicDescription,
 };
+use rust_rtps_pim::{behavior::reader::reader::RtpsReader, structure::RtpsHistoryCache};
 
-use crate::rtps_impl::rtps_reader_impl::RtpsReaderImpl;
+use crate::{dds_type::DdsDeserialize, rtps_impl::rtps_reader_impl::RtpsReaderImpl};
 
 pub struct DataReaderImpl {
     rtps_reader: RtpsReaderImpl,
@@ -65,8 +66,11 @@ impl DataReaderImpl {
 //     })
 //     .collect())
 
-impl<T> DataReader<T> for DataReaderImpl {
-    type Samples = Vec<()>;
+impl<T> DataReader<T> for DataReaderImpl
+where
+    T: for<'de> DdsDeserialize<'de>,
+{
+    type Samples = Vec<T>;
 
     fn read(
         &self,
@@ -75,7 +79,14 @@ impl<T> DataReader<T> for DataReaderImpl {
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
         _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        todo!()
+        let reader_cache = self.rtps_reader.reader_cache();
+        if let Some(cc) = reader_cache.get_change(&1) {
+            let mut data = cc.data_value;
+            let result: T = DdsDeserialize::deserialize(&mut data).unwrap();
+            Ok(vec![result])
+        } else {
+            Ok(vec![])
+        }
     }
 
     fn take(
