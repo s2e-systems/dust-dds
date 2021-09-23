@@ -23,13 +23,17 @@ impl<'de> Deserialize<'de> for GuidPrefixSubmessageElement {
 }
 #[cfg(test)]
 mod tests {
+    use rust_rtps_pim::structure::types::GuidPrefix;
+
     use super::*;
     use crate::deserialize::from_bytes_le;
     use crate::serialize::to_bytes_le;
 
     #[test]
     fn serialize_guid_prefix() {
-        let data = GuidPrefixSubmessageElement{ value: [1; 12]};
+        let data = GuidPrefixSubmessageElement {
+            value: GuidPrefix([1; 12]),
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&data).unwrap(), vec![
             1, 1, 1, 1,
@@ -40,7 +44,9 @@ mod tests {
 
     #[test]
     fn deserialize_guid_prefix() {
-        let expected = GuidPrefixSubmessageElement{ value: [1; 12]};
+        let expected = GuidPrefixSubmessageElement {
+            value: GuidPrefix([1; 12]),
+        };
         #[rustfmt::skip]
         assert_eq!(expected, from_bytes_le(&[
             1, 1, 1, 1,

@@ -109,10 +109,7 @@ mod tests {
     use rust_rtps_pim::messages::submessages::DataSubmessage;
     use rust_rtps_pim::messages::types::ParameterId;
     use rust_rtps_pim::messages::{types::ProtocolId, RtpsMessageHeader};
-    use rust_rtps_pim::structure::types::{
-        EntityId, ProtocolVersion, USER_DEFINED_READER_GROUP,
-        USER_DEFINED_READER_NO_KEY,
-    };
+    use rust_rtps_pim::structure::types::{EntityId, GuidPrefix, ProtocolVersion, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY};
 
     #[test]
     fn serialize_rtps_message_no_submessage() {
@@ -120,7 +117,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion { major: 2, minor: 3 },
             vendor_id: [9, 8],
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
         let value = RtpsMessage {
             header,
@@ -142,7 +139,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion { major: 2, minor: 3 },
             vendor_id: [9, 8],
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
@@ -207,7 +204,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion { major: 2, minor: 3 },
             vendor_id: [9, 8],
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
 
         let expected = RtpsMessage {
@@ -231,7 +228,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion { major: 2, minor: 3 },
             vendor_id: [9, 8],
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
@@ -296,7 +293,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion { major: 2, minor: 3 },
             vendor_id: [9, 8],
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
         let endianness_flag = true;
         let inline_qos_flag = true;

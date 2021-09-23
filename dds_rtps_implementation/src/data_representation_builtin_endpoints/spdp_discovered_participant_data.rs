@@ -275,11 +275,7 @@ mod tests {
 
     use super::*;
     use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
-    use rust_rtps_pim::{
-        discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
-        messages::types::Count,
-        structure::types::ProtocolVersion,
-    };
+    use rust_rtps_pim::{discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet}, messages::types::Count, structure::types::{GuidPrefix, ProtocolVersion}};
 
     pub fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
@@ -295,7 +291,7 @@ mod tests {
         let domain_id = 1;
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid_prefix = [8; 12];
+        let guid_prefix = GuidPrefix([8; 12]);
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -416,7 +412,7 @@ mod tests {
         let domain_id = 1;
         let domain_tag = "ab";
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid_prefix = [8; 12];
+        let guid_prefix = GuidPrefix([8; 12]);
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];

@@ -1,11 +1,11 @@
 use std::io::Write;
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::structure::types::{EntityId, Guid};
+use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
 use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
+    deserialize::{self, Deserialize, MappingRead},
+    serialize::{self, MappingWrite, Serialize},
 };
 
 impl Serialize for EntityId {
@@ -23,6 +23,30 @@ impl<'de> Deserialize<'de> for EntityId {
             entity_key,
             entity_kind,
         })
+    }
+}
+
+impl Serialize for GuidPrefix {
+    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.0.serialize::<_, B>(&mut writer)
+    }
+}
+
+impl<'de> Deserialize<'de> for GuidPrefix {
+    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self(Deserialize::deserialize::<B>(buf)?))
+    }
+}
+
+impl MappingWrite for GuidPrefix {
+    fn write<W: Write>(&self, writer: W) -> serialize::Result {
+        self.0.write(writer)
+    }
+}
+
+impl<'de> MappingRead<'de> for GuidPrefix {
+    fn read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self(MappingRead::read(buf)?))
     }
 }
 
@@ -45,7 +69,9 @@ impl<'de> Deserialize<'de> for Guid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_rtps_pim::structure::types::{BUILT_IN_PARTICIPANT, EntityId, USER_DEFINED_READER_NO_KEY};
+    use rust_rtps_pim::structure::types::{
+        EntityId, GuidPrefix, BUILT_IN_PARTICIPANT, USER_DEFINED_READER_NO_KEY,
+    };
 
     use crate::deserialize::from_bytes_le;
     use crate::serialize::to_bytes_le;
@@ -66,7 +92,7 @@ mod tests {
     #[test]
     fn serialize_guid() {
         let guid = Guid {
-            prefix: [3; 12],
+            prefix: GuidPrefix([3; 12]),
             entity_id: EntityId {
                 entity_key: [1, 2, 3],
                 entity_kind: USER_DEFINED_READER_NO_KEY,
@@ -87,7 +113,7 @@ mod tests {
     #[test]
     fn deserialize_guid() {
         let expected = Guid {
-            prefix: [3; 12],
+            prefix: GuidPrefix([3; 12]),
             entity_id: EntityId {
                 entity_key: [1, 2, 3],
                 entity_kind: USER_DEFINED_READER_NO_KEY,

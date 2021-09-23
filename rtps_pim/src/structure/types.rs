@@ -3,7 +3,6 @@
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
 
-
 /// GUID_t
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
@@ -35,14 +34,13 @@ impl Guid {
     }
 }
 
-
 /// GuidPrefix_t
 /// Type used to hold the prefix of the globally-unique RTPS-entity identifiers. The GUIDs of entities belonging to the same participant all have the same prefix (see 8.2.4.3).
 /// Must be possible to represent using 12 octets.
 /// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
-pub type GuidPrefix = [u8; 12];
-pub const GUIDPREFIX_UNKNOWN: GuidPrefix = [0; 12];
-
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct GuidPrefix(pub [u8; 12]);
+pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
@@ -104,14 +102,12 @@ pub const BUILT_IN_READER_GROUP: EntityKind = 0xc9;
 
 pub type EntityKey = [u8; 3];
 
-
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
 /// The following values are reserved by the protocol: SEQUENCENUMBER_UNKNOWN
 pub type SequenceNumber = i64;
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
-
 
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
@@ -161,7 +157,6 @@ impl Locator {
     }
 }
 
-
 /// TopicKind_t
 /// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
 /// The following values are reserved by the protocol: NO_KEY
@@ -171,7 +166,6 @@ pub enum TopicKind {
     NoKey,
     WithKey,
 }
-
 
 /// ChangeKind_t
 /// Enumeration used to distinguish the kind of change that was made to a data-object. Includes changes to the data or the instance state of the data-object.
@@ -185,7 +179,6 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
-
 /// ReliabilityKind_t
 /// Enumeration used to indicate the level of the reliability used for communications. It can take the values:
 /// BEST_EFFORT, RELIABLE.
@@ -195,11 +188,9 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
-
 /// InstanceHandle_t
 /// Type used to represent the identity of a data-object whose changes in value are communicated by the RTPS protocol.
 pub type InstanceHandle = i32;
-
 
 /// ProtocolVersion_t
 /// Type used to represent the version of the RTPS protocol. The version is composed of a major and a minor version number. See also 8.6.
@@ -220,7 +211,6 @@ pub const PROTOCOLVERSION_2_1: ProtocolVersion = ProtocolVersion { major: 2, min
 pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, minor: 2 };
 pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
 pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
-
 
 /// VendorId_t
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.

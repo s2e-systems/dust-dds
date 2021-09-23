@@ -61,7 +61,7 @@ impl<'de> MappingRead<'de> for RtpsMessageHeader {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::types::ProtocolVersion;
+    use rust_rtps_pim::structure::types::{GuidPrefix, ProtocolVersion};
 
     use super::*;
     use crate::deserialize::from_bytes;
@@ -73,7 +73,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion { major: 2, minor: 3 },
             vendor_id: [9, 8],
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
@@ -91,7 +91,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion { major: 2, minor: 3 },
             vendor_id: [9, 8],
-            guid_prefix: [3; 12],
+            guid_prefix: GuidPrefix([3; 12]),
         };
         #[rustfmt::skip]
         let result = from_bytes(&[

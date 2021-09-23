@@ -40,8 +40,8 @@ use rust_rtps_pim::{
     messages::types::Count,
     structure::{
         types::{
-            EntityId, Guid, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion, BUILT_IN_READER_GROUP,
-            BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
+            BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
         RtpsHistoryCache,
     },
@@ -63,7 +63,7 @@ fn send_discovery_data_happy_path() {
         domain_id: 1,
         domain_tag: "ab".to_string(),
         protocol_version: ProtocolVersion { major: 1, minor: 4 },
-        guid_prefix: [8; 12],
+        guid_prefix: GuidPrefix([8; 12]),
         vendor_id: [73, 74],
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(11, 12, [1; 16])],
@@ -88,8 +88,12 @@ fn send_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let spdp_builtin_participant_rtps_writer: RtpsWriterImpl =
-        SpdpBuiltinParticipantWriter::create([3; 12], &[], &[], &[spdp_discovery_locator]);
+    let spdp_builtin_participant_rtps_writer: RtpsWriterImpl = SpdpBuiltinParticipantWriter::create(
+        GuidPrefix([3; 12]),
+        &[],
+        &[],
+        &[spdp_discovery_locator],
+    );
 
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
@@ -107,7 +111,7 @@ fn send_discovery_data_happy_path() {
     let publisher = PublisherImpl::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(Guid::new(
-            [4; 12],
+            GuidPrefix([4; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
         vec![RtpsShared::new(data_writer)],
@@ -119,13 +123,13 @@ fn send_discovery_data_happy_path() {
     publisher.send_data(
         &PROTOCOLVERSION,
         &VENDOR_ID_UNKNOWN,
-        &[3; 12],
+        &GuidPrefix([3; 12]),
         &mut transport,
     );
 
     // Reception
     let spdp_builtin_participant_rtps_reader: RtpsReaderImpl =
-        SpdpBuiltinParticipantReader::create([5; 12]);
+        SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]));
     let data_reader = DataReaderImpl::new(
         spdp_builtin_participant_rtps_reader,
         DataReaderQos::default(),
@@ -134,14 +138,14 @@ fn send_discovery_data_happy_path() {
     let subscriber = SubscriberImpl::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
-            [6; 12],
+            GuidPrefix([6; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),
         vec![shared_data_reader.clone()],
     );
 
     let (source_locator, message) = transport.read().unwrap();
-    let participant_guid_prefix = [7; 12];
+    let participant_guid_prefix = GuidPrefix([7; 12]);
     MessageReceiver::new().process_message(
         participant_guid_prefix,
         &[RtpsShared::new(subscriber)],

@@ -19,18 +19,23 @@ use rust_dds_rtps_implementation::{
         data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
         publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
     },
-    rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl,
-        rtps_writer_impl::RtpsWriterImpl,
-    },
+    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
     utils::shared_object::RtpsShared,
 };
-use rust_rtps_pim::{behavior::types::Duration, discovery::{
+use rust_rtps_pim::{
+    behavior::types::Duration,
+    discovery::{
         spdp::{
             builtin_endpoints::SpdpBuiltinParticipantWriter, participant_proxy::ParticipantProxy,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    }, messages::types::Count, structure::{types::{BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, EntityId, Guid, LOCATOR_INVALID, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E}}};
+    },
+    messages::types::Count,
+    structure::types::{
+        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
+        BUILT_IN_WRITER_GROUP, LOCATOR_INVALID, PROTOCOLVERSION, VENDOR_ID_S2E,
+    },
+};
 
 use crate::udp_transport::UdpTransport;
 
@@ -74,7 +79,7 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> Option<DomainParticipantImpl> {
-        let guid_prefix = [3; 12];
+        let guid_prefix = GuidPrefix([3; 12]);
 
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
         socket.set_nonblocking(true).unwrap();

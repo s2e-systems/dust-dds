@@ -174,7 +174,7 @@ mod tests {
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
             serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3] },
         };
-        let participant_guid_prefix = [1; 12];
+        let participant_guid_prefix = GuidPrefix([1; 12]);
         let reader_group_list = vec![RtpsShared::new(MockProcessDataSubmessage {
             called: RefCell::new(false),
         })];
@@ -183,7 +183,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: PROTOCOLVERSION_2_4,
             vendor_id: [99, 99],
-            guid_prefix: [1; 12],
+            guid_prefix: GuidPrefix([1; 12]),
         };
         let submessages: Vec<
             rust_rtps_pim::messages::submessages::RtpsSubmessageType<

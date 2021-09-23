@@ -69,6 +69,7 @@ pub struct ProtocolVersionSerdeDeserialize(
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "Guid")]
 pub struct GuidDef {
+    #[serde(with = "GuidPrefixDef")]
     pub prefix: GuidPrefix,
     #[serde(with = "EntityIdDef")]
     pub entity_id: EntityId,
@@ -86,6 +87,10 @@ pub struct EntityIdDef {
     pub entity_key: [u8; 3],
     pub entity_kind: EntityKind,
 }
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "GuidPrefix")]
+pub struct GuidPrefixDef(pub [u8; 12]);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointSet")]

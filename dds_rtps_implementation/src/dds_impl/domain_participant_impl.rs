@@ -496,7 +496,7 @@ mod tests {
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
-            [3; 12],
+            GuidPrefix([3; 12]),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -524,7 +524,7 @@ mod tests {
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
-            [0; 12],
+            GuidPrefix([0; 12]),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -554,7 +554,7 @@ mod tests {
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
-            [1; 12],
+            GuidPrefix([1; 12]),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -582,7 +582,7 @@ mod tests {
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
-            [1; 12],
+            GuidPrefix([1; 12]),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -615,7 +615,7 @@ mod tests {
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
-            [1; 12],
+            GuidPrefix([1; 12]),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -643,7 +643,7 @@ mod tests {
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
-            [1; 12],
+            GuidPrefix([1; 12]),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -671,7 +671,7 @@ mod tests {
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
-            [1; 12],
+            GuidPrefix([1; 12]),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -704,7 +704,7 @@ mod tests {
             vec![],
         ));
         let domain_participant = DomainParticipantImpl::new(
-            [1; 12],
+            GuidPrefix([1; 12]),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -747,7 +747,7 @@ mod tests {
             vec![],
         ));
         let domain_participant = DomainParticipantImpl::new(
-            [1; 12],
+            GuidPrefix([1; 12]),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
