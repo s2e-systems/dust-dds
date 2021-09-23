@@ -1,4 +1,5 @@
-use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
+use byteorder::{LittleEndian, ReadBytesExt};
+use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
@@ -91,6 +92,19 @@ pub struct EntityIdDef {
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "GuidPrefix")]
 pub struct GuidPrefixDef(pub [u8; 12]);
+
+impl From<GuidPrefixDef> for BuiltInTopicKey {
+    fn from(v: GuidPrefixDef) -> Self {
+        let bytes = &mut v.0.as_ref();
+        BuiltInTopicKey {
+            value: [
+                bytes.read_i32::<LittleEndian>().unwrap(),
+                bytes.read_i32::<LittleEndian>().unwrap(),
+                bytes.read_i32::<LittleEndian>().unwrap(),
+            ],
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointSet")]

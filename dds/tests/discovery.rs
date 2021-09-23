@@ -55,15 +55,16 @@ fn send_discovery_data_happy_path() {
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
     );
 
+    let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let dds_participant_data = ParticipantBuiltinTopicData {
-        key: BuiltInTopicKey { value: [8, 8, 8] },
+        key: BuiltInTopicKey { value: [0, 0, 1] },
         user_data: UserDataQosPolicy { value: &[] },
     };
     let participant_proxy = ParticipantProxy {
         domain_id: 1,
         domain_tag: "ab".to_string(),
         protocol_version: ProtocolVersion { major: 1, minor: 4 },
-        guid_prefix: GuidPrefix([8; 12]),
+        guid_prefix,
         vendor_id: [73, 74],
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(11, 12, [1; 16])],

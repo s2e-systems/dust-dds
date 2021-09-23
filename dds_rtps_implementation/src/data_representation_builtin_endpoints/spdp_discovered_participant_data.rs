@@ -1,6 +1,5 @@
 use rust_dds_api::{
-    builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey,
-    infrastructure::qos_policy::UserDataQosPolicy,
+    builtin_topics::ParticipantBuiltinTopicData, infrastructure::qos_policy::UserDataQosPolicy,
 };
 use rust_rtps_pim::{
     behavior::types::Duration,
@@ -23,9 +22,9 @@ use super::{
         BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
         BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
         CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
-        DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize, LocatorSerdeDeserialize,
-        LocatorSerdeSerialize, ProtocolVersionSerdeDeserialize, ProtocolVersionSerdeSerialize,
-        UserDataQosPolicySerdeSerialize,
+        DurationSerdeSerialize, GuidPrefixDef, GuidSerdeDeserialize, GuidSerdeSerialize,
+        LocatorSerdeDeserialize, LocatorSerdeSerialize, ProtocolVersionSerdeDeserialize,
+        ProtocolVersionSerdeSerialize, UserDataQosPolicySerdeSerialize,
     },
     parameter_id_values::{
         DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
@@ -187,7 +186,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<
         let guid_prefix = guid.prefix;
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: BuiltInTopicKey { value: [8, 8, 8] },
+            key: GuidPrefixDef(guid_prefix.0).into(),
             user_data: UserDataQosPolicy { value: &[] },
         };
 
@@ -274,8 +273,12 @@ mod tests {
     use crate::dds_type::LittleEndian;
 
     use super::*;
-    use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
-    use rust_rtps_pim::{discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet}, messages::types::Count, structure::types::{GuidPrefix, ProtocolVersion}};
+    use rust_dds_api::{infrastructure::qos_policy::UserDataQosPolicy};
+    use rust_rtps_pim::{
+        discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
+        messages::types::Count,
+        structure::types::{GuidPrefix, ProtocolVersion},
+    };
 
     pub fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
@@ -306,7 +309,7 @@ mod tests {
         );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: BuiltInTopicKey { value: [8, 8, 8] },
+            key: GuidPrefixDef(guid_prefix.0).into(),
             user_data: UserDataQosPolicy { value: &[] },
         };
         let participant_proxy = ParticipantProxy {
@@ -427,7 +430,7 @@ mod tests {
         );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: BuiltInTopicKey { value: [8, 8, 8] },
+            key: GuidPrefixDef(guid_prefix.0).into(),
             user_data: UserDataQosPolicy { value: &[] },
         };
         let participant_proxy = ParticipantProxy {
