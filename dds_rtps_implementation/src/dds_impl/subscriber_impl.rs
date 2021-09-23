@@ -104,7 +104,7 @@ impl SubscriberImpl {
             heartbeat_supression_duration,
             expects_inline_qos,
         );
-        let reader_storage = DataReaderImpl::new(rtps_reader, qos);
+        let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = RtpsShared::new(reader_storage);
         let reader_storage_weak = reader_storage_shared.downgrade();
         self.data_reader_storage_list.push(reader_storage_shared);

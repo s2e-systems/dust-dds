@@ -132,8 +132,8 @@ fn send_discovery_data_happy_path() {
     let spdp_builtin_participant_rtps_reader: RtpsReaderImpl =
         SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]));
     let data_reader = DataReaderImpl::new(
-        spdp_builtin_participant_rtps_reader,
         DataReaderQos::default(),
+        spdp_builtin_participant_rtps_reader,
     );
     let shared_data_reader = RtpsShared::new(data_reader);
     let subscriber = SubscriberImpl::new(

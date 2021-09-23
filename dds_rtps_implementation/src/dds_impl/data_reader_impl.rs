@@ -14,7 +14,7 @@ pub struct DataReaderImpl {
 }
 
 impl DataReaderImpl {
-    pub fn new(rtps_reader: RtpsReaderImpl, qos: DataReaderQos) -> Self {
+    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderImpl) -> Self {
         Self { rtps_reader, qos }
     }
 

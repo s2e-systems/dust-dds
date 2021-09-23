@@ -8,25 +8,30 @@ use rust_dds_api::{
     dcps_psm::{BuiltInTopicKey, DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
-        qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
-        qos_policy::UserDataQosPolicy,
+        qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
+        qos_policy::{ReliabilityQosPolicyKind, UserDataQosPolicy},
     },
     publication::data_writer::DataWriter,
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     dds_impl::{
-        data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
-        publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
+        data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
+        domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
+        subscriber_impl::SubscriberImpl,
     },
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
+    rtps_impl::{
+        rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl,
+        rtps_writer_impl::RtpsWriterImpl,
+    },
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
         spdp::{
-            builtin_endpoints::SpdpBuiltinParticipantWriter, participant_proxy::ParticipantProxy,
+            builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
+            participant_proxy::ParticipantProxy,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
@@ -142,6 +147,16 @@ impl DomainParticipantFactory {
             spdp_builtin_participant_rtps_writer,
         ));
 
+        let mut spdp_builtin_participant_reader_qos = DataReaderQos::default();
+        spdp_builtin_participant_reader_qos.reliability.kind =
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+        let spdp_builtin_participant_rtps_reader: RtpsReaderImpl =
+            SpdpBuiltinParticipantReader::create(guid_prefix);
+        let spdp_builtin_participant_reader = RtpsShared::new(DataReaderImpl::new(
+            spdp_builtin_participant_reader_qos,
+            spdp_builtin_participant_rtps_reader,
+        ));
+
         spdp_builtin_participant_writer
             .write()
             .write_w_timestamp(
@@ -165,7 +180,7 @@ impl DomainParticipantFactory {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
-            Vec::new(),
+            vec![spdp_builtin_participant_reader],
         ));
 
         let domain_participant = DomainParticipantImpl::new(
