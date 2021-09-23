@@ -7,17 +7,13 @@ use rust_dds_api::{
     return_type::DDSResult,
     subscription::data_reader_listener::DataReaderListener,
 };
-use rust_rtps_pim::{
-    behavior::reader::stateful_reader::RtpsStatefulReaderOperations,
-    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
-    structure::{
+use rust_rtps_pim::{behavior::{reader::stateful_reader::RtpsStatefulReaderOperations, stateless_reader_behavior::StatelessReaderBehavior}, messages::{submessage_elements::Parameter, submessages::DataSubmessage}, structure::{
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
         },
         RtpsEntity,
-    },
-};
+    }};
 
 use crate::{
     dds_type::DdsType,
@@ -120,7 +116,9 @@ impl SubscriberImpl {
 }
 
 impl ProcessDataSubmessage for SubscriberImpl {
-    fn process_data_submessage(&self, _data: &DataSubmessage<Vec<Parameter<'_>>>) {
-        todo!()
+    fn process_data_submessage(&self, data: &DataSubmessage<Vec<Parameter<'_>>>) {
+        for reader in &self.data_reader_storage_list {
+            reader.write().rtps_reader_mut().receive_data([7; 12], data);
+        }
     }
 }

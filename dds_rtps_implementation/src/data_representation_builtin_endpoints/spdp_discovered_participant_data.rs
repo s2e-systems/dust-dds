@@ -38,7 +38,10 @@ pub struct SpdpDiscoveredParticipantData<'a, S, L> {
     pub lease_duration: Duration,
 }
 
-impl DdsSerialize for SpdpDiscoveredParticipantData<'_, &str, Vec<Locator>> {
+impl<S> DdsSerialize for SpdpDiscoveredParticipantData<'_, S, Vec<Locator>>
+where
+    S: AsRef<str> + PartialEq<&'static str>,
+{
     fn serialize<W: std::io::Write, E: crate::dds_type::Endianness>(
         &self,
         writer: W,
@@ -51,7 +54,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData<'_, &str, Vec<Locator>> {
 
         if self.participant_proxy.domain_tag != DEFAULT_DOMAIN_TAG {
             parameter_list_serializer
-                .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)
+                .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag.as_ref())
                 .unwrap();
         }
 
@@ -198,8 +201,10 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<
         let default_multicast_locator_list = param_list
             .get_list::<LocatorSerdeDeserialize>(PID_DEFAULT_MULTICAST_LOCATOR)
             .unwrap();
-        let available_builtin_endpoints =
-            BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
+        let available_builtin_endpoints = param_list
+            .get::<BuiltinEndpointSetSerdeDeserialize>(PID_BUILTIN_ENDPOINT_SET)
+            .unwrap()
+            .0;
         let manual_liveliness_count = param_list
             .get::<CountSerdeDeserialize>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
             .unwrap()
@@ -308,7 +313,6 @@ struct EntityIdDef {
     entity_kind: EntityKind,
 }
 
-
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointSet")]
 struct BuiltinEndpointSetDef(u32);
@@ -316,6 +320,10 @@ struct BuiltinEndpointSetDef(u32);
 #[derive(Debug, PartialEq, serde::Serialize)]
 struct BuiltinEndpointSetSerdeSerialize<'a>(
     #[serde(with = "BuiltinEndpointSetDef")] &'a BuiltinEndpointSet,
+);
+#[derive(Debug, PartialEq, serde::Deserialize)]
+struct BuiltinEndpointSetSerdeDeserialize(
+    #[serde(with = "BuiltinEndpointSetDef")] BuiltinEndpointSet,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
