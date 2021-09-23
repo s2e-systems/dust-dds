@@ -63,7 +63,7 @@ impl MessageReceiver {
                 RtpsSubmessageType::AckNack(_) => todo!(),
                 RtpsSubmessageType::Data(data) => {
                     for element in list {
-                        element.write_lock().process_data_submessage(data)
+                        element.write_lock().process_data_submessage(self.source_guid_prefix, data)
                     }
                 }
                 RtpsSubmessageType::DataFrag(_) => todo!(),
@@ -94,7 +94,11 @@ impl MessageReceiver {
 }
 
 pub trait ProcessDataSubmessage {
-    fn process_data_submessage(&self, _data: &DataSubmessage<Vec<Parameter<'_>>>);
+    fn process_data_submessage(
+        &self,
+        source_guid_prefix: GuidPrefix,
+        _data: &DataSubmessage<Vec<Parameter<'_>>>,
+    );
 }
 
 #[cfg(test)]
@@ -153,7 +157,11 @@ mod tests {
         }
 
         impl ProcessDataSubmessage for MockProcessDataSubmessage {
-            fn process_data_submessage(&self, _data: &DataSubmessage<Vec<Parameter<'_>>>) {
+            fn process_data_submessage(
+                &self,
+                _source_guid_prefix: GuidPrefix,
+                _data: &DataSubmessage<Vec<Parameter<'_>>>,
+            ) {
                 *self.called.borrow_mut() = true
             }
         }

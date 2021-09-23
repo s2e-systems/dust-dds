@@ -123,12 +123,16 @@ impl SubscriberImpl {
 }
 
 impl ProcessDataSubmessage for SubscriberImpl {
-    fn process_data_submessage(&self, data: &DataSubmessage<Vec<Parameter<'_>>>) {
+    fn process_data_submessage(
+        &self,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessage<Vec<Parameter<'_>>>,
+    ) {
         for reader in &self.data_reader_storage_list {
             reader
                 .write_lock()
                 .rtps_reader_mut()
-                .receive_data(GuidPrefix([7; 12]), data);
+                .receive_data(source_guid_prefix, data);
         }
     }
 }
