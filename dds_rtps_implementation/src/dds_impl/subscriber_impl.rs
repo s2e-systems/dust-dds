@@ -36,7 +36,7 @@ use super::data_reader_impl::DataReaderImpl;
 pub struct SubscriberImpl {
     qos: SubscriberQos,
     rtps_group: RtpsGroupImpl,
-    data_reader_storage_list: Vec<RtpsShared<DataReaderImpl>>,
+    data_reader_list: Vec<RtpsShared<DataReaderImpl>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -45,20 +45,15 @@ impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
-        data_reader_storage_list: Vec<RtpsShared<DataReaderImpl>>,
+        data_reader_list: Vec<RtpsShared<DataReaderImpl>>,
     ) -> Self {
         Self {
             qos,
             rtps_group,
-            data_reader_storage_list,
+            data_reader_list,
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
         }
-    }
-
-    /// Get a reference to the subscriber storage's readers.
-    pub fn readers(&self) -> &[RtpsShared<DataReaderImpl>] {
-        self.data_reader_storage_list.as_slice()
     }
 
     pub fn create_datareader<T: DdsType + 'static>(
@@ -107,7 +102,7 @@ impl SubscriberImpl {
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = RtpsShared::new(reader_storage);
         let reader_storage_weak = reader_storage_shared.downgrade();
-        self.data_reader_storage_list.push(reader_storage_shared);
+        self.data_reader_list.push(reader_storage_shared);
         Some(reader_storage_weak)
     }
 
@@ -128,7 +123,7 @@ impl ProcessDataSubmessage for SubscriberImpl {
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessage<Vec<Parameter<'_>>>,
     ) {
-        for reader in &self.data_reader_storage_list {
+        for reader in &self.data_reader_list {
             reader
                 .write_lock()
                 .rtps_reader_mut()
