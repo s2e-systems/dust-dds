@@ -16,11 +16,11 @@ impl<T> RtpsShared<T> {
         RtpsWeak(Arc::downgrade(&self.0))
     }
 
-    pub fn write(&self) -> RtpsWriteLock<T> {
+    pub fn write_lock(&self) -> RtpsWriteLock<T> {
         RtpsWriteLock(self.0.write().unwrap())
     }
 
-    pub fn read(&self) -> RtpsReadLock<T> {
+    pub fn read_lock(&self) -> RtpsReadLock<T> {
         RtpsReadLock(self.0.read().unwrap())
     }
 }

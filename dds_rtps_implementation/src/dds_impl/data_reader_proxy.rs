@@ -57,7 +57,7 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        self.data_reader_impl.upgrade()?.read().read(
+        self.data_reader_impl.upgrade()?.read_lock().read(
             max_samples,
             sample_states,
             view_states,
@@ -300,43 +300,43 @@ where
     type Listener = DR::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.data_reader_impl.upgrade()?.write().set_qos(qos)
+        self.data_reader_impl.upgrade()?.write_lock().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.data_reader_impl.upgrade()?.read().get_qos()
+        self.data_reader_impl.upgrade()?.read_lock().get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
         self.data_reader_impl
             .upgrade()?
-            .read()
+            .read_lock()
             .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.data_reader_impl.upgrade()?.read().get_listener()
+        self.data_reader_impl.upgrade()?.read_lock().get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
         self.data_reader_impl
             .upgrade()?
-            .read()
+            .read_lock()
             .get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.data_reader_impl.upgrade()?.read().get_status_changes()
+        self.data_reader_impl.upgrade()?.read_lock().get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.data_reader_impl.upgrade()?.read().enable()
+        self.data_reader_impl.upgrade()?.read_lock().enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         self.data_reader_impl
             .upgrade()?
-            .read()
+            .read_lock()
             .get_instance_handle()
     }
 }

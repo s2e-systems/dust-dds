@@ -153,7 +153,7 @@ fn send_discovery_data_happy_path() {
         source_locator,
         &message,
     );
-    let shared_data_reader = shared_data_reader.read();
+    let shared_data_reader = shared_data_reader.read_lock();
     let reader_cache = shared_data_reader.rtps_reader().reader_cache();
     let cc = reader_cache.get_change(&1).unwrap();
     let mut data = cc.data_value;

@@ -401,7 +401,7 @@ impl Entity for DomainParticipantImpl {
         std::thread::spawn(move || {
             while is_enabled.load(atomic::Ordering::SeqCst) {
                 // send_builtin_data();
-                builtin_publisher_storage.read().send_data(
+                builtin_publisher_storage.read_lock().send_data(
                     &protocol_version,
                     &vendor_id,
                     &guid_prefix,
@@ -423,7 +423,7 @@ impl Entity for DomainParticipantImpl {
                 // send_user_defined_data();
                 for user_defined_publisher in user_defined_publisher_storage.lock().unwrap().iter()
                 {
-                    user_defined_publisher.read().send_data(
+                    user_defined_publisher.read_lock().send_data(
                         &protocol_version,
                         &vendor_id,
                         &guid_prefix,

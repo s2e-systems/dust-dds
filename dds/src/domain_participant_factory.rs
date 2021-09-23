@@ -158,7 +158,7 @@ impl DomainParticipantFactory {
         ));
 
         spdp_builtin_participant_writer
-            .write()
+            .write_lock()
             .write_w_timestamp(
                 spdp_discovered_participant_data,
                 None,

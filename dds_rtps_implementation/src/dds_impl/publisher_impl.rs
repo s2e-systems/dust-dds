@@ -72,7 +72,7 @@ impl PublisherImpl {
         transport: &mut (impl TransportWrite + ?Sized),
     ) {
         for writer in self.data_writer_impl_list.lock().unwrap().iter() {
-            let mut writer_lock = writer.write();
+            let mut writer_lock = writer.write_lock();
             let destined_submessages = writer_lock.create_submessages();
             for (dst_locator, submessages) in destined_submessages {
                 let header = RtpsMessageHeader {
@@ -267,7 +267,7 @@ impl RtpsSubmessageSender for PublisherImpl {
         let combined_submessages = vec![];
         let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
         for data_writer in &*data_writer_impl_list_lock {
-            let _submessages = data_writer.write().create_submessages();
+            let _submessages = data_writer.write_lock().create_submessages();
             // combined_submessages = submessages;
         }
 

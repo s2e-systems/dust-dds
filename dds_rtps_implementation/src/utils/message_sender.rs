@@ -62,7 +62,7 @@ pub fn send_data(
     transport: &mut (impl TransportWrite + ?Sized),
 ) {
     for writer in writer_list {
-        let mut writer_lock = writer.write();
+        let mut writer_lock = writer.write_lock();
         let destined_submessages = writer_lock.create_submessages();
         for (dst_locator, submessages) in destined_submessages {
             let header = RtpsMessageHeader {
