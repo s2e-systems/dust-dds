@@ -2,7 +2,6 @@ use std::net::UdpSocket;
 
 use rust_dds::{
     infrastructure::qos::{DataReaderQos, SubscriberQos},
-    subscription::data_reader::DataReader,
     udp_transport::UdpTransport,
 };
 use rust_dds_api::{
@@ -14,24 +13,39 @@ use rust_dds_api::{
     },
     publication::data_writer::DataWriter,
 };
-use rust_dds_rtps_implementation::{data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData, dds_impl::{
+use rust_dds_rtps_implementation::{
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    dds_impl::{
         data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
         publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
-    }, dds_type::DdsDeserialize, rtps_impl::{
+    },
+    dds_type::DdsDeserialize,
+    rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl,
         rtps_writer_impl::RtpsWriterImpl,
-    }, utils::{message_receiver::{MessageReceiver, ProcessDataSubmessage}, shared_object::RtpsShared, transport::TransportRead}};
-use rust_rtps_pim::{behavior::{reader::reader::RtpsReader, types::Duration}, discovery::{
+    },
+    utils::{
+        message_receiver::MessageReceiver, shared_object::RtpsShared, transport::TransportRead,
+    },
+};
+use rust_rtps_pim::{
+    behavior::{reader::reader::RtpsReader, types::Duration},
+    discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
             participant_proxy::ParticipantProxy,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    }, messages::{submessages::DataSubmessage, types::Count, RtpsMessage}, structure::{RtpsHistoryCache, types::{
-        EntityId, Guid, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion, BUILT_IN_READER_GROUP,
-        BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
-    }}};
-use rust_rtps_udp_psm::serialize::to_bytes;
+    },
+    messages::types::Count,
+    structure::{
+        types::{
+            EntityId, Guid, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion, BUILT_IN_READER_GROUP,
+            BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+        },
+        RtpsHistoryCache,
+    },
+};
 
 #[test]
 fn send_discovery_data_happy_path() {
@@ -139,7 +153,7 @@ fn send_discovery_data_happy_path() {
     let cc = reader_cache.get_change(&1).unwrap();
     let mut data = cc.data_value;
 
-
-    let result: SpdpDiscoveredParticipantData<String, Vec<Locator>> = DdsDeserialize::deserialize(&mut data).unwrap();
+    let result: SpdpDiscoveredParticipantData<String, Vec<Locator>> =
+        DdsDeserialize::deserialize(&mut data).unwrap();
     assert_eq!(spdp_discovered_participant_data, result);
 }

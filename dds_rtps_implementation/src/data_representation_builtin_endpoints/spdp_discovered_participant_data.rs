@@ -4,14 +4,8 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::types::Duration,
-    discovery::{
-        spdp::participant_proxy::ParticipantProxy,
-        types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
-    messages::types::Count,
-    structure::types::{
-        EntityId, EntityKind, Guid, GuidPrefix, Locator, ProtocolVersion, ENTITYID_PARTICIPANT,
-    },
+    discovery::spdp::participant_proxy::ParticipantProxy,
+    structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
 };
 
 use crate::{
@@ -24,7 +18,22 @@ use crate::{
     dds_type::{DdsDeserialize, DdsSerialize},
 };
 
-use super::{dds_serialize_deserialize_impl::UserDataQosPolicySerdeSerialize, parameter_id_values::{DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID}};
+use super::{
+    dds_serialize_deserialize_impl::{
+        BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
+        BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
+        CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
+        DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize, LocatorSerdeDeserialize,
+        LocatorSerdeSerialize, ProtocolVersionSerdeDeserialize, ProtocolVersionSerdeSerialize,
+        UserDataQosPolicySerdeSerialize,
+    },
+    parameter_id_values::{
+        DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
+        PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID,
+        PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
+        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+    },
+};
 
 #[derive(Debug, PartialEq)]
 pub struct SpdpDiscoveredParticipantData<'a, S, L> {
@@ -156,8 +165,11 @@ where
 
         if self.dds_participant_data.user_data != UserDataQosPolicy::default() {
             parameter_list_serializer
-            .serialize_parameter(PID_USER_DATA, &UserDataQosPolicySerdeSerialize(&self.dds_participant_data.user_data))
-            .unwrap();
+                .serialize_parameter(
+                    PID_USER_DATA,
+                    &UserDataQosPolicySerdeSerialize(&self.dds_participant_data.user_data),
+                )
+                .unwrap();
         }
 
         Ok(())
@@ -167,6 +179,12 @@ where
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<Locator>> {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
         let param_list: ParameterList = MappingRead::read(buf).unwrap();
+
+        let guid = param_list
+            .get::<GuidSerdeDeserialize>(PID_PARTICIPANT_GUID)
+            .unwrap()
+            .0;
+        let guid_prefix = guid.prefix;
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: BuiltInTopicKey { value: [8, 8, 8] },
@@ -181,7 +199,6 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<
             .get::<ProtocolVersionSerdeDeserialize>(PID_PROTOCOL_VERSION)
             .unwrap()
             .0;
-        let guid_prefix = [8; 12];
         let vendor_id = param_list.get(PID_VENDORID).unwrap();
         let expects_inline_qos = param_list
             .get(PID_EXPECTS_INLINE_QOS)
@@ -251,101 +268,6 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<
         })
     }
 }
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "Duration")]
-struct DurationDef {
-    seconds: i32,
-    fraction: u32,
-}
-
-#[derive(Debug, PartialEq, serde::Serialize)]
-struct DurationSerdeSerialize<'a>(#[serde(with = "DurationDef")] &'a Duration);
-#[derive(Debug, PartialEq, serde::Deserialize)]
-struct DurationSerdeDeserialize(#[serde(with = "DurationDef")] Duration);
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "Locator")]
-struct LocatorDef {
-    kind: i32,
-    port: u32,
-    address: [u8; 16],
-}
-#[derive(Debug, PartialEq, serde::Serialize)]
-struct LocatorSerdeSerialize<'a>(#[serde(with = "LocatorDef")] &'a Locator);
-
-#[derive(Debug, PartialEq, serde::Deserialize)]
-struct LocatorSerdeDeserialize(#[serde(with = "LocatorDef")] Locator);
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "ProtocolVersion")]
-struct ProtocolVersionDef {
-    major: u8,
-    minor: u8,
-}
-#[derive(Debug, PartialEq, serde::Serialize)]
-struct ProtocolVersionSerdeSerialize<'a>(#[serde(with = "ProtocolVersionDef")] &'a ProtocolVersion);
-
-#[derive(Debug, PartialEq, serde::Deserialize)]
-struct ProtocolVersionSerdeDeserialize(#[serde(with = "ProtocolVersionDef")] ProtocolVersion);
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "Guid")]
-struct GuidDef {
-    prefix: GuidPrefix,
-    #[serde(with = "EntityIdDef")]
-    entity_id: EntityId,
-}
-
-#[derive(Debug, PartialEq, serde::Serialize)]
-struct GuidSerdeSerialize<'a>(#[serde(with = "GuidDef")] &'a Guid);
-
-#[derive(Debug, PartialEq, serde::Deserialize)]
-struct GuidSerdeDeserialize(#[serde(with = "GuidDef")] Guid);
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "EntityId")]
-struct EntityIdDef {
-    entity_key: [u8; 3],
-    entity_kind: EntityKind,
-}
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "BuiltinEndpointSet")]
-struct BuiltinEndpointSetDef(u32);
-
-#[derive(Debug, PartialEq, serde::Serialize)]
-struct BuiltinEndpointSetSerdeSerialize<'a>(
-    #[serde(with = "BuiltinEndpointSetDef")] &'a BuiltinEndpointSet,
-);
-#[derive(Debug, PartialEq, serde::Deserialize)]
-struct BuiltinEndpointSetSerdeDeserialize(
-    #[serde(with = "BuiltinEndpointSetDef")] BuiltinEndpointSet,
-);
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "Count")]
-struct CountDef(i32);
-
-#[derive(Debug, PartialEq, serde::Serialize)]
-struct CountSerdeSerialize<'a>(#[serde(with = "CountDef")] &'a Count);
-
-#[derive(Debug, PartialEq, serde::Deserialize)]
-struct CountSerdeDeserialize(#[serde(with = "CountDef")] Count);
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "BuiltinEndpointQos")]
-struct BuiltinEndpointQosDef(u32);
-
-#[derive(Debug, PartialEq, serde::Serialize)]
-struct BuiltinEndpointQosSerdeSerialize<'a>(
-    #[serde(with = "BuiltinEndpointQosDef")] &'a BuiltinEndpointQos,
-);
-
-#[derive(Debug, PartialEq, serde::Deserialize)]
-struct BuiltinEndpointQosSerdeDeserialize(
-    #[serde(with = "BuiltinEndpointQosDef")] BuiltinEndpointQos,
-);
 
 #[cfg(test)]
 mod tests {
@@ -426,10 +348,11 @@ mod tests {
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x50, 0x00, 12, 0x00, // PID_PARTICIPANT_GUID, Length
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
             8, 8, 8, 8, // GuidPrefix
+            0, 0, 1, 0xc1, // EntityId,
             0x16, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
             0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,
