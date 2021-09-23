@@ -135,11 +135,11 @@ fn send_discovery_data_happy_path() {
     );
 
     // Reception
-    let spdp_builtin_participant_rtps_reader: RtpsReaderFlavor =
-        SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]));
+    let spdp_builtin_participant_rtps_reader =
+        SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]), vec![], vec![]);
     let data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
-        spdp_builtin_participant_rtps_reader,
+        RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
     );
     let shared_data_reader = RtpsShared::new(data_reader);
     let subscriber = SubscriberImpl::new(

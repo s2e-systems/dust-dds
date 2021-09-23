@@ -1,16 +1,13 @@
 use crate::{
     behavior::{
-        reader::stateless_reader::RtpsStatelessReaderOperations,
+        reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
         types::DURATION_ZERO,
-        writer::{
-            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
-            writer::RtpsWriter,
-        },
+        writer::{stateless_writer::RtpsStatelessWriter, writer::RtpsWriter},
     },
     structure::{
         types::{
-            EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
-            BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY,
+            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
+            BUILT_IN_WRITER_WITH_KEY,
         },
         RtpsEndpoint, RtpsEntity, RtpsHistoryCache,
     },
@@ -64,18 +61,31 @@ impl SpdpBuiltinParticipantWriter {
 pub struct SpdpBuiltinParticipantReader;
 
 impl SpdpBuiltinParticipantReader {
-    pub fn create<T: RtpsStatelessReaderOperations>(guid_prefix: GuidPrefix) -> T {
+    pub fn create<L, C>(
+        guid_prefix: GuidPrefix,
+        unicast_locator_list: L,
+        multicast_locator_list: L,
+    ) -> RtpsStatelessReader<L, C>
+    where
+        C: for<'a> RtpsHistoryCache<'a>,
+    {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        T::new(
-            spdp_builtin_participant_reader_guid,
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-        )
+
+        RtpsStatelessReader(RtpsReader {
+            endpoint: RtpsEndpoint {
+                entity: RtpsEntity {
+                    guid: spdp_builtin_participant_reader_guid,
+                },
+                topic_kind: TopicKind::WithKey,
+                reliability_level: ReliabilityKind::BestEffort,
+                unicast_locator_list,
+                multicast_locator_list,
+            },
+            heartbeat_response_delay: DURATION_ZERO,
+            heartbeat_supression_duration: DURATION_ZERO,
+            reader_cache: C::new(),
+            expects_inline_qos: false,
+        })
     }
 }

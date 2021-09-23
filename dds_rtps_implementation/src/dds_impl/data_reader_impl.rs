@@ -35,32 +35,6 @@ impl Deref for RtpsReaderFlavor {
     }
 }
 
-impl RtpsStatelessReaderOperations for RtpsReaderFlavor {
-    fn new(
-        guid: rust_rtps_pim::structure::types::Guid,
-        topic_kind: rust_rtps_pim::structure::types::TopicKind,
-        reliability_level: rust_rtps_pim::structure::types::ReliabilityKind,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
-        heartbeat_response_delay: rust_rtps_pim::behavior::types::Duration,
-        heartbeat_supression_duration: rust_rtps_pim::behavior::types::Duration,
-        expects_inline_qos: bool,
-    ) -> Self {
-        Self::Stateless(RtpsStatelessReader(RtpsReader {
-            endpoint: RtpsEndpoint {
-                entity: { RtpsEntity { guid } },
-                topic_kind,
-                reliability_level,
-                unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
-                multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
-            },
-            heartbeat_response_delay,
-            heartbeat_supression_duration,
-            reader_cache: ReaderHistoryCache::new(),
-            expects_inline_qos,
-        }))
-    }
-}
 
 pub struct DataReaderImpl {
     rtps_reader: RtpsReaderFlavor,

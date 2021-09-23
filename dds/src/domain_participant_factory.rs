@@ -159,11 +159,11 @@ impl DomainParticipantFactory {
         let mut spdp_builtin_participant_reader_qos = DataReaderQos::default();
         spdp_builtin_participant_reader_qos.reliability.kind =
             ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-        let spdp_builtin_participant_rtps_reader: RtpsReaderFlavor =
-            SpdpBuiltinParticipantReader::create(guid_prefix);
+        let spdp_builtin_participant_rtps_reader =
+            SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]);
         let spdp_builtin_participant_reader = RtpsShared::new(DataReaderImpl::new(
             spdp_builtin_participant_reader_qos,
-            spdp_builtin_participant_rtps_reader,
+            RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
         ));
 
         spdp_builtin_participant_writer
