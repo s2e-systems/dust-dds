@@ -39,7 +39,7 @@ impl MessageReceiver {
     pub fn process_message<'a>(
         mut self,
         participant_guid_prefix: GuidPrefix,
-        reader_group_list: &'a [RtpsShared<impl ProcessDataSubmessage>],
+        list: &'a [RtpsShared<impl ProcessDataSubmessage>],
         source_locator: Locator,
         message: &'a RtpsMessageRead,
     ) {
@@ -62,8 +62,8 @@ impl MessageReceiver {
             match submessage {
                 RtpsSubmessageType::AckNack(_) => todo!(),
                 RtpsSubmessageType::Data(data) => {
-                    for reader in reader_group_list {
-                        reader.write_lock().process_data_submessage(data)
+                    for element in list {
+                        element.write_lock().process_data_submessage(data)
                     }
                 }
                 RtpsSubmessageType::DataFrag(_) => todo!(),

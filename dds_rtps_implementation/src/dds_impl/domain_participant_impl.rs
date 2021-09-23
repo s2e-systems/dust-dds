@@ -47,15 +47,15 @@ impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
 pub struct DomainParticipantImpl {
     guid_prefix: GuidPrefix,
     _qos: DomainParticipantQos,
-    builtin_subscriber_storage: Arc<RtpsShared<SubscriberImpl>>,
-    builtin_publisher_storage: Arc<RtpsShared<PublisherImpl>>,
-    user_defined_subscriber_storage: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
+    builtin_subscriber: Arc<RtpsShared<SubscriberImpl>>,
+    builtin_publisher: Arc<RtpsShared<PublisherImpl>>,
+    user_defined_subscriber_list: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
     _user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_storage: Arc<Mutex<Vec<RtpsShared<PublisherImpl>>>>,
+    user_defined_publisher_list: Arc<Mutex<Vec<RtpsShared<PublisherImpl>>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    _topic_storage: Vec<RtpsShared<TopicImpl>>,
+    _topic_list: Vec<RtpsShared<TopicImpl>>,
     default_topic_qos: TopicQos,
     metatraffic_transport: Arc<Mutex<Box<dyn Transport>>>,
     default_transport: Arc<Mutex<Box<dyn Transport>>>,
@@ -66,25 +66,25 @@ impl DomainParticipantImpl {
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_participant_qos: DomainParticipantQos,
-        builtin_subscriber_storage: RtpsShared<SubscriberImpl>,
-        builtin_publisher_storage: RtpsShared<PublisherImpl>,
+        builtin_subscriber: RtpsShared<SubscriberImpl>,
+        builtin_publisher: RtpsShared<PublisherImpl>,
         metatraffic_transport: Box<dyn Transport>,
         default_transport: Box<dyn Transport>,
     ) -> Self {
         Self {
             guid_prefix,
             _qos: domain_participant_qos,
-            builtin_subscriber_storage: Arc::new(builtin_subscriber_storage),
-            builtin_publisher_storage: Arc::new(builtin_publisher_storage),
+            builtin_subscriber: Arc::new(builtin_subscriber),
+            builtin_publisher: Arc::new(builtin_publisher),
             metatraffic_transport: Arc::new(Mutex::new(metatraffic_transport)),
             default_transport: Arc::new(Mutex::new(default_transport)),
-            user_defined_subscriber_storage: Arc::new(Mutex::new(Vec::new())),
+            user_defined_subscriber_list: Arc::new(Mutex::new(Vec::new())),
             _user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
-            user_defined_publisher_storage: Arc::new(Mutex::new(Vec::new())),
+            user_defined_publisher_list: Arc::new(Mutex::new(Vec::new())),
             user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: PublisherQos::default(),
-            _topic_storage: Vec::new(),
+            _topic_list: Vec::new(),
             default_topic_qos: TopicQos::default(),
             is_enabled: Arc::new(AtomicBool::new(false)),
         }
@@ -113,7 +113,7 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
         let publisher_impl = PublisherImpl::new(publisher_qos, rtps_group, data_writer_impl_list);
         let publisher_impl_shared = RtpsShared::new(publisher_impl);
         let publisher_impl_weak = publisher_impl_shared.downgrade();
-        self.user_defined_publisher_storage
+        self.user_defined_publisher_list
             .lock()
             .unwrap()
             .push(publisher_impl_shared);
@@ -123,11 +123,11 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
     }
 
     fn delete_publisher_gat(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        // let publisher_storage = a_publisher.upgrade()?;
+        // let publisher = a_publisher.upgrade()?;
 
         if std::ptr::eq(a_publisher.get_participant(), self) {
             let publisher_impl_shared = a_publisher.publisher_impl().upgrade()?;
-            self.user_defined_publisher_storage
+            self.user_defined_publisher_list
                 .lock()
                 .unwrap()
                 .retain(|x| x != &publisher_impl_shared);
@@ -393,15 +393,15 @@ impl Entity for DomainParticipantImpl {
         let default_transport = self.default_transport.clone();
         let metatraffic_transport = self.metatraffic_transport.clone();
         let guid_prefix = self.guid_prefix;
-        let builtin_subscriber_storage = self.builtin_subscriber_storage.clone();
-        let builtin_publisher_storage = self.builtin_publisher_storage.clone();
-        let user_defined_subscriber_storage = self.user_defined_subscriber_storage.clone();
-        let user_defined_publisher_storage = self.user_defined_publisher_storage.clone();
+        let builtin_subscriber = self.builtin_subscriber.clone();
+        let builtin_publisher = self.builtin_publisher.clone();
+        let user_defined_subscriber_list = self.user_defined_subscriber_list.clone();
+        let user_defined_publisher_list = self.user_defined_publisher_list.clone();
 
         std::thread::spawn(move || {
             while is_enabled.load(atomic::Ordering::SeqCst) {
                 // send_builtin_data();
-                builtin_publisher_storage.read_lock().send_data(
+                builtin_publisher.read_lock().send_data(
                     &protocol_version,
                     &vendor_id,
                     &guid_prefix,
@@ -414,14 +414,14 @@ impl Entity for DomainParticipantImpl {
                 {
                     crate::utils::message_receiver::MessageReceiver::new().process_message(
                         guid_prefix,
-                        core::slice::from_ref(&builtin_subscriber_storage),
+                        core::slice::from_ref(&builtin_subscriber),
                         source_locator,
                         &message,
                     );
                 }
 
                 // send_user_defined_data();
-                for user_defined_publisher in user_defined_publisher_storage.lock().unwrap().iter()
+                for user_defined_publisher in user_defined_publisher_list.lock().unwrap().iter()
                 {
                     user_defined_publisher.read_lock().send_data(
                         &protocol_version,
@@ -434,7 +434,7 @@ impl Entity for DomainParticipantImpl {
                     &protocol_version,
                     &vendor_id,
                     &guid_prefix,
-                    &user_defined_publisher_storage.lock().unwrap(),
+                    &user_defined_publisher_list.lock().unwrap(),
                     default_transport.lock().unwrap().as_mut(),
                 );
 
@@ -442,7 +442,7 @@ impl Entity for DomainParticipantImpl {
                 if let Some((source_locator, message)) = default_transport.lock().unwrap().read() {
                     crate::utils::message_receiver::MessageReceiver::new().process_message(
                         guid_prefix,
-                        &user_defined_subscriber_storage.lock().unwrap(),
+                        &user_defined_subscriber_list.lock().unwrap(),
                         source_locator,
                         &message,
                     );
@@ -723,7 +723,7 @@ mod tests {
 
         assert_eq!(
             domain_participant
-                .user_defined_publisher_storage
+                .user_defined_publisher_list
                 .lock()
                 .unwrap()
                 .len(),
@@ -759,7 +759,7 @@ mod tests {
         domain_participant.delete_publisher(&a_publisher).unwrap();
         assert_eq!(
             domain_participant
-                .user_defined_publisher_storage
+                .user_defined_publisher_list
                 .lock()
                 .unwrap()
                 .len(),
