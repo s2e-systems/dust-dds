@@ -1,8 +1,12 @@
-use super::types::{Locator, ReliabilityKind, TopicKind};
+use super::{
+    types::{ReliabilityKind, TopicKind},
+    RtpsEntity,
+};
 
-pub trait RtpsEndpoint {
-    fn topic_kind(&self) -> &TopicKind;
-    fn reliability_level(&self) -> &ReliabilityKind;
-    fn unicast_locator_list(&self) -> &[Locator];
-    fn multicast_locator_list(&self) -> &[Locator];
+pub struct RtpsEndpoint<L> {
+    pub entity: RtpsEntity,
+    pub topic_kind: TopicKind,
+    pub reliability_level: ReliabilityKind,
+    pub unicast_locator_list: L,
+    pub multicast_locator_list: L,
 }

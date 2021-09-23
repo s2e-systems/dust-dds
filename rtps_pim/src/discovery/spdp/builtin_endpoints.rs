@@ -1,11 +1,7 @@
 use crate::{
     behavior::{
-        reader::stateless_reader::RtpsStatelessReaderOperations,
-        types::DURATION_ZERO,
-        writer::{
-            reader_locator::RtpsReaderLocatorOperations,
-            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
-        },
+        reader::stateless_reader::RtpsStatelessReaderOperations, types::DURATION_ZERO,
+        writer::stateless_writer::RtpsStatelessWriterOperations,
     },
     structure::types::{
         EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
@@ -29,8 +25,7 @@ impl SpdpBuiltinParticipantWriter {
         reader_locators: &[Locator],
     ) -> T
     where
-        T: RtpsStatelessWriterOperations + RtpsStatelessWriter,
-        T::ReaderLocatorType: RtpsReaderLocatorOperations,
+        T: RtpsStatelessWriterOperations,
     {
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
@@ -49,8 +44,7 @@ impl SpdpBuiltinParticipantWriter {
         );
 
         for reader_locator in reader_locators {
-            spdp_builtin_participant_writer
-                .reader_locator_add(T::ReaderLocatorType::new(*reader_locator, false))
+            spdp_builtin_participant_writer.reader_locator_add(*reader_locator)
         }
 
         spdp_builtin_participant_writer

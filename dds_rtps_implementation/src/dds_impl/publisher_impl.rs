@@ -18,32 +18,28 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
+    behavior::writer::{stateless_writer::RtpsStatelessWriter, writer::RtpsWriter},
     messages::{RtpsMessage, RtpsMessageHeader},
     structure::{
         types::{
             EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind,
             VendorId, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
-        RtpsEntity,
+        RtpsEndpoint, RtpsEntity, RtpsGroup, RtpsHistoryCache,
     },
 };
 
-use crate::{
-    dds_type::DdsType,
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_writer_impl::RtpsWriterImpl},
-    utils::{
+use crate::{dds_impl::data_writer_impl::RtpsWriterFlavor, dds_type::DdsType, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache, utils::{
         message_sender::RtpsSubmessageSender,
         shared_object::{RtpsShared, RtpsWeak},
         transport::{RtpsSubmessageWrite, TransportWrite},
-    },
-};
+    }};
 
 use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
 
 pub struct PublisherImpl {
     _qos: PublisherQos,
-    rtps_group: RtpsGroupImpl,
+    rtps_group: RtpsGroup,
     data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
@@ -52,7 +48,7 @@ pub struct PublisherImpl {
 impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
-        rtps_group: RtpsGroupImpl,
+        rtps_group: RtpsGroup,
         data_writer_impl_list: Vec<RtpsShared<DataWriterImpl>>,
     ) -> Self {
         Self {
@@ -115,36 +111,43 @@ where
         };
         let entity_id = EntityId::new(
             [
-                self.rtps_group.guid().entity_id().entity_key()[0],
+                self.rtps_group.entity.guid.entity_id().entity_key()[0],
                 user_defined_data_writer_counter,
                 0,
             ],
             entity_kind,
         );
-        let guid = Guid::new(*self.rtps_group.guid().prefix(), entity_id);
+        let guid = Guid::new(*self.rtps_group.entity.guid.prefix(), entity_id);
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
         };
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
         let push_mode = true;
         let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsWriterImpl::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
+        let rtps_writer_impl = RtpsWriterFlavor::Stateless(RtpsStatelessWriter {
+            writer: RtpsWriter {
+                endpoint: RtpsEndpoint {
+                    entity: RtpsEntity { guid },
+                    topic_kind,
+                    reliability_level,
+                    unicast_locator_list,
+                    multicast_locator_list,
+                },
+                push_mode,
+                heartbeat_period,
+                nack_response_delay,
+                nack_suppression_duration,
+                last_change_sequence_number: 0,
+                data_max_size_serialized,
+                writer_cache: WriterHistoryCache::new(),
+            },
+            reader_locators: vec![],
+        });
         let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_impl_shared = RtpsShared::new(data_writer_impl);
         let data_writer_impl_weak = data_writer_impl_shared.downgrade();
@@ -296,7 +299,9 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_some_value() {
-        let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
+        let rtps_group_impl = RtpsGroup {
+            entity: RtpsEntity { guid: GUID_UNKNOWN },
+        };
         let mut publisher_impl =
             PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
@@ -311,7 +316,9 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_none() {
-        let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
+        let rtps_group_impl = RtpsGroup {
+            entity: RtpsEntity { guid: GUID_UNKNOWN },
+        };
         let mut publisher_impl =
             PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
@@ -330,7 +337,9 @@ mod tests {
 
     #[test]
     fn create_datawriter() {
-        let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
+        let rtps_group_impl = RtpsGroup {
+            entity: RtpsEntity { guid: GUID_UNKNOWN },
+        };
         let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
         let a_topic_shared = RtpsShared::new(TopicImpl::new(TopicQos::default()));
         let a_topic_weak = a_topic_shared.downgrade();

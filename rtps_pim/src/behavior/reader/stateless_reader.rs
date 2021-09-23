@@ -1,7 +1,11 @@
 use crate::{
     behavior::types::Duration,
-    structure::types::{Locator, ReliabilityKind, TopicKind, Guid},
+    structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
+
+use super::reader::RtpsReader;
+
+pub struct RtpsStatelessReader<L, C>(pub RtpsReader<L, C>);
 
 pub trait RtpsStatelessReaderOperations {
     fn new(

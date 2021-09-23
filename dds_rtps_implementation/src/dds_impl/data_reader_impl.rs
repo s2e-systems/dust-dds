@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
     infrastructure::{entity::Entity, qos::DataReaderQos},
@@ -5,28 +7,69 @@ use rust_dds_api::{
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
     topic::topic_description::TopicDescription,
 };
-use rust_rtps_pim::{behavior::reader::reader::RtpsReader, structure::RtpsHistoryCache};
+use rust_rtps_pim::{
+    behavior::reader::{
+        reader::RtpsReader,
+        stateless_reader::{RtpsStatelessReader, RtpsStatelessReaderOperations},
+    },
+    structure::{types::Locator, RtpsEndpoint, RtpsEntity, RtpsHistoryCache},
+};
 
-use crate::{dds_type::DdsDeserialize, rtps_impl::rtps_reader_impl::RtpsReaderImpl};
+use crate::{
+    dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
+};
+
+pub enum RtpsReaderFlavor {
+    Stateful,
+    Stateless(RtpsStatelessReader<Vec<Locator>, ReaderHistoryCache>),
+}
+
+impl Deref for RtpsReaderFlavor {
+    type Target = RtpsReader<Vec<Locator>, ReaderHistoryCache>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            RtpsReaderFlavor::Stateful => todo!(),
+            RtpsReaderFlavor::Stateless(stateless_reader) => &stateless_reader.0,
+        }
+    }
+}
+
+impl RtpsStatelessReaderOperations for RtpsReaderFlavor {
+    fn new(
+        guid: rust_rtps_pim::structure::types::Guid,
+        topic_kind: rust_rtps_pim::structure::types::TopicKind,
+        reliability_level: rust_rtps_pim::structure::types::ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        heartbeat_response_delay: rust_rtps_pim::behavior::types::Duration,
+        heartbeat_supression_duration: rust_rtps_pim::behavior::types::Duration,
+        expects_inline_qos: bool,
+    ) -> Self {
+        Self::Stateless(RtpsStatelessReader(RtpsReader {
+            endpoint: RtpsEndpoint {
+                entity: { RtpsEntity { guid } },
+                topic_kind,
+                reliability_level,
+                unicast_locator_list: unicast_locator_list.into_iter().cloned().collect(),
+                multicast_locator_list: multicast_locator_list.into_iter().cloned().collect(),
+            },
+            heartbeat_response_delay,
+            heartbeat_supression_duration,
+            reader_cache: ReaderHistoryCache::new(),
+            expects_inline_qos,
+        }))
+    }
+}
 
 pub struct DataReaderImpl {
-    rtps_reader: RtpsReaderImpl,
+    rtps_reader: RtpsReaderFlavor,
     qos: DataReaderQos,
 }
 
 impl DataReaderImpl {
-    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderImpl) -> Self {
+    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderFlavor) -> Self {
         Self { rtps_reader, qos }
-    }
-
-    /// Get a reference to the data reader storage's reader.
-    pub fn rtps_reader(&self) -> &RtpsReaderImpl {
-        &self.rtps_reader
-    }
-
-    /// Get a mutable reference to the data reader storage's reader.
-    pub fn rtps_reader_mut(&mut self) -> &mut RtpsReaderImpl {
-        &mut self.rtps_reader
     }
 
     pub fn set_qos(&mut self, qos: Option<DataReaderQos>) -> DDSResult<()> {
@@ -36,6 +79,16 @@ impl DataReaderImpl {
 
     pub fn get_qos(&self) -> DDSResult<&DataReaderQos> {
         Ok(&self.qos)
+    }
+
+    /// Get a mutable reference to the data reader impl's rtps reader.
+    pub fn rtps_reader_mut(&mut self) -> &mut RtpsReaderFlavor {
+        &mut self.rtps_reader
+    }
+
+    /// Get a reference to the data reader impl's rtps reader.
+    pub fn rtps_reader(&self) -> &RtpsReaderFlavor {
+        &self.rtps_reader
     }
 }
 
@@ -79,8 +132,7 @@ where
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
         _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        let reader_cache = self.rtps_reader.reader_cache();
-        if let Some(cc) = reader_cache.get_change(&1) {
+        if let Some(cc) = self.rtps_reader.reader_cache.get_change(&1) {
             let mut data = cc.data_value;
             let result: T = DdsDeserialize::deserialize(&mut data).unwrap();
             Ok(vec![result])

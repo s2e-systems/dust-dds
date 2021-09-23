@@ -2,26 +2,24 @@ use crate::{
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
-        RtpsCacheChange, RtpsEntity, RtpsHistoryCache,
+        RtpsCacheChange, RtpsHistoryCache,
     },
 };
 
-use super::reader::reader::RtpsReader;
+use super::reader::stateless_reader::RtpsStatelessReader;
 
 pub trait StatelessReaderBehavior<P> {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>);
 }
 
-impl<'a, 'b, T, P> StatelessReaderBehavior<P> for T
+impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsStatelessReader<L, C>
 where
-    T: RtpsReader + RtpsEntity,
-    T::HistoryCacheType: for<'c> RtpsHistoryCache<'c, CacheChangeDataType = &'c [u8]>,
+    C: for<'c> RtpsHistoryCache<'c, CacheChangeDataType = &'c [u8]>,
     P: AsRef<[Parameter<'a>]>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>) {
         let reader_id = data.reader_id.value;
-        if &reader_id == self.guid().entity_id() || reader_id == ENTITYID_UNKNOWN {
-            let reader_cache = self.reader_cache_mut();
+        if &reader_id == self.0.endpoint.entity.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
             let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
@@ -40,7 +38,7 @@ where
                 data_value,
                 inline_qos,
             };
-            reader_cache.add_change(a_change);
+            self.0.reader_cache.add_change(a_change);
         }
     }
 }
@@ -48,10 +46,20 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::{messages::submessage_elements::{
+    use crate::{
+        behavior::{reader::reader::RtpsReader, types::DURATION_ZERO},
+        messages::submessage_elements::{
             EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-        }, structure::types::{BUILT_IN_WRITER_WITH_KEY, EntityId, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN, InstanceHandle, SequenceNumber}};
+        },
+        structure::{
+            types::{
+                EntityId, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind,
+                BUILT_IN_WRITER_WITH_KEY, GUIDPREFIX_UNKNOWN,
+            },
+            RtpsEndpoint, RtpsEntity,
+        },
+    };
 
     use super::*;
 
@@ -107,50 +115,29 @@ mod tests {
         }
     }
 
-    struct MockStatelessReader {
-        reader_cache: MockHistoryCache,
-    }
-
-    impl<'a> RtpsEntity for MockStatelessReader {
-        fn guid(&self) -> &Guid {
-            &GUID_UNKNOWN
-        }
-    }
-
-    impl RtpsReader for MockStatelessReader {
-        type HistoryCacheType = MockHistoryCache;
-
-        fn heartbeat_response_delay(&self) -> &crate::behavior::types::Duration {
-            todo!()
-        }
-
-        fn heartbeat_supression_duration(&self) -> &crate::behavior::types::Duration {
-            todo!()
-        }
-
-        fn reader_cache(&self) -> &Self::HistoryCacheType {
-            todo!()
-        }
-
-        fn reader_cache_mut(&mut self) -> &mut Self::HistoryCacheType {
-            &mut self.reader_cache
-        }
-
-        fn expects_inline_qos(&self) -> bool {
-            todo!()
-        }
-    }
-
     #[test]
     fn receive_data_one_cache_change() {
-        let mut stateless_reader = MockStatelessReader {
+        let mut stateless_reader = RtpsStatelessReader(RtpsReader {
+            endpoint: RtpsEndpoint {
+                entity: RtpsEntity {
+                    guid: Guid {
+                        prefix: GuidPrefix([1; 12]),
+                        entity_id: EntityId::new([0; 3], 1),
+                    },
+                },
+                topic_kind: TopicKind::WithKey,
+                reliability_level: ReliabilityKind::BestEffort,
+                unicast_locator_list: (),
+                multicast_locator_list: (),
+            },
+            heartbeat_response_delay: DURATION_ZERO,
+            heartbeat_supression_duration: DURATION_ZERO,
             reader_cache: MockHistoryCache(None),
-        };
+            expects_inline_qos: false,
+        });
+
         let source_guid_prefix = GUIDPREFIX_UNKNOWN;
-        let writer_entity_id = EntityId::new(
-            [1, 2, 3],
-            BUILT_IN_WRITER_WITH_KEY,
-        );
+        let writer_entity_id = EntityId::new([1, 2, 3], BUILT_IN_WRITER_WITH_KEY);
         let message_sequence_number = 1;
         let data = DataSubmessage {
             endianness_flag: false,
@@ -172,7 +159,7 @@ mod tests {
         };
         stateless_reader.receive_data(source_guid_prefix, &data);
 
-        if let Some(cache_change) = &stateless_reader.reader_cache.0 {
+        if let Some(cache_change) = &stateless_reader.0.reader_cache.0 {
             assert_eq!(cache_change.kind, ChangeKind::Alive);
             assert_eq!(
                 cache_change.writer_guid,

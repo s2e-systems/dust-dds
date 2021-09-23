@@ -16,20 +16,18 @@ use rust_dds_api::{
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     dds_impl::{
-        data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
-        publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
+        data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
+        data_writer_impl::{DataWriterImpl, RtpsWriterFlavor},
+        publisher_impl::PublisherImpl,
+        subscriber_impl::SubscriberImpl,
     },
     dds_type::DdsDeserialize,
-    rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl,
-        rtps_writer_impl::RtpsWriterImpl,
-    },
     utils::{
         message_receiver::MessageReceiver, shared_object::RtpsShared, transport::TransportRead,
     },
 };
 use rust_rtps_pim::{
-    behavior::{reader::reader::RtpsReader, types::Duration},
+    behavior::types::Duration,
     discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
@@ -43,7 +41,7 @@ use rust_rtps_pim::{
             EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
             BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
-        RtpsHistoryCache,
+        RtpsEntity, RtpsGroup, RtpsHistoryCache,
     },
 };
 
@@ -89,12 +87,13 @@ fn send_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let spdp_builtin_participant_rtps_writer: RtpsWriterImpl = SpdpBuiltinParticipantWriter::create(
-        GuidPrefix([3; 12]),
-        &[],
-        &[],
-        &[spdp_discovery_locator],
-    );
+    let spdp_builtin_participant_rtps_writer: RtpsWriterFlavor =
+        SpdpBuiltinParticipantWriter::create(
+            GuidPrefix([3; 12]),
+            &[],
+            &[],
+            &[spdp_discovery_locator],
+        );
 
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
@@ -111,10 +110,14 @@ fn send_discovery_data_happy_path() {
 
     let publisher = PublisherImpl::new(
         PublisherQos::default(),
-        RtpsGroupImpl::new(Guid::new(
-            GuidPrefix([4; 12]),
-            EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-        )),
+        RtpsGroup {
+            entity: RtpsEntity {
+                guid: Guid::new(
+                    GuidPrefix([4; 12]),
+                    EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+                ),
+            },
+        },
         vec![RtpsShared::new(data_writer)],
     );
 
@@ -129,7 +132,7 @@ fn send_discovery_data_happy_path() {
     );
 
     // Reception
-    let spdp_builtin_participant_rtps_reader: RtpsReaderImpl =
+    let spdp_builtin_participant_rtps_reader: RtpsReaderFlavor =
         SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]));
     let data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
@@ -138,10 +141,14 @@ fn send_discovery_data_happy_path() {
     let shared_data_reader = RtpsShared::new(data_reader);
     let subscriber = SubscriberImpl::new(
         SubscriberQos::default(),
-        RtpsGroupImpl::new(Guid::new(
-            GuidPrefix([6; 12]),
-            EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-        )),
+        RtpsGroup {
+            entity: RtpsEntity {
+                guid: Guid::new(
+                    GuidPrefix([6; 12]),
+                    EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+                ),
+            },
+        },
         vec![shared_data_reader.clone()],
     );
 
@@ -154,8 +161,11 @@ fn send_discovery_data_happy_path() {
         &message,
     );
     let shared_data_reader = shared_data_reader.read_lock();
-    let reader_cache = shared_data_reader.rtps_reader().reader_cache();
-    let cc = reader_cache.get_change(&1).unwrap();
+    let cc = shared_data_reader
+        .rtps_reader()
+        .reader_cache
+        .get_change(&1)
+        .unwrap();
     let mut data = cc.data_value;
 
     let result: SpdpDiscoveredParticipantData<String, Vec<Locator>> =

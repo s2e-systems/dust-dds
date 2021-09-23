@@ -3,7 +3,6 @@ use core::iter::FromIterator;
 use crate::{
     behavior::writer::{
         reader_locator::RtpsReaderLocatorOperations, stateless_writer::RtpsStatelessWriter,
-        writer::RtpsWriter,
     },
     messages::{
         submessage_elements::{
@@ -15,7 +14,7 @@ use crate::{
     },
     structure::{
         types::{ChangeKind, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
-        RtpsEndpoint, RtpsHistoryCache,
+        RtpsHistoryCache,
     },
 };
 
@@ -29,28 +28,27 @@ pub trait StatelessWriterBehavior<'a, S> {
     );
 }
 
-impl<'a, S, T> StatelessWriterBehavior<'a, S> for T
+impl<'a, S, L, C, R, RL> StatelessWriterBehavior<'a, S> for RtpsStatelessWriter<L, C, R>
 where
-    T: RtpsStatelessWriter + RtpsWriter + RtpsEndpoint,
-    T::ReaderLocatorType: RtpsReaderLocatorOperations,
-    T::HistoryCacheType: RtpsHistoryCache<'a>,
+    for<'b> &'b mut R: IntoIterator<Item = &'b mut RL>,
+    RL: RtpsReaderLocatorOperations,
+    C: RtpsHistoryCache<'a>,
     S: FromIterator<SequenceNumber>,
 {
-    type ReaderLocator = T::ReaderLocatorType;
+    type ReaderLocator = RL;
 
     fn send_unsent_data(
         &'a mut self,
         mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
         mut send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
     ) {
-        let reliability_level = *self.reliability_level();
-        let last_change_sequence_number = *self.last_change_sequence_number();
-        let (writer_cache, reader_locators) = self.writer_cache_and_reader_locators();
-        for reader_locator in reader_locators {
+        let reliability_level = self.writer.endpoint.reliability_level;
+        let last_change_sequence_number = self.writer.last_change_sequence_number;
+        for reader_locator in &mut self.reader_locators {
             match reliability_level {
                 ReliabilityKind::BestEffort => best_effort_send_unsent_data(
                     reader_locator,
-                    writer_cache,
+                    &self.writer.writer_cache,
                     &last_change_sequence_number,
                     &mut send_data,
                     &mut send_gap,

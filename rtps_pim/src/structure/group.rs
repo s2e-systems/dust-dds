@@ -1,1 +1,5 @@
-pub trait RtpsGroup {}
+use super::RtpsEntity;
+
+pub struct RtpsGroup {
+    pub entity: RtpsEntity,
+}

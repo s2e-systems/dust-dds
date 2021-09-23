@@ -9,11 +9,3 @@ impl RtpsGroupImpl {
         Self { guid }
     }
 }
-
-impl rust_rtps_pim::structure::RtpsGroup for RtpsGroupImpl {}
-
-impl rust_rtps_pim::structure::RtpsEntity for RtpsGroupImpl {
-    fn guid(&self) -> &Guid {
-        &self.guid
-    }
-}

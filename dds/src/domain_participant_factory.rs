@@ -13,34 +13,23 @@ use rust_dds_api::{
     },
     publication::data_writer::DataWriter,
 };
-use rust_dds_rtps_implementation::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    dds_impl::{
-        data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
-        domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
-        subscriber_impl::SubscriberImpl,
-    },
-    rtps_impl::{
+use rust_dds_rtps_implementation::{data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData, dds_impl::{data_reader_impl::{DataReaderImpl, RtpsReaderFlavor}, data_writer_impl::{DataWriterImpl, RtpsWriterFlavor}, domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl}, rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl,
         rtps_writer_impl::RtpsWriterImpl,
-    },
-    utils::shared_object::RtpsShared,
-};
-use rust_rtps_pim::{
-    behavior::types::Duration,
-    discovery::{
+    }, utils::shared_object::RtpsShared};
+use rust_rtps_pim::{behavior::{types::Duration, writer::stateless_writer::RtpsStatelessWriter}, discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
             participant_proxy::ParticipantProxy,
         },
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
-    messages::types::Count,
-    structure::types::{
-        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
-        BUILT_IN_WRITER_GROUP, LOCATOR_INVALID, PROTOCOLVERSION, VENDOR_ID_S2E,
-    },
-};
+    }, messages::types::Count, structure::{
+        types::{
+            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
+            BUILT_IN_WRITER_GROUP, LOCATOR_INVALID, PROTOCOLVERSION, VENDOR_ID_S2E,
+        },
+        RtpsEntity, RtpsGroup,
+    }};
 
 use crate::udp_transport::UdpTransport;
 
@@ -106,7 +95,7 @@ impl DomainParticipantFactory {
             7400,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
-        let spdp_builtin_participant_rtps_writer: RtpsWriterImpl =
+        let spdp_builtin_participant_rtps_writer: RtpsWriterFlavor =
             SpdpBuiltinParticipantWriter::create(guid_prefix, &[], &[], &[spdp_discovery_locator]);
 
         let dds_participant_data = ParticipantBuiltinTopicData {
@@ -150,7 +139,7 @@ impl DomainParticipantFactory {
         let mut spdp_builtin_participant_reader_qos = DataReaderQos::default();
         spdp_builtin_participant_reader_qos.reliability.kind =
             ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-        let spdp_builtin_participant_rtps_reader: RtpsReaderImpl =
+        let spdp_builtin_participant_rtps_reader: RtpsReaderFlavor =
             SpdpBuiltinParticipantReader::create(guid_prefix);
         let spdp_builtin_participant_reader = RtpsShared::new(DataReaderImpl::new(
             spdp_builtin_participant_reader_qos,
@@ -168,18 +157,20 @@ impl DomainParticipantFactory {
 
         let builtin_publisher_storage = RtpsShared::new(PublisherImpl::new(
             PublisherQos::default(),
-            RtpsGroupImpl::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-            )),
+            RtpsGroup {
+                entity: RtpsEntity {
+                    guid: Guid::new(guid_prefix, EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP)),
+                },
+            },
             vec![spdp_builtin_participant_writer],
         ));
         let builtin_subscriber_storage = RtpsShared::new(SubscriberImpl::new(
             SubscriberQos::default(),
-            RtpsGroupImpl::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
+            RtpsGroup {
+                entity: RtpsEntity {
+                    guid: Guid::new(guid_prefix, EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP)),
+                },
+            },
             vec![spdp_builtin_participant_reader],
         ));
 

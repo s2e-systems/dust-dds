@@ -9,7 +9,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::stateful_reader::RtpsStatefulReaderOperations,
+        reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
         stateless_reader_behavior::StatelessReaderBehavior,
     },
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
@@ -18,24 +18,24 @@ use rust_rtps_pim::{
             EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
         },
-        RtpsEntity,
+        RtpsEndpoint, RtpsEntity, RtpsGroup, RtpsHistoryCache,
     },
 };
 
 use crate::{
     dds_type::DdsType,
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_reader_impl::RtpsReaderImpl},
+    rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::{
         message_receiver::ProcessDataSubmessage,
         shared_object::{RtpsShared, RtpsWeak},
     },
 };
 
-use super::data_reader_impl::DataReaderImpl;
+use super::data_reader_impl::{DataReaderImpl, RtpsReaderFlavor};
 
 pub struct SubscriberImpl {
     qos: SubscriberQos,
-    rtps_group: RtpsGroupImpl,
+    rtps_group: RtpsGroup,
     data_reader_list: Vec<RtpsShared<DataReaderImpl>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
@@ -44,7 +44,7 @@ pub struct SubscriberImpl {
 impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
-        rtps_group: RtpsGroupImpl,
+        rtps_group: RtpsGroup,
         data_reader_list: Vec<RtpsShared<DataReaderImpl>>,
     ) -> Self {
         Self {
@@ -72,33 +72,36 @@ impl SubscriberImpl {
         };
         let entity_id = EntityId::new(
             [
-                self.rtps_group.guid().entity_id().entity_key()[0],
+                self.rtps_group.entity.guid.entity_id().entity_key()[0],
                 self.user_defined_data_reader_counter,
                 0,
             ],
             entity_kind,
         );
-        let guid = Guid::new(*self.rtps_group.guid().prefix(), entity_id);
+        let guid = Guid::new(*self.rtps_group.entity.guid.prefix(), entity_id);
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
         };
 
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
         let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
-        let rtps_reader = RtpsReaderImpl::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
+        let rtps_reader = RtpsReaderFlavor::Stateless(RtpsStatelessReader(RtpsReader {
+            endpoint: RtpsEndpoint {
+                entity: RtpsEntity { guid },
+                topic_kind,
+                reliability_level,
+                unicast_locator_list,
+                multicast_locator_list,
+            },
             heartbeat_response_delay,
             heartbeat_supression_duration,
+            reader_cache: ReaderHistoryCache::new(),
             expects_inline_qos,
-        );
+        }));
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = RtpsShared::new(reader_storage);
         let reader_storage_weak = reader_storage_shared.downgrade();
@@ -124,10 +127,12 @@ impl ProcessDataSubmessage for SubscriberImpl {
         data: &DataSubmessage<Vec<Parameter<'_>>>,
     ) {
         for reader in &self.data_reader_list {
-            reader
-                .write_lock()
-                .rtps_reader_mut()
-                .receive_data(source_guid_prefix, data);
+            match reader.write_lock().rtps_reader_mut() {
+                RtpsReaderFlavor::Stateful => todo!(),
+                RtpsReaderFlavor::Stateless(stateless_reader) => {
+                    stateless_reader.receive_data(source_guid_prefix, data)
+                }
+            };
         }
     }
 }

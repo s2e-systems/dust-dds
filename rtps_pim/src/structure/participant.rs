@@ -1,9 +1,10 @@
-use super::types::{Guid, ProtocolVersion, VendorId};
+use super::{
+    types::{ProtocolVersion, VendorId},
+    RtpsEntity,
+};
 
 pub struct RtpsParticipant<L> {
-    // Attributes from Entity:
-    pub guid: Guid,
-    // Attributes:
+    pub entity: RtpsEntity,
     pub protocol_version: ProtocolVersion,
     pub vendor_id: VendorId,
     pub default_unicast_locator_list: L,

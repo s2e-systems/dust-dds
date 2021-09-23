@@ -1,23 +1,13 @@
 use crate::{
     behavior::types::Duration,
-    structure::types::{Locator, ReliabilityKind, TopicKind, Guid},
+    structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
 use super::writer::RtpsWriter;
 
-pub trait RtpsStatelessWriter {
-    type ReaderLocatorType;
-
-    fn reader_locators(&mut self) -> &mut [Self::ReaderLocatorType];
-
-    fn writer_cache_and_reader_locators(
-        &mut self,
-    ) -> (
-        &<Self as RtpsWriter>::HistoryCacheType,
-        &mut [Self::ReaderLocatorType],
-    )
-    where
-        Self: RtpsWriter;
+pub struct RtpsStatelessWriter<L, C, R> {
+    pub writer: RtpsWriter<L, C>,
+    pub reader_locators: R,
 }
 
 pub trait RtpsStatelessWriterOperations {
@@ -34,9 +24,7 @@ pub trait RtpsStatelessWriterOperations {
         data_max_size_serialized: Option<i32>,
     ) -> Self;
 
-    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType)
-    where
-        Self: RtpsStatelessWriter;
+    fn reader_locator_add(&mut self, a_locator: Locator);
 
     fn reader_locator_remove(&mut self, a_locator: &Locator);
 

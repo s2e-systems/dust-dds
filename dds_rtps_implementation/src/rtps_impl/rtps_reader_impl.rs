@@ -1,7 +1,7 @@
 use rust_rtps_pim::{
     behavior::{
         reader::{
-            reader::{RtpsReader, RtpsReaderOperations},
+            reader::RtpsReaderOperations,
             stateful_reader::{RtpsStatefulReader, RtpsStatefulReaderOperations},
             stateless_reader::RtpsStatelessReaderOperations,
         },
@@ -9,7 +9,7 @@ use rust_rtps_pim::{
     },
     structure::{
         types::{Guid, Locator, ReliabilityKind, TopicKind},
-        RtpsEndpoint, RtpsEntity, RtpsHistoryCache,
+        RtpsHistoryCache,
     },
 };
 
@@ -27,36 +27,6 @@ pub struct RtpsReaderImpl {
     heartbeat_supression_duration: Duration,
     expects_inline_qos: bool,
     reader_cache: ReaderHistoryCache,
-}
-
-impl RtpsEntity for RtpsReaderImpl {
-    fn guid(&self) -> &Guid {
-        &self.guid
-    }
-}
-
-impl RtpsReader for RtpsReaderImpl {
-    type HistoryCacheType = ReaderHistoryCache;
-
-    fn heartbeat_response_delay(&self) -> &Duration {
-        &self.heartbeat_response_delay
-    }
-
-    fn heartbeat_supression_duration(&self) -> &Duration {
-        &self.heartbeat_supression_duration
-    }
-
-    fn reader_cache(&self) -> &Self::HistoryCacheType {
-        &self.reader_cache
-    }
-
-    fn reader_cache_mut(&mut self) -> &mut Self::HistoryCacheType {
-        &mut self.reader_cache
-    }
-
-    fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
-    }
 }
 
 impl RtpsReaderOperations for RtpsReaderImpl {
@@ -81,24 +51,6 @@ impl RtpsReaderOperations for RtpsReaderImpl {
             expects_inline_qos,
             reader_cache: ReaderHistoryCache::new(),
         }
-    }
-}
-
-impl RtpsEndpoint for RtpsReaderImpl {
-    fn topic_kind(&self) -> &TopicKind {
-        &self.topic_kind
-    }
-
-    fn reliability_level(&self) -> &ReliabilityKind {
-        &self.reliability_level
-    }
-
-    fn unicast_locator_list(&self) -> &[Locator] {
-        &self.unicast_locator_list
-    }
-
-    fn multicast_locator_list(&self) -> &[Locator] {
-        &self.multicast_locator_list
     }
 }
 
