@@ -24,7 +24,8 @@ use super::{
         CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
         DurationSerdeSerialize, GuidPrefixDef, GuidSerdeDeserialize, GuidSerdeSerialize,
         LocatorSerdeDeserialize, LocatorSerdeSerialize, ProtocolVersionSerdeDeserialize,
-        ProtocolVersionSerdeSerialize, UserDataQosPolicySerdeSerialize,
+        ProtocolVersionSerdeSerialize, UserDataQosPolicySerdeDeserialize,
+        UserDataQosPolicySerdeSerialize,
     },
     parameter_id_values::{
         DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
@@ -175,7 +176,7 @@ where
     }
 }
 
-impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<Locator>> {
+impl<'a, 'de: 'a> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, String, Vec<Locator>> {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
         let param_list: ParameterList = MappingRead::read(buf).unwrap();
 
@@ -184,10 +185,16 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'_, String, Vec<
             .unwrap()
             .0;
         let guid_prefix = guid.prefix;
+        let user_data = param_list
+            .get::<UserDataQosPolicySerdeDeserialize>(PID_USER_DATA)
+            .unwrap_or(UserDataQosPolicySerdeDeserialize(
+                UserDataQosPolicy::default(),
+            ))
+            .0;
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: GuidPrefixDef(guid_prefix.0).into(),
-            user_data: UserDataQosPolicy { value: &[] },
+            user_data,
         };
 
         let domain_id = param_list.get(PID_DOMAIN_ID).unwrap();
@@ -273,7 +280,7 @@ mod tests {
     use crate::dds_type::LittleEndian;
 
     use super::*;
-    use rust_dds_api::{infrastructure::qos_policy::UserDataQosPolicy};
+    use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
     use rust_rtps_pim::{
         discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,
