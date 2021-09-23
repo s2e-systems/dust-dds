@@ -24,12 +24,7 @@ use crate::{
     dds_type::{DdsDeserialize, DdsSerialize},
 };
 
-use super::parameter_id_values::{
-    DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
-    PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID,
-    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
-    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
-};
+use super::{dds_serialize_deserialize_impl::UserDataQosPolicySerdeSerialize, parameter_id_values::{DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID}};
 
 #[derive(Debug, PartialEq)]
 pub struct SpdpDiscoveredParticipantData<'a, S, L> {
@@ -159,9 +154,11 @@ where
             )
             .unwrap();
 
-        // parameter_list_serializer
-        //     .serialize_parameter(PID_USER_DATA, &self.dds_participant_data.user_data.value)
-        //     .unwrap();
+        if self.dds_participant_data.user_data != UserDataQosPolicy::default() {
+            parameter_list_serializer
+            .serialize_parameter(PID_USER_DATA, &UserDataQosPolicySerdeSerialize(&self.dds_participant_data.user_data))
+            .unwrap();
+        }
 
         Ok(())
     }
