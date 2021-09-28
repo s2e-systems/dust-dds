@@ -2,6 +2,7 @@ use std::net::UdpSocket;
 
 use rust_dds::{
     infrastructure::qos::{DataReaderQos, SubscriberQos},
+    subscription::data_reader::DataReader,
     udp_transport::UdpTransport,
 };
 use rust_dds_api::{
@@ -21,7 +22,6 @@ use rust_dds_rtps_implementation::{
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
-    dds_type::DdsDeserialize,
     rtps_impl::rtps_reader_locator_impl::RtpsReaderLocatorImpl,
     utils::{
         message_receiver::MessageReceiver, shared_object::RtpsShared, transport::TransportRead,
@@ -42,7 +42,7 @@ use rust_rtps_pim::{
             EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
             BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
-        RtpsEntity, RtpsGroup, RtpsHistoryCache,
+        RtpsEntity, RtpsGroup,
     },
 };
 
@@ -164,14 +164,7 @@ fn send_discovery_data_happy_path() {
         &message,
     );
     let shared_data_reader = shared_data_reader.read_lock();
-    let cc = shared_data_reader
-        .rtps_reader()
-        .reader_cache
-        .get_change(&1)
-        .unwrap();
-    let mut data = cc.data_value;
 
-    let result: SpdpDiscoveredParticipantData<String, Vec<Locator>> =
-        DdsDeserialize::deserialize(&mut data).unwrap();
-    assert_eq!(spdp_discovered_participant_data, result);
+    let result = shared_data_reader.read(1, &[], &[], &[]).unwrap();
+    assert_eq!(spdp_discovered_participant_data, result[0]);
 }
