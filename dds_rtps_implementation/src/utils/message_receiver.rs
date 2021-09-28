@@ -1,3 +1,5 @@
+use crate::utils::shared_object::rtps_shared_write_lock;
+
 use super::{shared_object::RtpsShared, transport::RtpsMessageRead};
 use rust_rtps_pim::{
     messages::{
@@ -63,7 +65,8 @@ impl MessageReceiver {
                 RtpsSubmessageType::AckNack(_) => todo!(),
                 RtpsSubmessageType::Data(data) => {
                     for element in list {
-                        element.write_lock().process_data_submessage(self.source_guid_prefix, data)
+                        rtps_shared_write_lock(&element)
+                            .process_data_submessage(self.source_guid_prefix, data)
                     }
                 }
                 RtpsSubmessageType::DataFrag(_) => todo!(),
@@ -119,6 +122,8 @@ mod tests {
             EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, PROTOCOLVERSION_2_4,
         },
     };
+
+    use crate::utils::shared_object::{rtps_shared_new, rtps_shared_read_lock};
 
     use super::*;
 
@@ -183,7 +188,7 @@ mod tests {
             serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3] },
         };
         let participant_guid_prefix = GuidPrefix([1; 12]);
-        let reader_group_list = vec![RtpsShared::new(MockProcessDataSubmessage {
+        let reader_group_list = vec![rtps_shared_new(MockProcessDataSubmessage {
             called: RefCell::new(false),
         })];
         let source_locator = Locator::new(1, 7400, [1; 16]);
@@ -214,6 +219,9 @@ mod tests {
             &message,
         );
 
-        assert_eq!(*reader_group_list[0].read_lock().called.borrow(), true);
+        assert_eq!(
+            *rtps_shared_read_lock(&reader_group_list[0]).called.borrow(),
+            true
+        );
     }
 }

@@ -1,4 +1,6 @@
-use crate::utils::shared_object::RtpsWeak;
+use crate::utils::shared_object::{
+    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+};
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
@@ -57,7 +59,7 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        self.data_reader_impl.upgrade()?.read_lock().read(
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).read(
             max_samples,
             sample_states,
             view_states,
@@ -300,44 +302,36 @@ where
     type Listener = DR::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.data_reader_impl.upgrade()?.write_lock().set_qos(qos)
+        rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.data_reader_impl.upgrade()?.read_lock().get_qos()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        self.data_reader_impl
-            .upgrade()?
-            .read_lock()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?)
             .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.data_reader_impl.upgrade()?.read_lock().get_listener()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.data_reader_impl
-            .upgrade()?
-            .read_lock()
-            .get_statuscondition()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.data_reader_impl.upgrade()?.read_lock().get_status_changes()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.data_reader_impl.upgrade()?.read_lock().enable()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.data_reader_impl
-            .upgrade()?
-            .read_lock()
-            .get_instance_handle()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_instance_handle()
     }
 }
 

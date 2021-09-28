@@ -29,11 +29,18 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::{dds_impl::data_writer_impl::RtpsWriterFlavor, dds_type::DdsType, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache, utils::{
+use crate::{
+    dds_impl::data_writer_impl::RtpsWriterFlavor,
+    dds_type::DdsType,
+    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
+    utils::{
         message_sender::RtpsSubmessageSender,
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::{
+            rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, RtpsShared, RtpsWeak,
+        },
         transport::{RtpsSubmessageWrite, TransportWrite},
-    }};
+    },
+};
 
 use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
 
@@ -68,7 +75,7 @@ impl PublisherImpl {
         transport: &mut (impl TransportWrite + ?Sized),
     ) {
         for writer in self.data_writer_impl_list.lock().unwrap().iter() {
-            let mut writer_lock = writer.write_lock();
+            let mut writer_lock = rtps_shared_write_lock(writer);
             let destined_submessages = writer_lock.create_submessages();
             for (dst_locator, submessages) in destined_submessages {
                 let header = RtpsMessageHeader {
@@ -149,8 +156,8 @@ where
             reader_locators: vec![],
         });
         let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
-        let data_writer_impl_shared = RtpsShared::new(data_writer_impl);
-        let data_writer_impl_weak = data_writer_impl_shared.downgrade();
+        let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
+        let data_writer_impl_weak = rtps_shared_downgrade(&data_writer_impl_shared);
         self.data_writer_impl_list
             .lock()
             .unwrap()
@@ -270,7 +277,7 @@ impl RtpsSubmessageSender for PublisherImpl {
         let combined_submessages = vec![];
         let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
         for data_writer in &*data_writer_impl_list_lock {
-            let _submessages = data_writer.write_lock().create_submessages();
+            let _submessages = rtps_shared_write_lock(data_writer).create_submessages();
             // combined_submessages = submessages;
         }
 
@@ -341,8 +348,8 @@ mod tests {
             entity: RtpsEntity { guid: GUID_UNKNOWN },
         };
         let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
-        let a_topic_shared = RtpsShared::new(TopicImpl::new(TopicQos::default()));
-        let a_topic_weak = a_topic_shared.downgrade();
+        let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default()));
+        let a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
 
         let data_writer_counter_before = publisher_impl
             .user_defined_data_writer_counter

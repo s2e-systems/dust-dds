@@ -1,4 +1,6 @@
-use crate::utils::shared_object::RtpsWeak;
+use crate::utils::shared_object::{
+    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+};
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -52,13 +54,15 @@ where
         instance: T,
         timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
-        self.data_writer_impl
-            .upgrade()?
-            .write_lock()
+        rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
             .register_instance_w_timestamp(instance, timestamp)
     }
 
-    fn unregister_instance(&mut self, instance: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn unregister_instance(
+        &mut self,
+        instance: T,
+        handle: Option<InstanceHandle>,
+    ) -> DDSResult<()> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
@@ -69,9 +73,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
-        self.data_writer_impl
-            .upgrade()?
-            .write_lock()
+        rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
             .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
@@ -94,9 +96,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
-        self.data_writer_impl
-            .upgrade()?
-            .write_lock()
+        rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
             .write_w_timestamp(data, handle, timestamp)
     }
 
@@ -178,44 +178,36 @@ where
     type Listener = DW::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.data_writer_impl.upgrade()?.write_lock().set_qos(qos)
+        rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.data_writer_impl.upgrade()?.read_lock().get_qos()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        self.data_writer_impl
-            .upgrade()?
-            .read_lock()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
             .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.data_writer_impl.upgrade()?.read_lock().get_listener()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.data_writer_impl
-            .upgrade()?
-            .read_lock()
-            .get_statuscondition()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.data_writer_impl.upgrade()?.read_lock().get_status_changes()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.data_writer_impl.upgrade()?.read_lock().enable()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.data_writer_impl
-            .upgrade()?
-            .read_lock()
-            .get_instance_handle()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_instance_handle()
     }
 }
 

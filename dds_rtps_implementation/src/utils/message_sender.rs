@@ -5,10 +5,7 @@ use rust_rtps_pim::{
     },
 };
 
-use super::{
-    shared_object::RtpsShared,
-    transport::{RtpsSubmessageWrite, TransportWrite},
-};
+use super::{shared_object::{RtpsShared, rtps_shared_write_lock}, transport::{RtpsSubmessageWrite, TransportWrite}};
 
 pub trait RtpsSubmessageSender {
     fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)>;
@@ -62,7 +59,7 @@ pub fn send_data(
     transport: &mut (impl TransportWrite + ?Sized),
 ) {
     for writer in writer_list {
-        let mut writer_lock = writer.write_lock();
+        let mut writer_lock = rtps_shared_write_lock(&writer);
         let destined_submessages = writer_lock.create_submessages();
         for (dst_locator, submessages) in destined_submessages {
             let header = RtpsMessageHeader {

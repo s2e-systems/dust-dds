@@ -23,7 +23,7 @@ use rust_dds_rtps_implementation::{
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::rtps_reader_locator_impl::RtpsReaderLocatorImpl,
-    utils::shared_object::RtpsShared,
+    utils::shared_object::{rtps_shared_new, rtps_shared_write_lock},
 };
 use rust_rtps_pim::{
     behavior::{types::Duration, writer::reader_locator::RtpsReaderLocatorOperations},
@@ -153,7 +153,7 @@ impl DomainParticipantFactory {
             lease_duration,
         };
 
-        let spdp_builtin_participant_writer = RtpsShared::new(DataWriterImpl::new(
+        let spdp_builtin_participant_writer = rtps_shared_new(DataWriterImpl::new(
             spdp_builtin_participant_writer_qos,
             RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
         ));
@@ -163,13 +163,12 @@ impl DomainParticipantFactory {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos;
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]);
-        let spdp_builtin_participant_reader = RtpsShared::new(DataReaderImpl::new(
+        let spdp_builtin_participant_reader = rtps_shared_new(DataReaderImpl::new(
             spdp_builtin_participant_reader_qos,
             RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
         ));
 
-        spdp_builtin_participant_writer
-            .write_lock()
+        rtps_shared_write_lock(&spdp_builtin_participant_writer)
             .write_w_timestamp(
                 spdp_discovered_participant_data,
                 None,
@@ -177,7 +176,7 @@ impl DomainParticipantFactory {
             )
             .unwrap();
 
-        let builtin_publisher_storage = RtpsShared::new(PublisherImpl::new(
+        let builtin_publisher_storage = rtps_shared_new(PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroup {
                 entity: RtpsEntity {
@@ -186,7 +185,7 @@ impl DomainParticipantFactory {
             },
             vec![spdp_builtin_participant_writer],
         ));
-        let builtin_subscriber_storage = RtpsShared::new(SubscriberImpl::new(
+        let builtin_subscriber_storage = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup {
                 entity: RtpsEntity {

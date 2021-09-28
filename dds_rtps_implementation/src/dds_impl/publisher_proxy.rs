@@ -14,7 +14,9 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 
-use crate::utils::shared_object::RtpsWeak;
+use crate::utils::shared_object::{
+    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+};
 
 use super::{data_writer_proxy::DataWriterProxy, topic_proxy::TopicProxy};
 
@@ -54,12 +56,9 @@ where
         a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let data_writer_weak = self
-            .publisher_impl
-            .upgrade()
-            .ok()?
-            .read_lock()
-            .create_datawriter_gat(a_topic.topic_impl(), qos, a_listener, mask)?;
+        let data_writer_weak =
+            rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl).ok()?)
+                .create_datawriter_gat(a_topic.topic_impl(), qos, a_listener, mask)?;
 
         let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
 
@@ -68,9 +67,7 @@ where
 
     fn delete_datawriter_gat(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
         if std::ptr::eq(a_datawriter.get_publisher(), self) {
-            self.publisher_impl
-                .upgrade()?
-                .read_lock()
+            rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
                 .delete_datawriter(a_datawriter.data_writer_impl())
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -152,38 +149,36 @@ where
     type Listener = P::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.publisher_impl.upgrade()?.write_lock().set_qos(qos)
+        rtps_shared_write_lock(&rtps_weak_upgrade(&self.publisher_impl)?).set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.publisher_impl.upgrade()?.read_lock().get_qos()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        self.publisher_impl
-            .upgrade()?
-            .read_lock()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
             .set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.publisher_impl.upgrade()?.read_lock().get_listener()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.publisher_impl.upgrade()?.read_lock().get_statuscondition()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.publisher_impl.upgrade()?.read_lock().get_status_changes()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.publisher_impl.upgrade()?.read_lock().enable()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.publisher_impl.upgrade()?.read_lock().get_instance_handle()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_instance_handle()
     }
 }
 

@@ -27,7 +27,9 @@ use crate::{
     rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::{
         message_receiver::ProcessDataSubmessage,
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::{
+            rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, RtpsShared, RtpsWeak,
+        },
     },
 };
 
@@ -103,8 +105,8 @@ impl SubscriberImpl {
             expects_inline_qos,
         }));
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
-        let reader_storage_shared = RtpsShared::new(reader_storage);
-        let reader_storage_weak = reader_storage_shared.downgrade();
+        let reader_storage_shared = rtps_shared_new(reader_storage);
+        let reader_storage_weak = rtps_shared_downgrade(&reader_storage_shared);
         self.data_reader_list.push(reader_storage_shared);
         Some(reader_storage_weak)
     }
@@ -127,7 +129,7 @@ impl ProcessDataSubmessage for SubscriberImpl {
         data: &DataSubmessage<Vec<Parameter<'_>>>,
     ) {
         for reader in &self.data_reader_list {
-            match reader.write_lock().rtps_reader_mut() {
+            match rtps_shared_write_lock(reader).rtps_reader_mut() {
                 RtpsReaderFlavor::Stateful => todo!(),
                 RtpsReaderFlavor::Stateless(stateless_reader) => {
                     stateless_reader.receive_data(source_guid_prefix, data)

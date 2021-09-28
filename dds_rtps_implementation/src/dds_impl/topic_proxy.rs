@@ -1,4 +1,6 @@
-use crate::utils::shared_object::RtpsWeak;
+use crate::utils::shared_object::{
+    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+};
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     domain::domain_participant::DomainParticipant,
@@ -33,10 +35,7 @@ where
     I: Topic<T>,
 {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
-        self.topic_impl
-            .upgrade()?
-            .read_lock()
-            .get_inconsistent_topic_status()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
     }
 }
 
@@ -49,11 +48,11 @@ where
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
-        self.topic_impl.upgrade()?.read_lock().get_type_name()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_type_name()
     }
 
     fn get_name(&self) -> DDSResult<&'static str> {
-        self.topic_impl.upgrade()?.read_lock().get_name()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_name()
     }
 }
 
@@ -65,37 +64,34 @@ where
     type Listener = TT::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.topic_impl.upgrade()?.write_lock().set_qos(qos)
+        rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.topic_impl.upgrade()?.read_lock().get_qos()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        self.topic_impl
-            .upgrade()?
-            .write_lock()
-            .set_listener(a_listener, mask)
+        rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.topic_impl.upgrade()?.read_lock().get_listener()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.topic_impl.upgrade()?.read_lock().get_statuscondition()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.topic_impl.upgrade()?.read_lock().get_status_changes()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.topic_impl.upgrade()?.read_lock().enable()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.topic_impl.upgrade()?.read_lock().get_instance_handle()
+        rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_instance_handle()
     }
 }

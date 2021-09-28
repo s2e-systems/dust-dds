@@ -24,7 +24,9 @@ use rust_dds_rtps_implementation::{
     },
     rtps_impl::rtps_reader_locator_impl::RtpsReaderLocatorImpl,
     utils::{
-        message_receiver::MessageReceiver, shared_object::RtpsShared, transport::TransportRead,
+        message_receiver::MessageReceiver,
+        shared_object::{rtps_shared_new, rtps_shared_read_lock},
+        transport::TransportRead,
     },
 };
 use rust_rtps_pim::{
@@ -121,7 +123,7 @@ fn send_discovery_data_happy_path() {
                 ),
             },
         },
-        vec![RtpsShared::new(data_writer)],
+        vec![rtps_shared_new(data_writer)],
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
@@ -141,7 +143,7 @@ fn send_discovery_data_happy_path() {
         DataReaderQos::default(),
         RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
     );
-    let shared_data_reader = RtpsShared::new(data_reader);
+    let shared_data_reader = rtps_shared_new(data_reader);
     let subscriber = SubscriberImpl::new(
         SubscriberQos::default(),
         RtpsGroup {
@@ -159,11 +161,11 @@ fn send_discovery_data_happy_path() {
     let participant_guid_prefix = GuidPrefix([7; 12]);
     MessageReceiver::new().process_message(
         participant_guid_prefix,
-        &[RtpsShared::new(subscriber)],
+        &[rtps_shared_new(subscriber)],
         source_locator,
         &message,
     );
-    let shared_data_reader = shared_data_reader.read_lock();
+    let shared_data_reader = rtps_shared_read_lock(&shared_data_reader);
 
     let result = shared_data_reader.read(1, &[], &[], &[]).unwrap();
     assert_eq!(spdp_discovered_participant_data, result[0]);
