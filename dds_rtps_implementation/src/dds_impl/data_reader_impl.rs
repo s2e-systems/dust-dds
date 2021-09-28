@@ -7,7 +7,14 @@ use rust_dds_api::{
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
     topic::topic_description::TopicDescription,
 };
-use rust_rtps_pim::{behavior::{reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader}, stateless_reader_behavior::StatelessReaderBehavior}, messages::submessages::DataSubmessage, structure::{types::Locator, RtpsHistoryCache}};
+use rust_rtps_pim::{
+    behavior::{
+        reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
+        stateless_reader_behavior::StatelessReaderBehavior,
+    },
+    messages::submessages::DataSubmessage,
+    structure::{types::Locator, RtpsHistoryCache},
+};
 
 use crate::{
     dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
@@ -30,18 +37,17 @@ impl Deref for RtpsReaderFlavor {
     }
 }
 
-pub struct DataReaderImpl {
+pub struct DataReaderImpl<T> {
     rtps_reader: RtpsReaderFlavor,
     qos: DataReaderQos,
+    listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }
 
-impl ProcessDataSubmessage for DataReaderImpl {
+impl<T> ProcessDataSubmessage for DataReaderImpl<T> {
     fn process_data_submessage(
         &mut self,
         source_guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        data: &DataSubmessage<
-            Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'_>>,
-        >,
+        data: &DataSubmessage<Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'_>>>,
     ) {
         match &mut self.rtps_reader {
             RtpsReaderFlavor::Stateful => todo!(),
@@ -52,9 +58,13 @@ impl ProcessDataSubmessage for DataReaderImpl {
     }
 }
 
-impl DataReaderImpl {
+impl<T> DataReaderImpl<T> {
     pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderFlavor) -> Self {
-        Self { rtps_reader, qos }
+        Self {
+            rtps_reader,
+            qos,
+            listener: None,
+        }
     }
 
     pub fn set_qos(&mut self, qos: Option<DataReaderQos>) -> DDSResult<()> {
@@ -104,7 +114,7 @@ impl DataReaderImpl {
 //     })
 //     .collect())
 
-impl<T> DataReader<T> for DataReaderImpl
+impl<T> DataReader<T> for DataReaderImpl<T>
 where
     T: for<'de> DdsDeserialize<'de>,
 {
@@ -363,10 +373,10 @@ where
     }
 }
 
-impl Entity for DataReaderImpl {
+impl<T> Entity for DataReaderImpl<T> {
     type Qos = DataReaderQos;
 
-    type Listener = &'static dyn DataReaderListener<DataPIM = ()>;
+    type Listener = Box<dyn DataReaderListener<DataType = T>>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

@@ -15,7 +15,7 @@ pub trait DataReaderGAT<'dr, 't, T>: Subscriber {
         &'dr self,
         a_topic: &'dr Self::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
+        a_listener: Option<&'static dyn DataReaderListener<DataType = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>;
 
@@ -67,7 +67,7 @@ pub trait Subscriber {
         &'dr self,
         a_topic: &'dr Self::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
+        a_listener: Option<&'static dyn DataReaderListener<DataType = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>
     where

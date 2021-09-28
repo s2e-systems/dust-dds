@@ -163,7 +163,9 @@ impl DomainParticipantFactory {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos;
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]);
-        let spdp_builtin_participant_reader = rtps_shared_new(DataReaderImpl::new(
+        let spdp_builtin_participant_reader = rtps_shared_new(DataReaderImpl::<
+            SpdpDiscoveredParticipantData<String, Vec<Locator>>,
+        >::new(
             spdp_builtin_participant_reader_qos,
             RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
         ));

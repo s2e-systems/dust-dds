@@ -3,7 +3,7 @@
 // use super::data_reader::DataReader;
 
 pub trait DataReaderListener {
-    type DataPIM;
+    type DataType;
     // fn on_data_available(&self, the_reader: &dyn DataReader<Self::DataPIM>);
     // fn on_sample_rejected(
     //     &self,

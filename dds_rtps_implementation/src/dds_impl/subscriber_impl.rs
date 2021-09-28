@@ -66,9 +66,9 @@ impl SubscriberImpl {
         &mut self,
         _a_topic: (),
         qos: Option<DataReaderQos>,
-        _a_listener: Option<&'static dyn DataReaderListener<DataPIM = T>>,
+        _a_listener: Option<&'static dyn DataReaderListener<DataType = T>>,
         _mask: StatusMask,
-    ) -> Option<RtpsWeak<DataReaderImpl>> {
+    ) -> Option<RtpsWeak<DataReaderImpl<T>>> {
         let qos = qos.unwrap_or(self.default_data_reader_qos.clone());
         qos.is_consistent().ok()?;
 
