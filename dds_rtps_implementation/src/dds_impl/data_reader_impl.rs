@@ -7,13 +7,11 @@ use rust_dds_api::{
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
     topic::topic_description::TopicDescription,
 };
-use rust_rtps_pim::{
-    behavior::reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
-    structure::{types::Locator, RtpsHistoryCache},
-};
+use rust_rtps_pim::{behavior::{reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader}, stateless_reader_behavior::StatelessReaderBehavior}, messages::submessages::DataSubmessage, structure::{types::Locator, RtpsHistoryCache}};
 
 use crate::{
     dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
+    utils::message_receiver::ProcessDataSubmessage,
 };
 
 pub enum RtpsReaderFlavor {
@@ -35,6 +33,23 @@ impl Deref for RtpsReaderFlavor {
 pub struct DataReaderImpl {
     rtps_reader: RtpsReaderFlavor,
     qos: DataReaderQos,
+}
+
+impl ProcessDataSubmessage for DataReaderImpl {
+    fn process_data_submessage(
+        &mut self,
+        source_guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
+        data: &DataSubmessage<
+            Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'_>>,
+        >,
+    ) {
+        match &mut self.rtps_reader {
+            RtpsReaderFlavor::Stateful => todo!(),
+            RtpsReaderFlavor::Stateless(stateless_reader) => {
+                stateless_reader.receive_data(source_guid_prefix, data)
+            }
+        };
+    }
 }
 
 impl DataReaderImpl {

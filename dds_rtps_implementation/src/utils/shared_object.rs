@@ -16,7 +16,7 @@ pub fn rtps_shared_read_lock<T>(this: &RtpsShared<T>) -> RwLockReadGuard<'_, T> 
     this.read().unwrap()
 }
 
-pub fn rtps_shared_write_lock<T>(this: &RtpsShared<T>) -> RwLockWriteGuard<'_, T> {
+pub fn rtps_shared_write_lock<T: ?Sized>(this: &RtpsShared<T>) -> RwLockWriteGuard<'_, T> {
     this.write().unwrap()
 }
 

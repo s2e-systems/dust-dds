@@ -35,10 +35,14 @@ use crate::{
 
 use super::data_reader_impl::{DataReaderImpl, RtpsReaderFlavor};
 
+pub trait DataReaderObject: Send + Sync + ProcessDataSubmessage {}
+
+impl<T> DataReaderObject for T where T: Send + Sync + ProcessDataSubmessage {}
+
 pub struct SubscriberImpl {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    data_reader_list: Vec<RtpsShared<DataReaderImpl>>,
+    data_reader_list: Vec<RtpsShared<dyn DataReaderObject>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -47,7 +51,7 @@ impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        data_reader_list: Vec<RtpsShared<DataReaderImpl>>,
+        data_reader_list: Vec<RtpsShared<dyn DataReaderObject>>,
     ) -> Self {
         Self {
             qos,
@@ -124,17 +128,13 @@ impl SubscriberImpl {
 
 impl ProcessDataSubmessage for SubscriberImpl {
     fn process_data_submessage(
-        &self,
+        &mut self,
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessage<Vec<Parameter<'_>>>,
     ) {
         for reader in &self.data_reader_list {
-            match rtps_shared_write_lock(reader).rtps_reader_mut() {
-                RtpsReaderFlavor::Stateful => todo!(),
-                RtpsReaderFlavor::Stateless(stateless_reader) => {
-                    stateless_reader.receive_data(source_guid_prefix, data)
-                }
-            };
+            rtps_shared_write_lock(reader).process_data_submessage(source_guid_prefix, data);
+            //  rtps_reader_mut() {
         }
     }
 }

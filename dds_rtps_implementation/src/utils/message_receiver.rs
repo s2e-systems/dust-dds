@@ -98,7 +98,7 @@ impl MessageReceiver {
 
 pub trait ProcessDataSubmessage {
     fn process_data_submessage(
-        &self,
+        &mut self,
         source_guid_prefix: GuidPrefix,
         _data: &DataSubmessage<Vec<Parameter<'_>>>,
     );
@@ -163,7 +163,7 @@ mod tests {
 
         impl ProcessDataSubmessage for MockProcessDataSubmessage {
             fn process_data_submessage(
-                &self,
+                &mut self,
                 _source_guid_prefix: GuidPrefix,
                 _data: &DataSubmessage<Vec<Parameter<'_>>>,
             ) {
