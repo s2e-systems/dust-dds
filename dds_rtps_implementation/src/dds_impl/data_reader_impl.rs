@@ -8,11 +8,8 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::reader::{
-        reader::RtpsReader,
-        stateless_reader::{RtpsStatelessReader, RtpsStatelessReaderOperations},
-    },
-    structure::{types::Locator, RtpsEntity, RtpsHistoryCache},
+    behavior::reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
+    structure::{types::Locator, RtpsHistoryCache},
 };
 
 use crate::{
