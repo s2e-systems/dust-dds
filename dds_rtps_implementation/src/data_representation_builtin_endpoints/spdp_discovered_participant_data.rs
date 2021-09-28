@@ -36,13 +36,13 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct SpdpDiscoveredParticipantData<'a, S, L> {
-    pub dds_participant_data: ParticipantBuiltinTopicData<'a>,
+pub struct SpdpDiscoveredParticipantData<S, L> {
+    pub dds_participant_data: ParticipantBuiltinTopicData,
     pub participant_proxy: ParticipantProxy<S, L>,
     pub lease_duration: Duration,
 }
 
-impl<S> DdsSerialize for SpdpDiscoveredParticipantData<'_, S, Vec<Locator>>
+impl<S> DdsSerialize for SpdpDiscoveredParticipantData<S, Vec<Locator>>
 where
     S: AsRef<str> + PartialEq<&'static str>,
 {
@@ -176,7 +176,7 @@ where
     }
 }
 
-impl<'a, 'de: 'a> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<'a, String, Vec<Locator>> {
+impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<String, Vec<Locator>> {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
         let param_list: ParameterList = MappingRead::read(buf).unwrap();
 
@@ -317,7 +317,7 @@ mod tests {
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: GuidPrefixDef(guid_prefix.0).into(),
-            user_data: UserDataQosPolicy { value: &[] },
+            user_data: UserDataQosPolicy { value: vec![] },
         };
         let participant_proxy = ParticipantProxy {
             domain_id,
@@ -438,7 +438,7 @@ mod tests {
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: GuidPrefixDef(guid_prefix.0).into(),
-            user_data: UserDataQosPolicy { value: &[] },
+            user_data: UserDataQosPolicy { value: vec![] },
         };
         let participant_proxy = ParticipantProxy {
             domain_id,

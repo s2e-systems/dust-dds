@@ -9,20 +9,19 @@ use rust_rtps_pim::{
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "UserDataQosPolicy")]
-pub struct UserDataQosPolicyDef<'a> {
-    pub value: &'a [u8],
+pub struct UserDataQosPolicyDef {
+    pub value: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct UserDataQosPolicySerdeSerialize<'a>(
-    #[serde(with = "UserDataQosPolicyDef")] pub &'a UserDataQosPolicy<'a>,
+    #[serde(with = "UserDataQosPolicyDef")] pub &'a UserDataQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct UserDataQosPolicySerdeDeserialize<'a>(
+pub struct UserDataQosPolicySerdeDeserialize(
     #[serde(with = "UserDataQosPolicyDef")]
-    #[serde(borrow)]
-    pub UserDataQosPolicy<'a>,
+    pub UserDataQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]

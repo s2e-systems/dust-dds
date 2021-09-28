@@ -306,7 +306,7 @@ mod tests {
             PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
-        qos.user_data.value = &[1, 2, 3, 4];
+        qos.user_data.value = vec![1, 2, 3, 4];
         publisher_impl
             .set_default_datawriter_qos(Some(qos.clone()))
             .unwrap();
@@ -323,7 +323,7 @@ mod tests {
             PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
-        qos.user_data.value = &[1, 2, 3, 4];
+        qos.user_data.value = vec![1, 2, 3, 4];
         publisher_impl
             .set_default_datawriter_qos(Some(qos.clone()))
             .unwrap();

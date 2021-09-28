@@ -12,7 +12,7 @@ use rust_rtps_pim::{
         reader::RtpsReader,
         stateless_reader::{RtpsStatelessReader, RtpsStatelessReaderOperations},
     },
-    structure::{types::Locator, RtpsEndpoint, RtpsEntity, RtpsHistoryCache},
+    structure::{types::Locator, RtpsEntity, RtpsHistoryCache},
 };
 
 use crate::{
@@ -34,7 +34,6 @@ impl Deref for RtpsReaderFlavor {
         }
     }
 }
-
 
 pub struct DataReaderImpl {
     rtps_reader: RtpsReaderFlavor,

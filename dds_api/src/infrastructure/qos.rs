@@ -15,7 +15,7 @@ use super::qos_policy::{
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DomainParticipantQos {
-    pub user_data: UserDataQosPolicy<'static>,
+    pub user_data: UserDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
@@ -40,7 +40,7 @@ pub struct DataWriterQos {
     pub resource_limits: ResourceLimitsQosPolicy,
     pub transport_priority: TransportPriorityQosPolicy,
     pub lifespan: LifespanQosPolicy,
-    pub user_data: UserDataQosPolicy<'static>,
+    pub user_data: UserDataQosPolicy,
     pub ownership: OwnershipQosPolicy,
     pub ownership_strength: OwnershipStrengthQosPolicy,
     pub writer_data_lifecycle: WriterDataLifecycleQosPolicy,
@@ -117,7 +117,7 @@ pub struct DataReaderQos {
     pub destination_order: DestinationOrderQosPolicy,
     pub history: HistoryQosPolicy,
     pub resource_limits: ResourceLimitsQosPolicy,
-    pub user_data: UserDataQosPolicy<'static>,
+    pub user_data: UserDataQosPolicy,
     pub ownership: OwnershipQosPolicy,
     pub time_based_filter: TimeBasedFilterQosPolicy,
     pub reader_data_lifecycle: ReaderDataLifecycleQosPolicy,

@@ -60,7 +60,7 @@ fn send_discovery_data_happy_path() {
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey { value: [0, 0, 1] },
-        user_data: UserDataQosPolicy { value: &[] },
+        user_data: UserDataQosPolicy { value: vec![] },
     };
     let participant_proxy = ParticipantProxy {
         domain_id: 1,

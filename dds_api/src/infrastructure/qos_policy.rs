@@ -79,19 +79,19 @@ pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 /// and ignore_topic these QoS can assist an application to define and enforce its own security policies. The use of this QoS is not
 /// limited to security, rather it offers a simple, yet flexible extensibility mechanism.
 #[derive(Debug, PartialEq, Clone)]
-pub struct UserDataQosPolicy<'a> {
-    pub value: &'a [u8],
+pub struct UserDataQosPolicy {
+    pub value: Vec<u8>,
 }
 
-impl QosPolicy for UserDataQosPolicy<'_> {
+impl QosPolicy for UserDataQosPolicy {
     fn name(&self) -> &str {
         USERDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for UserDataQosPolicy<'_> {
+impl Default for UserDataQosPolicy {
     fn default() -> Self {
-        Self { value: &[] }
+        Self { value: vec![] }
     }
 }
 
