@@ -66,25 +66,6 @@ impl<T> DataReaderImpl<T> {
             listener: None,
         }
     }
-
-    pub fn set_qos(&mut self, qos: Option<DataReaderQos>) -> DDSResult<()> {
-        self.qos = qos.unwrap_or_default();
-        Ok(())
-    }
-
-    pub fn get_qos(&self) -> DDSResult<&DataReaderQos> {
-        Ok(&self.qos)
-    }
-
-    /// Get a mutable reference to the data reader impl's rtps reader.
-    pub fn rtps_reader_mut(&mut self) -> &mut RtpsReaderFlavor {
-        &mut self.rtps_reader
-    }
-
-    /// Get a reference to the data reader impl's rtps reader.
-    pub fn rtps_reader(&self) -> &RtpsReaderFlavor {
-        &self.rtps_reader
-    }
 }
 
 // let shared_reader = self.reader.upgrade()?;
