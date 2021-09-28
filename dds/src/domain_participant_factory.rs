@@ -120,7 +120,9 @@ impl DomainParticipantFactory {
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: BuiltInTopicKey { value: [0; 3] },
-            user_data: UserDataQosPolicy { value: vec![1, 2, 3] },
+            user_data: UserDataQosPolicy {
+                value: vec![1, 2, 3],
+            },
         };
         let participant_proxy = ParticipantProxy {
             domain_id: domain_id as u32,
@@ -206,13 +208,3 @@ impl DomainParticipantFactory {
         Some(domain_participant)
     }
 }
-
-// impl rust_dds_rtps_implementation::dds_type::DDSType for SPDPdiscoveredParticipantDataUdp {
-//     fn type_name() -> &'static str {
-//         todo!()
-//     }
-
-//     fn has_key() -> bool {
-//         todo!()
-//     }
-// }

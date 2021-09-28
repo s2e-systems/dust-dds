@@ -44,8 +44,8 @@ impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
 pub struct DomainParticipantImpl {
     guid_prefix: GuidPrefix,
     _qos: DomainParticipantQos,
-    builtin_subscriber: Arc<RtpsShared<SubscriberImpl>>,
-    builtin_publisher: Arc<RtpsShared<PublisherImpl>>,
+    builtin_subscriber: RtpsShared<SubscriberImpl>,
+    builtin_publisher: RtpsShared<PublisherImpl>,
     user_defined_subscriber_list: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
     _user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
@@ -71,8 +71,8 @@ impl DomainParticipantImpl {
         Self {
             guid_prefix,
             _qos: domain_participant_qos,
-            builtin_subscriber: Arc::new(builtin_subscriber),
-            builtin_publisher: Arc::new(builtin_publisher),
+            builtin_subscriber,
+            builtin_publisher,
             metatraffic_transport: Arc::new(Mutex::new(metatraffic_transport)),
             default_transport: Arc::new(Mutex::new(default_transport)),
             user_defined_subscriber_list: Arc::new(Mutex::new(Vec::new())),
