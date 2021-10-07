@@ -1,4 +1,7 @@
-use std::sync::Mutex;
+use std::{
+    any::Any,
+    sync::{Arc, Mutex, RwLock},
+};
 
 use rust_dds_api::{
     dcps_psm::StatusMask,
@@ -30,7 +33,7 @@ use crate::{
     dds_type::DdsType,
     rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::{
-        message_receiver::ProcessDataSubmessage,
+        message_receiver::{ImmutableProcessDataSubmessage, MutableProcessDataSubmessage},
         shared_object::{
             rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, RtpsShared, RtpsWeak,
         },
@@ -39,14 +42,38 @@ use crate::{
 
 use super::data_reader_impl::{DataReaderImpl, RtpsReaderFlavor};
 
-pub trait DataReaderObject: Send + Sync + ProcessDataSubmessage {}
+pub trait DataReaderObject: Any + Send + Sync + ImmutableProcessDataSubmessage {
+    fn as_any(&self) -> &dyn Any;
+}
 
-impl<T> DataReaderObject for T where T: Send + Sync + ProcessDataSubmessage {}
+impl<T> DataReaderObject for T
+where
+    T: Any + Send + Sync + ImmutableProcessDataSubmessage,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl<T> ImmutableProcessDataSubmessage for RwLock<T>
+where
+    T: MutableProcessDataSubmessage,
+{
+    fn process_data_submessage(
+        &self,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessage<Vec<Parameter<'_>>>,
+    ) {
+        self.write()
+            .unwrap()
+            .process_data_submessage(source_guid_prefix, data)
+    }
+}
 
 pub struct SubscriberImpl {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    data_reader_list: Mutex<Vec<RtpsShared<dyn DataReaderObject>>>,
+    data_reader_list: Mutex<Vec<Arc<dyn DataReaderObject>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -55,7 +82,7 @@ impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        data_reader_list: Vec<RtpsShared<dyn DataReaderObject>>,
+        data_reader_list: Vec<Arc<dyn DataReaderObject>>,
     ) -> Self {
         Self {
             qos,
@@ -69,10 +96,9 @@ impl SubscriberImpl {
 
 impl<T> DataReaderGAT<'_, '_, T> for SubscriberImpl
 where
-    T: DdsType,
+    T: DdsType + 'static,
 {
     type TopicType = ();
-
     type DataReaderType = RtpsWeak<DataReaderImpl<T>>;
 
     fn create_datareader_gat(
@@ -139,7 +165,8 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {
-        todo!()
+        let guard = self.data_reader_list.lock().unwrap();
+        Some(Arc::downgrade(guard[0].as_any().downcast_ref().unwrap()))
     }
 }
 
@@ -244,15 +271,15 @@ impl Entity for SubscriberImpl {
     }
 }
 
-impl ProcessDataSubmessage for SubscriberImpl {
+impl ImmutableProcessDataSubmessage for SubscriberImpl {
     fn process_data_submessage(
-        &mut self,
+        &self,
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessage<Vec<Parameter<'_>>>,
     ) {
         let data_reader_list = self.data_reader_list.lock().unwrap();
         for reader in data_reader_list.iter() {
-            rtps_shared_write_lock(reader).process_data_submessage(source_guid_prefix, data);
+            reader.process_data_submessage(source_guid_prefix, data);
             //  rtps_reader_mut() {
         }
     }

@@ -18,7 +18,7 @@ use rust_rtps_pim::{
 
 use crate::{
     dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
-    utils::message_receiver::ProcessDataSubmessage,
+    utils::message_receiver::MutableProcessDataSubmessage,
 };
 
 pub enum RtpsReaderFlavor {
@@ -43,7 +43,7 @@ pub struct DataReaderImpl<T> {
     listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }
 
-impl<T> ProcessDataSubmessage for DataReaderImpl<T> {
+impl<T> MutableProcessDataSubmessage for DataReaderImpl<T> {
     fn process_data_submessage(
         &mut self,
         source_guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
