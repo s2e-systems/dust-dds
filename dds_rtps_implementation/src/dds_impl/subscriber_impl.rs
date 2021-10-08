@@ -1,6 +1,6 @@
 use std::{
     any::Any,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, Mutex},
 };
 
 use rust_dds_api::{
@@ -33,40 +33,23 @@ use crate::{
     dds_type::DdsType,
     rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::{
-        message_receiver::{ImmutableProcessDataSubmessage, MutableProcessDataSubmessage},
-        shared_object::{
-            rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, RtpsShared, RtpsWeak,
-        },
+        message_receiver::ProcessDataSubmessage,
+        shared_object::{rtps_shared_downgrade, rtps_shared_new, RtpsWeak},
     },
 };
 
 use super::data_reader_impl::{DataReaderImpl, RtpsReaderFlavor};
 
-pub trait DataReaderObject: Any + Send + Sync + ImmutableProcessDataSubmessage {
+pub trait DataReaderObject: Any + Send + Sync + ProcessDataSubmessage {
     fn as_any(&self) -> &dyn Any;
 }
 
 impl<T> DataReaderObject for T
 where
-    T: Any + Send + Sync + ImmutableProcessDataSubmessage,
+    T: Any + Send + Sync + ProcessDataSubmessage,
 {
     fn as_any(&self) -> &dyn Any {
         self
-    }
-}
-
-impl<T> ImmutableProcessDataSubmessage for RwLock<T>
-where
-    T: MutableProcessDataSubmessage,
-{
-    fn process_data_submessage(
-        &self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<Vec<Parameter<'_>>>,
-    ) {
-        self.write()
-            .unwrap()
-            .process_data_submessage(source_guid_prefix, data)
     }
 }
 
@@ -271,7 +254,7 @@ impl Entity for SubscriberImpl {
     }
 }
 
-impl ImmutableProcessDataSubmessage for SubscriberImpl {
+impl ProcessDataSubmessage for SubscriberImpl {
     fn process_data_submessage(
         &self,
         source_guid_prefix: GuidPrefix,

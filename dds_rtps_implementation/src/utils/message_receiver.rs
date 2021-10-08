@@ -41,7 +41,7 @@ impl MessageReceiver {
     pub fn process_message<'a>(
         mut self,
         participant_guid_prefix: GuidPrefix,
-        list: &'a [RtpsShared<impl ImmutableProcessDataSubmessage>],
+        list: &'a [RtpsShared<impl ProcessDataSubmessage>],
         source_locator: Locator,
         message: &'a RtpsMessageRead,
     ) {
@@ -96,15 +96,7 @@ impl MessageReceiver {
     }
 }
 
-pub trait MutableProcessDataSubmessage {
-    fn process_data_submessage(
-        &mut self,
-        source_guid_prefix: GuidPrefix,
-        _data: &DataSubmessage<Vec<Parameter<'_>>>,
-    );
-}
-
-pub trait ImmutableProcessDataSubmessage {
+pub trait ProcessDataSubmessage {
     fn process_data_submessage(
         &self,
         source_guid_prefix: GuidPrefix,
@@ -170,7 +162,7 @@ mod tests {
             called: RefCell<bool>,
         }
 
-        impl ImmutableProcessDataSubmessage for MockProcessDataSubmessage {
+        impl ProcessDataSubmessage for MockProcessDataSubmessage {
             fn process_data_submessage(
                 &self,
                 _source_guid_prefix: GuidPrefix,

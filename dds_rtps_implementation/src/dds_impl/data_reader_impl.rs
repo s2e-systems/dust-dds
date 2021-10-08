@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{ops::Deref, sync::RwLock};
 
 use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
@@ -12,13 +12,16 @@ use rust_rtps_pim::{
         reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
         stateless_reader_behavior::StatelessReaderBehavior,
     },
-    messages::submessages::DataSubmessage,
-    structure::{types::Locator, RtpsHistoryCache},
+    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
+    structure::{
+        types::{GuidPrefix, Locator},
+        RtpsHistoryCache,
+    },
 };
 
 use crate::{
     dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
-    utils::message_receiver::MutableProcessDataSubmessage,
+    utils::message_receiver::ProcessDataSubmessage,
 };
 
 pub enum RtpsReaderFlavor {
@@ -39,17 +42,18 @@ impl Deref for RtpsReaderFlavor {
 
 pub struct DataReaderImpl<T> {
     rtps_reader: RtpsReaderFlavor,
-    qos: DataReaderQos,
-    listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
+    _qos: DataReaderQos,
+    _listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }
 
-impl<T> MutableProcessDataSubmessage for DataReaderImpl<T> {
+impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>> {
     fn process_data_submessage(
-        &mut self,
-        source_guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-        data: &DataSubmessage<Vec<rust_rtps_pim::messages::submessage_elements::Parameter<'_>>>,
+        &self,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessage<Vec<Parameter<'_>>>,
     ) {
-        match &mut self.rtps_reader {
+        let mut data_reader = self.write().unwrap();
+        match &mut data_reader.rtps_reader {
             RtpsReaderFlavor::Stateful => todo!(),
             RtpsReaderFlavor::Stateless(stateless_reader) => {
                 stateless_reader.receive_data(source_guid_prefix, data)
@@ -62,8 +66,8 @@ impl<T> DataReaderImpl<T> {
     pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderFlavor) -> Self {
         Self {
             rtps_reader,
-            qos,
-            listener: None,
+            _qos: qos,
+            _listener: None,
         }
     }
 }
