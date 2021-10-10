@@ -34,21 +34,21 @@ use crate::{
     rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::{
         message_receiver::ProcessDataSubmessage,
-        shared_object::{rtps_shared_downgrade, rtps_shared_new, RtpsWeak},
+        shared_object::{rtps_shared_downgrade, rtps_shared_new, RtpsShared, RtpsWeak},
     },
 };
 
 use super::data_reader_impl::{DataReaderImpl, RtpsReaderFlavor};
 
 pub trait DataReaderObject: Any + Send + Sync + ProcessDataSubmessage {
-    fn as_any(&self) -> &dyn Any;
+    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 }
 
 impl<T> DataReaderObject for T
 where
     T: Any + Send + Sync + ProcessDataSubmessage,
 {
-    fn as_any(&self) -> &dyn Any {
+    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
 }
@@ -149,7 +149,8 @@ where
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {
         let guard = self.data_reader_list.lock().unwrap();
-        Some(Arc::downgrade(guard[0].as_any().downcast_ref().unwrap()))
+        let shared_datareader = Arc::downcast(guard[0].clone().into_any_arc()).unwrap();
+        Some(Arc::downgrade(&shared_datareader))
     }
 }
 
@@ -271,8 +272,38 @@ impl ProcessDataSubmessage for SubscriberImpl {
 #[cfg(test)]
 mod tests {
 
+    use super::*;
+    struct MockDdsType;
+
+    impl DdsType for MockDdsType {
+        fn type_name() -> &'static str {
+            todo!()
+        }
+
+        fn has_key() -> bool {
+            true
+        }
+    }
+
     #[test]
     fn lookup_datareader() {
-        // todo!()
+        let rtps_group = RtpsGroup {
+            entity: RtpsEntity {
+                guid: Guid {
+                    prefix: GuidPrefix([1; 12]),
+                    entity_id: EntityId {
+                        entity_key: [1; 3],
+                        entity_kind: 1,
+                    },
+                },
+            },
+        };
+        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
+        subscriber
+            .create_datareader::<MockDdsType>(&(), None, None, 0)
+            .unwrap();
+        let data_reader = subscriber.lookup_datareader::<MockDdsType>(&());
+
+        assert!(data_reader.is_some())
     }
 }
