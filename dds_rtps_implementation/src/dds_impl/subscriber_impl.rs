@@ -34,7 +34,7 @@ use crate::{
     rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::{
         message_receiver::ProcessDataSubmessage,
-        shared_object::{rtps_shared_downgrade, rtps_shared_new, RtpsShared, RtpsWeak},
+        shared_object::{rtps_shared_downgrade, rtps_shared_new, RtpsWeak},
     },
 };
 
@@ -148,9 +148,11 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {
-        let guard = self.data_reader_list.lock().unwrap();
-        let shared_datareader = Arc::downcast(guard[0].clone().into_any_arc()).unwrap();
-        Some(Arc::downgrade(&shared_datareader))
+        let data_reader_list_lock = self.data_reader_list.lock().unwrap();
+        let data_reader = data_reader_list_lock
+            .iter()
+            .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())?;
+        Some(Arc::downgrade(&data_reader))
     }
 }
 
@@ -285,8 +287,20 @@ mod tests {
         }
     }
 
+    struct OtherMockDdsType;
+
+    impl DdsType for OtherMockDdsType {
+        fn type_name() -> &'static str {
+            todo!()
+        }
+
+        fn has_key() -> bool {
+            true
+        }
+    }
+
     #[test]
-    fn lookup_datareader() {
+    fn lookup_existing_datareader() {
         let rtps_group = RtpsGroup {
             entity: RtpsEntity {
                 guid: Guid {
@@ -305,5 +319,46 @@ mod tests {
         let data_reader = subscriber.lookup_datareader::<MockDdsType>(&());
 
         assert!(data_reader.is_some())
+    }
+
+    #[test]
+    fn lookup_datareader_empty_list() {
+        let rtps_group = RtpsGroup {
+            entity: RtpsEntity {
+                guid: Guid {
+                    prefix: GuidPrefix([1; 12]),
+                    entity_id: EntityId {
+                        entity_key: [1; 3],
+                        entity_kind: 1,
+                    },
+                },
+            },
+        };
+        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
+        let data_reader = subscriber.lookup_datareader::<MockDdsType>(&());
+
+        assert!(data_reader.is_none())
+    }
+
+    #[test]
+    fn lookup_inexistent_datareader() {
+        let rtps_group = RtpsGroup {
+            entity: RtpsEntity {
+                guid: Guid {
+                    prefix: GuidPrefix([1; 12]),
+                    entity_id: EntityId {
+                        entity_key: [1; 3],
+                        entity_kind: 1,
+                    },
+                },
+            },
+        };
+        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
+        subscriber
+            .create_datareader::<MockDdsType>(&(), None, None, 0)
+            .unwrap();
+        let data_reader = subscriber.lookup_datareader::<OtherMockDdsType>(&());
+
+        assert!(data_reader.is_none())
     }
 }
