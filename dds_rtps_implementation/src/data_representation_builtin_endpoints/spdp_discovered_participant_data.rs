@@ -7,15 +7,11 @@ use rust_rtps_pim::{
     structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
 };
 
-use crate::{
-    data_representation_builtin_endpoints::parameter_id_values::{
+use crate::{data_representation_builtin_endpoints::parameter_id_values::{
         DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, PID_DEFAULT_UNICAST_LOCATOR,
         PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR,
         PID_PARTICIPANT_LEASE_DURATION,
-    },
-    data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer},
-    dds_type::{DdsDeserialize, DdsSerialize},
-};
+    }, data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer}, dds_type::{DdsDeserialize, DdsSerialize, DdsType}};
 
 use super::{
     dds_serialize_deserialize_impl::{
@@ -40,6 +36,16 @@ pub struct SpdpDiscoveredParticipantData<S, L> {
     pub dds_participant_data: ParticipantBuiltinTopicData,
     pub participant_proxy: ParticipantProxy<S, L>,
     pub lease_duration: Duration,
+}
+
+impl<S,L> DdsType for SpdpDiscoveredParticipantData<S,L> {
+    fn type_name() -> &'static str {
+        "SpdpDiscoveredParticipantData"
+    }
+
+    fn has_key() -> bool {
+        true
+    }
 }
 
 impl<S> DdsSerialize for SpdpDiscoveredParticipantData<S, Vec<Locator>>

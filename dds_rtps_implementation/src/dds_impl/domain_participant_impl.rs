@@ -16,22 +16,28 @@ use rust_dds_api::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     return_type::{DDSError, DDSResult},
-    subscription::subscriber_listener::SubscriberListener,
+    subscription::{
+        data_reader::DataReader, subscriber::Subscriber, subscriber_listener::SubscriberListener,
+    },
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::structure::{
     types::{
-        EntityId, Guid, GuidPrefix, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
+        EntityId, Guid, GuidPrefix, Locator, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP,
+        VENDOR_ID_S2E,
     },
     RtpsEntity, RtpsGroup,
 };
 
-use crate::utils::{
-    shared_object::{
-        rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_weak_upgrade,
-        RtpsShared,
+use crate::{
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    utils::{
+        shared_object::{
+            rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
+            rtps_weak_upgrade, RtpsShared,
+        },
+        transport::{TransportRead, TransportWrite},
     },
-    transport::{TransportRead, TransportWrite},
 };
 
 use super::{
@@ -400,6 +406,12 @@ impl Entity for DomainParticipantImpl {
         let user_defined_subscriber_list = self.user_defined_subscriber_list.clone();
         let user_defined_publisher_list = self.user_defined_publisher_list.clone();
 
+        let option_spdp_builtin_participant_reader =
+            self.builtin_subscriber
+                .read()
+                .unwrap()
+                .lookup_datareader::<SpdpDiscoveredParticipantData<String, Vec<Locator>>>(&());
+
         std::thread::spawn(move || {
             while is_enabled.load(atomic::Ordering::SeqCst) {
                 // send_builtin_data();
@@ -447,6 +459,17 @@ impl Entity for DomainParticipantImpl {
                         source_locator,
                         &message,
                     );
+                }
+
+                if let Some(spdp_builtin_participant_reader) =
+                    &option_spdp_builtin_participant_reader
+                {
+                    let spdp_builtin_participant_reader =
+                        rtps_weak_upgrade(spdp_builtin_participant_reader).unwrap();
+                    let discovered_participant =
+                        rtps_shared_write_lock(&spdp_builtin_participant_reader)
+                            .read(1, &[], &[], &[])
+                            .unwrap();
                 }
 
                 std::thread::sleep(std::time::Duration::from_millis(100));
