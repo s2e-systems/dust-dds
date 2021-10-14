@@ -1,11 +1,12 @@
-use crate::structure::types::{EntityId, Locator, SequenceNumber, Guid};
+use crate::structure::types::{EntityId, Guid, Locator, SequenceNumber};
 
-pub trait RtpsWriterProxy {
-    fn remote_writer_guid(&self) -> &Guid;
-    fn unicast_locator_list(&self) -> &[Locator];
-    fn multicast_locator_list(&self) -> &[Locator];
-    fn data_max_size_serialized(&self) -> &Option<i32>;
-    fn remote_group_entity_id(&self) -> &EntityId;
+pub struct RtpsWriterProxy<L, C> {
+    pub remote_writer_guid: Guid,
+    pub unicast_locator_list: L,
+    pub multicast_locator_list: L,
+    pub data_max_size_serialized: Option<i32>,
+    pub changes_from_writer: C,
+    pub remote_group_entity_id: EntityId,
 }
 pub trait RtpsWriterProxyOperations {
     type SequenceNumberVector;

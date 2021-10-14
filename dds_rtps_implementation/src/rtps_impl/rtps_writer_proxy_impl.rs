@@ -54,25 +54,3 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         todo!()
     }
 }
-
-impl RtpsWriterProxy for RtpsWriterProxyImpl {
-    fn remote_writer_guid(&self) -> &rust_rtps_pim::structure::types::Guid {
-        todo!()
-    }
-
-    fn unicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
-        todo!()
-    }
-
-    fn multicast_locator_list(&self) -> &[rust_rtps_pim::structure::types::Locator] {
-        todo!()
-    }
-
-    fn data_max_size_serialized(&self) -> &Option<i32> {
-        todo!()
-    }
-
-    fn remote_group_entity_id(&self) -> &rust_rtps_pim::structure::types::EntityId {
-        todo!()
-    }
-}

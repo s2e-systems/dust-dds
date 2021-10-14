@@ -493,7 +493,7 @@ impl Entity for DomainParticipantImpl {
                             &option_sedp_builtin_publications_reader
                         {
                             // participant_discovery.discovered_participant_add_publications_reader(
-                            //     rtps_shared_write_lock(&sedp_builtin_publications_reader).as_mut(),
+                            //     &mut *rtps_shared_write_lock(&sedp_builtin_publications_reader),
                             // );
                         }
                     }
