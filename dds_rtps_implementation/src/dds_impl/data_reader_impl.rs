@@ -1,4 +1,4 @@
-use std::sync::RwLock;
+use std::{ops::Deref, sync::RwLock};
 
 use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
@@ -9,7 +9,10 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::{reader::RtpsReader, stateful_reader::RtpsStatefulReaderOperations},
+        reader::{
+            reader::RtpsReader, stateful_reader::RtpsStatefulReaderOperations,
+            stateless_reader::RtpsStatelessReader,
+        },
         stateless_reader_behavior::StatelessReaderBehavior,
     },
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
@@ -24,8 +27,24 @@ use crate::{
     utils::message_receiver::ProcessDataSubmessage,
 };
 
+pub enum RtpsReaderFlavor {
+    Stateful,
+    Stateless(RtpsStatelessReader<Vec<Locator>, ReaderHistoryCache>),
+}
+
+impl Deref for RtpsReaderFlavor {
+    type Target = RtpsReader<Vec<Locator>, ReaderHistoryCache>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            RtpsReaderFlavor::Stateful => todo!(),
+            RtpsReaderFlavor::Stateless(stateless_reader) => &stateless_reader.0,
+        }
+    }
+}
+
 pub struct DataReaderImpl<T> {
-    rtps_reader: RtpsReader<Vec<Locator>, ReaderHistoryCache>,
+    rtps_reader: RtpsReaderFlavor,
     _qos: DataReaderQos,
     _listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }
@@ -37,17 +56,17 @@ impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>> {
         data: &DataSubmessage<Vec<Parameter<'_>>>,
     ) {
         let mut data_reader = self.write().unwrap();
-        data_reader
-            .rtps_reader
-            .receive_data(source_guid_prefix, data);
+        match &mut data_reader.rtps_reader {
+            RtpsReaderFlavor::Stateful => todo!(),
+            RtpsReaderFlavor::Stateless(stateless_reader) => {
+                stateless_reader.0.receive_data(source_guid_prefix, data)
+            }
+        };
     }
 }
 
 impl<T> DataReaderImpl<T> {
-    pub fn new(
-        qos: DataReaderQos,
-        rtps_reader: RtpsReader<Vec<Locator>, ReaderHistoryCache>,
-    ) -> Self {
+    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderFlavor) -> Self {
         Self {
             rtps_reader,
             _qos: qos,
@@ -394,10 +413,7 @@ impl<L, T> RtpsStatefulReaderOperations<L> for DataReaderImpl<T> {
         todo!()
     }
 
-    fn matched_writer_remove(
-        &mut self,
-        _writer_proxy_guid: &rust_rtps_pim::structure::types::Guid,
-    ) {
+    fn matched_writer_remove(&mut self, _writer_proxy_guid: &rust_rtps_pim::structure::types::Guid) {
         todo!()
     }
 
