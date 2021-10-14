@@ -9,7 +9,10 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
+        reader::{
+            reader::RtpsReader, stateful_reader::RtpsStatefulReaderOperations,
+            stateless_reader::RtpsStatelessReader,
+        },
         stateless_reader_behavior::StatelessReaderBehavior,
     },
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
@@ -398,6 +401,26 @@ impl<T> Entity for DataReaderImpl<T> {
     }
 
     fn get_instance_handle(&self) -> DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
+        todo!()
+    }
+}
+
+impl<L, T> RtpsStatefulReaderOperations<L> for DataReaderImpl<T> {
+    fn matched_writer_add(
+        &mut self,
+        a_writer_proxy: rust_rtps_pim::behavior::reader::writer_proxy::RtpsWriterProxy<L>,
+    ) {
+        todo!()
+    }
+
+    fn matched_writer_remove(&mut self, writer_proxy_guid: &rust_rtps_pim::structure::types::Guid) {
+        todo!()
+    }
+
+    fn matched_writer_lookup(
+        &self,
+        a_writer_guid: &rust_rtps_pim::structure::types::Guid,
+    ) -> Option<&rust_rtps_pim::behavior::reader::writer_proxy::RtpsWriterProxy<L>> {
         todo!()
     }
 }

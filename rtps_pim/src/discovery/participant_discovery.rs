@@ -115,8 +115,7 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
 
     pub fn discovered_participant_add_publications_reader(
         &self,
-        reader: &mut (impl RtpsStatefulReaderOperations<L>
-                  + RtpsStatefulReader<WriterProxyType = impl RtpsWriterProxyOperations>),
+        reader: &mut impl RtpsStatefulReaderOperations<L>,
     ) where
         L: Clone,
         for<'b> &'b L: IntoIterator<Item = &'b Locator>,
@@ -184,8 +183,7 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
 
     pub fn discovered_participant_add_subscriptions_reader(
         &self,
-        reader: &mut (impl RtpsStatefulReaderOperations<L>
-                  + RtpsStatefulReader<WriterProxyType = impl RtpsWriterProxyOperations>),
+        reader: &mut impl RtpsStatefulReaderOperations<L>,
     ) where
         L: Clone,
         for<'b> &'b L: IntoIterator<Item = &'b Locator>,
@@ -252,8 +250,7 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
 
     pub fn discovered_participant_add_topics_reader(
         &self,
-        reader: &mut (impl RtpsStatefulReaderOperations<L>
-                  + RtpsStatefulReader<WriterProxyType = impl RtpsWriterProxyOperations>),
+        reader: &mut impl RtpsStatefulReaderOperations<L>,
     ) where
         L: Clone,
         for<'b> &'b L: IntoIterator<Item = &'b Locator>,
@@ -270,7 +267,7 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let data_max_size_serialized = None;
 
-            let proxy =  RtpsWriterProxy {
+            let proxy = RtpsWriterProxy {
                 remote_writer_guid,
                 unicast_locator_list: self
                     .participant_data

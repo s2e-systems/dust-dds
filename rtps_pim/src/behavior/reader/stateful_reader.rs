@@ -1,13 +1,10 @@
-use crate::{
-    structure::types::{Guid},
-};
+use crate::structure::types::Guid;
 
-use super::writer_proxy::RtpsWriterProxy;
+use super::{reader::RtpsReader, writer_proxy::RtpsWriterProxy};
 
-pub trait RtpsStatefulReader {
-    type WriterProxyType;
-
-    fn matched_writers(&self) -> &[Self::WriterProxyType];
+pub struct RtpsStatefulReader<L, C, P> {
+    pub rtps_reader: RtpsReader<L, C>,
+    pub matched_writers: P,
 }
 
 pub trait RtpsStatefulReaderOperations<L> {

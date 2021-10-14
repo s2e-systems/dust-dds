@@ -78,31 +78,3 @@ impl RtpsStatelessReaderOperations for RtpsReaderImpl {
         )
     }
 }
-
-impl RtpsStatefulReader for RtpsReaderImpl {
-    type WriterProxyType = RtpsWriterProxyImpl;
-
-    fn matched_writers(&self) -> &[Self::WriterProxyType] {
-        todo!()
-    }
-}
-
-impl<L> RtpsStatefulReaderOperations<L> for RtpsReaderImpl {
-    fn matched_writer_add(&mut self, _a_writer_proxy: RtpsWriterProxy<L>)
-    where
-        Self: RtpsStatefulReader,
-    {
-        todo!()
-    }
-
-    fn matched_writer_remove(&mut self, _writer_proxy_guid: &Guid) {
-        todo!()
-    }
-
-    fn matched_writer_lookup(&self, _a_writer_guid: &Guid) -> Option<&RtpsWriterProxy<L>>
-    where
-        Self: RtpsStatefulReader,
-    {
-        todo!()
-    }
-}
