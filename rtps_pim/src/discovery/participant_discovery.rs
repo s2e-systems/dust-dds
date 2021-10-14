@@ -1,9 +1,6 @@
 use crate::{
     behavior::{
-        reader::{
-            stateful_reader::{RtpsStatefulReader, RtpsStatefulReaderOperations},
-            writer_proxy::{RtpsWriterProxy, RtpsWriterProxyOperations},
-        },
+        reader::{stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxy},
         writer::{
             reader_proxy::RtpsReaderProxyOperations,
             stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
@@ -118,7 +115,6 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
         reader: &mut impl RtpsStatefulReaderOperations<L>,
     ) where
         L: Clone,
-        for<'b> &'b L: IntoIterator<Item = &'b Locator>,
     {
         if self
             .participant_data
@@ -186,7 +182,6 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
         reader: &mut impl RtpsStatefulReaderOperations<L>,
     ) where
         L: Clone,
-        for<'b> &'b L: IntoIterator<Item = &'b Locator>,
     {
         if self
             .participant_data
@@ -253,7 +248,6 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
         reader: &mut impl RtpsStatefulReaderOperations<L>,
     ) where
         L: Clone,
-        for<'b> &'b L: IntoIterator<Item = &'b Locator>,
     {
         if self
             .participant_data
