@@ -59,7 +59,7 @@ impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>> {
         match &mut data_reader.rtps_reader {
             RtpsReaderFlavor::Stateful => todo!(),
             RtpsReaderFlavor::Stateless(stateless_reader) => {
-                stateless_reader.receive_data(source_guid_prefix, data)
+                stateless_reader.0.receive_data(source_guid_prefix, data)
             }
         };
     }
@@ -408,18 +408,18 @@ impl<T> Entity for DataReaderImpl<T> {
 impl<L, T> RtpsStatefulReaderOperations<L> for DataReaderImpl<T> {
     fn matched_writer_add(
         &mut self,
-        a_writer_proxy: rust_rtps_pim::behavior::reader::writer_proxy::RtpsWriterProxy<L>,
+        _a_writer_proxy: rust_rtps_pim::behavior::reader::writer_proxy::RtpsWriterProxy<L>,
     ) {
         todo!()
     }
 
-    fn matched_writer_remove(&mut self, writer_proxy_guid: &rust_rtps_pim::structure::types::Guid) {
+    fn matched_writer_remove(&mut self, _writer_proxy_guid: &rust_rtps_pim::structure::types::Guid) {
         todo!()
     }
 
     fn matched_writer_lookup(
         &self,
-        a_writer_guid: &rust_rtps_pim::structure::types::Guid,
+        _a_writer_guid: &rust_rtps_pim::structure::types::Guid,
     ) -> Option<&rust_rtps_pim::behavior::reader::writer_proxy::RtpsWriterProxy<L>> {
         todo!()
     }

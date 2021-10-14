@@ -6,20 +6,20 @@ use crate::{
     },
 };
 
-use super::reader::stateless_reader::RtpsStatelessReader;
+use super::reader::reader::RtpsReader;
 
 pub trait StatelessReaderBehavior<P> {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>);
 }
 
-impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsStatelessReader<L, C>
+impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsReader<L, C>
 where
     C: for<'c> RtpsHistoryCache<'c, CacheChangeDataType = &'c [u8]>,
     P: AsRef<[Parameter<'a>]>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>) {
         let reader_id = data.reader_id.value;
-        if &reader_id == self.0.endpoint.entity.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
+        if &reader_id == self.endpoint.entity.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
             let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
@@ -38,7 +38,7 @@ where
                 data_value,
                 inline_qos,
             };
-            self.0.reader_cache.add_change(a_change);
+            self.reader_cache.add_change(a_change);
         }
     }
 }
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn receive_data_one_cache_change() {
-        let mut stateless_reader = RtpsStatelessReader(RtpsReader {
+        let mut stateless_reader = RtpsReader {
             endpoint: RtpsEndpoint {
                 entity: RtpsEntity {
                     guid: Guid {
@@ -134,7 +134,7 @@ mod tests {
             heartbeat_supression_duration: DURATION_ZERO,
             reader_cache: MockHistoryCache(None),
             expects_inline_qos: false,
-        });
+        };
 
         let source_guid_prefix = GUIDPREFIX_UNKNOWN;
         let writer_entity_id = EntityId::new([1, 2, 3], BUILT_IN_WRITER_WITH_KEY);
@@ -159,7 +159,7 @@ mod tests {
         };
         stateless_reader.receive_data(source_guid_prefix, &data);
 
-        if let Some(cache_change) = &stateless_reader.0.reader_cache.0 {
+        if let Some(cache_change) = &stateless_reader.reader_cache.0 {
             assert_eq!(cache_change.kind, ChangeKind::Alive);
             assert_eq!(
                 cache_change.writer_guid,
