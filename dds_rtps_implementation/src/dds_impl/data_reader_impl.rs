@@ -9,10 +9,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::{
-            reader::RtpsReader, stateful_reader::RtpsStatefulReaderOperations,
-            stateless_reader::RtpsStatelessReader,
-        },
+        reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
         stateless_reader_behavior::StatelessReaderBehavior,
     },
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
@@ -23,12 +20,16 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
+    dds_type::DdsDeserialize,
+    rtps_impl::{
+        rtps_reader_history_cache_impl::ReaderHistoryCache,
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    },
     utils::message_receiver::ProcessDataSubmessage,
 };
 
 pub enum RtpsReaderFlavor {
-    Stateful,
+    Stateful(RtpsStatefulReaderImpl),
     Stateless(RtpsStatelessReader<Vec<Locator>, ReaderHistoryCache>),
 }
 
@@ -37,14 +38,14 @@ impl Deref for RtpsReaderFlavor {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            RtpsReaderFlavor::Stateful => todo!(),
+            RtpsReaderFlavor::Stateful(_) => todo!(),
             RtpsReaderFlavor::Stateless(stateless_reader) => &stateless_reader.0,
         }
     }
 }
 
 pub struct DataReaderImpl<T> {
-    rtps_reader: RtpsReaderFlavor,
+    pub(crate) rtps_reader: RtpsReaderFlavor,
     _qos: DataReaderQos,
     _listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }
@@ -57,7 +58,7 @@ impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>> {
     ) {
         let mut data_reader = self.write().unwrap();
         match &mut data_reader.rtps_reader {
-            RtpsReaderFlavor::Stateful => todo!(),
+            RtpsReaderFlavor::Stateful(_) => todo!(),
             RtpsReaderFlavor::Stateless(stateless_reader) => {
                 stateless_reader.0.receive_data(source_guid_prefix, data)
             }
@@ -401,26 +402,6 @@ impl<T> Entity for DataReaderImpl<T> {
     }
 
     fn get_instance_handle(&self) -> DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
-        todo!()
-    }
-}
-
-impl<L, T> RtpsStatefulReaderOperations<L> for DataReaderImpl<T> {
-    fn matched_writer_add(
-        &mut self,
-        _a_writer_proxy: rust_rtps_pim::behavior::reader::writer_proxy::RtpsWriterProxy<L>,
-    ) {
-        todo!()
-    }
-
-    fn matched_writer_remove(&mut self, _writer_proxy_guid: &rust_rtps_pim::structure::types::Guid) {
-        todo!()
-    }
-
-    fn matched_writer_lookup(
-        &self,
-        _a_writer_guid: &rust_rtps_pim::structure::types::Guid,
-    ) -> Option<&rust_rtps_pim::behavior::reader::writer_proxy::RtpsWriterProxy<L>> {
         todo!()
     }
 }

@@ -47,9 +47,9 @@ use crate::{
 };
 
 use super::{
-    publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy,
-    subscriber_impl::SubscriberImpl, subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl,
-    topic_proxy::TopicProxy,
+    data_reader_impl::RtpsReaderFlavor, publisher_impl::PublisherImpl,
+    publisher_proxy::PublisherProxy, subscriber_impl::SubscriberImpl,
+    subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl, topic_proxy::TopicProxy,
 };
 
 pub trait Transport: TransportRead + TransportWrite + Send + Sync {}
@@ -492,9 +492,15 @@ impl Entity for DomainParticipantImpl {
                         if let Some(sedp_builtin_publications_reader) =
                             &option_sedp_builtin_publications_reader
                         {
-                            participant_discovery.discovered_participant_add_publications_reader(
-                                &mut *rtps_shared_write_lock(&sedp_builtin_publications_reader),
-                            );
+                            let reader =
+                                &mut (rtps_shared_write_lock(&sedp_builtin_publications_reader)
+                                    .rtps_reader);
+                            if let RtpsReaderFlavor::Stateful(stateful_reader) = reader {
+                                participant_discovery
+                                    .discovered_participant_add_publications_reader(
+                                        stateful_reader,
+                                    );
+                            }
                         }
                     }
                 }
