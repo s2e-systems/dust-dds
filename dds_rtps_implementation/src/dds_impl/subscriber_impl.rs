@@ -34,7 +34,7 @@ use crate::{
     rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::{
         message_receiver::ProcessDataSubmessage,
-        shared_object::{rtps_shared_downgrade, rtps_shared_new, RtpsWeak},
+        shared_object::{rtps_shared_new, RtpsShared},
     },
 };
 
@@ -82,7 +82,7 @@ where
     T: DdsType + 'static,
 {
     type TopicType = ();
-    type DataReaderType = RtpsWeak<DataReaderImpl<T>>;
+    type DataReaderType = RtpsShared<DataReaderImpl<T>>;
 
     fn create_datareader_gat(
         &'_ self,
@@ -132,12 +132,11 @@ where
         }));
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
-        let reader_storage_weak = rtps_shared_downgrade(&reader_storage_shared);
         self.data_reader_list
             .lock()
             .unwrap()
-            .push(reader_storage_shared);
-        Some(reader_storage_weak)
+            .push(reader_storage_shared.clone());
+        Some(reader_storage_shared)
     }
 
     fn delete_datareader_gat(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
@@ -149,10 +148,9 @@ where
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {
         let data_reader_list_lock = self.data_reader_list.lock().unwrap();
-        let data_reader = data_reader_list_lock
+        data_reader_list_lock
             .iter()
-            .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())?;
-        Some(Arc::downgrade(&data_reader))
+            .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
     }
 }
 

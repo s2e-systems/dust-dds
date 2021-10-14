@@ -33,7 +33,10 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    data_representation_builtin_endpoints::{
+        sedp_discovered_reader_data::SedpDiscoveredReaderData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    },
     utils::{
         shared_object::{
             rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
@@ -415,11 +418,11 @@ impl Entity for DomainParticipantImpl {
                 .unwrap()
                 .lookup_datareader::<SpdpDiscoveredParticipantData<String, Vec<Locator>>>(&());
 
-        let option_sedp_builtin_publications_reader = self
-            .builtin_subscriber
-            .read()
-            .unwrap()
-            .lookup_datareader(&());
+        let option_sedp_builtin_publications_reader =
+            self.builtin_subscriber
+                .read()
+                .unwrap()
+                .lookup_datareader::<SedpDiscoveredReaderData>(&());
 
         std::thread::spawn(move || {
             while is_enabled.load(atomic::Ordering::SeqCst) {
@@ -473,8 +476,6 @@ impl Entity for DomainParticipantImpl {
                 if let Some(spdp_builtin_participant_reader) =
                     &option_spdp_builtin_participant_reader
                 {
-                    let spdp_builtin_participant_reader =
-                        rtps_weak_upgrade(spdp_builtin_participant_reader).unwrap();
                     let discovered_participant =
                         rtps_shared_write_lock(&spdp_builtin_participant_reader)
                             .read(1, &[], &[], &[])
@@ -488,9 +489,13 @@ impl Entity for DomainParticipantImpl {
                         local_participant_domain_id,
                         local_participant_domain_tag,
                     ) {
-                        // participant_discovery.discovered_participant_add_publications_reader(
-                        //     sedp_builtin_publications_reader,
-                        // )
+                        if let Some(sedp_builtin_publications_reader) =
+                            &option_sedp_builtin_publications_reader
+                        {
+                            // participant_discovery.discovered_participant_add_publications_reader(
+                            //     rtps_shared_write_lock(&sedp_builtin_publications_reader).as_mut(),
+                            // );
+                        }
                     }
                 }
 
