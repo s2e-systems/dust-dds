@@ -4,6 +4,7 @@ use rust_rtps_pim::{
             reader::RtpsReaderOperations,
             stateful_reader::{RtpsStatefulReader, RtpsStatefulReaderOperations},
             stateless_reader::RtpsStatelessReaderOperations,
+            writer_proxy::RtpsWriterProxy,
         },
         types::Duration,
     },
@@ -86,30 +87,8 @@ impl RtpsStatefulReader for RtpsReaderImpl {
     }
 }
 
-impl RtpsStatefulReaderOperations for RtpsReaderImpl {
-    fn new(
-        guid: Guid,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
-        heartbeat_response_delay: Duration,
-        heartbeat_supression_duration: Duration,
-        expects_inline_qos: bool,
-    ) -> Self {
-        <Self as RtpsReaderOperations>::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            heartbeat_response_delay,
-            heartbeat_supression_duration,
-            expects_inline_qos,
-        )
-    }
-
-    fn matched_writer_add(&mut self, _a_writer_proxy: <Self as RtpsStatefulReader>::WriterProxyType)
+impl<L> RtpsStatefulReaderOperations<L> for RtpsReaderImpl {
+    fn matched_writer_add(&mut self, _a_writer_proxy: RtpsWriterProxy<L>)
     where
         Self: RtpsStatefulReader,
     {
@@ -120,10 +99,7 @@ impl RtpsStatefulReaderOperations for RtpsReaderImpl {
         todo!()
     }
 
-    fn matched_writer_lookup(
-        &self,
-        _a_writer_guid: &Guid,
-    ) -> Option<&<Self as RtpsStatefulReader>::WriterProxyType>
+    fn matched_writer_lookup(&self, _a_writer_guid: &Guid) -> Option<&RtpsWriterProxy<L>>
     where
         Self: RtpsStatefulReader,
     {
