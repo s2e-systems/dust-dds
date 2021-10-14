@@ -8,10 +8,7 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::{
-        reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
-        stateless_reader_behavior::StatelessReaderBehavior,
-    },
+    behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         types::{GuidPrefix, Locator},
@@ -24,13 +21,14 @@ use crate::{
     rtps_impl::{
         rtps_reader_history_cache_impl::ReaderHistoryCache,
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     },
     utils::message_receiver::ProcessDataSubmessage,
 };
 
 pub enum RtpsReaderFlavor {
     Stateful(RtpsStatefulReaderImpl),
-    Stateless(RtpsStatelessReader<Vec<Locator>, ReaderHistoryCache>),
+    Stateless(RtpsStatelessReaderImpl),
 }
 
 impl Deref for RtpsReaderFlavor {
@@ -38,8 +36,8 @@ impl Deref for RtpsReaderFlavor {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            RtpsReaderFlavor::Stateful(_) => todo!(),
-            RtpsReaderFlavor::Stateless(stateless_reader) => &stateless_reader.0,
+            RtpsReaderFlavor::Stateful(stateful_reader) => &stateful_reader,
+            RtpsReaderFlavor::Stateless(stateless_reader) => &stateless_reader,
         }
     }
 }

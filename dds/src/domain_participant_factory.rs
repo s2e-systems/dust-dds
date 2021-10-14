@@ -13,18 +13,13 @@ use rust_dds_api::{
     },
     publication::data_writer::DataWriter,
 };
-use rust_dds_rtps_implementation::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    dds_impl::{
+use rust_dds_rtps_implementation::{data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData, dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
         data_writer_impl::{DataWriterImpl, RtpsWriterFlavor},
         domain_participant_impl::DomainParticipantImpl,
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
-    },
-    rtps_impl::rtps_reader_locator_impl::RtpsReaderLocatorImpl,
-    utils::shared_object::{rtps_shared_new, rtps_shared_write_lock},
-};
+    }, rtps_impl::{rtps_reader_locator_impl::RtpsReaderLocatorImpl, rtps_stateless_reader_impl::RtpsStatelessReaderImpl}, utils::shared_object::{rtps_shared_new, rtps_shared_write_lock}};
 use rust_rtps_pim::{
     behavior::{types::Duration, writer::reader_locator::RtpsReaderLocatorOperations},
     discovery::{
@@ -167,7 +162,7 @@ impl DomainParticipantFactory {
             SpdpDiscoveredParticipantData<String, Vec<Locator>>,
         >::new(
             spdp_builtin_participant_reader_qos,
-            RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
+            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(spdp_builtin_participant_rtps_reader)),
         ));
 
         rtps_shared_write_lock(&spdp_builtin_participant_writer)

@@ -22,7 +22,10 @@ use rust_dds_rtps_implementation::{
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
-    rtps_impl::rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+    rtps_impl::{
+        rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    },
     utils::{
         message_receiver::MessageReceiver,
         shared_object::{rtps_shared_new, rtps_shared_read_lock},
@@ -141,7 +144,9 @@ fn send_discovery_data_happy_path() {
         SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]), vec![], vec![]);
     let data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
-        RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
+        RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(
+            spdp_builtin_participant_rtps_reader,
+        )),
     );
     let shared_data_reader = rtps_shared_new(data_reader);
     let subscriber = SubscriberImpl::new(
