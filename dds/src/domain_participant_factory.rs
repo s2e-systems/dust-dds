@@ -16,7 +16,7 @@ use rust_dds_api::{
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     dds_impl::{
-        data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
+        data_reader_impl::DataReaderImpl,
         data_writer_impl::{DataWriterImpl, RtpsWriterFlavor},
         domain_participant_impl::DomainParticipantImpl,
         publisher_impl::PublisherImpl,
@@ -167,7 +167,7 @@ impl DomainParticipantFactory {
             SpdpDiscoveredParticipantData<String, Vec<Locator>>,
         >::new(
             spdp_builtin_participant_reader_qos,
-            RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
+            spdp_builtin_participant_rtps_reader.0,
         ));
 
         rtps_shared_write_lock(&spdp_builtin_participant_writer)

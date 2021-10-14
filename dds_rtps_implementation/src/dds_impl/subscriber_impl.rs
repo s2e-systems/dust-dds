@@ -18,7 +18,7 @@ use rust_dds_api::{
     },
 };
 use rust_rtps_pim::{
-    behavior::reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
+    behavior::reader::reader::RtpsReader,
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         types::{
@@ -38,7 +38,7 @@ use crate::{
     },
 };
 
-use super::data_reader_impl::{DataReaderImpl, RtpsReaderFlavor};
+use super::data_reader_impl::DataReaderImpl;
 
 pub trait DataReaderObject: Any + Send + Sync + ProcessDataSubmessage {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
@@ -117,7 +117,7 @@ where
         let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
-        let rtps_reader = RtpsReaderFlavor::Stateless(RtpsStatelessReader(RtpsReader {
+        let rtps_reader = RtpsReader {
             endpoint: RtpsEndpoint {
                 entity: RtpsEntity { guid },
                 topic_kind,
@@ -129,7 +129,7 @@ where
             heartbeat_supression_duration,
             reader_cache: ReaderHistoryCache::new(),
             expects_inline_qos,
-        }));
+        };
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
         self.data_reader_list

@@ -17,7 +17,7 @@ use rust_dds_api::{
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     dds_impl::{
-        data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
+        data_reader_impl::DataReaderImpl,
         data_writer_impl::{DataWriterImpl, RtpsWriterFlavor},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
@@ -141,7 +141,7 @@ fn send_discovery_data_happy_path() {
         SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]), vec![], vec![]);
     let data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
-        RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
+        spdp_builtin_participant_rtps_reader.0,
     );
     let shared_data_reader = rtps_shared_new(data_reader);
     let subscriber = SubscriberImpl::new(
