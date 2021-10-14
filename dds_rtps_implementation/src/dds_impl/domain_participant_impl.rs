@@ -21,12 +21,15 @@ use rust_dds_api::{
     },
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::{
-    types::{
-        EntityId, Guid, GuidPrefix, Locator, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP,
-        VENDOR_ID_S2E,
+use rust_rtps_pim::{
+    discovery::participant_discovery::ParticipantDiscovery,
+    structure::{
+        types::{
+            EntityId, Guid, GuidPrefix, Locator, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP,
+            VENDOR_ID_S2E,
+        },
+        RtpsEntity, RtpsGroup,
     },
-    RtpsEntity, RtpsGroup,
 };
 
 use crate::{
@@ -412,6 +415,12 @@ impl Entity for DomainParticipantImpl {
                 .unwrap()
                 .lookup_datareader::<SpdpDiscoveredParticipantData<String, Vec<Locator>>>(&());
 
+        let option_sedp_builtin_publications_reader = self
+            .builtin_subscriber
+            .read()
+            .unwrap()
+            .lookup_datareader(&());
+
         std::thread::spawn(move || {
             while is_enabled.load(atomic::Ordering::SeqCst) {
                 // send_builtin_data();
@@ -470,6 +479,19 @@ impl Entity for DomainParticipantImpl {
                         rtps_shared_write_lock(&spdp_builtin_participant_reader)
                             .read(1, &[], &[], &[])
                             .unwrap();
+
+                    let local_participant_domain_id = 0;
+                    let local_participant_domain_tag = &"";
+
+                    if let Ok(participant_discovery) = ParticipantDiscovery::new(
+                        &discovered_participant[0].participant_proxy,
+                        local_participant_domain_id,
+                        local_participant_domain_tag,
+                    ) {
+                        // participant_discovery.discovered_participant_add_publications_reader(
+                        //     sedp_builtin_publications_reader,
+                        // )
+                    }
                 }
 
                 std::thread::sleep(std::time::Duration::from_millis(100));
