@@ -162,7 +162,7 @@ impl DomainParticipantFactory {
             SpdpDiscoveredParticipantData<String, Vec<Locator>>,
         >::new(
             spdp_builtin_participant_reader_qos,
-            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(spdp_builtin_participant_rtps_reader)),
+            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl(spdp_builtin_participant_rtps_reader)),
         ));
 
         rtps_shared_write_lock(&spdp_builtin_participant_writer)

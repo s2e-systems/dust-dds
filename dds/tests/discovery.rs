@@ -144,7 +144,7 @@ fn send_discovery_data_happy_path() {
         SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]), vec![], vec![]);
     let data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
-        RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(
+        RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl(
             spdp_builtin_participant_rtps_reader,
         )),
     );
