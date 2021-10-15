@@ -1,8 +1,9 @@
 use rust_rtps_pim::{
-    behavior::reader::writer_proxy::RtpsWriterProxyOperations, structure::types::SequenceNumber,
+    behavior::reader::writer_proxy::{RtpsWriterProxy, RtpsWriterProxyOperations},
+    structure::types::{Locator, SequenceNumber},
 };
 
-pub struct RtpsWriterProxyImpl;
+pub struct RtpsWriterProxyImpl(RtpsWriterProxy<Vec<Locator>>);
 
 impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
