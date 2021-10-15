@@ -16,10 +16,10 @@ pub struct ParticipantBuiltinTopicData {
     pub user_data: UserDataQosPolicy,
 }
 
-pub struct TopicBuiltinTopicData<'a> {
+pub struct TopicBuiltinTopicData {
     pub key: BuiltInTopicKey,
-    pub name: &'a str,
-    pub type_name: &'a str,
+    pub name: String,
+    pub type_name: String,
     pub durability: DurabilityQosPolicy,
     pub durability_service: DurabilityServiceQosPolicy,
     pub deadline: DeadlineQosPolicy,
@@ -32,13 +32,13 @@ pub struct TopicBuiltinTopicData<'a> {
     pub history: HistoryQosPolicy,
     pub resource_limits: ResourceLimitsQosPolicy,
     pub ownership: OwnershipQosPolicy,
-    pub topic_data: TopicDataQosPolicy<'a>,
+    pub topic_data: TopicDataQosPolicy,
 }
-pub struct PublicationBuiltinTopicData<'a> {
+pub struct PublicationBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,
-    pub topic_name: &'a str,
-    pub type_name: &'a str,
+    pub topic_name: String,
+    pub type_name: String,
 
     pub durability: DurabilityQosPolicy,
     pub durability_service: DurabilityServiceQosPolicy,
@@ -53,15 +53,15 @@ pub struct PublicationBuiltinTopicData<'a> {
     pub destination_order: DestinationOrderQosPolicy,
 
     pub presentation: PresentationQosPolicy,
-    pub partition: PartitionQosPolicy<'a>,
-    pub topic_data: TopicDataQosPolicy<'a>,
-    pub group_data: GroupDataQosPolicy<'a>,
+    pub partition: PartitionQosPolicy,
+    pub topic_data: TopicDataQosPolicy,
+    pub group_data: GroupDataQosPolicy,
 }
-pub struct SubscriptionBuiltinTopicData<'a> {
+pub struct SubscriptionBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,
-    pub topic_name: &'a str,
-    pub type_name: &'a str,
+    pub topic_name: String,
+    pub type_name: String,
 
     pub durability: DurabilityQosPolicy,
     pub deadline: DeadlineQosPolicy,
@@ -74,7 +74,7 @@ pub struct SubscriptionBuiltinTopicData<'a> {
     pub time_based_filter: TimeBasedFilterQosPolicy,
 
     pub presentation: PresentationQosPolicy,
-    pub partition: PartitionQosPolicy<'a>,
-    pub topic_data: TopicDataQosPolicy<'a>,
-    pub group_data: GroupDataQosPolicy<'a>,
+    pub partition: PartitionQosPolicy,
+    pub topic_data: TopicDataQosPolicy,
+    pub group_data: GroupDataQosPolicy,
 }

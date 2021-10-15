@@ -22,8 +22,8 @@ pub struct DomainParticipantQos {
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct PublisherQos {
     pub presentation: PresentationQosPolicy,
-    pub partition: PartitionQosPolicy<'static>,
-    pub group_data: GroupDataQosPolicy<'static>,
+    pub partition: PartitionQosPolicy,
+    pub group_data: GroupDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
@@ -102,8 +102,8 @@ impl DataWriterQos {
 #[derive(Default, Debug, PartialEq, Clone)]
 pub struct SubscriberQos {
     pub presentation: PresentationQosPolicy,
-    pub partition: PartitionQosPolicy<'static>,
-    pub group_data: GroupDataQosPolicy<'static>,
+    pub partition: PartitionQosPolicy,
+    pub group_data: GroupDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
@@ -181,7 +181,7 @@ impl DataReaderQos {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TopicQos {
-    pub topic_data: TopicDataQosPolicy<'static>,
+    pub topic_data: TopicDataQosPolicy,
     pub durability: DurabilityQosPolicy,
     pub durability_service: DurabilityServiceQosPolicy,
     pub deadline: DeadlineQosPolicy,

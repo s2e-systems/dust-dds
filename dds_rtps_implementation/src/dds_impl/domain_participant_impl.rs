@@ -523,8 +523,6 @@ mod tests {
         RtpsEntity, RtpsGroup,
     };
 
-    //     struct MockDDSType;
-
     struct MockTransport;
 
     impl TransportRead for MockTransport {
@@ -568,7 +566,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let mut qos = PublisherQos::default();
-        qos.group_data.value = &[1, 2, 3, 4];
+        qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant
             .set_default_publisher_qos(Some(qos.clone()))
             .unwrap();
@@ -600,7 +598,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let mut qos = PublisherQos::default();
-        qos.group_data.value = &[1, 2, 3, 4];
+        qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant
             .set_default_publisher_qos(Some(qos.clone()))
             .unwrap();
@@ -634,7 +632,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let mut qos = SubscriberQos::default();
-        qos.group_data.value = &[1, 2, 3, 4];
+        qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant
             .set_default_subscriber_qos(Some(qos.clone()))
             .unwrap();
@@ -666,7 +664,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let mut qos = SubscriberQos::default();
-        qos.group_data.value = &[1, 2, 3, 4];
+        qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant
             .set_default_subscriber_qos(Some(qos.clone()))
             .unwrap();
@@ -703,7 +701,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let mut qos = TopicQos::default();
-        qos.topic_data.value = &[1, 2, 3, 4];
+        qos.topic_data.value = vec![1, 2, 3, 4];
         domain_participant
             .set_default_topic_qos(Some(qos.clone()))
             .unwrap();
@@ -767,7 +765,7 @@ mod tests {
             Box::new(MockTransport),
         );
         let mut qos = TopicQos::default();
-        qos.topic_data.value = &[1, 2, 3, 4];
+        qos.topic_data.value = vec![1, 2, 3, 4];
         domain_participant
             .set_default_topic_qos(Some(qos.clone()))
             .unwrap();

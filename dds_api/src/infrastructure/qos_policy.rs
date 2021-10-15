@@ -100,19 +100,19 @@ impl Default for UserDataQosPolicy {
 /// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
 /// these QoS can assist an application to extend the provided QoS.
 #[derive(Debug, PartialEq, Clone)]
-pub struct TopicDataQosPolicy<'a> {
-    pub value: &'a [u8],
+pub struct TopicDataQosPolicy {
+    pub value: Vec<u8>,
 }
 
-impl QosPolicy for TopicDataQosPolicy<'_> {
+impl QosPolicy for TopicDataQosPolicy {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for TopicDataQosPolicy<'_> {
+impl Default for TopicDataQosPolicy {
     fn default() -> Self {
-        Self { value: &[] }
+        Self { value: Vec::new() }
     }
 }
 
@@ -123,19 +123,19 @@ impl Default for TopicDataQosPolicy<'_> {
 /// matching policies similar to those of the PARTITION QoS except the decision can be made based on an application-defined
 /// policy.
 #[derive(Debug, PartialEq, Clone)]
-pub struct GroupDataQosPolicy<'a> {
-    pub value: &'a [u8],
+pub struct GroupDataQosPolicy {
+    pub value: Vec<u8>,
 }
 
-impl QosPolicy for GroupDataQosPolicy<'_> {
+impl QosPolicy for GroupDataQosPolicy {
     fn name(&self) -> &str {
         GROUPDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for GroupDataQosPolicy<'_> {
+impl Default for GroupDataQosPolicy {
     fn default() -> Self {
-        Self { value: &[] }
+        Self { value: Vec::new() }
     }
 }
 
@@ -665,19 +665,21 @@ impl Default for TimeBasedFilterQosPolicy {
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
 #[derive(Debug, PartialEq, Clone)]
-pub struct PartitionQosPolicy<'a> {
-    pub name: &'a str,
+pub struct PartitionQosPolicy {
+    pub name: String,
 }
 
-impl QosPolicy for PartitionQosPolicy<'_> {
+impl QosPolicy for PartitionQosPolicy {
     fn name(&self) -> &str {
         PARTITION_QOS_POLICY_NAME
     }
 }
 
-impl Default for PartitionQosPolicy<'_> {
+impl Default for PartitionQosPolicy {
     fn default() -> Self {
-        Self { name: "" }
+        Self {
+            name: "".to_string(),
+        }
     }
 }
 
