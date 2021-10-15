@@ -1,27 +1,17 @@
-use crate::structure::types::{EntityId, Locator, SequenceNumber, Guid};
+use crate::structure::types::{EntityId, Guid, SequenceNumber};
 
-pub trait RtpsReaderProxy {
-    fn remote_reader_guid(&self) -> &Guid;
-    fn remote_group_entity_id(&self) -> &EntityId;
-    fn unicast_locator_list(&self) -> &[Locator];
-    fn multicast_locator_list(&self) -> &[Locator];
-    fn expects_inline_qos(&self) -> bool;
-    fn is_active(&self) -> bool;
+pub struct RtpsReaderProxy<L> {
+    pub remote_reader_guid: Guid,
+    pub remote_group_entity_id: EntityId,
+    pub unicast_locator_list: L,
+    pub multicast_locator_list: L,
+    pub expects_inline_qos: bool,
+    pub is_active: bool,
 }
 
 pub trait RtpsReaderProxyOperations {
     type SequenceNumberVector;
 
-    fn new<L>(
-        remote_reader_guid: Guid,
-        remote_group_entity_id: EntityId,
-        unicast_locator_list: &L,
-        multicast_locator_list: &L,
-        expects_inline_qos: bool,
-        is_active: bool,
-    ) -> Self
-    where
-        for<'a> &'a L: IntoIterator<Item = &'a Locator>;
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber);
     fn next_requested_change(&mut self) -> Option<SequenceNumber>;
     fn next_unsent_change(&mut self) -> Option<SequenceNumber>;

@@ -1,13 +1,10 @@
 use crate::{
     behavior::{
         reader::{stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxy},
-        writer::{
-            reader_proxy::RtpsReaderProxyOperations,
-            stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
-        },
+        writer::{reader_proxy::RtpsReaderProxy, stateful_writer::RtpsStatefulWriterOperations},
     },
     discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-    structure::types::{Guid, Locator, ENTITYID_UNKNOWN},
+    structure::types::{Guid, ENTITYID_UNKNOWN},
 };
 
 use super::{
@@ -81,31 +78,36 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
 
     pub fn discovered_participant_add_publications_writer(
         &self,
-        writer: &mut (impl RtpsStatefulWriterOperations
-                  + RtpsStatefulWriter<ReaderProxyType = impl RtpsReaderProxyOperations>),
+        writer: &mut impl RtpsStatefulWriterOperations<L>,
     ) where
-        for<'b> &'b L: IntoIterator<Item = &'b Locator>,
+        L: Clone,
     {
         if self
             .participant_data
             .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
         {
-            let guid = Guid::new(
+            let remote_reader_guid = Guid::new(
                 self.participant_data.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
             let is_active = true;
-            let proxy = RtpsReaderProxyOperations::new(
-                guid,
+            let proxy = RtpsReaderProxy {
+                remote_reader_guid,
                 remote_group_entity_id,
-                &self.participant_data.metatraffic_unicast_locator_list,
-                &self.participant_data.metatraffic_multicast_locator_list,
+                unicast_locator_list: self
+                    .participant_data
+                    .metatraffic_unicast_locator_list
+                    .clone(),
+                multicast_locator_list: self
+                    .participant_data
+                    .metatraffic_multicast_locator_list
+                    .clone(),
                 expects_inline_qos,
                 is_active,
-            );
+            };
             writer.matched_reader_add(proxy);
         }
     }
@@ -148,31 +150,36 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
 
     pub fn discovered_participant_add_subscriptions_writer(
         &self,
-        writer: &mut (impl RtpsStatefulWriterOperations
-                  + RtpsStatefulWriter<ReaderProxyType = impl RtpsReaderProxyOperations>),
+        writer: &mut impl RtpsStatefulWriterOperations<L>,
     ) where
-        for<'b> &'b L: IntoIterator<Item = &'b Locator>,
+        L: Clone,
     {
         if self
             .participant_data
             .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
         {
-            let guid = Guid::new(
+            let remote_reader_guid = Guid::new(
                 self.participant_data.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
             let is_active = true;
-            let proxy = RtpsReaderProxyOperations::new(
-                guid,
+            let proxy = RtpsReaderProxy {
+                remote_reader_guid,
                 remote_group_entity_id,
-                &self.participant_data.metatraffic_unicast_locator_list,
-                &self.participant_data.metatraffic_multicast_locator_list,
+                unicast_locator_list: self
+                    .participant_data
+                    .metatraffic_unicast_locator_list
+                    .clone(),
+                multicast_locator_list: self
+                    .participant_data
+                    .metatraffic_multicast_locator_list
+                    .clone(),
                 expects_inline_qos,
                 is_active,
-            );
+            };
             writer.matched_reader_add(proxy);
         }
     }
@@ -214,31 +221,36 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
 
     pub fn discovered_participant_add_topics_writer(
         &self,
-        writer: &mut (impl RtpsStatefulWriterOperations
-                  + RtpsStatefulWriter<ReaderProxyType = impl RtpsReaderProxyOperations>),
+        writer: &mut impl RtpsStatefulWriterOperations<L>,
     ) where
-        for<'b> &'b L: IntoIterator<Item = &'b Locator>,
+        L: Clone,
     {
         if self
             .participant_data
             .available_builtin_endpoints
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
         {
-            let guid = Guid::new(
+            let remote_reader_guid = Guid::new(
                 self.participant_data.guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
             let is_active = true;
-            let proxy = RtpsReaderProxyOperations::new(
-                guid,
+            let proxy = RtpsReaderProxy {
+                remote_reader_guid,
                 remote_group_entity_id,
-                &self.participant_data.metatraffic_unicast_locator_list,
-                &self.participant_data.metatraffic_multicast_locator_list,
+                unicast_locator_list: self
+                    .participant_data
+                    .metatraffic_unicast_locator_list
+                    .clone(),
+                multicast_locator_list: self
+                    .participant_data
+                    .metatraffic_multicast_locator_list
+                    .clone(),
                 expects_inline_qos,
                 is_active,
-            );
+            };
             writer.matched_reader_add(proxy);
         }
     }
