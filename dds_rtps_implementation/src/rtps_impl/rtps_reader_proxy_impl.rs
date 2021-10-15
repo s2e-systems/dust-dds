@@ -1,17 +1,10 @@
 use rust_rtps_pim::{
-    behavior::writer::reader_proxy::RtpsReaderProxyOperations,
-    structure::types::{EntityId, Guid, Locator, SequenceNumber},
+    behavior::writer::reader_proxy::{RtpsReaderProxy, RtpsReaderProxyOperations},
+    structure::types::{Locator, SequenceNumber},
 };
 
-pub struct RtpsReaderProxyImpl {
-    remote_reader_guid: Guid,
-    remote_group_entity_id: EntityId,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
-    expects_inline_qos: bool,
-    is_active: bool,
-    _last_sent_sequence_number: SequenceNumber,
-}
+pub struct RtpsReaderProxyImpl(RtpsReaderProxy<Vec<Locator>>);
+
 impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
 
