@@ -25,7 +25,7 @@ use rust_rtps_pim::{
             EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
         },
-        RtpsEndpoint, RtpsEntity, RtpsGroup, RtpsHistoryCache,
+        RtpsEndpoint, RtpsGroup, RtpsHistoryCache,
     },
 };
 
@@ -103,13 +103,13 @@ where
         };
         let entity_id = EntityId::new(
             [
-                self.rtps_group.entity.guid.entity_id().entity_key()[0],
+                self.rtps_group.guid.entity_id().entity_key()[0],
                 self.user_defined_data_reader_counter,
                 0,
             ],
             entity_kind,
         );
-        let guid = Guid::new(*self.rtps_group.entity.guid.prefix(), entity_id);
+        let guid = Guid::new(*self.rtps_group.guid.prefix(), entity_id);
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -122,13 +122,13 @@ where
         let expects_inline_qos = false;
         let rtps_reader =
             RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl(RtpsStatelessReader(RtpsReader {
-                endpoint: RtpsEndpoint {
-                    entity: RtpsEntity { guid },
+                endpoint: RtpsEndpoint::new(
+                    guid,
                     topic_kind,
                     reliability_level,
                     unicast_locator_list,
                     multicast_locator_list,
-                },
+                ),
                 heartbeat_response_delay,
                 heartbeat_supression_duration,
                 reader_cache: ReaderHistoryCache::new(),
@@ -303,17 +303,13 @@ mod tests {
 
     #[test]
     fn lookup_existing_datareader() {
-        let rtps_group = RtpsGroup {
-            entity: RtpsEntity {
-                guid: Guid {
-                    prefix: GuidPrefix([1; 12]),
-                    entity_id: EntityId {
-                        entity_key: [1; 3],
-                        entity_kind: 1,
-                    },
-                },
+        let rtps_group = RtpsGroup::new(Guid {
+            prefix: GuidPrefix([1; 12]),
+            entity_id: EntityId {
+                entity_key: [1; 3],
+                entity_kind: 1,
             },
-        };
+        });
         let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
         subscriber
             .create_datareader::<MockDdsType>(&(), None, None, 0)
@@ -325,17 +321,13 @@ mod tests {
 
     #[test]
     fn lookup_datareader_empty_list() {
-        let rtps_group = RtpsGroup {
-            entity: RtpsEntity {
-                guid: Guid {
-                    prefix: GuidPrefix([1; 12]),
-                    entity_id: EntityId {
-                        entity_key: [1; 3],
-                        entity_kind: 1,
-                    },
-                },
+        let rtps_group = RtpsGroup::new(Guid {
+            prefix: GuidPrefix([1; 12]),
+            entity_id: EntityId {
+                entity_key: [1; 3],
+                entity_kind: 1,
             },
-        };
+        });
         let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
         let data_reader = subscriber.lookup_datareader::<MockDdsType>(&());
 
@@ -344,17 +336,13 @@ mod tests {
 
     #[test]
     fn lookup_inexistent_datareader() {
-        let rtps_group = RtpsGroup {
-            entity: RtpsEntity {
-                guid: Guid {
-                    prefix: GuidPrefix([1; 12]),
-                    entity_id: EntityId {
-                        entity_key: [1; 3],
-                        entity_kind: 1,
-                    },
-                },
+        let rtps_group = RtpsGroup::new(Guid {
+            prefix: GuidPrefix([1; 12]),
+            entity_id: EntityId {
+                entity_key: [1; 3],
+                entity_kind: 1,
             },
-        };
+        });
         let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
         subscriber
             .create_datareader::<MockDdsType>(&(), None, None, 0)

@@ -47,7 +47,7 @@ use rust_rtps_pim::{
             EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
             BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
-        RtpsEntity, RtpsGroup,
+        RtpsGroup,
     },
 };
 
@@ -118,14 +118,10 @@ fn send_discovery_data_happy_path() {
 
     let publisher = PublisherImpl::new(
         PublisherQos::default(),
-        RtpsGroup {
-            entity: RtpsEntity {
-                guid: Guid::new(
-                    GuidPrefix([4; 12]),
-                    EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-                ),
-            },
-        },
+        RtpsGroup::new(Guid::new(
+            GuidPrefix([4; 12]),
+            EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+        )),
         vec![rtps_shared_new(data_writer)],
     );
 
@@ -151,14 +147,10 @@ fn send_discovery_data_happy_path() {
     let shared_data_reader = rtps_shared_new(data_reader);
     let subscriber = SubscriberImpl::new(
         SubscriberQos::default(),
-        RtpsGroup {
-            entity: RtpsEntity {
-                guid: Guid::new(
-                    GuidPrefix([6; 12]),
-                    EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-                ),
-            },
-        },
+        RtpsGroup::new(Guid::new(
+            GuidPrefix([6; 12]),
+            EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+        )),
         vec![shared_data_reader.clone()],
     );
 

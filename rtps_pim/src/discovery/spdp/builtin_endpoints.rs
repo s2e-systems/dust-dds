@@ -9,7 +9,7 @@ use crate::{
             EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
         },
-        RtpsEndpoint, RtpsEntity, RtpsHistoryCache,
+        RtpsEndpoint, RtpsHistoryCache,
     },
 };
 
@@ -36,15 +36,13 @@ impl SpdpBuiltinParticipantWriter {
 
         RtpsStatelessWriter {
             writer: RtpsWriter {
-                endpoint: RtpsEndpoint {
-                    entity: RtpsEntity {
-                        guid: spdp_builtin_participant_writer_guid,
-                    },
-                    topic_kind: TopicKind::WithKey,
-                    reliability_level: ReliabilityKind::BestEffort,
+                endpoint: RtpsEndpoint::new(
+                    spdp_builtin_participant_writer_guid,
+                    TopicKind::WithKey,
+                    ReliabilityKind::BestEffort,
                     unicast_locator_list,
                     multicast_locator_list,
-                },
+                ),
                 push_mode: true,
                 heartbeat_period: DURATION_ZERO,
                 nack_response_delay: DURATION_ZERO,
@@ -73,15 +71,13 @@ impl SpdpBuiltinParticipantReader {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
 
         RtpsStatelessReader(RtpsReader {
-            endpoint: RtpsEndpoint {
-                entity: RtpsEntity {
-                    guid: spdp_builtin_participant_reader_guid,
-                },
-                topic_kind: TopicKind::WithKey,
-                reliability_level: ReliabilityKind::BestEffort,
+            endpoint: RtpsEndpoint::new(
+                spdp_builtin_participant_reader_guid,
+                TopicKind::WithKey,
+                ReliabilityKind::BestEffort,
                 unicast_locator_list,
                 multicast_locator_list,
-            },
+            ),
             heartbeat_response_delay: DURATION_ZERO,
             heartbeat_supression_duration: DURATION_ZERO,
             reader_cache: C::new(),

@@ -49,7 +49,7 @@ impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RtpsCacheChange {
             kind,
-            writer_guid: self.endpoint.entity.guid,
+            writer_guid: self.endpoint.guid,
             instance_handle: handle,
             sequence_number: self.last_change_sequence_number,
             data_value: data,

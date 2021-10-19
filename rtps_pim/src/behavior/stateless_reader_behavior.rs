@@ -19,7 +19,7 @@ where
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>) {
         let reader_id = data.reader_id.value;
-        if &reader_id == self.endpoint.entity.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
+        if &reader_id == self.endpoint.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
             let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
@@ -57,7 +57,7 @@ mod tests {
                 EntityId, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind,
                 BUILT_IN_WRITER_WITH_KEY, GUIDPREFIX_UNKNOWN,
             },
-            RtpsEndpoint, RtpsEntity,
+            RtpsEndpoint,
         },
     };
 
@@ -118,18 +118,16 @@ mod tests {
     #[test]
     fn receive_data_one_cache_change() {
         let mut stateless_reader = RtpsReader {
-            endpoint: RtpsEndpoint {
-                entity: RtpsEntity {
-                    guid: Guid {
-                        prefix: GuidPrefix([1; 12]),
-                        entity_id: EntityId::new([0; 3], 1),
-                    },
+            endpoint: RtpsEndpoint::new(
+                Guid {
+                    prefix: GuidPrefix([1; 12]),
+                    entity_id: EntityId::new([0; 3], 1),
                 },
-                topic_kind: TopicKind::WithKey,
-                reliability_level: ReliabilityKind::BestEffort,
-                unicast_locator_list: (),
-                multicast_locator_list: (),
-            },
+                TopicKind::WithKey,
+                ReliabilityKind::BestEffort,
+                (),
+                (),
+            ),
             heartbeat_response_delay: DURATION_ZERO,
             heartbeat_supression_duration: DURATION_ZERO,
             reader_cache: MockHistoryCache(None),
