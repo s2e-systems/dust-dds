@@ -21,21 +21,6 @@ pub struct RtpsWriter<L, C> {
 }
 
 impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
-    fn new(
-        _guid: Guid,
-        _topic_kind: TopicKind,
-        _reliability_level: ReliabilityKind,
-        _unicast_locator_list: &[Locator],
-        _multicast_locator_list: &[Locator],
-        _push_mode: bool,
-        _heartbeat_period: Duration,
-        _nack_response_delay: Duration,
-        _nack_suppression_duration: Duration,
-        _data_max_size_serialized: Option<i32>,
-    ) -> Self {
-        todo!()
-    }
-
     fn new_change<'a>(
         &mut self,
         kind: ChangeKind,
@@ -59,19 +44,6 @@ impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
 }
 
 pub trait RtpsWriterOperations<C> {
-    fn new(
-        guid: Guid,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
-        push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
-        data_max_size_serialized: Option<i32>,
-    ) -> Self;
-
     fn new_change<'a>(
         &mut self,
         kind: ChangeKind,
