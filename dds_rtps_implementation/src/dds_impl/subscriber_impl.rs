@@ -18,7 +18,7 @@ use rust_dds_api::{
     },
 };
 use rust_rtps_pim::{
-    behavior::reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
+    behavior::reader::stateless_reader::RtpsStatelessReader,
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         types::{
@@ -117,8 +117,8 @@ where
         let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
-        let rtps_reader = RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl(
-            RtpsStatelessReader(RtpsReader::new(
+        let rtps_reader =
+            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl(RtpsStatelessReader::new(
                 guid,
                 topic_kind,
                 reliability_level,
@@ -127,8 +127,7 @@ where
                 heartbeat_response_delay,
                 heartbeat_supression_duration,
                 expects_inline_qos,
-            )),
-        ));
+            )));
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
         self.data_reader_list

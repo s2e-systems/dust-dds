@@ -78,7 +78,7 @@ mod tests {
         where
             Self: Sized,
         {
-            todo!()
+            MockHistoryCache(None)
         }
 
         fn add_change(&mut self, change: RtpsCacheChange<&[u8]>) {

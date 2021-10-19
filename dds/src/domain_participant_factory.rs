@@ -106,7 +106,7 @@ impl DomainParticipantFactory {
         let default_transport = Box::new(UdpTransport::new(socket));
 
         let spdp_builtin_participant_writer_qos = DataWriterQos::default();
-        let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
+        let _spdp_discovery_locator = RtpsReaderLocatorImpl::new(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
                 7400,
@@ -114,12 +114,8 @@ impl DomainParticipantFactory {
             ),
             false,
         );
-        let spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create(
-            guid_prefix,
-            vec![],
-            vec![],
-            vec![spdp_discovery_locator],
-        );
+        let spdp_builtin_participant_rtps_writer =
+            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]);
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: BuiltInTopicKey { value: [0; 3] },

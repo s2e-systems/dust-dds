@@ -1,8 +1,7 @@
 use crate::{
     behavior::{
-        reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
-        types::DURATION_ZERO,
-        writer::{stateless_writer::RtpsStatelessWriter, writer::RtpsWriter},
+        reader::stateless_reader::RtpsStatelessReader, types::DURATION_ZERO,
+        writer::stateless_writer::RtpsStatelessWriter,
     },
     structure::{
         types::{
@@ -26,29 +25,26 @@ impl SpdpBuiltinParticipantWriter {
         guid_prefix: GuidPrefix,
         unicast_locator_list: L,
         multicast_locator_list: L,
-        reader_locators: R,
     ) -> RtpsStatelessWriter<L, C, R>
     where
         C: for<'a> RtpsHistoryCache<'a>,
+        R: Default,
     {
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
 
-        RtpsStatelessWriter {
-            writer: RtpsWriter::new(
-                spdp_builtin_participant_writer_guid,
-                TopicKind::WithKey,
-                ReliabilityKind::BestEffort,
-                unicast_locator_list,
-                multicast_locator_list,
-                true,
-                DURATION_ZERO,
-                DURATION_ZERO,
-                DURATION_ZERO,
-                None,
-            ),
-            reader_locators,
-        }
+        RtpsStatelessWriter::new(
+            spdp_builtin_participant_writer_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            unicast_locator_list,
+            multicast_locator_list,
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        )
     }
 }
 
@@ -66,7 +62,7 @@ impl SpdpBuiltinParticipantReader {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
 
-        RtpsStatelessReader(RtpsReader::new(
+        RtpsStatelessReader::new(
             spdp_builtin_participant_reader_guid,
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
@@ -75,6 +71,6 @@ impl SpdpBuiltinParticipantReader {
             DURATION_ZERO,
             DURATION_ZERO,
             false,
-        ))
+        )
     }
 }
