@@ -42,7 +42,7 @@ where
         mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
         mut send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
     ) {
-        let reliability_level = self.writer.endpoint.reliability_level;
+        let reliability_level = self.writer.reliability_level;
         let last_change_sequence_number = self.writer.last_change_sequence_number;
         for reader_locator in &mut self.reader_locators {
             match reliability_level {

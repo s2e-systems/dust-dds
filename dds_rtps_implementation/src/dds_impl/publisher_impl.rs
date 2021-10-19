@@ -25,14 +25,13 @@ use rust_rtps_pim::{
             EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind,
             VendorId, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
-        RtpsEndpoint, RtpsGroup, RtpsHistoryCache,
+        RtpsGroup,
     },
 };
 
 use crate::{
     dds_impl::data_writer_impl::RtpsWriterFlavor,
     dds_type::DdsType,
-    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
     utils::{
         message_sender::RtpsSubmessageSender,
         shared_object::{
@@ -137,22 +136,18 @@ where
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
         let rtps_writer_impl = RtpsWriterFlavor::Stateless(RtpsStatelessWriter {
-            writer: RtpsWriter {
-                endpoint: RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    reliability_level,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
+            writer: RtpsWriter::new(
+                guid,
+                topic_kind,
+                reliability_level,
+                unicast_locator_list,
+                multicast_locator_list,
                 push_mode,
                 heartbeat_period,
                 nack_response_delay,
                 nack_suppression_duration,
-                last_change_sequence_number: 0,
                 data_max_size_serialized,
-                writer_cache: WriterHistoryCache::new(),
-            },
+            ),
             reader_locators: vec![],
         });
         let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
