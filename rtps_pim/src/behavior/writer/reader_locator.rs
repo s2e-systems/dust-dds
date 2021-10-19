@@ -1,16 +1,21 @@
-
 use crate::structure::types::{Locator, SequenceNumber};
 
-pub trait RtpsReaderLocator {
-    fn locator(&self) -> &Locator;
+pub struct RtpsReaderLocator {
+    pub locator: Locator,
+    pub expects_inline_qos: bool,
+}
 
-    fn expects_inline_qos(&self) -> bool;
+impl RtpsReaderLocator {
+    pub fn new(locator: Locator, expects_inline_qos: bool) -> Self {
+        Self {
+            locator,
+            expects_inline_qos,
+        }
+    }
 }
 
 pub trait RtpsReaderLocatorOperations {
     type SequenceNumberVector;
-
-    fn new(locator: Locator, expects_inline_qos: bool) -> Self;
 
     fn next_requested_change(&mut self) -> Option<SequenceNumber>;
 

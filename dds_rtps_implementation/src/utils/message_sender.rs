@@ -1,11 +1,12 @@
 use rust_rtps_pim::{
     messages::{RtpsMessage, RtpsMessageHeader},
-    structure::{
-        types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
-    },
+    structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
 };
 
-use super::{shared_object::{RtpsShared, rtps_shared_write_lock}, transport::{RtpsSubmessageWrite, TransportWrite}};
+use super::{
+    shared_object::{rtps_shared_write_lock, RtpsShared},
+    transport::{RtpsSubmessageWrite, TransportWrite},
+};
 
 pub trait RtpsSubmessageSender {
     fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)>;
@@ -79,22 +80,6 @@ pub fn send_data(
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::behavior::writer::reader_locator::RtpsReaderLocator;
-
-    use super::*;
-
-    struct MockReaderLocator(Locator);
-
-    impl RtpsReaderLocator for MockReaderLocator {
-        fn locator(&self) -> &rust_rtps_pim::structure::types::Locator {
-            &self.0
-        }
-
-        fn expects_inline_qos(&self) -> bool {
-            todo!()
-        }
-    }
-
     // #[test]
     // fn submessage_send_empty() {
     //     struct MockBehavior;

@@ -29,7 +29,7 @@ use rust_dds_rtps_implementation::{
     utils::shared_object::{rtps_shared_new, rtps_shared_write_lock},
 };
 use rust_rtps_pim::{
-    behavior::{types::Duration, writer::reader_locator::RtpsReaderLocatorOperations},
+    behavior::types::Duration,
     discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},

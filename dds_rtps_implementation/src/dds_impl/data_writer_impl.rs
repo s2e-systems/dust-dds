@@ -16,7 +16,6 @@ use rust_rtps_pim::{
     behavior::{
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::{
-            reader_locator::RtpsReaderLocator,
             stateless_writer::RtpsStatelessWriter,
             writer::{RtpsWriter, RtpsWriterOperations},
         },
@@ -275,13 +274,13 @@ impl RtpsSubmessageSender for DataWriterImpl {
                         let mut destined_submessages_borrow = destined_submessages.borrow_mut();
                         match destined_submessages_borrow
                             .iter_mut()
-                            .find(|(locator, _)| locator == reader_locator.locator())
+                            .find(|(locator, _)| locator == &reader_locator.locator)
                         {
                             Some((_, submessages)) => {
                                 submessages.push(RtpsSubmessageType::Data(data))
                             }
                             None => destined_submessages_borrow.push((
-                                *reader_locator.locator(),
+                                reader_locator.locator,
                                 vec![RtpsSubmessageType::Data(data)],
                             )),
                         }
@@ -290,15 +289,13 @@ impl RtpsSubmessageSender for DataWriterImpl {
                         let mut destined_submessages_borrow = destined_submessages.borrow_mut();
                         match destined_submessages_borrow
                             .iter_mut()
-                            .find(|(locator, _)| locator == reader_locator.locator())
+                            .find(|(locator, _)| locator == &reader_locator.locator)
                         {
                             Some((_, submessages)) => {
                                 submessages.push(RtpsSubmessageType::Gap(gap))
                             }
-                            None => destined_submessages_borrow.push((
-                                *reader_locator.locator(),
-                                vec![RtpsSubmessageType::Gap(gap)],
-                            )),
+                            None => destined_submessages_borrow
+                                .push((reader_locator.locator, vec![RtpsSubmessageType::Gap(gap)])),
                         }
                     },
                 );

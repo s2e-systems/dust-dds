@@ -1,41 +1,45 @@
+use std::ops::{Deref, DerefMut};
+
 use rust_rtps_pim::{
     behavior::writer::reader_locator::{RtpsReaderLocator, RtpsReaderLocatorOperations},
     structure::types::{Locator, SequenceNumber},
 };
 pub struct RtpsReaderLocatorImpl {
-    locator: Locator,
-    expects_inline_qos: bool,
+    reader_locator: RtpsReaderLocator,
     last_sent_sequence_number: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
 }
 
+impl Deref for RtpsReaderLocatorImpl {
+    type Target = RtpsReaderLocator;
+
+    fn deref(&self) -> &Self::Target {
+        &self.reader_locator
+    }
+}
+
+impl DerefMut for RtpsReaderLocatorImpl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.reader_locator
+    }
+}
+
 impl RtpsReaderLocatorImpl {
+    pub fn new(locator: Locator, expects_inline_qos: bool) -> Self {
+        Self {
+            reader_locator: RtpsReaderLocator::new(locator, expects_inline_qos),
+            last_sent_sequence_number: 0,
+            requested_changes: Vec::new(),
+        }
+    }
+
     pub fn unsent_changes_reset(&mut self) {
         self.last_sent_sequence_number = 0;
     }
 }
 
-impl RtpsReaderLocator for RtpsReaderLocatorImpl {
-    fn locator(&self) -> &Locator {
-        &self.locator
-    }
-
-    fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
-    }
-}
-
 impl RtpsReaderLocatorOperations for RtpsReaderLocatorImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
-
-    fn new(locator: Locator, expects_inline_qos: bool) -> Self {
-        Self {
-            locator,
-            expects_inline_qos,
-            last_sent_sequence_number: 0.into(),
-            requested_changes: Vec::new(),
-        }
-    }
 
     fn next_requested_change(&mut self) -> Option<SequenceNumber> {
         if let Some(requested_change) = self.requested_changes.iter().min().cloned() {

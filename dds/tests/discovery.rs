@@ -33,7 +33,7 @@ use rust_dds_rtps_implementation::{
     },
 };
 use rust_rtps_pim::{
-    behavior::{types::Duration, writer::reader_locator::RtpsReaderLocatorOperations},
+    behavior::types::Duration,
     discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
