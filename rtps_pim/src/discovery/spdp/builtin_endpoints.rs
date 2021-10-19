@@ -70,18 +70,15 @@ impl SpdpBuiltinParticipantReader {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
 
-        RtpsStatelessReader(RtpsReader {
-            endpoint: RtpsEndpoint::new(
-                spdp_builtin_participant_reader_guid,
-                TopicKind::WithKey,
-                ReliabilityKind::BestEffort,
-                unicast_locator_list,
-                multicast_locator_list,
-            ),
-            heartbeat_response_delay: DURATION_ZERO,
-            heartbeat_supression_duration: DURATION_ZERO,
-            reader_cache: C::new(),
-            expects_inline_qos: false,
-        })
+        RtpsStatelessReader(RtpsReader::new(
+            spdp_builtin_participant_reader_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            unicast_locator_list,
+            multicast_locator_list,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+        ))
     }
 }
