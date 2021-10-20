@@ -49,11 +49,74 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
         self.0.reader_locators.push(reader_locator_impl);
     }
 
-    fn reader_locator_remove(&mut self, _a_locator: &Locator) {
-        todo!()
+    fn reader_locator_remove(&mut self, a_locator: &Locator) {
+        self.0.reader_locators.retain(|x| &x.locator != a_locator)
     }
 
     fn unsent_changes_reset(&mut self) {
-        todo!()
+        for reader_locator in &mut self.0.reader_locators {
+            reader_locator.unsent_changes_reset()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rust_rtps_pim::{behavior::types::DURATION_ZERO, structure::types::GUID_UNKNOWN};
+
+    use super::*;
+
+    #[test]
+    fn reader_locator_add() {
+        let stateless_writer = RtpsStatelessWriter::new(
+            GUID_UNKNOWN,
+            rust_rtps_pim::structure::types::TopicKind::WithKey,
+            rust_rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            vec![],
+            vec![],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+        let mut rtps_stateless_writer_impl = RtpsStatelessWriterImpl::new(stateless_writer);
+
+        let locator1 = Locator::new(1, 1, [1; 16]);
+        let locator2 = Locator::new(2, 2, [2; 16]);
+        let a_locator1 = RtpsReaderLocator::new(locator1, false);
+        let a_locator2 = RtpsReaderLocator::new(locator2, false);
+        rtps_stateless_writer_impl.reader_locator_add(a_locator1);
+        rtps_stateless_writer_impl.reader_locator_add(a_locator2);
+
+        assert_eq!(rtps_stateless_writer_impl.reader_locators.len(), 2);
+    }
+
+    #[test]
+    fn reader_locator_remove() {
+        let stateless_writer = RtpsStatelessWriter::new(
+            GUID_UNKNOWN,
+            rust_rtps_pim::structure::types::TopicKind::WithKey,
+            rust_rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            vec![],
+            vec![],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+        let mut rtps_stateless_writer_impl = RtpsStatelessWriterImpl::new(stateless_writer);
+
+        let locator1 = Locator::new(1, 1, [1; 16]);
+        let locator2 = Locator::new(2, 2, [2; 16]);
+        let a_locator1 = RtpsReaderLocator::new(locator1, false);
+        let a_locator2 = RtpsReaderLocator::new(locator2, false);
+        rtps_stateless_writer_impl.reader_locator_add(a_locator1);
+        rtps_stateless_writer_impl.reader_locator_add(a_locator2);
+
+        rtps_stateless_writer_impl.reader_locator_remove(&locator2);
+
+        assert_eq!(rtps_stateless_writer_impl.reader_locators.len(), 1);
     }
 }
