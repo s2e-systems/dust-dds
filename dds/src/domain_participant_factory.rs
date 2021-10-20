@@ -25,6 +25,7 @@ use rust_dds_rtps_implementation::{
     rtps_impl::{
         rtps_reader_locator_impl::RtpsReaderLocatorImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::shared_object::{rtps_shared_new, rtps_shared_write_lock},
 };
@@ -114,8 +115,9 @@ impl DomainParticipantFactory {
             ),
             false,
         );
-        let spdp_builtin_participant_rtps_writer =
-            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]);
+        let spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl(
+            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]),
+        );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: BuiltInTopicKey { value: [0; 3] },

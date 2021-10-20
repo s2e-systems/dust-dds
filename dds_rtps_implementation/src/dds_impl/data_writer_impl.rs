@@ -13,13 +13,7 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 use rust_rtps_pim::{
-    behavior::{
-        stateless_writer_behavior::StatelessWriterBehavior,
-        writer::{
-            stateless_writer::RtpsStatelessWriter,
-            writer::{RtpsWriter, RtpsWriterOperations},
-        },
-    },
+    behavior::{writer::writer::{RtpsWriter, RtpsWriterOperations}, stateless_writer_behavior::StatelessWriterBehavior},
     messages::submessages::RtpsSubmessageType,
     structure::{
         types::{ChangeKind, Locator},
@@ -30,15 +24,16 @@ use rust_rtps_pim::{
 use crate::{
     dds_type::{BigEndian, DdsSerialize},
     rtps_impl::{
-        rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
         rtps_writer_history_cache_impl::WriterHistoryCache,
     },
     utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite},
 };
 
 pub enum RtpsWriterFlavor {
-    Stateful,
-    Stateless(RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>),
+    Stateful(RtpsStatefulWriterImpl),
+    Stateless(RtpsStatelessWriterImpl),
 }
 
 impl Deref for RtpsWriterFlavor {
@@ -46,8 +41,8 @@ impl Deref for RtpsWriterFlavor {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            RtpsWriterFlavor::Stateful => todo!(),
-            RtpsWriterFlavor::Stateless(stateless_writer) => &stateless_writer.writer,
+            RtpsWriterFlavor::Stateful(stateful_writer) => &*stateful_writer,
+            RtpsWriterFlavor::Stateless(stateless_writer) => &*stateless_writer,
         }
     }
 }
@@ -55,8 +50,8 @@ impl Deref for RtpsWriterFlavor {
 impl DerefMut for RtpsWriterFlavor {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            RtpsWriterFlavor::Stateful => todo!(),
-            RtpsWriterFlavor::Stateless(stateless_writer) => &mut stateless_writer.writer,
+            RtpsWriterFlavor::Stateful(stateful_writer) => &mut *stateful_writer,
+            RtpsWriterFlavor::Stateless(stateless_writer) => &mut *stateless_writer,
         }
     }
 }
@@ -267,9 +262,9 @@ impl RtpsSubmessageSender for DataWriterImpl {
         let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageWrite>)> = Vec::new();
         let destined_submessages = RefCell::new(destined_submessages);
         match &mut self.rtps_writer_impl {
-            RtpsWriterFlavor::Stateful => todo!(),
+            RtpsWriterFlavor::Stateful(_stateful_writer) => todo!(),
             RtpsWriterFlavor::Stateless(stateless_writer) => {
-                stateless_writer.send_unsent_data(
+                stateless_writer.0.send_unsent_data(
                     |reader_locator, data| {
                         let mut destined_submessages_borrow = destined_submessages.borrow_mut();
                         match destined_submessages_borrow

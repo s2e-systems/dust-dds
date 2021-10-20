@@ -18,7 +18,7 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::writer::{stateless_writer::RtpsStatelessWriter, writer::RtpsWriter},
+    behavior::writer::stateless_writer::RtpsStatelessWriter,
     messages::{RtpsMessage, RtpsMessageHeader},
     structure::{
         types::{
@@ -32,6 +32,7 @@ use rust_rtps_pim::{
 use crate::{
     dds_impl::data_writer_impl::RtpsWriterFlavor,
     dds_type::DdsType,
+    rtps_impl::rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     utils::{
         message_sender::RtpsSubmessageSender,
         shared_object::{
@@ -135,8 +136,8 @@ where
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsWriterFlavor::Stateless(RtpsStatelessWriter {
-            writer: RtpsWriter::new(
+        let rtps_writer_impl =
+            RtpsWriterFlavor::Stateless(RtpsStatelessWriterImpl(RtpsStatelessWriter::new(
                 guid,
                 topic_kind,
                 reliability_level,
@@ -147,9 +148,7 @@ where
                 nack_response_delay,
                 nack_suppression_duration,
                 data_max_size_serialized,
-            ),
-            reader_locators: vec![],
-        });
+            )));
         let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         let data_writer_impl_weak = rtps_shared_downgrade(&data_writer_impl_shared);

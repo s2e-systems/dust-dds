@@ -5,12 +5,17 @@ use rust_rtps_pim::{
     structure::types::Locator,
 };
 
-use super::rtps_writer_history_cache_impl::WriterHistoryCache;
+use super::{
+    rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+    rtps_writer_history_cache_impl::WriterHistoryCache,
+};
 
-pub struct RtpsStatelessWriterImpl(pub RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, ()>);
+pub struct RtpsStatelessWriterImpl(
+    pub RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>,
+);
 
 impl Deref for RtpsStatelessWriterImpl {
-    type Target = RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, ()>;
+    type Target = RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

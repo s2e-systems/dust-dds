@@ -25,6 +25,7 @@ use rust_dds_rtps_implementation::{
     rtps_impl::{
         rtps_reader_locator_impl::RtpsReaderLocatorImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::{
         message_receiver::MessageReceiver,
@@ -96,8 +97,9 @@ fn send_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let spdp_builtin_participant_rtps_writer =
-        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]);
+    let spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl(
+        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]),
+    );
 
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
