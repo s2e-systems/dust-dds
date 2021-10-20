@@ -23,14 +23,18 @@ use rust_dds_rtps_implementation::{
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
-        rtps_reader_locator_impl::RtpsReaderLocatorImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::shared_object::{rtps_shared_new, rtps_shared_write_lock},
 };
 use rust_rtps_pim::{
-    behavior::{types::Duration, writer::reader_locator::RtpsReaderLocator},
+    behavior::{
+        types::Duration,
+        writer::{
+            reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
+        },
+    },
     discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
@@ -107,17 +111,19 @@ impl DomainParticipantFactory {
         let default_transport = Box::new(UdpTransport::new(socket));
 
         let spdp_builtin_participant_writer_qos = DataWriterQos::default();
-        let _spdp_discovery_locator = RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(
+        let spdp_discovery_locator = RtpsReaderLocator::new(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
                 7400,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
             ),
             false,
-        ));
-        let spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
+        );
+        let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
             SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]),
         );
+
+        spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: BuiltInTopicKey { value: [0; 3] },

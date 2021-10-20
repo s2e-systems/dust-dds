@@ -44,8 +44,9 @@ impl DerefMut for RtpsStatelessWriterImpl {
 }
 
 impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
-    fn reader_locator_add(&mut self, _a_locator: RtpsReaderLocator) {
-        todo!()
+    fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
+        let reader_locator_impl = RtpsReaderLocatorImpl::new(a_locator);
+        self.0.reader_locators.push(reader_locator_impl);
     }
 
     fn reader_locator_remove(&mut self, _a_locator: &Locator) {
