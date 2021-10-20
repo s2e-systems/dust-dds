@@ -1,7 +1,10 @@
 use std::ops::{Deref, DerefMut};
 
 use rust_rtps_pim::{
-    behavior::writer::stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
+    behavior::writer::{
+        reader_locator::RtpsReaderLocator,
+        stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
+    },
     structure::types::Locator,
 };
 
@@ -29,7 +32,7 @@ impl DerefMut for RtpsStatelessWriterImpl {
 }
 
 impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
-    fn reader_locator_add(&mut self, _a_locator: Locator) {
+    fn reader_locator_add(&mut self, _a_locator: RtpsReaderLocator) {
         todo!()
     }
 

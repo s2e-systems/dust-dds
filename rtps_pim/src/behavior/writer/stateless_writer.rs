@@ -8,7 +8,7 @@ use crate::{
     },
 };
 
-use super::writer::RtpsWriter;
+use super::{reader_locator::RtpsReaderLocator, writer::RtpsWriter};
 
 pub struct RtpsStatelessWriter<L, C, R> {
     pub writer: RtpsWriter<L, C>, // Temporarily left as pub because of borrow checker issues with the behaviour
@@ -65,7 +65,7 @@ where
 }
 
 pub trait RtpsStatelessWriterOperations {
-    fn reader_locator_add(&mut self, a_locator: Locator);
+    fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator);
 
     fn reader_locator_remove(&mut self, a_locator: &Locator);
 
