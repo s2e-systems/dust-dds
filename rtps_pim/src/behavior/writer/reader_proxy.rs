@@ -9,6 +9,26 @@ pub struct RtpsReaderProxy<L> {
     pub is_active: bool,
 }
 
+impl<L> RtpsReaderProxy<L> {
+    pub fn new(
+        remote_reader_guid: Guid,
+        remote_group_entity_id: EntityId,
+        unicast_locator_list: L,
+        multicast_locator_list: L,
+        expects_inline_qos: bool,
+        is_active: bool,
+    ) -> Self {
+        Self {
+            remote_reader_guid,
+            remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            expects_inline_qos,
+            is_active,
+        }
+    }
+}
+
 pub trait RtpsReaderProxyOperations {
     type SequenceNumberVector;
 

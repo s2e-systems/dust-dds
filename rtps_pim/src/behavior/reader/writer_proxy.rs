@@ -8,6 +8,24 @@ pub struct RtpsWriterProxy<L> {
     pub remote_group_entity_id: EntityId,
 }
 
+impl<L> RtpsWriterProxy<L> {
+    pub fn new(
+        remote_writer_guid: Guid,
+        unicast_locator_list: L,
+        multicast_locator_list: L,
+        data_max_size_serialized: Option<i32>,
+        remote_group_entity_id: EntityId,
+    ) -> Self {
+        Self {
+            remote_writer_guid,
+            unicast_locator_list,
+            multicast_locator_list,
+            data_max_size_serialized,
+            remote_group_entity_id,
+        }
+    }
+}
+
 pub trait RtpsWriterProxyOperations {
     type SequenceNumberVector;
 
