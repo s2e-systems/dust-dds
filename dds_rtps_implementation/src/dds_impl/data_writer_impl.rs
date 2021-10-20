@@ -13,7 +13,10 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 use rust_rtps_pim::{
-    behavior::{writer::writer::{RtpsWriter, RtpsWriterOperations}, stateless_writer_behavior::StatelessWriterBehavior},
+    behavior::writer::{
+        stateless_writer::StatelessWriterBehavior,
+        writer::{RtpsWriter, RtpsWriterOperations},
+    },
     messages::submessages::RtpsSubmessageType,
     structure::{
         types::{ChangeKind, Locator},
