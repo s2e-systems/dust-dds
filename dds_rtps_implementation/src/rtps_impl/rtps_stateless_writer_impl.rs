@@ -14,8 +14,20 @@ use super::{
 };
 
 pub struct RtpsStatelessWriterImpl(
-    pub RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>,
+    RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>,
 );
+
+impl RtpsStatelessWriterImpl {
+    pub fn new(
+        stateless_writer: RtpsStatelessWriter<
+            Vec<Locator>,
+            WriterHistoryCache,
+            Vec<RtpsReaderLocatorImpl>,
+        >,
+    ) -> Self {
+        Self(stateless_writer)
+    }
+}
 
 impl Deref for RtpsStatelessWriterImpl {
     type Target = RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>;

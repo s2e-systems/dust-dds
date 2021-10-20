@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use rust_rtps_pim::{
     behavior::writer::reader_locator::{RtpsReaderLocator, RtpsReaderLocatorOperations},
-    structure::types::{Locator, SequenceNumber},
+    structure::types::SequenceNumber,
 };
 pub struct RtpsReaderLocatorImpl {
     reader_locator: RtpsReaderLocator,
@@ -25,9 +25,9 @@ impl DerefMut for RtpsReaderLocatorImpl {
 }
 
 impl RtpsReaderLocatorImpl {
-    pub fn new(locator: Locator, expects_inline_qos: bool) -> Self {
+    pub fn new(reader_locator: RtpsReaderLocator) -> Self {
         Self {
-            reader_locator: RtpsReaderLocator::new(locator, expects_inline_qos),
+            reader_locator,
             last_sent_sequence_number: 0,
             requested_changes: Vec::new(),
         }
@@ -100,7 +100,8 @@ mod tests {
 
     #[test]
     fn reader_locator_next_unsent_change() {
-        let mut reader_locator = RtpsReaderLocatorImpl::new(LOCATOR_INVALID, false);
+        let mut reader_locator =
+            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
 
         assert_eq!(reader_locator.next_unsent_change(&2), Some(1));
         assert_eq!(reader_locator.next_unsent_change(&2), Some(2));
@@ -109,7 +110,8 @@ mod tests {
 
     #[test]
     fn reader_locator_next_unsent_change_non_compliant_last_change_sequence_number() {
-        let mut reader_locator = RtpsReaderLocatorImpl::new(LOCATOR_INVALID, false);
+        let mut reader_locator =
+            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
 
         assert_eq!(reader_locator.next_unsent_change(&2), Some(1));
         assert_eq!(reader_locator.next_unsent_change(&2), Some(2));
@@ -121,7 +123,8 @@ mod tests {
 
     #[test]
     fn reader_locator_requested_changes_set() {
-        let mut reader_locator = RtpsReaderLocatorImpl::new(LOCATOR_INVALID, false);
+        let mut reader_locator =
+            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
 
         let req_seq_num_set = vec![1, 2, 3];
         reader_locator.requested_changes_set(&req_seq_num_set, &3);
@@ -135,7 +138,8 @@ mod tests {
 
     #[test]
     fn reader_locator_requested_changes_set_above_last_change_sequence_number() {
-        let mut reader_locator = RtpsReaderLocatorImpl::new(LOCATOR_INVALID, false);
+        let mut reader_locator =
+            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
 
         let req_seq_num_set = vec![1, 2, 3];
         reader_locator.requested_changes_set(&req_seq_num_set, &1);
@@ -149,7 +153,8 @@ mod tests {
 
     #[test]
     fn reader_locator_unsent_changes() {
-        let reader_locator = RtpsReaderLocatorImpl::new(LOCATOR_INVALID, false);
+        let reader_locator =
+            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
 
         let unsent_changes = reader_locator.unsent_changes(3);
         let expected_unsent_changes = vec![1, 2, 3];
@@ -159,7 +164,8 @@ mod tests {
 
     #[test]
     fn reader_locator_unsent_changes_after_next_unsent_change() {
-        let mut reader_locator = RtpsReaderLocatorImpl::new(LOCATOR_INVALID, false);
+        let mut reader_locator =
+            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
 
         let last_change_sequence_number = 3;
         reader_locator.next_unsent_change(&last_change_sequence_number);

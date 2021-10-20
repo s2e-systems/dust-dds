@@ -118,7 +118,7 @@ where
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
         let rtps_reader =
-            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl(RtpsStatelessReader::new(
+            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(RtpsStatelessReader::new(
                 guid,
                 topic_kind,
                 reliability_level,

@@ -267,7 +267,7 @@ impl RtpsSubmessageSender for DataWriterImpl {
         match &mut self.rtps_writer_impl {
             RtpsWriterFlavor::Stateful(_stateful_writer) => todo!(),
             RtpsWriterFlavor::Stateless(stateless_writer) => {
-                stateless_writer.0.send_unsent_data(
+                stateless_writer.send_unsent_data(
                     |reader_locator, data| {
                         let mut destined_submessages_borrow = destined_submessages.borrow_mut();
                         match destined_submessages_borrow

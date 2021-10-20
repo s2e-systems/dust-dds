@@ -1,9 +1,31 @@
+use std::ops::{Deref, DerefMut};
+
 use rust_rtps_pim::{
     behavior::writer::reader_proxy::{RtpsReaderProxy, RtpsReaderProxyOperations},
     structure::types::{Locator, SequenceNumber},
 };
 
-pub struct RtpsReaderProxyImpl(pub RtpsReaderProxy<Vec<Locator>>);
+pub struct RtpsReaderProxyImpl(RtpsReaderProxy<Vec<Locator>>);
+
+impl RtpsReaderProxyImpl {
+    pub fn new(reader_proxy: RtpsReaderProxy<Vec<Locator>>) -> Self {
+        Self(reader_proxy)
+    }
+}
+
+impl Deref for RtpsReaderProxyImpl {
+    type Target = RtpsReaderProxy<Vec<Locator>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for RtpsReaderProxyImpl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;

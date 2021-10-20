@@ -6,7 +6,13 @@ use rust_rtps_pim::{
 
 use super::rtps_reader_history_cache_impl::ReaderHistoryCache;
 
-pub struct RtpsStatelessReaderImpl(pub RtpsStatelessReader<Vec<Locator>, ReaderHistoryCache>);
+pub struct RtpsStatelessReaderImpl(RtpsStatelessReader<Vec<Locator>, ReaderHistoryCache>);
+
+impl RtpsStatelessReaderImpl {
+    pub fn new(stateless_reader: RtpsStatelessReader<Vec<Locator>, ReaderHistoryCache>) -> Self {
+        Self(stateless_reader)
+    }
+}
 
 impl Deref for RtpsStatelessReaderImpl {
     type Target = RtpsStatelessReader<Vec<Locator>, ReaderHistoryCache>;

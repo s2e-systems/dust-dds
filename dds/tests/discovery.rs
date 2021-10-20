@@ -34,7 +34,7 @@ use rust_dds_rtps_implementation::{
     },
 };
 use rust_rtps_pim::{
-    behavior::types::Duration,
+    behavior::{types::Duration, writer::reader_locator::RtpsReaderLocator},
     discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
@@ -54,14 +54,14 @@ use rust_rtps_pim::{
 
 #[test]
 fn send_discovery_data_happy_path() {
-    let _spdp_discovery_locator = RtpsReaderLocatorImpl::new(
+    let _spdp_discovery_locator = RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         ),
         false,
-    );
+    ));
 
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let dds_participant_data = ParticipantBuiltinTopicData {
@@ -97,7 +97,7 @@ fn send_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl(
+    let spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
         SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]),
     );
 
@@ -139,7 +139,7 @@ fn send_discovery_data_happy_path() {
     let data_reader: DataReaderImpl<SpdpDiscoveredParticipantData<String, Vec<Locator>>> =
         DataReaderImpl::new(
             DataReaderQos::default(),
-            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl(
+            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(
                 spdp_builtin_participant_rtps_reader,
             )),
         );

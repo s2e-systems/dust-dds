@@ -10,7 +10,13 @@ use rust_rtps_pim::{
 
 use super::rtps_writer_history_cache_impl::WriterHistoryCache;
 
-pub struct RtpsStatefulWriterImpl(pub RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, ()>);
+pub struct RtpsStatefulWriterImpl(RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, ()>);
+
+impl RtpsStatefulWriterImpl {
+    pub fn new(stateful_writer: RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, ()>) -> Self {
+        Self(stateful_writer)
+    }
+}
 
 impl Deref for RtpsStatefulWriterImpl {
     type Target = RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, ()>;
