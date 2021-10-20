@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     structure::types::{Locator, SequenceNumber},
 };
 
-pub struct RtpsWriterProxyImpl(RtpsWriterProxy<Vec<Locator>>);
+pub struct RtpsWriterProxyImpl(pub RtpsWriterProxy<Vec<Locator>>);
 
 impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;

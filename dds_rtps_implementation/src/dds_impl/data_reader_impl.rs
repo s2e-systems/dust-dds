@@ -58,7 +58,7 @@ impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>> {
         match &mut data_reader.rtps_reader {
             RtpsReaderFlavor::Stateful(_) => todo!(),
             RtpsReaderFlavor::Stateless(stateless_reader) => {
-                stateless_reader.0.receive_data(source_guid_prefix, data)
+                stateless_reader.receive_data(source_guid_prefix, data)
             }
         };
     }
