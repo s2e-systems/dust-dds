@@ -23,7 +23,6 @@ use rust_dds_rtps_implementation::{
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
-        rtps_reader_locator_impl::RtpsReaderLocatorImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
@@ -34,7 +33,12 @@ use rust_dds_rtps_implementation::{
     },
 };
 use rust_rtps_pim::{
-    behavior::{types::Duration, writer::reader_locator::RtpsReaderLocator},
+    behavior::{
+        types::Duration,
+        writer::{
+            reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
+        },
+    },
     discovery::{
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
@@ -54,14 +58,14 @@ use rust_rtps_pim::{
 
 #[test]
 fn send_discovery_data_happy_path() {
-    let _spdp_discovery_locator = RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(
+    let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         ),
         false,
-    ));
+    );
 
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let dds_participant_data = ParticipantBuiltinTopicData {
@@ -97,9 +101,11 @@ fn send_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
+    let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
         SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]),
     );
+
+    spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
@@ -136,15 +142,17 @@ fn send_discovery_data_happy_path() {
     // Reception
     let spdp_builtin_participant_rtps_reader =
         SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]), vec![], vec![]);
+
+    let spdp_builtin_participant_rtps_reader_impl =
+        RtpsStatelessReaderImpl::new(spdp_builtin_participant_rtps_reader);
+
     let data_reader: DataReaderImpl<SpdpDiscoveredParticipantData<String, Vec<Locator>>> =
         DataReaderImpl::new(
             DataReaderQos::default(),
-            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(
-                spdp_builtin_participant_rtps_reader,
-            )),
+            RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader_impl),
         );
     let shared_data_reader = rtps_shared_new(data_reader);
-    let _subscriber = SubscriberImpl::new(
+    let subscriber = SubscriberImpl::new(
         SubscriberQos::default(),
         RtpsGroup::new(Guid::new(
             GuidPrefix([6; 12]),
@@ -153,16 +161,16 @@ fn send_discovery_data_happy_path() {
         vec![shared_data_reader.clone()],
     );
 
-    // let (source_locator, message) = transport.read().unwrap();
-    // let participant_guid_prefix = GuidPrefix([7; 12]);
-    // MessageReceiver::new().process_message(
-    //     participant_guid_prefix,
-    //     &[rtps_shared_new(subscriber)],
-    //     source_locator,
-    //     &message,
-    // );
-    // let _shared_data_reader = rtps_shared_read_lock(&shared_data_reader);
+    let (source_locator, message) = transport.read().unwrap();
+    let participant_guid_prefix = GuidPrefix([7; 12]);
+    MessageReceiver::new().process_message(
+        participant_guid_prefix,
+        &[rtps_shared_new(subscriber)],
+        source_locator,
+        &message,
+    );
+    let shared_data_reader = rtps_shared_read_lock(&shared_data_reader);
 
-    // let result = shared_data_reader.read(1, &[], &[], &[]).unwrap();
-    // assert_eq!(spdp_discovered_participant_data, result[0]);
+    let result = shared_data_reader.read(1, &[], &[], &[]).unwrap();
+    assert_eq!(spdp_discovered_participant_data, result[0]);
 }
