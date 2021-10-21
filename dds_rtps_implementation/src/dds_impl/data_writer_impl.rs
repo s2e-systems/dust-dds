@@ -128,7 +128,7 @@ where
         data.serialize::<_, BigEndian>(&mut bytes)?;
         let change = self
             .rtps_writer_impl
-            .new_change(ChangeKind::Alive, bytes, &[], 0);
+            .new_change(ChangeKind::Alive, bytes, vec![], 0);
         let writer_cache = &mut self.rtps_writer_impl.writer_cache;
         let time = rust_rtps_pim::messages::types::Time(0);
         writer_cache.set_source_timestamp(Some(time));

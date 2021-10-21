@@ -88,35 +88,28 @@ pub trait RtpsStatelessWriterOperations {
     fn unsent_changes_reset(&mut self);
 }
 
-pub trait StatelessWriterBehavior<'a, S> {
+pub trait StatelessWriterBehavior<'a, S, P, D> {
     type ReaderLocator;
 
     fn send_unsent_data(
         &'a mut self,
-        send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<&'a [Parameter<&'a [u8]>], &'a [u8]>),
+        send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<P, D>),
         send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
     );
 }
 
-impl<'a, S, L, C, R, RL> StatelessWriterBehavior<'a, S> for RtpsStatelessWriter<L, C, R>
+impl<'a, S, L, C, R, RL, P, D> StatelessWriterBehavior<'a, S, P, D> for RtpsStatelessWriter<L, C, R>
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RL>,
     RL: RtpsReaderLocatorOperations,
-    C: RtpsHistoryCacheOperations<
-        'a,
-        GetChangeDataType = &'a [u8],
-        GetChangeParameterType = &'a [Parameter<&'a [u8]>],
-    >,
+    C: RtpsHistoryCacheOperations<'a, GetChangeDataType = D, GetChangeParameterType = P>,
     S: FromIterator<SequenceNumber>,
 {
     type ReaderLocator = RL;
 
     fn send_unsent_data(
         &'a mut self,
-        mut send_data: impl FnMut(
-            &Self::ReaderLocator,
-            DataSubmessage<&'a [Parameter<&'a [u8]>], &'a [u8]>,
-        ),
+        mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<P, D>),
         mut send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
     ) {
         let reliability_level = self.writer.reliability_level;
@@ -136,15 +129,15 @@ where
     }
 }
 
-fn best_effort_send_unsent_data<'a, RL, S>(
+fn best_effort_send_unsent_data<'a, RL, S, P, D>(
     reader_locator: &mut RL,
     writer_cache: &'a impl RtpsHistoryCacheOperations<
         'a,
-        GetChangeDataType = &'a [u8],
-        GetChangeParameterType = &'a [Parameter<&'a [u8]>],
+        GetChangeDataType = D,
+        GetChangeParameterType = P,
     >,
     last_change_sequence_number: &SequenceNumber,
-    send_data: &mut impl FnMut(&RL, DataSubmessage<&'a [Parameter<&'a [u8]>], &'a [u8]>),
+    send_data: &mut impl FnMut(&RL, DataSubmessage<P, D>),
     send_gap: &mut impl FnMut(&RL, GapSubmessage<S>),
 ) where
     RL: RtpsReaderLocatorOperations,
