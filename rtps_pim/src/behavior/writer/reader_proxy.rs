@@ -6,7 +6,6 @@ pub struct RtpsReaderProxy<L> {
     pub unicast_locator_list: L,
     pub multicast_locator_list: L,
     pub expects_inline_qos: bool,
-    pub is_active: bool,
 }
 
 impl<L> RtpsReaderProxy<L> {
@@ -16,7 +15,6 @@ impl<L> RtpsReaderProxy<L> {
         unicast_locator_list: L,
         multicast_locator_list: L,
         expects_inline_qos: bool,
-        is_active: bool,
     ) -> Self {
         Self {
             remote_reader_guid,
@@ -24,7 +22,6 @@ impl<L> RtpsReaderProxy<L> {
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
-            is_active,
         }
     }
 }

@@ -93,7 +93,6 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let is_active = true;
             let proxy = RtpsReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
@@ -106,7 +105,6 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
                     .metatraffic_multicast_locator_list
                     .clone(),
                 expects_inline_qos,
-                is_active,
             };
             writer.matched_reader_add(proxy);
         }
@@ -165,7 +163,6 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let is_active = true;
             let proxy = RtpsReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
@@ -178,7 +175,6 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
                     .metatraffic_multicast_locator_list
                     .clone(),
                 expects_inline_qos,
-                is_active,
             };
             writer.matched_reader_add(proxy);
         }
@@ -236,7 +232,6 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let is_active = true;
             let proxy = RtpsReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
@@ -249,7 +244,6 @@ impl<'a, S, L> ParticipantDiscovery<'a, S, L> {
                     .metatraffic_multicast_locator_list
                     .clone(),
                 expects_inline_qos,
-                is_active,
             };
             writer.matched_reader_add(proxy);
         }
