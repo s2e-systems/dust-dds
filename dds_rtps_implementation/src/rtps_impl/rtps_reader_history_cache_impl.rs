@@ -36,8 +36,8 @@ impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
     type AddChangeDataType = &'a [u8];
     type GetChangeDataType = &'a [u8];
 
-    type AddChangeParameterType = &'a [Parameter<'a>];
-    type GetChangeParameterType = &'a [Parameter<'a>];
+    type AddChangeParameterType = &'a [Parameter<&'a [u8]>];
+    type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
 
     fn new() -> Self
     where
@@ -49,7 +49,10 @@ impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
         }
     }
 
-    fn add_change(&mut self, change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>) {
+    fn add_change(
+        &mut self,
+        change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>,
+    ) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -85,7 +88,10 @@ impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
 
-    fn get_change(&'a self, seq_num: &SequenceNumber) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>> {
+    fn get_change(
+        &'a self,
+        seq_num: &SequenceNumber,
+    ) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>> {
         let local_change = self
             .changes
             .iter()

@@ -3,9 +3,9 @@ use rust_rtps_pim::{
     structure::types::{Locator, SequenceNumber},
 };
 pub type RtpsSubmessageWrite<'a> =
-    RtpsSubmessageType<Vec<SequenceNumber>, &'a [Parameter<'a>], &'a [u8], (), ()>;
+    RtpsSubmessageType<Vec<SequenceNumber>, &'a [Parameter<&'a [u8]>], &'a [u8], (), ()>;
 pub type RtpsSubmessageRead<'a> =
-    RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter<'a>>, &'a [u8], (), ()>;
+    RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter<&'a [u8]>>, &'a [u8], (), ()>;
 
 pub type RtpsMessageWrite<'a> = RtpsMessage<Vec<RtpsSubmessageWrite<'a>>>;
 pub type RtpsMessageRead<'a> = RtpsMessage<Vec<RtpsSubmessageRead<'a>>>;

@@ -1,8 +1,11 @@
 use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
-use rust_rtps_pim::{messages::{submessage_elements::Parameter, types::Time}, structure::{
+use rust_rtps_pim::{
+    messages::{submessage_elements::Parameter, types::Time},
+    structure::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
         RtpsCacheChange, RtpsHistoryCacheOperations,
-    }};
+    },
+};
 
 struct WriterCacheChange {
     kind: ChangeKind,
@@ -31,8 +34,8 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
     type AddChangeDataType = Vec<u8>;
     type GetChangeDataType = &'a [u8];
 
-    type AddChangeParameterType = &'a [Parameter<'a>];
-    type GetChangeParameterType = &'a [Parameter<'a>];
+    type AddChangeParameterType = &'a [Parameter<&'a [u8]>];
+    type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
 
     fn new() -> Self
     where
@@ -44,7 +47,10 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
         }
     }
 
-    fn add_change(&mut self, change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>) {
+    fn add_change(
+        &mut self,
+        change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>,
+    ) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -70,7 +76,10 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
 
-    fn get_change(&'a self, seq_num: &SequenceNumber) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>> {
+    fn get_change(
+        &'a self,
+        seq_num: &SequenceNumber,
+    ) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>> {
         let local_change = self
             .changes
             .iter()

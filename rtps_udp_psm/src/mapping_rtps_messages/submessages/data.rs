@@ -15,7 +15,7 @@ use crate::{
     serialize::{self, NumberOfBytes, Serialize, SerializeSubmessage},
 };
 
-impl SerializeSubmessage for DataSubmessage<&[Parameter<'_>], &[u8]> {
+impl SerializeSubmessage for DataSubmessage<&[Parameter<&'_ [u8]>], &[u8]> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -70,7 +70,7 @@ impl SerializeSubmessage for DataSubmessage<&[Parameter<'_>], &[u8]> {
 
 impl<'de: 'a, 'a, T> DeserializeSubmessage<'de> for DataSubmessage<T, &'a [u8]>
 where
-    T: FromIterator<Parameter<'a>> + NumberOfBytes,
+    T: FromIterator<Parameter<&'a [u8]>> + NumberOfBytes,
 {
     fn deserialize_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
@@ -197,8 +197,8 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13][..]);
+        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23][..]);
         let parameter_list = [parameter_1, parameter_2];
         let inline_qos = ParameterListSubmessageElement {
             parameter: parameter_list.as_ref(),
@@ -421,8 +421,8 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13][..]);
+        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23][..]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };

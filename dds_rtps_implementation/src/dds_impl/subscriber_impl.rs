@@ -257,7 +257,7 @@ impl ProcessDataSubmessage for SubscriberImpl {
     fn process_data_submessage(
         &self,
         source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
+        data: &DataSubmessage<Vec<Parameter<&'_ [u8]>>, &[u8]>,
     ) {
         let data_reader_list = self.data_reader_list.lock().unwrap();
         for reader in data_reader_list.iter() {

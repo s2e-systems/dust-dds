@@ -100,7 +100,7 @@ pub trait ProcessDataSubmessage {
     fn process_data_submessage(
         &self,
         source_guid_prefix: GuidPrefix,
-        _data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
+        _data: &DataSubmessage<Vec<Parameter<&'_ [u8]>>, &[u8]>,
     );
 }
 
@@ -165,7 +165,7 @@ mod tests {
             fn process_data_submessage(
                 &self,
                 _source_guid_prefix: GuidPrefix,
-                _data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
+                _data: &DataSubmessage<Vec<Parameter<&'_ [u8]>>, &[u8]>,
             ) {
                 *self.called.borrow_mut() = true
             }
@@ -185,7 +185,9 @@ mod tests {
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
-            serialized_payload: SerializedDataSubmessageElement { value: &[1, 2, 3][..] },
+            serialized_payload: SerializedDataSubmessageElement {
+                value: &[1, 2, 3][..],
+            },
         };
         let participant_guid_prefix = GuidPrefix([1; 12]);
         let reader_group_list = vec![rtps_shared_new(MockProcessDataSubmessage {
@@ -201,7 +203,7 @@ mod tests {
         let submessages: Vec<
             rust_rtps_pim::messages::submessages::RtpsSubmessageType<
                 Vec<i64>,
-                Vec<Parameter<'_>>,
+                Vec<Parameter<&'_ [u8]>>,
                 &[u8],
                 (),
                 (),

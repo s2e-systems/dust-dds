@@ -17,9 +17,9 @@ where
     C: for<'c> RtpsHistoryCacheOperations<
         'c,
         AddChangeDataType = &'c [u8],
-        AddChangeParameterType = &'c [Parameter<'c>],
+        AddChangeParameterType = &'c [Parameter<&'c [u8]>],
     >,
-    P: AsRef<[Parameter<'a>]>,
+    P: AsRef<[Parameter<&'a [u8]>]>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>) {
         let reader_id = data.reader_id.value;
@@ -79,8 +79,8 @@ mod tests {
         type AddChangeDataType = &'a [u8];
         type GetChangeDataType = &'a [u8];
 
-        type AddChangeParameterType = &'a [Parameter<'a>];
-        type GetChangeParameterType = &'a [Parameter<'a>];
+        type AddChangeParameterType = &'a [Parameter<&'a [u8]>];
+        type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
 
         fn new() -> Self
         where

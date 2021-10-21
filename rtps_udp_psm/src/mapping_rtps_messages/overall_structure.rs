@@ -19,9 +19,9 @@ use super::submessages::submessage_header::{
 };
 
 type RtpsSubmessageWrite<'a> =
-    RtpsSubmessageType<Vec<SequenceNumber>, &'a [Parameter<'a>], &'a [u8], (), ()>;
+    RtpsSubmessageType<Vec<SequenceNumber>, &'a [Parameter<&'a [u8]>], &'a [u8], (), ()>;
 type RtpsSubmessageRead<'a> =
-    RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter<'a>>, &'a [u8], (), ()>;
+    RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter<&'a [u8]>>, &'a [u8], (), ()>;
 
 pub type RtpsMessageWrite<'a> = RtpsMessage<Vec<RtpsSubmessageWrite<'a>>>;
 pub type RtpsMessageRead<'a> = RtpsMessage<Vec<RtpsSubmessageRead<'a>>>;
@@ -156,8 +156,8 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13][..]);
+        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23][..]);
         let parameter_list = [parameter_1, parameter_2];
         let inline_qos = ParameterListSubmessageElement {
             parameter: parameter_list.as_ref(),
@@ -245,8 +245,8 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13][..]);
+        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23][..]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
@@ -310,8 +310,8 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13][..]);
+        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23][..]);
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };

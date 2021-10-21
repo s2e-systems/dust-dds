@@ -12,7 +12,7 @@ use crate::{
 };
 
 const PID_SENTINEL: ParameterId = ParameterId(1);
-const SENTINEL: Parameter = Parameter {
+const SENTINEL: Parameter<&[u8]> = Parameter {
     parameter_id: PID_SENTINEL,
     length: 0,
     value: &[],
@@ -63,7 +63,7 @@ const SENTINEL: Parameter = Parameter {
 //     }
 // }
 
-impl Serialize for Parameter<'_> {
+impl Serialize for Parameter<&'_ [u8]> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         writer.write_u16::<B>(self.parameter_id.0)?;
         writer.write_i16::<B>(self.length)?;
@@ -79,7 +79,7 @@ impl Serialize for Parameter<'_> {
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for Parameter<'a> {
+impl<'de: 'a, 'a> Deserialize<'de> for Parameter<&'a [u8]> {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         let parameter_id = ParameterId(buf.read_u16::<B>()?);
         let length = buf.read_i16::<B>()?;
@@ -93,13 +93,13 @@ impl<'de: 'a, 'a> Deserialize<'de> for Parameter<'a> {
     }
 }
 
-impl<'a> NumberOfBytes for Parameter<'a> {
+impl<'a> NumberOfBytes for Parameter<&'a [u8]> {
     fn number_of_bytes(&self) -> usize {
         4 /* parameter_id and length */ + self.length as usize
     }
 }
 
-impl Serialize for ParameterListSubmessageElement<&[Parameter<'_>]> {
+impl Serialize for ParameterListSubmessageElement<&[Parameter<&'_ [u8]>]> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         for parameter in self.parameter {
             parameter.serialize::<_, B>(&mut writer)?;
@@ -110,7 +110,7 @@ impl Serialize for ParameterListSubmessageElement<&[Parameter<'_>]> {
 
 impl<'de: 'a, 'a, T> Deserialize<'de> for ParameterListSubmessageElement<T>
 where
-    T: FromIterator<Parameter<'a>>,
+    T: FromIterator<Parameter<&'a [u8]>>,
 {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
@@ -118,7 +118,7 @@ where
         let mut parameter = vec![];
 
         for _ in 0..MAX_PARAMETERS {
-            let parameter_i: Parameter = Deserialize::deserialize::<B>(buf)?;
+            let parameter_i: Parameter<&[u8]> = Deserialize::deserialize::<B>(buf)?;
 
             if parameter_i == SENTINEL {
                 break;
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(ParameterId(2), &[5, 6, 7, 8]);
+        let parameter = Parameter::new(ParameterId(2), &[5, 6, 7, 8][..]);
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
-        let parameter = Parameter::new(ParameterId(2), &[5, 6, 7]);
+        let parameter = Parameter::new(ParameterId(2), &[5, 6, 7][..]);
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_zero_size() {
-        let parameter = Parameter::new(ParameterId(2), &[]);
+        let parameter = Parameter::new(ParameterId(2), &[][..]);
         assert_eq!(
             to_bytes_le(&parameter).unwrap(),
             vec![
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
-        let expected = Parameter::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 0]);
+        let expected = Parameter::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 0][..]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = Parameter::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 12]);
+        let expected = Parameter::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 12][..]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -239,8 +239,8 @@ mod tests {
     fn deserialize_parameter_list() {
         let expected = ParameterListSubmessageElement {
             parameter: vec![
-                Parameter::new(ParameterId(0x02), &[15, 16, 17, 18]),
-                Parameter::new(ParameterId(0x03), &[25, 26, 27, 28]),
+                Parameter::new(ParameterId(0x02), &[15, 16, 17, 18][..]),
+                Parameter::new(ParameterId(0x03), &[25, 26, 27, 28][..]),
             ],
         };
         #[rustfmt::skip]
@@ -264,7 +264,7 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
-        ];
+        ][..];
 
         let expected = ParameterListSubmessageElement {
             parameter: vec![Parameter::new(ParameterId(0x32), parameter_value_expected)],
@@ -293,11 +293,11 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
-        ];
+        ][..];
         let parameter_value_expected2 = &[
             0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
             0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
-        ];
+        ][..];
 
         let expected = ParameterListSubmessageElement {
             parameter: vec![
