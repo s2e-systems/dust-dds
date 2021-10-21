@@ -73,6 +73,7 @@ mod tests {
 
     impl<'a> RtpsHistoryCacheOperations<'a> for MockHistoryCache {
         type AddChangeDataType = &'a [u8];
+        type GetChangeDataType = &'a [u8];
 
         fn new() -> Self
         where
@@ -99,7 +100,7 @@ mod tests {
         fn get_change(
             &self,
             _seq_num: &crate::structure::types::SequenceNumber,
-        ) -> Option<RtpsCacheChange<&[u8]>> {
+        ) -> Option<RtpsCacheChange<Self::GetChangeDataType>> {
             todo!()
         }
 

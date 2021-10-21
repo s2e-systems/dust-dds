@@ -102,7 +102,7 @@ impl<'a, S, L, C, R, RL> StatelessWriterBehavior<'a, S> for RtpsStatelessWriter<
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RL>,
     RL: RtpsReaderLocatorOperations,
-    C: RtpsHistoryCacheOperations<'a>,
+    C: RtpsHistoryCacheOperations<'a, GetChangeDataType = &'a [u8]>,
     S: FromIterator<SequenceNumber>,
 {
     type ReaderLocator = RL;
@@ -137,7 +137,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, S>(
     send_gap: &mut impl FnMut(&ReaderLocator, GapSubmessage<S>),
 ) where
     ReaderLocator: RtpsReaderLocatorOperations,
-    WriterCache: RtpsHistoryCacheOperations<'a>,
+    WriterCache: RtpsHistoryCacheOperations<'a, GetChangeDataType = &'a [u8]>,
     S: FromIterator<SequenceNumber>,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {

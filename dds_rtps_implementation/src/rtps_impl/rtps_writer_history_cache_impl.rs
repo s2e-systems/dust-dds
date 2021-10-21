@@ -32,6 +32,7 @@ impl WriterHistoryCache {
 
 impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
     type AddChangeDataType = Vec<u8>;
+    type GetChangeDataType = &'a [u8];
 
     fn new() -> Self
     where

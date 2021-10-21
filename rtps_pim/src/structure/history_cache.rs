@@ -2,6 +2,7 @@ use super::{types::SequenceNumber, RtpsCacheChange};
 
 pub trait RtpsHistoryCacheOperations<'a> {
     type AddChangeDataType;
+    type GetChangeDataType;
 
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     fn new() -> Self
@@ -19,7 +20,7 @@ pub trait RtpsHistoryCacheOperations<'a> {
     /// entity and on the acknowledgment status of the CacheChange. This is described in 8.4.1.
     fn remove_change(&mut self, seq_num: &SequenceNumber);
 
-    fn get_change(&'a self, seq_num: &SequenceNumber) -> Option<RtpsCacheChange<&[u8]>>;
+    fn get_change(&'a self, seq_num: &SequenceNumber) -> Option<RtpsCacheChange<Self::GetChangeDataType>>;
 
     /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
     fn get_seq_num_min(&self) -> Option<SequenceNumber>;
