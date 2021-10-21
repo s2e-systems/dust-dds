@@ -4,17 +4,19 @@ use std::{
 };
 
 use rust_dds_api::{
-    builtin_topics::ParticipantBuiltinTopicData,
-    dcps_psm::{BuiltInTopicKey, DomainId, StatusMask},
+    dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::{
-        qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos},
-        qos_policy::{ReliabilityQosPolicyKind, UserDataQosPolicy},
+    infrastructure::qos::{
+        DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
     },
-    publication::data_writer::DataWriter,
 };
 use rust_dds_rtps_implementation::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    data_representation_builtin_endpoints::{
+        sedp_discovered_reader_data::SedpDiscoveredReaderData,
+        sedp_discovered_topic_data::SedpDiscoveredTopicData,
+        sedp_discovered_writer_data::SedpDiscoveredWriterData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    },
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
         data_writer_impl::{DataWriterImpl, RtpsWriterFlavor},
@@ -23,30 +25,29 @@ use rust_dds_rtps_implementation::{
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::shared_object::{rtps_shared_new, rtps_shared_write_lock},
+    utils::shared_object::rtps_shared_new,
 };
 use rust_rtps_pim::{
-    behavior::{
-        types::Duration,
-        writer::{
-            reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
-        },
+    behavior::writer::{
+        reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
     },
     discovery::{
-        spdp::{
-            builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
-            participant_proxy::ParticipantProxy,
+        sedp::builtin_endpoints::{
+            SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
+            SedpBuiltinSubscriptionsReader, SedpBuiltinSubscriptionsWriter,
+            SedpBuiltinTopicsReader, SedpBuiltinTopicsWriter,
         },
-        types::{BuiltinEndpointQos, BuiltinEndpointSet},
+        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
     },
-    messages::types::Count,
     structure::{
         types::{
             EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
-            BUILT_IN_WRITER_GROUP, LOCATOR_INVALID, PROTOCOLVERSION, VENDOR_ID_S2E,
+            BUILT_IN_WRITER_GROUP,
         },
         RtpsGroup,
     },
@@ -89,13 +90,15 @@ impl DomainParticipantFactory {
     /// to call,e.g. create_topic(), because we can't write impl DomainParticipant + for<'t, T> TopicGAT<'t, T> on the return. This issue will
     /// probably be solved once the GAT functionality is available on stable.
     pub fn create_participant(
-        domain_id: DomainId,
+        _domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> Option<DomainParticipantImpl> {
+        // /////// Define guid prefix
         let guid_prefix = GuidPrefix([3; 12]);
 
+        // /////// Create transports
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
         socket.set_nonblocking(true).unwrap();
         socket
@@ -110,7 +113,33 @@ impl DomainParticipantFactory {
         socket.set_nonblocking(true).unwrap();
         let default_transport = Box::new(UdpTransport::new(socket));
 
-        let spdp_builtin_participant_writer_qos = DataWriterQos::default();
+        // /////// Create SPDP and SEDP endpoints
+        let spdp_builtin_participant_rtps_reader = RtpsStatelessReaderImpl::new(
+            SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]),
+        );
+        let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
+            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]),
+        );
+        let sedp_builtin_publications_rtps_reader = RtpsStatefulReaderImpl::new(
+            SedpBuiltinPublicationsReader::create(guid_prefix, vec![], vec![]),
+        );
+        let sedp_builtin_publications_rtps_writer = RtpsStatefulWriterImpl::new(
+            SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]),
+        );
+        let sedp_builtin_subscriptions_rtps_reader = RtpsStatefulReaderImpl::new(
+            SedpBuiltinSubscriptionsReader::create(guid_prefix, vec![], vec![]),
+        );
+        let sedp_builtin_subscriptions_rtps_writer = RtpsStatefulWriterImpl::new(
+            SedpBuiltinSubscriptionsWriter::create(guid_prefix, vec![], vec![]),
+        );
+        let sedp_builtin_topics_rtps_reader = RtpsStatefulReaderImpl::new(
+            SedpBuiltinTopicsReader::create(guid_prefix, vec![], vec![]),
+        );
+        let sedp_builtin_topics_rtps_writer = RtpsStatefulWriterImpl::new(
+            SedpBuiltinTopicsWriter::create(guid_prefix, vec![], vec![]),
+        );
+
+        // ////////// Configure SPDP reader locator
         let spdp_discovery_locator = RtpsReaderLocator::new(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
@@ -119,81 +148,66 @@ impl DomainParticipantFactory {
             ),
             false,
         );
-        let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
-            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]),
-        );
-
         spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-        let dds_participant_data = ParticipantBuiltinTopicData {
-            key: BuiltInTopicKey { value: [0; 3] },
-            user_data: UserDataQosPolicy {
-                value: vec![1, 2, 3],
-            },
-        };
-        let participant_proxy = ParticipantProxy {
-            domain_id: domain_id as u32,
-            domain_tag: "ab",
-            protocol_version: PROTOCOLVERSION,
-            guid_prefix,
-            vendor_id: VENDOR_ID_S2E,
-            expects_inline_qos: false,
-            metatraffic_unicast_locator_list: vec![LOCATOR_INVALID, LOCATOR_INVALID],
-            metatraffic_multicast_locator_list: vec![],
-            default_unicast_locator_list: vec![],
-            default_multicast_locator_list: vec![],
-            available_builtin_endpoints: BuiltinEndpointSet::new(
-                BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-                    | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
-            ),
-            manual_liveliness_count: Count(0),
-            builtin_endpoint_qos: BuiltinEndpointQos::default(),
-        };
-        let lease_duration = Duration {
-            seconds: 100,
-            fraction: 0,
-        };
+        // ///////// Create built-in DDS data readers and data writers
+        let spdp_builtin_participant_dds_data_reader =
+            rtps_shared_new(DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
+                DataReaderQos::default(),
+                RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader),
+            ));
 
-        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
-            dds_participant_data,
-            participant_proxy,
-            lease_duration,
-        };
-
-        let spdp_builtin_participant_writer = rtps_shared_new(DataWriterImpl::new(
-            spdp_builtin_participant_writer_qos,
+        let spdp_builtin_participant_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+            DataWriterQos::default(),
             RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
         ));
 
-        let mut spdp_builtin_participant_reader_qos = DataReaderQos::default();
-        spdp_builtin_participant_reader_qos.reliability.kind =
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-        let spdp_builtin_participant_rtps_reader =
-            SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]);
-        let spdp_builtin_participant_reader = rtps_shared_new(DataReaderImpl::<
-            SpdpDiscoveredParticipantData<String, Vec<Locator>>,
-        >::new(
-            spdp_builtin_participant_reader_qos,
-            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(
-                spdp_builtin_participant_rtps_reader,
-            )),
+        let sedp_builtin_publications_dds_data_reader =
+            rtps_shared_new(DataReaderImpl::<SedpDiscoveredWriterData>::new(
+                DataReaderQos::default(),
+                RtpsReaderFlavor::Stateful(sedp_builtin_publications_rtps_reader),
+            ));
+
+        let sedp_builtin_publications_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriterFlavor::Stateful(sedp_builtin_publications_rtps_writer),
         ));
 
-        rtps_shared_write_lock(&spdp_builtin_participant_writer)
-            .write_w_timestamp(
-                spdp_discovered_participant_data,
-                None,
-                rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-            )
-            .unwrap();
+        let sedp_builtin_subscriptions_dds_data_reader =
+            rtps_shared_new(DataReaderImpl::<SedpDiscoveredReaderData>::new(
+                DataReaderQos::default(),
+                RtpsReaderFlavor::Stateful(sedp_builtin_subscriptions_rtps_reader),
+            ));
 
+        let sedp_builtin_subscriptions_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriterFlavor::Stateful(sedp_builtin_subscriptions_rtps_writer),
+        ));
+
+        let sedp_builtin_topics_dds_data_reader =
+            rtps_shared_new(DataReaderImpl::<SedpDiscoveredTopicData>::new(
+                DataReaderQos::default(),
+                RtpsReaderFlavor::Stateful(sedp_builtin_topics_rtps_reader),
+            ));
+
+        let sedp_builtin_topics_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriterFlavor::Stateful(sedp_builtin_topics_rtps_writer),
+        ));
+
+        // ////// Create built-in publisher and subscriber
         let builtin_publisher_storage = rtps_shared_new(PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroup::new(Guid::new(
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
-            vec![spdp_builtin_participant_writer],
+            vec![
+                spdp_builtin_participant_dds_data_writer,
+                sedp_builtin_publications_dds_data_writer,
+                sedp_builtin_subscriptions_dds_data_writer,
+                sedp_builtin_topics_dds_data_writer,
+            ],
         ));
         let builtin_subscriber_storage = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
@@ -201,7 +215,12 @@ impl DomainParticipantFactory {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
-            vec![spdp_builtin_participant_reader],
+            vec![
+                spdp_builtin_participant_dds_data_reader,
+                sedp_builtin_publications_dds_data_reader,
+                sedp_builtin_subscriptions_dds_data_reader,
+                sedp_builtin_topics_dds_data_reader,
+            ],
         ));
 
         let domain_participant = DomainParticipantImpl::new(
@@ -216,3 +235,46 @@ impl DomainParticipantFactory {
         Some(domain_participant)
     }
 }
+
+// let dds_participant_data = ParticipantBuiltinTopicData {
+//     key: BuiltInTopicKey { value: [0; 3] },
+//     user_data: UserDataQosPolicy {
+//         value: vec![1, 2, 3],
+//     },
+// };
+// let participant_proxy = ParticipantProxy {
+//     domain_id: domain_id as u32,
+//     domain_tag: "ab",
+//     protocol_version: PROTOCOLVERSION,
+//     guid_prefix,
+//     vendor_id: VENDOR_ID_S2E,
+//     expects_inline_qos: false,
+//     metatraffic_unicast_locator_list: vec![LOCATOR_INVALID, LOCATOR_INVALID],
+//     metatraffic_multicast_locator_list: vec![],
+//     default_unicast_locator_list: vec![],
+//     default_multicast_locator_list: vec![],
+//     available_builtin_endpoints: BuiltinEndpointSet::new(
+//         BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+//             | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+//     ),
+//     manual_liveliness_count: Count(0),
+//     builtin_endpoint_qos: BuiltinEndpointQos::default(),
+// };
+// let lease_duration = Duration {
+//     seconds: 100,
+//     fraction: 0,
+// };
+
+// let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+//     dds_participant_data,
+//     participant_proxy,
+//     lease_duration,
+// };
+
+// rtps_shared_write_lock(&spdp_builtin_participant_writer)
+//     .write_w_timestamp(
+//         spdp_discovered_participant_data,
+//         None,
+//         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+//     )
+//     .unwrap();

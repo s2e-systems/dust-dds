@@ -7,11 +7,15 @@ use rust_rtps_pim::{
     structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
 };
 
-use crate::{data_representation_builtin_endpoints::parameter_id_values::{
+use crate::{
+    data_representation_builtin_endpoints::parameter_id_values::{
         DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, PID_DEFAULT_UNICAST_LOCATOR,
         PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR,
         PID_PARTICIPANT_LEASE_DURATION,
-    }, data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer}, dds_type::{DdsDeserialize, DdsSerialize, DdsType}};
+    },
+    data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer},
+    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
+};
 
 use super::{
     dds_serialize_deserialize_impl::{
@@ -32,13 +36,13 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct SpdpDiscoveredParticipantData<S, L> {
+pub struct SpdpDiscoveredParticipantData {
     pub dds_participant_data: ParticipantBuiltinTopicData,
-    pub participant_proxy: ParticipantProxy<S, L>,
+    pub participant_proxy: ParticipantProxy<String, Vec<Locator>>,
     pub lease_duration: Duration,
 }
 
-impl<S,L> DdsType for SpdpDiscoveredParticipantData<S,L> {
+impl DdsType for SpdpDiscoveredParticipantData {
     fn type_name() -> &'static str {
         "SpdpDiscoveredParticipantData"
     }
@@ -48,10 +52,7 @@ impl<S,L> DdsType for SpdpDiscoveredParticipantData<S,L> {
     }
 }
 
-impl<S> DdsSerialize for SpdpDiscoveredParticipantData<S, Vec<Locator>>
-where
-    S: AsRef<str> + PartialEq<&'static str>,
-{
+impl DdsSerialize for SpdpDiscoveredParticipantData {
     fn serialize<W: std::io::Write, E: crate::dds_type::Endianness>(
         &self,
         writer: W,
@@ -64,7 +65,7 @@ where
 
         if self.participant_proxy.domain_tag != DEFAULT_DOMAIN_TAG {
             parameter_list_serializer
-                .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag.as_ref())
+                .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)
                 .unwrap();
         }
 
@@ -182,7 +183,7 @@ where
     }
 }
 
-impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData<String, Vec<Locator>> {
+impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
         let param_list: ParameterList = MappingRead::read(buf).unwrap();
 
@@ -415,8 +416,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result: SpdpDiscoveredParticipantData<String, Vec<Locator>> =
-            DdsDeserialize::deserialize(&mut data).unwrap();
+        let result: SpdpDiscoveredParticipantData = DdsDeserialize::deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -426,7 +426,7 @@ mod tests {
         let locator2 = Locator::new(21, 22, [2; 16]);
 
         let domain_id = 1;
-        let domain_tag = "ab";
+        let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = GuidPrefix([8; 12]);
         let vendor_id = [73, 74];

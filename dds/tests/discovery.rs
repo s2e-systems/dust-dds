@@ -146,11 +146,10 @@ fn send_discovery_data_happy_path() {
     let spdp_builtin_participant_rtps_reader_impl =
         RtpsStatelessReaderImpl::new(spdp_builtin_participant_rtps_reader);
 
-    let data_reader: DataReaderImpl<SpdpDiscoveredParticipantData<String, Vec<Locator>>> =
-        DataReaderImpl::new(
-            DataReaderQos::default(),
-            RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader_impl),
-        );
+    let data_reader: DataReaderImpl<SpdpDiscoveredParticipantData> = DataReaderImpl::new(
+        DataReaderQos::default(),
+        RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader_impl),
+    );
     let shared_data_reader = rtps_shared_new(data_reader);
     let subscriber = SubscriberImpl::new(
         SubscriberQos::default(),

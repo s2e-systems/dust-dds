@@ -25,8 +25,7 @@ use rust_rtps_pim::{
     discovery::participant_discovery::ParticipantDiscovery,
     structure::{
         types::{
-            EntityId, Guid, GuidPrefix, Locator, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP,
-            VENDOR_ID_S2E,
+            EntityId, Guid, GuidPrefix, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
         },
         RtpsGroup,
     },
@@ -414,7 +413,7 @@ impl Entity for DomainParticipantImpl {
             self.builtin_subscriber
                 .read()
                 .unwrap()
-                .lookup_datareader::<SpdpDiscoveredParticipantData<String, Vec<Locator>>>(&());
+                .lookup_datareader::<SpdpDiscoveredParticipantData>(&());
 
         let option_sedp_builtin_publications_reader =
             self.builtin_subscriber
