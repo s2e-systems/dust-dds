@@ -136,19 +136,18 @@ where
     }
 }
 
-fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, S>(
-    reader_locator: &mut ReaderLocator,
-    writer_cache: &'a WriterCache,
-    last_change_sequence_number: &SequenceNumber,
-    send_data: &mut impl FnMut(&ReaderLocator, DataSubmessage<&'a [Parameter<&'a [u8]>], &'a [u8]>),
-    send_gap: &mut impl FnMut(&ReaderLocator, GapSubmessage<S>),
-) where
-    ReaderLocator: RtpsReaderLocatorOperations,
-    WriterCache: RtpsHistoryCacheOperations<
+fn best_effort_send_unsent_data<'a, RL, S>(
+    reader_locator: &mut RL,
+    writer_cache: &'a impl RtpsHistoryCacheOperations<
         'a,
         GetChangeDataType = &'a [u8],
         GetChangeParameterType = &'a [Parameter<&'a [u8]>],
     >,
+    last_change_sequence_number: &SequenceNumber,
+    send_data: &mut impl FnMut(&RL, DataSubmessage<&'a [Parameter<&'a [u8]>], &'a [u8]>),
+    send_gap: &mut impl FnMut(&RL, GapSubmessage<S>),
+) where
+    RL: RtpsReaderLocatorOperations,
     S: FromIterator<SequenceNumber>,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
