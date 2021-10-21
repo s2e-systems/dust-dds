@@ -1,9 +1,10 @@
 use rust_dds_api::builtin_topics::SubscriptionBuiltinTopicData;
+use rust_rtps_pim::{behavior::writer::reader_proxy::RtpsReaderProxy, structure::types::Locator};
 
-use crate::{dds_type::DdsType, rtps_impl::rtps_reader_proxy_impl::RtpsReaderProxyImpl};
+use crate::dds_type::DdsType;
 
 pub struct SedpDiscoveredReaderData {
-    pub reader_proxy: RtpsReaderProxyImpl,
+    pub reader_proxy: RtpsReaderProxy<Vec<Locator>>,
     pub subscriptions_builtin_topic_data: SubscriptionBuiltinTopicData,
 }
 

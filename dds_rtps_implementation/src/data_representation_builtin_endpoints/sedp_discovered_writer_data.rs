@@ -1,9 +1,10 @@
 use rust_dds_api::builtin_topics::PublicationBuiltinTopicData;
+use rust_rtps_pim::{behavior::reader::writer_proxy::RtpsWriterProxy, structure::types::Locator};
 
-use crate::{dds_type::DdsType, rtps_impl::rtps_writer_proxy_impl::RtpsWriterProxyImpl};
+use crate::dds_type::DdsType;
 
 pub struct SedpDiscoveredWriterData {
-    pub writer_proxy: RtpsWriterProxyImpl,
+    pub writer_proxy: RtpsWriterProxy<Vec<Locator>>,
     pub publication_builtin_topic_data: PublicationBuiltinTopicData,
 }
 
