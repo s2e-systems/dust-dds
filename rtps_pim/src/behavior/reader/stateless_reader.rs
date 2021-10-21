@@ -10,19 +10,21 @@ use crate::{
 
 use super::reader::RtpsReader;
 
-pub struct RtpsStatelessReader<L, C>(RtpsReader<L, C>);
+pub struct RtpsStatelessReader<L, C> {
+    reader: RtpsReader<L, C>,
+}
 
 impl<L, C> Deref for RtpsStatelessReader<L, C> {
     type Target = RtpsReader<L, C>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.reader
     }
 }
 
 impl<L, C> DerefMut for RtpsStatelessReader<L, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.reader
     }
 }
 
@@ -40,15 +42,17 @@ impl<L, C> RtpsStatelessReader<L, C> {
     where
         C: for<'a> RtpsHistoryCache<'a>,
     {
-        Self(RtpsReader::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            heartbeat_response_delay,
-            heartbeat_supression_duration,
-            expects_inline_qos,
-        ))
+        Self {
+            reader: RtpsReader::new(
+                guid,
+                topic_kind,
+                reliability_level,
+                unicast_locator_list,
+                multicast_locator_list,
+                heartbeat_response_delay,
+                heartbeat_supression_duration,
+                expects_inline_qos,
+            ),
+        }
     }
 }
