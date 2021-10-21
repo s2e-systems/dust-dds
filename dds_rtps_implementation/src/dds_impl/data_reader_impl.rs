@@ -52,7 +52,7 @@ impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>> {
     fn process_data_submessage(
         &self,
         source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<Vec<Parameter<'_>>>,
+        data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
     ) {
         let mut data_reader = self.write().unwrap();
         match &mut data_reader.rtps_reader {

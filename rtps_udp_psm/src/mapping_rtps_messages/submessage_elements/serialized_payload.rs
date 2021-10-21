@@ -5,16 +5,22 @@ use rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElemen
 
 use crate::serialize::{self, NumberOfBytes, Serialize};
 
-impl<'a> Serialize for SerializedDataSubmessageElement<'a> {
+impl<D> Serialize for SerializedDataSubmessageElement<D>
+where
+    D: AsRef<[u8]>,
+{
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        writer.write_all(self.value)?;
+        writer.write_all(self.value.as_ref())?;
         Ok(())
     }
 }
 
-impl<'a> NumberOfBytes for SerializedDataSubmessageElement<'a> {
+impl<D> NumberOfBytes for SerializedDataSubmessageElement<D>
+where
+    D: AsRef<[u8]>,
+{
     fn number_of_bytes(&self) -> usize {
-        self.value.len()
+        self.value.as_ref().len()
     }
 }
 

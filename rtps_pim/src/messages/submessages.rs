@@ -12,10 +12,10 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageType<'a, S, P, L, F> {
+pub enum RtpsSubmessageType<S, P, D, L, F> {
     AckNack(AckNackSubmessage<S>),
-    Data(DataSubmessage<'a, P>),
-    DataFrag(DataFragSubmessage<'a, P>),
+    Data(DataSubmessage<P, D>),
+    DataFrag(DataFragSubmessage<P, D>),
     Gap(GapSubmessage<S>),
     Heartbeat(HeartbeatSubmessage),
     HeartbeatFrag(HeartbeatFragSubmessage),
@@ -38,7 +38,7 @@ pub struct AckNackSubmessage<S> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataSubmessage<'a, P> {
+pub struct DataSubmessage<P, D> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
     pub data_flag: SubmessageFlag,
@@ -48,11 +48,11 @@ pub struct DataSubmessage<'a, P> {
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElement,
     pub inline_qos: ParameterListSubmessageElement<P>,
-    pub serialized_payload: SerializedDataSubmessageElement<'a>,
+    pub serialized_payload: SerializedDataSubmessageElement<D>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataFragSubmessage<'a, P> {
+pub struct DataFragSubmessage<P, D> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
@@ -65,7 +65,7 @@ pub struct DataFragSubmessage<'a, P> {
     pub data_size: ULongSubmessageElement,
     pub fragment_size: UShortSubmessageElement,
     pub inline_qos: ParameterListSubmessageElement<P>,
-    pub serialized_payload: SerializedDataFragmentSubmessageElement<'a>,
+    pub serialized_payload: SerializedDataFragmentSubmessageElement<D>,
 }
 
 #[derive(Debug, PartialEq)]

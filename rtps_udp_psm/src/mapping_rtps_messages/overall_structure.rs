@@ -19,9 +19,9 @@ use super::submessages::submessage_header::{
 };
 
 type RtpsSubmessageWrite<'a> =
-    RtpsSubmessageType<'a, Vec<SequenceNumber>, &'a [Parameter<'a>], (), ()>;
+    RtpsSubmessageType<Vec<SequenceNumber>, &'a [Parameter<'a>], &'a [u8], (), ()>;
 type RtpsSubmessageRead<'a> =
-    RtpsSubmessageType<'a, Vec<SequenceNumber>, Vec<Parameter<'a>>, (), ()>;
+    RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter<'a>>, &'a [u8], (), ()>;
 
 pub type RtpsMessageWrite<'a> = RtpsMessage<Vec<RtpsSubmessageWrite<'a>>>;
 pub type RtpsMessageRead<'a> = RtpsMessage<Vec<RtpsSubmessageRead<'a>>>;
@@ -109,7 +109,10 @@ mod tests {
     use rust_rtps_pim::messages::submessages::DataSubmessage;
     use rust_rtps_pim::messages::types::ParameterId;
     use rust_rtps_pim::messages::{types::ProtocolId, RtpsMessageHeader};
-    use rust_rtps_pim::structure::types::{EntityId, GuidPrefix, ProtocolVersion, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY};
+    use rust_rtps_pim::structure::types::{
+        EntityId, GuidPrefix, ProtocolVersion, USER_DEFINED_READER_GROUP,
+        USER_DEFINED_READER_NO_KEY,
+    };
 
     #[test]
     fn serialize_rtps_message_no_submessage() {
@@ -159,7 +162,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: parameter_list.as_ref(),
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = RtpsSubmessageType::Data(DataSubmessage {
             endianness_flag,
@@ -247,7 +250,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = RtpsSubmessageType::Data(DataSubmessage {
             endianness_flag,
@@ -312,7 +315,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = RtpsSubmessageType::Data(DataSubmessage {
             endianness_flag,

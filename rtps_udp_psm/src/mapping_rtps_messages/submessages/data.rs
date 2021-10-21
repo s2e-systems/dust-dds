@@ -15,7 +15,7 @@ use crate::{
     serialize::{self, NumberOfBytes, Serialize, SerializeSubmessage},
 };
 
-impl SerializeSubmessage for DataSubmessage<'_, &[Parameter<'_>]> {
+impl SerializeSubmessage for DataSubmessage<&[Parameter<'_>], &[u8]> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -68,7 +68,7 @@ impl SerializeSubmessage for DataSubmessage<'_, &[Parameter<'_>]> {
     }
 }
 
-impl<'de: 'a, 'a, T> DeserializeSubmessage<'de> for DataSubmessage<'a, T>
+impl<'de: 'a, 'a, T> DeserializeSubmessage<'de> for DataSubmessage<T, &'a [u8]>
 where
     T: FromIterator<Parameter<'a>> + NumberOfBytes,
 {
@@ -105,9 +105,9 @@ where
                 - inline_qos_len;
             let (data, following) = buf.split_at(serialized_payload_length as usize);
             *buf = following;
-            SerializedDataSubmessageElement { value: &data }
+            SerializedDataSubmessageElement { value: data }
         } else {
-            SerializedDataSubmessageElement { value: &[] }
+            SerializedDataSubmessageElement { value: &[][..] }
         };
 
         Ok(Self {
@@ -158,7 +158,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: [].as_ref(),
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
         let submessage = DataSubmessage {
             endianness_flag,
             inline_qos_flag,
@@ -203,7 +203,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: parameter_list.as_ref(),
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = DataSubmessage {
             endianness_flag,
@@ -252,7 +252,7 @@ mod tests {
             parameter: [].as_ref(),
         };
         let serialized_payload = SerializedDataSubmessageElement {
-            value: &[1_u8, 2, 3, 4],
+            value: &[1_u8, 2, 3, 4][..],
         };
         let submessage = DataSubmessage {
             endianness_flag,
@@ -297,7 +297,7 @@ mod tests {
             parameter: [].as_ref(),
         };
         let serialized_payload = SerializedDataSubmessageElement {
-            value: &[1_u8, 2, 3],
+            value: &[1_u8, 2, 3][..],
         };
         let submessage = DataSubmessage {
             endianness_flag,
@@ -339,7 +339,7 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
         let expected = DataSubmessage {
             endianness_flag,
             inline_qos_flag,
@@ -380,7 +380,7 @@ mod tests {
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
-            value: &[1, 2, 3, 4],
+            value: &[1, 2, 3, 4][..],
         };
         let expected = DataSubmessage {
             endianness_flag,
@@ -426,7 +426,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
         let expected = DataSubmessage {
             endianness_flag,
             inline_qos_flag,

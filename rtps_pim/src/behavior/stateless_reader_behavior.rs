@@ -9,7 +9,7 @@ use crate::{
 use super::reader::reader::RtpsReader;
 
 pub trait StatelessReaderBehavior<P> {
-    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>);
+    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>);
 }
 
 impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsReader<L, C>
@@ -17,7 +17,7 @@ where
     C: for<'c> RtpsHistoryCache<'c, CacheChangeDataType = &'c [u8]>,
     P: AsRef<[Parameter<'a>]>,
 {
-    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P>) {
+    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>) {
         let reader_id = data.reader_id.value;
         if &reader_id == self.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
             let kind = match (data.data_flag, data.key_flag) {
@@ -146,7 +146,7 @@ mod tests {
             writer_sn: SequenceNumberSubmessageElement {
                 value: message_sequence_number,
             },
-            serialized_payload: SerializedDataSubmessageElement { value: &[3] },
+            serialized_payload: SerializedDataSubmessageElement { value: &[3][..] },
             inline_qos: ParameterListSubmessageElement { parameter: [] },
         };
         stateless_reader.receive_data(source_guid_prefix, &data);

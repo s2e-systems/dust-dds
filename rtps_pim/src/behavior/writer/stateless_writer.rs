@@ -93,7 +93,7 @@ pub trait StatelessWriterBehavior<'a, S> {
 
     fn send_unsent_data(
         &'a mut self,
-        send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
+        send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<&'a [Parameter<'a>], &'a [u8]>),
         send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
     );
 }
@@ -109,7 +109,7 @@ where
 
     fn send_unsent_data(
         &'a mut self,
-        mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
+        mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<&'a [Parameter<'a>], &'a [u8]>),
         mut send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
     ) {
         let reliability_level = self.writer.reliability_level;
@@ -133,7 +133,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, S>(
     reader_locator: &mut ReaderLocator,
     writer_cache: &'a WriterCache,
     last_change_sequence_number: &SequenceNumber,
-    send_data: &mut impl FnMut(&ReaderLocator, DataSubmessage<'a, &'a [Parameter<'a>]>),
+    send_data: &mut impl FnMut(&ReaderLocator, DataSubmessage<&'a [Parameter<'a>], &'a [u8]>),
     send_gap: &mut impl FnMut(&ReaderLocator, GapSubmessage<S>),
 ) where
     ReaderLocator: RtpsReaderLocatorOperations,
