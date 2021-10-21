@@ -14,7 +14,11 @@ pub trait StatelessReaderBehavior<P> {
 
 impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsReader<L, C>
 where
-    C: for<'c> RtpsHistoryCacheOperations<'c, AddChangeDataType = &'c [u8]>,
+    C: for<'c> RtpsHistoryCacheOperations<
+        'c,
+        AddChangeDataType = &'c [u8],
+        AddChangeParameterType = &'c [Parameter<'c>],
+    >,
     P: AsRef<[Parameter<'a>]>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>) {
@@ -75,6 +79,9 @@ mod tests {
         type AddChangeDataType = &'a [u8];
         type GetChangeDataType = &'a [u8];
 
+        type AddChangeParameterType = &'a [Parameter<'a>];
+        type GetChangeParameterType = &'a [Parameter<'a>];
+
         fn new() -> Self
         where
             Self: Sized,
@@ -82,7 +89,10 @@ mod tests {
             MockHistoryCache(None)
         }
 
-        fn add_change(&mut self, change: RtpsCacheChange<&[u8]>) {
+        fn add_change(
+            &mut self,
+            change: RtpsCacheChange<Self::GetChangeParameterType, Self::AddChangeDataType>,
+        ) {
             self.0 = Some(MockCacheChange {
                 kind: change.kind,
                 writer_guid: change.writer_guid,
@@ -100,7 +110,8 @@ mod tests {
         fn get_change(
             &self,
             _seq_num: &crate::structure::types::SequenceNumber,
-        ) -> Option<RtpsCacheChange<Self::GetChangeDataType>> {
+        ) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>>
+        {
             todo!()
         }
 

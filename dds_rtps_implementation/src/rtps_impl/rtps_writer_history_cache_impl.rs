@@ -1,11 +1,8 @@
 use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
-use rust_rtps_pim::{
-    messages::types::Time,
-    structure::{
+use rust_rtps_pim::{messages::{submessage_elements::Parameter, types::Time}, structure::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
         RtpsCacheChange, RtpsHistoryCacheOperations,
-    },
-};
+    }};
 
 struct WriterCacheChange {
     kind: ChangeKind,
@@ -34,6 +31,9 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
     type AddChangeDataType = Vec<u8>;
     type GetChangeDataType = &'a [u8];
 
+    type AddChangeParameterType = &'a [Parameter<'a>];
+    type GetChangeParameterType = &'a [Parameter<'a>];
+
     fn new() -> Self
     where
         Self: Sized,
@@ -44,7 +44,7 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
         }
     }
 
-    fn add_change(&mut self, change: RtpsCacheChange<Self::AddChangeDataType>) {
+    fn add_change(&mut self, change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -70,7 +70,7 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
 
-    fn get_change(&self, seq_num: &SequenceNumber) -> Option<RtpsCacheChange<&[u8]>> {
+    fn get_change(&'a self, seq_num: &SequenceNumber) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>> {
         let local_change = self
             .changes
             .iter()
@@ -117,7 +117,7 @@ mod tests {
             instance_handle: 0,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: &[],
+            inline_qos: &[][..],
         };
         hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
@@ -132,7 +132,7 @@ mod tests {
             instance_handle: 0,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: &[],
+            inline_qos: &[][..],
         };
         hc.add_change(change);
         hc.remove_change(&1);
@@ -148,7 +148,7 @@ mod tests {
             instance_handle: 0,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: &[],
+            inline_qos: &[][..],
         };
         hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
@@ -164,7 +164,7 @@ mod tests {
             instance_handle: 0,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: &[],
+            inline_qos: &[][..],
         };
         let change2 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
@@ -172,7 +172,7 @@ mod tests {
             instance_handle: 0,
             sequence_number: 2,
             data_value: vec![],
-            inline_qos: &[],
+            inline_qos: &[][..],
         };
         hc.add_change(change1);
         hc.add_change(change2);
@@ -188,7 +188,7 @@ mod tests {
             instance_handle: 0,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: &[],
+            inline_qos: &[][..],
         };
         let change2 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
@@ -196,7 +196,7 @@ mod tests {
             instance_handle: 0,
             sequence_number: 2,
             data_value: vec![],
-            inline_qos: &[],
+            inline_qos: &[][..],
         };
         hc.add_change(change1);
         hc.add_change(change2);

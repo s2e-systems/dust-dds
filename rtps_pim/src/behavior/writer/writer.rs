@@ -2,7 +2,6 @@ use core::ops::{Deref, DerefMut};
 
 use crate::{
     behavior::types::Duration,
-    messages::submessage_elements::Parameter,
     structure::{
         types::{ChangeKind, Guid, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind},
         RtpsCacheChange, RtpsEndpoint, RtpsHistoryCacheOperations,
@@ -74,9 +73,9 @@ impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
         &mut self,
         kind: ChangeKind,
         data: C::AddChangeDataType,
-        inline_qos: &'a [Parameter<'a>],
+        inline_qos: C::GetChangeParameterType,
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<'a, C::AddChangeDataType>
+    ) -> RtpsCacheChange<C::GetChangeParameterType, C::AddChangeDataType>
     where
         C: RtpsHistoryCacheOperations<'a>,
     {
@@ -97,9 +96,9 @@ pub trait RtpsWriterOperations<C> {
         &mut self,
         kind: ChangeKind,
         data: C::AddChangeDataType,
-        inline_qos: &'a [Parameter<'a>],
+        inline_qos: C::GetChangeParameterType,
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<'a, C::AddChangeDataType>
+    ) -> RtpsCacheChange<C::GetChangeParameterType, C::AddChangeDataType>
     where
         C: RtpsHistoryCacheOperations<'a>;
 }
