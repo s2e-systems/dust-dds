@@ -9,7 +9,7 @@ use crate::{
             EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
         },
-        RtpsHistoryCache,
+        RtpsHistoryCacheOperations,
     },
 };
 
@@ -60,7 +60,7 @@ impl SedpBuiltinPublicationsWriter {
     ) -> RtpsStatefulWriter<L, C, R>
     where
         R: Default,
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
@@ -95,7 +95,7 @@ impl SedpBuiltinPublicationsReader {
     ) -> RtpsStatefulReader<L, C, W>
     where
         W: Default,
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let topic_kind = TopicKind::WithKey;
@@ -126,7 +126,7 @@ impl SedpBuiltinSubscriptionsWriter {
     ) -> RtpsStatefulWriter<L, C, R>
     where
         R: Default,
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
@@ -161,7 +161,7 @@ impl SedpBuiltinSubscriptionsReader {
     ) -> RtpsStatefulReader<L, C, W>
     where
         W: Default,
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let topic_kind = TopicKind::WithKey;
@@ -192,7 +192,7 @@ impl SedpBuiltinTopicsWriter {
     ) -> RtpsStatefulWriter<L, C, R>
     where
         R: Default,
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
@@ -227,7 +227,7 @@ impl SedpBuiltinTopicsReader {
     ) -> RtpsStatefulReader<L, C, W>
     where
         W: Default,
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let topic_kind = TopicKind::WithKey;

@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     messages::types::Time,
     structure::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
-        RtpsCacheChange, RtpsHistoryCache,
+        RtpsCacheChange, RtpsHistoryCacheOperations,
     },
 };
 
@@ -32,7 +32,7 @@ impl ReaderHistoryCache {
     }
 }
 
-impl<'a> RtpsHistoryCache<'a> for ReaderHistoryCache {
+impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
     type CacheChangeDataType = &'a [u8];
 
     fn new() -> Self

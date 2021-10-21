@@ -12,7 +12,7 @@ use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         types::{GuidPrefix, Locator},
-        RtpsHistoryCache,
+        RtpsHistoryCacheOperations,
     },
 };
 

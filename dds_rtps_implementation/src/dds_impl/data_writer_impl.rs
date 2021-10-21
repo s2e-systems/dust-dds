@@ -20,7 +20,7 @@ use rust_rtps_pim::{
     messages::submessages::RtpsSubmessageType,
     structure::{
         types::{ChangeKind, Locator},
-        RtpsHistoryCache,
+        RtpsHistoryCacheOperations,
     },
 };
 

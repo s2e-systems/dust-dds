@@ -4,7 +4,7 @@ use crate::{
     behavior::types::Duration,
     structure::{
         types::{Guid, ReliabilityKind, TopicKind},
-        RtpsEndpoint, RtpsHistoryCache,
+        RtpsEndpoint, RtpsHistoryCacheOperations,
     },
 };
 
@@ -42,7 +42,7 @@ impl<L, C> RtpsReader<L, C> {
         expects_inline_qos: bool,
     ) -> Self
     where
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         Self {
             endpoint: RtpsEndpoint::new(

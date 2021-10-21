@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     messages::types::Time,
     structure::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
-        RtpsCacheChange, RtpsHistoryCache,
+        RtpsCacheChange, RtpsHistoryCacheOperations,
     },
 };
 
@@ -30,7 +30,7 @@ impl WriterHistoryCache {
     }
 }
 
-impl<'a> RtpsHistoryCache<'a> for WriterHistoryCache {
+impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
     type CacheChangeDataType = Vec<u8>;
 
     fn new() -> Self

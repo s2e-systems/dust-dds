@@ -4,7 +4,7 @@ use crate::{
     behavior::types::Duration,
     structure::{
         types::{Guid, ReliabilityKind, TopicKind},
-        RtpsHistoryCache,
+        RtpsHistoryCacheOperations,
     },
 };
 
@@ -32,7 +32,7 @@ impl<L, C, R> DerefMut for RtpsStatefulWriter<L, C, R> {
 impl<L, C, R> RtpsStatefulWriter<L, C, R>
 where
     R: Default,
-    C: for<'a> RtpsHistoryCache<'a>,
+    C: for<'a> RtpsHistoryCacheOperations<'a>,
 {
     pub fn new(
         guid: Guid,

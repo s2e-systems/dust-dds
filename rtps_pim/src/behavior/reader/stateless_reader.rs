@@ -4,7 +4,7 @@ use crate::{
     behavior::types::Duration,
     structure::{
         types::{Guid, ReliabilityKind, TopicKind},
-        RtpsHistoryCache,
+        RtpsHistoryCacheOperations,
     },
 };
 
@@ -40,7 +40,7 @@ impl<L, C> RtpsStatelessReader<L, C> {
         expects_inline_qos: bool,
     ) -> Self
     where
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         Self {
             reader: RtpsReader::new(

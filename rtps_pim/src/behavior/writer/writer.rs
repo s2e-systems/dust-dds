@@ -5,7 +5,7 @@ use crate::{
     messages::submessage_elements::Parameter,
     structure::{
         types::{ChangeKind, Guid, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind},
-        RtpsCacheChange, RtpsEndpoint, RtpsHistoryCache,
+        RtpsCacheChange, RtpsEndpoint, RtpsHistoryCacheOperations,
     },
 };
 
@@ -48,7 +48,7 @@ impl<L, C> RtpsWriter<L, C> {
         data_max_size_serialized: Option<i32>,
     ) -> Self
     where
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         Self {
             endpoint: RtpsEndpoint::new(
@@ -78,7 +78,7 @@ impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
         handle: InstanceHandle,
     ) -> RtpsCacheChange<'a, C::CacheChangeDataType>
     where
-        C: RtpsHistoryCache<'a>,
+        C: RtpsHistoryCacheOperations<'a>,
     {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RtpsCacheChange {
@@ -101,5 +101,5 @@ pub trait RtpsWriterOperations<C> {
         handle: InstanceHandle,
     ) -> RtpsCacheChange<'a, C::CacheChangeDataType>
     where
-        C: RtpsHistoryCache<'a>;
+        C: RtpsHistoryCacheOperations<'a>;
 }

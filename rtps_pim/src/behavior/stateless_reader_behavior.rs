@@ -2,7 +2,7 @@ use crate::{
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
-        RtpsCacheChange, RtpsHistoryCache,
+        RtpsCacheChange, RtpsHistoryCacheOperations,
     },
 };
 
@@ -14,7 +14,7 @@ pub trait StatelessReaderBehavior<P> {
 
 impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsReader<L, C>
 where
-    C: for<'c> RtpsHistoryCache<'c, CacheChangeDataType = &'c [u8]>,
+    C: for<'c> RtpsHistoryCacheOperations<'c, CacheChangeDataType = &'c [u8]>,
     P: AsRef<[Parameter<'a>]>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>) {
@@ -71,7 +71,7 @@ mod tests {
 
     struct MockHistoryCache(Option<MockCacheChange>);
 
-    impl<'a> RtpsHistoryCache<'a> for MockHistoryCache {
+    impl<'a> RtpsHistoryCacheOperations<'a> for MockHistoryCache {
         type CacheChangeDataType = &'a [u8];
 
         fn new() -> Self

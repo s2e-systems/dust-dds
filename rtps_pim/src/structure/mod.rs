@@ -13,5 +13,5 @@ pub use cache_change::RtpsCacheChange;
 pub use endpoint::RtpsEndpoint;
 pub use entity::RtpsEntity;
 pub use group::RtpsGroup;
-pub use history_cache::RtpsHistoryCache;
+pub use history_cache::RtpsHistoryCacheOperations;
 pub use participant::RtpsParticipant;

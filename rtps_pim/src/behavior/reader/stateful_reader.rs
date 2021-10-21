@@ -4,7 +4,7 @@ use crate::{
     behavior::types::Duration,
     structure::{
         types::{Guid, ReliabilityKind, TopicKind},
-        RtpsHistoryCache,
+        RtpsHistoryCacheOperations,
     },
 };
 
@@ -18,7 +18,7 @@ pub struct RtpsStatefulReader<L, C, W> {
 impl<L, C, W> RtpsStatefulReader<L, C, W>
 where
     W: Default,
-    C: for<'a> RtpsHistoryCache<'a>,
+    C: for<'a> RtpsHistoryCacheOperations<'a>,
 {
     pub fn new(
         guid: Guid,

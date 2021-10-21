@@ -8,7 +8,7 @@ use crate::{
             EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
             BUILT_IN_WRITER_WITH_KEY,
         },
-        RtpsHistoryCache,
+        RtpsHistoryCacheOperations,
     },
 };
 
@@ -27,7 +27,7 @@ impl SpdpBuiltinParticipantWriter {
         multicast_locator_list: L,
     ) -> RtpsStatelessWriter<L, C, R>
     where
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
         R: Default,
     {
         let spdp_builtin_participant_writer_guid =
@@ -57,7 +57,7 @@ impl SpdpBuiltinParticipantReader {
         multicast_locator_list: L,
     ) -> RtpsStatelessReader<L, C>
     where
-        C: for<'a> RtpsHistoryCache<'a>,
+        C: for<'a> RtpsHistoryCacheOperations<'a>,
     {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);

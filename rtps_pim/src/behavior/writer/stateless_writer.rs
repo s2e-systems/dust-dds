@@ -17,7 +17,7 @@ use crate::{
         types::{
             ChangeKind, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN,
         },
-        RtpsHistoryCache,
+        RtpsHistoryCacheOperations,
     },
 };
 
@@ -48,7 +48,7 @@ impl<L, C, R> DerefMut for RtpsStatelessWriter<L, C, R> {
 impl<L, C, R> RtpsStatelessWriter<L, C, R>
 where
     R: Default,
-    C: for<'a> RtpsHistoryCache<'a>,
+    C: for<'a> RtpsHistoryCacheOperations<'a>,
 {
     pub fn new(
         guid: Guid,
@@ -102,7 +102,7 @@ impl<'a, S, L, C, R, RL> StatelessWriterBehavior<'a, S> for RtpsStatelessWriter<
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RL>,
     RL: RtpsReaderLocatorOperations,
-    C: RtpsHistoryCache<'a>,
+    C: RtpsHistoryCacheOperations<'a>,
     S: FromIterator<SequenceNumber>,
 {
     type ReaderLocator = RL;
@@ -137,7 +137,7 @@ fn best_effort_send_unsent_data<'a, ReaderLocator, WriterCache, S>(
     send_gap: &mut impl FnMut(&ReaderLocator, GapSubmessage<S>),
 ) where
     ReaderLocator: RtpsReaderLocatorOperations,
-    WriterCache: RtpsHistoryCache<'a>,
+    WriterCache: RtpsHistoryCacheOperations<'a>,
     S: FromIterator<SequenceNumber>,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
@@ -226,7 +226,7 @@ pub fn reliable_send_unsent_data(
 //         },
 //         structure::{
 //             types::{Locator, GUID, GUID_UNKNOWN, LOCATOR_INVALID},
-//             RTPSCacheChange, RTPSHistoryCache,
+//             RTPSCacheChange, RtpsHistoryCacheOperations,
 //         },
 //     };
 
@@ -558,7 +558,7 @@ pub fn reliable_send_unsent_data(
 //         changes: [MockCacheChange; N],
 //     }
 
-//     impl<const N: usize> RTPSHistoryCache for MockHistoryCache<N> {
+//     impl<const N: usize> RtpsHistoryCacheOperations for MockHistoryCache<N> {
 //         type CacheChange = MockCacheChange;
 
 //         fn new() -> Self
