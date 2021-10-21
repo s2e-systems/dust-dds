@@ -14,7 +14,7 @@ pub trait StatelessReaderBehavior<P> {
 
 impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsReader<L, C>
 where
-    C: for<'c> RtpsHistoryCacheOperations<'c, CacheChangeDataType = &'c [u8]>,
+    C: for<'c> RtpsHistoryCacheOperations<'c, AddChangeDataType = &'c [u8]>,
     P: AsRef<[Parameter<'a>]>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>) {
@@ -72,7 +72,7 @@ mod tests {
     struct MockHistoryCache(Option<MockCacheChange>);
 
     impl<'a> RtpsHistoryCacheOperations<'a> for MockHistoryCache {
-        type CacheChangeDataType = &'a [u8];
+        type AddChangeDataType = &'a [u8];
 
         fn new() -> Self
         where

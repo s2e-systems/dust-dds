@@ -33,7 +33,7 @@ impl ReaderHistoryCache {
 }
 
 impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
-    type CacheChangeDataType = &'a [u8];
+    type AddChangeDataType = &'a [u8];
 
     fn new() -> Self
     where

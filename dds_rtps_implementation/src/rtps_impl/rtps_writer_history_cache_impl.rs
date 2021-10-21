@@ -31,7 +31,7 @@ impl WriterHistoryCache {
 }
 
 impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
-    type CacheChangeDataType = Vec<u8>;
+    type AddChangeDataType = Vec<u8>;
 
     fn new() -> Self
     where
@@ -43,7 +43,7 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
         }
     }
 
-    fn add_change(&mut self, change: RtpsCacheChange<Self::CacheChangeDataType>) {
+    fn add_change(&mut self, change: RtpsCacheChange<Self::AddChangeDataType>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,

@@ -73,10 +73,10 @@ impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
     fn new_change<'a>(
         &mut self,
         kind: ChangeKind,
-        data: C::CacheChangeDataType,
+        data: C::AddChangeDataType,
         inline_qos: &'a [Parameter<'a>],
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<'a, C::CacheChangeDataType>
+    ) -> RtpsCacheChange<'a, C::AddChangeDataType>
     where
         C: RtpsHistoryCacheOperations<'a>,
     {
@@ -96,10 +96,10 @@ pub trait RtpsWriterOperations<C> {
     fn new_change<'a>(
         &mut self,
         kind: ChangeKind,
-        data: C::CacheChangeDataType,
+        data: C::AddChangeDataType,
         inline_qos: &'a [Parameter<'a>],
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<'a, C::CacheChangeDataType>
+    ) -> RtpsCacheChange<'a, C::AddChangeDataType>
     where
         C: RtpsHistoryCacheOperations<'a>;
 }
