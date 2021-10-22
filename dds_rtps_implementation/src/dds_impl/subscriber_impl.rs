@@ -17,17 +17,16 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::{
-    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
-    structure::{
-        types::{
-            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-            USER_DEFINED_WRITER_WITH_KEY,
-        },
-        RtpsGroup,
+use rust_rtps_pim::structure::{
+    types::{
+        EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+        USER_DEFINED_WRITER_WITH_KEY,
     },
+    RtpsGroup,
 };
-use rust_rtps_psm::rtps_stateless_reader_impl::RtpsStatelessReaderImpl;
+use rust_rtps_psm::{
+    messages::submessages::DataSubmessageRead, rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+};
 
 use crate::{
     dds_type::DdsType,
@@ -252,11 +251,7 @@ impl Entity for SubscriberImpl {
 }
 
 impl ProcessDataSubmessage for SubscriberImpl {
-    fn process_data_submessage(
-        &self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<Vec<Parameter<&'_ [u8]>>, &[u8]>,
-    ) {
+    fn process_data_submessage(&self, source_guid_prefix: GuidPrefix, data: &DataSubmessageRead) {
         let data_reader_list = self.data_reader_list.lock().unwrap();
         for reader in data_reader_list.iter() {
             reader.process_data_submessage(source_guid_prefix, data);

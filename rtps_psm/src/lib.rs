@@ -8,4 +8,5 @@ pub mod rtps_stateful_writer_impl;
 pub mod rtps_stateful_reader_impl;
 pub mod rtps_writer_proxy_impl;
 
+pub mod messages;
 pub mod discovery;

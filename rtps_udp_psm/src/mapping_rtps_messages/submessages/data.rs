@@ -9,13 +9,14 @@ use rust_rtps_pim::messages::{
     submessages::DataSubmessage,
     types::SubmessageKind,
 };
+use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
 
 use crate::{
     deserialize::{self, Deserialize, DeserializeSubmessage},
     serialize::{self, NumberOfBytes, Serialize, SerializeSubmessage},
 };
 
-impl SerializeSubmessage for DataSubmessage<&[Parameter<&'_ [u8]>], &[u8]> {
+impl SerializeSubmessage for DataSubmessageWrite {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -68,10 +69,7 @@ impl SerializeSubmessage for DataSubmessage<&[Parameter<&'_ [u8]>], &[u8]> {
     }
 }
 
-impl<'de: 'a, 'a, T> DeserializeSubmessage<'de> for DataSubmessage<T, &'a [u8]>
-where
-    T: FromIterator<Parameter<&'a [u8]>> + NumberOfBytes,
-{
+impl<'de: 'a, 'a> DeserializeSubmessage<'de> for DataSubmessageRead<'a> {
     fn deserialize_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
@@ -88,9 +86,7 @@ where
         let inline_qos = if inline_qos_flag {
             Deserialize::deserialize::<B>(buf)?
         } else {
-            ParameterListSubmessageElement {
-                parameter: T::from_iter(std::iter::empty()),
-            }
+            ParameterListSubmessageElement { parameter: vec![] }
         };
         let inline_qos_len = if inline_qos_flag {
             inline_qos.number_of_bytes()
@@ -110,18 +106,21 @@ where
             SerializedDataSubmessageElement { value: &[][..] }
         };
 
-        Ok(Self {
-            endianness_flag: header.flags[0],
+        let endianness_flag = header.flags[0];
+        let non_standard_payload_flag = header.flags[4];
+
+        Ok(Self::new(
+            endianness_flag,
             inline_qos_flag,
             data_flag,
             key_flag,
-            non_standard_payload_flag: header.flags[4],
+            non_standard_payload_flag,
             reader_id,
             writer_id,
             writer_sn,
             inline_qos,
             serialized_payload,
-        })
+        ))
     }
 }
 
@@ -155,11 +154,9 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: [].as_ref(),
-        };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
-        let submessage = DataSubmessage {
+        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
+        let serialized_payload = SerializedDataSubmessageElement { value: vec![] };
+        let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -170,7 +167,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        };
+        );
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x15_u8, 0b_0000_0001, 20, 0, // Submessage header
@@ -197,15 +194,15 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13][..]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23][..]);
-        let parameter_list = [parameter_1, parameter_2];
+        let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
+        let parameter_list = vec![parameter_1, parameter_2];
         let inline_qos = ParameterListSubmessageElement {
-            parameter: parameter_list.as_ref(),
+            parameter: parameter_list,
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedDataSubmessageElement { value: vec![] };
 
-        let submessage = DataSubmessage {
+        let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -216,7 +213,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        };
+        );
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x15, 0b_0000_0011, 40, 0, // Submessage header
@@ -248,13 +245,11 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: [].as_ref(),
-        };
+        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
-            value: &[1_u8, 2, 3, 4][..],
+            value: vec![1_u8, 2, 3, 4],
         };
-        let submessage = DataSubmessage {
+        let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -265,7 +260,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        };
+        );
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
@@ -293,13 +288,11 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: [].as_ref(),
-        };
+        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
-            value: &[1_u8, 2, 3][..],
+            value: vec![1_u8, 2, 3],
         };
-        let submessage = DataSubmessage {
+        let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -310,7 +303,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        };
+        );
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x15, 0b_0000_0101, 24, 0, // Submessage header
@@ -340,7 +333,7 @@ mod tests {
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
-        let expected = DataSubmessage {
+        let expected = DataSubmessageRead::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -351,7 +344,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        };
+        );
         #[rustfmt::skip]
         let result = from_bytes(&[
             0x15, 0b_0000_0001, 20, 0, // Submessage header
@@ -382,7 +375,7 @@ mod tests {
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1, 2, 3, 4][..],
         };
-        let expected = DataSubmessage {
+        let expected = DataSubmessageRead::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -393,7 +386,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        };
+        );
         #[rustfmt::skip]
         let result = from_bytes(&[
             0x15, 0b_0000_0101, 24, 0, // Submessage header
@@ -427,7 +420,7 @@ mod tests {
             parameter: vec![parameter_1, parameter_2],
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
-        let expected = DataSubmessage {
+        let expected = DataSubmessageRead::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -438,7 +431,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        };
+        );
         #[rustfmt::skip]
         let result = from_bytes(&[
             0x15, 0b_0000_0011, 40, 0, // Submessage header

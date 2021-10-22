@@ -1,9 +1,8 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
-use rust_dds_rtps_implementation::utils::transport::{
-    RtpsMessageRead, RtpsMessageWrite, TransportRead, TransportWrite,
-};
+use rust_dds_rtps_implementation::utils::transport::{TransportRead, TransportWrite};
 use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
+use rust_rtps_psm::messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite};
 use rust_rtps_udp_psm::{deserialize::from_bytes, serialize::to_bytes};
 
 const BUFFER_SIZE: usize = 32000;

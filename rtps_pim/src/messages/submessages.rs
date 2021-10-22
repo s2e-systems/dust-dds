@@ -12,22 +12,6 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageType<S, P, D, L, F> {
-    AckNack(AckNackSubmessage<S>),
-    Data(DataSubmessage<P, D>),
-    DataFrag(DataFragSubmessage<P, D>),
-    Gap(GapSubmessage<S>),
-    Heartbeat(HeartbeatSubmessage),
-    HeartbeatFrag(HeartbeatFragSubmessage),
-    InfoDestination(InfoDestinationSubmessage),
-    InfoReply(InfoReplySubmessage<L>),
-    InfoSource(InfoSourceSubmessage),
-    InfoTimestamp(InfoTimestampSubmessage),
-    NackFrag(NackFragSubmessage<F>),
-    Pad(PadSubmessage),
-}
-
-#[derive(Debug, PartialEq)]
 pub struct AckNackSubmessage<S> {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,

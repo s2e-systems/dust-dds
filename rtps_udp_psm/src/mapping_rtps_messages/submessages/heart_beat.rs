@@ -1,16 +1,18 @@
-use rust_rtps_pim::messages::submessages::HeartbeatSubmessage;
+use rust_rtps_psm::messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite};
 
-use crate::{deserialize::{self, MappingRead}, serialize::{self, MappingWrite}};
+use crate::{
+    deserialize::{self, MappingRead},
+    serialize::{self, MappingWrite},
+};
 
 use std::io::Write;
 
-
-impl MappingWrite for HeartbeatSubmessage {
+impl MappingWrite for HeartbeatSubmessageWrite {
     fn write<W: Write>(&self, mut _writer: W) -> serialize::Result {
         todo!()
     }
 }
-impl<'de> MappingRead<'de> for HeartbeatSubmessage {
+impl<'de> MappingRead<'de> for HeartbeatSubmessageRead {
     fn read(_buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         todo!()
     }

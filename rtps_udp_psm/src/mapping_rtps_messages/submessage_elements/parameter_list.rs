@@ -63,12 +63,15 @@ const SENTINEL: Parameter<&[u8]> = Parameter {
 //     }
 // }
 
-impl Serialize for Parameter<&'_ [u8]> {
+impl<T> Serialize for Parameter<T>
+where
+    T: AsRef<[u8]>,
+{
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         writer.write_u16::<B>(self.parameter_id.0)?;
         writer.write_i16::<B>(self.length)?;
-        writer.write_all(&self.value)?;
-        let padding: &[u8] = match self.value.len() % 4 {
+        writer.write_all(self.value.as_ref())?;
+        let padding: &[u8] = match self.value.as_ref().len() % 4 {
             1 => &[0; 3],
             2 => &[0; 2],
             3 => &[0; 1],
@@ -93,15 +96,15 @@ impl<'de: 'a, 'a> Deserialize<'de> for Parameter<&'a [u8]> {
     }
 }
 
-impl<'a> NumberOfBytes for Parameter<&'a [u8]> {
+impl<T> NumberOfBytes for Parameter<T> {
     fn number_of_bytes(&self) -> usize {
         4 /* parameter_id and length */ + self.length as usize
     }
 }
 
-impl Serialize for ParameterListSubmessageElement<&[Parameter<&'_ [u8]>]> {
+impl Serialize for ParameterListSubmessageElement<Vec<Parameter<Vec<u8>>>> {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        for parameter in self.parameter {
+        for parameter in &self.parameter {
             parameter.serialize::<_, B>(&mut writer)?;
         }
         SENTINEL.serialize::<_, B>(&mut writer)
@@ -205,12 +208,12 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter_list = [
-            Parameter::new(ParameterId(2), &[51, 61, 71, 81][..]),
-            Parameter::new(ParameterId(3), &[52, 62][..]),
+        let parameter_list = vec![
+            Parameter::new(ParameterId(2), vec![51, 61, 71, 81]),
+            Parameter::new(ParameterId(3), vec![52, 62]),
         ];
         let parameter = ParameterListSubmessageElement {
-            parameter: parameter_list.as_ref(),
+            parameter: parameter_list,
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
@@ -225,9 +228,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list_empty() {
-        let parameter = ParameterListSubmessageElement {
-            parameter: [].as_ref(),
-        };
+        let parameter = ParameterListSubmessageElement { parameter: vec![] };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD

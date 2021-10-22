@@ -1,15 +1,16 @@
 use rust_rtps_pim::{
-    messages::overall_structure::{RtpsMessage, RtpsMessageHeader},
+    messages::overall_structure::RtpsMessageHeader,
     structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
 };
+use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
 use super::{
     shared_object::{rtps_shared_write_lock, RtpsShared},
-    transport::{RtpsSubmessageWrite, TransportWrite},
+    transport::TransportWrite,
 };
 
 pub trait RtpsSubmessageSender {
-    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageWrite<'_>>)>;
+    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageTypeWrite>)>;
 }
 
 // impl<T, U> RtpsSubmessageSender for T
@@ -69,10 +70,7 @@ pub fn send_data(
                 vendor_id: *vendor_id,
                 guid_prefix: *guid_prefix,
             };
-            let message = RtpsMessage {
-                header,
-                submessages,
-            };
+            let message = RtpsMessageWrite::new(header, submessages);
             transport.write(&message, &dst_locator);
         }
     }

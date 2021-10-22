@@ -511,12 +511,12 @@ impl Entity for DomainParticipantImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::transport::RtpsMessageRead;
     use rust_dds_api::return_type::DDSError;
     use rust_rtps_pim::structure::{
         types::{Locator, GUID_UNKNOWN},
         RtpsGroup,
     };
+    use rust_rtps_psm::messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite};
 
     struct MockTransport;
 
@@ -527,11 +527,7 @@ mod tests {
     }
 
     impl TransportWrite for MockTransport {
-        fn write(
-            &mut self,
-            _message: &crate::utils::transport::RtpsMessageWrite<'_>,
-            _destination_locator: &Locator,
-        ) {
+        fn write(&mut self, _message: &RtpsMessageWrite, _destination_locator: &Locator) {
             todo!()
         }
     }

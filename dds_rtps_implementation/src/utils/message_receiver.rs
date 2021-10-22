@@ -1,16 +1,16 @@
 use crate::utils::shared_object::rtps_shared_write_lock;
 
-use super::{shared_object::RtpsShared, transport::RtpsMessageRead};
+use super::shared_object::RtpsShared;
 use rust_rtps_pim::{
-    messages::{
-        submessage_elements::Parameter,
-        submessages::{DataSubmessage, InfoTimestampSubmessage, RtpsSubmessageType},
-        types::{Time, TIME_INVALID},
-    },
+    messages::types::{Time, TIME_INVALID},
     structure::types::{
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
     },
+};
+use rust_rtps_psm::messages::{
+    overall_structure::{RtpsMessageRead, RtpsSubmessageTypeRead},
+    submessages::{DataSubmessageRead, InfoTimestampSubmessageRead},
 };
 
 pub struct MessageReceiver {
@@ -62,30 +62,30 @@ impl MessageReceiver {
 
         for submessage in &message.submessages {
             match submessage {
-                RtpsSubmessageType::AckNack(_) => todo!(),
-                RtpsSubmessageType::Data(data) => {
+                RtpsSubmessageTypeRead::AckNack(_) => todo!(),
+                RtpsSubmessageTypeRead::Data(data) => {
                     for element in list {
                         rtps_shared_write_lock(&element)
-                            .process_data_submessage(self.source_guid_prefix, data)
+                            .process_data_submessage(self.source_guid_prefix, &data)
                     }
                 }
-                RtpsSubmessageType::DataFrag(_) => todo!(),
-                RtpsSubmessageType::Gap(_) => todo!(),
-                RtpsSubmessageType::Heartbeat(_) => todo!(),
-                RtpsSubmessageType::HeartbeatFrag(_) => todo!(),
-                RtpsSubmessageType::InfoDestination(_) => todo!(),
-                RtpsSubmessageType::InfoReply(_) => todo!(),
-                RtpsSubmessageType::InfoSource(_) => todo!(),
-                RtpsSubmessageType::InfoTimestamp(info_timestamp) => {
+                RtpsSubmessageTypeRead::DataFrag(_) => todo!(),
+                RtpsSubmessageTypeRead::Gap(_) => todo!(),
+                RtpsSubmessageTypeRead::Heartbeat(_) => todo!(),
+                RtpsSubmessageTypeRead::HeartbeatFrag(_) => todo!(),
+                RtpsSubmessageTypeRead::InfoDestination(_) => todo!(),
+                RtpsSubmessageTypeRead::InfoReply(_) => todo!(),
+                RtpsSubmessageTypeRead::InfoSource(_) => todo!(),
+                RtpsSubmessageTypeRead::InfoTimestamp(info_timestamp) => {
                     self.process_info_timestamp_submessage(info_timestamp)
                 }
-                RtpsSubmessageType::NackFrag(_) => todo!(),
-                RtpsSubmessageType::Pad(_) => todo!(),
+                RtpsSubmessageTypeRead::NackFrag(_) => todo!(),
+                RtpsSubmessageTypeRead::Pad(_) => todo!(),
             }
         }
     }
 
-    fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
+    fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessageRead) {
         if info_timestamp.invalidate_flag == false {
             self.have_timestamp = true;
             self.timestamp = info_timestamp.timestamp.value;
@@ -97,11 +97,7 @@ impl MessageReceiver {
 }
 
 pub trait ProcessDataSubmessage {
-    fn process_data_submessage(
-        &self,
-        source_guid_prefix: GuidPrefix,
-        _data: &DataSubmessage<Vec<Parameter<&'_ [u8]>>, &[u8]>,
-    );
+    fn process_data_submessage(&self, source_guid_prefix: GuidPrefix, _data: &DataSubmessageRead);
 }
 
 #[cfg(test)]
@@ -110,7 +106,7 @@ mod tests {
 
     use rust_rtps_pim::{
         messages::{
-            overall_structure::{RtpsMessage, RtpsMessageHeader},
+            overall_structure::RtpsMessageHeader,
             submessage_elements::{
                 EntityIdSubmessageElement, ParameterListSubmessageElement,
                 SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
@@ -130,11 +126,11 @@ mod tests {
     #[test]
     fn process_info_timestamp_submessage_valid_time() {
         let mut message_receiver = MessageReceiver::new();
-        let info_timestamp = InfoTimestampSubmessage {
-            endianness_flag: true,
-            invalidate_flag: false,
-            timestamp: TimestampSubmessageElement { value: Time(100) },
-        };
+        let info_timestamp = InfoTimestampSubmessageRead::new(
+            true,
+            false,
+            TimestampSubmessageElement { value: Time(100) },
+        );
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
         assert_eq!(message_receiver.have_timestamp, true);
@@ -144,11 +140,11 @@ mod tests {
     #[test]
     fn process_info_timestamp_submessage_invalid_time() {
         let mut message_receiver = MessageReceiver::new();
-        let info_timestamp = InfoTimestampSubmessage {
-            endianness_flag: true,
-            invalidate_flag: true,
-            timestamp: TimestampSubmessageElement { value: Time(100) },
-        };
+        let info_timestamp = InfoTimestampSubmessageRead::new(
+            true,
+            true,
+            TimestampSubmessageElement { value: Time(100) },
+        );
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
         assert_eq!(message_receiver.have_timestamp, false);
@@ -165,30 +161,30 @@ mod tests {
             fn process_data_submessage(
                 &self,
                 _source_guid_prefix: GuidPrefix,
-                _data: &DataSubmessage<Vec<Parameter<&'_ [u8]>>, &[u8]>,
+                _data: &DataSubmessageRead,
             ) {
                 *self.called.borrow_mut() = true
             }
         }
 
-        let data_submessage = DataSubmessage {
-            endianness_flag: true,
-            inline_qos_flag: false,
-            data_flag: true,
-            key_flag: false,
-            non_standard_payload_flag: false,
-            reader_id: EntityIdSubmessageElement {
+        let data_submessage = DataSubmessageRead::new(
+            true,
+            false,
+            true,
+            false,
+            false,
+            EntityIdSubmessageElement {
                 value: EntityId::new([1; 3], BUILT_IN_READER_WITH_KEY),
             },
-            writer_id: EntityIdSubmessageElement {
+            EntityIdSubmessageElement {
                 value: EntityId::new([1; 3], BUILT_IN_WRITER_WITH_KEY),
             },
-            writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
-            serialized_payload: SerializedDataSubmessageElement {
+            SequenceNumberSubmessageElement { value: 1 },
+            ParameterListSubmessageElement { parameter: vec![] },
+            SerializedDataSubmessageElement {
                 value: &[1, 2, 3][..],
             },
-        };
+        );
         let participant_guid_prefix = GuidPrefix([1; 12]);
         let reader_group_list = vec![rtps_shared_new(MockProcessDataSubmessage {
             called: RefCell::new(false),
@@ -200,19 +196,8 @@ mod tests {
             vendor_id: [99, 99],
             guid_prefix: GuidPrefix([1; 12]),
         };
-        let submessages: Vec<
-            rust_rtps_pim::messages::submessages::RtpsSubmessageType<
-                Vec<i64>,
-                Vec<Parameter<&'_ [u8]>>,
-                &[u8],
-                (),
-                (),
-            >,
-        > = vec![RtpsSubmessageType::Data(data_submessage)];
-        let message = RtpsMessage {
-            header,
-            submessages,
-        };
+        let submessages = vec![RtpsSubmessageTypeRead::Data(data_submessage)];
+        let message = RtpsMessageRead::new(header, submessages);
 
         MessageReceiver::new().process_message(
             participant_guid_prefix,

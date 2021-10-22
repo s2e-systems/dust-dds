@@ -1,17 +1,15 @@
-use std::{io::Write, iter::FromIterator};
+use std::io::Write;
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{messages::{overall_structure::RtpsSubmessageHeader, submessages::GapSubmessage, types::SubmessageKind}, structure::types::SequenceNumber};
+use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
+use rust_rtps_psm::messages::submessages::{GapSubmessageRead, GapSubmessageWrite};
 
 use crate::{
     deserialize::{self, Deserialize, DeserializeSubmessage},
     serialize::{self, NumberOfBytes, Serialize, SerializeSubmessage},
 };
 
-impl<T> SerializeSubmessage for GapSubmessage<T>
-where
-    for<'a> &'a T: IntoIterator<Item = &'a SequenceNumber>,
-{
+impl SerializeSubmessage for GapSubmessageWrite {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let submessage_length = 16 + self.gap_list.number_of_bytes();
         RtpsSubmessageHeader {
@@ -41,10 +39,7 @@ where
     }
 }
 
-impl<'de, T> DeserializeSubmessage<'de> for GapSubmessage<T>
-where
-    T: FromIterator<SequenceNumber>,
-{
+impl<'de> DeserializeSubmessage<'de> for GapSubmessageRead {
     fn deserialize_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
@@ -53,13 +48,13 @@ where
         let writer_id = Deserialize::deserialize::<B>(buf)?;
         let gap_start = Deserialize::deserialize::<B>(buf)?;
         let gap_list = Deserialize::deserialize::<B>(buf)?;
-        Ok(Self {
-            endianness_flag: header.flags[0],
+        Ok(Self::new(
+            header.flags[0],
             reader_id,
             writer_id,
             gap_start,
             gap_list,
-        })
+        ))
     }
 }
 
@@ -73,9 +68,7 @@ mod tests {
             EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
             SequenceNumberSubmessageElement,
         },
-        structure::types::{
-            EntityId, SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
-        },
+        structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
     #[test]
     fn serialize_gap() {
@@ -87,15 +80,12 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumberSubmessageElement { value: 5 };
-        let gap_list: SequenceNumberSetSubmessageElement<[SequenceNumber; 0]> =
-            SequenceNumberSetSubmessageElement { base: 10, set: [] };
-        let submessage = GapSubmessage {
-            endianness_flag,
-            reader_id,
-            writer_id,
-            gap_start,
-            gap_list,
+        let gap_list = SequenceNumberSetSubmessageElement {
+            base: 10,
+            set: vec![],
         };
+        let submessage =
+            GapSubmessageWrite::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
@@ -124,13 +114,8 @@ mod tests {
             base: 10,
             set: vec![],
         };
-        let expected = GapSubmessage {
-            endianness_flag,
-            reader_id,
-            writer_id,
-            gap_start,
-            gap_list,
-        };
+        let expected =
+            GapSubmessageRead::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
         let result = from_bytes(&[
             0x08, 0b_0000_0001, 28, 0, // Submessage header

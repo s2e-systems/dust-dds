@@ -1,12 +1,8 @@
 use std::io::{BufRead, Write};
 
-use rust_rtps_pim::{
-    messages::{
-        overall_structure::{RtpsMessage, RtpsSubmessageHeader},
-        submessage_elements::Parameter,
-        submessages::RtpsSubmessageType,
-    },
-    structure::types::SequenceNumber,
+use rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
+use rust_rtps_psm::messages::overall_structure::{
+    RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageTypeRead, RtpsSubmessageTypeWrite,
 };
 
 use crate::{
@@ -19,35 +15,27 @@ use super::submessages::submessage_header::{
     INFO_TS, NACK_FRAG, PAD,
 };
 
-type RtpsSubmessageWrite<'a> =
-    RtpsSubmessageType<Vec<SequenceNumber>, &'a [Parameter<&'a [u8]>], &'a [u8], (), ()>;
-type RtpsSubmessageRead<'a> =
-    RtpsSubmessageType<Vec<SequenceNumber>, Vec<Parameter<&'a [u8]>>, &'a [u8], (), ()>;
-
-pub type RtpsMessageWrite<'a> = RtpsMessage<Vec<RtpsSubmessageWrite<'a>>>;
-pub type RtpsMessageRead<'a> = RtpsMessage<Vec<RtpsSubmessageRead<'a>>>;
-
-impl MappingWrite for RtpsSubmessageWrite<'_> {
+impl MappingWrite for RtpsSubmessageTypeWrite {
     fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
         match self {
-            RtpsSubmessageType::AckNack(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::Data(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::DataFrag(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::Gap(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::Heartbeat(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::HeartbeatFrag(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::InfoDestination(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::InfoReply(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::InfoSource(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::InfoTimestamp(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::NackFrag(s) => s.write(&mut writer)?,
-            RtpsSubmessageType::Pad(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::AckNack(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::Data(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::DataFrag(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::Gap(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::Heartbeat(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::HeartbeatFrag(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::InfoDestination(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::InfoReply(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::InfoSource(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::InfoTimestamp(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::NackFrag(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::Pad(s) => s.write(&mut writer)?,
         };
         Ok(())
     }
 }
 
-impl MappingWrite for RtpsMessageWrite<'_> {
+impl MappingWrite for RtpsMessageWrite {
     fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
         self.header.write(&mut writer)?;
         for submessage in &self.submessages {
@@ -69,18 +57,18 @@ impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessageRead<'a> {
             // Preview byte only (to allow full deserialization of submessage header)
             let submessage_id = buf[0];
             let submessage = match submessage_id {
-                ACKNACK => RtpsSubmessageType::AckNack(MappingRead::read(buf)?),
-                DATA => RtpsSubmessageType::Data(MappingRead::read(buf)?),
-                DATA_FRAG => RtpsSubmessageType::DataFrag(MappingRead::read(buf)?),
-                GAP => RtpsSubmessageType::Gap(MappingRead::read(buf)?),
-                HEARTBEAT => RtpsSubmessageType::Heartbeat(MappingRead::read(buf)?),
-                HEARTBEAT_FRAG => RtpsSubmessageType::HeartbeatFrag(MappingRead::read(buf)?),
-                INFO_DST => RtpsSubmessageType::InfoDestination(MappingRead::read(buf)?),
-                INFO_REPLY => RtpsSubmessageType::InfoReply(MappingRead::read(buf)?),
-                INFO_SRC => RtpsSubmessageType::InfoSource(MappingRead::read(buf)?),
-                INFO_TS => RtpsSubmessageType::InfoTimestamp(MappingRead::read(buf)?),
-                NACK_FRAG => RtpsSubmessageType::NackFrag(MappingRead::read(buf)?),
-                PAD => RtpsSubmessageType::Pad(MappingRead::read(buf)?),
+                ACKNACK => RtpsSubmessageTypeRead::AckNack(MappingRead::read(buf)?),
+                DATA => RtpsSubmessageTypeRead::Data(MappingRead::read(buf)?),
+                DATA_FRAG => RtpsSubmessageTypeRead::DataFrag(MappingRead::read(buf)?),
+                GAP => RtpsSubmessageTypeRead::Gap(MappingRead::read(buf)?),
+                HEARTBEAT => RtpsSubmessageTypeRead::Heartbeat(MappingRead::read(buf)?),
+                HEARTBEAT_FRAG => RtpsSubmessageTypeRead::HeartbeatFrag(MappingRead::read(buf)?),
+                INFO_DST => RtpsSubmessageTypeRead::InfoDestination(MappingRead::read(buf)?),
+                INFO_REPLY => RtpsSubmessageTypeRead::InfoReply(MappingRead::read(buf)?),
+                INFO_SRC => RtpsSubmessageTypeRead::InfoSource(MappingRead::read(buf)?),
+                INFO_TS => RtpsSubmessageTypeRead::InfoTimestamp(MappingRead::read(buf)?),
+                NACK_FRAG => RtpsSubmessageTypeRead::NackFrag(MappingRead::read(buf)?),
+                PAD => RtpsSubmessageTypeRead::Pad(MappingRead::read(buf)?),
                 _ => {
                     let submessage_header: RtpsSubmessageHeader = MappingRead::read(buf)?;
                     buf.consume(submessage_header.submessage_length as usize);
@@ -89,10 +77,7 @@ impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessageRead<'a> {
             };
             submessages.push(submessage);
         }
-        Ok(Self {
-            header,
-            submessages,
-        })
+        Ok(Self::new(header, submessages))
     }
 }
 
@@ -108,13 +93,13 @@ mod tests {
         SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     };
 
-    use rust_rtps_pim::messages::submessages::DataSubmessage;
     use rust_rtps_pim::messages::types::ParameterId;
     use rust_rtps_pim::messages::types::ProtocolId;
     use rust_rtps_pim::structure::types::{
         EntityId, GuidPrefix, ProtocolVersion, USER_DEFINED_READER_GROUP,
         USER_DEFINED_READER_NO_KEY,
     };
+    use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
 
     #[test]
     fn serialize_rtps_message_no_submessage() {
@@ -124,10 +109,7 @@ mod tests {
             vendor_id: [9, 8],
             guid_prefix: GuidPrefix([3; 12]),
         };
-        let value = RtpsMessage {
-            header,
-            submessages: Vec::new(),
-        };
+        let value = RtpsMessageWrite::new(header, Vec::new());
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -158,15 +140,15 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13][..]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23][..]);
-        let parameter_list = [parameter_1, parameter_2];
+        let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
+        let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
+        let parameter_list = vec![parameter_1, parameter_2];
         let inline_qos = ParameterListSubmessageElement {
-            parameter: parameter_list.as_ref(),
+            parameter: parameter_list,
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedDataSubmessageElement { value: vec![] };
 
-        let submessage = RtpsSubmessageType::Data(DataSubmessage {
+        let submessage = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -177,11 +159,8 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        });
-        let value = RtpsMessage {
-            header,
-            submessages: vec![submessage],
-        };
+        ));
+        let value = RtpsMessageWrite::new(header, vec![submessage]);
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -212,10 +191,7 @@ mod tests {
             guid_prefix: GuidPrefix([3; 12]),
         };
 
-        let expected = RtpsMessage {
-            header,
-            submessages: Vec::new(),
-        };
+        let expected = RtpsMessageRead::new(header, Vec::new());
         #[rustfmt::skip]
         let result: RtpsMessageRead = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
@@ -254,7 +230,7 @@ mod tests {
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
-        let submessage = RtpsSubmessageType::Data(DataSubmessage {
+        let submessage = RtpsSubmessageTypeRead::Data(DataSubmessageRead::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -265,11 +241,8 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        });
-        let expected = RtpsMessage {
-            header,
-            submessages: vec![submessage],
-        };
+        ));
+        let expected = RtpsMessageRead::new(header, vec![submessage]);
         #[rustfmt::skip]
         let result: RtpsMessageRead = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
@@ -319,7 +292,7 @@ mod tests {
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
-        let submessage = RtpsSubmessageType::Data(DataSubmessage {
+        let submessage = RtpsSubmessageTypeRead::Data(DataSubmessageRead::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -330,11 +303,8 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        });
-        let expected = RtpsMessage {
-            header,
-            submessages: vec![submessage],
-        };
+        ));
+        let expected = RtpsMessageRead::new(header, vec![submessage]);
         #[rustfmt::skip]
         let result: RtpsMessageRead = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol

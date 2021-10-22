@@ -9,13 +9,15 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
-    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         types::{GuidPrefix, Locator},
         RtpsHistoryCacheOperations,
     },
 };
-use rust_rtps_psm::{rtps_stateful_reader_impl::RtpsStatefulReaderImpl, rtps_stateless_reader_impl::RtpsStatelessReaderImpl};
+use rust_rtps_psm::{
+    messages::submessages::DataSubmessageRead, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+};
 
 use crate::{
     dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
@@ -45,11 +47,7 @@ pub struct DataReaderImpl<T> {
 }
 
 impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>> {
-    fn process_data_submessage(
-        &self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<Vec<Parameter<&'_ [u8]>>, &[u8]>,
-    ) {
+    fn process_data_submessage(&self, source_guid_prefix: GuidPrefix, data: &DataSubmessageRead) {
         let mut data_reader = self.write().unwrap();
         match &mut data_reader.rtps_reader {
             RtpsReaderFlavor::Stateful(_) => todo!(),
