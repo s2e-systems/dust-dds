@@ -1,0 +1,38 @@
+<diagram program="umletino" version="14.4.0-SNAPSHOT"><zoom_level>10</zoom_level><help_text>&lt;diagram program="umletino" version="14.4.0-SNAPSHOT"&gt;&lt;zoom_level&gt;10&lt;/zoom_level&gt;&lt;element&gt;&lt;id&gt;Relation&lt;/id&gt;&lt;coordinates&gt;&lt;x&gt;443&lt;/x&gt;&lt;y&gt;350&lt;/y&gt;&lt;w&gt;160&lt;/w&gt;&lt;h&gt;130&lt;/h&gt;&lt;/coordinates&gt;&lt;panel_attributes&gt;lt=-&amp;gt;
+&amp;lt;&amp;lt;implements&amp;gt;&amp;gt;&lt;/panel_attributes&gt;&lt;additional_attributes&gt;140;10;10;110&lt;/additional_attributes&gt;&lt;/element&gt;&lt;/diagram&gt;&lt;diagram program="umletino" version="14.4.0-SNAPSHOT"&gt;&lt;zoom_level&gt;10&lt;/zoom_level&gt;&lt;element&gt;&lt;id&gt;Relation&lt;/id&gt;&lt;coordinates&gt;&lt;x&gt;436&lt;/x&gt;&lt;y&gt;210&lt;/y&gt;&lt;w&gt;100&lt;/w&gt;&lt;h&gt;100&lt;/h&gt;&lt;/coordinates&gt;&lt;panel_attributes&gt;lt=-&amp;gt;
+&lt;/panel_attributes&gt;&lt;additional_attributes&gt;10;10;80;80&lt;/additional_attributes&gt;&lt;/element&gt;&lt;/diagram&gt;&lt;diagram program="umletino" version="14.4.0-SNAPSHOT"&gt;&lt;zoom_level&gt;10&lt;/zoom_level&gt;&lt;element&gt;&lt;id&gt;Relation&lt;/id&gt;&lt;coordinates&gt;&lt;x&gt;436&lt;/x&gt;&lt;y&gt;210&lt;/y&gt;&lt;w&gt;130&lt;/w&gt;&lt;h&gt;110&lt;/h&gt;&lt;/coordinates&gt;&lt;panel_attributes&gt;lt=-&amp;gt;
+&lt;/panel_attributes&gt;&lt;additional_attributes&gt;10;10;110;90&lt;/additional_attributes&gt;&lt;/element&gt;&lt;/diagram&gt;&lt;diagram program="umletino" version="14.4.0-SNAPSHOT"&gt;&lt;zoom_level&gt;10&lt;/zoom_level&gt;&lt;element&gt;&lt;id&gt;Relation&lt;/id&gt;&lt;coordinates&gt;&lt;x&gt;310&lt;/x&gt;&lt;y&gt;210&lt;/y&gt;&lt;w&gt;100&lt;/w&gt;&lt;h&gt;230&lt;/h&gt;&lt;/coordinates&gt;&lt;panel_attributes&gt;lt=.&amp;gt;
+&amp;lt;&amp;lt;re-exports&amp;gt;&amp;gt;&lt;/panel_attributes&gt;&lt;additional_attributes&gt;10;10;10;210&lt;/additional_attributes&gt;&lt;/element&gt;&lt;/diagram&gt;&lt;diagram program="umletino" version="14.4.0-SNAPSHOT"&gt;&lt;zoom_level&gt;10&lt;/zoom_level&gt;&lt;element&gt;&lt;id&gt;Relation&lt;/id&gt;&lt;coordinates&gt;&lt;x&gt;110&lt;/x&gt;&lt;y&gt;490&lt;/y&gt;&lt;w&gt;90&lt;/w&gt;&lt;h&gt;60&lt;/h&gt;&lt;/coordinates&gt;&lt;panel_attributes&gt;&lt;/panel_attributes&gt;&lt;additional_attributes&gt;10;10;70;40&lt;/additional_attributes&gt;&lt;/element&gt;&lt;/diagram&gt;Space for diagram notes</help_text><element><id>UMLActor</id><coordinates><x>0</x><y>130</y><w>60</w><h>110</h></coordinates><panel_attributes>Actor</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLPackage</id><coordinates><x>180</x><y>130</y><w>270</w><h>90</h></coordinates><panel_attributes>DDS
+--
+bg=orange
+DomainParticipantFactory for actual
+implementation + transport.
+Re-export API and infrastructure
+for the user</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLPackage</id><coordinates><x>180</x><y>400</y><w>270</w><h>100</h></coordinates><panel_attributes>DDS API
+--
+bg=orange
+API and infrastructure definition
+according the OMG DDS standard</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLPackage</id><coordinates><x>520</x><y>270</y><w>270</w><h>90</h></coordinates><panel_attributes>DDS RTPS implementation
+--
+bg=orange
+Implementation of the DDS API using RTPS.
+None of this implementation is standardized.</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLPackage</id><coordinates><x>820</x><y>140</y><w>270</w><h>90</h></coordinates><panel_attributes>RTPS UDP
+--
+bg=orange
+Implementation of the OMG PSM
+RTPS standard</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLPackage</id><coordinates><x>820</x><y>410</y><w>270</w><h>90</h></coordinates><panel_attributes>RTPS PIM
+--
+bg=orange
+Implementation of the OMG RTPS
+PIM standard</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>310</x><y>210</y><w>100</w><h>230</h></coordinates><panel_attributes>lt=.&gt;
+&lt;&lt;re-exports&gt;&gt;</panel_attributes><additional_attributes>10;10;10;210</additional_attributes></element><element><id>Relation</id><coordinates><x>50</x><y>150</y><w>150</w><h>40</h></coordinates><panel_attributes></panel_attributes><additional_attributes>10;20;130;20</additional_attributes></element><element><id>Relation</id><coordinates><x>436</x><y>210</y><w>100</w><h>100</h></coordinates><panel_attributes>lt=-&gt;
+</panel_attributes><additional_attributes>10;10;80;80</additional_attributes></element><element><id>Relation</id><coordinates><x>446</x><y>170</y><w>390</w><h>40</h></coordinates><panel_attributes>lt=-&gt;
+</panel_attributes><additional_attributes>10;20;370;20</additional_attributes></element><element><id>Relation</id><coordinates><x>443</x><y>350</y><w>160</w><h>130</h></coordinates><panel_attributes>lt=-&gt;
+&lt;&lt;implements&gt;&gt;</panel_attributes><additional_attributes>140;10;10;110</additional_attributes></element><element><id>Relation</id><coordinates><x>698</x><y>350</y><w>160</w><h>140</h></coordinates><panel_attributes>lt=-&gt;
+&lt;&lt;implements&gt;&gt;</panel_attributes><additional_attributes>10;10;120;120</additional_attributes></element><element><id>Relation</id><coordinates><x>968</x><y>220</y><w>90</w><h>230</h></coordinates><panel_attributes>lt=-&gt;
+&lt;&lt;mapping&gt;&gt;</panel_attributes><additional_attributes>10;10;10;210</additional_attributes></element><element><id>Relation</id><coordinates><x>776</x><y>220</y><w>120</w><h>110</h></coordinates><panel_attributes>lt=-&gt;
+&lt;&lt;mapping&gt;&gt;</panel_attributes><additional_attributes>80;10;10;90</additional_attributes></element><element><id>UMLPackage</id><coordinates><x>478</x><y>10</y><w>270</w><h>90</h></coordinates><panel_attributes>RTPS UDP
+--
+bg=orange
+Implementation of the OMG PSM
+RTPS standard</panel_attributes><additional_attributes></additional_attributes></element></diagram>
