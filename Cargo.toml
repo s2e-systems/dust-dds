@@ -5,6 +5,7 @@ members = [
     "dds_api",
     "dds_rtps_implementation",
     "rtps_pim",
+    "rtps_psm",
     "rtps_udp_psm",
     "serde_cdr"
 ]
