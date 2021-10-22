@@ -1,12 +1,9 @@
-use std::{io::Write, iter::FromIterator};
+use std::io::Write;
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{
     overall_structure::RtpsSubmessageHeader,
-    submessage_elements::{
-        Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
-    },
-    submessages::DataSubmessage,
+    submessage_elements::{ParameterListSubmessageElement, SerializedDataSubmessageElement},
     types::SubmessageKind,
 };
 use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
@@ -132,7 +129,7 @@ mod tests {
     use rust_rtps_pim::{
         messages::{
             submessage_elements::{
-                EntityIdSubmessageElement, ParameterListSubmessageElement,
+                EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
                 SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
             },
             types::ParameterId,
