@@ -1,4 +1,5 @@
-use rust_rtps_pim::{behavior::types::Duration, discovery::types::BuiltinEndpointQos};
+use rust_rtps_pim::behavior::types::Duration;
+use rust_rtps_psm::discovery::types::BuiltinEndpointQos;
 
 // Constant value from Table 9.13 - ParameterId Values
 pub const PID_PAD: u16 = 0x0000;

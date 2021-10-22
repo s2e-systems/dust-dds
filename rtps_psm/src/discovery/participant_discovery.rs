@@ -1,15 +1,14 @@
-use crate::{
+use rust_rtps_pim::{
     behavior::{
         reader::{stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxy},
         writer::{reader_proxy::RtpsReaderProxy, stateful_writer::RtpsStatefulWriterOperations},
     },
-    discovery::sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
     structure::types::{Guid, ENTITYID_UNKNOWN},
 };
 
 use super::{
     sedp::builtin_endpoints::{
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,

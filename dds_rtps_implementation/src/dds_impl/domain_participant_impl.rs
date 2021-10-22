@@ -21,15 +21,13 @@ use rust_dds_api::{
     },
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::{
-    discovery::participant_discovery::ParticipantDiscovery,
-    structure::{
-        types::{
-            EntityId, Guid, GuidPrefix, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
-        },
-        RtpsGroup,
+use rust_rtps_pim::structure::{
+    types::{
+        EntityId, Guid, GuidPrefix, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
     },
+    RtpsGroup,
 };
+use rust_rtps_psm::discovery::participant_discovery::ParticipantDiscovery;
 
 use crate::{
     data_representation_builtin_endpoints::{

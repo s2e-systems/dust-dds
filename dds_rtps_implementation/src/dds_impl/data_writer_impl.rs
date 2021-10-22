@@ -23,20 +23,20 @@ use rust_rtps_pim::{
         RtpsHistoryCacheOperations,
     },
 };
+use rust_rtps_psm::{
+    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+};
 
 use crate::{
     dds_type::{BigEndian, DdsSerialize},
-    rtps_impl::{
-        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-        rtps_writer_history_cache_impl::WriterHistoryCache,
-    },
+    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
     utils::{message_sender::RtpsSubmessageSender, transport::RtpsSubmessageWrite},
 };
 
 pub enum RtpsWriterFlavor {
-    Stateful(RtpsStatefulWriterImpl),
-    Stateless(RtpsStatelessWriterImpl),
+    Stateful(RtpsStatefulWriterImpl<WriterHistoryCache>),
+    Stateless(RtpsStatelessWriterImpl<WriterHistoryCache>),
 }
 
 impl Deref for RtpsWriterFlavor {

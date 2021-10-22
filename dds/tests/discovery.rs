@@ -22,10 +22,6 @@ use rust_dds_rtps_implementation::{
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
-    rtps_impl::{
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-    },
     utils::{
         message_receiver::MessageReceiver,
         shared_object::{rtps_shared_new, rtps_shared_read_lock},
@@ -39,13 +35,6 @@ use rust_rtps_pim::{
             reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
         },
     },
-    discovery::{
-        spdp::{
-            builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
-            participant_proxy::ParticipantProxy,
-        },
-        types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
     messages::types::Count,
     structure::{
         types::{
@@ -54,6 +43,13 @@ use rust_rtps_pim::{
         },
         RtpsGroup,
     },
+};
+use rust_rtps_psm::discovery::{
+    spdp::{
+        builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
+        participant_proxy::ParticipantProxy,
+    },
+    types::{BuiltinEndpointQos, BuiltinEndpointSet},
 };
 
 #[test]
@@ -101,9 +97,8 @@ fn send_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
-        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]),
-    );
+    let mut spdp_builtin_participant_rtps_writer =
+        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]);
 
     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
@@ -140,11 +135,9 @@ fn send_discovery_data_happy_path() {
     );
 
     // Reception
-    let spdp_builtin_participant_rtps_reader =
-        SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]), vec![], vec![]);
 
     let spdp_builtin_participant_rtps_reader_impl =
-        RtpsStatelessReaderImpl::new(spdp_builtin_participant_rtps_reader);
+        SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]), vec![], vec![]);
 
     let data_reader: DataReaderImpl<SpdpDiscoveredParticipantData> = DataReaderImpl::new(
         DataReaderQos::default(),

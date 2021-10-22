@@ -18,7 +18,6 @@ use rust_dds_api::{
     },
 };
 use rust_rtps_pim::{
-    behavior::reader::stateless_reader::RtpsStatelessReader,
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         types::{
@@ -28,10 +27,10 @@ use rust_rtps_pim::{
         RtpsGroup,
     },
 };
+use rust_rtps_psm::rtps_stateless_reader_impl::RtpsStatelessReaderImpl;
 
 use crate::{
     dds_type::DdsType,
-    rtps_impl::rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     utils::{
         message_receiver::ProcessDataSubmessage,
         shared_object::{rtps_shared_new, RtpsShared},
@@ -117,17 +116,16 @@ where
         let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
-        let rtps_reader =
-            RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(RtpsStatelessReader::new(
-                guid,
-                topic_kind,
-                reliability_level,
-                unicast_locator_list,
-                multicast_locator_list,
-                heartbeat_response_delay,
-                heartbeat_supression_duration,
-                expects_inline_qos,
-            )));
+        let rtps_reader = RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            heartbeat_response_delay,
+            heartbeat_supression_duration,
+            expects_inline_qos,
+        ));
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
         self.data_reader_list

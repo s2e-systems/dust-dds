@@ -11,6 +11,7 @@ edition = "2018"
 rust-dds-api = {path="../dds_api"}
 rust-dds-rtps-implementation = {path="../dds_rtps_implementation"}
 rust-rtps-pim = {path="../rtps_pim"}
+rust-rtps-psm = {path="../rtps_psm"}
 rust-rtps-udp-psm = {path="../rtps_udp_psm"}
 
 serde = "1.0"

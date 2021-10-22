@@ -24,25 +24,11 @@ use rust_dds_rtps_implementation::{
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
-    rtps_impl::{
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-    },
     utils::shared_object::rtps_shared_new,
 };
 use rust_rtps_pim::{
     behavior::writer::{
         reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
-    },
-    discovery::{
-        sedp::builtin_endpoints::{
-            SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
-            SedpBuiltinSubscriptionsReader, SedpBuiltinSubscriptionsWriter,
-            SedpBuiltinTopicsReader, SedpBuiltinTopicsWriter,
-        },
-        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
     },
     structure::{
         types::{
@@ -51,6 +37,14 @@ use rust_rtps_pim::{
         },
         RtpsGroup,
     },
+};
+use rust_rtps_psm::discovery::{
+    sedp::builtin_endpoints::{
+        SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
+        SedpBuiltinSubscriptionsReader, SedpBuiltinSubscriptionsWriter, SedpBuiltinTopicsReader,
+        SedpBuiltinTopicsWriter,
+    },
+    spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
 };
 
 use crate::udp_transport::UdpTransport;
@@ -114,30 +108,22 @@ impl DomainParticipantFactory {
         let default_transport = Box::new(UdpTransport::new(socket));
 
         // /////// Create SPDP and SEDP endpoints
-        let spdp_builtin_participant_rtps_reader = RtpsStatelessReaderImpl::new(
-            SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]),
-        );
-        let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
-            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]),
-        );
-        let sedp_builtin_publications_rtps_reader = RtpsStatefulReaderImpl::new(
-            SedpBuiltinPublicationsReader::create(guid_prefix, vec![], vec![]),
-        );
-        let sedp_builtin_publications_rtps_writer = RtpsStatefulWriterImpl::new(
-            SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]),
-        );
-        let sedp_builtin_subscriptions_rtps_reader = RtpsStatefulReaderImpl::new(
-            SedpBuiltinSubscriptionsReader::create(guid_prefix, vec![], vec![]),
-        );
-        let sedp_builtin_subscriptions_rtps_writer = RtpsStatefulWriterImpl::new(
-            SedpBuiltinSubscriptionsWriter::create(guid_prefix, vec![], vec![]),
-        );
-        let sedp_builtin_topics_rtps_reader = RtpsStatefulReaderImpl::new(
-            SedpBuiltinTopicsReader::create(guid_prefix, vec![], vec![]),
-        );
-        let sedp_builtin_topics_rtps_writer = RtpsStatefulWriterImpl::new(
-            SedpBuiltinTopicsWriter::create(guid_prefix, vec![], vec![]),
-        );
+        let spdp_builtin_participant_rtps_reader =
+            SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]);
+        let mut spdp_builtin_participant_rtps_writer =
+            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]);
+        let sedp_builtin_publications_rtps_reader =
+            SedpBuiltinPublicationsReader::create(guid_prefix, vec![], vec![]);
+        let sedp_builtin_publications_rtps_writer =
+            SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]);
+        let sedp_builtin_subscriptions_rtps_reader =
+            SedpBuiltinSubscriptionsReader::create(guid_prefix, vec![], vec![]);
+        let sedp_builtin_subscriptions_rtps_writer =
+            SedpBuiltinSubscriptionsWriter::create(guid_prefix, vec![], vec![]);
+        let sedp_builtin_topics_rtps_reader =
+            SedpBuiltinTopicsReader::create(guid_prefix, vec![], vec![]);
+        let sedp_builtin_topics_rtps_writer =
+            SedpBuiltinTopicsWriter::create(guid_prefix, vec![], vec![]);
 
         // ////////// Configure SPDP reader locator
         let spdp_discovery_locator = RtpsReaderLocator::new(

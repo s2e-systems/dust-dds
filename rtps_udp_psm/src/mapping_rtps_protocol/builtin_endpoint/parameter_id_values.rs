@@ -1,4 +1,5 @@
-use rust_rtps_pim::{behavior::types::Duration, discovery::types::BuiltinEndpointQos};
+use rust_rtps_pim::behavior::types::Duration;
+use rust_rtps_psm::discovery::types::BuiltinEndpointQos;
 
 // Constant value from Table 9.13 - ParameterId Values
 pub const PID_PAD: u16 = 0x0000;
@@ -46,7 +47,6 @@ pub const PID_PROPERTY_LIST: u16 = 0x0059;
 pub const PID_TYPE_MAX_SIZE_SERIALIZED: u16 = 0x0060;
 pub const PID_ENTITY_NAME: u16 = 0x0062;
 pub const PID_ENDPOINT_GUID: u16 = 0x005a;
-
 
 // Constant value from Table 9.14 - ParameterId mapping and default values
 pub const DEFAULT_DOMAIN_TAG: &str = "";

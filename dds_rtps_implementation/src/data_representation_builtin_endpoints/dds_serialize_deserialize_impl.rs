@@ -2,10 +2,10 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
 use rust_rtps_pim::{
     behavior::types::Duration,
-    discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
     messages::types::Count,
     structure::types::{EntityId, EntityKind, Guid, GuidPrefix, Locator, ProtocolVersion},
 };
+use rust_rtps_psm::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "UserDataQosPolicy")]
@@ -20,8 +20,7 @@ pub struct UserDataQosPolicySerdeSerialize<'a>(
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct UserDataQosPolicySerdeDeserialize(
-    #[serde(with = "UserDataQosPolicyDef")]
-    pub UserDataQosPolicy,
+    #[serde(with = "UserDataQosPolicyDef")] pub UserDataQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]

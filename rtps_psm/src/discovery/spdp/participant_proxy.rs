@@ -1,8 +1,9 @@
-use crate::{
-    discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
+use rust_rtps_pim::{
     messages::types::Count,
     structure::types::{GuidPrefix, ProtocolVersion, VendorId},
 };
+
+use crate::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId};
 
 #[derive(Debug, PartialEq)]
 pub struct ParticipantProxy<S, L> {

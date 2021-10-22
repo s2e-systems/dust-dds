@@ -15,20 +15,16 @@ use rust_rtps_pim::{
         RtpsHistoryCacheOperations,
     },
 };
+use rust_rtps_psm::{rtps_stateful_reader_impl::RtpsStatefulReaderImpl, rtps_stateless_reader_impl::RtpsStatelessReaderImpl};
 
 use crate::{
-    dds_type::DdsDeserialize,
-    rtps_impl::{
-        rtps_reader_history_cache_impl::ReaderHistoryCache,
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    },
+    dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::message_receiver::ProcessDataSubmessage,
 };
 
 pub enum RtpsReaderFlavor {
-    Stateful(RtpsStatefulReaderImpl),
-    Stateless(RtpsStatelessReaderImpl),
+    Stateful(RtpsStatefulReaderImpl<ReaderHistoryCache>),
+    Stateless(RtpsStatelessReaderImpl<ReaderHistoryCache>),
 }
 
 impl Deref for RtpsReaderFlavor {
