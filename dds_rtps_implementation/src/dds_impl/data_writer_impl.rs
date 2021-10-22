@@ -31,10 +31,7 @@ use rust_rtps_psm::{
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 
-use crate::{
-    dds_type::DdsSerialize, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
-    utils::message_sender::RtpsSubmessageSender,
-};
+use crate::{dds_type::{BigEndian, DdsSerialize}, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache, utils::message_sender::RtpsSubmessageSender};
 
 pub enum RtpsWriterFlavor {
     Stateful(RtpsStatefulWriterImpl<WriterHistoryCache>),
@@ -122,11 +119,12 @@ where
 
     fn write_w_timestamp(
         &mut self,
-        _data: T,
+        data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let bytes = Vec::new();
+        let mut bytes = Vec::new();
+        data.serialize::<_, BigEndian>(&mut bytes)?;
         let change = self
             .rtps_writer_impl
             .new_change(ChangeKind::Alive, bytes, vec![], 0);
