@@ -2,12 +2,14 @@ use std::io::Write;
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
+    overall_structure::RtpsSubmessageHeader,
     types::{SubmessageFlag, SubmessageKind},
-    RtpsSubmessageHeader,
 };
 
-use crate::{deserialize::{self, Deserialize, MappingRead}, serialize::{self, MappingWrite, Serialize}};
-
+use crate::{
+    deserialize::{self, Deserialize, MappingRead},
+    serialize::{self, MappingWrite, Serialize},
+};
 
 pub trait Submessage {
     fn submessage_header(&self) -> RtpsSubmessageHeader;
@@ -61,7 +63,7 @@ impl<'de> Deserialize<'de> for [SubmessageFlag; 8] {
     }
 }
 
-impl<'de> MappingRead<'de> for  [SubmessageFlag; 8] {
+impl<'de> MappingRead<'de> for [SubmessageFlag; 8] {
     fn read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         let value: u8 = MappingRead::read(buf)?;
         let mut flags = [false; 8];
@@ -152,7 +154,7 @@ impl<'de> MappingRead<'de> for RtpsSubmessageHeader {
             HEARTBEAT_FRAG => SubmessageKind::HEARTBEAT_FRAG,
             _ => SubmessageKind::UNKNOWN,
         };
-        let flags:[SubmessageFlag; 8] = MappingRead::read(buf)?;
+        let flags: [SubmessageFlag; 8] = MappingRead::read(buf)?;
         let submessage_length = if flags[0] {
             Deserialize::deserialize::<LittleEndian>(buf)?
         } else {

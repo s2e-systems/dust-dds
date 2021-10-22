@@ -1,10 +1,7 @@
 use std::{io::Write, iter::FromIterator};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{
-    messages::{submessages::GapSubmessage, types::SubmessageKind, RtpsSubmessageHeader},
-    structure::types::SequenceNumber,
-};
+use rust_rtps_pim::{messages::{overall_structure::RtpsSubmessageHeader, submessages::GapSubmessage, types::SubmessageKind}, structure::types::SequenceNumber};
 
 use crate::{
     deserialize::{self, Deserialize, DeserializeSubmessage},

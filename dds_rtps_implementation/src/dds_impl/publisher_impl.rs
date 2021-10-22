@@ -18,7 +18,7 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    messages::{RtpsMessage, RtpsMessageHeader},
+    messages::overall_structure::{RtpsMessage, RtpsMessageHeader},
     structure::{
         types::{
             EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind,

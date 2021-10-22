@@ -1,5 +1,8 @@
 use rust_rtps_pim::{
-    messages::{submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessage},
+    messages::{
+        overall_structure::RtpsMessage, submessage_elements::Parameter,
+        submessages::RtpsSubmessageType,
+    },
     structure::types::{Locator, SequenceNumber},
 };
 pub type RtpsSubmessageWrite<'a> =

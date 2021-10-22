@@ -2,12 +2,12 @@ use std::{io::Write, iter::FromIterator};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{
+    overall_structure::RtpsSubmessageHeader,
     submessage_elements::{
         Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
     },
     submessages::DataSubmessage,
     types::SubmessageKind,
-    RtpsSubmessageHeader,
 };
 
 use crate::{

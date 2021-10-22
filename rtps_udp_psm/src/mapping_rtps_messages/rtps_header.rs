@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{types::ProtocolId, RtpsMessageHeader};
+use rust_rtps_pim::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
 
 use crate::{
     deserialize::{self, Deserialize, MappingRead},

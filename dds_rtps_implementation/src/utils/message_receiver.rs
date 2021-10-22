@@ -110,13 +110,13 @@ mod tests {
 
     use rust_rtps_pim::{
         messages::{
+            overall_structure::{RtpsMessage, RtpsMessageHeader},
             submessage_elements::{
                 EntityIdSubmessageElement, ParameterListSubmessageElement,
                 SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
                 TimestampSubmessageElement,
             },
             types::ProtocolId,
-            RtpsMessage, RtpsMessageHeader,
         },
         structure::types::{
             EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, PROTOCOLVERSION_2_4,

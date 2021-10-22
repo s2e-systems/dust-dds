@@ -1,11 +1,11 @@
 use std::io::{BufRead, Read};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
-use rust_rtps_pim::messages::RtpsSubmessageHeader;
+use rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
 
 pub type Result<T> = std::result::Result<T, std::io::Error>;
 
-pub trait MappingRead<'de> : Sized {
+pub trait MappingRead<'de>: Sized {
     fn read(buf: &mut &'de [u8]) -> Result<Self>;
 }
 
@@ -108,7 +108,7 @@ impl<'de, const N: usize> Deserialize<'de> for [u8; N] {
         Ok(value)
     }
 }
-impl<'de, const N: usize> MappingRead<'de> for  [u8; N] {
+impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
     fn read(buf: &mut &'de [u8]) -> Result<Self> {
         let mut value = [0; N];
         buf.read_exact(value.as_mut())?;
@@ -122,7 +122,10 @@ impl<'de> Deserialize<'de> for bool {
         match value {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "bool not valid"))
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "bool not valid",
+            )),
         }
     }
 }
@@ -131,9 +134,8 @@ impl<'de> Deserialize<'de> for &'de str {
     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self> {
         let length: u32 = Deserialize::deserialize::<B>(buf)?;
         let length = length as usize;
-        let result = std::str::from_utf8(&buf[..length - 1]).map_err(
-            |err|std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
-        )?;
+        let result = std::str::from_utf8(&buf[..length - 1])
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string()))?;
         buf.consume(length);
         Ok(result)
     }

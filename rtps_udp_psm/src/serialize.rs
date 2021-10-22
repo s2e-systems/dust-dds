@@ -1,5 +1,5 @@
 use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
-use rust_rtps_pim::messages::RtpsSubmessageHeader;
+use rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
 use std::io::Write;
 
 pub type Result = std::result::Result<(), std::io::Error>;
@@ -8,7 +8,10 @@ pub trait MappingWrite {
     fn write<W: Write>(&self, writer: W) -> Result;
 }
 
-impl<T> MappingWrite for T where T: SerializeSubmessage {
+impl<T> MappingWrite for T
+where
+    T: SerializeSubmessage,
+{
     fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
         self.serialize_submessage(&mut writer)
     }
@@ -24,7 +27,10 @@ pub trait SerializeSubmessage {
         }
     }
     fn submessage_header(&self) -> RtpsSubmessageHeader;
-    fn serialize_submessage_elements<W: Write, B: ByteOrder>(&self, writer: W) -> crate::serialize::Result;
+    fn serialize_submessage_elements<W: Write, B: ByteOrder>(
+        &self,
+        writer: W,
+    ) -> crate::serialize::Result;
 }
 
 pub trait Serialize {
@@ -95,11 +101,7 @@ impl Serialize for &str {
 
 impl Serialize for bool {
     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
-        if *self {
-            1_u8
-        } else {
-            0
-        }.serialize::<_, B>(&mut writer)
+        if *self { 1_u8 } else { 0 }.serialize::<_, B>(&mut writer)
     }
 }
 
@@ -162,7 +164,7 @@ impl<T: NumberOfBytes> NumberOfBytes for &[T] {
         (*self).number_of_bytes()
     }
 }
-impl<T: NumberOfBytes, const N: usize> NumberOfBytes for [T;N] {
+impl<T: NumberOfBytes, const N: usize> NumberOfBytes for [T; N] {
     fn number_of_bytes(&self) -> usize {
         self.as_ref().number_of_bytes()
     }

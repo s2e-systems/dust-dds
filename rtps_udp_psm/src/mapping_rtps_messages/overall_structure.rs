@@ -2,8 +2,9 @@ use std::io::{BufRead, Write};
 
 use rust_rtps_pim::{
     messages::{
-        submessage_elements::Parameter, submessages::RtpsSubmessageType, RtpsMessage,
-        RtpsSubmessageHeader,
+        overall_structure::{RtpsMessage, RtpsSubmessageHeader},
+        submessage_elements::Parameter,
+        submessages::RtpsSubmessageType,
     },
     structure::types::SequenceNumber,
 };
@@ -101,6 +102,7 @@ mod tests {
     use super::*;
     use crate::deserialize::from_bytes;
     use crate::serialize::to_bytes;
+    use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::{
         EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
         SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
@@ -108,7 +110,7 @@ mod tests {
 
     use rust_rtps_pim::messages::submessages::DataSubmessage;
     use rust_rtps_pim::messages::types::ParameterId;
-    use rust_rtps_pim::messages::{types::ProtocolId, RtpsMessageHeader};
+    use rust_rtps_pim::messages::types::ProtocolId;
     use rust_rtps_pim::structure::types::{
         EntityId, GuidPrefix, ProtocolVersion, USER_DEFINED_READER_GROUP,
         USER_DEFINED_READER_NO_KEY,

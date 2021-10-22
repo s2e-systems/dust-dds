@@ -1,5 +1,5 @@
 use rust_rtps_pim::{
-    messages::{RtpsMessage, RtpsMessageHeader},
+    messages::overall_structure::{RtpsMessage, RtpsMessageHeader},
     structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
 };
 
