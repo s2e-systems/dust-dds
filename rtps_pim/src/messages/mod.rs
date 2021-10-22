@@ -26,16 +26,3 @@ pub struct RtpsMessage<M> {
     pub header: RtpsMessageHeader,
     pub submessages: M,
 }
-
-pub trait RtpsMessageTrait {
-    type SubmessageType;
-
-    fn new<T: IntoIterator<Item = Self::SubmessageType>>(
-        header: &RtpsMessageHeader,
-        submessages: T,
-    ) -> Self;
-
-    fn header(&self) -> RtpsMessageHeader;
-
-    fn submessages(&self) -> &[Self::SubmessageType];
-}
