@@ -165,7 +165,7 @@ fn process_discovery_data_happy_path() {
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
-            7400,
+            7402,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         ),
         false,
@@ -234,7 +234,7 @@ fn process_discovery_data_happy_path() {
         vec![rtps_shared_new(data_writer)],
     );
 
-    let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+    let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
     socket.set_nonblocking(true).unwrap();
     let mut transport = UdpTransport::new(socket);
     publisher.send_data(
