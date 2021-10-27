@@ -65,14 +65,18 @@ impl<C> RtpsStatefulReaderOperations<Vec<Locator>> for RtpsStatefulReaderImpl<C>
         self.matched_writers.push(writer_proxy)
     }
 
-    fn matched_writer_remove(&mut self, _writer_proxy_guid: &Guid) {
-        todo!()
+    fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid) {
+        self.matched_writers
+            .retain(|x| &x.remote_writer_guid != writer_proxy_guid);
     }
 
     fn matched_writer_lookup(
         &self,
-        _a_writer_guid: &Guid,
+        a_writer_guid: &Guid,
     ) -> Option<&RtpsWriterProxy<Vec<Locator>>> {
-        todo!()
+        self.matched_writers
+            .iter()
+            .find(|&x| &x.remote_writer_guid == a_writer_guid)
+            .map(|x| x.deref())
     }
 }
