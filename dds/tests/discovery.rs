@@ -19,7 +19,7 @@ use rust_dds_rtps_implementation::{data_representation_builtin_endpoints::spdp_d
         data_writer_impl::{DataWriterImpl, RtpsWriterFlavor},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
-    }, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache, utils::{
+    }, rtps_impl::{rtps_reader_history_cache_impl::ReaderHistoryCache, rtps_writer_history_cache_impl::WriterHistoryCache}, utils::{
         message_receiver::MessageReceiver,
         shared_object::{rtps_shared_new, rtps_shared_read_lock},
         transport::TransportRead,
@@ -40,10 +40,18 @@ use rust_rtps_pim::{
         RtpsGroup,
     },
 };
-use rust_rtps_psm::discovery::{participant_discovery::ParticipantDiscovery, sedp::builtin_endpoints::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, SedpBuiltinPublicationsReader}, spdp::{
+use rust_rtps_psm::discovery::{
+    participant_discovery::ParticipantDiscovery,
+    sedp::builtin_endpoints::{
+        SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+    },
+    spdp::{
         builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         participant_proxy::ParticipantProxy,
-    }, types::{BuiltinEndpointQos, BuiltinEndpointSet}};
+    },
+    types::{BuiltinEndpointQos, BuiltinEndpointSet},
+};
 
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
@@ -191,7 +199,9 @@ fn process_discovery_data_happy_path() {
         default_multicast_locator_list: vec![],
         available_builtin_endpoints: BuiltinEndpointSet::new(
             BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER,
+                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
+                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR,
         ),
         manual_liveliness_count: Count(0),
         builtin_endpoint_qos: BuiltinEndpointQos::default(),
@@ -277,6 +287,8 @@ fn process_discovery_data_happy_path() {
 
     let mut sedp_builtin_publications_reader =
         SedpBuiltinPublicationsReader::create::<ReaderHistoryCache>(guid_prefix, vec![], vec![]);
+    let mut sedp_builtin_publications_writer =
+        SedpBuiltinPublicationsWriter::create::<WriterHistoryCache>(guid_prefix, vec![], vec![]);
 
     if let Ok(participant_discovery) = ParticipantDiscovery::new(
         &discovered_participant[0].participant_proxy,
@@ -285,8 +297,19 @@ fn process_discovery_data_happy_path() {
     ) {
         participant_discovery
             .discovered_participant_add_publications_reader(&mut sedp_builtin_publications_reader);
+        participant_discovery
+            .discovered_participant_add_publications_writer(&mut sedp_builtin_publications_writer);
     }
 
     assert_eq!(sedp_builtin_publications_reader.matched_writers.len(), 1);
-    assert_eq!(sedp_builtin_publications_reader.matched_writers[0].remote_writer_guid, Guid::new( guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER));
+    assert_eq!(
+        sedp_builtin_publications_reader.matched_writers[0].remote_writer_guid,
+        Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
+    );
+
+    assert_eq!(sedp_builtin_publications_writer.matched_readers.len(), 1);
+    assert_eq!(
+        sedp_builtin_publications_writer.matched_readers[0].remote_reader_guid,
+        Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
+    );
 }

@@ -14,7 +14,9 @@ use rust_rtps_pim::{
     },
 };
 
-pub struct RtpsStatefulWriterImpl<C>(RtpsStatefulWriter<Vec<Locator>, C, ()>);
+use crate::rtps_reader_proxy_impl::RtpsReaderProxyImpl;
+
+pub struct RtpsStatefulWriterImpl<C>(RtpsStatefulWriter<Vec<Locator>, C, Vec<RtpsReaderProxyImpl>>);
 
 impl<C> RtpsStatefulWriterImpl<C> {
     pub fn new(
@@ -48,7 +50,7 @@ impl<C> RtpsStatefulWriterImpl<C> {
 }
 
 impl<C> Deref for RtpsStatefulWriterImpl<C> {
-    type Target = RtpsStatefulWriter<Vec<Locator>, C, ()>;
+    type Target = RtpsStatefulWriter<Vec<Locator>, C, Vec<RtpsReaderProxyImpl>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -62,19 +64,24 @@ impl<C> DerefMut for RtpsStatefulWriterImpl<C> {
 }
 
 impl<C> RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl<C> {
-    fn matched_reader_add(&mut self, _a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
-        todo!()
+    fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
+        let reader_proxy = RtpsReaderProxyImpl::new(a_reader_proxy);
+        self.matched_readers.push(reader_proxy)
     }
 
-    fn matched_reader_remove(&mut self, _reader_proxy_guid: &Guid) {
-        todo!()
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid) {
+        self.matched_readers
+            .retain(|x| &x.remote_reader_guid != reader_proxy_guid);
     }
 
     fn matched_reader_lookup(
         &self,
-        _a_reader_guid: &Guid,
+        a_reader_guid: &Guid,
     ) -> Option<&RtpsReaderProxy<Vec<Locator>>> {
-        todo!()
+        self.matched_readers
+            .iter()
+            .find(|&x| &x.remote_reader_guid == a_reader_guid)
+            .map(|x| x.deref())
     }
 
     fn is_acked_by_all(&self) -> bool {
