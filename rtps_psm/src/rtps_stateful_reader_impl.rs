@@ -60,8 +60,9 @@ impl<C> DerefMut for RtpsStatefulReaderImpl<C> {
 }
 
 impl<C> RtpsStatefulReaderOperations<Vec<Locator>> for RtpsStatefulReaderImpl<C> {
-    fn matched_writer_add(&mut self, _a_writer_proxy: RtpsWriterProxy<Vec<Locator>>) {
-        todo!()
+    fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<Vec<Locator>>) {
+        let writer_proxy = RtpsWriterProxyImpl::new(a_writer_proxy);
+        self.matched_writers.push(writer_proxy)
     }
 
     fn matched_writer_remove(&mut self, _writer_proxy_guid: &Guid) {

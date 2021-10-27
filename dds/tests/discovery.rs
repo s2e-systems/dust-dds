@@ -40,7 +40,7 @@ use rust_rtps_pim::{
         RtpsGroup,
     },
 };
-use rust_rtps_psm::discovery::{participant_discovery::ParticipantDiscovery, sedp::builtin_endpoints::SedpBuiltinPublicationsReader, spdp::{
+use rust_rtps_psm::discovery::{participant_discovery::ParticipantDiscovery, sedp::builtin_endpoints::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, SedpBuiltinPublicationsReader}, spdp::{
         builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         participant_proxy::ParticipantProxy,
     }, types::{BuiltinEndpointQos, BuiltinEndpointSet}};
@@ -191,7 +191,7 @@ fn process_discovery_data_happy_path() {
         default_multicast_locator_list: vec![],
         available_builtin_endpoints: BuiltinEndpointSet::new(
             BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER,
         ),
         manual_liveliness_count: Count(0),
         builtin_endpoint_qos: BuiltinEndpointQos::default(),
@@ -288,4 +288,5 @@ fn process_discovery_data_happy_path() {
     }
 
     assert_eq!(sedp_builtin_publications_reader.matched_writers.len(), 1);
+    assert_eq!(sedp_builtin_publications_reader.matched_writers[0].remote_writer_guid, Guid::new( guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER));
 }
