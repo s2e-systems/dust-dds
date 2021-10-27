@@ -471,30 +471,32 @@ impl Entity for DomainParticipantImpl {
                 if let Some(spdp_builtin_participant_reader) =
                     &option_spdp_builtin_participant_reader
                 {
-                    let discovered_participant =
-                        rtps_shared_write_lock(&spdp_builtin_participant_reader)
-                            .read(1, &[], &[], &[])
-                            .unwrap();
+                    if let Ok(discovered_participant) = rtps_shared_write_lock(
+                        &spdp_builtin_participant_reader,
+                    )
+                    .read(1, &[], &[], &[])
+                    {
+                        let local_participant_domain_id = 1;
+                        let local_participant_domain_tag = "ab";
 
-                    let local_participant_domain_id = 0;
-                    let local_participant_domain_tag = &"";
-
-                    if let Ok(participant_discovery) = ParticipantDiscovery::new(
-                        &discovered_participant[0].participant_proxy,
-                        local_participant_domain_id,
-                        local_participant_domain_tag,
-                    ) {
-                        if let Some(sedp_builtin_publications_reader) =
-                            &option_sedp_builtin_publications_reader
-                        {
-                            let reader =
-                                &mut (rtps_shared_write_lock(&sedp_builtin_publications_reader)
-                                    .rtps_reader);
-                            if let RtpsReaderFlavor::Stateful(stateful_reader) = reader {
-                                participant_discovery
-                                    .discovered_participant_add_publications_reader(
-                                        stateful_reader,
-                                    );
+                        if let Ok(participant_discovery) = ParticipantDiscovery::new(
+                            &discovered_participant[0].participant_proxy,
+                            local_participant_domain_id,
+                            local_participant_domain_tag,
+                        ) {
+                            if let Some(sedp_builtin_publications_reader) =
+                                &option_sedp_builtin_publications_reader
+                            {
+                                let reader = &mut (rtps_shared_write_lock(
+                                    &sedp_builtin_publications_reader,
+                                )
+                                .rtps_reader);
+                                if let RtpsReaderFlavor::Stateful(stateful_reader) = reader {
+                                    participant_discovery
+                                        .discovered_participant_add_publications_reader(
+                                            stateful_reader,
+                                        );
+                                }
                             }
                         }
                     }

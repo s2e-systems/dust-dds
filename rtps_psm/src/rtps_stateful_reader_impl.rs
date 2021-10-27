@@ -14,7 +14,9 @@ use rust_rtps_pim::{
     },
 };
 
-pub struct RtpsStatefulReaderImpl<C>(RtpsStatefulReader<Vec<Locator>, C, ()>);
+use crate::rtps_writer_proxy_impl::RtpsWriterProxyImpl;
+
+pub struct RtpsStatefulReaderImpl<C>(RtpsStatefulReader<Vec<Locator>, C, Vec<RtpsWriterProxyImpl>>);
 
 impl<C> RtpsStatefulReaderImpl<C> {
     pub fn new(
@@ -44,7 +46,7 @@ impl<C> RtpsStatefulReaderImpl<C> {
 }
 
 impl<C> Deref for RtpsStatefulReaderImpl<C> {
-    type Target = RtpsStatefulReader<Vec<Locator>, C, ()>;
+    type Target = RtpsStatefulReader<Vec<Locator>, C, Vec<RtpsWriterProxyImpl>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

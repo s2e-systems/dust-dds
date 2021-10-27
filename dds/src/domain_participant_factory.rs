@@ -190,9 +190,9 @@ impl DomainParticipantFactory {
             )),
             vec![
                 spdp_builtin_participant_dds_data_writer,
-                sedp_builtin_publications_dds_data_writer,
-                sedp_builtin_subscriptions_dds_data_writer,
-                sedp_builtin_topics_dds_data_writer,
+                // sedp_builtin_publications_dds_data_writer,
+                // sedp_builtin_subscriptions_dds_data_writer,
+                // sedp_builtin_topics_dds_data_writer,
             ],
         ));
         let builtin_subscriber_storage = rtps_shared_new(SubscriberImpl::new(
