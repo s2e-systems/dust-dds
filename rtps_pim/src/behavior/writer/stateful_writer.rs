@@ -96,7 +96,7 @@ where
     SV: ExactSizeIterator,
     C: for<'a> RtpsHistoryCacheOperations<'a, GetChangeDataType = D, GetChangeParameterType = P>,
 {
-    pub fn best_effort_behavior<S>(
+    pub fn send_unsent_data<S>(
         &mut self,
         send_data: &mut impl FnMut(&RP, DataSubmessage<P, D>),
         send_gap: &mut impl FnMut(&RP, GapSubmessage<S>),
@@ -168,7 +168,53 @@ where
         }
     }
 
-    pub fn reliable_behavior<S>(
+    pub fn send_heartbeat(
+        &mut self,
+        count: Count,
+        send_heartbeat: &mut impl FnMut(&RP, HeartbeatSubmessage),
+    ) {
+        for reader_proxy in &mut self.matched_readers {
+            let endianness_flag = true;
+            let final_flag = false;
+            let liveliness_flag = false;
+            let reader_id = EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            };
+            let writer_id = EntityIdSubmessageElement {
+                value: self.writer.guid.entity_id,
+            };
+            let first_sn = SequenceNumberSubmessageElement {
+                value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
+            };
+            let last_sn = SequenceNumberSubmessageElement {
+                value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
+            };
+            let count = CountSubmessageElement { value: count };
+            let heartbeat_submessage = HeartbeatSubmessage {
+                endianness_flag,
+                final_flag,
+                liveliness_flag,
+                reader_id,
+                writer_id,
+                first_sn,
+                last_sn,
+                count,
+            };
+            send_heartbeat(reader_proxy, heartbeat_submessage)
+        }
+    }
+
+    pub fn process_acknack_submessage(&mut self, acknack: AckNackSubmessage<SV>) {
+        for reader_proxy in &mut self.matched_readers {
+            if reader_proxy.remote_reader_guid.entity_id == acknack.reader_id.value {
+                reader_proxy.acked_changes_set(acknack.reader_sn_state.base - 1);
+                reader_proxy.requested_changes_set(acknack.reader_sn_state.set);
+                break;
+            }
+        }
+    }
+
+    pub fn send_requested_data<S>(
         &mut self,
         send_data: &mut impl FnMut(&RP, DataSubmessage<P, D>),
         send_gap: &mut impl FnMut(&RP, GapSubmessage<S>),
@@ -177,7 +223,7 @@ where
     {
         for reader_proxy in &mut self.matched_readers {
             // Pushing state
-            while let Some(seq_num) = reader_proxy.next_unsent_change() {
+            while let Some(seq_num) = reader_proxy.next_requested_change() {
                 if let Some(change) = self.writer.writer_cache.get_change(&seq_num) {
                     let endianness_flag = true;
                     let inline_qos_flag = true;
@@ -240,129 +286,4 @@ where
             }
         }
     }
-
-    pub fn send_heartbeat(&self, count: Count) -> HeartbeatSubmessage {
-        let endianness_flag = true;
-        let final_flag = false;
-        let liveliness_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: self.writer.guid.entity_id,
-        };
-        let first_sn = SequenceNumberSubmessageElement {
-            value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
-        };
-        let last_sn = SequenceNumberSubmessageElement {
-            value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
-        };
-        let count = CountSubmessageElement { value: count };
-        HeartbeatSubmessage {
-            endianness_flag,
-            final_flag,
-            liveliness_flag,
-            reader_id,
-            writer_id,
-            first_sn,
-            last_sn,
-            count,
-        }
-    }
-
-    pub fn process_acknack_submessage<S>(
-        &mut self,
-        acknack: Option<AckNackSubmessage<SV>>,
-        after_nack_response_delay: bool,
-        send_data: &mut impl FnMut(&RP, DataSubmessage<P, D>),
-        send_gap: &mut impl FnMut(&RP, GapSubmessage<S>),
-    ) where
-        S: FromIterator<SequenceNumber>,
-    {
-        if let Some(acknack) = acknack {
-            if let Some(reader_proxy) = (&mut self.matched_readers)
-                .into_iter()
-                .find(|x| &x.remote_reader_guid.entity_id == &acknack.reader_id.value)
-            {
-                reader_proxy.acked_changes_set(acknack.reader_sn_state.base - 1);
-                reader_proxy.requested_changes_set(acknack.reader_sn_state.set);
-            }
-        }
-
-        if after_nack_response_delay {
-            for reader_proxy in &mut self.matched_readers {
-                // Pushing state
-                while let Some(seq_num) = reader_proxy.next_requested_change() {
-                    if let Some(change) = self.writer.writer_cache.get_change(&seq_num) {
-                        let endianness_flag = true;
-                        let inline_qos_flag = true;
-                        let (data_flag, key_flag) = match change.kind {
-                            ChangeKind::Alive => (true, false),
-                            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                                (false, true)
-                            }
-                            _ => todo!(),
-                        };
-                        let non_standard_payload_flag = false;
-                        let reader_id = EntityIdSubmessageElement {
-                            value: ENTITYID_UNKNOWN,
-                        };
-                        let writer_id = EntityIdSubmessageElement {
-                            value: *change.writer_guid.entity_id(),
-                        };
-                        let writer_sn = SequenceNumberSubmessageElement {
-                            value: change.sequence_number,
-                        };
-                        let inline_qos = ParameterListSubmessageElement {
-                            parameter: change.inline_qos,
-                        };
-                        let serialized_payload = SerializedDataSubmessageElement {
-                            value: change.data_value,
-                        };
-                        let data_submessage = DataSubmessage {
-                            endianness_flag,
-                            inline_qos_flag,
-                            data_flag,
-                            key_flag,
-                            non_standard_payload_flag,
-                            reader_id,
-                            writer_id,
-                            writer_sn,
-                            inline_qos,
-                            serialized_payload,
-                        };
-                        send_data(reader_proxy, data_submessage)
-                    } else {
-                        let endianness_flag = true;
-                        let reader_id = EntityIdSubmessageElement {
-                            value: ENTITYID_UNKNOWN,
-                        };
-                        let writer_id = EntityIdSubmessageElement {
-                            value: ENTITYID_UNKNOWN,
-                        };
-                        let gap_start = SequenceNumberSubmessageElement { value: seq_num };
-                        let set = core::iter::empty().collect();
-                        let gap_list = SequenceNumberSetSubmessageElement { base: seq_num, set };
-                        let gap_submessage = GapSubmessage {
-                            endianness_flag,
-                            reader_id,
-                            writer_id,
-                            gap_start,
-                            gap_list,
-                        };
-                        send_gap(reader_proxy, gap_submessage)
-                    }
-                }
-            }
-        }
-    }
 }
-
-pub fn reliable_send_unsent_data(//     reader_locator: &mut impl RtpsReaderLocatorOperations,
-//     last_change_sequence_number: SequenceNumber,
-//     mut send: impl FnMut(SequenceNumber),
-) {
-    //     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
-    //         send(seq_num)
-}
-// }

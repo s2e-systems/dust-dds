@@ -264,7 +264,9 @@ impl RtpsSubmessageSender for DataWriterImpl {
         let destined_submessages: Vec<(Locator, Vec<RtpsSubmessageTypeWrite>)> = Vec::new();
         let destined_submessages = RefCell::new(destined_submessages);
         match &mut self.rtps_writer_impl {
-            RtpsWriterFlavor::Stateful(_stateful_writer) => todo!("Implement behavior for the stateful writer submessage creation"),
+            RtpsWriterFlavor::Stateful(_stateful_writer) => {
+                todo!("Implement behavior for the stateful writer submessage creation");
+            }
             RtpsWriterFlavor::Stateless(stateless_writer) => {
                 stateless_writer.send_unsent_data(
                     |reader_locator, data| {
