@@ -1,22 +1,11 @@
 use std::ops::Deref;
 
-use rust_rtps_pim::{
-    messages::{
-        submessage_elements::{
-            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-            SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-            SerializedDataSubmessageElement, TimestampSubmessageElement,
-        },
-        submessages::{
+use rust_rtps_pim::{messages::{submessage_elements::{CountSubmessageElement, EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement, SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement, SerializedDataSubmessageElement, TimestampSubmessageElement}, submessages::{
             AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
             HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
             InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
             PadSubmessage,
-        },
-        types::SubmessageFlag,
-    },
-    structure::types::SequenceNumber,
-};
+        }, types::SubmessageFlag}, structure::types::SequenceNumber};
 
 #[derive(Debug, PartialEq)]
 pub struct AckNackSubmessageWrite(AckNackSubmessage<Vec<SequenceNumber>>);
@@ -226,8 +215,26 @@ impl Deref for GapSubmessageRead {
 pub struct HeartbeatSubmessageWrite(<Self as Deref>::Target);
 
 impl HeartbeatSubmessageWrite {
-    pub fn new() -> Self {
-        todo!()
+    pub fn new(
+        endianness_flag: SubmessageFlag,
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        first_sn: SequenceNumberSubmessageElement,
+        last_sn: SequenceNumberSubmessageElement,
+        count: CountSubmessageElement,
+    ) -> Self {
+        Self(HeartbeatSubmessage{
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        })
     }
 }
 
@@ -243,8 +250,26 @@ impl Deref for HeartbeatSubmessageWrite {
 pub struct HeartbeatSubmessageRead(<Self as Deref>::Target);
 
 impl HeartbeatSubmessageRead {
-    pub fn new() -> Self {
-        todo!()
+    pub fn new(
+        endianness_flag: SubmessageFlag,
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        first_sn: SequenceNumberSubmessageElement,
+        last_sn: SequenceNumberSubmessageElement,
+        count: CountSubmessageElement,
+    ) -> Self {
+        Self(HeartbeatSubmessage{
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        })
     }
 }
 
