@@ -26,7 +26,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::{
     messages::{
-        overall_structure::{RtpsSubmessageTypeRead, RtpsSubmessageTypeWrite},
+        overall_structure::{RtpsSubmessageTypeWrite},
         submessages::{DataSubmessageWrite, GapSubmessageWrite, HeartbeatSubmessageWrite},
     },
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,

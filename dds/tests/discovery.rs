@@ -204,7 +204,7 @@ fn process_discovery_data_happy_path() {
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(
             LOCATOR_KIND_UDPv4,
-            7402,
+            7405,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         )],
         metatraffic_multicast_locator_list: vec![],
