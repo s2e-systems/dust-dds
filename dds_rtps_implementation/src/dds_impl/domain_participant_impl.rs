@@ -28,7 +28,7 @@ use rust_rtps_pim::structure::{
     },
     RtpsGroup,
 };
-use rust_rtps_psm::discovery::participant_discovery::ParticipantDiscovery;
+use rust_rtps_psm::{discovery::participant_discovery::ParticipantDiscovery, messages::overall_structure::RtpsSubmessageTypeWrite};
 
 use crate::{
     data_representation_builtin_endpoints::{
@@ -70,10 +70,10 @@ pub struct DomainParticipantImpl {
     metatraffic_transport: Arc<Mutex<Box<dyn Transport>>>,
     default_transport: Arc<Mutex<Box<dyn Transport>>>,
     is_enabled: Arc<AtomicBool>,
-    metatraffic_message_sender: SyncSender<u8>,
-    metatraffic_message_receiver: Receiver<u8>,
-    user_defined_message_sender: SyncSender<u8>,
-    user_defined_message_receiver: Receiver<u8>,
+    metatraffic_message_sender: SyncSender<RtpsSubmessageTypeWrite>,
+    metatraffic_message_receiver: Receiver<RtpsSubmessageTypeWrite>,
+    user_defined_message_sender: SyncSender<RtpsSubmessageTypeWrite>,
+    user_defined_message_receiver: Receiver<RtpsSubmessageTypeWrite>,
 }
 
 impl DomainParticipantImpl {
@@ -84,8 +84,8 @@ impl DomainParticipantImpl {
         builtin_publisher: RtpsShared<PublisherImpl>,
         metatraffic_transport: Box<dyn Transport>,
         default_transport: Box<dyn Transport>,
-        metatraffic_message_sender: SyncSender<u8>,
-        metatraffic_message_receiver: Receiver<u8>,
+        metatraffic_message_sender: SyncSender<RtpsSubmessageTypeWrite>,
+        metatraffic_message_receiver: Receiver<RtpsSubmessageTypeWrite>,
     ) -> Self {
         let (user_defined_message_sender, user_defined_message_receiver) = sync_channel(17);
 

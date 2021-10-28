@@ -90,19 +90,19 @@ impl DerefMut for RtpsWriterFlavor {
 pub struct DataWriterImpl {
     _qos: DataWriterQos,
     pub rtps_writer_impl: RtpsWriterFlavor,
-    sender: SyncSender<u8>,
+    message_sender: SyncSender<RtpsSubmessageTypeWrite>,
 }
 
 impl DataWriterImpl {
     pub fn new(
         qos: DataWriterQos,
         rtps_writer_impl: RtpsWriterFlavor,
-        sender: SyncSender<u8>,
+        message_sender: SyncSender<RtpsSubmessageTypeWrite>,
     ) -> Self {
         Self {
             _qos: qos,
             rtps_writer_impl,
-            sender,
+            message_sender,
         }
     }
 }
@@ -167,6 +167,65 @@ where
         let time = rust_rtps_pim::messages::types::Time(0);
         writer_cache.set_source_timestamp(Some(time));
         writer_cache.add_change(change);
+        let message_sender = self.message_sender.clone();
+        match &mut self.rtps_writer_impl {
+            RtpsWriterFlavor::Stateful {
+                stateful_writer, ..
+            } => stateful_writer.send_unsent_data(
+                |reader_proxy, data| {
+                    message_sender.send(RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                        data.endianness_flag,
+                        data.inline_qos_flag,
+                        data.data_flag,
+                        data.key_flag,
+                        data.non_standard_payload_flag,
+                        data.reader_id,
+                        data.writer_id,
+                        data.writer_sn,
+                        data.inline_qos,
+                        data.serialized_payload,
+                    )));
+                },
+                |reader_proxy, gap| {
+                    message_sender.send(RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                        gap.endianness_flag,
+                        gap.reader_id,
+                        gap.writer_id,
+                        gap.gap_start,
+                        gap.gap_list,
+                    )));
+                },
+            ),
+            RtpsWriterFlavor::Stateless(stateless_writer) => {
+                stateless_writer.send_unsent_data(
+                    |reader_locator, data| {
+                        message_sender.send(RtpsSubmessageTypeWrite::Data(
+                            DataSubmessageWrite::new(
+                                data.endianness_flag,
+                                data.inline_qos_flag,
+                                data.data_flag,
+                                data.key_flag,
+                                data.non_standard_payload_flag,
+                                data.reader_id,
+                                data.writer_id,
+                                data.writer_sn,
+                                data.inline_qos,
+                                data.serialized_payload,
+                            ),
+                        ));
+                    },
+                    |reader_locator, gap| {
+                        message_sender.send(RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                            gap.endianness_flag,
+                            gap.reader_id,
+                            gap.writer_id,
+                            gap.gap_start,
+                            gap.gap_list,
+                        )));
+                    },
+                );
+            }
+        };
         Ok(())
     }
 
@@ -542,68 +601,105 @@ impl RtpsSubmessageSender for DataWriterImpl {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use rust_rtps_pim::{
-//         behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
-//         structure::types::{ReliabilityKind, TopicKind, GUID_UNKNOWN},
-//     };
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc::sync_channel;
 
-//     use super::*;
+    use rust_rtps_pim::{behavior::writer::{reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations}, messages::submessage_elements::{
+            EntityIdSubmessageElement, ParameterListSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+        }, structure::types::{ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN}};
 
-//     #[test]
-//     fn write_w_timestamp() {
-//         struct MockData<'a>(&'a [u8]);
+    use super::*;
 
-//         impl DdsSerialize for MockData<'_> {
-//             fn serialize<W: std::io::Write, R: crate::dds_type::Endianness>(
-//                 &self,
-//                 mut writer: W,
-//             ) -> DDSResult<()> {
-//                 writer.write(self.0).unwrap();
-//                 Ok(())
-//             }
-//         }
+    #[test]
+    fn write_w_timestamp() {
+        struct MockData<'a>(&'a [u8]);
 
-//         let guid = GUID_UNKNOWN;
-//         let topic_kind = TopicKind::WithKey;
-//         let reliability_level = ReliabilityKind::BestEffort;
-//         let unicast_locator_list = &[];
-//         let multicast_locator_list = &[];
-//         let push_mode = true;
-//         let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
-//         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
-//         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
-//         let data_max_size_serialized = None;
-//         let rtps_writer = RtpsStatefulWriterOperations::new(
-//             guid,
-//             topic_kind,
-//             reliability_level,
-//             unicast_locator_list,
-//             multicast_locator_list,
-//             push_mode,
-//             heartbeat_period,
-//             nack_response_delay,
-//             nack_suppression_duration,
-//             data_max_size_serialized,
-//         );
-//         let mut data_writer_impl = DataWriterImpl::new(DataWriterQos::default(), rtps_writer);
+        impl DdsSerialize for MockData<'_> {
+            fn serialize<W: std::io::Write, R: crate::dds_type::Endianness>(
+                &self,
+                mut writer: W,
+            ) -> DDSResult<()> {
+                writer.write(self.0).unwrap();
+                Ok(())
+            }
+        }
 
-//         let data_value = [0, 1, 0, 0, 7, 3];
-//         data_writer_impl
-//             .write_w_timestamp(
-//                 MockData(&data_value),
-//                 None,
-//                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-//             )
-//             .unwrap();
+        let guid = GUID_UNKNOWN;
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let push_mode = true;
+        let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
+        let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        let data_max_size_serialized = None;
+        let mut rtps_stateless_writer = RtpsStatelessWriterImpl::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+        let a_reader_locator = RtpsReaderLocator {
+            locator: Locator {
+                kind: 1,
+                port: 2,
+                address: [3; 16],
+            },
+            expects_inline_qos: false,
+        };
+        rtps_stateless_writer.reader_locator_add(a_reader_locator);
+        let rtps_writer = RtpsWriterFlavor::new_stateless(rtps_stateless_writer);
+        let (message_sender, message_receiver) = sync_channel(5);
+        let mut data_writer_impl =
+            DataWriterImpl::new(DataWriterQos::default(), rtps_writer, message_sender);
 
-//         let change = data_writer_impl
-//             .rtps_writer_impl
-//             .writer_cache()
-//             .get_change(&(1i64.into()))
-//             .unwrap();
+        let data_value = [0, 1, 0, 0, 7, 3];
+        data_writer_impl
+            .write_w_timestamp(
+                MockData(&data_value),
+                None,
+                rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
 
-//         assert_eq!(change.data_value, &data_value);
-//     }
-// }
+        let received_message = message_receiver.try_recv().unwrap();
+        let endianness_flag = true;
+        let inline_qos_flag = true;
+        let data_flag = true;
+        let key_flag = false;
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_sn = SequenceNumberSubmessageElement { value: 1 };
+        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: vec![0, 1, 0, 0, 7, 3],
+        };
+        let expected_message = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        ));
+        assert_eq!(received_message, expected_message);
+    }
+}

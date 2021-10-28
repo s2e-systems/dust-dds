@@ -33,7 +33,7 @@ use rust_rtps_psm::{
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 
-use crate::{dds_impl::data_writer_impl::RtpsWriterFlavor, dds_type::DdsType, utils::{message_sender::{self, RtpsSubmessageSender}, shared_object::{
+use crate::{dds_impl::data_writer_impl::RtpsWriterFlavor, dds_type::DdsType, utils::{message_sender::{RtpsSubmessageSender}, shared_object::{
             rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, RtpsShared, RtpsWeak,
         }, transport::TransportWrite}};
 
@@ -45,7 +45,7 @@ pub struct PublisherImpl {
     pub data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
-    message_sender: SyncSender<u8>,
+    message_sender: SyncSender<RtpsSubmessageTypeWrite>,
 }
 
 impl PublisherImpl {
@@ -53,7 +53,7 @@ impl PublisherImpl {
         qos: PublisherQos,
         rtps_group: RtpsGroup,
         data_writer_impl_list: Vec<RtpsShared<DataWriterImpl>>,
-        message_sender: SyncSender<u8>,
+        message_sender: SyncSender<RtpsSubmessageTypeWrite>,
     ) -> Self {
         Self {
             _qos: qos,
