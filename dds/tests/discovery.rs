@@ -202,7 +202,11 @@ fn process_discovery_data_happy_path() {
         guid_prefix,
         vendor_id: [73, 74],
         expects_inline_qos: false,
-        metatraffic_unicast_locator_list: vec![Locator::new(11, 12, [1; 16])],
+        metatraffic_unicast_locator_list: vec![Locator::new(
+            LOCATOR_KIND_UDPv4,
+            7402,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+        )],
         metatraffic_multicast_locator_list: vec![],
         default_unicast_locator_list: vec![],
         default_multicast_locator_list: vec![],
@@ -319,7 +323,8 @@ fn process_discovery_data_happy_path() {
         );
 
         let publisher_data_writer_list = publisher.data_writer_impl_list.lock().unwrap();
-        let mut sedp_builtin_publications_data_writer = rtps_shared_write_lock(&publisher_data_writer_list[1]);
+        let mut sedp_builtin_publications_data_writer =
+            rtps_shared_write_lock(&publisher_data_writer_list[1]);
         if let RtpsWriterFlavor::Stateful {
             stateful_writer, ..
         } = &mut sedp_builtin_publications_data_writer.rtps_writer_impl
@@ -345,22 +350,14 @@ fn process_discovery_data_happy_path() {
     //     sedp_builtin_publications_rtps_writer.matched_readers[0].remote_reader_guid,
     //     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
     // );
+    for i in 1..14 {
+        publisher.send_data(
+            &PROTOCOLVERSION,
+            &VENDOR_ID_UNKNOWN,
+            &GuidPrefix([3; 12]),
+            &mut transport,
+        );
 
-    std::thread::sleep(std::time::Duration::from_secs(1));
-
-    publisher.send_data(
-        &PROTOCOLVERSION,
-        &VENDOR_ID_UNKNOWN,
-        &GuidPrefix([3; 12]),
-        &mut transport,
-    );
-
-    std::thread::sleep(std::time::Duration::from_secs(1));
-
-    publisher.send_data(
-        &PROTOCOLVERSION,
-        &VENDOR_ID_UNKNOWN,
-        &GuidPrefix([3; 12]),
-        &mut transport,
-    );
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
 }
