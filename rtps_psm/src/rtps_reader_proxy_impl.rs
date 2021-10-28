@@ -39,7 +39,7 @@ impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
     }
 
     fn next_unsent_change(&mut self) -> Option<SequenceNumber> {
-        todo!()
+        None
     }
 
     fn unsent_changes(&self) -> Self::SequenceNumberVector {

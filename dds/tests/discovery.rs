@@ -346,6 +346,17 @@ fn process_discovery_data_happy_path() {
     //     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
     // );
 
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
+    publisher.send_data(
+        &PROTOCOLVERSION,
+        &VENDOR_ID_UNKNOWN,
+        &GuidPrefix([3; 12]),
+        &mut transport,
+    );
+
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
     publisher.send_data(
         &PROTOCOLVERSION,
         &VENDOR_ID_UNKNOWN,
