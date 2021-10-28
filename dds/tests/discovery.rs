@@ -1,4 +1,4 @@
-use std::{net::UdpSocket, ops::DerefMut};
+use std::{net::UdpSocket, ops::DerefMut, sync::mpsc::sync_channel};
 
 use rust_dds::{
     infrastructure::qos::{DataReaderQos, SubscriberQos},
@@ -64,6 +64,7 @@ use rust_rtps_psm::discovery::{
 
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
+    let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(17);
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -115,6 +116,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
+        metatraffic_message_sender.clone(),
     );
 
     data_writer
@@ -132,6 +134,7 @@ fn send_and_receive_discovery_data_happy_path() {
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
         vec![rtps_shared_new(data_writer)],
+        metatraffic_message_sender.clone(),
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
@@ -179,6 +182,8 @@ fn send_and_receive_discovery_data_happy_path() {
 
 #[test]
 fn process_discovery_data_happy_path() {
+    let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(17);
+
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -238,6 +243,7 @@ fn process_discovery_data_happy_path() {
     let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
+        metatraffic_message_sender.clone(),
     );
 
     spdp_builtin_participant_data_writer
@@ -254,6 +260,7 @@ fn process_discovery_data_happy_path() {
     let sedp_builtin_publications_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         RtpsWriterFlavor::new_stateful(sedp_builtin_publications_rtps_writer),
+        metatraffic_message_sender.clone(),
     );
 
     let publisher = PublisherImpl::new(
@@ -266,6 +273,7 @@ fn process_discovery_data_happy_path() {
             rtps_shared_new(spdp_builtin_participant_data_writer),
             rtps_shared_new(sedp_builtin_publications_data_writer),
         ],
+        metatraffic_message_sender.clone(),
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();

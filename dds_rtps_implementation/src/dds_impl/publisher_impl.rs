@@ -1,5 +1,6 @@
 use std::sync::{
     atomic::{self, AtomicU8},
+    mpsc::{channel, Receiver, SyncSender},
     Mutex,
 };
 
@@ -32,17 +33,9 @@ use rust_rtps_psm::{
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 
-use crate::{
-    dds_impl::data_writer_impl::RtpsWriterFlavor,
-    dds_type::DdsType,
-    utils::{
-        message_sender::RtpsSubmessageSender,
-        shared_object::{
+use crate::{dds_impl::data_writer_impl::RtpsWriterFlavor, dds_type::DdsType, utils::{message_sender::{self, RtpsSubmessageSender}, shared_object::{
             rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, RtpsShared, RtpsWeak,
-        },
-        transport::TransportWrite,
-    },
-};
+        }, transport::TransportWrite}};
 
 use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
 
@@ -52,6 +45,7 @@ pub struct PublisherImpl {
     pub data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
+    message_sender: SyncSender<u8>,
 }
 
 impl PublisherImpl {
@@ -59,6 +53,7 @@ impl PublisherImpl {
         qos: PublisherQos,
         rtps_group: RtpsGroup,
         data_writer_impl_list: Vec<RtpsShared<DataWriterImpl>>,
+        message_sender: SyncSender<u8>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -66,6 +61,7 @@ impl PublisherImpl {
             data_writer_impl_list: Mutex::new(data_writer_impl_list),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
+            message_sender,
         }
     }
 
@@ -147,7 +143,7 @@ where
             nack_suppression_duration,
             data_max_size_serialized,
         ));
-        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
+        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl, self.message_sender.clone());
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         let data_writer_impl_weak = rtps_shared_downgrade(&data_writer_impl_shared);
         self.data_writer_impl_list
@@ -280,6 +276,8 @@ impl RtpsSubmessageSender for PublisherImpl {
 #[cfg(test)]
 mod tests {
 
+    use std::sync::mpsc::sync_channel;
+
     use super::*;
     use rust_dds_api::infrastructure::qos::TopicQos;
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
@@ -298,9 +296,10 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_some_value() {
+        let (sender, _) = sync_channel(0);
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
         let mut publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], sender);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -313,9 +312,10 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_none() {
+        let (sender, _) = sync_channel(0);
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
         let mut publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], sender);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -332,8 +332,9 @@ mod tests {
 
     #[test]
     fn create_datawriter() {
+        let (sender, _) = sync_channel(0);
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], sender);
         let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default()));
         let a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
 

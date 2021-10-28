@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
+    sync::mpsc::SyncSender,
     time::{Duration, Instant},
 };
 
@@ -26,7 +27,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::{
     messages::{
-        overall_structure::{RtpsSubmessageTypeWrite},
+        overall_structure::RtpsSubmessageTypeWrite,
         submessages::{DataSubmessageWrite, GapSubmessageWrite, HeartbeatSubmessageWrite},
     },
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
@@ -89,13 +90,19 @@ impl DerefMut for RtpsWriterFlavor {
 pub struct DataWriterImpl {
     _qos: DataWriterQos,
     pub rtps_writer_impl: RtpsWriterFlavor,
+    sender: SyncSender<u8>,
 }
 
 impl DataWriterImpl {
-    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor) -> Self {
+    pub fn new(
+        qos: DataWriterQos,
+        rtps_writer_impl: RtpsWriterFlavor,
+        sender: SyncSender<u8>,
+    ) -> Self {
         Self {
             _qos: qos,
             rtps_writer_impl,
+            sender,
         }
     }
 }
