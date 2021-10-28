@@ -3,9 +3,10 @@ use std::ops::Deref;
 use rust_rtps_pim::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-            SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-            SerializedDataSubmessageElement, TimestampSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
+            ParameterListSubmessageElement, SequenceNumberSetSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            TimestampSubmessageElement,
         },
         submessages::{
             AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
@@ -226,8 +227,26 @@ impl Deref for GapSubmessageRead {
 pub struct HeartbeatSubmessageWrite(<Self as Deref>::Target);
 
 impl HeartbeatSubmessageWrite {
-    pub fn new() -> Self {
-        todo!()
+    pub fn new(
+        endianness_flag: SubmessageFlag,
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        first_sn: SequenceNumberSubmessageElement,
+        last_sn: SequenceNumberSubmessageElement,
+        count: CountSubmessageElement,
+    ) -> Self {
+        Self(HeartbeatSubmessage {
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        })
     }
 }
 

@@ -93,13 +93,13 @@ impl<L, C, R, RP, P, D, SV> RtpsStatefulWriter<L, C, R>
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RP>,
     RP: RtpsReaderProxyOperations<SequenceNumberVector = SV> + Deref<Target = RtpsReaderProxy<L>>,
-    SV: ExactSizeIterator,
+    SV: IntoIterator,
     C: for<'a> RtpsHistoryCacheOperations<'a, GetChangeDataType = D, GetChangeParameterType = P>,
 {
     pub fn send_unsent_data<S>(
         &mut self,
-        send_data: &mut impl FnMut(&RP, DataSubmessage<P, D>),
-        send_gap: &mut impl FnMut(&RP, GapSubmessage<S>),
+        mut send_data: impl FnMut(&RP, DataSubmessage<P, D>),
+        mut send_gap: impl FnMut(&RP, GapSubmessage<S>),
     ) where
         S: FromIterator<SequenceNumber>,
     {
@@ -171,7 +171,7 @@ where
     pub fn send_heartbeat(
         &mut self,
         count: Count,
-        send_heartbeat: &mut impl FnMut(&RP, HeartbeatSubmessage),
+        mut send_heartbeat: impl FnMut(&RP, HeartbeatSubmessage),
     ) {
         for reader_proxy in &mut self.matched_readers {
             let endianness_flag = true;
@@ -216,8 +216,8 @@ where
 
     pub fn send_requested_data<S>(
         &mut self,
-        send_data: &mut impl FnMut(&RP, DataSubmessage<P, D>),
-        send_gap: &mut impl FnMut(&RP, GapSubmessage<S>),
+        mut send_data: impl FnMut(&RP, DataSubmessage<P, D>),
+        mut send_gap: impl FnMut(&RP, GapSubmessage<S>),
     ) where
         S: FromIterator<SequenceNumber>,
     {

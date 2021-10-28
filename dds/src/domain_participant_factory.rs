@@ -101,6 +101,7 @@ impl DomainParticipantFactory {
                 &Ipv4Addr::from_str("127.0.0.1").unwrap(),
             )
             .unwrap();
+        socket.set_multicast_loop_v4(true).unwrap();
         let metatraffic_transport = Box::new(UdpTransport::new(socket));
 
         let socket = UdpSocket::bind("127.0.0.1:7410").unwrap();
@@ -156,7 +157,7 @@ impl DomainParticipantFactory {
 
         let sedp_builtin_publications_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
             DataWriterQos::default(),
-            RtpsWriterFlavor::Stateful(sedp_builtin_publications_rtps_writer),
+            RtpsWriterFlavor::new_stateful(sedp_builtin_publications_rtps_writer),
         ));
 
         let sedp_builtin_subscriptions_dds_data_reader =
@@ -167,7 +168,7 @@ impl DomainParticipantFactory {
 
         let sedp_builtin_subscriptions_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
             DataWriterQos::default(),
-            RtpsWriterFlavor::Stateful(sedp_builtin_subscriptions_rtps_writer),
+            RtpsWriterFlavor::new_stateful(sedp_builtin_subscriptions_rtps_writer),
         ));
 
         let sedp_builtin_topics_dds_data_reader =
@@ -178,7 +179,7 @@ impl DomainParticipantFactory {
 
         let sedp_builtin_topics_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
             DataWriterQos::default(),
-            RtpsWriterFlavor::Stateful(sedp_builtin_topics_rtps_writer),
+            RtpsWriterFlavor::new_stateful(sedp_builtin_topics_rtps_writer),
         ));
 
         // ////// Create built-in publisher and subscriber
@@ -190,9 +191,9 @@ impl DomainParticipantFactory {
             )),
             vec![
                 spdp_builtin_participant_dds_data_writer,
-                // sedp_builtin_publications_dds_data_writer,
-                // sedp_builtin_subscriptions_dds_data_writer,
-                // sedp_builtin_topics_dds_data_writer,
+                sedp_builtin_publications_dds_data_writer,
+                sedp_builtin_subscriptions_dds_data_writer,
+                sedp_builtin_topics_dds_data_writer,
             ],
         ));
         let builtin_subscriber_storage = rtps_shared_new(SubscriberImpl::new(
