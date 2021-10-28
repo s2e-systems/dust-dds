@@ -34,11 +34,7 @@ use rust_rtps_psm::{
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 
-use crate::{
-    dds_type::{BigEndian, DdsSerialize},
-    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
-    utils::message_sender::RtpsSubmessageSender,
-};
+use crate::{dds_type::{BigEndian, DdsSerialize}, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache, utils::message_sender::{self, RtpsSubmessageSender}};
 
 pub enum RtpsWriterFlavor {
     Stateful {
@@ -91,6 +87,70 @@ pub struct DataWriterImpl {
     _qos: DataWriterQos,
     pub rtps_writer_impl: RtpsWriterFlavor,
     message_sender: SyncSender<RtpsSubmessageTypeWrite>,
+}
+
+impl DataWriterImpl {
+    fn send_change(&mut self) {
+        let (rtps_writer_impl, message_sender) = (&mut self.rtps_writer_impl, &self.message_sender);
+        match rtps_writer_impl {
+            RtpsWriterFlavor::Stateful {
+                stateful_writer, ..
+            } => stateful_writer.send_unsent_data(
+                |reader_proxy, data| {
+                    message_sender.send(RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                        data.endianness_flag,
+                        data.inline_qos_flag,
+                        data.data_flag,
+                        data.key_flag,
+                        data.non_standard_payload_flag,
+                        data.reader_id,
+                        data.writer_id,
+                        data.writer_sn,
+                        data.inline_qos,
+                        data.serialized_payload,
+                    )));
+                },
+                |reader_proxy, gap| {
+                    message_sender.send(RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                        gap.endianness_flag,
+                        gap.reader_id,
+                        gap.writer_id,
+                        gap.gap_start,
+                        gap.gap_list,
+                    )));
+                },
+            ),
+            RtpsWriterFlavor::Stateless(stateless_writer) => {
+                stateless_writer.send_unsent_data(
+                    |reader_locator, data| {
+                        message_sender.send(RtpsSubmessageTypeWrite::Data(
+                            DataSubmessageWrite::new(
+                                data.endianness_flag,
+                                data.inline_qos_flag,
+                                data.data_flag,
+                                data.key_flag,
+                                data.non_standard_payload_flag,
+                                data.reader_id,
+                                data.writer_id,
+                                data.writer_sn,
+                                data.inline_qos,
+                                data.serialized_payload,
+                            ),
+                        ));
+                    },
+                    |reader_locator, gap| {
+                        message_sender.send(RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                            gap.endianness_flag,
+                            gap.reader_id,
+                            gap.writer_id,
+                            gap.gap_start,
+                            gap.gap_list,
+                        )));
+                    },
+                );
+            }
+        };
+    }
 }
 
 impl DataWriterImpl {
@@ -167,65 +227,7 @@ where
         let time = rust_rtps_pim::messages::types::Time(0);
         writer_cache.set_source_timestamp(Some(time));
         writer_cache.add_change(change);
-        let message_sender = self.message_sender.clone();
-        match &mut self.rtps_writer_impl {
-            RtpsWriterFlavor::Stateful {
-                stateful_writer, ..
-            } => stateful_writer.send_unsent_data(
-                |reader_proxy, data| {
-                    message_sender.send(RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                        data.endianness_flag,
-                        data.inline_qos_flag,
-                        data.data_flag,
-                        data.key_flag,
-                        data.non_standard_payload_flag,
-                        data.reader_id,
-                        data.writer_id,
-                        data.writer_sn,
-                        data.inline_qos,
-                        data.serialized_payload,
-                    )));
-                },
-                |reader_proxy, gap| {
-                    message_sender.send(RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                        gap.endianness_flag,
-                        gap.reader_id,
-                        gap.writer_id,
-                        gap.gap_start,
-                        gap.gap_list,
-                    )));
-                },
-            ),
-            RtpsWriterFlavor::Stateless(stateless_writer) => {
-                stateless_writer.send_unsent_data(
-                    |reader_locator, data| {
-                        message_sender.send(RtpsSubmessageTypeWrite::Data(
-                            DataSubmessageWrite::new(
-                                data.endianness_flag,
-                                data.inline_qos_flag,
-                                data.data_flag,
-                                data.key_flag,
-                                data.non_standard_payload_flag,
-                                data.reader_id,
-                                data.writer_id,
-                                data.writer_sn,
-                                data.inline_qos,
-                                data.serialized_payload,
-                            ),
-                        ));
-                    },
-                    |reader_locator, gap| {
-                        message_sender.send(RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        )));
-                    },
-                );
-            }
-        };
+        self.send_change();
         Ok(())
     }
 
@@ -605,10 +607,16 @@ impl RtpsSubmessageSender for DataWriterImpl {
 mod tests {
     use std::sync::mpsc::sync_channel;
 
-    use rust_rtps_pim::{behavior::writer::{reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations}, messages::submessage_elements::{
+    use rust_rtps_pim::{
+        behavior::writer::{
+            reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
+        },
+        messages::submessage_elements::{
             EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-        }, structure::types::{ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN}};
+        },
+        structure::types::{ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+    };
 
     use super::*;
 
