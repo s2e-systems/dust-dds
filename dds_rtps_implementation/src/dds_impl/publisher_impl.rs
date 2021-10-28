@@ -49,7 +49,7 @@ use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
-    data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
+    pub data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
 }

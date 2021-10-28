@@ -35,7 +35,7 @@ impl Deref for RtpsReaderFlavor {
 }
 
 pub struct DataReaderImpl<T> {
-    pub(crate) rtps_reader: RtpsReaderFlavor,
+    pub rtps_reader: RtpsReaderFlavor,
     _qos: DataReaderQos,
     _listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }

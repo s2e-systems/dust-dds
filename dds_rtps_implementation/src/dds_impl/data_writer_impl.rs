@@ -88,7 +88,7 @@ impl DerefMut for RtpsWriterFlavor {
 
 pub struct DataWriterImpl {
     _qos: DataWriterQos,
-    rtps_writer_impl: RtpsWriterFlavor,
+    pub rtps_writer_impl: RtpsWriterFlavor,
 }
 
 impl DataWriterImpl {
