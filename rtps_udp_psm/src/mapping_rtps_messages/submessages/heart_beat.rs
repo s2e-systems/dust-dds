@@ -1,12 +1,17 @@
 use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
 use rust_rtps_psm::messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite};
 
-use crate::{deserialize::{self, DeserializeSubmessage, MappingRead}, serialize::{self, MappingWrite, Serialize, SerializeSubmessage}};
+use crate::{
+    deserialize::{self, Deserialize, DeserializeSubmessage},
+    serialize::{Serialize, SerializeSubmessage},
+};
 
 use std::io::Write;
 
 impl SerializeSubmessage for HeartbeatSubmessageWrite {
-    fn submessage_header(&self) -> rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
+    fn submessage_header(
+        &self,
+    ) -> rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
         RtpsSubmessageHeader {
             submessage_id: SubmessageKind::HEARTBEAT,
             flags: [
@@ -35,22 +40,43 @@ impl SerializeSubmessage for HeartbeatSubmessageWrite {
     }
 }
 
-impl<'de>  DeserializeSubmessage<'de>  for HeartbeatSubmessageRead {
+impl<'de> DeserializeSubmessage<'de> for HeartbeatSubmessageRead {
     fn deserialize_submessage<B: byteorder::ByteOrder>(
         buf: &mut &'de [u8],
         header: rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader,
     ) -> deserialize::Result<Self> {
-        todo!()
+        let reader_id = Deserialize::deserialize::<B>(buf)?;
+        let writer_id = Deserialize::deserialize::<B>(buf)?;
+        let first_sn = Deserialize::deserialize::<B>(buf)?;
+        let last_sn = Deserialize::deserialize::<B>(buf)?;
+        let count = Deserialize::deserialize::<B>(buf)?;
+        Ok(Self::new(
+            header.flags[0],
+            header.flags[1],
+            header.flags[2],
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        ))
     }
 }
-
 
 #[cfg(test)]
 mod tests {
     use crate::{deserialize::from_bytes, serialize::to_bytes};
 
     use super::*;
-    use rust_rtps_pim::{messages::{submessage_elements::{CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement}, types::Count}, structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY}};
+    use rust_rtps_pim::{
+        messages::{
+            submessage_elements::{
+                CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+            },
+            types::Count,
+        },
+        structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+    };
     #[test]
     fn serialize_heart_beat() {
         let endianness_flag = true;
@@ -64,9 +90,17 @@ mod tests {
         };
         let first_sn = SequenceNumberSubmessageElement { value: 5 };
         let last_sn = SequenceNumberSubmessageElement { value: 7 };
-        let count = CountSubmessageElement{value: Count(2)};
-        let submessage =
-            HeartbeatSubmessageWrite::new(endianness_flag, final_flag, liveliness_flag, reader_id, writer_id, first_sn, last_sn, count);
+        let count = CountSubmessageElement { value: Count(2) };
+        let submessage = HeartbeatSubmessageWrite::new(
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        );
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x07_u8, 0b_0000_0101, 28, 0, // Submessage header
@@ -94,9 +128,17 @@ mod tests {
         };
         let first_sn = SequenceNumberSubmessageElement { value: 5 };
         let last_sn = SequenceNumberSubmessageElement { value: 7 };
-        let count = CountSubmessageElement{value: Count(2)};
-        let expected =
-            HeartbeatSubmessageRead::new(endianness_flag, final_flag, liveliness_flag, reader_id, writer_id, first_sn, last_sn, count);
+        let count = CountSubmessageElement { value: Count(2) };
+        let expected = HeartbeatSubmessageRead::new(
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        );
         #[rustfmt::skip]
         let result = from_bytes(&[
             0x07, 0b_0000_0101, 28, 0, // Submessage header
