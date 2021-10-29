@@ -1,4 +1,7 @@
+use std::sync::mpsc::Receiver;
+
 use rust_rtps_pim::{
+    behavior::writer::reader_locator::RtpsReaderLocator,
     messages::overall_structure::RtpsMessageHeader,
     structure::types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
 };
@@ -53,6 +56,35 @@ pub trait RtpsSubmessageSender {
 //     }
 // }
 
+pub struct MessageSender {
+    receiver: Receiver<(RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite>)>,
+}
+
+impl MessageSender {
+    pub fn new(receiver: Receiver<(RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite>)>) -> Self {
+        Self { receiver }
+    }
+
+    pub fn send_data(
+        &self,
+        protocol_version: &ProtocolVersion,
+        vendor_id: &VendorId,
+        guid_prefix: &GuidPrefix,
+        transport: &mut (impl TransportWrite + ?Sized),
+    ) {
+        if let Ok((dst_locator, submessages)) = self.receiver.recv() {
+            let header = RtpsMessageHeader {
+                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                version: *protocol_version,
+                vendor_id: *vendor_id,
+                guid_prefix: *guid_prefix,
+            };
+            let message = RtpsMessageWrite::new(header, submessages);
+            transport.write(&message, &dst_locator.locator);
+        }
+    }
+}
+
 pub fn send_data(
     protocol_version: &ProtocolVersion,
     vendor_id: &VendorId,
@@ -78,6 +110,41 @@ pub fn send_data(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc::sync_channel;
+
+    use rust_rtps_pim::structure::types::{LOCATOR_INVALID, PROTOCOLVERSION_2_4};
+
+    use super::*;
+
+    #[test]
+    fn send_submessage() {
+        struct MockTransport;
+
+        impl TransportWrite for MockTransport {
+            fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
+                assert_eq!(destination_locator, &LOCATOR_INVALID);
+                assert_eq!(message.submessages, vec![])
+            }
+        }
+
+        let (sender, receiver) = sync_channel(1);
+        let message_sender = MessageSender::new(receiver);
+
+        let locator = RtpsReaderLocator {
+            locator: LOCATOR_INVALID,
+            expects_inline_qos: false,
+        };
+        let submessages = vec![];
+        sender.send((locator, submessages));
+
+        let protocol_version = PROTOCOLVERSION_2_4;
+        let vendor_id = [0,0];
+        let guid_prefix = GuidPrefix([1;12]);
+        let mut transport = MockTransport;
+        message_sender.send_data(&protocol_version, &vendor_id, &guid_prefix, &mut transport);
+
+
+    }
     // #[test]
     // fn submessage_send_empty() {
     //     struct MockBehavior;
