@@ -188,41 +188,40 @@ impl DataWriterImpl {
         let heartbeat_period = rtps_writer_impl.heartbeat_period;
         let reliability = rtps_writer_impl.reliability_level;
         let rtps_writer_impl = Arc::new(Mutex::new(rtps_writer_impl));
-        if reliability == ReliabilityKind::Reliable {
-            let rtps_writer_flavor = rtps_writer_impl.clone();
-            let locator_list_message_sender_arc = locator_list_message_sender.clone();
-            let heartbeat_count = Count(1);
-            std::thread::spawn(move || loop {
-                let mut rtps_writer_flavor_lock = rtps_writer_flavor.lock().unwrap();
-                if let RtpsWriterFlavor::Stateful {
-                    stateful_writer, ..
-                } = &mut *rtps_writer_flavor_lock
-                {
-                    stateful_writer.send_heartbeat(heartbeat_count, |reader_proxy, heartbeat| {
-                        locator_list_message_sender_arc.send((
-                            reader_proxy.unicast_locator_list.clone(),
-                            reader_proxy.multicast_locator_list.clone(),
-                            vec![RtpsSubmessageTypeWrite::Heartbeat(
-                                HeartbeatSubmessageWrite::new(
-                                    heartbeat.endianness_flag,
-                                    heartbeat.final_flag,
-                                    heartbeat.liveliness_flag,
-                                    heartbeat.reader_id,
-                                    heartbeat.writer_id,
-                                    heartbeat.first_sn,
-                                    heartbeat.last_sn,
-                                    heartbeat.count,
-                                ),
-                            )],
-                        ));
-                    });
-                }
-                std::thread::sleep(std::time::Duration::new(
-                    heartbeat_period.seconds as u64,
-                    heartbeat_period.fraction,
-                ));
-            });
-        }
+
+        let rtps_writer_flavor = rtps_writer_impl.clone();
+        let locator_list_message_sender_arc = locator_list_message_sender.clone();
+        let heartbeat_count = Count(1);
+        std::thread::spawn(move || loop {
+            let mut rtps_writer_flavor_lock = rtps_writer_flavor.lock().unwrap();
+            if let RtpsWriterFlavor::Stateful {
+                stateful_writer, ..
+            } = &mut *rtps_writer_flavor_lock
+            {
+                stateful_writer.send_heartbeat(heartbeat_count, |reader_proxy, heartbeat| {
+                    locator_list_message_sender_arc.send((
+                        reader_proxy.unicast_locator_list.clone(),
+                        reader_proxy.multicast_locator_list.clone(),
+                        vec![RtpsSubmessageTypeWrite::Heartbeat(
+                            HeartbeatSubmessageWrite::new(
+                                heartbeat.endianness_flag,
+                                heartbeat.final_flag,
+                                heartbeat.liveliness_flag,
+                                heartbeat.reader_id,
+                                heartbeat.writer_id,
+                                heartbeat.first_sn,
+                                heartbeat.last_sn,
+                                heartbeat.count,
+                            ),
+                        )],
+                    ));
+                });
+            }
+            std::thread::sleep(std::time::Duration::new(
+                heartbeat_period.seconds as u64,
+                heartbeat_period.fraction,
+            ));
+        });
 
         Self {
             _qos: qos,
