@@ -27,7 +27,7 @@ use rust_rtps_pim::{
 use rust_rtps_psm::{
     messages::{
         overall_structure::RtpsSubmessageTypeWrite,
-        submessages::{DataSubmessageWrite, GapSubmessageWrite},
+        submessages::{DataSubmessageWrite, GapSubmessageWrite, HeartbeatSubmessageWrite},
     },
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
@@ -61,38 +61,6 @@ impl RtpsWriterFlavor {
             Vec<RtpsSubmessageTypeWrite>,
         )>,
     ) -> Self {
-        // let heartbeat_count = Count(1);
-        // std::thread::spawn(move || loop {
-        //     let mut rtps_writer_flavor_lock = rtps_writer_flavor.lock().unwrap();
-        //     if let RtpsWriterFlavor::Stateful {
-        //         stateful_writer, ..
-        //     } = &mut *rtps_writer_flavor_lock
-        //     {
-        //         stateful_writer.send_heartbeat(heartbeat_count, |reader_proxy, heartbeat| {
-        //             locator_list_message_sender_arc.send((
-        //                 reader_proxy.unicast_locator_list.clone(),
-        //                 reader_proxy.multicast_locator_list.clone(),
-        //                 vec![RtpsSubmessageTypeWrite::Heartbeat(
-        //                     HeartbeatSubmessageWrite::new(
-        //                         heartbeat.endianness_flag,
-        //                         heartbeat.final_flag,
-        //                         heartbeat.liveliness_flag,
-        //                         heartbeat.reader_id,
-        //                         heartbeat.writer_id,
-        //                         heartbeat.first_sn,
-        //                         heartbeat.last_sn,
-        //                         heartbeat.count,
-        //                     ),
-        //                 )],
-        //             ));
-        //         });
-        //     }
-        //     std::thread::sleep(std::time::Duration::new(
-        //         heartbeat_period.seconds as u64,
-        //         heartbeat_period.fraction,
-        //     ));
-        // });
-
         RtpsWriterFlavor::Stateful {
             stateful_writer,
             heartbeat_sent_instant: Instant::now(),
@@ -236,11 +204,52 @@ impl DataWriterImpl {
 
 impl DataWriterImpl {
     pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor) -> Self {
-        let rtps_writer_impl = Arc::new(Mutex::new(rtps_writer_impl));
+        let rtps_writer_flavor = Arc::new(Mutex::new(rtps_writer_impl));
+        let rtps_writer_flavor_thread = rtps_writer_flavor.clone();
+
+        std::thread::spawn(move || {
+            let mut heartbeat_count = Count(1);
+            loop {
+                let mut rtps_writer_flavor_lock = rtps_writer_flavor_thread.lock().unwrap();
+                if let RtpsWriterFlavor::Stateful {
+                    stateful_writer,
+                    locator_list_message_sender,
+                    ..
+                } = &mut *rtps_writer_flavor_lock
+                {
+                    stateful_writer.send_heartbeat(heartbeat_count, |reader_proxy, heartbeat| {
+                        locator_list_message_sender
+                            .send((
+                                reader_proxy.unicast_locator_list.clone(),
+                                reader_proxy.multicast_locator_list.clone(),
+                                vec![RtpsSubmessageTypeWrite::Heartbeat(
+                                    HeartbeatSubmessageWrite::new(
+                                        heartbeat.endianness_flag,
+                                        heartbeat.final_flag,
+                                        heartbeat.liveliness_flag,
+                                        heartbeat.reader_id,
+                                        heartbeat.writer_id,
+                                        heartbeat.first_sn,
+                                        heartbeat.last_sn,
+                                        heartbeat.count,
+                                    ),
+                                )],
+                            ))
+                            .unwrap();
+                    });
+                    heartbeat_count += Count(1);
+
+                    std::thread::sleep(std::time::Duration::new(
+                        stateful_writer.heartbeat_period.seconds as u64,
+                        stateful_writer.heartbeat_period.fraction,
+                    ));
+                }
+            }
+        });
 
         Self {
             _qos: qos,
-            rtps_writer_impl,
+            rtps_writer_impl: rtps_writer_flavor,
         }
     }
 }
