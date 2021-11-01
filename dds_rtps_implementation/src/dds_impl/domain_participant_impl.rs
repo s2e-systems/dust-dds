@@ -17,13 +17,10 @@ use rust_dds_api::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     return_type::{DDSError, DDSResult},
-    subscription::{
-        data_reader::DataReader, subscriber::Subscriber, subscriber_listener::SubscriberListener,
-    },
+    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::{
-    behavior::writer::reader_locator::RtpsReaderLocator,
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         types::{
@@ -33,10 +30,7 @@ use rust_rtps_pim::{
         RtpsGroup,
     },
 };
-use rust_rtps_psm::{
-    discovery::participant_discovery::ParticipantDiscovery,
-    messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
-};
+use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
 use crate::{
     data_representation_builtin_endpoints::{
@@ -44,18 +38,15 @@ use crate::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     utils::{
-        shared_object::{
-            rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
-            rtps_weak_upgrade, RtpsShared,
-        },
-        transport::{self, TransportRead, TransportWrite},
+        shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared},
+        transport::{TransportRead, TransportWrite},
     },
 };
 
 use super::{
-    data_reader_impl::RtpsReaderFlavor, publisher_impl::PublisherImpl,
-    publisher_proxy::PublisherProxy, subscriber_impl::SubscriberImpl,
-    subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl, topic_proxy::TopicProxy,
+    publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy,
+    subscriber_impl::SubscriberImpl, subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl,
+    topic_proxy::TopicProxy,
 };
 
 pub trait Transport: TransportRead + TransportWrite + Send + Sync {}

@@ -1,8 +1,7 @@
 use std::{
-    cell::RefCell,
     ops::{Deref, DerefMut},
     sync::mpsc::SyncSender,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use rust_dds_api::{
@@ -21,14 +20,14 @@ use rust_rtps_pim::{
     },
     messages::types::Count,
     structure::{
-        types::{ChangeKind, Locator, ReliabilityKind, LOCATOR_INVALID},
+        types::{ChangeKind, Locator, LOCATOR_INVALID},
         RtpsHistoryCacheOperations,
     },
 };
 use rust_rtps_psm::{
     messages::{
         overall_structure::RtpsSubmessageTypeWrite,
-        submessages::{DataSubmessageWrite, GapSubmessageWrite, HeartbeatSubmessageWrite},
+        submessages::{DataSubmessageWrite, GapSubmessageWrite},
     },
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,

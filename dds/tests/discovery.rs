@@ -1,8 +1,7 @@
-use std::{net::UdpSocket, ops::DerefMut, sync::mpsc::sync_channel};
+use std::{net::UdpSocket, sync::mpsc::sync_channel};
 
 use rust_dds::{
     infrastructure::qos::{DataReaderQos, SubscriberQos},
-    publication::publisher::Publisher,
     subscription::data_reader::DataReader,
     udp_transport::UdpTransport,
 };
@@ -43,7 +42,7 @@ use rust_rtps_pim::{
     messages::{overall_structure::RtpsMessageHeader, types::Count},
     structure::{
         types::{
-            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion, VendorId,
+            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
             BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, PROTOCOLVERSION_2_4,
             VENDOR_ID_UNKNOWN,
         },
@@ -56,7 +55,6 @@ use rust_rtps_psm::{
         sedp::builtin_endpoints::{
             SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
         },
         spdp::{
             builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
@@ -266,7 +264,7 @@ fn process_discovery_data_happy_path() {
         )
         .unwrap();
 
-    let mut sedp_builtin_publications_rtps_writer =
+    let sedp_builtin_publications_rtps_writer =
         SedpBuiltinPublicationsWriter::create::<WriterHistoryCache>(guid_prefix, vec![], vec![]);
 
     let sedp_builtin_publications_data_writer = DataWriterImpl::new(
