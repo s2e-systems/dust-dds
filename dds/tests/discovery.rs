@@ -15,15 +15,24 @@ use rust_dds_api::{
     },
     publication::data_writer::DataWriter,
 };
-use rust_dds_rtps_implementation::{data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData, dds_impl::{
+use rust_dds_rtps_implementation::{
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
         data_writer_impl::{DataWriterImpl, RtpsWriterFlavor},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
-    }, rtps_impl::{
+    },
+    rtps_impl::{
         rtps_reader_history_cache_impl::ReaderHistoryCache,
         rtps_writer_history_cache_impl::WriterHistoryCache,
-    }, utils::{message_receiver::MessageReceiver, message_sender::MessageSender, shared_object::{rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock}, transport::TransportRead}};
+    },
+    utils::{
+        message_receiver::MessageReceiver,
+        shared_object::{rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock},
+        transport::{TransportRead, TransportWrite},
+    },
+};
 use rust_rtps_pim::{
     behavior::{
         types::Duration,
@@ -31,33 +40,37 @@ use rust_rtps_pim::{
             reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
         },
     },
-    messages::types::Count,
+    messages::{overall_structure::RtpsMessageHeader, types::Count},
     structure::{
         types::{
-            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
-            BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion, VendorId,
+            BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, PROTOCOLVERSION_2_4,
+            VENDOR_ID_UNKNOWN,
         },
         RtpsGroup,
     },
 };
-use rust_rtps_psm::discovery::{
-    participant_discovery::ParticipantDiscovery,
-    sedp::builtin_endpoints::{
-        SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+use rust_rtps_psm::{
+    discovery::{
+        participant_discovery::ParticipantDiscovery,
+        sedp::builtin_endpoints::{
+            SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        },
+        spdp::{
+            builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
+            participant_proxy::ParticipantProxy,
+        },
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
-    spdp::{
-        builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
-        participant_proxy::ParticipantProxy,
-    },
-    types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    messages::overall_structure::RtpsMessageWrite,
 };
 
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
     let (metatraffic_message_channel_sender, metatraffic_message_channel_receiver) =
         sync_channel(17);
-    let message_sender = MessageSender::new(metatraffic_message_channel_receiver);
 
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
@@ -134,12 +147,16 @@ fn send_and_receive_discovery_data_happy_path() {
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
     socket.set_nonblocking(true).unwrap();
     let mut transport = UdpTransport::new(socket);
-    message_sender.send_data(
-        &PROTOCOLVERSION,
-        &VENDOR_ID_UNKNOWN,
-        &GuidPrefix([3; 12]),
-        &mut transport,
-    );
+    if let Ok((dst_locator, submessages)) = metatraffic_message_channel_receiver.try_recv() {
+        let header = RtpsMessageHeader {
+            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+            version: PROTOCOLVERSION_2_4,
+            vendor_id: [0, 0],
+            guid_prefix: GuidPrefix([3; 12]),
+        };
+        let message = RtpsMessageWrite::new(header, submessages);
+        transport.write(&message, &dst_locator);
+    };
 
     // Reception
 
@@ -178,7 +195,6 @@ fn send_and_receive_discovery_data_happy_path() {
 fn process_discovery_data_happy_path() {
     let (metatraffic_message_channel_sender, metatraffic_message_channel_receiver) =
         sync_channel(17);
-    let message_sender = MessageSender::new(metatraffic_message_channel_receiver);
 
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
@@ -275,12 +291,16 @@ fn process_discovery_data_happy_path() {
     let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
     socket.set_nonblocking(true).unwrap();
     let mut transport = UdpTransport::new(socket);
-    message_sender.send_data(
-        &PROTOCOLVERSION,
-        &VENDOR_ID_UNKNOWN,
-        &GuidPrefix([3; 12]),
-        &mut transport,
-    );
+    if let Ok((dst_locator, submessages)) = metatraffic_message_channel_receiver.try_recv() {
+        let header = RtpsMessageHeader {
+            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+            version: PROTOCOLVERSION_2_4,
+            vendor_id: [0, 0],
+            guid_prefix: GuidPrefix([3; 12]),
+        };
+        let message = RtpsMessageWrite::new(header, submessages);
+        transport.write(&message, &dst_locator);
+    };
 
     // Reception
 
@@ -355,12 +375,16 @@ fn process_discovery_data_happy_path() {
     //     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
     // );
     for i in 1..14 {
-        message_sender.send_data(
-            &PROTOCOLVERSION,
-            &VENDOR_ID_UNKNOWN,
-            &GuidPrefix([3; 12]),
-            &mut transport,
-        );
+        if let Ok((dst_locator, submessages)) = metatraffic_message_channel_receiver.try_recv() {
+            let header = RtpsMessageHeader {
+                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                version: PROTOCOLVERSION_2_4,
+                vendor_id: [0, 0],
+                guid_prefix: GuidPrefix([3; 12]),
+            };
+            let message = RtpsMessageWrite::new(header, submessages);
+            transport.write(&message, &dst_locator);
+        };
 
         std::thread::sleep(std::time::Duration::from_millis(500));
     }

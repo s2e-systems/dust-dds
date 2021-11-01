@@ -24,6 +24,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::writer::reader_locator::RtpsReaderLocator,
+    messages::overall_structure::RtpsMessageHeader,
     structure::{
         types::{
             EntityId, Guid, GuidPrefix, Locator, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP,
@@ -34,7 +35,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::{
     discovery::participant_discovery::ParticipantDiscovery,
-    messages::overall_structure::RtpsSubmessageTypeWrite,
+    messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
 };
 
 use crate::{
@@ -43,12 +44,11 @@ use crate::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     utils::{
-        message_sender::MessageSender,
         shared_object::{
             rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
             rtps_weak_upgrade, RtpsShared,
         },
-        transport::{TransportRead, TransportWrite},
+        transport::{self, TransportRead, TransportWrite},
     },
 };
 
@@ -94,9 +94,6 @@ impl DomainParticipantImpl {
         let (user_defined_message_channel_sender, user_defined_message_channel_receiver) =
             sync_channel(17);
 
-        let metatraffic_message_sender = MessageSender::new(metatraffic_message_channel_receiver);
-        let user_defined_message_sender = MessageSender::new(user_defined_message_channel_receiver);
-
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
         let is_enabled = Arc::new(AtomicBool::new(false));
@@ -127,12 +124,18 @@ impl DomainParticipantImpl {
 
             while is_enabled_arc.load(atomic::Ordering::SeqCst) {
                 // send_builtin_data();
-                metatraffic_message_sender.send_data(
-                    &protocol_version,
-                    &vendor_id,
-                    &guid_prefix,
-                    &mut *metatraffic_transport,
-                );
+                if let Ok((dst_locator, submessages)) =
+                    metatraffic_message_channel_receiver.try_recv()
+                {
+                    let header = RtpsMessageHeader {
+                        protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                        version: protocol_version,
+                        vendor_id,
+                        guid_prefix,
+                    };
+                    let message = RtpsMessageWrite::new(header, submessages);
+                    metatraffic_transport.write(&message, &dst_locator);
+                };
 
                 //receive_builtin_data();
                 if let Some((source_locator, message)) = metatraffic_transport.read() {
@@ -145,12 +148,18 @@ impl DomainParticipantImpl {
                 }
 
                 // send_user_defined_data();
-                user_defined_message_sender.send_data(
-                    &protocol_version,
-                    &vendor_id,
-                    &guid_prefix,
-                    &mut *default_transport,
-                );
+                if let Ok((dst_locator, submessages)) =
+                    user_defined_message_channel_receiver.try_recv()
+                {
+                    let header = RtpsMessageHeader {
+                        protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                        version: protocol_version,
+                        vendor_id,
+                        guid_prefix,
+                    };
+                    let message = RtpsMessageWrite::new(header, submessages);
+                    default_transport.write(&message, &dst_locator);
+                };
 
                 //receive_user_defined_data();
                 if let Some((source_locator, message)) = default_transport.read() {
