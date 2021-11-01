@@ -15,24 +15,15 @@ use rust_dds_api::{
     },
     publication::data_writer::DataWriter,
 };
-use rust_dds_rtps_implementation::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    dds_impl::{
+use rust_dds_rtps_implementation::{data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData, dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
         data_writer_impl::{DataWriterImpl, RtpsWriterFlavor},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
-    },
-    rtps_impl::{
+    }, rtps_impl::{
         rtps_reader_history_cache_impl::ReaderHistoryCache,
         rtps_writer_history_cache_impl::WriterHistoryCache,
-    },
-    utils::{
-        message_receiver::MessageReceiver,
-        shared_object::{rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock},
-        transport::TransportRead,
-    },
-};
+    }, utils::{message_receiver::MessageReceiver, message_sender::MessageSender, shared_object::{rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock}, transport::TransportRead}};
 use rust_rtps_pim::{
     behavior::{
         types::Duration,
@@ -64,7 +55,10 @@ use rust_rtps_psm::discovery::{
 
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
-    let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(17);
+    let (metatraffic_message_channel_sender, metatraffic_message_channel_receiver) =
+        sync_channel(17);
+    let message_sender = MessageSender::new(metatraffic_message_channel_receiver);
+
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -116,7 +110,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
-        metatraffic_message_sender.clone(),
+        metatraffic_message_channel_sender.clone(),
     );
 
     data_writer
@@ -134,13 +128,13 @@ fn send_and_receive_discovery_data_happy_path() {
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
         vec![rtps_shared_new(data_writer)],
-        metatraffic_message_sender.clone(),
+        metatraffic_message_channel_sender.clone(),
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
     socket.set_nonblocking(true).unwrap();
     let mut transport = UdpTransport::new(socket);
-    publisher.send_data(
+    message_sender.send_data(
         &PROTOCOLVERSION,
         &VENDOR_ID_UNKNOWN,
         &GuidPrefix([3; 12]),
@@ -182,7 +176,9 @@ fn send_and_receive_discovery_data_happy_path() {
 
 #[test]
 fn process_discovery_data_happy_path() {
-    let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(17);
+    let (metatraffic_message_channel_sender, metatraffic_message_channel_receiver) =
+        sync_channel(17);
+    let message_sender = MessageSender::new(metatraffic_message_channel_receiver);
 
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
@@ -243,7 +239,7 @@ fn process_discovery_data_happy_path() {
     let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
-        metatraffic_message_sender.clone(),
+        metatraffic_message_channel_sender.clone(),
     );
 
     spdp_builtin_participant_data_writer
@@ -260,7 +256,7 @@ fn process_discovery_data_happy_path() {
     let sedp_builtin_publications_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         RtpsWriterFlavor::new_stateful(sedp_builtin_publications_rtps_writer),
-        metatraffic_message_sender.clone(),
+        metatraffic_message_channel_sender.clone(),
     );
 
     let publisher = PublisherImpl::new(
@@ -273,13 +269,13 @@ fn process_discovery_data_happy_path() {
             rtps_shared_new(spdp_builtin_participant_data_writer),
             rtps_shared_new(sedp_builtin_publications_data_writer),
         ],
-        metatraffic_message_sender.clone(),
+        metatraffic_message_channel_sender.clone(),
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
     socket.set_nonblocking(true).unwrap();
     let mut transport = UdpTransport::new(socket);
-    publisher.send_data(
+    message_sender.send_data(
         &PROTOCOLVERSION,
         &VENDOR_ID_UNKNOWN,
         &GuidPrefix([3; 12]),
@@ -359,7 +355,7 @@ fn process_discovery_data_happy_path() {
     //     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
     // );
     for i in 1..14 {
-        publisher.send_data(
+        message_sender.send_data(
             &PROTOCOLVERSION,
             &VENDOR_ID_UNKNOWN,
             &GuidPrefix([3; 12]),

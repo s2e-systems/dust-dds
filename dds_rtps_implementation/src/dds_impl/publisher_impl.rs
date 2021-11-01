@@ -18,21 +18,32 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{behavior::writer::reader_locator::RtpsReaderLocator, messages::overall_structure::RtpsMessageHeader, structure::{
+use rust_rtps_pim::{
+    behavior::writer::reader_locator::RtpsReaderLocator,
+    messages::overall_structure::RtpsMessageHeader,
+    structure::{
         types::{
             EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind,
             VendorId, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
         RtpsGroup,
-    }};
+    },
+};
 use rust_rtps_psm::{
     messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 
-use crate::{dds_impl::data_writer_impl::RtpsWriterFlavor, dds_type::DdsType, utils::{message_sender::{RtpsSubmessageSender}, shared_object::{
+use crate::{
+    dds_impl::data_writer_impl::RtpsWriterFlavor,
+    dds_type::DdsType,
+    utils::{
+        shared_object::{
             rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, RtpsShared, RtpsWeak,
-        }, transport::TransportWrite}};
+        },
+        transport::TransportWrite,
+    },
+};
 
 use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
 
@@ -59,29 +70,6 @@ impl PublisherImpl {
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             message_sender,
-        }
-    }
-
-    pub fn send_data(
-        &self,
-        protocol_version: &ProtocolVersion,
-        vendor_id: &VendorId,
-        guid_prefix: &GuidPrefix,
-        transport: &mut (impl TransportWrite + ?Sized),
-    ) {
-        for writer in self.data_writer_impl_list.lock().unwrap().iter() {
-            let mut writer_lock = rtps_shared_write_lock(writer);
-            let destined_submessages = writer_lock.create_submessages();
-            for (dst_locator, submessages) in destined_submessages {
-                let header = RtpsMessageHeader {
-                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                    version: *protocol_version,
-                    vendor_id: *vendor_id,
-                    guid_prefix: *guid_prefix,
-                };
-                let message = RtpsMessageWrite::new(header, submessages);
-                transport.write(&message, &dst_locator);
-            }
         }
     }
 }
@@ -140,7 +128,8 @@ where
             nack_suppression_duration,
             data_max_size_serialized,
         ));
-        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl, self.message_sender.clone());
+        let data_writer_impl =
+            DataWriterImpl::new(qos, rtps_writer_impl, self.message_sender.clone());
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         let data_writer_impl_weak = rtps_shared_downgrade(&data_writer_impl_shared);
         self.data_writer_impl_list
@@ -257,19 +246,6 @@ impl Entity for PublisherImpl {
     }
 }
 
-impl RtpsSubmessageSender for PublisherImpl {
-    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageTypeWrite>)> {
-        let combined_submessages = vec![];
-        let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
-        for data_writer in &*data_writer_impl_list_lock {
-            let _submessages = rtps_shared_write_lock(data_writer).create_submessages();
-            // combined_submessages = submessages;
-        }
-
-        combined_submessages
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -331,7 +307,8 @@ mod tests {
     fn create_datawriter() {
         let (sender, _) = sync_channel(0);
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], sender);
+        let publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], sender);
         let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default()));
         let a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
 

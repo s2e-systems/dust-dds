@@ -7,14 +7,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
-use super::{
-    shared_object::{rtps_shared_write_lock, RtpsShared},
-    transport::TransportWrite,
-};
-
-pub trait RtpsSubmessageSender {
-    fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageTypeWrite>)>;
-}
+use super::transport::TransportWrite;
 
 // impl<T, U> RtpsSubmessageSender for T
 // where
