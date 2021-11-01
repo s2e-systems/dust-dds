@@ -359,7 +359,7 @@ fn process_discovery_data_happy_path() {
         );
 
         let publisher_data_writer_list = publisher.data_writer_impl_list.lock().unwrap();
-        let mut sedp_builtin_publications_data_writer =
+        let sedp_builtin_publications_data_writer =
             rtps_shared_write_lock(&publisher_data_writer_list[1]);
 
         let mut sedp_builtin_publications_data_writer_lock = sedp_builtin_publications_data_writer
@@ -391,7 +391,7 @@ fn process_discovery_data_happy_path() {
     //     sedp_builtin_publications_rtps_writer.matched_readers[0].remote_reader_guid,
     //     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
     // );
-    for i in 1..14 {
+    for _i in 1..14 {
         if let Ok((dst_locator, submessages)) =
             metatraffic_locator_message_channel_receiver.try_recv()
         {
@@ -403,6 +403,19 @@ fn process_discovery_data_happy_path() {
             };
             let message = RtpsMessageWrite::new(header, submessages);
             transport.write(&message, &dst_locator);
+        };
+
+        if let Ok((dst_unicast_locator, _dst_multicast_locator, submessages)) =
+            metatraffic_locator_list_message_channel_receiver.try_recv()
+        {
+            let header = RtpsMessageHeader {
+                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                version: PROTOCOLVERSION_2_4,
+                vendor_id: [0, 0],
+                guid_prefix: GuidPrefix([3; 12]),
+            };
+            let message = RtpsMessageWrite::new(header, submessages);
+            transport.write(&message, &dst_unicast_locator[0]);
         };
 
         std::thread::sleep(std::time::Duration::from_millis(500));
