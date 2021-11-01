@@ -85,29 +85,6 @@ impl MessageSender {
     }
 }
 
-pub fn send_data(
-    protocol_version: &ProtocolVersion,
-    vendor_id: &VendorId,
-    guid_prefix: &GuidPrefix,
-    writer_list: &[RtpsShared<impl RtpsSubmessageSender>],
-    transport: &mut (impl TransportWrite + ?Sized),
-) {
-    for writer in writer_list {
-        let mut writer_lock = rtps_shared_write_lock(&writer);
-        let destined_submessages = writer_lock.create_submessages();
-        for (dst_locator, submessages) in destined_submessages {
-            let header = RtpsMessageHeader {
-                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                version: *protocol_version,
-                vendor_id: *vendor_id,
-                guid_prefix: *guid_prefix,
-            };
-            let message = RtpsMessageWrite::new(header, submessages);
-            transport.write(&message, &dst_locator);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::sync_channel;

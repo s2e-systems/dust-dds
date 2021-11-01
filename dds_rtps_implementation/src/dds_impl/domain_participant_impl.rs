@@ -86,8 +86,8 @@ impl DomainParticipantImpl {
         domain_participant_qos: DomainParticipantQos,
         builtin_subscriber: RtpsShared<SubscriberImpl>,
         builtin_publisher: RtpsShared<PublisherImpl>,
-        metatraffic_transport: Box<dyn Transport>,
-        default_transport: Box<dyn Transport>,
+        mut metatraffic_transport: Box<dyn Transport>,
+        mut default_transport: Box<dyn Transport>,
         metatraffic_message_channel_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
         metatraffic_message_channel_receiver: Receiver<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
     ) -> Self {
@@ -99,14 +99,15 @@ impl DomainParticipantImpl {
 
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
-        // self.is_enabled.store(true, atomic::Ordering::Release);
-        // let is_enabled = is_enabled.clone();
+        let is_enabled = Arc::new(AtomicBool::new(false));
+        let is_enabled_arc = is_enabled.clone();
         // let default_transport = default_transport.clone();
         // let metatraffic_transport = metatraffic_transport.clone();
         // let guid_prefix = guid_prefix;
-        // let builtin_subscriber = builtin_subscriber.clone();
-        // let builtin_publisher = builtin_publisher.clone();
-        // let user_defined_subscriber_list = user_defined_subscriber_list.clone();
+        let builtin_subscriber_arc = builtin_subscriber.clone();
+        let builtin_publisher_arc = builtin_publisher.clone();
+        let user_defined_subscriber_list = Arc::new(Mutex::new(Vec::new()));
+        let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
         // let user_defined_publisher_list = user_defined_publisher_list.clone();
 
         let option_spdp_builtin_participant_reader =
@@ -122,90 +123,81 @@ impl DomainParticipantImpl {
                 .lookup_datareader::<SedpDiscoveredReaderData>(&());
 
         std::thread::spawn(move || {
-            // while is_enabled.load(atomic::Ordering::SeqCst) {
-            //     // send_builtin_data();
-            //     rtps_shared_read_lock(&builtin_publisher).send_data(
-            //         &protocol_version,
-            //         &vendor_id,
-            //         &guid_prefix,
-            //         metatraffic_transport.lock().unwrap().as_mut(),
-            //     );
+            while !is_enabled_arc.load(atomic::Ordering::SeqCst) {}
 
-            //     //receive_builtin_data();
-            //     if let Some((source_locator, message)) =
-            //         metatraffic_transport.lock().unwrap().read()
-            //     {
-            //         crate::utils::message_receiver::MessageReceiver::new().process_message(
-            //             guid_prefix,
-            //             core::slice::from_ref(&builtin_subscriber),
-            //             source_locator,
-            //             &message,
-            //         );
-            //     }
+            while is_enabled_arc.load(atomic::Ordering::SeqCst) {
+                // send_builtin_data();
+                metatraffic_message_sender.send_data(
+                    &protocol_version,
+                    &vendor_id,
+                    &guid_prefix,
+                    &mut *metatraffic_transport,
+                );
 
-            //     // send_user_defined_data();
-            //     for user_defined_publisher in user_defined_publisher_list.lock().unwrap().iter() {
-            //         rtps_shared_read_lock(&user_defined_publisher).send_data(
-            //             &protocol_version,
-            //             &vendor_id,
-            //             &guid_prefix,
-            //             metatraffic_transport.lock().unwrap().as_mut(),
-            //         );
-            //     }
-            //     crate::utils::message_sender::send_data(
-            //         &protocol_version,
-            //         &vendor_id,
-            //         &guid_prefix,
-            //         &user_defined_publisher_list.lock().unwrap(),
-            //         default_transport.lock().unwrap().as_mut(),
-            //     );
+                //receive_builtin_data();
+                if let Some((source_locator, message)) = metatraffic_transport.read() {
+                    crate::utils::message_receiver::MessageReceiver::new().process_message(
+                        guid_prefix,
+                        core::slice::from_ref(&builtin_subscriber_arc),
+                        source_locator,
+                        &message,
+                    );
+                }
 
-            //     //receive_user_defined_data();
-            //     if let Some((source_locator, message)) = default_transport.lock().unwrap().read() {
-            //         crate::utils::message_receiver::MessageReceiver::new().process_message(
-            //             guid_prefix,
-            //             &user_defined_subscriber_list.lock().unwrap(),
-            //             source_locator,
-            //             &message,
-            //         );
-            //     }
+                // send_user_defined_data();
+                user_defined_message_sender.send_data(
+                    &protocol_version,
+                    &vendor_id,
+                    &guid_prefix,
+                    &mut *default_transport,
+                );
 
-            //     if let Some(spdp_builtin_participant_reader) =
-            //         &option_spdp_builtin_participant_reader
-            //     {
-            //         if let Ok(discovered_participant) = rtps_shared_write_lock(
-            //             &spdp_builtin_participant_reader,
-            //         )
-            //         .read(1, &[], &[], &[])
-            //         {
-            //             let local_participant_domain_id = 1;
-            //             let local_participant_domain_tag = "ab";
+                //receive_user_defined_data();
+                if let Some((source_locator, message)) = default_transport.read() {
+                    crate::utils::message_receiver::MessageReceiver::new().process_message(
+                        guid_prefix,
+                        &user_defined_subscriber_list_arc.lock().unwrap(),
+                        source_locator,
+                        &message,
+                    );
+                }
 
-            //             if let Ok(participant_discovery) = ParticipantDiscovery::new(
-            //                 &discovered_participant[0].participant_proxy,
-            //                 local_participant_domain_id,
-            //                 local_participant_domain_tag,
-            //             ) {
-            //                 if let Some(sedp_builtin_publications_reader) =
-            //                     &option_sedp_builtin_publications_reader
-            //                 {
-            //                     let reader = &mut (rtps_shared_write_lock(
-            //                         &sedp_builtin_publications_reader,
-            //                     )
-            //                     .rtps_reader);
-            //                     if let RtpsReaderFlavor::Stateful(stateful_reader) = reader {
-            //                         participant_discovery
-            //                             .discovered_participant_add_publications_reader(
-            //                                 stateful_reader,
-            //                             );
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
+                //     if let Some(spdp_builtin_participant_reader) =
+                //         &option_spdp_builtin_participant_reader
+                //     {
+                //         if let Ok(discovered_participant) = rtps_shared_write_lock(
+                //             &spdp_builtin_participant_reader,
+                //         )
+                //         .read(1, &[], &[], &[])
+                //         {
+                //             let local_participant_domain_id = 1;
+                //             let local_participant_domain_tag = "ab";
 
-            //     std::thread::sleep(std::time::Duration::from_millis(100));
-            // }
+                //             if let Ok(participant_discovery) = ParticipantDiscovery::new(
+                //                 &discovered_participant[0].participant_proxy,
+                //                 local_participant_domain_id,
+                //                 local_participant_domain_tag,
+                //             ) {
+                //                 if let Some(sedp_builtin_publications_reader) =
+                //                     &option_sedp_builtin_publications_reader
+                //                 {
+                //                     let reader = &mut (rtps_shared_write_lock(
+                //                         &sedp_builtin_publications_reader,
+                //                     )
+                //                     .rtps_reader);
+                //                     if let RtpsReaderFlavor::Stateful(stateful_reader) = reader {
+                //                         participant_discovery
+                //                             .discovered_participant_add_publications_reader(
+                //                                 stateful_reader,
+                //                             );
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //     }
+
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
         });
 
         Self {
@@ -213,7 +205,7 @@ impl DomainParticipantImpl {
             _qos: domain_participant_qos,
             builtin_subscriber,
             builtin_publisher,
-            user_defined_subscriber_list: Arc::new(Mutex::new(Vec::new())),
+            user_defined_subscriber_list,
             _user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: Arc::new(Mutex::new(Vec::new())),
@@ -221,7 +213,7 @@ impl DomainParticipantImpl {
             default_publisher_qos: PublisherQos::default(),
             _topic_list: Vec::new(),
             default_topic_qos: TopicQos::default(),
-            is_enabled: Arc::new(AtomicBool::new(false)),
+            is_enabled,
             metatraffic_message_channel_sender,
             user_defined_message_channel_sender,
         }
