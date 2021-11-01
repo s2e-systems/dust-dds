@@ -112,7 +112,16 @@ pub fn send_data(
 mod tests {
     use std::sync::mpsc::sync_channel;
 
-    use rust_rtps_pim::structure::types::{LOCATOR_INVALID, PROTOCOLVERSION_2_4};
+    use rust_rtps_pim::{
+        messages::{
+            submessage_elements::{
+                CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+            },
+            types::Count,
+        },
+        structure::types::{EntityId, LOCATOR_INVALID, PROTOCOLVERSION_2_4},
+    };
+    use rust_rtps_psm::messages::submessages::HeartbeatSubmessageWrite;
 
     use super::*;
 
@@ -122,8 +131,33 @@ mod tests {
 
         impl TransportWrite for MockTransport {
             fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
+                let endianness_flag = true;
+                let final_flag = false;
+                let liveliness_flag = false;
+                let reader_id = EntityIdSubmessageElement {
+                    value: EntityId::new([0; 3], 0),
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: EntityId::new([1; 3], 1),
+                };
+                let first_sn = SequenceNumberSubmessageElement { value: 1 };
+                let last_sn = SequenceNumberSubmessageElement { value: 2 };
+                let count = CountSubmessageElement { value: Count(1) };
+                let expected_submessages = vec![RtpsSubmessageTypeWrite::Heartbeat(
+                    HeartbeatSubmessageWrite::new(
+                        endianness_flag,
+                        final_flag,
+                        liveliness_flag,
+                        reader_id,
+                        writer_id,
+                        first_sn,
+                        last_sn,
+                        count,
+                    ),
+                )];
+
                 assert_eq!(destination_locator, &LOCATOR_INVALID);
-                assert_eq!(message.submessages, vec![])
+                assert_eq!(message.submessages, expected_submessages)
             }
         }
 
@@ -134,16 +168,37 @@ mod tests {
             locator: LOCATOR_INVALID,
             expects_inline_qos: false,
         };
-        let submessages = vec![];
+        let endianness_flag = true;
+        let final_flag = false;
+        let liveliness_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: EntityId::new([0; 3], 0),
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: EntityId::new([1; 3], 1),
+        };
+        let first_sn = SequenceNumberSubmessageElement { value: 1 };
+        let last_sn = SequenceNumberSubmessageElement { value: 2 };
+        let count = CountSubmessageElement { value: Count(1) };
+        let submessages = vec![RtpsSubmessageTypeWrite::Heartbeat(
+            HeartbeatSubmessageWrite::new(
+                endianness_flag,
+                final_flag,
+                liveliness_flag,
+                reader_id,
+                writer_id,
+                first_sn,
+                last_sn,
+                count,
+            ),
+        )];
         sender.send((locator, submessages));
 
         let protocol_version = PROTOCOLVERSION_2_4;
-        let vendor_id = [0,0];
-        let guid_prefix = GuidPrefix([1;12]);
+        let vendor_id = [0, 0];
+        let guid_prefix = GuidPrefix([1; 12]);
         let mut transport = MockTransport;
         message_sender.send_data(&protocol_version, &vendor_id, &guid_prefix, &mut transport);
-
-
     }
     // #[test]
     // fn submessage_send_empty() {
