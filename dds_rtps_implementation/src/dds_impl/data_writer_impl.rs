@@ -1,6 +1,6 @@
 use std::{
     ops::{Deref, DerefMut},
-    sync::mpsc::SyncSender,
+    sync::{mpsc::SyncSender, Arc, Mutex},
     time::Instant,
 };
 
@@ -18,16 +18,16 @@ use rust_rtps_pim::{
         stateless_writer::StatelessWriterBehavior,
         writer::{RtpsWriter, RtpsWriterOperations},
     },
-    messages::types::Count,
+    messages::{submessages::HeartbeatSubmessage, types::Count},
     structure::{
-        types::{ChangeKind, Locator},
+        types::{ChangeKind, Locator, ReliabilityKind},
         RtpsHistoryCacheOperations,
     },
 };
 use rust_rtps_psm::{
     messages::{
         overall_structure::RtpsSubmessageTypeWrite,
-        submessages::{DataSubmessageWrite, GapSubmessageWrite},
+        submessages::{DataSubmessageWrite, GapSubmessageWrite, HeartbeatSubmessageWrite},
     },
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
@@ -87,7 +87,7 @@ impl DerefMut for RtpsWriterFlavor {
 
 pub struct DataWriterImpl {
     _qos: DataWriterQos,
-    pub rtps_writer_impl: RtpsWriterFlavor,
+    pub rtps_writer_impl: Arc<Mutex<RtpsWriterFlavor>>,
     locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
     locator_list_message_sender:
         SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
@@ -100,7 +100,8 @@ impl DataWriterImpl {
             &self.locator_message_sender,
             &self.locator_list_message_sender,
         );
-        match rtps_writer_impl {
+        let mut rtps_writer_impl_lock = rtps_writer_impl.lock().unwrap();
+        match &mut *rtps_writer_impl_lock {
             RtpsWriterFlavor::Stateful {
                 stateful_writer, ..
             } => stateful_writer.send_unsent_data(
@@ -184,6 +185,45 @@ impl DataWriterImpl {
             Vec<RtpsSubmessageTypeWrite>,
         )>,
     ) -> Self {
+        let heartbeat_period = rtps_writer_impl.heartbeat_period;
+        let reliability = rtps_writer_impl.reliability_level;
+        let rtps_writer_impl = Arc::new(Mutex::new(rtps_writer_impl));
+        if reliability == ReliabilityKind::Reliable {
+            let rtps_writer_flavor = rtps_writer_impl.clone();
+            let locator_list_message_sender_arc = locator_list_message_sender.clone();
+            let heartbeat_count = Count(1);
+            std::thread::spawn(move || loop {
+                let mut rtps_writer_flavor_lock = rtps_writer_flavor.lock().unwrap();
+                if let RtpsWriterFlavor::Stateful {
+                    stateful_writer, ..
+                } = &mut *rtps_writer_flavor_lock
+                {
+                    stateful_writer.send_heartbeat(heartbeat_count, |reader_proxy, heartbeat| {
+                        locator_list_message_sender_arc.send((
+                            reader_proxy.unicast_locator_list.clone(),
+                            reader_proxy.multicast_locator_list.clone(),
+                            vec![RtpsSubmessageTypeWrite::Heartbeat(
+                                HeartbeatSubmessageWrite::new(
+                                    heartbeat.endianness_flag,
+                                    heartbeat.final_flag,
+                                    heartbeat.liveliness_flag,
+                                    heartbeat.reader_id,
+                                    heartbeat.writer_id,
+                                    heartbeat.first_sn,
+                                    heartbeat.last_sn,
+                                    heartbeat.count,
+                                ),
+                            )],
+                        ));
+                    });
+                }
+                std::thread::sleep(std::time::Duration::new(
+                    heartbeat_period.seconds as u64,
+                    heartbeat_period.fraction,
+                ));
+            });
+        }
+
         Self {
             _qos: qos,
             rtps_writer_impl,
@@ -246,13 +286,14 @@ where
     ) -> DDSResult<()> {
         let mut bytes = Vec::new();
         data.serialize::<_, BigEndian>(&mut bytes)?;
-        let change = self
-            .rtps_writer_impl
-            .new_change(ChangeKind::Alive, bytes, vec![], 0);
-        let writer_cache = &mut self.rtps_writer_impl.writer_cache;
-        let time = rust_rtps_pim::messages::types::Time(0);
-        writer_cache.set_source_timestamp(Some(time));
-        writer_cache.add_change(change);
+        {
+            let mut writer = self.rtps_writer_impl.lock().unwrap();
+            let change = writer.new_change(ChangeKind::Alive, bytes, vec![], 0);
+            let writer_cache = &mut writer.writer_cache;
+            let time = rust_rtps_pim::messages::types::Time(0);
+            writer_cache.set_source_timestamp(Some(time));
+            writer_cache.add_change(change);
+        }
         self.send_change();
         Ok(())
     }

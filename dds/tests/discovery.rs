@@ -361,9 +361,14 @@ fn process_discovery_data_happy_path() {
         let publisher_data_writer_list = publisher.data_writer_impl_list.lock().unwrap();
         let mut sedp_builtin_publications_data_writer =
             rtps_shared_write_lock(&publisher_data_writer_list[1]);
+
+        let mut sedp_builtin_publications_data_writer_lock = sedp_builtin_publications_data_writer
+            .rtps_writer_impl
+            .lock()
+            .unwrap();
         if let RtpsWriterFlavor::Stateful {
             stateful_writer, ..
-        } = &mut sedp_builtin_publications_data_writer.rtps_writer_impl
+        } = &mut *sedp_builtin_publications_data_writer_lock
         {
             participant_discovery.discovered_participant_add_publications_writer(stateful_writer);
         }
