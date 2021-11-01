@@ -18,16 +18,13 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    messages::overall_structure::RtpsMessageHeader,
-    structure::{
+use rust_rtps_pim::{behavior::writer::reader_locator::RtpsReaderLocator, messages::overall_structure::RtpsMessageHeader, structure::{
         types::{
             EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind,
             VendorId, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
         RtpsGroup,
-    },
-};
+    }};
 use rust_rtps_psm::{
     messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
@@ -45,7 +42,7 @@ pub struct PublisherImpl {
     pub data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
-    message_sender: SyncSender<RtpsSubmessageTypeWrite>,
+    message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
 }
 
 impl PublisherImpl {
@@ -53,7 +50,7 @@ impl PublisherImpl {
         qos: PublisherQos,
         rtps_group: RtpsGroup,
         data_writer_impl_list: Vec<RtpsShared<DataWriterImpl>>,
-        message_sender: SyncSender<RtpsSubmessageTypeWrite>,
+        message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
     ) -> Self {
         Self {
             _qos: qos,

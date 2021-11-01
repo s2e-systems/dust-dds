@@ -57,11 +57,11 @@ pub trait RtpsSubmessageSender {
 // }
 
 pub struct MessageSender {
-    receiver: Receiver<(RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite>)>,
+    receiver: Receiver<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
 }
 
 impl MessageSender {
-    pub fn new(receiver: Receiver<(RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite>)>) -> Self {
+    pub fn new(receiver: Receiver<(Locator, Vec<RtpsSubmessageTypeWrite>)>) -> Self {
         Self { receiver }
     }
 
@@ -80,7 +80,7 @@ impl MessageSender {
                 guid_prefix: *guid_prefix,
             };
             let message = RtpsMessageWrite::new(header, submessages);
-            transport.write(&message, &dst_locator.locator);
+            transport.write(&message, &dst_locator);
         }
     }
 }
@@ -164,10 +164,7 @@ mod tests {
         let (sender, receiver) = sync_channel(1);
         let message_sender = MessageSender::new(receiver);
 
-        let locator = RtpsReaderLocator {
-            locator: LOCATOR_INVALID,
-            expects_inline_qos: false,
-        };
+        let locator = LOCATOR_INVALID;
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;

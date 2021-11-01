@@ -1,5 +1,6 @@
 use crate::structure::types::{Locator, SequenceNumber};
 
+#[derive(Debug)]
 pub struct RtpsReaderLocator {
     pub locator: Locator,
     pub expects_inline_qos: bool,

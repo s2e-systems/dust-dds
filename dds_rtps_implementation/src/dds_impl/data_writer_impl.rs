@@ -16,12 +16,13 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::writer::{
+        reader_locator::RtpsReaderLocator,
         stateless_writer::StatelessWriterBehavior,
         writer::{RtpsWriter, RtpsWriterOperations},
     },
     messages::types::Count,
     structure::{
-        types::{ChangeKind, Locator, ReliabilityKind},
+        types::{ChangeKind, Locator, ReliabilityKind, LOCATOR_INVALID},
         RtpsHistoryCacheOperations,
     },
 };
@@ -34,7 +35,11 @@ use rust_rtps_psm::{
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 
-use crate::{dds_type::{BigEndian, DdsSerialize}, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache, utils::message_sender::{self, RtpsSubmessageSender}};
+use crate::{
+    dds_type::{BigEndian, DdsSerialize},
+    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
+    utils::message_sender::{self, RtpsSubmessageSender},
+};
 
 pub enum RtpsWriterFlavor {
     Stateful {
@@ -86,7 +91,7 @@ impl DerefMut for RtpsWriterFlavor {
 pub struct DataWriterImpl {
     _qos: DataWriterQos,
     pub rtps_writer_impl: RtpsWriterFlavor,
-    message_sender: SyncSender<RtpsSubmessageTypeWrite>,
+    message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
 }
 
 impl DataWriterImpl {
@@ -97,34 +102,41 @@ impl DataWriterImpl {
                 stateful_writer, ..
             } => stateful_writer.send_unsent_data(
                 |reader_proxy, data| {
-                    message_sender.send(RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                        data.endianness_flag,
-                        data.inline_qos_flag,
-                        data.data_flag,
-                        data.key_flag,
-                        data.non_standard_payload_flag,
-                        data.reader_id,
-                        data.writer_id,
-                        data.writer_sn,
-                        data.inline_qos,
-                        data.serialized_payload,
-                    )));
+                    message_sender.send((
+                        LOCATOR_INVALID,
+                        vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                            data.endianness_flag,
+                            data.inline_qos_flag,
+                            data.data_flag,
+                            data.key_flag,
+                            data.non_standard_payload_flag,
+                            data.reader_id,
+                            data.writer_id,
+                            data.writer_sn,
+                            data.inline_qos,
+                            data.serialized_payload,
+                        ))],
+                    ));
                 },
                 |reader_proxy, gap| {
-                    message_sender.send(RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                        gap.endianness_flag,
-                        gap.reader_id,
-                        gap.writer_id,
-                        gap.gap_start,
-                        gap.gap_list,
-                    )));
+                    message_sender.send((
+                        LOCATOR_INVALID,
+                        vec![RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                            gap.endianness_flag,
+                            gap.reader_id,
+                            gap.writer_id,
+                            gap.gap_start,
+                            gap.gap_list,
+                        ))],
+                    ));
                 },
             ),
             RtpsWriterFlavor::Stateless(stateless_writer) => {
                 stateless_writer.send_unsent_data(
                     |reader_locator, data| {
-                        message_sender.send(RtpsSubmessageTypeWrite::Data(
-                            DataSubmessageWrite::new(
+                        message_sender.send((
+                            reader_locator.locator,
+                            vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
                                 data.endianness_flag,
                                 data.inline_qos_flag,
                                 data.data_flag,
@@ -135,17 +147,20 @@ impl DataWriterImpl {
                                 data.writer_sn,
                                 data.inline_qos,
                                 data.serialized_payload,
-                            ),
+                            ))],
                         ));
                     },
                     |reader_locator, gap| {
-                        message_sender.send(RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        )));
+                        message_sender.send((
+                            reader_locator.locator,
+                            vec![RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                                gap.endianness_flag,
+                                gap.reader_id,
+                                gap.writer_id,
+                                gap.gap_start,
+                                gap.gap_list,
+                            ))],
+                        ));
                     },
                 );
             }
@@ -157,7 +172,7 @@ impl DataWriterImpl {
     pub fn new(
         qos: DataWriterQos,
         rtps_writer_impl: RtpsWriterFlavor,
-        message_sender: SyncSender<RtpsSubmessageTypeWrite>,
+        message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -696,7 +711,7 @@ mod tests {
         let serialized_payload = SerializedDataSubmessageElement {
             value: vec![0, 1, 0, 0, 7, 3],
         };
-        let expected_message = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+        let expected_message = vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -707,7 +722,7 @@ mod tests {
             writer_sn,
             inline_qos,
             serialized_payload,
-        ));
-        assert_eq!(received_message, expected_message);
+        ))];
+        assert_eq!(received_message.1, expected_message);
     }
 }
