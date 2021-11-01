@@ -43,7 +43,7 @@ use rust_rtps_pim::{
     structure::{
         types::{
             EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
-            BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION_2_4, VENDOR_ID_UNKNOWN,
+            BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION_2_4,
         },
         RtpsGroup,
     },
@@ -70,7 +70,7 @@ fn send_and_receive_discovery_data_happy_path() {
         sync_channel(17);
     let (
         metatraffic_locator_list_message_channel_sender,
-        metatraffic_locator_list_message_channel_receiver,
+        _metatraffic_locator_list_message_channel_receiver,
     ) = sync_channel(17);
 
     let spdp_discovery_locator = RtpsReaderLocator::new(
@@ -123,9 +123,10 @@ fn send_and_receive_discovery_data_happy_path() {
 
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        RtpsWriterFlavor::new_stateless(spdp_builtin_participant_rtps_writer),
-        metatraffic_locator_message_channel_sender.clone(),
-        metatraffic_locator_list_message_channel_sender.clone(),
+        RtpsWriterFlavor::new_stateless(
+            spdp_builtin_participant_rtps_writer,
+            metatraffic_locator_message_channel_sender.clone(),
+        ),
     );
 
     data_writer
@@ -136,7 +137,7 @@ fn send_and_receive_discovery_data_happy_path() {
         )
         .unwrap();
 
-    let publisher = PublisherImpl::new(
+    let _publisher = PublisherImpl::new(
         PublisherQos::default(),
         RtpsGroup::new(Guid::new(
             GuidPrefix([4; 12]),
@@ -262,9 +263,10 @@ fn process_discovery_data_happy_path() {
 
     let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        RtpsWriterFlavor::new_stateless(spdp_builtin_participant_rtps_writer),
-        metatraffic_locator_message_channel_sender.clone(),
-        metatraffic_locator_list_message_channel_sender.clone(),
+        RtpsWriterFlavor::new_stateless(
+            spdp_builtin_participant_rtps_writer,
+            metatraffic_locator_message_channel_sender.clone(),
+        ),
     );
 
     spdp_builtin_participant_data_writer
@@ -280,9 +282,10 @@ fn process_discovery_data_happy_path() {
 
     let sedp_builtin_publications_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        RtpsWriterFlavor::new_stateful(sedp_builtin_publications_rtps_writer),
-        metatraffic_locator_message_channel_sender.clone(),
-        metatraffic_locator_list_message_channel_sender.clone(),
+        RtpsWriterFlavor::new_stateful(
+            sedp_builtin_publications_rtps_writer,
+            metatraffic_locator_list_message_channel_sender.clone(),
+        ),
     );
 
     let publisher = PublisherImpl::new(

@@ -1,6 +1,6 @@
 use std::sync::{
     atomic::{self, AtomicU8},
-    mpsc::{channel, Receiver, SyncSender},
+    mpsc::SyncSender,
     Mutex,
 };
 
@@ -18,31 +18,22 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::writer::reader_locator::RtpsReaderLocator,
-    messages::overall_structure::RtpsMessageHeader,
-    structure::{
-        types::{
-            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, TopicKind,
-            VendorId, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
-        },
-        RtpsGroup,
+use rust_rtps_pim::structure::{
+    types::{
+        EntityId, Guid, Locator, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+        USER_DEFINED_WRITER_WITH_KEY,
     },
+    RtpsGroup,
 };
 use rust_rtps_psm::{
-    messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
+    messages::overall_structure::RtpsSubmessageTypeWrite,
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 
 use crate::{
     dds_impl::data_writer_impl::RtpsWriterFlavor,
     dds_type::DdsType,
-    utils::{
-        shared_object::{
-            rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, RtpsShared, RtpsWeak,
-        },
-        transport::TransportWrite,
-    },
+    utils::shared_object::{rtps_shared_downgrade, rtps_shared_new, RtpsShared, RtpsWeak},
 };
 
 use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
@@ -54,7 +45,7 @@ pub struct PublisherImpl {
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
-    locator_list_message_sender:
+    _locator_list_message_sender:
         SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
 }
 
@@ -77,7 +68,7 @@ impl PublisherImpl {
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             locator_message_sender,
-            locator_list_message_sender,
+            _locator_list_message_sender: locator_list_message_sender,
         }
     }
 }
@@ -124,24 +115,22 @@ where
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsWriterFlavor::new_stateless(RtpsStatelessWriterImpl::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        ));
-        let data_writer_impl = DataWriterImpl::new(
-            qos,
-            rtps_writer_impl,
+        let rtps_writer_impl = RtpsWriterFlavor::new_stateless(
+            RtpsStatelessWriterImpl::new(
+                guid,
+                topic_kind,
+                reliability_level,
+                unicast_locator_list,
+                multicast_locator_list,
+                push_mode,
+                heartbeat_period,
+                nack_response_delay,
+                nack_suppression_duration,
+                data_max_size_serialized,
+            ),
             self.locator_message_sender.clone(),
-            self.locator_list_message_sender.clone(),
         );
+        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         let data_writer_impl_weak = rtps_shared_downgrade(&data_writer_impl_shared);
         self.data_writer_impl_list
