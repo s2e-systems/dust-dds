@@ -152,7 +152,7 @@ impl DomainParticipantFactory {
 
         let spdp_builtin_participant_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
             DataWriterQos::default(),
-            RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
+            RtpsWriterFlavor::new_stateless(spdp_builtin_participant_rtps_writer),
             metatraffic_locator_message_sender.clone(),
             metatraffic_locator_list_message_sender.clone(),
         ));

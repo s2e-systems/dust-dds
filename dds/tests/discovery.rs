@@ -123,7 +123,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
+        RtpsWriterFlavor::new_stateless(spdp_builtin_participant_rtps_writer),
         metatraffic_locator_message_channel_sender.clone(),
         metatraffic_locator_list_message_channel_sender.clone(),
     );
@@ -262,7 +262,7 @@ fn process_discovery_data_happy_path() {
 
     let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        RtpsWriterFlavor::Stateless(spdp_builtin_participant_rtps_writer),
+        RtpsWriterFlavor::new_stateless(spdp_builtin_participant_rtps_writer),
         metatraffic_locator_message_channel_sender.clone(),
         metatraffic_locator_list_message_channel_sender.clone(),
     );

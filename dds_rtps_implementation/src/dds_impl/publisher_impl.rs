@@ -124,7 +124,7 @@ where
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsWriterFlavor::Stateless(RtpsStatelessWriterImpl::new(
+        let rtps_writer_impl = RtpsWriterFlavor::new_stateless(RtpsStatelessWriterImpl::new(
             guid,
             topic_kind,
             reliability_level,

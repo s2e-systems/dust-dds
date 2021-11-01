@@ -44,7 +44,9 @@ pub enum RtpsWriterFlavor {
         heartbeat_sent_instant: Instant,
         heartbeat_count: Count,
     },
-    Stateless(RtpsStatelessWriterImpl<WriterHistoryCache>),
+    Stateless {
+        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>,
+    },
 }
 
 impl RtpsWriterFlavor {
@@ -57,7 +59,7 @@ impl RtpsWriterFlavor {
     }
 
     pub fn new_stateless(stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>) -> Self {
-        RtpsWriterFlavor::Stateless(stateless_writer)
+        RtpsWriterFlavor::Stateless { stateless_writer }
     }
 }
 
@@ -69,7 +71,7 @@ impl Deref for RtpsWriterFlavor {
             RtpsWriterFlavor::Stateful {
                 stateful_writer, ..
             } => stateful_writer.deref(),
-            RtpsWriterFlavor::Stateless(stateless_writer) => stateless_writer.deref(),
+            RtpsWriterFlavor::Stateless { stateless_writer } => stateless_writer.deref(),
         }
     }
 }
@@ -80,7 +82,7 @@ impl DerefMut for RtpsWriterFlavor {
             RtpsWriterFlavor::Stateful {
                 stateful_writer, ..
             } => stateful_writer.deref_mut(),
-            RtpsWriterFlavor::Stateless(stateless_writer) => stateless_writer.deref_mut(),
+            RtpsWriterFlavor::Stateless { stateless_writer } => stateless_writer.deref_mut(),
         }
     }
 }
@@ -137,7 +139,7 @@ impl DataWriterImpl {
                     ));
                 },
             ),
-            RtpsWriterFlavor::Stateless(stateless_writer) => {
+            RtpsWriterFlavor::Stateless { stateless_writer } => {
                 stateless_writer.send_unsent_data(
                     |reader_locator, data| {
                         locator_message_sender.send((
