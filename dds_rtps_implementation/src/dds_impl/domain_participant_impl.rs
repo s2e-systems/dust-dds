@@ -67,8 +67,10 @@ pub struct DomainParticipantImpl {
     _topic_list: Vec<RtpsShared<TopicImpl>>,
     default_topic_qos: TopicQos,
     is_enabled: Arc<AtomicBool>,
-    metatraffic_message_channel_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
-    user_defined_message_channel_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+    user_defined_locator_message_channel_sender:
+        SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+    user_defined_locator_list_message_channel_sender:
+        SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
 }
 
 impl DomainParticipantImpl {
@@ -79,11 +81,34 @@ impl DomainParticipantImpl {
         builtin_publisher: RtpsShared<PublisherImpl>,
         mut metatraffic_transport: Box<dyn Transport>,
         mut default_transport: Box<dyn Transport>,
-        metatraffic_message_channel_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
-        metatraffic_message_channel_receiver: Receiver<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+        metatraffic_locator_message_channel_sender: SyncSender<(
+            Locator,
+            Vec<RtpsSubmessageTypeWrite>,
+        )>,
+        metatraffic_locator_message_channel_receiver: Receiver<(
+            Locator,
+            Vec<RtpsSubmessageTypeWrite>,
+        )>,
+        metatraffic_locator_list_message_channel_sender: SyncSender<(
+            Vec<Locator>,
+            Vec<Locator>,
+            Vec<RtpsSubmessageTypeWrite>,
+        )>,
+        metatraffic_locator_list_message_channel_receiver: Receiver<(
+            Vec<Locator>,
+            Vec<Locator>,
+            Vec<RtpsSubmessageTypeWrite>,
+        )>,
     ) -> Self {
-        let (user_defined_message_channel_sender, user_defined_message_channel_receiver) =
-            sync_channel(17);
+        let (
+            user_defined_locator_message_channel_sender,
+            user_defined_locator_message_channel_receiver,
+        ) = sync_channel(17);
+
+        let (
+            user_defined_locator_list_message_channel_sender,
+            user_defined_locator_list_message_channel_receiver,
+        ) = sync_channel(17);
 
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
@@ -116,7 +141,7 @@ impl DomainParticipantImpl {
             while is_enabled_arc.load(atomic::Ordering::SeqCst) {
                 // send_builtin_data();
                 if let Ok((dst_locator, submessages)) =
-                    metatraffic_message_channel_receiver.try_recv()
+                    metatraffic_locator_message_channel_receiver.try_recv()
                 {
                     let header = RtpsMessageHeader {
                         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
@@ -140,7 +165,7 @@ impl DomainParticipantImpl {
 
                 // send_user_defined_data();
                 if let Ok((dst_locator, submessages)) =
-                    user_defined_message_channel_receiver.try_recv()
+                    user_defined_locator_message_channel_receiver.try_recv()
                 {
                     let header = RtpsMessageHeader {
                         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
@@ -214,8 +239,8 @@ impl DomainParticipantImpl {
             _topic_list: Vec::new(),
             default_topic_qos: TopicQos::default(),
             is_enabled,
-            metatraffic_message_channel_sender,
-            user_defined_message_channel_sender,
+            user_defined_locator_message_channel_sender,
+            user_defined_locator_list_message_channel_sender,
         }
     }
 }
@@ -243,7 +268,9 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
             publisher_qos,
             rtps_group,
             data_writer_impl_list,
-            self.user_defined_message_channel_sender.clone(),
+            self.user_defined_locator_message_channel_sender.clone(),
+            self.user_defined_locator_list_message_channel_sender
+                .clone(),
         );
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
         let publisher_impl_weak = rtps_shared_downgrade(&publisher_impl_shared);
@@ -552,6 +579,8 @@ mod tests {
     #[test]
     fn set_default_publisher_qos_some_value() {
         let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(1);
+        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
+            sync_channel(1);
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
@@ -562,6 +591,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             metatraffic_message_sender.clone(),
+            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
@@ -572,6 +602,8 @@ mod tests {
             Box::new(MockTransport),
             metatraffic_message_sender,
             metatraffic_message_receiver,
+            metatraffic_locator_list_message_sender,
+            metatraffic_locator_list_message_receiver,
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -584,6 +616,8 @@ mod tests {
     #[test]
     fn set_default_publisher_qos_none() {
         let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(1);
+        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
+            sync_channel(1);
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
@@ -594,6 +628,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             metatraffic_message_sender.clone(),
+            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([0; 12]),
@@ -604,6 +639,8 @@ mod tests {
             Box::new(MockTransport),
             metatraffic_message_sender,
             metatraffic_message_receiver,
+            metatraffic_locator_list_message_sender,
+            metatraffic_locator_list_message_receiver,
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -618,6 +655,8 @@ mod tests {
     #[test]
     fn set_default_subscriber_qos_some_value() {
         let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(1);
+        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
+            sync_channel(1);
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
@@ -628,6 +667,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             metatraffic_message_sender.clone(),
+            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -638,6 +678,8 @@ mod tests {
             Box::new(MockTransport),
             metatraffic_message_sender,
             metatraffic_message_receiver,
+            metatraffic_locator_list_message_sender,
+            metatraffic_locator_list_message_receiver,
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -650,6 +692,8 @@ mod tests {
     #[test]
     fn set_default_subscriber_qos_none() {
         let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(1);
+        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
+            sync_channel(1);
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
@@ -660,6 +704,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             metatraffic_message_sender.clone(),
+            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -670,6 +715,8 @@ mod tests {
             Box::new(MockTransport),
             metatraffic_message_sender,
             metatraffic_message_receiver,
+            metatraffic_locator_list_message_sender,
+            metatraffic_locator_list_message_receiver,
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -687,6 +734,8 @@ mod tests {
     #[test]
     fn set_default_topic_qos_some_value() {
         let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(1);
+        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
+            sync_channel(1);
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
@@ -697,6 +746,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             metatraffic_message_sender.clone(),
+            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -707,6 +757,8 @@ mod tests {
             Box::new(MockTransport),
             metatraffic_message_sender,
             metatraffic_message_receiver,
+            metatraffic_locator_list_message_sender,
+            metatraffic_locator_list_message_receiver,
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -719,6 +771,8 @@ mod tests {
     #[test]
     fn set_default_topic_qos_inconsistent() {
         let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(1);
+        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
+            sync_channel(1);
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
@@ -729,6 +783,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             metatraffic_message_sender.clone(),
+            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -739,6 +794,8 @@ mod tests {
             Box::new(MockTransport),
             metatraffic_message_sender,
             metatraffic_message_receiver,
+            metatraffic_locator_list_message_sender,
+            metatraffic_locator_list_message_receiver,
         );
         let mut qos = TopicQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
@@ -751,6 +808,8 @@ mod tests {
     #[test]
     fn set_default_topic_qos_none() {
         let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(1);
+        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
+            sync_channel(1);
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
@@ -761,6 +820,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             metatraffic_message_sender.clone(),
+            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -771,6 +831,8 @@ mod tests {
             Box::new(MockTransport),
             metatraffic_message_sender,
             metatraffic_message_receiver,
+            metatraffic_locator_list_message_sender,
+            metatraffic_locator_list_message_receiver,
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -788,6 +850,8 @@ mod tests {
     #[test]
     fn create_publisher() {
         let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(1);
+        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
+            sync_channel(1);
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
@@ -798,6 +862,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             metatraffic_message_sender.clone(),
+            metatraffic_locator_list_message_sender.clone(),
         ));
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -808,6 +873,8 @@ mod tests {
             Box::new(MockTransport),
             metatraffic_message_sender,
             metatraffic_message_receiver,
+            metatraffic_locator_list_message_sender,
+            metatraffic_locator_list_message_receiver,
         );
 
         let publisher_counter_before = domain_participant
@@ -834,7 +901,10 @@ mod tests {
 
     #[test]
     fn delete_publisher() {
-        let (metatraffic_message_sender, metatraffic_message_receiver) = sync_channel(1);
+        let (metatraffic_locator_message_sender, metatraffic_locator_message_receiver) =
+            sync_channel(1);
+        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
+            sync_channel(1);
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
@@ -844,7 +914,8 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_message_sender.clone(),
+            metatraffic_locator_message_sender.clone(),
+            metatraffic_locator_list_message_sender.clone(),
         ));
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -853,8 +924,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
-            metatraffic_message_sender,
-            metatraffic_message_receiver,
+            metatraffic_locator_message_sender,
+            metatraffic_locator_message_receiver,
+            metatraffic_locator_list_message_sender,
+            metatraffic_locator_list_message_receiver,
         );
         let a_publisher = domain_participant.create_publisher(None, None, 0).unwrap();
 

@@ -20,7 +20,7 @@ use rust_rtps_pim::{
     },
     messages::types::Count,
     structure::{
-        types::{ChangeKind, Locator, LOCATOR_INVALID},
+        types::{ChangeKind, Locator},
         RtpsHistoryCacheOperations,
     },
 };
@@ -88,19 +88,26 @@ impl DerefMut for RtpsWriterFlavor {
 pub struct DataWriterImpl {
     _qos: DataWriterQos,
     pub rtps_writer_impl: RtpsWriterFlavor,
-    message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+    locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+    locator_list_message_sender:
+        SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
 }
 
 impl DataWriterImpl {
     fn send_change(&mut self) {
-        let (rtps_writer_impl, message_sender) = (&mut self.rtps_writer_impl, &self.message_sender);
+        let (rtps_writer_impl, locator_message_sender, locator_list_message_sender) = (
+            &mut self.rtps_writer_impl,
+            &self.locator_message_sender,
+            &self.locator_list_message_sender,
+        );
         match rtps_writer_impl {
             RtpsWriterFlavor::Stateful {
                 stateful_writer, ..
             } => stateful_writer.send_unsent_data(
                 |reader_proxy, data| {
-                    message_sender.send((
-                        LOCATOR_INVALID,
+                    locator_list_message_sender.send((
+                        reader_proxy.unicast_locator_list.clone(),
+                        reader_proxy.multicast_locator_list.clone(),
                         vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
                             data.endianness_flag,
                             data.inline_qos_flag,
@@ -116,8 +123,9 @@ impl DataWriterImpl {
                     ));
                 },
                 |reader_proxy, gap| {
-                    message_sender.send((
-                        LOCATOR_INVALID,
+                    locator_list_message_sender.send((
+                        reader_proxy.unicast_locator_list.clone(),
+                        reader_proxy.multicast_locator_list.clone(),
                         vec![RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
                             gap.endianness_flag,
                             gap.reader_id,
@@ -131,7 +139,7 @@ impl DataWriterImpl {
             RtpsWriterFlavor::Stateless(stateless_writer) => {
                 stateless_writer.send_unsent_data(
                     |reader_locator, data| {
-                        message_sender.send((
+                        locator_message_sender.send((
                             reader_locator.locator,
                             vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
                                 data.endianness_flag,
@@ -148,7 +156,7 @@ impl DataWriterImpl {
                         ));
                     },
                     |reader_locator, gap| {
-                        message_sender.send((
+                        locator_message_sender.send((
                             reader_locator.locator,
                             vec![RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
                                 gap.endianness_flag,
@@ -169,12 +177,18 @@ impl DataWriterImpl {
     pub fn new(
         qos: DataWriterQos,
         rtps_writer_impl: RtpsWriterFlavor,
-        message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+        locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+        locator_list_message_sender: SyncSender<(
+            Vec<Locator>,
+            Vec<Locator>,
+            Vec<RtpsSubmessageTypeWrite>,
+        )>,
     ) -> Self {
         Self {
             _qos: qos,
             rtps_writer_impl,
-            message_sender,
+            locator_message_sender,
+            locator_list_message_sender,
         }
     }
 }
@@ -678,9 +692,14 @@ mod tests {
         };
         rtps_stateless_writer.reader_locator_add(a_reader_locator);
         let rtps_writer = RtpsWriterFlavor::new_stateless(rtps_stateless_writer);
-        let (message_sender, message_receiver) = sync_channel(5);
-        let mut data_writer_impl =
-            DataWriterImpl::new(DataWriterQos::default(), rtps_writer, message_sender);
+        let (locator_message_sender, locator_message_receiver) = sync_channel(5);
+        let (locator_list_message_sender, locator_list_message_receiver) = sync_channel(5);
+        let mut data_writer_impl = DataWriterImpl::new(
+            DataWriterQos::default(),
+            rtps_writer,
+            locator_message_sender,
+            locator_list_message_sender,
+        );
 
         let data_value = [0, 1, 0, 0, 7, 3];
         data_writer_impl
@@ -691,7 +710,7 @@ mod tests {
             )
             .unwrap();
 
-        let received_message = message_receiver.try_recv().unwrap();
+        let received_message = locator_message_receiver.try_recv().unwrap();
         let endianness_flag = true;
         let inline_qos_flag = true;
         let data_flag = true;
