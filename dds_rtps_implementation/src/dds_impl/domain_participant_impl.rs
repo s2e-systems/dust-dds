@@ -56,9 +56,9 @@ impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
 pub struct DomainParticipantImpl {
     guid_prefix: GuidPrefix,
     _qos: DomainParticipantQos,
-    builtin_subscriber: RtpsShared<SubscriberImpl>,
-    builtin_publisher: RtpsShared<PublisherImpl>,
-    user_defined_subscriber_list: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
+    _builtin_subscriber: RtpsShared<SubscriberImpl>,
+    _builtin_publisher: RtpsShared<PublisherImpl>,
+    _user_defined_subscriber_list: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
     _user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: Arc<Mutex<Vec<RtpsShared<PublisherImpl>>>>,
@@ -81,7 +81,7 @@ impl DomainParticipantImpl {
         builtin_publisher: RtpsShared<PublisherImpl>,
         mut metatraffic_transport: Box<dyn Transport>,
         mut default_transport: Box<dyn Transport>,
-        metatraffic_locator_message_channel_sender: SyncSender<(
+        _metatraffic_locator_message_channel_sender: SyncSender<(
             Locator,
             Vec<RtpsSubmessageTypeWrite>,
         )>,
@@ -89,12 +89,12 @@ impl DomainParticipantImpl {
             Locator,
             Vec<RtpsSubmessageTypeWrite>,
         )>,
-        metatraffic_locator_list_message_channel_sender: SyncSender<(
+        _metatraffic_locator_list_message_channel_sender: SyncSender<(
             Vec<Locator>,
             Vec<Locator>,
             Vec<RtpsSubmessageTypeWrite>,
         )>,
-        metatraffic_locator_list_message_channel_receiver: Receiver<(
+        _metatraffic_locator_list_message_channel_receiver: Receiver<(
             Vec<Locator>,
             Vec<Locator>,
             Vec<RtpsSubmessageTypeWrite>,
@@ -107,7 +107,7 @@ impl DomainParticipantImpl {
 
         let (
             user_defined_locator_list_message_channel_sender,
-            user_defined_locator_list_message_channel_receiver,
+            _user_defined_locator_list_message_channel_receiver,
         ) = sync_channel(17);
 
         let protocol_version = PROTOCOLVERSION;
@@ -118,18 +118,18 @@ impl DomainParticipantImpl {
         // let metatraffic_transport = metatraffic_transport.clone();
         // let guid_prefix = guid_prefix;
         let builtin_subscriber_arc = builtin_subscriber.clone();
-        let builtin_publisher_arc = builtin_publisher.clone();
+        let _builtin_publisher_arc = builtin_publisher.clone();
         let user_defined_subscriber_list = Arc::new(Mutex::new(Vec::new()));
         let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
         // let user_defined_publisher_list = user_defined_publisher_list.clone();
 
-        let option_spdp_builtin_participant_reader =
+        let _option_spdp_builtin_participant_reader =
             builtin_subscriber
                 .read()
                 .unwrap()
                 .lookup_datareader::<SpdpDiscoveredParticipantData>(&());
 
-        let option_sedp_builtin_publications_reader =
+        let _option_sedp_builtin_publications_reader =
             builtin_subscriber
                 .read()
                 .unwrap()
@@ -228,9 +228,9 @@ impl DomainParticipantImpl {
         Self {
             guid_prefix,
             _qos: domain_participant_qos,
-            builtin_subscriber,
-            builtin_publisher,
-            user_defined_subscriber_list,
+            _builtin_subscriber: builtin_subscriber,
+            _builtin_publisher: builtin_publisher,
+            _user_defined_subscriber_list: user_defined_subscriber_list,
             _user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: Arc::new(Mutex::new(Vec::new())),

@@ -18,9 +18,9 @@ use rust_rtps_pim::{
         stateless_writer::StatelessWriterBehavior,
         writer::{RtpsWriter, RtpsWriterOperations},
     },
-    messages::{submessages::HeartbeatSubmessage, types::Count},
+    messages::types::Count,
     structure::{
-        types::{ChangeKind, Locator, ReliabilityKind},
+        types::{ChangeKind, Locator},
         RtpsHistoryCacheOperations,
     },
 };
@@ -43,21 +43,40 @@ pub enum RtpsWriterFlavor {
         stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache>,
         heartbeat_sent_instant: Instant,
         heartbeat_count: Count,
+        locator_list_message_sender:
+            SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
     },
-    Stateless(RtpsStatelessWriterImpl<WriterHistoryCache>),
+    Stateless {
+        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>,
+        locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+    },
 }
 
 impl RtpsWriterFlavor {
-    pub fn new_stateful(stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache>) -> Self {
+    pub fn new_stateful(
+        stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache>,
+        locator_list_message_sender: SyncSender<(
+            Vec<Locator>,
+            Vec<Locator>,
+            Vec<RtpsSubmessageTypeWrite>,
+        )>,
+    ) -> Self {
         RtpsWriterFlavor::Stateful {
             stateful_writer,
             heartbeat_sent_instant: Instant::now(),
             heartbeat_count: Count(0),
+            locator_list_message_sender,
         }
     }
 
-    pub fn new_stateless(stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>) -> Self {
-        RtpsWriterFlavor::Stateless(stateless_writer)
+    pub fn new_stateless(
+        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>,
+        locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+    ) -> Self {
+        RtpsWriterFlavor::Stateless {
+            stateless_writer,
+            locator_message_sender,
+        }
     }
 }
 
@@ -69,7 +88,9 @@ impl Deref for RtpsWriterFlavor {
             RtpsWriterFlavor::Stateful {
                 stateful_writer, ..
             } => stateful_writer.deref(),
-            RtpsWriterFlavor::Stateless(stateless_writer) => stateless_writer.deref(),
+            RtpsWriterFlavor::Stateless {
+                stateless_writer, ..
+            } => stateless_writer.deref(),
         }
     }
 }
@@ -80,7 +101,9 @@ impl DerefMut for RtpsWriterFlavor {
             RtpsWriterFlavor::Stateful {
                 stateful_writer, ..
             } => stateful_writer.deref_mut(),
-            RtpsWriterFlavor::Stateless(stateless_writer) => stateless_writer.deref_mut(),
+            RtpsWriterFlavor::Stateless {
+                stateless_writer, ..
+            } => stateless_writer.deref_mut(),
         }
     }
 }
@@ -88,60 +111,22 @@ impl DerefMut for RtpsWriterFlavor {
 pub struct DataWriterImpl {
     _qos: DataWriterQos,
     pub rtps_writer_impl: Arc<Mutex<RtpsWriterFlavor>>,
-    locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
-    locator_list_message_sender:
-        SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
 }
 
 impl DataWriterImpl {
     fn send_change(&mut self) {
-        let (rtps_writer_impl, locator_message_sender, locator_list_message_sender) = (
-            &mut self.rtps_writer_impl,
-            &self.locator_message_sender,
-            &self.locator_list_message_sender,
-        );
-        let mut rtps_writer_impl_lock = rtps_writer_impl.lock().unwrap();
+        let mut rtps_writer_impl_lock = self.rtps_writer_impl.lock().unwrap();
         match &mut *rtps_writer_impl_lock {
             RtpsWriterFlavor::Stateful {
-                stateful_writer, ..
+                stateful_writer,
+                locator_list_message_sender,
+                ..
             } => stateful_writer.send_unsent_data(
                 |reader_proxy, data| {
-                    locator_list_message_sender.send((
-                        reader_proxy.unicast_locator_list.clone(),
-                        reader_proxy.multicast_locator_list.clone(),
-                        vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                            data.endianness_flag,
-                            data.inline_qos_flag,
-                            data.data_flag,
-                            data.key_flag,
-                            data.non_standard_payload_flag,
-                            data.reader_id,
-                            data.writer_id,
-                            data.writer_sn,
-                            data.inline_qos,
-                            data.serialized_payload,
-                        ))],
-                    ));
-                },
-                |reader_proxy, gap| {
-                    locator_list_message_sender.send((
-                        reader_proxy.unicast_locator_list.clone(),
-                        reader_proxy.multicast_locator_list.clone(),
-                        vec![RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        ))],
-                    ));
-                },
-            ),
-            RtpsWriterFlavor::Stateless(stateless_writer) => {
-                stateless_writer.send_unsent_data(
-                    |reader_locator, data| {
-                        locator_message_sender.send((
-                            reader_locator.locator,
+                    locator_list_message_sender
+                        .send((
+                            reader_proxy.unicast_locator_list.clone(),
+                            reader_proxy.multicast_locator_list.clone(),
                             vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
                                 data.endianness_flag,
                                 data.inline_qos_flag,
@@ -154,11 +139,14 @@ impl DataWriterImpl {
                                 data.inline_qos,
                                 data.serialized_payload,
                             ))],
-                        ));
-                    },
-                    |reader_locator, gap| {
-                        locator_message_sender.send((
-                            reader_locator.locator,
+                        ))
+                        .unwrap();
+                },
+                |reader_proxy, gap| {
+                    locator_list_message_sender
+                        .send((
+                            reader_proxy.unicast_locator_list.clone(),
+                            reader_proxy.multicast_locator_list.clone(),
                             vec![RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
                                 gap.endianness_flag,
                                 gap.reader_id,
@@ -166,7 +154,47 @@ impl DataWriterImpl {
                                 gap.gap_start,
                                 gap.gap_list,
                             ))],
-                        ));
+                        ))
+                        .unwrap();
+                },
+            ),
+            RtpsWriterFlavor::Stateless {
+                stateless_writer,
+                locator_message_sender,
+            } => {
+                stateless_writer.send_unsent_data(
+                    |reader_locator, data| {
+                        locator_message_sender
+                            .send((
+                                reader_locator.locator,
+                                vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                                    data.endianness_flag,
+                                    data.inline_qos_flag,
+                                    data.data_flag,
+                                    data.key_flag,
+                                    data.non_standard_payload_flag,
+                                    data.reader_id,
+                                    data.writer_id,
+                                    data.writer_sn,
+                                    data.inline_qos,
+                                    data.serialized_payload,
+                                ))],
+                            ))
+                            .unwrap();
+                    },
+                    |reader_locator, gap| {
+                        locator_message_sender
+                            .send((
+                                reader_locator.locator,
+                                vec![RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                                    gap.endianness_flag,
+                                    gap.reader_id,
+                                    gap.writer_id,
+                                    gap.gap_start,
+                                    gap.gap_list,
+                                ))],
+                            ))
+                            .unwrap();
                     },
                 );
             }
@@ -175,59 +203,53 @@ impl DataWriterImpl {
 }
 
 impl DataWriterImpl {
-    pub fn new(
-        qos: DataWriterQos,
-        rtps_writer_impl: RtpsWriterFlavor,
-        locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
-        locator_list_message_sender: SyncSender<(
-            Vec<Locator>,
-            Vec<Locator>,
-            Vec<RtpsSubmessageTypeWrite>,
-        )>,
-    ) -> Self {
-        let heartbeat_period = rtps_writer_impl.heartbeat_period;
-        let reliability = rtps_writer_impl.reliability_level;
-        let rtps_writer_impl = Arc::new(Mutex::new(rtps_writer_impl));
+    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor) -> Self {
+        let rtps_writer_flavor = Arc::new(Mutex::new(rtps_writer_impl));
+        let rtps_writer_flavor_thread = rtps_writer_flavor.clone();
 
-        let rtps_writer_flavor = rtps_writer_impl.clone();
-        let locator_list_message_sender_arc = locator_list_message_sender.clone();
-        let heartbeat_count = Count(1);
-        std::thread::spawn(move || loop {
-            let mut rtps_writer_flavor_lock = rtps_writer_flavor.lock().unwrap();
-            if let RtpsWriterFlavor::Stateful {
-                stateful_writer, ..
-            } = &mut *rtps_writer_flavor_lock
-            {
-                stateful_writer.send_heartbeat(heartbeat_count, |reader_proxy, heartbeat| {
-                    locator_list_message_sender_arc.send((
-                        reader_proxy.unicast_locator_list.clone(),
-                        reader_proxy.multicast_locator_list.clone(),
-                        vec![RtpsSubmessageTypeWrite::Heartbeat(
-                            HeartbeatSubmessageWrite::new(
-                                heartbeat.endianness_flag,
-                                heartbeat.final_flag,
-                                heartbeat.liveliness_flag,
-                                heartbeat.reader_id,
-                                heartbeat.writer_id,
-                                heartbeat.first_sn,
-                                heartbeat.last_sn,
-                                heartbeat.count,
-                            ),
-                        )],
+        std::thread::spawn(move || {
+            let mut heartbeat_count = Count(1);
+            loop {
+                let mut rtps_writer_flavor_lock = rtps_writer_flavor_thread.lock().unwrap();
+                if let RtpsWriterFlavor::Stateful {
+                    stateful_writer,
+                    locator_list_message_sender,
+                    ..
+                } = &mut *rtps_writer_flavor_lock
+                {
+                    stateful_writer.send_heartbeat(heartbeat_count, |reader_proxy, heartbeat| {
+                        locator_list_message_sender
+                            .send((
+                                reader_proxy.unicast_locator_list.clone(),
+                                reader_proxy.multicast_locator_list.clone(),
+                                vec![RtpsSubmessageTypeWrite::Heartbeat(
+                                    HeartbeatSubmessageWrite::new(
+                                        heartbeat.endianness_flag,
+                                        heartbeat.final_flag,
+                                        heartbeat.liveliness_flag,
+                                        heartbeat.reader_id,
+                                        heartbeat.writer_id,
+                                        heartbeat.first_sn,
+                                        heartbeat.last_sn,
+                                        heartbeat.count,
+                                    ),
+                                )],
+                            ))
+                            .unwrap();
+                    });
+                    heartbeat_count += Count(1);
+
+                    std::thread::sleep(std::time::Duration::new(
+                        stateful_writer.heartbeat_period.seconds as u64,
+                        stateful_writer.heartbeat_period.fraction,
                     ));
-                });
+                }
             }
-            std::thread::sleep(std::time::Duration::new(
-                heartbeat_period.seconds as u64,
-                heartbeat_period.fraction,
-            ));
         });
 
         Self {
             _qos: qos,
-            rtps_writer_impl,
-            locator_message_sender,
-            locator_list_message_sender,
+            rtps_writer_impl: rtps_writer_flavor,
         }
     }
 }
@@ -731,15 +753,10 @@ mod tests {
             expects_inline_qos: false,
         };
         rtps_stateless_writer.reader_locator_add(a_reader_locator);
-        let rtps_writer = RtpsWriterFlavor::new_stateless(rtps_stateless_writer);
         let (locator_message_sender, locator_message_receiver) = sync_channel(5);
-        let (locator_list_message_sender, locator_list_message_receiver) = sync_channel(5);
-        let mut data_writer_impl = DataWriterImpl::new(
-            DataWriterQos::default(),
-            rtps_writer,
-            locator_message_sender,
-            locator_list_message_sender,
-        );
+        let rtps_writer =
+            RtpsWriterFlavor::new_stateless(rtps_stateless_writer, locator_message_sender);
+        let mut data_writer_impl = DataWriterImpl::new(DataWriterQos::default(), rtps_writer);
 
         let data_value = [0, 1, 0, 0, 7, 3];
         data_writer_impl
