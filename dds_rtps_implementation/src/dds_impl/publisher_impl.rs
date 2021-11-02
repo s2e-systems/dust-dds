@@ -1,7 +1,10 @@
-use std::sync::{
-    atomic::{self, AtomicU8},
-    mpsc::SyncSender,
-    Mutex,
+use std::{
+    any::Any,
+    sync::{
+        atomic::{self, AtomicU8},
+        mpsc::SyncSender,
+        Arc, Mutex,
+    },
 };
 
 use rust_dds_api::{
@@ -33,15 +36,31 @@ use rust_rtps_psm::{
 use crate::{
     dds_impl::data_writer_impl::RtpsWriterFlavor,
     dds_type::DdsType,
-    utils::shared_object::{rtps_shared_downgrade, rtps_shared_new, RtpsShared, RtpsWeak},
+    utils::{
+        message_receiver::ProcessAckNackSubmessage,
+        shared_object::{rtps_shared_new, RtpsShared},
+    },
 };
 
-use super::{data_writer_impl::DataWriterImpl, topic_impl::TopicImpl};
+use super::data_writer_impl::DataWriterImpl;
+
+pub trait DataWriterObject: Any + Send + Sync + ProcessAckNackSubmessage {
+    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+}
+
+impl<T> DataWriterObject for T
+where
+    T: Any + Send + Sync + ProcessAckNackSubmessage,
+{
+    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
+    }
+}
 
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
-    pub data_writer_impl_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
+    pub data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
@@ -53,7 +72,7 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        data_writer_impl_list: Vec<RtpsShared<DataWriterImpl>>,
+        data_writer_impl_list: Vec<Arc<dyn DataWriterObject>>,
         locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
         locator_list_message_sender: SyncSender<(
             Vec<Locator>,
@@ -75,16 +94,16 @@ impl PublisherImpl {
 
 impl<T> DataWriterGAT<'_, '_, T> for PublisherImpl
 where
-    T: DdsType,
+    T: DdsType + 'static,
 {
-    type TopicType = RtpsWeak<TopicImpl>;
-    type DataWriterType = RtpsWeak<DataWriterImpl>;
+    type TopicType = ();
+    type DataWriterType = RtpsShared<DataWriterImpl<T>>;
 
     fn create_datawriter_gat(
         &'_ self,
         _a_topic: &'_ Self::TopicType,
         qos: Option<DataWriterQos>,
-        _a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
+        _a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
@@ -132,12 +151,11 @@ where
         );
         let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
-        let data_writer_impl_weak = rtps_shared_downgrade(&data_writer_impl_shared);
         self.data_writer_impl_list
             .lock()
             .unwrap()
-            .push(data_writer_impl_shared);
-        Some(data_writer_impl_weak)
+            .push(data_writer_impl_shared.clone());
+        Some(data_writer_impl_shared)
     }
 
     fn delete_datawriter_gat(&self, _a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
@@ -148,7 +166,10 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
-        todo!()
+        let data_reader_list_lock = self.data_writer_impl_list.lock().unwrap();
+        data_reader_list_lock
+            .iter()
+            .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
     }
 }
 
@@ -252,6 +273,8 @@ mod tests {
 
     use std::sync::mpsc::sync_channel;
 
+    use crate::{dds_impl::topic_impl::TopicImpl, utils::shared_object::rtps_shared_downgrade};
+
     use super::*;
     use rust_dds_api::infrastructure::qos::TopicQos;
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
@@ -329,13 +352,12 @@ mod tests {
             locator_list_sender,
         );
         let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default()));
-        let a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
+        let _a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
 
         let data_writer_counter_before = publisher_impl
             .user_defined_data_writer_counter
             .load(atomic::Ordering::Relaxed);
-        let datawriter =
-            publisher_impl.create_datawriter::<MockDDSType>(&a_topic_weak, None, None, 0);
+        let datawriter = publisher_impl.create_datawriter::<MockDDSType>(&(), None, None, 0);
         let data_writer_counter_after = publisher_impl
             .user_defined_data_writer_counter
             .load(atomic::Ordering::Relaxed);

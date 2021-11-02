@@ -10,7 +10,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::{
     overall_structure::{RtpsMessageRead, RtpsSubmessageTypeRead},
-    submessages::{DataSubmessageRead, InfoTimestampSubmessageRead},
+    submessages::{AckNackSubmessageRead, DataSubmessageRead, InfoTimestampSubmessageRead},
 };
 
 pub struct MessageReceiver {
@@ -98,6 +98,14 @@ impl MessageReceiver {
 
 pub trait ProcessDataSubmessage {
     fn process_data_submessage(&self, source_guid_prefix: GuidPrefix, _data: &DataSubmessageRead);
+}
+
+pub trait ProcessAckNackSubmessage {
+    fn process_acknack_submessage(
+        &self,
+        source_guid_prefix: GuidPrefix,
+        _acknack: &AckNackSubmessageRead,
+    );
 }
 
 #[cfg(test)]
