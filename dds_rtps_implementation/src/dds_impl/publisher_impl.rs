@@ -60,7 +60,7 @@ where
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
-    pub data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject>>>,
+    data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
