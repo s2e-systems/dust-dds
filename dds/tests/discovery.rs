@@ -1,6 +1,6 @@
 use std::{
     net::UdpSocket,
-    sync::{mpsc::sync_channel, Arc, RwLock},
+    sync::{mpsc::sync_channel},
 };
 
 use rust_dds::{
@@ -35,7 +35,7 @@ use rust_dds_rtps_implementation::{
     },
     utils::{
         message_receiver::MessageReceiver,
-        shared_object::{rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock},
+        shared_object::{rtps_shared_new, rtps_shared_read_lock,},
         transport::{TransportRead, TransportWrite},
     },
 };
@@ -138,7 +138,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     data_writer
         .write_w_timestamp(
-            spdp_discovered_participant_data,
+            &spdp_discovered_participant_data,
             None,
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )
@@ -200,7 +200,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let shared_data_reader = rtps_shared_read_lock(&shared_data_reader);
 
     let result = shared_data_reader.read(1, &[], &[], &[]).unwrap();
-    // assert_eq!(spdp_discovered_participant_data, result[0]);
+    assert_eq!(spdp_discovered_participant_data, result[0]);
 }
 
 #[test]
@@ -278,7 +278,7 @@ fn process_discovery_data_happy_path() {
 
     spdp_builtin_participant_data_writer
         .write_w_timestamp(
-            spdp_discovered_participant_data,
+            &spdp_discovered_participant_data,
             None,
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )

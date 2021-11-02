@@ -301,13 +301,13 @@ where
         todo!()
     }
 
-    fn write(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, _data: &T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn write_w_timestamp(
         &mut self,
-        data: T,
+        data: &T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
@@ -777,7 +777,7 @@ mod tests {
         let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
         data_writer_impl
             .write_w_timestamp(
-                data_value,
+                &data_value,
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )
