@@ -44,8 +44,6 @@ use crate::{
 pub enum RtpsWriterFlavor<T> {
     Stateful {
         stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache<T>>,
-        heartbeat_sent_instant: Instant,
-        heartbeat_count: Count,
         locator_list_message_sender:
             SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
     },
@@ -66,8 +64,6 @@ impl<T> RtpsWriterFlavor<T> {
     ) -> Self {
         RtpsWriterFlavor::Stateful {
             stateful_writer,
-            heartbeat_sent_instant: Instant::now(),
-            heartbeat_count: Count(0),
             locator_list_message_sender,
         }
     }
@@ -219,6 +215,12 @@ where
 
         std::thread::spawn(move || {
             let mut heartbeat_count = Count(1);
+            let rtps_writer_flavor_lock = rtps_writer_flavor_thread.lock().unwrap();
+            let heartbeat_period_duration = std::time::Duration::new(
+                rtps_writer_flavor_lock.heartbeat_period.seconds as u64,
+                rtps_writer_flavor_lock.heartbeat_period.fraction,
+            );
+            std::mem::drop(rtps_writer_flavor_lock);
             loop {
                 let mut rtps_writer_flavor_lock = rtps_writer_flavor_thread.lock().unwrap();
                 if let RtpsWriterFlavor::Stateful {
@@ -248,12 +250,9 @@ where
                             .unwrap();
                     });
                     heartbeat_count += Count(1);
-
-                    std::thread::sleep(std::time::Duration::new(
-                        stateful_writer.heartbeat_period.seconds as u64,
-                        stateful_writer.heartbeat_period.fraction,
-                    ));
                 }
+                std::mem::drop(rtps_writer_flavor_lock);
+                std::thread::sleep(heartbeat_period_duration);
             }
         });
 
