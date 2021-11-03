@@ -67,7 +67,8 @@ pub trait DataWriter<T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11,
     /// write).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
-    fn unregister_instance(&mut self, instance: T, handle: Option<InstanceHandle>) -> DDSResult<()>;
+    fn unregister_instance(&mut self, instance: T, handle: Option<InstanceHandle>)
+        -> DDSResult<()>;
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the
@@ -135,7 +136,7 @@ pub trait DataWriter<T> {
     /// by the ‘data’ parameter, the behavior is in general unspecified, but if detectable by the Service implementation, the return
     /// error-code will be PRECONDITION_NOT_MET. In case the handle is invalid, the behavior is in general unspecified, but if
     /// detectable the returned error-code will be BAD_PARAMETER.
-    fn write(&mut self, data: &T, handle: Option<InstanceHandle>) -> DDSResult<()>;
+    fn write(&mut self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()>;
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
     /// available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo. See 2.2.2.5, Subscription
@@ -152,7 +153,7 @@ pub trait DataWriter<T> {
     /// data-type that is being written.
     fn write_w_timestamp(
         &mut self,
-        data: &T,
+        data: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()>;

@@ -10,7 +10,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheGetChange,
         types::{GuidPrefix, Locator},
     },
 };

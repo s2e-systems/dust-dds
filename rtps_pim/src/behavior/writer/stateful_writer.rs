@@ -15,7 +15,9 @@ use crate::{
         types::Count,
     },
     structure::{
-        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
+        history_cache::{
+            RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations,
+        },
         types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN},
     },
 };
@@ -89,19 +91,19 @@ pub trait RtpsStatefulWriterOperations<L> {
     fn is_acked_by_all(&self) -> bool;
 }
 
-impl<L, C, R, RP, P, D, SV> RtpsStatefulWriter<L, C, R>
+impl<L, C, R, RP, SV> RtpsStatefulWriter<L, C, R>
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RP>,
     RP: RtpsReaderProxyOperations<SequenceNumberVector = SV> + Deref<Target = RtpsReaderProxy<L>>,
     SV: IntoIterator,
-    C: for<'a> RtpsHistoryCacheOperations<'a, GetChangeDataType = D, GetChangeParameterType = P>,
 {
-    pub fn send_unsent_data<S>(
+    pub fn send_unsent_data<S, P, D>(
         &mut self,
         mut send_data: impl FnMut(&RP, DataSubmessage<P, D>),
         mut send_gap: impl FnMut(&RP, GapSubmessage<S>),
     ) where
         S: FromIterator<SequenceNumber>,
+        C: for<'a> RtpsHistoryCacheGetChange<'a, P, D>,
     {
         for reader_proxy in &mut self.matched_readers {
             while let Some(seq_num) = reader_proxy.next_unsent_change() {
@@ -172,7 +174,9 @@ where
         &mut self,
         count: Count,
         mut send_heartbeat: impl FnMut(&RP, HeartbeatSubmessage),
-    ) {
+    ) where
+        C: RtpsHistoryCacheOperations,
+    {
         for reader_proxy in &mut self.matched_readers {
             let endianness_flag = true;
             let final_flag = false;
@@ -214,12 +218,13 @@ where
         }
     }
 
-    pub fn send_requested_data<S>(
+    pub fn send_requested_data<S, P, D>(
         &mut self,
         mut send_data: impl FnMut(&RP, DataSubmessage<P, D>),
         mut send_gap: impl FnMut(&RP, GapSubmessage<S>),
     ) where
         S: FromIterator<SequenceNumber>,
+        C: for<'a> RtpsHistoryCacheGetChange<'a, P, D>,
     {
         for reader_proxy in &mut self.matched_readers {
             // Pushing state

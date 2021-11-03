@@ -37,28 +37,27 @@ use rust_rtps_psm::{
 };
 
 use crate::{
-    dds_type::{BigEndian, DdsSerialize},
-    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
+    dds_type::DdsSerialize, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
     utils::message_receiver::ProcessAckNackSubmessage,
 };
 
-pub enum RtpsWriterFlavor {
+pub enum RtpsWriterFlavor<T> {
     Stateful {
-        stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache>,
+        stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache<T>>,
         heartbeat_sent_instant: Instant,
         heartbeat_count: Count,
         locator_list_message_sender:
             SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
     },
     Stateless {
-        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>,
+        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache<T>>,
         locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
     },
 }
 
-impl RtpsWriterFlavor {
+impl<T> RtpsWriterFlavor<T> {
     pub fn new_stateful(
-        stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache>,
+        stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache<T>>,
         locator_list_message_sender: SyncSender<(
             Vec<Locator>,
             Vec<Locator>,
@@ -74,7 +73,7 @@ impl RtpsWriterFlavor {
     }
 
     pub fn new_stateless(
-        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>,
+        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache<T>>,
         locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
     ) -> Self {
         RtpsWriterFlavor::Stateless {
@@ -84,8 +83,8 @@ impl RtpsWriterFlavor {
     }
 }
 
-impl Deref for RtpsWriterFlavor {
-    type Target = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
+impl<T> Deref for RtpsWriterFlavor<T> {
+    type Target = RtpsWriter<Vec<Locator>, WriterHistoryCache<T>>;
 
     fn deref(&self) -> &Self::Target {
         match self {
@@ -99,7 +98,7 @@ impl Deref for RtpsWriterFlavor {
     }
 }
 
-impl DerefMut for RtpsWriterFlavor {
+impl<T> DerefMut for RtpsWriterFlavor<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             RtpsWriterFlavor::Stateful {
@@ -114,11 +113,14 @@ impl DerefMut for RtpsWriterFlavor {
 
 pub struct DataWriterImpl<T> {
     _qos: DataWriterQos,
-    pub rtps_writer_impl: Arc<Mutex<RtpsWriterFlavor>>,
+    pub rtps_writer_impl: Arc<Mutex<RtpsWriterFlavor<T>>>,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
 }
 
-impl<T> DataWriterImpl<T> {
+impl<T> DataWriterImpl<T>
+where
+    T: DdsSerialize,
+{
     fn send_change(&mut self) {
         let mut rtps_writer_impl_lock = self.rtps_writer_impl.lock().unwrap();
         match &mut *rtps_writer_impl_lock {
@@ -207,8 +209,11 @@ impl<T> DataWriterImpl<T> {
     }
 }
 
-impl<T> DataWriterImpl<T> {
-    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor) -> Self {
+impl<T> DataWriterImpl<T>
+where
+    T: Send + 'static,
+{
+    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor<T>) -> Self {
         let rtps_writer_flavor = Arc::new(Mutex::new(rtps_writer_impl));
         let rtps_writer_flavor_thread = rtps_writer_flavor.clone();
 
@@ -301,21 +306,19 @@ where
         todo!()
     }
 
-    fn write(&mut self, _data: &T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn write_w_timestamp(
         &mut self,
-        data: &T,
+        data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let mut bytes = Vec::new();
-        data.serialize::<_, BigEndian>(&mut bytes)?;
         {
             let mut writer = self.rtps_writer_impl.lock().unwrap();
-            let change = writer.new_change(ChangeKind::Alive, bytes, vec![], 0);
+            let change = writer.new_change(ChangeKind::Alive, data, vec![], 0);
             let writer_cache = &mut writer.writer_cache;
             let time = rust_rtps_pim::messages::types::Time(0);
             writer_cache.set_source_timestamp(Some(time));
@@ -777,7 +780,7 @@ mod tests {
         let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
         data_writer_impl
             .write_w_timestamp(
-                &data_value,
+                data_value,
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )

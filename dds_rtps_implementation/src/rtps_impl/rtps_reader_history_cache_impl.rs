@@ -4,7 +4,8 @@ use rust_rtps_pim::{
     structure::{
         cache_change::RtpsCacheChange,
         history_cache::{
-            RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations,
+            RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
+            RtpsHistoryCacheOperations,
         },
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
@@ -78,18 +79,11 @@ impl RtpsHistoryCacheAddChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]> for ReaderHi
     }
 }
 
-impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
-    type GetChangeDataType = &'a [u8];
-    type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
-
-    fn remove_change(&mut self, seq_num: &SequenceNumber) {
-        self.changes.retain(|cc| &cc.sequence_number != seq_num)
-    }
-
+impl<'a> RtpsHistoryCacheGetChange<'a, &'a [Parameter<&'a [u8]>], &'a [u8]> for ReaderHistoryCache {
     fn get_change(
         &'a self,
         seq_num: &SequenceNumber,
-    ) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>> {
+    ) -> Option<RtpsCacheChange<&'a [Parameter<&'a [u8]>], &'a [u8]>> {
         let local_change = self
             .changes
             .iter()
@@ -103,6 +97,12 @@ impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
             data_value: local_change.data.as_ref(),
             inline_qos: &[],
         })
+    }
+}
+
+impl RtpsHistoryCacheOperations for ReaderHistoryCache {
+    fn remove_change(&mut self, seq_num: &SequenceNumber) {
+        self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {

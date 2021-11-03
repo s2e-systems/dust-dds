@@ -14,7 +14,7 @@ use crate::{
         submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
-        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
+        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange},
         types::{
             ChangeKind, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN,
         },
@@ -102,7 +102,7 @@ impl<S, L, C, R, RL, P, D> StatelessWriterBehavior<S, P, D> for RtpsStatelessWri
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RL>,
     RL: RtpsReaderLocatorOperations,
-    C: for<'a> RtpsHistoryCacheOperations<'a, GetChangeDataType = D, GetChangeParameterType = P>,
+    C: for<'a> RtpsHistoryCacheGetChange<'a, P, D>,
     S: FromIterator<SequenceNumber>,
 {
     type ReaderLocator = RL;
@@ -131,11 +131,7 @@ where
 
 fn best_effort_send_unsent_data<RL, S, P, D>(
     reader_locator: &mut RL,
-    writer_cache: &impl for<'a> RtpsHistoryCacheOperations<
-        'a,
-        GetChangeDataType = D,
-        GetChangeParameterType = P,
-    >,
+    writer_cache: &impl for<'a> RtpsHistoryCacheGetChange<'a, P, D>,
     last_change_sequence_number: &SequenceNumber,
     send_data: &mut impl FnMut(&RL, DataSubmessage<P, D>),
     send_gap: &mut impl FnMut(&RL, GapSubmessage<S>),
