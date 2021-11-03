@@ -29,7 +29,7 @@ use rust_rtps_psm::{
 };
 
 use crate::{
-    dds_type::DdsType,
+    dds_type::{DdsDeserialize, DdsType},
     utils::{
         message_receiver::ProcessDataSubmessage,
         shared_object::{rtps_shared_new, RtpsShared},
@@ -77,7 +77,7 @@ impl SubscriberImpl {
 
 impl<T> DataReaderGAT<'_, '_, T> for SubscriberImpl
 where
-    T: DdsType + 'static,
+    T: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
     type TopicType = ();
     type DataReaderType = RtpsShared<DataReaderImpl<T>>;
@@ -276,6 +276,12 @@ mod tests {
         }
     }
 
+    impl DdsDeserialize<'_> for MockDdsType {
+        fn deserialize(_buf: &mut &'_ [u8]) -> DDSResult<Self> {
+            todo!()
+        }
+    }
+
     struct OtherMockDdsType;
 
     impl DdsType for OtherMockDdsType {
@@ -285,6 +291,12 @@ mod tests {
 
         fn has_key() -> bool {
             true
+        }
+    }
+
+    impl DdsDeserialize<'_> for OtherMockDdsType {
+        fn deserialize(_buf: &mut &'_ [u8]) -> DDSResult<Self> {
+            todo!()
         }
     }
 

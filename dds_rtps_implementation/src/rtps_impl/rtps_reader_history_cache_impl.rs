@@ -11,12 +11,14 @@ use rust_rtps_pim::{
     },
 };
 
-struct ReaderCacheChange {
+use crate::dds_type::DdsDeserialize;
+
+struct ReaderCacheChange<T> {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
-    data: Vec<u8>,
+    data: T,
     _source_timestamp: Option<Time>,
     _reception_timestamp: Option<Time>,
     _sample_state_kind: SampleStateKind,
@@ -24,19 +26,19 @@ struct ReaderCacheChange {
     _instance_state_kind: InstanceStateKind,
 }
 
-pub struct ReaderHistoryCache {
-    changes: Vec<ReaderCacheChange>,
+pub struct ReaderHistoryCache<T> {
+    changes: Vec<ReaderCacheChange<T>>,
     source_timestamp: Option<Time>,
 }
 
-impl ReaderHistoryCache {
+impl<T> ReaderHistoryCache<T> {
     /// Set the Rtps history cache impl's info.
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
     }
 }
 
-impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
+impl<T> RtpsHistoryCacheConstructor for ReaderHistoryCache<T> {
     fn new() -> Self {
         Self {
             changes: Vec::new(),
@@ -45,8 +47,11 @@ impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
     }
 }
 
-impl RtpsHistoryCacheAddChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]> for ReaderHistoryCache {
-    fn add_change(&mut self, change: RtpsCacheChange<&[Parameter<&[u8]>], &[u8]>) {
+impl<T> RtpsHistoryCacheAddChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]> for ReaderHistoryCache<T>
+where
+    T: for<'a> DdsDeserialize<'a>,
+{
+    fn add_change(&mut self, mut change: RtpsCacheChange<&[Parameter<&[u8]>], &[u8]>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -62,12 +67,14 @@ impl RtpsHistoryCacheAddChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]> for ReaderHi
                 .as_secs(),
         );
 
+        let data = DdsDeserialize::deserialize(&mut change.data_value).unwrap();
+
         let local_change = ReaderCacheChange {
             kind: change.kind,
             writer_guid: change.writer_guid,
             sequence_number: change.sequence_number,
             instance_handle: change.instance_handle,
-            data: change.data_value.iter().cloned().collect(),
+            data,
             _source_timestamp: self.source_timestamp,
             _reception_timestamp: Some(reception_timestamp),
             _sample_state_kind: SampleStateKind::NotRead,
@@ -79,11 +86,13 @@ impl RtpsHistoryCacheAddChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]> for ReaderHi
     }
 }
 
-impl<'a> RtpsHistoryCacheGetChange<'a, &'a [Parameter<&'a [u8]>], &'a [u8]> for ReaderHistoryCache {
+impl<'a, T> RtpsHistoryCacheGetChange<'a, &'a [Parameter<&'a [u8]>], &'a T>
+    for ReaderHistoryCache<T>
+{
     fn get_change(
         &'a self,
         seq_num: &SequenceNumber,
-    ) -> Option<RtpsCacheChange<&'a [Parameter<&'a [u8]>], &'a [u8]>> {
+    ) -> Option<RtpsCacheChange<&'a [Parameter<&'a [u8]>], &'a T>> {
         let local_change = self
             .changes
             .iter()
@@ -94,13 +103,13 @@ impl<'a> RtpsHistoryCacheGetChange<'a, &'a [Parameter<&'a [u8]>], &'a [u8]> for 
             writer_guid: local_change.writer_guid,
             instance_handle: local_change.instance_handle,
             sequence_number: local_change.sequence_number,
-            data_value: local_change.data.as_ref(),
+            data_value: &local_change.data,
             inline_qos: &[],
         })
     }
 }
 
-impl RtpsHistoryCacheOperations for ReaderHistoryCache {
+impl<T> RtpsHistoryCacheOperations for ReaderHistoryCache<T> {
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
@@ -127,10 +136,17 @@ mod tests {
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
     use super::*;
+    struct MockDdsDeserialize;
+
+    impl DdsDeserialize<'_> for MockDdsDeserialize {
+        fn deserialize(_buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+            Ok(Self)
+        }
+    }
 
     #[test]
     fn add_change() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
         let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
@@ -145,7 +161,7 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
         let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
@@ -161,7 +177,7 @@ mod tests {
 
     #[test]
     fn get_change() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
         let change = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
@@ -177,7 +193,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
         let change1 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
@@ -201,7 +217,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc: ReaderHistoryCache = ReaderHistoryCache::new();
+        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
         let change1 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,

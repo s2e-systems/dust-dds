@@ -24,13 +24,13 @@ use crate::{
     utils::message_receiver::ProcessDataSubmessage,
 };
 
-pub enum RtpsReaderFlavor {
-    Stateful(RtpsStatefulReaderImpl<ReaderHistoryCache>),
-    Stateless(RtpsStatelessReaderImpl<ReaderHistoryCache>),
+pub enum RtpsReaderFlavor<T> {
+    Stateful(RtpsStatefulReaderImpl<ReaderHistoryCache<T>>),
+    Stateless(RtpsStatelessReaderImpl<ReaderHistoryCache<T>>),
 }
 
-impl Deref for RtpsReaderFlavor {
-    type Target = RtpsReader<Vec<Locator>, ReaderHistoryCache>;
+impl<T> Deref for RtpsReaderFlavor<T> {
+    type Target = RtpsReader<Vec<Locator>, ReaderHistoryCache<T>>;
 
     fn deref(&self) -> &Self::Target {
         match self {
@@ -41,12 +41,15 @@ impl Deref for RtpsReaderFlavor {
 }
 
 pub struct DataReaderImpl<T> {
-    pub rtps_reader: RtpsReaderFlavor,
+    pub rtps_reader: RtpsReaderFlavor<T>,
     _qos: DataReaderQos,
     _listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }
 
-impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>> {
+impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>>
+where
+    T: for<'a> DdsDeserialize<'a>,
+{
     fn process_data_submessage(&self, source_guid_prefix: GuidPrefix, data: &DataSubmessageRead) {
         let mut data_reader = self.write().unwrap();
         match &mut data_reader.rtps_reader {
@@ -59,7 +62,7 @@ impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>> {
 }
 
 impl<T> DataReaderImpl<T> {
-    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderFlavor) -> Self {
+    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderFlavor<T>) -> Self {
         Self {
             rtps_reader,
             _qos: qos,
@@ -108,10 +111,11 @@ where
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
         _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        if let Some(cc) = self.rtps_reader.reader_cache.get_change(&1) {
-            let mut data = cc.data_value;
-            let result: T = DdsDeserialize::deserialize(&mut data).unwrap();
-            Ok(vec![result])
+        if let Some(_cc) = self.rtps_reader.reader_cache.get_change(&1) {
+            todo!("Return references of data from the DataReaderImpl")
+            // let mut data = cc.data_value;
+            // let result: T = DdsDeserialize::deserialize(&mut data).unwrap();
+            // Ok(vec![result])
         } else {
             Err(DDSError::NoData)
         }
