@@ -3,7 +3,9 @@ use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
     structure::{
         cache_change::RtpsCacheChange,
-        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
+        history_cache::{
+            RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations,
+        },
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
@@ -34,8 +36,7 @@ impl ReaderHistoryCache {
 }
 
 impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
-    fn new() -> Self
-    {
+    fn new() -> Self {
         Self {
             changes: Vec::new(),
             source_timestamp: None,
@@ -43,17 +44,8 @@ impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
     }
 }
 
-impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
-    type AddChangeDataType = &'a [u8];
-    type GetChangeDataType = &'a [u8];
-
-    type AddChangeParameterType = &'a [Parameter<&'a [u8]>];
-    type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
-
-    fn add_change(
-        &mut self,
-        change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>,
-    ) {
+impl RtpsHistoryCacheAddChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]> for ReaderHistoryCache {
+    fn add_change(&mut self, change: RtpsCacheChange<&[Parameter<&[u8]>], &[u8]>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -84,6 +76,11 @@ impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
 
         self.changes.push(local_change)
     }
+}
+
+impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
+    type GetChangeDataType = &'a [u8];
+    type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
 
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)

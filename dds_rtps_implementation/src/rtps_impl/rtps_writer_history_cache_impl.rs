@@ -3,7 +3,9 @@ use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
     structure::{
         cache_change::RtpsCacheChange,
-        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
+        history_cache::{
+            RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations,
+        },
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
@@ -32,8 +34,7 @@ impl WriterHistoryCache {
 }
 
 impl RtpsHistoryCacheConstructor for WriterHistoryCache {
-    fn new() -> Self
-    {
+    fn new() -> Self {
         Self {
             changes: Vec::new(),
             source_timestamp: None,
@@ -41,17 +42,8 @@ impl RtpsHistoryCacheConstructor for WriterHistoryCache {
     }
 }
 
-impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
-    type AddChangeDataType = Vec<u8>;
-    type GetChangeDataType = Vec<u8>;
-
-    type AddChangeParameterType = Vec<Parameter<Vec<u8>>>;
-    type GetChangeParameterType = Vec<Parameter<Vec<u8>>>;
-
-    fn add_change(
-        &mut self,
-        change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>,
-    ) {
+impl RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, Vec<u8>> for WriterHistoryCache {
+    fn add_change(&mut self, change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, Vec<u8>>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -72,6 +64,11 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
 
         self.changes.push(local_change)
     }
+}
+
+impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
+    type GetChangeDataType = Vec<u8>;
+    type GetChangeParameterType = Vec<Parameter<Vec<u8>>>;
 
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)

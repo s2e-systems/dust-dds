@@ -20,7 +20,7 @@ use rust_rtps_pim::{
     },
     messages::types::Count,
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, GuidPrefix, Locator},
     },
 };

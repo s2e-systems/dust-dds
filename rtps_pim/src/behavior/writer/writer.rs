@@ -5,7 +5,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChange,
         endpoint::RtpsEndpoint,
-        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
+        history_cache::RtpsHistoryCacheConstructor,
         types::{ChangeKind, Guid, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind},
     },
 };
@@ -71,16 +71,13 @@ impl<L, C> RtpsWriter<L, C> {
 }
 
 impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
-    fn new_change<'a>(
+    fn new_change<'a, P, D>(
         &mut self,
         kind: ChangeKind,
-        data: C::AddChangeDataType,
-        inline_qos: C::GetChangeParameterType,
+        data: D,
+        inline_qos: P,
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<C::GetChangeParameterType, C::AddChangeDataType>
-    where
-        C: RtpsHistoryCacheOperations<'a>,
-    {
+    ) -> RtpsCacheChange<P, D> {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RtpsCacheChange {
             kind,
@@ -94,13 +91,11 @@ impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
 }
 
 pub trait RtpsWriterOperations<C> {
-    fn new_change<'a>(
+    fn new_change<'a, P, D>(
         &mut self,
         kind: ChangeKind,
-        data: C::AddChangeDataType,
-        inline_qos: C::GetChangeParameterType,
+        data: D,
+        inline_qos: P,
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<C::GetChangeParameterType, C::AddChangeDataType>
-    where
-        C: RtpsHistoryCacheOperations<'a>;
+    ) -> RtpsCacheChange<P, D>;
 }
