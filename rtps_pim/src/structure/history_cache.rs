@@ -1,23 +1,4 @@
-use core::{iter::FromIterator, marker::PhantomData};
-
 use super::{cache_change::RtpsCacheChange, types::SequenceNumber};
-
-pub struct RtpsHistoryCache<C, CC> {
-    pub changes: C,
-    cache_change: PhantomData<CC>,
-}
-
-impl<C, CC> RtpsHistoryCache<C, CC>
-where
-    C: FromIterator<CC>,
-{
-    pub fn new() -> Self {
-        Self {
-            changes: core::iter::empty().collect(),
-            cache_change: PhantomData,
-        }
-    }
-}
 
 pub trait RtpsHistoryCacheConstructor {
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
