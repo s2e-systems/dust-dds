@@ -68,7 +68,7 @@ where
                 heartbeat_period.seconds as u64,
                 heartbeat_period.fraction,
             );
-            while true {
+            loop {
                 stateful_writer_shared.lock().unwrap().send_heartbeat(
                     heartbeat_count,
                     |reader_proxy, heartbeat| {
