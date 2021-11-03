@@ -100,9 +100,9 @@ impl<T> DataReaderImpl<T> {
 
 impl<'a, T> DataReader<'a, T> for DataReaderImpl<T>
 where
-    T: for<'de> DdsDeserialize<'de>,
+    T: for<'de> DdsDeserialize<'de> + 'static,
 {
-    type Samples = Vec<T>;
+    type Samples = Vec<&'a T>;
 
     fn read(
         &'a self,
@@ -111,11 +111,8 @@ where
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
         _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        if let Some(_cc) = self.rtps_reader.reader_cache.get_change(&1) {
-            todo!("Return references of data from the DataReaderImpl")
-            // let mut data = cc.data_value;
-            // let result: T = DdsDeserialize::deserialize(&mut data).unwrap();
-            // Ok(vec![result])
+        if let Some(cc) = self.rtps_reader.reader_cache.get_change(&1) {
+            Ok(vec![cc.data_value])
         } else {
             Err(DDSError::NoData)
         }

@@ -194,7 +194,8 @@ fn send_and_receive_discovery_data_happy_path() {
     let shared_data_reader = rtps_shared_read_lock(&shared_data_reader);
 
     let result = shared_data_reader.read(1, &[], &[], &[]).unwrap();
-    // assert_eq!(spdp_discovered_participant_data, result[0]);
+    assert_eq!(result[0].participant_proxy.domain_id, 1);
+    assert_eq!(result[0].participant_proxy.domain_tag, "ab");
 }
 
 #[test]
