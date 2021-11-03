@@ -1,6 +1,6 @@
 use std::{
     ops::{Deref, DerefMut},
-    sync::{mpsc::SyncSender, Arc, Mutex},
+    sync::{mpsc::SyncSender, Arc, Mutex, RwLock},
     time::Instant,
 };
 
@@ -20,14 +20,17 @@ use rust_rtps_pim::{
     },
     messages::types::Count,
     structure::{
-        types::{ChangeKind, Locator},
+        types::{ChangeKind, GuidPrefix, Locator},
         RtpsHistoryCacheOperations,
     },
 };
 use rust_rtps_psm::{
     messages::{
         overall_structure::RtpsSubmessageTypeWrite,
-        submessages::{DataSubmessageWrite, GapSubmessageWrite, HeartbeatSubmessageWrite},
+        submessages::{
+            AckNackSubmessageRead, DataSubmessageWrite, GapSubmessageWrite,
+            HeartbeatSubmessageWrite,
+        },
     },
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
@@ -36,6 +39,7 @@ use rust_rtps_psm::{
 use crate::{
     dds_type::{BigEndian, DdsSerialize},
     rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
+    utils::message_receiver::ProcessAckNackSubmessage,
 };
 
 pub enum RtpsWriterFlavor {
@@ -108,12 +112,13 @@ impl DerefMut for RtpsWriterFlavor {
     }
 }
 
-pub struct DataWriterImpl {
+pub struct DataWriterImpl<T> {
     _qos: DataWriterQos,
     pub rtps_writer_impl: Arc<Mutex<RtpsWriterFlavor>>,
+    _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
 }
 
-impl DataWriterImpl {
+impl<T> DataWriterImpl<T> {
     fn send_change(&mut self) {
         let mut rtps_writer_impl_lock = self.rtps_writer_impl.lock().unwrap();
         match &mut *rtps_writer_impl_lock {
@@ -202,7 +207,7 @@ impl DataWriterImpl {
     }
 }
 
-impl DataWriterImpl {
+impl<T> DataWriterImpl<T> {
     pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor) -> Self {
         let rtps_writer_flavor = Arc::new(Mutex::new(rtps_writer_impl));
         let rtps_writer_flavor_thread = rtps_writer_flavor.clone();
@@ -250,11 +255,12 @@ impl DataWriterImpl {
         Self {
             _qos: qos,
             rtps_writer_impl: rtps_writer_flavor,
+            _listener: None,
         }
     }
 }
 
-impl<T> DataWriter<T> for DataWriterImpl
+impl<T> DataWriter<T> for DataWriterImpl<T>
 where
     T: DdsSerialize,
 {
@@ -295,13 +301,13 @@ where
         todo!()
     }
 
-    fn write(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, _data: &T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn write_w_timestamp(
         &mut self,
-        data: T,
+        data: &T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
@@ -395,9 +401,9 @@ where
     }
 }
 
-impl Entity for DataWriterImpl {
+impl<T> Entity for DataWriterImpl<T> {
     type Qos = DataWriterQos;
-    type Listener = &'static dyn DataWriterListener<DataPIM = ()>;
+    type Listener = Box<dyn DataWriterListener<DataType = T>>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // let qos = qos.unwrap_or_default();
@@ -439,6 +445,16 @@ impl Entity for DataWriterImpl {
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+        todo!()
+    }
+}
+
+impl<T> ProcessAckNackSubmessage for RwLock<DataWriterImpl<T>> {
+    fn process_acknack_submessage(
+        &self,
+        _source_guid_prefix: GuidPrefix,
+        _acknack: &AckNackSubmessageRead,
+    ) {
         todo!()
     }
 }
@@ -710,14 +726,14 @@ mod tests {
 
     #[test]
     fn write_w_timestamp() {
-        struct MockData<'a>(&'a [u8]);
+        struct MockData(Vec<u8>);
 
-        impl DdsSerialize for MockData<'_> {
+        impl DdsSerialize for MockData {
             fn serialize<W: std::io::Write, R: crate::dds_type::Endianness>(
                 &self,
                 mut writer: W,
             ) -> DDSResult<()> {
-                writer.write(self.0).unwrap();
+                writer.write(&self.0).unwrap();
                 Ok(())
             }
         }
@@ -758,10 +774,10 @@ mod tests {
             RtpsWriterFlavor::new_stateless(rtps_stateless_writer, locator_message_sender);
         let mut data_writer_impl = DataWriterImpl::new(DataWriterQos::default(), rtps_writer);
 
-        let data_value = [0, 1, 0, 0, 7, 3];
+        let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
         data_writer_impl
             .write_w_timestamp(
-                MockData(&data_value),
+                &data_value,
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )

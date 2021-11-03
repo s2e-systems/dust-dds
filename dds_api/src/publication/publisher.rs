@@ -15,7 +15,7 @@ pub trait DataWriterGAT<'dw, 't, T>: Publisher {
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
+        a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>;
 
@@ -59,7 +59,7 @@ pub trait Publisher {
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener<DataPIM = T>>,
+        a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>
     where

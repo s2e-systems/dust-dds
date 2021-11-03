@@ -85,14 +85,14 @@ where
         todo!()
     }
 
-    fn write(&mut self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, data: &T, handle: Option<InstanceHandle>) -> DDSResult<()> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.write_w_timestamp(data, handle, timestamp)
     }
 
     fn write_w_timestamp(
         &mut self,
-        data: T,
+        data: &T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
