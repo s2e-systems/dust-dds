@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use rust_rtps_pim::{
     behavior::{reader::stateless_reader::RtpsStatelessReader, types::Duration},
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, Locator, ReliabilityKind, TopicKind},
     },
 };
@@ -22,7 +22,7 @@ impl<C> RtpsStatelessReaderImpl<C> {
         expects_inline_qos: bool,
     ) -> Self
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         Self(RtpsStatelessReader::new(
             guid,

@@ -15,7 +15,7 @@ use crate::{
         types::Count,
     },
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
         types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN},
     },
 };
@@ -47,7 +47,7 @@ impl<L, C, R> DerefMut for RtpsStatefulWriter<L, C, R> {
 impl<L, C, R> RtpsStatefulWriter<L, C, R>
 where
     R: Default,
-    C: for<'a> RtpsHistoryCacheOperations<'a>,
+    C: RtpsHistoryCacheConstructor,
 {
     pub fn new(
         guid: Guid,

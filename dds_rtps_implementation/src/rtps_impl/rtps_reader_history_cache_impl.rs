@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
     structure::{
         cache_change::RtpsCacheChange,
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
@@ -33,13 +33,7 @@ impl ReaderHistoryCache {
     }
 }
 
-impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
-    type AddChangeDataType = &'a [u8];
-    type GetChangeDataType = &'a [u8];
-
-    type AddChangeParameterType = &'a [Parameter<&'a [u8]>];
-    type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
-
+impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
     fn new() -> Self
     where
         Self: Sized,
@@ -49,6 +43,14 @@ impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
             source_timestamp: None,
         }
     }
+}
+
+impl<'a> RtpsHistoryCacheOperations<'a> for ReaderHistoryCache {
+    type AddChangeDataType = &'a [u8];
+    type GetChangeDataType = &'a [u8];
+
+    type AddChangeParameterType = &'a [Parameter<&'a [u8]>];
+    type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
 
     fn add_change(
         &mut self,

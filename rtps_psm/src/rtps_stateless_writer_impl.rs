@@ -9,7 +9,7 @@ use rust_rtps_pim::{
         },
     },
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, Locator, ReliabilityKind, TopicKind},
     },
 };
@@ -34,7 +34,7 @@ impl<C> RtpsStatelessWriterImpl<C> {
         data_max_size_serialized: Option<i32>,
     ) -> Self
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         Self(RtpsStatelessWriter::new(
             guid,
@@ -86,12 +86,24 @@ impl<C> RtpsStatelessWriterOperations for RtpsStatelessWriterImpl<C> {
 mod tests {
     use rust_rtps_pim::{
         behavior::types::DURATION_ZERO,
-        structure::{cache_change::RtpsCacheChange, types::GUID_UNKNOWN},
+        structure::{
+            cache_change::RtpsCacheChange, history_cache::RtpsHistoryCacheOperations,
+            types::GUID_UNKNOWN,
+        },
     };
 
     use super::*;
 
     struct MockHistoryCache;
+
+    impl RtpsHistoryCacheConstructor for MockHistoryCache {
+        fn new() -> Self
+        where
+            Self: Sized,
+        {
+            Self
+        }
+    }
 
     impl RtpsHistoryCacheOperations<'_> for MockHistoryCache {
         type AddChangeDataType = ();
@@ -101,13 +113,6 @@ mod tests {
         type AddChangeParameterType = ();
 
         type GetChangeParameterType = ();
-
-        fn new() -> Self
-        where
-            Self: Sized,
-        {
-            Self
-        }
 
         fn add_change(
             &mut self,

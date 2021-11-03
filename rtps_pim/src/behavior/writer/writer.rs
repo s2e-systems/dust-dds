@@ -5,7 +5,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChange,
         endpoint::RtpsEndpoint,
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
         types::{ChangeKind, Guid, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind},
     },
 };
@@ -49,7 +49,7 @@ impl<L, C> RtpsWriter<L, C> {
         data_max_size_serialized: Option<i32>,
     ) -> Self
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         Self {
             endpoint: RtpsEndpoint::new(

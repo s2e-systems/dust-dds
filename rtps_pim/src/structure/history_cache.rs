@@ -1,15 +1,17 @@
 use super::{cache_change::RtpsCacheChange, types::SequenceNumber};
 
+pub trait RtpsHistoryCacheConstructor {
+    /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
+    fn new() -> Self
+    where
+        Self: Sized;
+}
+
 pub trait RtpsHistoryCacheOperations<'a> {
     type AddChangeDataType;
     type GetChangeDataType;
     type AddChangeParameterType;
     type GetChangeParameterType;
-
-    /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
-    fn new() -> Self
-    where
-        Self: Sized;
 
     /// This operation inserts the CacheChange a_change into the HistoryCache.
     /// This operation will only fail if there are not enough resources to add the change to the HistoryCache. It is the responsibility

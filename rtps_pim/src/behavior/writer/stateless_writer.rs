@@ -14,7 +14,7 @@ use crate::{
         submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
         types::{
             ChangeKind, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN,
         },
@@ -48,7 +48,7 @@ impl<L, C, R> DerefMut for RtpsStatelessWriter<L, C, R> {
 impl<L, C, R> RtpsStatelessWriter<L, C, R>
 where
     R: Default,
-    C: for<'a> RtpsHistoryCacheOperations<'a>,
+    C: RtpsHistoryCacheConstructor,
 {
     pub fn new(
         guid: Guid,

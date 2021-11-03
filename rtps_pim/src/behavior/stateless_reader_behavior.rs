@@ -57,9 +57,12 @@ mod tests {
             EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
         },
-        structure::types::{
-            EntityId, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind,
-            BUILT_IN_WRITER_WITH_KEY, GUIDPREFIX_UNKNOWN,
+        structure::{
+            history_cache::RtpsHistoryCacheConstructor,
+            types::{
+                EntityId, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind,
+                BUILT_IN_WRITER_WITH_KEY, GUIDPREFIX_UNKNOWN,
+            },
         },
     };
 
@@ -76,19 +79,21 @@ mod tests {
 
     struct MockHistoryCache(Option<MockCacheChange>);
 
-    impl<'a> RtpsHistoryCacheOperations<'a> for MockHistoryCache {
-        type AddChangeDataType = &'a [u8];
-        type GetChangeDataType = &'a [u8];
-
-        type AddChangeParameterType = &'a [Parameter<&'a [u8]>];
-        type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
-
+    impl RtpsHistoryCacheConstructor for MockHistoryCache {
         fn new() -> Self
         where
             Self: Sized,
         {
             MockHistoryCache(None)
         }
+    }
+
+    impl<'a> RtpsHistoryCacheOperations<'a> for MockHistoryCache {
+        type AddChangeDataType = &'a [u8];
+        type GetChangeDataType = &'a [u8];
+
+        type AddChangeParameterType = &'a [Parameter<&'a [u8]>];
+        type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
 
         fn add_change(
             &mut self,
