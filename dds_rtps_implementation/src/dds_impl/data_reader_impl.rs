@@ -98,14 +98,14 @@ impl<T> DataReaderImpl<T> {
 //     })
 //     .collect())
 
-impl<T> DataReader<T> for DataReaderImpl<T>
+impl<'a, T> DataReader<'a, T> for DataReaderImpl<T>
 where
     T: for<'de> DdsDeserialize<'de>,
 {
     type Samples = Vec<T>;
 
     fn read(
-        &self,
+        &'a self,
         _max_samples: i32,
         _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],

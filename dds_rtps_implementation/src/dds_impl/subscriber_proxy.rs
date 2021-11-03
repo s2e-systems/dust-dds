@@ -49,7 +49,7 @@ impl<'dr, 's, 't, T, S, DR, I> DataReaderGAT<'dr, 't, T> for SubscriberProxy<'s,
 where
     T: 't + 'dr,
     I: TopicDescription<T> + 't,
-    DR: DataReader<T>,
+    DR: DataReader<'dr, T>,
     S: for<'a, 'b> DataReaderGAT<'a, 'b, T, TopicType = RtpsWeak<I>, DataReaderType = RtpsWeak<DR>>,
 {
     type TopicType = TopicProxy<'t, T, I>;

@@ -46,25 +46,26 @@ impl<'dr, T, DR> DataReaderProxy<'dr, T, DR> {
     }
 }
 
-impl<'dr, T, DR> DataReader<T> for DataReaderProxy<'dr, T, DR>
+impl<'dr, T, DR> DataReader<'dr, T> for DataReaderProxy<'dr, T, DR>
 where
-    DR: DataReader<T>,
+    DR: DataReader<'dr, T>,
 {
     type Samples = DR::Samples;
 
     fn read(
-        &self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        &'dr self,
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).read(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        todo!("Return Loaned Samples with the lock")
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).read(
+        //     max_samples,
+        //     sample_states,
+        //     view_states,
+        //     instance_states,
+        // )
     }
 
     fn take(
