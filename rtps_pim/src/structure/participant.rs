@@ -1,8 +1,8 @@
 use core::ops::{Deref, DerefMut};
 
 use super::{
+    entity::RtpsEntity,
     types::{Guid, ProtocolVersion, VendorId},
-    RtpsEntity,
 };
 
 pub struct RtpsParticipant<L> {

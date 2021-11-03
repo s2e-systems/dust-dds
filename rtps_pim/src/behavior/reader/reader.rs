@@ -3,8 +3,9 @@ use core::ops::{Deref, DerefMut};
 use crate::{
     behavior::types::Duration,
     structure::{
+        endpoint::RtpsEndpoint,
+        history_cache::RtpsHistoryCacheOperations,
         types::{Guid, ReliabilityKind, TopicKind},
-        RtpsEndpoint, RtpsHistoryCacheOperations,
     },
 };
 

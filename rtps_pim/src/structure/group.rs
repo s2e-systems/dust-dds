@@ -1,6 +1,6 @@
 use core::ops::{Deref, DerefMut};
 
-use super::{types::Guid, RtpsEntity};
+use super::{entity::RtpsEntity, types::Guid};
 
 pub struct RtpsGroup {
     entity: RtpsEntity,

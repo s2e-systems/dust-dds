@@ -1,8 +1,8 @@
 use core::ops::{Deref, DerefMut};
 
 use super::{
+    entity::RtpsEntity,
     types::{Guid, ReliabilityKind, TopicKind},
-    RtpsEntity,
 };
 
 pub struct RtpsEndpoint<L> {

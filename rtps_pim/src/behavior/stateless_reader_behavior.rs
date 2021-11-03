@@ -1,8 +1,9 @@
 use crate::{
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
+        cache_change::RtpsCacheChange,
+        history_cache::RtpsHistoryCacheOperations,
         types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
-        RtpsCacheChange, RtpsHistoryCacheOperations,
     },
 };
 

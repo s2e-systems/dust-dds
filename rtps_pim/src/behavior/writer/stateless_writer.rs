@@ -14,10 +14,10 @@ use crate::{
         submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
+        history_cache::RtpsHistoryCacheOperations,
         types::{
             ChangeKind, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN,
         },
-        RtpsHistoryCacheOperations,
     },
 };
 

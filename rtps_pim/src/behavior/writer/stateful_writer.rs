@@ -15,8 +15,8 @@ use crate::{
         types::Count,
     },
     structure::{
+        history_cache::RtpsHistoryCacheOperations,
         types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN},
-        RtpsHistoryCacheOperations,
     },
 };
 
