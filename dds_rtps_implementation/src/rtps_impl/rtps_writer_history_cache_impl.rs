@@ -33,8 +33,6 @@ impl WriterHistoryCache {
 
 impl RtpsHistoryCacheConstructor for WriterHistoryCache {
     fn new() -> Self
-    where
-        Self: Sized,
     {
         Self {
             changes: Vec::new(),

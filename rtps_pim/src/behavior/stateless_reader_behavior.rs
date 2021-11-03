@@ -81,8 +81,6 @@ mod tests {
 
     impl RtpsHistoryCacheConstructor for MockHistoryCache {
         fn new() -> Self
-        where
-            Self: Sized,
         {
             MockHistoryCache(None)
         }

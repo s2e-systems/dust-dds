@@ -35,8 +35,6 @@ impl ReaderHistoryCache {
 
 impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
     fn new() -> Self
-    where
-        Self: Sized,
     {
         Self {
             changes: Vec::new(),

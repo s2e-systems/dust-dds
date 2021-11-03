@@ -84,63 +84,18 @@ impl<C> RtpsStatelessWriterOperations for RtpsStatelessWriterImpl<C> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::{
-        behavior::types::DURATION_ZERO,
-        structure::{
-            cache_change::RtpsCacheChange, history_cache::RtpsHistoryCacheOperations,
-            types::GUID_UNKNOWN,
-        },
-    };
+    use rust_rtps_pim::{behavior::types::DURATION_ZERO, structure::types::GUID_UNKNOWN};
 
     use super::*;
 
     struct MockHistoryCache;
 
     impl RtpsHistoryCacheConstructor for MockHistoryCache {
-        fn new() -> Self
-        where
-            Self: Sized,
-        {
+        fn new() -> Self {
             Self
         }
     }
 
-    impl RtpsHistoryCacheOperations<'_> for MockHistoryCache {
-        type AddChangeDataType = ();
-
-        type GetChangeDataType = ();
-
-        type AddChangeParameterType = ();
-
-        type GetChangeParameterType = ();
-
-        fn add_change(
-            &mut self,
-            _change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>,
-        ) {
-            todo!()
-        }
-
-        fn remove_change(&mut self, _seq_num: &rust_rtps_pim::structure::types::SequenceNumber) {
-            todo!()
-        }
-
-        fn get_change(
-            &'_ self,
-            _seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
-        ) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>>
-        {
-            todo!()
-        }
-
-        fn get_seq_num_min(&self) -> Option<rust_rtps_pim::structure::types::SequenceNumber> {
-            todo!()
-        }
-
-        fn get_seq_num_max(&self) -> Option<rust_rtps_pim::structure::types::SequenceNumber> {
-            todo!()
-        }
-    }
     #[test]
     fn reader_locator_add() {
         let mut rtps_stateless_writer_impl: RtpsStatelessWriterImpl<MockHistoryCache> =
