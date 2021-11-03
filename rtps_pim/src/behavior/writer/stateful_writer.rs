@@ -105,8 +105,10 @@ where
         S: FromIterator<SequenceNumber>,
         C: for<'a> RtpsHistoryCacheGetChange<'a, P, D>,
     {
+        let last_change_sequence_number = self.writer.last_change_sequence_number;
         for reader_proxy in &mut self.matched_readers {
-            while let Some(seq_num) = reader_proxy.next_unsent_change() {
+            while let Some(seq_num) = reader_proxy.next_unsent_change(&last_change_sequence_number)
+            {
                 if let Some(change) = self.writer.writer_cache.get_change(&seq_num) {
                     let endianness_flag = true;
                     let inline_qos_flag = true;
@@ -212,7 +214,10 @@ where
         for reader_proxy in &mut self.matched_readers {
             if reader_proxy.remote_reader_guid.entity_id == acknack.reader_id.value {
                 reader_proxy.acked_changes_set(acknack.reader_sn_state.base - 1);
-                reader_proxy.requested_changes_set(acknack.reader_sn_state.set);
+                reader_proxy.requested_changes_set(
+                    acknack.reader_sn_state.set,
+                    &self.writer.last_change_sequence_number,
+                );
                 break;
             }
         }

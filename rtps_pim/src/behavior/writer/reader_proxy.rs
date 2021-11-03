@@ -31,9 +31,22 @@ pub trait RtpsReaderProxyOperations {
 
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber);
     fn next_requested_change(&mut self) -> Option<SequenceNumber>;
-    fn next_unsent_change(&mut self) -> Option<SequenceNumber>;
-    fn unsent_changes(&self) -> Self::SequenceNumberVector;
+    fn next_unsent_change(
+        &mut self,
+        last_change_sequence_number: &SequenceNumber,
+    ) -> Option<SequenceNumber>;
+    fn unsent_changes(
+        &self,
+        last_change_sequence_number: &SequenceNumber,
+    ) -> Self::SequenceNumberVector;
     fn requested_changes(&self) -> Self::SequenceNumberVector;
-    fn requested_changes_set(&mut self, req_seq_num_set: Self::SequenceNumberVector);
-    fn unacked_changes(&self) -> Self::SequenceNumberVector;
+    fn requested_changes_set(
+        &mut self,
+        req_seq_num_set: Self::SequenceNumberVector,
+        last_change_sequence_number: &SequenceNumber,
+    );
+    fn unacked_changes(
+        &self,
+        last_change_sequence_number: &SequenceNumber,
+    ) -> Self::SequenceNumberVector;
 }
