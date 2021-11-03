@@ -1,11 +1,11 @@
 use rust_rtps_pim::{
     behavior::types::{Duration, DURATION_ZERO},
     structure::{
+        history_cache::RtpsHistoryCacheOperations,
         types::{
             EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
             BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY,
         },
-        RtpsHistoryCacheOperations,
     },
 };
 

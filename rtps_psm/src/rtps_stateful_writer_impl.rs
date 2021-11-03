@@ -9,8 +9,8 @@ use rust_rtps_pim::{
         },
     },
     structure::{
+        history_cache::RtpsHistoryCacheOperations,
         types::{Guid, Locator, ReliabilityKind, TopicKind},
-        RtpsHistoryCacheOperations,
     },
 };
 

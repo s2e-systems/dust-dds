@@ -2,8 +2,9 @@ use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
     structure::{
+        cache_change::RtpsCacheChange,
+        history_cache::RtpsHistoryCacheOperations,
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
-        RtpsCacheChange, RtpsHistoryCacheOperations,
     },
 };
 

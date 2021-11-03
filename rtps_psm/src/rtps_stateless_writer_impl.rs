@@ -9,8 +9,8 @@ use rust_rtps_pim::{
         },
     },
     structure::{
+        history_cache::RtpsHistoryCacheOperations,
         types::{Guid, Locator, ReliabilityKind, TopicKind},
-        RtpsHistoryCacheOperations,
     },
 };
 
@@ -84,7 +84,10 @@ impl<C> RtpsStatelessWriterOperations for RtpsStatelessWriterImpl<C> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::{behavior::types::DURATION_ZERO, structure::types::GUID_UNKNOWN};
+    use rust_rtps_pim::{
+        behavior::types::DURATION_ZERO,
+        structure::{cache_change::RtpsCacheChange, types::GUID_UNKNOWN},
+    };
 
     use super::*;
 
@@ -108,10 +111,7 @@ mod tests {
 
         fn add_change(
             &mut self,
-            _change: rust_rtps_pim::structure::RtpsCacheChange<
-                Self::AddChangeParameterType,
-                Self::AddChangeDataType,
-            >,
+            _change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>,
         ) {
             todo!()
         }
@@ -123,12 +123,8 @@ mod tests {
         fn get_change(
             &'_ self,
             _seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
-        ) -> Option<
-            rust_rtps_pim::structure::RtpsCacheChange<
-                Self::GetChangeParameterType,
-                Self::GetChangeDataType,
-            >,
-        > {
+        ) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>>
+        {
             todo!()
         }
 

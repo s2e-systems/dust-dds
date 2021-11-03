@@ -32,11 +32,11 @@ use rust_rtps_pim::{
         reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
     },
     structure::{
+        group::RtpsGroup,
         types::{
             EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
             BUILT_IN_WRITER_GROUP,
         },
-        RtpsGroup,
     },
 };
 use rust_rtps_psm::discovery::{

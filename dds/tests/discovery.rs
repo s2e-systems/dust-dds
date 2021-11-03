@@ -1,7 +1,4 @@
-use std::{
-    net::UdpSocket,
-    sync::{mpsc::sync_channel},
-};
+use std::{net::UdpSocket, sync::mpsc::sync_channel};
 
 use rust_dds::{
     infrastructure::qos::{DataReaderQos, SubscriberQos},
@@ -35,7 +32,7 @@ use rust_dds_rtps_implementation::{
     },
     utils::{
         message_receiver::MessageReceiver,
-        shared_object::{rtps_shared_new, rtps_shared_read_lock,},
+        shared_object::{rtps_shared_new, rtps_shared_read_lock},
         transport::{TransportRead, TransportWrite},
     },
 };
@@ -48,11 +45,11 @@ use rust_rtps_pim::{
     },
     messages::{overall_structure::RtpsMessageHeader, types::Count},
     structure::{
+        group::RtpsGroup,
         types::{
             EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
             BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, PROTOCOLVERSION_2_4,
         },
-        RtpsGroup,
     },
 };
 use rust_rtps_psm::{

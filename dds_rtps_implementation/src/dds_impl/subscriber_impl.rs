@@ -18,11 +18,11 @@ use rust_dds_api::{
     },
 };
 use rust_rtps_pim::structure::{
+    group::RtpsGroup,
     types::{
         EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
         USER_DEFINED_WRITER_WITH_KEY,
     },
-    RtpsGroup,
 };
 use rust_rtps_psm::{
     messages::submessages::DataSubmessageRead, rtps_stateless_reader_impl::RtpsStatelessReaderImpl,

@@ -3,8 +3,8 @@ use std::ops::{Deref, DerefMut};
 use rust_rtps_pim::{
     behavior::{reader::stateless_reader::RtpsStatelessReader, types::Duration},
     structure::{
+        history_cache::RtpsHistoryCacheOperations,
         types::{Guid, Locator, ReliabilityKind, TopicKind},
-        RtpsHistoryCacheOperations,
     },
 };
 

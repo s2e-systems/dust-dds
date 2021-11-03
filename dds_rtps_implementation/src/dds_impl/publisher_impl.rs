@@ -22,11 +22,11 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::structure::{
+    group::RtpsGroup,
     types::{
         EntityId, Guid, Locator, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
         USER_DEFINED_WRITER_WITH_KEY,
     },
-    RtpsGroup,
 };
 use rust_rtps_psm::{
     messages::overall_structure::RtpsSubmessageTypeWrite,

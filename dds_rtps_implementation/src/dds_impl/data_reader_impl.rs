@@ -1,11 +1,17 @@
 use std::{ops::Deref, sync::RwLock};
 
-use rust_dds_api::{dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus}, infrastructure::{entity::Entity, qos::DataReaderQos}, return_type::{DDSError, DDSResult}, subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener}, topic::topic_description::TopicDescription};
+use rust_dds_api::{
+    dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
+    infrastructure::{entity::Entity, qos::DataReaderQos},
+    return_type::{DDSError, DDSResult},
+    subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
+    topic::topic_description::TopicDescription,
+};
 use rust_rtps_pim::{
     behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
     structure::{
+        history_cache::RtpsHistoryCacheOperations,
         types::{GuidPrefix, Locator},
-        RtpsHistoryCacheOperations,
     },
 };
 use rust_rtps_psm::{

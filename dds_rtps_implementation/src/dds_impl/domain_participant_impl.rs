@@ -23,11 +23,11 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     messages::overall_structure::RtpsMessageHeader,
     structure::{
+        group::RtpsGroup,
         types::{
             EntityId, Guid, GuidPrefix, Locator, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP,
             VENDOR_ID_S2E,
         },
-        RtpsGroup,
     },
 };
 use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
@@ -556,10 +556,7 @@ impl Entity for DomainParticipantImpl {
 mod tests {
     use super::*;
     use rust_dds_api::return_type::DDSError;
-    use rust_rtps_pim::structure::{
-        types::{Locator, GUID_UNKNOWN},
-        RtpsGroup,
-    };
+    use rust_rtps_pim::structure::types::{Locator, GUID_UNKNOWN};
     use rust_rtps_psm::messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite};
 
     struct MockTransport;
