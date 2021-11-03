@@ -377,68 +377,60 @@ fn process_discovery_data_happy_path() {
         let sedp_builtin_publications_data_writer = publisher
             .lookup_datawriter::<SedpDiscoveredWriterData>(&())
             .unwrap();
+        let mut sedp_builtin_publications_data_writer_lock =
+            sedp_builtin_publications_data_writer.write().unwrap();
+        if let RtpsWriterFlavor::Stateful {
+            stateful_writer, ..
+        } = &mut sedp_builtin_publications_data_writer_lock.rtps_writer_impl
         {
-            let sedp_builtin_publications_data_writer_lock =
-                sedp_builtin_publications_data_writer.write().unwrap();
-            let mut sedp_builtin_publications_data_writer_lock =
-                sedp_builtin_publications_data_writer_lock
-                    .rtps_writer_impl
-                    .lock()
-                    .unwrap();
-            if let RtpsWriterFlavor::Stateful {
-                stateful_writer, ..
-            } = &mut *sedp_builtin_publications_data_writer_lock
-            {
-                participant_discovery
-                    .discovered_participant_add_publications_writer(stateful_writer);
-            }
+            participant_discovery.discovered_participant_add_publications_writer(
+                &mut *stateful_writer.lock().unwrap(),
+            );
         }
-        // let sedp_discovered_writer_data = SedpDiscoveredWriterData {
-        //     writer_proxy: RtpsWriterProxy {
-        //         remote_writer_guid: Guid::new(
-        //             GuidPrefix([1; 12]),
-        //             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-        //         ),
-        //         unicast_locator_list: vec![],
-        //         multicast_locator_list: vec![],
-        //         data_max_size_serialized: None,
-        //         remote_group_entity_id: EntityId::new([0; 3], 0),
-        //     },
-        //     publication_builtin_topic_data: PublicationBuiltinTopicData {
-        //         key: BuiltInTopicKey { value: [1; 3] },
-        //         participant_key: BuiltInTopicKey { value: [1; 3] },
-        //         topic_name: "MyTopic".to_string(),
-        //         type_name: "MyType".to_string(),
-        //         durability: DurabilityQosPolicy::default(),
-        //         durability_service: DurabilityServiceQosPolicy::default(),
-        //         deadline: DeadlineQosPolicy::default(),
-        //         latency_budget: LatencyBudgetQosPolicy::default(),
-        //         liveliness: LivelinessQosPolicy::default(),
-        //         reliability: ReliabilityQosPolicy {
-        //             kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-        //             max_blocking_time: Duration::new(0, 0),
-        //         },
-        //         lifespan: LifespanQosPolicy::default(),
-        //         user_data: UserDataQosPolicy::default(),
-        //         ownership: OwnershipQosPolicy::default(),
-        //         ownership_strength: OwnershipStrengthQosPolicy::default(),
-        //         destination_order: DestinationOrderQosPolicy::default(),
-        //         presentation: PresentationQosPolicy::default(),
-        //         partition: PartitionQosPolicy::default(),
-        //         topic_data: TopicDataQosPolicy::default(),
-        //         group_data: GroupDataQosPolicy::default(),
-        //     },
-        // };
+        let sedp_discovered_writer_data = SedpDiscoveredWriterData {
+            writer_proxy: RtpsWriterProxy {
+                remote_writer_guid: Guid::new(
+                    GuidPrefix([1; 12]),
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: None,
+                remote_group_entity_id: EntityId::new([0; 3], 0),
+            },
+            publication_builtin_topic_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey { value: [1; 3] },
+                participant_key: BuiltInTopicKey { value: [1; 3] },
+                topic_name: "MyTopic".to_string(),
+                type_name: "MyType".to_string(),
+                durability: DurabilityQosPolicy::default(),
+                durability_service: DurabilityServiceQosPolicy::default(),
+                deadline: DeadlineQosPolicy::default(),
+                latency_budget: LatencyBudgetQosPolicy::default(),
+                liveliness: LivelinessQosPolicy::default(),
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: Duration::new(0, 0),
+                },
+                lifespan: LifespanQosPolicy::default(),
+                user_data: UserDataQosPolicy::default(),
+                ownership: OwnershipQosPolicy::default(),
+                ownership_strength: OwnershipStrengthQosPolicy::default(),
+                destination_order: DestinationOrderQosPolicy::default(),
+                presentation: PresentationQosPolicy::default(),
+                partition: PartitionQosPolicy::default(),
+                topic_data: TopicDataQosPolicy::default(),
+                group_data: GroupDataQosPolicy::default(),
+            },
+        };
 
-        // sedp_builtin_publications_data_writer
-        //     .write()
-        //     .unwrap()
-        //     .write_w_timestamp(
-        //         sedp_discovered_writer_data,
-        //         None,
-        //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-        //     )
-        //     .unwrap();
+        sedp_builtin_publications_data_writer_lock
+            .write_w_timestamp(
+                sedp_discovered_writer_data,
+                None,
+                rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
     }
 
     assert_eq!(
