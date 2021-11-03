@@ -1,8 +1,4 @@
-use std::{
-    ops::{Deref, DerefMut},
-    sync::{mpsc::SyncSender, Arc, Mutex, MutexGuard, RwLock},
-    time::Instant,
-};
+use std::sync::{mpsc::SyncSender, Arc, Mutex, RwLock};
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -14,10 +10,7 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 use rust_rtps_pim::{
-    behavior::writer::{
-        stateless_writer::StatelessWriterBehavior,
-        writer::{RtpsWriter, RtpsWriterOperations},
-    },
+    behavior::writer::{stateless_writer::StatelessWriterBehavior, writer::RtpsWriterOperations},
     messages::types::Count,
     structure::{
         history_cache::RtpsHistoryCacheAddChange,
@@ -53,7 +46,10 @@ pub enum RtpsWriterFlavor<T> {
     },
 }
 
-impl<T> RtpsWriterFlavor<T> {
+impl<T> RtpsWriterFlavor<T>
+where
+    T: Send + 'static,
+{
     pub fn new_stateful(
         stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache<T>>,
         locator_list_message_sender: SyncSender<(
@@ -62,8 +58,48 @@ impl<T> RtpsWriterFlavor<T> {
             Vec<RtpsSubmessageTypeWrite>,
         )>,
     ) -> Self {
+        let stateful_writer = Arc::new(Mutex::new(stateful_writer));
+        let stateful_writer_shared = stateful_writer.clone();
+        let locator_list_message_sender_shared = locator_list_message_sender.clone();
+        std::thread::spawn(move || {
+            let mut heartbeat_count = Count(1);
+            let heartbeat_period = stateful_writer_shared.lock().unwrap().heartbeat_period;
+            let heartbeat_period_duration = std::time::Duration::new(
+                heartbeat_period.seconds as u64,
+                heartbeat_period.fraction,
+            );
+            while true {
+                stateful_writer_shared.lock().unwrap().send_heartbeat(
+                    heartbeat_count,
+                    |reader_proxy, heartbeat| {
+                        locator_list_message_sender_shared
+                            .send((
+                                reader_proxy.unicast_locator_list.clone(),
+                                reader_proxy.multicast_locator_list.clone(),
+                                vec![RtpsSubmessageTypeWrite::Heartbeat(
+                                    HeartbeatSubmessageWrite::new(
+                                        heartbeat.endianness_flag,
+                                        heartbeat.final_flag,
+                                        heartbeat.liveliness_flag,
+                                        heartbeat.reader_id,
+                                        heartbeat.writer_id,
+                                        heartbeat.first_sn,
+                                        heartbeat.last_sn,
+                                        heartbeat.count,
+                                    ),
+                                )],
+                            ))
+                            .unwrap();
+                    },
+                );
+                heartbeat_count += Count(1);
+
+                std::thread::sleep(heartbeat_period_duration);
+            }
+        });
+
         RtpsWriterFlavor::Stateful {
-            stateful_writer: Arc::new(Mutex::new(stateful_writer)),
+            stateful_writer,
             locator_list_message_sender,
         }
     }
@@ -94,7 +130,6 @@ where
             RtpsWriterFlavor::Stateful {
                 stateful_writer,
                 locator_list_message_sender,
-                ..
             } => stateful_writer.lock().unwrap().send_unsent_data(
                 |reader_proxy, data| {
                     locator_list_message_sender
@@ -181,52 +216,6 @@ where
     T: Send + 'static,
 {
     pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor<T>) -> Self {
-        // let rtps_writer_flavor = Arc::new(Mutex::new(rtps_writer_impl));
-        // let rtps_writer_flavor_thread = rtps_writer_flavor.clone();
-
-        // std::thread::spawn(move || {
-        //     let mut heartbeat_count = Count(1);
-        //     let rtps_writer_flavor_lock = rtps_writer_flavor_thread.lock().unwrap();
-        //     let heartbeat_period_duration = std::time::Duration::new(
-        //         rtps_writer_flavor_lock.heartbeat_period.seconds as u64,
-        //         rtps_writer_flavor_lock.heartbeat_period.fraction,
-        //     );
-        //     std::mem::drop(rtps_writer_flavor_lock);
-        //     loop {
-        //         let mut rtps_writer_flavor_lock = rtps_writer_flavor_thread.lock().unwrap();
-        //         if let RtpsWriterFlavor::Stateful {
-        //             stateful_writer,
-        //             locator_list_message_sender,
-        //             ..
-        //         } = &mut *rtps_writer_flavor_lock
-        //         {
-        //             stateful_writer.send_heartbeat(heartbeat_count, |reader_proxy, heartbeat| {
-        //                 locator_list_message_sender
-        //                     .send((
-        //                         reader_proxy.unicast_locator_list.clone(),
-        //                         reader_proxy.multicast_locator_list.clone(),
-        //                         vec![RtpsSubmessageTypeWrite::Heartbeat(
-        //                             HeartbeatSubmessageWrite::new(
-        //                                 heartbeat.endianness_flag,
-        //                                 heartbeat.final_flag,
-        //                                 heartbeat.liveliness_flag,
-        //                                 heartbeat.reader_id,
-        //                                 heartbeat.writer_id,
-        //                                 heartbeat.first_sn,
-        //                                 heartbeat.last_sn,
-        //                                 heartbeat.count,
-        //                             ),
-        //                         )],
-        //                     ))
-        //                     .unwrap();
-        //             });
-        //             heartbeat_count += Count(1);
-        //         }
-        //         std::mem::drop(rtps_writer_flavor_lock);
-        //         std::thread::sleep(heartbeat_period_duration);
-        //     }
-        // });
-
         Self {
             _qos: qos,
             rtps_writer_impl,

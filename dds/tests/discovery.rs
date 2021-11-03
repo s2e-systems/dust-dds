@@ -477,6 +477,6 @@ fn process_discovery_data_happy_path() {
             transport.write(&message, &dst_unicast_locator[0]);
         };
 
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(200));
     }
 }
