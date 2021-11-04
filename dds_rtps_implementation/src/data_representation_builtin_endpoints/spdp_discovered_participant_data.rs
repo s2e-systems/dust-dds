@@ -1,6 +1,4 @@
-use rust_dds_api::{
-    builtin_topics::ParticipantBuiltinTopicData, infrastructure::qos_policy::UserDataQosPolicy,
-};
+use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
 use rust_rtps_pim::{
     behavior::types::Duration,
     structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
@@ -22,7 +20,7 @@ use super::{
         BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
         BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
         CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
-        DurationSerdeSerialize, GuidPrefixDef, GuidSerdeDeserialize, GuidSerdeSerialize,
+        DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize,
         LocatorSerdeDeserialize, LocatorSerdeSerialize, ProtocolVersionSerdeDeserialize,
         ProtocolVersionSerdeSerialize, UserDataQosPolicySerdeDeserialize,
         UserDataQosPolicySerdeSerialize,
@@ -183,6 +181,37 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
     }
 }
 
+fn convert_guid_to_built_in_topic_key(guid: &Guid) -> BuiltInTopicKey {
+    let mut value0 = [0_u8; 4];
+    let mut value1 = [0_u8; 4];
+    let mut value2 = [0_u8; 4];
+    let mut value3 = [0_u8; 4];
+    value0[0] = guid.prefix.0[0];
+    value0[1] = guid.prefix.0[1];
+    value0[2] = guid.prefix.0[2];
+    value0[3] = guid.prefix.0[3];
+    value1[0] = guid.prefix.0[4];
+    value1[1] = guid.prefix.0[5];
+    value1[2] = guid.prefix.0[6];
+    value1[3] = guid.prefix.0[7];
+    value2[0] = guid.prefix.0[8];
+    value2[1] = guid.prefix.0[9];
+    value2[2] = guid.prefix.0[10];
+    value2[3] = guid.prefix.0[11];
+    value3[0] = guid.entity_id.entity_key[0];
+    value3[1] = guid.entity_id.entity_key[1];
+    value3[2] = guid.entity_id.entity_key[2];
+    value3[3] = guid.entity_id.entity_kind;
+        BuiltInTopicKey {
+            value: [
+                i32::from_le_bytes(value0),
+                i32::from_le_bytes(value1),
+                i32::from_le_bytes(value2),
+                i32::from_le_bytes(value3),
+            ],
+        }
+}
+
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
         let param_list: ParameterList = MappingRead::read(buf).unwrap();
@@ -191,7 +220,6 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             .get::<GuidSerdeDeserialize>(PID_PARTICIPANT_GUID)
             .unwrap()
             .0;
-        let guid_prefix = guid.prefix;
         let user_data = param_list
             .get::<UserDataQosPolicySerdeDeserialize>(PID_USER_DATA)
             .unwrap_or(UserDataQosPolicySerdeDeserialize(
@@ -200,7 +228,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             .0;
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: GuidPrefixDef(guid_prefix.0).into(),
+            key: convert_guid_to_built_in_topic_key(&guid),
             user_data,
         };
 
@@ -247,7 +275,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             domain_id,
             domain_tag,
             protocol_version,
-            guid_prefix,
+            guid_prefix: guid.prefix,
             vendor_id,
             expects_inline_qos,
             metatraffic_unicast_locator_list: metatraffic_unicast_locator_list
@@ -288,10 +316,7 @@ mod tests {
 
     use super::*;
     use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
-    use rust_rtps_pim::{
-        messages::types::Count,
-        structure::types::{GuidPrefix, ProtocolVersion},
-    };
+    use rust_rtps_pim::{messages::types::Count, structure::types::{EntityId, GuidPrefix, ProtocolVersion}};
     use rust_rtps_psm::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
 
     pub fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
@@ -309,6 +334,7 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = GuidPrefix([8; 12]);
+        let guid = Guid{ prefix: guid_prefix, entity_id: EntityId { entity_key: [0,0,1], entity_kind: 0xc1 } };
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -323,7 +349,7 @@ mod tests {
         );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: GuidPrefixDef(guid_prefix.0).into(),
+            key: convert_guid_to_built_in_topic_key(&guid),
             user_data: UserDataQosPolicy { value: vec![] },
         };
         let participant_proxy = ParticipantProxy {
@@ -429,6 +455,7 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = GuidPrefix([8; 12]);
+        let guid = Guid{ prefix: guid_prefix, entity_id: EntityId { entity_key: [0,0,1], entity_kind: 0xc1 } };
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -443,7 +470,7 @@ mod tests {
         );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: GuidPrefixDef(guid_prefix.0).into(),
+            key: convert_guid_to_built_in_topic_key(&guid),
             user_data: UserDataQosPolicy { value: vec![] },
         };
         let participant_proxy = ParticipantProxy {

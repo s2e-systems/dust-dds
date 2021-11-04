@@ -94,7 +94,7 @@ mod tests {
     fn serialize_all_default() {
         let data = SedpDiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
-                key: BuiltInTopicKey { value: [1, 2, 3] },
+                key: BuiltInTopicKey { value: [1, 2, 3, 4] },
                 name: "ab".to_string(),
                 type_name: "cd".to_string(),
                 durability: DurabilityQosPolicy::default(),
@@ -118,10 +118,11 @@ mod tests {
 
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
-            0x5a, 0x00, 12, 0, //PID_ENDPOINT_GUID, length
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // long,
             2, 0, 0, 0, // long,
             3, 0, 0, 0, // long,
+            4, 0, 0, 0, // long,
             0x05, 0x00, 8, 0, // PID_TOPIC_NAME, length
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)

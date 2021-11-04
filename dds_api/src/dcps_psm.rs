@@ -8,7 +8,7 @@ pub type InstanceHandle = HandleTypeNative;
 
 #[derive(Debug, PartialEq)]
 pub struct BuiltInTopicKey {
-    pub value: [BuiltInTopicKeyTypeNative; 3],
+    pub value: [BuiltInTopicKeyTypeNative; 4],
 }
 
 pub type InstanceHandleSeq<'a> = &'a [InstanceHandle];

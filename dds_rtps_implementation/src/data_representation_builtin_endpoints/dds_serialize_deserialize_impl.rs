@@ -1,4 +1,3 @@
-use byteorder::{LittleEndian, ReadBytesExt};
 use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy, HistoryQosPolicyKind, UserDataQosPolicy}};
 use rust_rtps_pim::{
     behavior::types::Duration,
@@ -91,19 +90,6 @@ pub struct EntityIdDef {
 #[serde(remote = "GuidPrefix")]
 pub struct GuidPrefixDef(pub [u8; 12]);
 
-impl From<GuidPrefixDef> for BuiltInTopicKey {
-    fn from(v: GuidPrefixDef) -> Self {
-        let bytes = &mut v.0.as_ref();
-        BuiltInTopicKey {
-            value: [
-                bytes.read_i32::<LittleEndian>().unwrap(),
-                bytes.read_i32::<LittleEndian>().unwrap(),
-                bytes.read_i32::<LittleEndian>().unwrap(),
-            ],
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointSet")]
 pub struct BuiltinEndpointSetDef(pub u32);
@@ -147,7 +133,7 @@ type BuiltInTopicKeyTypeNative = i32;
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltInTopicKey")]
 pub struct BuiltInTopicKeyDef{
-    pub value: [BuiltInTopicKeyTypeNative; 3],
+    pub value: [BuiltInTopicKeyTypeNative; 4],
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
