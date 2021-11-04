@@ -140,3 +140,16 @@ pub struct BuiltinEndpointQosSerdeSerialize<'a>(
 pub struct BuiltinEndpointQosSerdeDeserialize(
     #[serde(with = "BuiltinEndpointQosDef")] pub BuiltinEndpointQos,
 );
+
+type BuiltInTopicKeyTypeNative = i32;
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "BuiltInTopicKey")]
+pub struct BuiltInTopicKeyDef{
+    pub value: [BuiltInTopicKeyTypeNative; 3],
+}
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct BuiltInTopicKeySerialize<'a>(
+    #[serde(with = "BuiltInTopicKeyDef")] pub &'a BuiltInTopicKey,
+);
