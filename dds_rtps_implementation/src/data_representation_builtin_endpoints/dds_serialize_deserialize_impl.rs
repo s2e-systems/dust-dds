@@ -1,5 +1,5 @@
 use byteorder::{LittleEndian, ReadBytesExt};
-use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
+use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy, HistoryQosPolicyKind, UserDataQosPolicy}};
 use rust_rtps_pim::{
     behavior::types::Duration,
     messages::types::Count,
@@ -141,6 +141,7 @@ pub struct BuiltinEndpointQosSerdeDeserialize(
     #[serde(with = "BuiltinEndpointQosDef")] pub BuiltinEndpointQos,
 );
 
+
 type BuiltInTopicKeyTypeNative = i32;
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -152,4 +153,80 @@ pub struct BuiltInTopicKeyDef{
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct BuiltInTopicKeySerialize<'a>(
     #[serde(with = "BuiltInTopicKeyDef")] pub &'a BuiltInTopicKey,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct BuiltInTopicKeyDeserialize(
+    #[serde(with = "BuiltInTopicKeyDef")] pub BuiltInTopicKey,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "DurabilityQosPolicyKind")]
+pub enum DurabilityQosPolicyKindDef {
+    VolatileDurabilityQoS,
+    TransientLocalDurabilityQoS,
+    TransientDurabilityQoS,
+    PersistentDurabilityQoS,
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "DurabilityQosPolicy")]
+pub struct DurabilityQosPolicyDef {
+    #[serde(with = "DurabilityQosPolicyKindDef")]
+    pub kind: DurabilityQosPolicyKind,
+}
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct DurabilityQosPolicySerialize<'a>(
+    #[serde(with = "DurabilityQosPolicyDef")] pub &'a DurabilityQosPolicy,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct DurabilityQosPolicyDeserialize(
+    #[serde(with = "DurabilityQosPolicyDef")] pub DurabilityQosPolicy,
+);
+
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "HistoryQosPolicyKind")]
+pub enum HistoryQosPolicyKindDef {
+    KeepLastHistoryQoS,
+    KeepAllHistoryQos,
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "rust_dds_api::dcps_psm::Duration")]
+pub struct DcpsDurationDef {
+    #[serde(getter = "rust_dds_api::dcps_psm::Duration::sec")]
+    sec: i32,
+    #[serde(getter = "rust_dds_api::dcps_psm::Duration::nanosec")]
+    nanosec: u32,
+}
+impl From<DcpsDurationDef> for rust_dds_api::dcps_psm::Duration {
+    fn from(def: DcpsDurationDef) -> rust_dds_api::dcps_psm::Duration {
+        rust_dds_api::dcps_psm::Duration::new(def.sec, def.nanosec)
+    }
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "DurabilityServiceQosPolicy")]
+pub struct DurabilityServiceQosPolicyDef {
+    #[serde(with = "DcpsDurationDef")]
+    pub service_cleanup_delay: rust_dds_api::dcps_psm::Duration,
+    #[serde(with = "HistoryQosPolicyKindDef")]
+    pub history_kind: HistoryQosPolicyKind,
+    pub history_depth: i32,
+    pub max_samples: i32,
+    pub max_instances: i32,
+    pub max_samples_per_instance: i32,
+}
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct DurabilityServiceQosPolicySerialize<'a>(
+    #[serde(with = "DurabilityServiceQosPolicyDef")] pub &'a  DurabilityServiceQosPolicy,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct  DurabilityServiceQosPolicyDeserialize(
+    #[serde(with = "DurabilityServiceQosPolicyDef")] pub  DurabilityServiceQosPolicy,
 );

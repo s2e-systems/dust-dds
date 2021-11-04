@@ -1,8 +1,8 @@
-use rust_dds_api::{builtin_topics::TopicBuiltinTopicData, infrastructure::qos_policy::DurabilityQosPolicy};
+use rust_dds_api::{builtin_topics::TopicBuiltinTopicData, infrastructure::qos_policy::{DurabilityQosPolicy, DurabilityServiceQosPolicy}};
 
 use crate::{data_serialize_deserialize::ParameterSerializer, dds_type::{DdsSerialize, DdsType}};
 
-use super::{dds_serialize_deserialize_impl::BuiltInTopicKeySerialize, parameter_id_values::{PID_DURABILITY, PID_ENDPOINT_GUID, PID_TOPIC_NAME, PID_TYPE_NAME}};
+use super::{dds_serialize_deserialize_impl::{BuiltInTopicKeySerialize, DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize}, parameter_id_values::{PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_TOPIC_NAME, PID_TYPE_NAME}};
 
 pub struct SedpDiscoveredTopicData {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
@@ -34,12 +34,27 @@ impl DdsSerialize for SedpDiscoveredTopicData {
         parameter_list_serializer
             .serialize_parameter(PID_TYPE_NAME, &self.topic_builtin_topic_data.type_name)
             .unwrap();
-
-        // if self.topic_builtin_topic_data.durability != DurabilityQosPolicy::default() {
-        //     parameter_list_serializer
-        //         .serialize_parameter(PID_DURABILITY, &self.topic_builtin_topic_data.durability)
-        //         .unwrap();
-        // }
+        if self.topic_builtin_topic_data.durability != DurabilityQosPolicy::default() {
+            parameter_list_serializer
+                .serialize_parameter(PID_DURABILITY, &DurabilityQosPolicySerialize(&self.topic_builtin_topic_data.durability))
+                .unwrap();
+        }
+        if self.topic_builtin_topic_data.durability_service != DurabilityServiceQosPolicy::default() {
+            parameter_list_serializer
+                .serialize_parameter(PID_DURABILITY_SERVICE, &DurabilityServiceQosPolicySerialize(&self.topic_builtin_topic_data.durability_service))
+                .unwrap();
+        }
+        // pub deadline: DeadlineQosPolicy,
+        // pub latency_budget: LatencyBudgetQosPolicy,
+        // pub liveliness: LivelinessQosPolicy,
+        // pub reliability: ReliabilityQosPolicy,
+        // pub transport_priority: TransportPriorityQosPolicy,
+        // pub lifespan: LifespanQosPolicy,
+        // pub destination_order: DestinationOrderQosPolicy,
+        // pub history: HistoryQosPolicy,
+        // pub resource_limits: ResourceLimitsQosPolicy,
+        // pub ownership: OwnershipQosPolicy,
+        // pub topic_data: TopicDataQosPolicy,
 
         Ok(())
     }
