@@ -3,7 +3,7 @@ use core::ops::{Deref, DerefMut};
 use crate::{
     behavior::types::Duration,
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, ReliabilityKind, TopicKind},
     },
 };
@@ -18,7 +18,7 @@ pub struct RtpsStatefulReader<L, C, W> {
 impl<L, C, W> RtpsStatefulReader<L, C, W>
 where
     W: Default,
-    C: for<'a> RtpsHistoryCacheOperations<'a>,
+    C: RtpsHistoryCacheConstructor,
 {
     pub fn new(
         guid: Guid,

@@ -94,7 +94,7 @@ impl PublisherImpl {
 
 impl<T> DataWriterGAT<'_, '_, T> for PublisherImpl
 where
-    T: DdsType + 'static,
+    T: DdsType + Send + 'static,
 {
     type TopicType = ();
     type DataWriterType = RtpsShared<DataWriterImpl<T>>;

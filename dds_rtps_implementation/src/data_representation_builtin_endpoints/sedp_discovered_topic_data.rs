@@ -1,6 +1,6 @@
 use rust_dds_api::{builtin_topics::TopicBuiltinTopicData, infrastructure::qos_policy::{DurabilityQosPolicy, DurabilityServiceQosPolicy}};
 
-use crate::{data_serialize_deserialize::ParameterSerializer, dds_type::{DdsSerialize, DdsType}};
+use crate::{data_serialize_deserialize::ParameterSerializer, dds_type::{DdsDeserialize, DdsSerialize, DdsType}};
 
 use super::{dds_serialize_deserialize_impl::{BuiltInTopicKeySerialize, DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize}, parameter_id_values::{PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_TOPIC_NAME, PID_TYPE_NAME}};
 
@@ -59,6 +59,13 @@ impl DdsSerialize for SedpDiscoveredTopicData {
         Ok(())
     }
 }
+
+impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
+    fn deserialize(_buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+        todo!()
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

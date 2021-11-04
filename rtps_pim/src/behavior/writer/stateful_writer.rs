@@ -15,7 +15,9 @@ use crate::{
         types::Count,
     },
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::{
+            RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations,
+        },
         types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN},
     },
 };
@@ -47,7 +49,7 @@ impl<L, C, R> DerefMut for RtpsStatefulWriter<L, C, R> {
 impl<L, C, R> RtpsStatefulWriter<L, C, R>
 where
     R: Default,
-    C: for<'a> RtpsHistoryCacheOperations<'a>,
+    C: RtpsHistoryCacheConstructor,
 {
     pub fn new(
         guid: Guid,
@@ -89,22 +91,24 @@ pub trait RtpsStatefulWriterOperations<L> {
     fn is_acked_by_all(&self) -> bool;
 }
 
-impl<L, C, R, RP, P, D, SV> RtpsStatefulWriter<L, C, R>
+impl<L, C, R, RP, SV> RtpsStatefulWriter<L, C, R>
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RP>,
     RP: RtpsReaderProxyOperations<SequenceNumberVector = SV> + Deref<Target = RtpsReaderProxy<L>>,
     SV: IntoIterator,
-    C: for<'a> RtpsHistoryCacheOperations<'a, GetChangeDataType = D, GetChangeParameterType = P>,
 {
-    pub fn send_unsent_data<S>(
+    pub fn send_unsent_data<S, P, D>(
         &mut self,
         mut send_data: impl FnMut(&RP, DataSubmessage<P, D>),
         mut send_gap: impl FnMut(&RP, GapSubmessage<S>),
     ) where
         S: FromIterator<SequenceNumber>,
+        C: for<'a> RtpsHistoryCacheGetChange<'a, P, D>,
     {
+        let last_change_sequence_number = self.writer.last_change_sequence_number;
         for reader_proxy in &mut self.matched_readers {
-            while let Some(seq_num) = reader_proxy.next_unsent_change() {
+            while let Some(seq_num) = reader_proxy.next_unsent_change(&last_change_sequence_number)
+            {
                 if let Some(change) = self.writer.writer_cache.get_change(&seq_num) {
                     let endianness_flag = true;
                     let inline_qos_flag = true;
@@ -172,7 +176,9 @@ where
         &mut self,
         count: Count,
         mut send_heartbeat: impl FnMut(&RP, HeartbeatSubmessage),
-    ) {
+    ) where
+        C: RtpsHistoryCacheOperations,
+    {
         for reader_proxy in &mut self.matched_readers {
             let endianness_flag = true;
             let final_flag = false;
@@ -208,18 +214,22 @@ where
         for reader_proxy in &mut self.matched_readers {
             if reader_proxy.remote_reader_guid.entity_id == acknack.reader_id.value {
                 reader_proxy.acked_changes_set(acknack.reader_sn_state.base - 1);
-                reader_proxy.requested_changes_set(acknack.reader_sn_state.set);
+                reader_proxy.requested_changes_set(
+                    acknack.reader_sn_state.set,
+                    &self.writer.last_change_sequence_number,
+                );
                 break;
             }
         }
     }
 
-    pub fn send_requested_data<S>(
+    pub fn send_requested_data<S, P, D>(
         &mut self,
         mut send_data: impl FnMut(&RP, DataSubmessage<P, D>),
         mut send_gap: impl FnMut(&RP, GapSubmessage<S>),
     ) where
         S: FromIterator<SequenceNumber>,
+        C: for<'a> RtpsHistoryCacheGetChange<'a, P, D>,
     {
         for reader_proxy in &mut self.matched_readers {
             // Pushing state

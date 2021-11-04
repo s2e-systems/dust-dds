@@ -1,13 +1,23 @@
 use std::{net::UdpSocket, sync::mpsc::sync_channel};
 
 use rust_dds::{
-    infrastructure::qos::{DataReaderQos, SubscriberQos},
+    infrastructure::{
+        qos::{DataReaderQos, SubscriberQos},
+        qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+            DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            ReliabilityQosPolicyKind, TopicDataQosPolicy,
+        },
+    },
     publication::publisher::Publisher,
     subscription::data_reader::DataReader,
+    types::Duration,
     udp_transport::UdpTransport,
 };
 use rust_dds_api::{
-    builtin_topics::ParticipantBuiltinTopicData,
+    builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
     dcps_psm::BuiltInTopicKey,
     infrastructure::{
         qos::{DataWriterQos, PublisherQos},
@@ -26,10 +36,7 @@ use rust_dds_rtps_implementation::{
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
-    rtps_impl::{
-        rtps_reader_history_cache_impl::ReaderHistoryCache,
-        rtps_writer_history_cache_impl::WriterHistoryCache,
-    },
+    rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::{
         message_receiver::MessageReceiver,
         shared_object::{rtps_shared_new, rtps_shared_read_lock},
@@ -38,7 +45,7 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::{
-        types::Duration,
+        reader::writer_proxy::RtpsWriterProxy,
         writer::{
             reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
         },
@@ -109,7 +116,7 @@ fn send_and_receive_discovery_data_happy_path() {
         manual_liveliness_count: Count(0),
         builtin_endpoint_qos: BuiltinEndpointQos::default(),
     };
-    let lease_duration = Duration {
+    let lease_duration = rust_rtps_pim::behavior::types::Duration {
         seconds: 100,
         fraction: 0,
     };
@@ -135,7 +142,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     data_writer
         .write_w_timestamp(
-            &spdp_discovered_participant_data,
+            spdp_discovered_participant_data,
             None,
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )
@@ -197,7 +204,8 @@ fn send_and_receive_discovery_data_happy_path() {
     let shared_data_reader = rtps_shared_read_lock(&shared_data_reader);
 
     let result = shared_data_reader.read(1, &[], &[], &[]).unwrap();
-    assert_eq!(spdp_discovered_participant_data, result[0]);
+    assert_eq!(result[0].participant_proxy.domain_id, 1);
+    assert_eq!(result[0].participant_proxy.domain_tag, "ab");
 }
 
 #[test]
@@ -249,7 +257,7 @@ fn process_discovery_data_happy_path() {
         manual_liveliness_count: Count(0),
         builtin_endpoint_qos: BuiltinEndpointQos::default(),
     };
-    let lease_duration = Duration {
+    let lease_duration = rust_rtps_pim::behavior::types::Duration {
         seconds: 100,
         fraction: 0,
     };
@@ -275,14 +283,14 @@ fn process_discovery_data_happy_path() {
 
     spdp_builtin_participant_data_writer
         .write_w_timestamp(
-            &spdp_discovered_participant_data,
+            spdp_discovered_participant_data,
             None,
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )
         .unwrap();
 
     let sedp_builtin_publications_rtps_writer =
-        SedpBuiltinPublicationsWriter::create::<WriterHistoryCache>(guid_prefix, vec![], vec![]);
+        SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]);
 
     let sedp_builtin_publications_data_writer = DataWriterImpl::<SedpDiscoveredWriterData>::new(
         DataWriterQos::default(),
@@ -353,8 +361,9 @@ fn process_discovery_data_happy_path() {
 
     let discovered_participant = shared_data_reader.read(1, &[], &[], &[]).unwrap();
 
-    let mut sedp_builtin_publications_rtps_reader =
-        SedpBuiltinPublicationsReader::create::<ReaderHistoryCache>(guid_prefix, vec![], vec![]);
+    let mut sedp_builtin_publications_rtps_reader = SedpBuiltinPublicationsReader::create::<
+        ReaderHistoryCache<SedpDiscoveredWriterData>,
+    >(guid_prefix, vec![], vec![]);
 
     if let Ok(participant_discovery) = ParticipantDiscovery::new(
         &discovered_participant[0].participant_proxy,
@@ -368,19 +377,60 @@ fn process_discovery_data_happy_path() {
         let sedp_builtin_publications_data_writer = publisher
             .lookup_datawriter::<SedpDiscoveredWriterData>(&())
             .unwrap();
-        let sedp_builtin_publications_data_writer_lock =
-            sedp_builtin_publications_data_writer.read().unwrap();
         let mut sedp_builtin_publications_data_writer_lock =
-            sedp_builtin_publications_data_writer_lock
-                .rtps_writer_impl
-                .lock()
-                .unwrap();
+            sedp_builtin_publications_data_writer.write().unwrap();
         if let RtpsWriterFlavor::Stateful {
             stateful_writer, ..
-        } = &mut *sedp_builtin_publications_data_writer_lock
+        } = &mut sedp_builtin_publications_data_writer_lock.rtps_writer_impl
         {
-            participant_discovery.discovered_participant_add_publications_writer(stateful_writer);
+            participant_discovery.discovered_participant_add_publications_writer(
+                &mut *stateful_writer.lock().unwrap(),
+            );
         }
+        let sedp_discovered_writer_data = SedpDiscoveredWriterData {
+            writer_proxy: RtpsWriterProxy {
+                remote_writer_guid: Guid::new(
+                    GuidPrefix([1; 12]),
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: None,
+                remote_group_entity_id: EntityId::new([0; 3], 0),
+            },
+            publication_builtin_topic_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey { value: [1; 3] },
+                participant_key: BuiltInTopicKey { value: [1; 3] },
+                topic_name: "MyTopic".to_string(),
+                type_name: "MyType".to_string(),
+                durability: DurabilityQosPolicy::default(),
+                durability_service: DurabilityServiceQosPolicy::default(),
+                deadline: DeadlineQosPolicy::default(),
+                latency_budget: LatencyBudgetQosPolicy::default(),
+                liveliness: LivelinessQosPolicy::default(),
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: Duration::new(0, 0),
+                },
+                lifespan: LifespanQosPolicy::default(),
+                user_data: UserDataQosPolicy::default(),
+                ownership: OwnershipQosPolicy::default(),
+                ownership_strength: OwnershipStrengthQosPolicy::default(),
+                destination_order: DestinationOrderQosPolicy::default(),
+                presentation: PresentationQosPolicy::default(),
+                partition: PartitionQosPolicy::default(),
+                topic_data: TopicDataQosPolicy::default(),
+                group_data: GroupDataQosPolicy::default(),
+            },
+        };
+
+        sedp_builtin_publications_data_writer_lock
+            .write_w_timestamp(
+                sedp_discovered_writer_data,
+                None,
+                rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
     }
 
     assert_eq!(
@@ -427,6 +477,6 @@ fn process_discovery_data_happy_path() {
             transport.write(&message, &dst_unicast_locator[0]);
         };
 
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        std::thread::sleep(std::time::Duration::from_millis(200));
     }
 }

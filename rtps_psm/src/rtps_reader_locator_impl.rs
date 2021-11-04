@@ -80,11 +80,11 @@ impl RtpsReaderLocatorOperations for RtpsReaderLocatorImpl {
 
     fn unsent_changes(
         &self,
-        last_change_sequence_number: SequenceNumber,
+        last_change_sequence_number: &SequenceNumber,
     ) -> Self::SequenceNumberVector {
         let mut unsent_changes = Vec::new();
         for unsent_change_seq_num in
-            self.last_sent_sequence_number + 1..=last_change_sequence_number
+            self.last_sent_sequence_number + 1..=*last_change_sequence_number
         {
             unsent_changes.push(unsent_change_seq_num)
         }
@@ -156,7 +156,7 @@ mod tests {
         let reader_locator =
             RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
 
-        let unsent_changes = reader_locator.unsent_changes(3);
+        let unsent_changes = reader_locator.unsent_changes(&3);
         let expected_unsent_changes = vec![1, 2, 3];
 
         assert_eq!(unsent_changes, expected_unsent_changes);
@@ -169,7 +169,7 @@ mod tests {
 
         let last_change_sequence_number = 3;
         reader_locator.next_unsent_change(&last_change_sequence_number);
-        let unsent_changes = reader_locator.unsent_changes(last_change_sequence_number);
+        let unsent_changes = reader_locator.unsent_changes(&last_change_sequence_number);
 
         let expected_unsent_changes = vec![2, 3];
 

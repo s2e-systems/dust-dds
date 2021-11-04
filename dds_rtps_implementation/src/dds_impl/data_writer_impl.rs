@@ -1,8 +1,4 @@
-use std::{
-    ops::{Deref, DerefMut},
-    sync::{mpsc::SyncSender, Arc, Mutex, RwLock},
-    time::Instant,
-};
+use std::sync::{mpsc::SyncSender, Arc, Mutex, RwLock};
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -14,13 +10,10 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 use rust_rtps_pim::{
-    behavior::writer::{
-        stateless_writer::StatelessWriterBehavior,
-        writer::{RtpsWriter, RtpsWriterOperations},
-    },
+    behavior::writer::{stateless_writer::StatelessWriterBehavior, writer::RtpsWriterOperations},
     messages::types::Count,
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, GuidPrefix, Locator},
     },
 };
@@ -37,96 +30,107 @@ use rust_rtps_psm::{
 };
 
 use crate::{
-    dds_type::{BigEndian, DdsSerialize},
-    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
+    dds_type::DdsSerialize, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
     utils::message_receiver::ProcessAckNackSubmessage,
 };
 
-pub enum RtpsWriterFlavor {
+pub enum RtpsWriterFlavor<T> {
     Stateful {
-        stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache>,
-        heartbeat_sent_instant: Instant,
-        heartbeat_count: Count,
+        stateful_writer: Arc<Mutex<RtpsStatefulWriterImpl<WriterHistoryCache<T>>>>,
         locator_list_message_sender:
             SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
     },
     Stateless {
-        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>,
+        stateless_writer: Arc<Mutex<RtpsStatelessWriterImpl<WriterHistoryCache<T>>>>,
         locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
     },
 }
 
-impl RtpsWriterFlavor {
+impl<T> RtpsWriterFlavor<T>
+where
+    T: Send + 'static,
+{
     pub fn new_stateful(
-        stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache>,
+        stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache<T>>,
         locator_list_message_sender: SyncSender<(
             Vec<Locator>,
             Vec<Locator>,
             Vec<RtpsSubmessageTypeWrite>,
         )>,
     ) -> Self {
+        let stateful_writer = Arc::new(Mutex::new(stateful_writer));
+        let stateful_writer_shared = stateful_writer.clone();
+        let locator_list_message_sender_shared = locator_list_message_sender.clone();
+        std::thread::spawn(move || {
+            let mut heartbeat_count = Count(1);
+            let heartbeat_period = stateful_writer_shared.lock().unwrap().heartbeat_period;
+            let heartbeat_period_duration = std::time::Duration::new(
+                heartbeat_period.seconds as u64,
+                heartbeat_period.fraction,
+            );
+            loop {
+                stateful_writer_shared.lock().unwrap().send_heartbeat(
+                    heartbeat_count,
+                    |reader_proxy, heartbeat| {
+                        locator_list_message_sender_shared
+                            .send((
+                                reader_proxy.unicast_locator_list.clone(),
+                                reader_proxy.multicast_locator_list.clone(),
+                                vec![RtpsSubmessageTypeWrite::Heartbeat(
+                                    HeartbeatSubmessageWrite::new(
+                                        heartbeat.endianness_flag,
+                                        heartbeat.final_flag,
+                                        heartbeat.liveliness_flag,
+                                        heartbeat.reader_id,
+                                        heartbeat.writer_id,
+                                        heartbeat.first_sn,
+                                        heartbeat.last_sn,
+                                        heartbeat.count,
+                                    ),
+                                )],
+                            ))
+                            .unwrap();
+                    },
+                );
+                heartbeat_count += Count(1);
+
+                std::thread::sleep(heartbeat_period_duration);
+            }
+        });
+
         RtpsWriterFlavor::Stateful {
             stateful_writer,
-            heartbeat_sent_instant: Instant::now(),
-            heartbeat_count: Count(0),
             locator_list_message_sender,
         }
     }
 
     pub fn new_stateless(
-        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>,
+        stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache<T>>,
         locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
     ) -> Self {
         RtpsWriterFlavor::Stateless {
-            stateless_writer,
+            stateless_writer: Arc::new(Mutex::new(stateless_writer)),
             locator_message_sender,
-        }
-    }
-}
-
-impl Deref for RtpsWriterFlavor {
-    type Target = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            RtpsWriterFlavor::Stateful {
-                stateful_writer, ..
-            } => stateful_writer.deref(),
-            RtpsWriterFlavor::Stateless {
-                stateless_writer, ..
-            } => stateless_writer.deref(),
-        }
-    }
-}
-
-impl DerefMut for RtpsWriterFlavor {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            RtpsWriterFlavor::Stateful {
-                stateful_writer, ..
-            } => stateful_writer.deref_mut(),
-            RtpsWriterFlavor::Stateless {
-                stateless_writer, ..
-            } => stateless_writer.deref_mut(),
         }
     }
 }
 
 pub struct DataWriterImpl<T> {
     _qos: DataWriterQos,
-    pub rtps_writer_impl: Arc<Mutex<RtpsWriterFlavor>>,
+    pub rtps_writer_impl: RtpsWriterFlavor<T>,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
 }
 
-impl<T> DataWriterImpl<T> {
+impl<T> DataWriterImpl<T>
+where
+    T: DdsSerialize,
+{
     fn send_change(&mut self) {
-        let mut rtps_writer_impl_lock = self.rtps_writer_impl.lock().unwrap();
-        match &mut *rtps_writer_impl_lock {
+        match &mut self.rtps_writer_impl {
             RtpsWriterFlavor::Stateful {
                 stateful_writer,
                 locator_list_message_sender,
-                ..
-            } => stateful_writer.send_unsent_data(
+            } => stateful_writer.lock().unwrap().send_unsent_data(
                 |reader_proxy, data| {
                     locator_list_message_sender
                         .send((
@@ -167,7 +171,7 @@ impl<T> DataWriterImpl<T> {
                 stateless_writer,
                 locator_message_sender,
             } => {
-                stateless_writer.send_unsent_data(
+                stateless_writer.lock().unwrap().send_unsent_data(
                     |reader_locator, data| {
                         locator_message_sender
                             .send((
@@ -207,54 +211,14 @@ impl<T> DataWriterImpl<T> {
     }
 }
 
-impl<T> DataWriterImpl<T> {
-    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor) -> Self {
-        let rtps_writer_flavor = Arc::new(Mutex::new(rtps_writer_impl));
-        let rtps_writer_flavor_thread = rtps_writer_flavor.clone();
-
-        std::thread::spawn(move || {
-            let mut heartbeat_count = Count(1);
-            loop {
-                let mut rtps_writer_flavor_lock = rtps_writer_flavor_thread.lock().unwrap();
-                if let RtpsWriterFlavor::Stateful {
-                    stateful_writer,
-                    locator_list_message_sender,
-                    ..
-                } = &mut *rtps_writer_flavor_lock
-                {
-                    stateful_writer.send_heartbeat(heartbeat_count, |reader_proxy, heartbeat| {
-                        locator_list_message_sender
-                            .send((
-                                reader_proxy.unicast_locator_list.clone(),
-                                reader_proxy.multicast_locator_list.clone(),
-                                vec![RtpsSubmessageTypeWrite::Heartbeat(
-                                    HeartbeatSubmessageWrite::new(
-                                        heartbeat.endianness_flag,
-                                        heartbeat.final_flag,
-                                        heartbeat.liveliness_flag,
-                                        heartbeat.reader_id,
-                                        heartbeat.writer_id,
-                                        heartbeat.first_sn,
-                                        heartbeat.last_sn,
-                                        heartbeat.count,
-                                    ),
-                                )],
-                            ))
-                            .unwrap();
-                    });
-                    heartbeat_count += Count(1);
-
-                    std::thread::sleep(std::time::Duration::new(
-                        stateful_writer.heartbeat_period.seconds as u64,
-                        stateful_writer.heartbeat_period.fraction,
-                    ));
-                }
-            }
-        });
-
+impl<T> DataWriterImpl<T>
+where
+    T: Send + 'static,
+{
+    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor<T>) -> Self {
         Self {
             _qos: qos,
-            rtps_writer_impl: rtps_writer_flavor,
+            rtps_writer_impl,
             _listener: None,
         }
     }
@@ -301,25 +265,39 @@ where
         todo!()
     }
 
-    fn write(&mut self, _data: &T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn write_w_timestamp(
         &mut self,
-        data: &T,
+        data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let mut bytes = Vec::new();
-        data.serialize::<_, BigEndian>(&mut bytes)?;
         {
-            let mut writer = self.rtps_writer_impl.lock().unwrap();
-            let change = writer.new_change(ChangeKind::Alive, bytes, vec![], 0);
-            let writer_cache = &mut writer.writer_cache;
-            let time = rust_rtps_pim::messages::types::Time(0);
-            writer_cache.set_source_timestamp(Some(time));
-            writer_cache.add_change(change);
+            match &self.rtps_writer_impl {
+                RtpsWriterFlavor::Stateful {
+                    stateful_writer, ..
+                } => {
+                    let mut writer_lock = stateful_writer.lock().unwrap();
+                    let change = writer_lock.new_change(ChangeKind::Alive, data, vec![], 0);
+                    let writer_cache = &mut writer_lock.writer_cache;
+                    let time = rust_rtps_pim::messages::types::Time(0);
+                    writer_cache.set_source_timestamp(Some(time));
+                    writer_cache.add_change(change);
+                }
+                RtpsWriterFlavor::Stateless {
+                    stateless_writer, ..
+                } => {
+                    let mut writer_lock = stateless_writer.lock().unwrap();
+                    let change = writer_lock.new_change(ChangeKind::Alive, data, vec![], 0);
+                    let writer_cache = &mut writer_lock.writer_cache;
+                    let time = rust_rtps_pim::messages::types::Time(0);
+                    writer_cache.set_source_timestamp(Some(time));
+                    writer_cache.add_change(change);
+                }
+            }
         }
         self.send_change();
         Ok(())
@@ -777,7 +755,7 @@ mod tests {
         let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
         data_writer_impl
             .write_w_timestamp(
-                &data_value,
+                data_value,
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )

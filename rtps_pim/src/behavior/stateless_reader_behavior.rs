@@ -2,7 +2,7 @@ use crate::{
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         cache_change::RtpsCacheChange,
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
     },
 };
@@ -15,11 +15,7 @@ pub trait StatelessReaderBehavior<P> {
 
 impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsReader<L, C>
 where
-    C: for<'c> RtpsHistoryCacheOperations<
-        'c,
-        AddChangeDataType = &'c [u8],
-        AddChangeParameterType = &'c [Parameter<&'c [u8]>],
-    >,
+    C: for<'c> RtpsHistoryCacheAddChange<&'c [Parameter<&'c [u8]>], &'c [u8]>,
     P: AsRef<[Parameter<&'a [u8]>]>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>) {
@@ -57,9 +53,12 @@ mod tests {
             EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
         },
-        structure::types::{
-            EntityId, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind,
-            BUILT_IN_WRITER_WITH_KEY, GUIDPREFIX_UNKNOWN,
+        structure::{
+            history_cache::RtpsHistoryCacheConstructor,
+            types::{
+                EntityId, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind,
+                BUILT_IN_WRITER_WITH_KEY, GUIDPREFIX_UNKNOWN,
+            },
         },
     };
 
@@ -76,24 +75,14 @@ mod tests {
 
     struct MockHistoryCache(Option<MockCacheChange>);
 
-    impl<'a> RtpsHistoryCacheOperations<'a> for MockHistoryCache {
-        type AddChangeDataType = &'a [u8];
-        type GetChangeDataType = &'a [u8];
-
-        type AddChangeParameterType = &'a [Parameter<&'a [u8]>];
-        type GetChangeParameterType = &'a [Parameter<&'a [u8]>];
-
-        fn new() -> Self
-        where
-            Self: Sized,
-        {
+    impl RtpsHistoryCacheConstructor for MockHistoryCache {
+        fn new() -> Self {
             MockHistoryCache(None)
         }
+    }
 
-        fn add_change(
-            &mut self,
-            change: RtpsCacheChange<Self::GetChangeParameterType, Self::AddChangeDataType>,
-        ) {
+    impl RtpsHistoryCacheAddChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]> for MockHistoryCache {
+        fn add_change(&mut self, change: RtpsCacheChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]>) {
             self.0 = Some(MockCacheChange {
                 kind: change.kind,
                 writer_guid: change.writer_guid,
@@ -102,26 +91,6 @@ mod tests {
                 data: [change.data_value[0].clone()],
                 inline_qos: (),
             });
-        }
-
-        fn remove_change(&mut self, _seq_num: &crate::structure::types::SequenceNumber) {
-            todo!()
-        }
-
-        fn get_change(
-            &self,
-            _seq_num: &crate::structure::types::SequenceNumber,
-        ) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>>
-        {
-            todo!()
-        }
-
-        fn get_seq_num_min(&self) -> Option<crate::structure::types::SequenceNumber> {
-            todo!()
-        }
-
-        fn get_seq_num_max(&self) -> Option<crate::structure::types::SequenceNumber> {
-            todo!()
         }
     }
 

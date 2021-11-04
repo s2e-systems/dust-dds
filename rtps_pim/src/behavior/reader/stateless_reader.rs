@@ -3,7 +3,7 @@ use core::ops::{Deref, DerefMut};
 use crate::{
     behavior::types::Duration,
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, ReliabilityKind, TopicKind},
     },
 };
@@ -40,7 +40,7 @@ impl<L, C> RtpsStatelessReader<L, C> {
         expects_inline_qos: bool,
     ) -> Self
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         Self {
             reader: RtpsReader::new(

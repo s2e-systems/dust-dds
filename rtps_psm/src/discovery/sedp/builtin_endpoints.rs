@@ -1,7 +1,7 @@
 use rust_rtps_pim::{
     behavior::types::{Duration, DURATION_ZERO},
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheConstructor,
         types::{
             EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
             BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY,
@@ -60,7 +60,7 @@ impl SedpBuiltinPublicationsWriter {
         multicast_locator_list: Vec<Locator>,
     ) -> RtpsStatefulWriterImpl<C>
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
@@ -94,7 +94,7 @@ impl SedpBuiltinPublicationsReader {
         multicast_locator_list: Vec<Locator>,
     ) -> RtpsStatefulReaderImpl<C>
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let topic_kind = TopicKind::WithKey;
@@ -124,7 +124,7 @@ impl SedpBuiltinSubscriptionsWriter {
         multicast_locator_list: Vec<Locator>,
     ) -> RtpsStatefulWriterImpl<C>
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
@@ -158,7 +158,7 @@ impl SedpBuiltinSubscriptionsReader {
         multicast_locator_list: Vec<Locator>,
     ) -> RtpsStatefulReaderImpl<C>
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let topic_kind = TopicKind::WithKey;
@@ -188,7 +188,7 @@ impl SedpBuiltinTopicsWriter {
         multicast_locator_list: Vec<Locator>,
     ) -> RtpsStatefulWriterImpl<C>
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
@@ -222,7 +222,7 @@ impl SedpBuiltinTopicsReader {
         multicast_locator_list: Vec<Locator>,
     ) -> RtpsStatefulReaderImpl<C>
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let topic_kind = TopicKind::WithKey;

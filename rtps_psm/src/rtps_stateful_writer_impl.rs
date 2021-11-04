@@ -9,7 +9,7 @@ use rust_rtps_pim::{
         },
     },
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, Locator, ReliabilityKind, TopicKind},
     },
 };
@@ -32,7 +32,7 @@ impl<C> RtpsStatefulWriterImpl<C> {
         data_max_size_serialized: Option<i32>,
     ) -> Self
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         Self(RtpsStatefulWriter::new(
             guid,

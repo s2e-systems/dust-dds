@@ -23,7 +23,7 @@ use super::{query_condition::QueryCondition, subscriber::Subscriber};
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub trait DataReader<T> {
+pub trait DataReader<'a, T> {
     type Samples;
 
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
@@ -103,7 +103,7 @@ pub trait DataReader<T> {
     /// read.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn read(
-        &self,
+        &'a self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],

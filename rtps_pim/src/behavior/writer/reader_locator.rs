@@ -35,6 +35,6 @@ pub trait RtpsReaderLocatorOperations {
 
     fn unsent_changes(
         &self,
-        last_change_sequence_number: SequenceNumber,
+        last_change_sequence_number: &SequenceNumber,
     ) -> Self::SequenceNumberVector;
 }

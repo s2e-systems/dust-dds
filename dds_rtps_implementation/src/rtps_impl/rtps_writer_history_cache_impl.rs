@@ -3,55 +3,50 @@ use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
     structure::{
         cache_change::RtpsCacheChange,
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::{
+            RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
+            RtpsHistoryCacheOperations,
+        },
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
 
-struct WriterCacheChange {
+use crate::dds_type::{BigEndian, DdsSerialize};
+
+struct WriterCacheChange<T> {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
-    data: Vec<u8>,
+    data: T,
     _source_timestamp: Option<Time>,
     _view_state_kind: ViewStateKind,
     _instance_state_kind: InstanceStateKind,
 }
 
-pub struct WriterHistoryCache {
-    changes: Vec<WriterCacheChange>,
+pub struct WriterHistoryCache<T> {
+    changes: Vec<WriterCacheChange<T>>,
     source_timestamp: Option<Time>,
 }
 
-impl WriterHistoryCache {
+impl<T> WriterHistoryCache<T> {
     /// Set the Rtps history cache impl's info.
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
     }
 }
 
-impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
-    type AddChangeDataType = Vec<u8>;
-    type GetChangeDataType = Vec<u8>;
-
-    type AddChangeParameterType = Vec<Parameter<Vec<u8>>>;
-    type GetChangeParameterType = Vec<Parameter<Vec<u8>>>;
-
-    fn new() -> Self
-    where
-        Self: Sized,
-    {
+impl<T> RtpsHistoryCacheConstructor for WriterHistoryCache<T> {
+    fn new() -> Self {
         Self {
             changes: Vec::new(),
             source_timestamp: None,
         }
     }
+}
 
-    fn add_change(
-        &mut self,
-        change: RtpsCacheChange<Self::AddChangeParameterType, Self::AddChangeDataType>,
-    ) {
+impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, T> for WriterHistoryCache<T> {
+    fn add_change(&mut self, change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, T>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -72,28 +67,41 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
 
         self.changes.push(local_change)
     }
+}
 
-    fn remove_change(&mut self, seq_num: &SequenceNumber) {
-        self.changes.retain(|cc| &cc.sequence_number != seq_num)
-    }
-
+impl<T> RtpsHistoryCacheGetChange<'_, Vec<Parameter<Vec<u8>>>, Vec<u8>> for WriterHistoryCache<T>
+where
+    T: DdsSerialize,
+{
     fn get_change(
-        &'a self,
+        &'_ self,
         seq_num: &SequenceNumber,
-    ) -> Option<RtpsCacheChange<Self::GetChangeParameterType, Self::GetChangeDataType>> {
+    ) -> Option<RtpsCacheChange<Vec<Parameter<Vec<u8>>>, Vec<u8>>> {
         let local_change = self
             .changes
             .iter()
             .find(|&cc| &cc.sequence_number == seq_num)?;
+
+        let mut data_value = Vec::new();
+        local_change
+            .data
+            .serialize::<_, BigEndian>(&mut data_value)
+            .ok()?;
 
         Some(RtpsCacheChange {
             kind: local_change.kind,
             writer_guid: local_change.writer_guid,
             instance_handle: local_change.instance_handle,
             sequence_number: local_change.sequence_number,
-            data_value: local_change.data.clone(),
+            data_value,
             inline_qos: vec![],
         })
+    }
+}
+
+impl<T> RtpsHistoryCacheOperations for WriterHistoryCache<T> {
+    fn remove_change(&mut self, seq_num: &SequenceNumber) {
+        self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
@@ -115,8 +123,21 @@ impl<'a> RtpsHistoryCacheOperations<'a> for WriterHistoryCache {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+
+    use crate::dds_type::Endianness;
+
     use super::*;
+    use rust_dds_api::return_type::DDSResult;
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
+
+    struct MockDdsSerialize;
+
+    impl DdsSerialize for MockDdsSerialize {
+        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
+            Ok(())
+        }
+    }
 
     #[test]
     fn add_change() {
@@ -126,7 +147,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: vec![],
+            data_value: &MockDdsSerialize,
             inline_qos: vec![],
         };
         hc.add_change(change);
@@ -141,7 +162,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: vec![],
+            data_value: &MockDdsSerialize,
             inline_qos: vec![],
         };
         hc.add_change(change);
@@ -157,7 +178,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: vec![],
+            data_value: &MockDdsSerialize,
             inline_qos: vec![],
         };
         hc.add_change(change);
@@ -173,7 +194,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: vec![],
+            data_value: &MockDdsSerialize,
             inline_qos: vec![],
         };
         let change2 = RtpsCacheChange {
@@ -181,7 +202,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 2,
-            data_value: vec![],
+            data_value: &MockDdsSerialize,
             inline_qos: vec![],
         };
         hc.add_change(change1);
@@ -197,7 +218,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: vec![],
+            data_value: &MockDdsSerialize,
             inline_qos: vec![],
         };
         let change2 = RtpsCacheChange {
@@ -205,7 +226,7 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 2,
-            data_value: vec![],
+            data_value: &MockDdsSerialize,
             inline_qos: vec![],
         };
         hc.add_change(change1);

@@ -1,7 +1,7 @@
 use rust_rtps_pim::{
     behavior::types::DURATION_ZERO,
     structure::{
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::RtpsHistoryCacheConstructor,
         types::{
             EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
             BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY,
@@ -29,7 +29,7 @@ impl SpdpBuiltinParticipantWriter {
         multicast_locator_list: Vec<Locator>,
     ) -> RtpsStatelessWriterImpl<C>
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
@@ -58,7 +58,7 @@ impl SpdpBuiltinParticipantReader {
         multicast_locator_list: Vec<Locator>,
     ) -> RtpsStatelessReaderImpl<C>
     where
-        C: for<'a> RtpsHistoryCacheOperations<'a>,
+        C: RtpsHistoryCacheConstructor,
     {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
