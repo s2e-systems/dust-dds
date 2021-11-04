@@ -1,8 +1,8 @@
-use rust_dds_api::{builtin_topics::TopicBuiltinTopicData, infrastructure::qos_policy::{DurabilityQosPolicy, DurabilityServiceQosPolicy}};
+use rust_dds_api::{builtin_topics::TopicBuiltinTopicData, infrastructure::qos_policy::{DeadlineQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy, ReliabilityQosPolicy, TransportPriorityQosPolicy}};
 
 use crate::{data_serialize_deserialize::ParameterSerializer, dds_type::{DdsDeserialize, DdsSerialize, DdsType}};
 
-use super::{dds_serialize_deserialize_impl::{BuiltInTopicKeySerialize, DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize}, parameter_id_values::{PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_TOPIC_NAME, PID_TYPE_NAME}};
+use super::{dds_serialize_deserialize_impl::{BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize, LatencyBudgetQosPolicySerialize, LivelinessQosPolicySerialize, ReliabilityQosPolicySerialize, TransportPriorityQosPolicySerialize}, parameter_id_values::{PID_DEADLINE, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_LATENCY_BUDGET, PID_LIVELINESS, PID_RELIABILITY, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME}};
 
 pub struct SedpDiscoveredTopicData {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
@@ -44,10 +44,30 @@ impl DdsSerialize for SedpDiscoveredTopicData {
                 .serialize_parameter(PID_DURABILITY_SERVICE, &DurabilityServiceQosPolicySerialize(&self.topic_builtin_topic_data.durability_service))
                 .unwrap();
         }
-        // pub deadline: DeadlineQosPolicy,
-        // pub latency_budget: LatencyBudgetQosPolicy,
-        // pub liveliness: LivelinessQosPolicy,
-        // pub reliability: ReliabilityQosPolicy,
+        if self.topic_builtin_topic_data.deadline != DeadlineQosPolicy::default() {
+            parameter_list_serializer
+                .serialize_parameter(PID_DEADLINE, &DeadlineQosPolicySerialize(&self.topic_builtin_topic_data.deadline))
+                .unwrap();
+        }
+        if self.topic_builtin_topic_data.latency_budget != LatencyBudgetQosPolicy::default() {
+            parameter_list_serializer
+                .serialize_parameter(PID_LATENCY_BUDGET, &LatencyBudgetQosPolicySerialize(&self.topic_builtin_topic_data.latency_budget))
+                .unwrap();
+        }
+        if self.topic_builtin_topic_data.liveliness != LivelinessQosPolicy::default() {
+            parameter_list_serializer
+                .serialize_parameter(PID_LIVELINESS, &LivelinessQosPolicySerialize(&self.topic_builtin_topic_data.liveliness))
+                .unwrap();
+        }
+        parameter_list_serializer
+            .serialize_parameter(PID_RELIABILITY, &ReliabilityQosPolicySerialize(&self.topic_builtin_topic_data.reliability))
+            .unwrap();
+        if self.topic_builtin_topic_data.transport_priority != TransportPriorityQosPolicy::default() {
+            parameter_list_serializer
+                .serialize_parameter(PID_TRANSPORT_PRIORITY, &TransportPriorityQosPolicySerialize(&self.topic_builtin_topic_data.transport_priority))
+                .unwrap();
+        }
+
         // pub transport_priority: TransportPriorityQosPolicy,
         // pub lifespan: LifespanQosPolicy,
         // pub destination_order: DestinationOrderQosPolicy,
@@ -129,6 +149,10 @@ mod tests {
             0x07, 0x00, 8, 0, // PID_TYPE_NAME, length
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x1a, 0x00, 12, 0, //PID_RELIABILITY, length
+            0, 0, 0, 0, // kind
+            7, 0, 0, 0, // max_blocking_time
+            0xdc, 0x01, 0x00, 0x00, // max_blocking_time
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(to_bytes_le(&data), expected);

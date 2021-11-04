@@ -1,4 +1,4 @@
-use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy, HistoryQosPolicyKind, UserDataQosPolicy}};
+use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{DeadlineQosPolicy, DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, LivelinessQosPolicy, LivelinessQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, TransportPriorityQosPolicy, UserDataQosPolicy}};
 use rust_rtps_pim::{
     behavior::types::Duration,
     messages::types::Count,
@@ -215,4 +215,117 @@ pub struct DurabilityServiceQosPolicySerialize<'a>(
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct  DurabilityServiceQosPolicyDeserialize(
     #[serde(with = "DurabilityServiceQosPolicyDef")] pub  DurabilityServiceQosPolicy,
+);
+
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "DeadlineQosPolicy")]
+pub struct DeadlineQosPolicyDef {
+    #[serde(with = "DcpsDurationDef")]
+    pub period: rust_dds_api::dcps_psm::Duration,
+}
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct DeadlineQosPolicySerialize<'a>(
+    #[serde(with = "DeadlineQosPolicyDef")] pub &'a  DeadlineQosPolicy,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct  DeadlineQosPolicyDeserialize(
+    #[serde(with = "DeadlineQosPolicyDef")] pub  DeadlineQosPolicy,
+);
+
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "LatencyBudgetQosPolicy")]
+pub struct LatencyBudgetQosPolicyDef {
+    #[serde(with = "DcpsDurationDef")]
+    pub duration: rust_dds_api::dcps_psm::Duration,
+}
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct LatencyBudgetQosPolicySerialize<'a>(
+    #[serde(with = "LatencyBudgetQosPolicyDef")] pub &'a  LatencyBudgetQosPolicy,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct LatencyBudgetQosPolicyDeserialize(
+    #[serde(with = "LatencyBudgetQosPolicyDef")] pub  LatencyBudgetQosPolicy,
+);
+
+
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "LivelinessQosPolicyKind")]
+pub enum LivelinessQosPolicyKindDef {
+    AutomaticLivelinessQoS,
+    ManualByParticipantLivelinessQoS,
+    ManualByTopicLivelinessQoS,
+}
+
+
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "LivelinessQosPolicy")]
+pub struct LivelinessQosPolicyDef {
+    #[serde(with = "LivelinessQosPolicyKindDef")]
+    pub kind: LivelinessQosPolicyKind,
+    #[serde(with = "DcpsDurationDef")]
+    pub lease_duration: rust_dds_api::dcps_psm::Duration,
+}
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct LivelinessQosPolicySerialize<'a>(
+    #[serde(with = "LivelinessQosPolicyDef")] pub &'a  LivelinessQosPolicy,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct LivelinessQosPolicyDeserialize(
+    #[serde(with = "LivelinessQosPolicyDef")] pub  LivelinessQosPolicy,
+);
+
+
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "ReliabilityQosPolicyKind")]
+pub enum ReliabilityQosPolicyKindDef {
+    BestEffortReliabilityQos,
+    ReliableReliabilityQos,
+}
+
+
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "ReliabilityQosPolicy")]
+pub struct ReliabilityQosPolicyDef {
+    #[serde(with = "ReliabilityQosPolicyKindDef")]
+    pub kind: ReliabilityQosPolicyKind,
+    #[serde(with = "DcpsDurationDef")]
+    pub max_blocking_time: rust_dds_api::dcps_psm::Duration,
+}
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct ReliabilityQosPolicySerialize<'a>(
+    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a  ReliabilityQosPolicy,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct ReliabilityQosPolicyDeserialize(
+    #[serde(with = "ReliabilityQosPolicyDef")] pub  ReliabilityQosPolicy,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "TransportPriorityQosPolicy")]
+pub struct TransportPriorityQosPolicyDef {
+    pub value: i32,
+}
+
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct TransportPriorityQosPolicySerialize<'a>(
+    #[serde(with = "TransportPriorityQosPolicyDef")] pub &'a  TransportPriorityQosPolicy,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct TransportPriorityQosPolicyDeserialize(
+    #[serde(with = "TransportPriorityQosPolicyDef")] pub  TransportPriorityQosPolicy,
 );
