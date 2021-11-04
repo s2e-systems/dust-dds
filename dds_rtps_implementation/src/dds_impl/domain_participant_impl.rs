@@ -25,23 +25,17 @@ use rust_rtps_pim::{
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, GuidPrefix, Locator, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP,
-            VENDOR_ID_S2E,
+            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, PROTOCOLVERSION,
+            USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
         },
     },
 };
 use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
-use crate::{
-    data_representation_builtin_endpoints::{
+use crate::{data_representation_builtin_endpoints::{
         sedp_discovered_reader_data::SedpDiscoveredReaderData,
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    },
-    utils::{
-        shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared},
-        transport::{TransportRead, TransportWrite},
-    },
-};
+    }, utils::{message_receiver::ProcessDataSubmessage, shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared}, transport::{TransportRead, TransportWrite}}};
 
 use super::{
     publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy,
@@ -135,95 +129,121 @@ impl DomainParticipantImpl {
                 .unwrap()
                 .lookup_datareader::<SedpDiscoveredReaderData>(&());
 
+        struct Communication {
+            locator_message_channel_receiver: Receiver<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
+            version: ProtocolVersion,
+            vendor_id: VendorId,
+            guid_prefix: GuidPrefix,
+            transport: Box<dyn Transport>,
+        }
+
+        impl Communication {
+            fn send(&mut self) {
+                if let Ok((dst_locator, submessages)) =
+                    self.locator_message_channel_receiver.try_recv()
+                {
+                    let message = RtpsMessageWrite::new(
+                        RtpsMessageHeader {
+                            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                            version: self.version,
+                            vendor_id: self.vendor_id,
+                            guid_prefix: self.guid_prefix,
+                        },
+                        submessages,
+                    );
+                    self.transport.write(&message, &dst_locator);
+                };
+            }
+
+            fn receive(&mut self, list: &[RtpsShared<impl ProcessDataSubmessage>]){
+                if let Some((source_locator, message)) = self.transport.read() {
+                    crate::utils::message_receiver::MessageReceiver::new().process_message(
+                        self.guid_prefix,
+                        list,
+                        source_locator,
+                        &message,
+                    );
+                }
+            }
+        }
+
         std::thread::spawn(move || {
-            while !is_enabled_arc.load(atomic::Ordering::SeqCst) {}
+            while !is_enabled_arc.load(atomic::Ordering::SeqCst) {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            let mut communication = Communication {
+                locator_message_channel_receiver: metatraffic_locator_message_channel_receiver,
+                version: protocol_version,
+                vendor_id,
+                guid_prefix,
+                transport: metatraffic_transport,
+            };
 
             while is_enabled_arc.load(atomic::Ordering::SeqCst) {
-                // send_builtin_data();
-                if let Ok((dst_locator, submessages)) =
-                    metatraffic_locator_message_channel_receiver.try_recv()
-                {
-                    let header = RtpsMessageHeader {
-                        protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                        version: protocol_version,
-                        vendor_id,
-                        guid_prefix,
-                    };
-                    let message = RtpsMessageWrite::new(header, submessages);
-                    metatraffic_transport.write(&message, &dst_locator);
-                };
-
-                //receive_builtin_data();
-                if let Some((source_locator, message)) = metatraffic_transport.read() {
-                    crate::utils::message_receiver::MessageReceiver::new().process_message(
-                        guid_prefix,
-                        core::slice::from_ref(&builtin_subscriber_arc),
-                        source_locator,
-                        &message,
-                    );
-                }
-
-                // send_user_defined_data();
-                if let Ok((dst_locator, submessages)) =
-                    user_defined_locator_message_channel_receiver.try_recv()
-                {
-                    let header = RtpsMessageHeader {
-                        protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                        version: protocol_version,
-                        vendor_id,
-                        guid_prefix,
-                    };
-                    let message = RtpsMessageWrite::new(header, submessages);
-                    default_transport.write(&message, &dst_locator);
-                };
-
-                //receive_user_defined_data();
-                if let Some((source_locator, message)) = default_transport.read() {
-                    crate::utils::message_receiver::MessageReceiver::new().process_message(
-                        guid_prefix,
-                        &user_defined_subscriber_list_arc.lock().unwrap(),
-                        source_locator,
-                        &message,
-                    );
-                }
-
-                //     if let Some(spdp_builtin_participant_reader) =
-                //         &option_spdp_builtin_participant_reader
-                //     {
-                //         if let Ok(discovered_participant) = rtps_shared_write_lock(
-                //             &spdp_builtin_participant_reader,
-                //         )
-                //         .read(1, &[], &[], &[])
-                //         {
-                //             let local_participant_domain_id = 1;
-                //             let local_participant_domain_tag = "ab";
-
-                //             if let Ok(participant_discovery) = ParticipantDiscovery::new(
-                //                 &discovered_participant[0].participant_proxy,
-                //                 local_participant_domain_id,
-                //                 local_participant_domain_tag,
-                //             ) {
-                //                 if let Some(sedp_builtin_publications_reader) =
-                //                     &option_sedp_builtin_publications_reader
-                //                 {
-                //                     let reader = &mut (rtps_shared_write_lock(
-                //                         &sedp_builtin_publications_reader,
-                //                     )
-                //                     .rtps_reader);
-                //                     if let RtpsReaderFlavor::Stateful(stateful_reader) = reader {
-                //                         participant_discovery
-                //                             .discovered_participant_add_publications_reader(
-                //                                 stateful_reader,
-                //                             );
-                //                     }
-                //                 }
-                //             }
-                //         }
-                //     }
-
+                communication.send();
+                communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });
+
+        let is_enabled_arc = is_enabled.clone();
+        std::thread::spawn(move || {
+            while !is_enabled_arc.load(atomic::Ordering::SeqCst) {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+
+            let mut communication = Communication {
+                locator_message_channel_receiver: user_defined_locator_message_channel_receiver,
+                version: protocol_version,
+                vendor_id,
+                guid_prefix,
+                transport: default_transport,
+            };
+
+            while is_enabled_arc.load(atomic::Ordering::SeqCst) {
+                communication.send();
+                communication.receive(&user_defined_subscriber_list_arc.lock().unwrap());
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        });
+
+
+
+        //     if let Some(spdp_builtin_participant_reader) =
+        //         &option_spdp_builtin_participant_reader
+        //     {
+        //         if let Ok(discovered_participant) = rtps_shared_write_lock(
+        //             &spdp_builtin_participant_reader,
+        //         )
+        //         .read(1, &[], &[], &[])
+        //         {
+        //             let local_participant_domain_id = 1;
+        //             let local_participant_domain_tag = "ab";
+
+        //             if let Ok(participant_discovery) = ParticipantDiscovery::new(
+        //                 &discovered_participant[0].participant_proxy,
+        //                 local_participant_domain_id,
+        //                 local_participant_domain_tag,
+        //             ) {
+        //                 if let Some(sedp_builtin_publications_reader) =
+        //                     &option_sedp_builtin_publications_reader
+        //                 {
+        //                     let reader = &mut (rtps_shared_write_lock(
+        //                         &sedp_builtin_publications_reader,
+        //                     )
+        //                     .rtps_reader);
+        //                     if let RtpsReaderFlavor::Stateful(stateful_reader) = reader {
+        //                         participant_discovery
+        //                             .discovered_participant_add_publications_reader(
+        //                                 stateful_reader,
+        //                             );
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+
+
 
         Self {
             guid_prefix,
