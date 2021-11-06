@@ -79,12 +79,21 @@ pub struct GuidSerdeSerialize<'a>(#[serde(with = "GuidDef")] pub &'a Guid);
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct GuidSerdeDeserialize(#[serde(with = "GuidDef")] pub Guid);
 
+
+
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "EntityId")]
 pub struct EntityIdDef {
     pub entity_key: [u8; 3],
     pub entity_kind: EntityKind,
 }
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct EntityIdSerialize<'a>(#[serde(with = "EntityIdDef")] pub &'a EntityId);
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct EntityIdDeserialize(#[serde(with = "EntityIdDef")] pub EntityId);
+
+
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "GuidPrefix")]

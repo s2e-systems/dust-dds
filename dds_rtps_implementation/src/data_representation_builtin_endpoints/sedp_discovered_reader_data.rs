@@ -16,21 +16,7 @@ use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
-use super::{
-    dds_serialize_deserialize_impl::{
-        BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize,
-        DurabilityQosPolicySerialize, GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize,
-        LivelinessQosPolicySerialize, OwnershipQosPolicySerialize, PartitionQosPolicySerialize,
-        PresentationQosPolicySerialize, ReliabilityQosPolicySerialize,
-        TimeBasedFilterQosPolicySerialize, TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
-    },
-    parameter_id_values::{
-        PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA,
-        PID_LATENCY_BUDGET, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION,
-        PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME,
-        PID_USER_DATA,
-    },
-};
+use super::{dds_serialize_deserialize_impl::{BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize, EntityIdSerialize, GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize, LivelinessQosPolicySerialize, LocatorSerdeSerialize, OwnershipQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize, ReliabilityQosPolicySerialize, TimeBasedFilterQosPolicySerialize, TopicDataQosPolicySerialize, UserDataQosPolicySerialize}, parameter_id_values::{DEFAULT_EXPECTS_INLINE_QOS, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA}};
 
 pub struct SedpDiscoveredReaderData {
     pub reader_proxy: RtpsReaderProxy<Vec<Locator>>,
@@ -53,6 +39,33 @@ impl DdsSerialize for SedpDiscoveredReaderData {
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
         let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
+
+        // omitted (as of table 9.10) reader_proxy.remote_reader_guid
+
+        for locator in &self.reader_proxy.unicast_locator_list {
+            parameter_list_serializer
+                .serialize_parameter(PID_UNICAST_LOCATOR, &LocatorSerdeSerialize(locator))
+                .unwrap();
+        }
+        for locator in &self.reader_proxy.multicast_locator_list {
+            parameter_list_serializer
+                .serialize_parameter(PID_MULTICAST_LOCATOR, &LocatorSerdeSerialize(locator))
+                .unwrap();
+        }
+        parameter_list_serializer
+            .serialize_parameter(
+                PID_GROUP_ENTITYID,
+                &EntityIdSerialize(&self.reader_proxy.remote_group_entity_id),
+            )
+            .unwrap();
+        if self.reader_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
+            parameter_list_serializer
+            .serialize_parameter(
+                PID_EXPECTS_INLINE_QOS,
+                &self.reader_proxy.expects_inline_qos,
+            )
+            .unwrap();
+        }
 
         parameter_list_serializer
             .serialize_parameter(
@@ -247,7 +260,7 @@ mod tests {
                 },
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                expects_inline_qos: true,
+                expects_inline_qos: DEFAULT_EXPECTS_INLINE_QOS,
             },
             subscriptions_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -279,6 +292,8 @@ mod tests {
 
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 25,
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // long,
             2, 0, 0, 0, // long,

@@ -47,6 +47,12 @@ pub const PID_PROPERTY_LIST: u16 = 0x0059;
 pub const PID_TYPE_MAX_SIZE_SERIALIZED: u16 = 0x0060;
 pub const PID_ENTITY_NAME: u16 = 0x0062;
 pub const PID_ENDPOINT_GUID: u16 = 0x005a;
+// Following PID is not defined in standard
+// (but its listed in "Table 9.14 - ParameterId mapping and default values")
+pub const PID_DATA_MAX_SIZE_SERIALIZED: u16 = PID_TYPE_MAX_SIZE_SERIALIZED;
+// Following PID is listed in "Table 9.19 – Deprecated ParameterId Values" but
+// also in "Table 9.14 - ParameterId mapping and default values"
+pub const PID_GROUP_ENTITYID: u16 = 0x0053;
 
 // Constant value from Table 9.14 - ParameterId mapping and default values
 pub const DEFAULT_DOMAIN_TAG: &str = "";
