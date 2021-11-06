@@ -22,8 +22,8 @@ use super::{
         CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
         DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize,
         LocatorSerdeDeserialize, LocatorSerdeSerialize, ProtocolVersionSerdeDeserialize,
-        ProtocolVersionSerdeSerialize, UserDataQosPolicySerdeDeserialize,
-        UserDataQosPolicySerdeSerialize,
+        ProtocolVersionSerdeSerialize, UserDataQosPolicyDeserialize,
+        UserDataQosPolicySerialize,
     },
     parameter_id_values::{
         DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
@@ -172,7 +172,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_USER_DATA,
-                    &UserDataQosPolicySerdeSerialize(&self.dds_participant_data.user_data),
+                    &UserDataQosPolicySerialize(&self.dds_participant_data.user_data),
                 )
                 .unwrap();
         }
@@ -221,8 +221,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             .unwrap()
             .0;
         let user_data = param_list
-            .get::<UserDataQosPolicySerdeDeserialize>(PID_USER_DATA)
-            .unwrap_or(UserDataQosPolicySerdeDeserialize(
+            .get::<UserDataQosPolicyDeserialize>(PID_USER_DATA)
+            .unwrap_or(UserDataQosPolicyDeserialize(
                 UserDataQosPolicy::default(),
             ))
             .0;

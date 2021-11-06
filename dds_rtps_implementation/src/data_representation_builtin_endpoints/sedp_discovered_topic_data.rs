@@ -1,8 +1,33 @@
-use rust_dds_api::{builtin_topics::TopicBuiltinTopicData, infrastructure::qos_policy::{DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy}};
+use rust_dds_api::{
+    builtin_topics::TopicBuiltinTopicData,
+    infrastructure::qos_policy::{
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+        DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+        LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy,
+        TopicDataQosPolicy, TransportPriorityQosPolicy,
+    },
+};
 
-use crate::{data_serialize_deserialize::ParameterSerializer, dds_type::{DdsDeserialize, DdsSerialize, DdsType}};
+use crate::{
+    data_serialize_deserialize::ParameterSerializer,
+    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
+};
 
-use super::{dds_serialize_deserialize_impl::{BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize, HistoryQosPolicySerialize, LatencyBudgetQosPolicySerialize, LifespanQosPolicySerialize, LivelinessQosPolicySerialize, OwnershipQosPolicySerialize, ReliabilityQosPolicySerialize, ResourceLimitsQosPolicySerialize, TopicDataQosPolicySerialize, TransportPriorityQosPolicySerialize}, parameter_id_values::{PID_DEADLINE, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME}};
+use super::{
+    dds_serialize_deserialize_impl::{
+        BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize,
+        DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize,
+        HistoryQosPolicySerialize, LatencyBudgetQosPolicySerialize, LifespanQosPolicySerialize,
+        LivelinessQosPolicySerialize, OwnershipQosPolicySerialize, ReliabilityQosPolicySerialize,
+        ResourceLimitsQosPolicySerialize, TopicDataQosPolicySerialize,
+        TransportPriorityQosPolicySerialize,
+    },
+    parameter_id_values::{
+        PID_DEADLINE, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID,
+        PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_RELIABILITY, PID_RESOURCE_LIMITS,
+        PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+    },
+};
 
 pub struct SedpDiscoveredTopicData {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
@@ -26,7 +51,10 @@ impl DdsSerialize for SedpDiscoveredTopicData {
         let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
 
         parameter_list_serializer
-            .serialize_parameter(PID_ENDPOINT_GUID, &BuiltInTopicKeySerialize(&self.topic_builtin_topic_data.key))
+            .serialize_parameter(
+                PID_ENDPOINT_GUID,
+                &BuiltInTopicKeySerialize(&self.topic_builtin_topic_data.key),
+            )
             .unwrap();
         parameter_list_serializer
             .serialize_parameter(PID_TOPIC_NAME, &self.topic_builtin_topic_data.name)
@@ -36,65 +64,114 @@ impl DdsSerialize for SedpDiscoveredTopicData {
             .unwrap();
         if self.topic_builtin_topic_data.durability != DurabilityQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_DURABILITY, &DurabilityQosPolicySerialize(&self.topic_builtin_topic_data.durability))
+                .serialize_parameter(
+                    PID_DURABILITY,
+                    &DurabilityQosPolicySerialize(&self.topic_builtin_topic_data.durability),
+                )
                 .unwrap();
         }
-        if self.topic_builtin_topic_data.durability_service != DurabilityServiceQosPolicy::default() {
+        if self.topic_builtin_topic_data.durability_service != DurabilityServiceQosPolicy::default()
+        {
             parameter_list_serializer
-                .serialize_parameter(PID_DURABILITY_SERVICE, &DurabilityServiceQosPolicySerialize(&self.topic_builtin_topic_data.durability_service))
+                .serialize_parameter(
+                    PID_DURABILITY_SERVICE,
+                    &DurabilityServiceQosPolicySerialize(
+                        &self.topic_builtin_topic_data.durability_service,
+                    ),
+                )
                 .unwrap();
         }
         if self.topic_builtin_topic_data.deadline != DeadlineQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_DEADLINE, &DeadlineQosPolicySerialize(&self.topic_builtin_topic_data.deadline))
+                .serialize_parameter(
+                    PID_DEADLINE,
+                    &DeadlineQosPolicySerialize(&self.topic_builtin_topic_data.deadline),
+                )
                 .unwrap();
         }
         if self.topic_builtin_topic_data.latency_budget != LatencyBudgetQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_LATENCY_BUDGET, &LatencyBudgetQosPolicySerialize(&self.topic_builtin_topic_data.latency_budget))
+                .serialize_parameter(
+                    PID_LATENCY_BUDGET,
+                    &LatencyBudgetQosPolicySerialize(&self.topic_builtin_topic_data.latency_budget),
+                )
                 .unwrap();
         }
         if self.topic_builtin_topic_data.liveliness != LivelinessQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_LIVELINESS, &LivelinessQosPolicySerialize(&self.topic_builtin_topic_data.liveliness))
+                .serialize_parameter(
+                    PID_LIVELINESS,
+                    &LivelinessQosPolicySerialize(&self.topic_builtin_topic_data.liveliness),
+                )
                 .unwrap();
         }
         parameter_list_serializer
-            .serialize_parameter(PID_RELIABILITY, &ReliabilityQosPolicySerialize(&self.topic_builtin_topic_data.reliability))
+            .serialize_parameter(
+                PID_RELIABILITY,
+                &ReliabilityQosPolicySerialize(&self.topic_builtin_topic_data.reliability),
+            )
             .unwrap();
-        if self.topic_builtin_topic_data.transport_priority != TransportPriorityQosPolicy::default() {
+        if self.topic_builtin_topic_data.transport_priority != TransportPriorityQosPolicy::default()
+        {
             parameter_list_serializer
-                .serialize_parameter(PID_TRANSPORT_PRIORITY, &TransportPriorityQosPolicySerialize(&self.topic_builtin_topic_data.transport_priority))
+                .serialize_parameter(
+                    PID_TRANSPORT_PRIORITY,
+                    &TransportPriorityQosPolicySerialize(
+                        &self.topic_builtin_topic_data.transport_priority,
+                    ),
+                )
                 .unwrap();
         }
         if self.topic_builtin_topic_data.lifespan != LifespanQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_LIFESPAN, &LifespanQosPolicySerialize(&self.topic_builtin_topic_data.lifespan))
+                .serialize_parameter(
+                    PID_LIFESPAN,
+                    &LifespanQosPolicySerialize(&self.topic_builtin_topic_data.lifespan),
+                )
                 .unwrap();
         }
         if self.topic_builtin_topic_data.destination_order != DestinationOrderQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_LIFESPAN, &DestinationOrderQosPolicySerialize(&self.topic_builtin_topic_data.destination_order))
+                .serialize_parameter(
+                    PID_LIFESPAN,
+                    &DestinationOrderQosPolicySerialize(
+                        &self.topic_builtin_topic_data.destination_order,
+                    ),
+                )
                 .unwrap();
         }
         if self.topic_builtin_topic_data.history != HistoryQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_LIFESPAN, &HistoryQosPolicySerialize(&self.topic_builtin_topic_data.history))
+                .serialize_parameter(
+                    PID_LIFESPAN,
+                    &HistoryQosPolicySerialize(&self.topic_builtin_topic_data.history),
+                )
                 .unwrap();
         }
         if self.topic_builtin_topic_data.resource_limits != ResourceLimitsQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_RESOURCE_LIMITS, &ResourceLimitsQosPolicySerialize(&self.topic_builtin_topic_data.resource_limits))
+                .serialize_parameter(
+                    PID_RESOURCE_LIMITS,
+                    &ResourceLimitsQosPolicySerialize(
+                        &self.topic_builtin_topic_data.resource_limits,
+                    ),
+                )
                 .unwrap();
         }
         if self.topic_builtin_topic_data.ownership != OwnershipQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_RESOURCE_LIMITS, &OwnershipQosPolicySerialize(&self.topic_builtin_topic_data.ownership))
+                .serialize_parameter(
+                    PID_RESOURCE_LIMITS,
+                    &OwnershipQosPolicySerialize(&self.topic_builtin_topic_data.ownership),
+                )
                 .unwrap();
         }
         if self.topic_builtin_topic_data.topic_data != TopicDataQosPolicy::default() {
             parameter_list_serializer
-                .serialize_parameter(PID_RESOURCE_LIMITS, &TopicDataQosPolicySerialize(&self.topic_builtin_topic_data.topic_data))
+                .serialize_parameter(
+                    PID_RESOURCE_LIMITS,
+                    &TopicDataQosPolicySerialize(&self.topic_builtin_topic_data.topic_data),
+                )
                 .unwrap();
         }
 
@@ -107,7 +184,6 @@ impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
         todo!()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -136,7 +212,9 @@ mod tests {
     fn serialize_all_default() {
         let data = SedpDiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
-                key: BuiltInTopicKey { value: [1, 2, 3, 4] },
+                key: BuiltInTopicKey {
+                    value: [1, 2, 3, 4],
+                },
                 name: "ab".to_string(),
                 type_name: "cd".to_string(),
                 durability: DurabilityQosPolicy::default(),

@@ -1,4 +1,4 @@
-use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, LivelinessQosPolicyKind, OwnershipQosPolicy, OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy, PresentationQosPolicyAccessScopeKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy}};
+use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, LivelinessQosPolicyKind, OwnershipQosPolicy, OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy, PresentationQosPolicyAccessScopeKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy}};
 use rust_rtps_pim::{
     behavior::types::Duration,
     messages::types::Count,
@@ -13,12 +13,12 @@ pub struct UserDataQosPolicyDef {
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
-pub struct UserDataQosPolicySerdeSerialize<'a>(
+pub struct UserDataQosPolicySerialize<'a>(
     #[serde(with = "UserDataQosPolicyDef")] pub &'a UserDataQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct UserDataQosPolicySerdeDeserialize(
+pub struct UserDataQosPolicyDeserialize(
     #[serde(with = "UserDataQosPolicyDef")] pub UserDataQosPolicy,
 );
 
@@ -535,4 +535,20 @@ pub struct GroupDataQosPolicySerialize<'a>(
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct GroupDataQosPolicyDeserialize(
     #[serde(with = "GroupDataQosPolicyDef")] pub  GroupDataQosPolicy,
+);
+
+
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(remote = "TimeBasedFilterQosPolicy")]
+pub struct TimeBasedFilterQosPolicyDef {
+    #[serde(with = "DcpsDurationDef")]
+    pub minimum_separation: rust_dds_api::dcps_psm::Duration,
+}
+#[derive(Debug, PartialEq, serde::Serialize)]
+pub struct TimeBasedFilterQosPolicySerialize<'a>(
+    #[serde(with = "TimeBasedFilterQosPolicyDef")] pub &'a  TimeBasedFilterQosPolicy,
+);
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct TimeBasedFilterQosPolicyDeserialize(
+    #[serde(with = "TimeBasedFilterQosPolicyDef")] pub  TimeBasedFilterQosPolicy,
 );

@@ -1,6 +1,15 @@
 use std::io::Write;
 
-use rust_dds_api::{builtin_topics::PublicationBuiltinTopicData, infrastructure::qos_policy::{DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy}, return_type::DDSResult};
+use rust_dds_api::{
+    builtin_topics::PublicationBuiltinTopicData,
+    infrastructure::qos_policy::{
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+        DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+        LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
+        PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+    },
+    return_type::DDSResult,
+};
 use rust_rtps_pim::{behavior::reader::writer_proxy::RtpsWriterProxy, structure::types::Locator};
 
 use crate::{
@@ -8,7 +17,7 @@ use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
-use super::{dds_serialize_deserialize_impl::{BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize, GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize, LifespanQosPolicySerialize, LivelinessQosPolicySerialize, OwnershipQosPolicySerialize, OwnershipStrengthQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize, ReliabilityQosPolicySerialize, TopicDataQosPolicySerialize}, parameter_id_values::{PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_LIFESPAN, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME}};
+use super::{dds_serialize_deserialize_impl::{BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize, GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize, LifespanQosPolicySerialize, LivelinessQosPolicySerialize, OwnershipQosPolicySerialize, OwnershipStrengthQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize, ReliabilityQosPolicySerialize, TopicDataQosPolicySerialize, UserDataQosPolicySerialize}, parameter_id_values::{PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP, PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_USER_DATA}};
 
 pub struct SedpDiscoveredWriterData {
     pub writer_proxy: RtpsWriterProxy<Vec<Locator>>,
@@ -66,7 +75,7 @@ impl DdsSerialize for SedpDiscoveredWriterData {
         {
             parameter_list_serializer
                 .serialize_parameter(
-                    PID_DURABILITY,
+                    PID_DURABILITY_SERVICE,
                     &DurabilityServiceQosPolicySerialize(
                         &self.publication_builtin_topic_data.durability_service,
                     ),
@@ -76,7 +85,7 @@ impl DdsSerialize for SedpDiscoveredWriterData {
         if self.publication_builtin_topic_data.deadline != DeadlineQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
-                    PID_DURABILITY,
+                    PID_DEADLINE,
                     &DeadlineQosPolicySerialize(&self.publication_builtin_topic_data.deadline),
                 )
                 .unwrap();
@@ -84,7 +93,7 @@ impl DdsSerialize for SedpDiscoveredWriterData {
         if self.publication_builtin_topic_data.latency_budget != LatencyBudgetQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
-                    PID_DURABILITY,
+                    PID_LATENCY_BUDGET,
                     &LatencyBudgetQosPolicySerialize(
                         &self.publication_builtin_topic_data.latency_budget,
                     ),
@@ -94,7 +103,7 @@ impl DdsSerialize for SedpDiscoveredWriterData {
         if self.publication_builtin_topic_data.liveliness != LivelinessQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
-                    PID_DURABILITY,
+                    PID_LIVELINESS,
                     &LivelinessQosPolicySerialize(&self.publication_builtin_topic_data.liveliness),
                 )
                 .unwrap();
@@ -113,14 +122,14 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                 )
                 .unwrap();
         }
-        // if self.publication_builtin_topic_data.user_data != UserDataQosPolicy{value: vec![]} {
-        //     parameter_list_serializer
-        //         .serialize_parameter(
-        //             PID_USER_DATA,
-        //             &UserDataQosPolicySerialize(&self.publication_builtin_topic_data.user_data),
-        //         )
-        //         .unwrap();
-        // }
+        if self.publication_builtin_topic_data.user_data != UserDataQosPolicy::default() {
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_USER_DATA,
+                    &UserDataQosPolicySerialize(&self.publication_builtin_topic_data.user_data),
+                )
+                .unwrap();
+        }
         if self.publication_builtin_topic_data.ownership != OwnershipQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
@@ -129,19 +138,27 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                 )
                 .unwrap();
         }
-        if self.publication_builtin_topic_data.ownership_strength != OwnershipStrengthQosPolicy::default() {
+        if self.publication_builtin_topic_data.ownership_strength
+            != OwnershipStrengthQosPolicy::default()
+        {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_OWNERSHIP_STRENGTH,
-                    &OwnershipStrengthQosPolicySerialize(&self.publication_builtin_topic_data.ownership_strength),
+                    &OwnershipStrengthQosPolicySerialize(
+                        &self.publication_builtin_topic_data.ownership_strength,
+                    ),
                 )
                 .unwrap();
         }
-        if self.publication_builtin_topic_data.destination_order != DestinationOrderQosPolicy::default() {
+        if self.publication_builtin_topic_data.destination_order
+            != DestinationOrderQosPolicy::default()
+        {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_DESTINATION_ORDER,
-                    &DestinationOrderQosPolicySerialize(&self.publication_builtin_topic_data.destination_order),
+                    &DestinationOrderQosPolicySerialize(
+                        &self.publication_builtin_topic_data.destination_order,
+                    ),
                 )
                 .unwrap();
         }
@@ -149,7 +166,9 @@ impl DdsSerialize for SedpDiscoveredWriterData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_PRESENTATION,
-                    &PresentationQosPolicySerialize(&self.publication_builtin_topic_data.presentation),
+                    &PresentationQosPolicySerialize(
+                        &self.publication_builtin_topic_data.presentation,
+                    ),
                 )
                 .unwrap();
         }
