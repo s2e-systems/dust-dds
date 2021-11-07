@@ -23,7 +23,7 @@ pub struct Duration {
 }
 
 impl Duration {
-    pub fn new(sec: i32, nanosec: u32) -> Self {
+    pub const fn new(sec: i32, nanosec: u32) -> Self {
         Self { sec, nanosec }
     }
 

@@ -1,14 +1,6 @@
 use std::io::Write;
 
-use rust_dds_api::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-        LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-        PartitionQosPolicy, PresentationQosPolicy,
-        TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-    },
-};
+use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, infrastructure::qos_policy::{DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy}};
 use rust_rtps_pim::{behavior::writer::reader_proxy::RtpsReaderProxy, structure::types::Locator};
 
 use crate::{
@@ -16,7 +8,14 @@ use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
-use super::{dds_serialize_deserialize_impl::{BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize, EntityIdSerialize, GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize, LivelinessQosPolicySerialize, LocatorSerdeSerialize, OwnershipQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize, ReliabilityQosPolicySerialize, TimeBasedFilterQosPolicySerialize, TopicDataQosPolicySerialize, UserDataQosPolicySerialize}, parameter_id_values::{DEFAULT_EXPECTS_INLINE_QOS, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA}};
+use super::{dds_serialize_deserialize_impl::{
+        BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize,
+        DurabilityQosPolicySerialize, EntityIdSerialize, GroupDataQosPolicySerialize,
+        LatencyBudgetQosPolicySerialize, LivelinessQosPolicySerialize, LocatorSerdeSerialize,
+        OwnershipQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize,
+        ReliabilityQosPolicySerialize, TimeBasedFilterQosPolicySerialize,
+        TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
+    }, parameter_id_values::{DEFAULT_EXPECTS_INLINE_QOS, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA}};
 
 pub struct SedpDiscoveredReaderData {
     pub reader_proxy: RtpsReaderProxy<Vec<Locator>>,
@@ -60,11 +59,11 @@ impl DdsSerialize for SedpDiscoveredReaderData {
             .unwrap();
         if self.reader_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
             parameter_list_serializer
-            .serialize_parameter(
-                PID_EXPECTS_INLINE_QOS,
-                &self.reader_proxy.expects_inline_qos,
-            )
-            .unwrap();
+                .serialize_parameter(
+                    PID_EXPECTS_INLINE_QOS,
+                    &self.reader_proxy.expects_inline_qos,
+                )
+                .unwrap();
         }
 
         parameter_list_serializer
@@ -130,12 +129,18 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                 )
                 .unwrap();
         }
-        parameter_list_serializer
-            .serialize_parameter(
-                PID_RELIABILITY,
-                &ReliabilityQosPolicySerialize(&self.subscriptions_builtin_topic_data.reliability),
-            )
-            .unwrap();
+        if self.subscriptions_builtin_topic_data.reliability
+            != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
+        {
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_RELIABILITY,
+                    &ReliabilityQosPolicySerialize(
+                        &self.subscriptions_builtin_topic_data.reliability,
+                    ),
+                )
+                .unwrap();
+        }
         if self.subscriptions_builtin_topic_data.ownership != OwnershipQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
@@ -224,16 +229,14 @@ impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use rust_dds_api::{
-        dcps_psm::{BuiltInTopicKey, Duration},
+        dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
             LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-            PresentationQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         },
     };
     use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
-
     use super::*;
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
@@ -275,10 +278,7 @@ mod tests {
                 deadline: DeadlineQosPolicy::default(),
                 latency_budget: LatencyBudgetQosPolicy::default(),
                 liveliness: LivelinessQosPolicy::default(),
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-                    max_blocking_time: Duration::new(2, 9),
-                },
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
                 user_data: UserDataQosPolicy { value: vec![] },
                 ownership: OwnershipQosPolicy::default(),
                 time_based_filter: TimeBasedFilterQosPolicy::default(),
@@ -293,8 +293,7 @@ mod tests {
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-            21, 22, 23, 25,
-            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            21, 22, 23, 25, 0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // long,
             2, 0, 0, 0, // long,
             3, 0, 0, 0, // long,
@@ -310,10 +309,6 @@ mod tests {
             0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
-            0x1a, 0x00, 12, 0, //PID_RELIABILITY, length
-            1, 0, 0, 0, // kind
-            2, 0, 0, 0, // max_blocking_time: seconds
-            9, 0, 0, 0, // max_blocking_time: nanoseconds
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(to_bytes_le(&data), expected);

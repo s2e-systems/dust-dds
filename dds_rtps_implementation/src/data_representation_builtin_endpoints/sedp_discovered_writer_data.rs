@@ -1,15 +1,6 @@
 use std::io::Write;
 
-use rust_dds_api::{
-    builtin_topics::PublicationBuiltinTopicData,
-    infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-        DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-        LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-    },
-    return_type::DDSResult,
-};
+use rust_dds_api::{builtin_topics::PublicationBuiltinTopicData, infrastructure::qos_policy::{DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy}, return_type::DDSResult};
 use rust_rtps_pim::{behavior::reader::writer_proxy::RtpsWriterProxy, structure::types::Locator};
 
 use crate::{
@@ -70,11 +61,8 @@ impl DdsSerialize for SedpDiscoveredWriterData {
         }
         if let Some(data_max_size_serialized) = &self.writer_proxy.data_max_size_serialized {
             parameter_list_serializer
-            .serialize_parameter(
-                PID_DATA_MAX_SIZE_SERIALIZED,
-                data_max_size_serialized,
-            )
-            .unwrap();
+                .serialize_parameter(PID_DATA_MAX_SIZE_SERIALIZED, data_max_size_serialized)
+                .unwrap();
         }
         parameter_list_serializer
             .serialize_parameter(
@@ -153,12 +141,18 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                 )
                 .unwrap();
         }
-        parameter_list_serializer
-            .serialize_parameter(
-                PID_RELIABILITY,
-                &ReliabilityQosPolicySerialize(&self.publication_builtin_topic_data.reliability),
-            )
-            .unwrap();
+        if self.publication_builtin_topic_data.reliability
+            != DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER
+        {
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_RELIABILITY,
+                    &ReliabilityQosPolicySerialize(
+                        &self.publication_builtin_topic_data.reliability,
+                    ),
+                )
+                .unwrap();
+        }
         if self.publication_builtin_topic_data.lifespan != LifespanQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
@@ -255,13 +249,12 @@ impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
 #[cfg(test)]
 mod tests {
     use rust_dds_api::{
-        dcps_psm::{BuiltInTopicKey, Duration},
+        dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
             DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
             LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind, TopicDataQosPolicy, UserDataQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         },
     };
     use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
@@ -308,10 +301,7 @@ mod tests {
                 deadline: DeadlineQosPolicy::default(),
                 latency_budget: LatencyBudgetQosPolicy::default(),
                 liveliness: LivelinessQosPolicy::default(),
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-                    max_blocking_time: Duration::new(2, 9),
-                },
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
                 lifespan: LifespanQosPolicy::default(),
                 user_data: UserDataQosPolicy { value: vec![] },
                 ownership: OwnershipQosPolicy::default(),
@@ -327,8 +317,7 @@ mod tests {
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-            21, 22, 23, 25,
-            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            21, 22, 23, 25, 0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // long,
             2, 0, 0, 0, // long,
             3, 0, 0, 0, // long,
@@ -344,10 +333,6 @@ mod tests {
             0x07, 0x00, 0x08, 0x00, // PID_TYPE_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
-            0x1a, 0x00, 12, 0, //PID_RELIABILITY, length
-            1, 0, 0, 0, // kind
-            2, 0, 0, 0, // max_blocking_time: seconds
-            9, 0, 0, 0, // max_blocking_time: nanoseconds
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(to_bytes_le(&data), expected);

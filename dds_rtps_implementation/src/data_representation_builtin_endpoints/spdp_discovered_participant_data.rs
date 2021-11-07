@@ -3,7 +3,7 @@ use rust_rtps_pim::{
     behavior::types::Duration,
     structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
 };
-use rust_rtps_psm::discovery::spdp::participant_proxy::ParticipantProxy;
+use rust_rtps_psm::discovery::{spdp::participant_proxy::ParticipantProxy, types::BuiltinEndpointQos};
 
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
@@ -25,8 +25,7 @@ use super::{
         ProtocolVersionSerdeSerialize, UserDataQosPolicyDeserialize,
         UserDataQosPolicySerialize,
     },
-    parameter_id_values::{
-        DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
+    parameter_id_values::{DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
         PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID,
         PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
         PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
@@ -152,7 +151,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             )
             .unwrap();
 
-        if self.participant_proxy.builtin_endpoint_qos != DEFAULT_BUILTIN_ENDPOINT_QOS {
+        if self.participant_proxy.builtin_endpoint_qos != BuiltinEndpointQos::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_BUILTIN_ENDPOINT_QOS,
@@ -267,7 +266,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let builtin_endpoint_qos = param_list
             .get::<BuiltinEndpointQosSerdeDeserialize>(PID_BUILTIN_ENDPOINT_QOS)
             .unwrap_or(BuiltinEndpointQosSerdeDeserialize(
-                DEFAULT_BUILTIN_ENDPOINT_QOS,
+                BuiltinEndpointQos::default(),
             ))
             .0;
 
