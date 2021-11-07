@@ -1,6 +1,6 @@
 use std::{
     any::Any,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use rust_dds_api::{
@@ -38,15 +38,21 @@ use crate::{
 
 use super::data_reader_impl::{DataReaderImpl, RtpsReaderFlavor};
 
-pub trait DataReaderObject: Any + Send + Sync + ProcessDataSubmessage {
+pub trait DataReaderObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+
+    fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>>;
 }
 
-impl<T> DataReaderObject for T
+impl<T> DataReaderObject for RwLock<T>
 where
     T: Any + Send + Sync + ProcessDataSubmessage,
 {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
+    }
+
+    fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>> {
         self
     }
 }
@@ -54,7 +60,7 @@ where
 pub struct SubscriberImpl {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    data_reader_list: Mutex<Vec<Arc<dyn DataReaderObject>>>,
+    data_reader_list: Mutex<Vec<Arc<dyn DataReaderObject + Send + Sync>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -63,7 +69,7 @@ impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        data_reader_list: Vec<Arc<dyn DataReaderObject>>,
+        data_reader_list: Vec<Arc<dyn DataReaderObject + Send + Sync>>,
     ) -> Self {
         Self {
             qos,
@@ -251,10 +257,15 @@ impl Entity for SubscriberImpl {
 }
 
 impl ProcessDataSubmessage for SubscriberImpl {
-    fn process_data_submessage(&self, source_guid_prefix: GuidPrefix, data: &DataSubmessageRead) {
+    fn process_data_submessage(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessageRead) {
         let data_reader_list = self.data_reader_list.lock().unwrap();
         for reader in data_reader_list.iter() {
-            reader.process_data_submessage(source_guid_prefix, data);
+            reader
+                .clone()
+                .into_process_data_submessage()
+                .write()
+                .unwrap()
+                .process_data_submessage(source_guid_prefix, data);
             //  rtps_reader_mut() {
         }
     }
