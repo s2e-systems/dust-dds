@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::RwLock};
+use std::ops::Deref;
 
 use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
@@ -46,13 +46,12 @@ pub struct DataReaderImpl<T> {
     _listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }
 
-impl<T> ProcessDataSubmessage for RwLock<DataReaderImpl<T>>
+impl<T> ProcessDataSubmessage for DataReaderImpl<T>
 where
     T: for<'a> DdsDeserialize<'a>,
 {
-    fn process_data_submessage(&self, source_guid_prefix: GuidPrefix, data: &DataSubmessageRead) {
-        let mut data_reader = self.write().unwrap();
-        match &mut data_reader.rtps_reader {
+    fn process_data_submessage(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessageRead) {
+        match &mut self.rtps_reader {
             RtpsReaderFlavor::Stateful(_) => todo!(),
             RtpsReaderFlavor::Stateless(stateless_reader) => {
                 stateless_reader.receive_data(source_guid_prefix, data)

@@ -73,8 +73,8 @@ impl DomainParticipantImpl {
         domain_participant_qos: DomainParticipantQos,
         builtin_subscriber: RtpsShared<SubscriberImpl>,
         builtin_publisher: RtpsShared<PublisherImpl>,
-        mut metatraffic_transport: Box<dyn Transport>,
-        mut default_transport: Box<dyn Transport>,
+        metatraffic_transport: Box<dyn Transport>,
+        default_transport: Box<dyn Transport>,
         _metatraffic_locator_message_channel_sender: SyncSender<(
             Locator,
             Vec<RtpsSubmessageTypeWrite>,
