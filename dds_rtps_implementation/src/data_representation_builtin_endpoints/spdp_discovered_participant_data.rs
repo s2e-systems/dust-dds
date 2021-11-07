@@ -1,9 +1,14 @@
-use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::UserDataQosPolicy};
+use rust_dds_api::{
+    builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey,
+    infrastructure::qos_policy::UserDataQosPolicy,
+};
 use rust_rtps_pim::{
     behavior::types::Duration,
     structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
 };
-use rust_rtps_psm::discovery::{spdp::participant_proxy::ParticipantProxy, types::BuiltinEndpointQos};
+use rust_rtps_psm::discovery::{
+    spdp::participant_proxy::ParticipantProxy, types::BuiltinEndpointQos,
+};
 
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
@@ -20,15 +25,15 @@ use super::{
         BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
         BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
         CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
-        DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize,
-        LocatorSerdeDeserialize, LocatorSerdeSerialize, ProtocolVersionSerdeDeserialize,
-        ProtocolVersionSerdeSerialize, UserDataQosPolicyDeserialize,
-        UserDataQosPolicySerialize,
+        DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize, LocatorDeserialize,
+        LocatorSerialize, ProtocolVersionSerdeDeserialize, ProtocolVersionSerdeSerialize,
+        UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
     },
-    parameter_id_values::{DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
-        PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID,
-        PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
-        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+    parameter_id_values::{
+        DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET,
+        PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR,
+        PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+        PID_USER_DATA, PID_VENDORID,
     },
 };
 
@@ -101,7 +106,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_METATRAFFIC_UNICAST_LOCATOR,
-                    &LocatorSerdeSerialize(metatraffic_unicast_locator),
+                    &LocatorSerialize(metatraffic_unicast_locator),
                 )
                 .unwrap();
         }
@@ -112,7 +117,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_METATRAFFIC_MULTICAST_LOCATOR,
-                    &LocatorSerdeSerialize(metatraffic_multicast_locator),
+                    &LocatorSerialize(metatraffic_multicast_locator),
                 )
                 .unwrap();
         }
@@ -121,7 +126,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_DEFAULT_UNICAST_LOCATOR,
-                    &LocatorSerdeSerialize(default_unicast_locator),
+                    &LocatorSerialize(default_unicast_locator),
                 )
                 .unwrap();
         }
@@ -130,7 +135,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_DEFAULT_MULTICAST_LOCATOR,
-                    &LocatorSerdeSerialize(default_multicast_locator),
+                    &LocatorSerialize(default_multicast_locator),
                 )
                 .unwrap();
         }
@@ -181,34 +186,18 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 }
 
 fn convert_guid_to_built_in_topic_key(guid: &Guid) -> BuiltInTopicKey {
-    let mut value0 = [0_u8; 4];
-    let mut value1 = [0_u8; 4];
-    let mut value2 = [0_u8; 4];
-    let mut value3 = [0_u8; 4];
-    value0[0] = guid.prefix.0[0];
-    value0[1] = guid.prefix.0[1];
-    value0[2] = guid.prefix.0[2];
-    value0[3] = guid.prefix.0[3];
-    value1[0] = guid.prefix.0[4];
-    value1[1] = guid.prefix.0[5];
-    value1[2] = guid.prefix.0[6];
-    value1[3] = guid.prefix.0[7];
-    value2[0] = guid.prefix.0[8];
-    value2[1] = guid.prefix.0[9];
-    value2[2] = guid.prefix.0[10];
-    value2[3] = guid.prefix.0[11];
-    value3[0] = guid.entity_id.entity_key[0];
-    value3[1] = guid.entity_id.entity_key[1];
-    value3[2] = guid.entity_id.entity_key[2];
-    value3[3] = guid.entity_id.entity_kind;
-        BuiltInTopicKey {
-            value: [
-                i32::from_le_bytes(value0),
-                i32::from_le_bytes(value1),
-                i32::from_le_bytes(value2),
-                i32::from_le_bytes(value3),
-            ],
-        }
+    let value0 = [guid.prefix.0[0], guid.prefix.0[1], guid.prefix.0[2], guid.prefix.0[3]];
+    let value1 = [guid.prefix.0[4], guid.prefix.0[5], guid.prefix.0[6], guid.prefix.0[7]];
+    let value2 = [guid.prefix.0[8], guid.prefix.0[9], guid.prefix.0[10], guid.prefix.0[11]];
+    let value3 = [guid.entity_id.entity_key[0], guid.entity_id.entity_key[1], guid.entity_id.entity_key[2], guid.entity_id.entity_kind];
+    BuiltInTopicKey {
+        value: [
+            i32::from_le_bytes(value0),
+            i32::from_le_bytes(value1),
+            i32::from_le_bytes(value2),
+            i32::from_le_bytes(value3),
+        ],
+    }
 }
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
@@ -221,9 +210,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             .0;
         let user_data = param_list
             .get::<UserDataQosPolicyDeserialize>(PID_USER_DATA)
-            .unwrap_or(UserDataQosPolicyDeserialize(
-                UserDataQosPolicy::default(),
-            ))
+            .unwrap_or(UserDataQosPolicyDeserialize(UserDataQosPolicy::default()))
             .0;
 
         let dds_participant_data = ParticipantBuiltinTopicData {
@@ -244,16 +231,16 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             .get(PID_EXPECTS_INLINE_QOS)
             .unwrap_or(DEFAULT_EXPECTS_INLINE_QOS);
         let metatraffic_unicast_locator_list = param_list
-            .get_list::<LocatorSerdeDeserialize>(PID_METATRAFFIC_UNICAST_LOCATOR)
+            .get_list::<LocatorDeserialize>(PID_METATRAFFIC_UNICAST_LOCATOR)
             .unwrap();
         let metatraffic_multicast_locator_list = param_list
-            .get_list::<LocatorSerdeDeserialize>(PID_METATRAFFIC_MULTICAST_LOCATOR)
+            .get_list::<LocatorDeserialize>(PID_METATRAFFIC_MULTICAST_LOCATOR)
             .unwrap();
         let default_unicast_locator_list = param_list
-            .get_list::<LocatorSerdeDeserialize>(PID_DEFAULT_UNICAST_LOCATOR)
+            .get_list::<LocatorDeserialize>(PID_DEFAULT_UNICAST_LOCATOR)
             .unwrap();
         let default_multicast_locator_list = param_list
-            .get_list::<LocatorSerdeDeserialize>(PID_DEFAULT_MULTICAST_LOCATOR)
+            .get_list::<LocatorDeserialize>(PID_DEFAULT_MULTICAST_LOCATOR)
             .unwrap();
         let available_builtin_endpoints = param_list
             .get::<BuiltinEndpointSetSerdeDeserialize>(PID_BUILTIN_ENDPOINT_SET)
@@ -315,7 +302,10 @@ mod tests {
 
     use super::*;
     use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
-    use rust_rtps_pim::{messages::types::Count, structure::types::{EntityId, GuidPrefix, ProtocolVersion}};
+    use rust_rtps_pim::{
+        messages::types::Count,
+        structure::types::{EntityId, GuidPrefix, ProtocolVersion},
+    };
     use rust_rtps_psm::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
 
     pub fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
@@ -333,7 +323,13 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = GuidPrefix([8; 12]);
-        let guid = Guid{ prefix: guid_prefix, entity_id: EntityId { entity_key: [0,0,1], entity_kind: 0xc1 } };
+        let guid = Guid {
+            prefix: guid_prefix,
+            entity_id: EntityId {
+                entity_key: [0, 0, 1],
+                entity_kind: 0xc1,
+            },
+        };
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -454,7 +450,13 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = GuidPrefix([8; 12]);
-        let guid = Guid{ prefix: guid_prefix, entity_id: EntityId { entity_key: [0,0,1], entity_kind: 0xc1 } };
+        let guid = Guid {
+            prefix: guid_prefix,
+            entity_id: EntityId {
+                entity_key: [0, 0, 1],
+                entity_kind: 0xc1,
+            },
+        };
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];

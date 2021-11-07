@@ -11,7 +11,7 @@ use crate::{
 use super::{dds_serialize_deserialize_impl::{
         BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize,
         DurabilityQosPolicySerialize, EntityIdSerialize, GroupDataQosPolicySerialize,
-        LatencyBudgetQosPolicySerialize, LivelinessQosPolicySerialize, LocatorSerdeSerialize,
+        LatencyBudgetQosPolicySerialize, LivelinessQosPolicySerialize, LocatorSerialize,
         OwnershipQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize,
         ReliabilityQosPolicySerialize, TimeBasedFilterQosPolicySerialize,
         TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
@@ -43,12 +43,12 @@ impl DdsSerialize for SedpDiscoveredReaderData {
 
         for locator in &self.reader_proxy.unicast_locator_list {
             parameter_list_serializer
-                .serialize_parameter(PID_UNICAST_LOCATOR, &LocatorSerdeSerialize(locator))
+                .serialize_parameter(PID_UNICAST_LOCATOR, &LocatorSerialize(locator))
                 .unwrap();
         }
         for locator in &self.reader_proxy.multicast_locator_list {
             parameter_list_serializer
-                .serialize_parameter(PID_MULTICAST_LOCATOR, &LocatorSerdeSerialize(locator))
+                .serialize_parameter(PID_MULTICAST_LOCATOR, &LocatorSerialize(locator))
                 .unwrap();
         }
         parameter_list_serializer

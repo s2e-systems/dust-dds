@@ -43,10 +43,10 @@ pub struct LocatorDef {
     pub address: [u8; 16],
 }
 #[derive(Debug, PartialEq, serde::Serialize)]
-pub struct LocatorSerdeSerialize<'a>(#[serde(with = "LocatorDef")] pub &'a Locator);
+pub struct LocatorSerialize<'a>(#[serde(with = "LocatorDef")] pub &'a Locator);
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct LocatorSerdeDeserialize(#[serde(with = "LocatorDef")] pub Locator);
+pub struct LocatorDeserialize(#[serde(with = "LocatorDef")] pub Locator);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "ProtocolVersion")]
