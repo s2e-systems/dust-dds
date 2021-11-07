@@ -44,7 +44,7 @@ use crate::{
 
 use super::data_writer_impl::DataWriterImpl;
 
-pub trait DataWriterObject: Any + Send + Sync + ProcessAckNackSubmessage {
+pub trait DataWriterObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 }
 
