@@ -1,4 +1,4 @@
-use std::sync::{mpsc::SyncSender, Arc, Mutex, RwLock};
+use std::sync::{mpsc::SyncSender, Arc, Mutex};
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -427,7 +427,7 @@ impl<T> Entity for DataWriterImpl<T> {
     }
 }
 
-impl<T> ProcessAckNackSubmessage for RwLock<DataWriterImpl<T>> {
+impl<T> ProcessAckNackSubmessage for DataWriterImpl<T> {
     fn process_acknack_submessage(
         &self,
         _source_guid_prefix: GuidPrefix,
