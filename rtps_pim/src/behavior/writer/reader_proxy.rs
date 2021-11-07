@@ -1,5 +1,6 @@
 use crate::structure::types::{EntityId, Guid, SequenceNumber};
 
+#[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxy<L> {
     pub remote_reader_guid: Guid,
     pub remote_group_entity_id: EntityId,
