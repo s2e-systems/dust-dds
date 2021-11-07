@@ -3,22 +3,23 @@ use rust_dds_api::{
     infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
         DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-        LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy,
-        TopicDataQosPolicy, TransportPriorityQosPolicy,
+        LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
+        TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     },
 };
 
 use crate::{
-    data_serialize_deserialize::ParameterSerializer,
+    data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
 
 use super::{
     dds_serialize_deserialize_impl::{
-        BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize,
-        DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize,
-        HistoryQosPolicySerialize, LatencyBudgetQosPolicySerialize, LifespanQosPolicySerialize,
-        LivelinessQosPolicySerialize, OwnershipQosPolicySerialize, ReliabilityQosPolicySerialize,
+        BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
+        DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize,
+        DurabilityServiceQosPolicySerialize, HistoryQosPolicySerialize,
+        LatencyBudgetQosPolicySerialize, LifespanQosPolicySerialize, LivelinessQosPolicySerialize,
+        OwnershipQosPolicySerialize, ReliabilityQosPolicySerialize,
         ResourceLimitsQosPolicySerialize, TopicDataQosPolicySerialize,
         TransportPriorityQosPolicySerialize,
     },
@@ -29,6 +30,7 @@ use super::{
     },
 };
 
+#[derive(Debug, PartialEq)]
 pub struct SedpDiscoveredTopicData {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
 }
@@ -105,12 +107,16 @@ impl DdsSerialize for SedpDiscoveredTopicData {
                 )
                 .unwrap();
         }
-        parameter_list_serializer
-            .serialize_parameter(
-                PID_RELIABILITY,
-                &ReliabilityQosPolicySerialize(&self.topic_builtin_topic_data.reliability),
-            )
-            .unwrap();
+        if self.topic_builtin_topic_data.reliability
+            != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
+        {
+            parameter_list_serializer
+                .serialize_parameter(
+                    PID_RELIABILITY,
+                    &ReliabilityQosPolicySerialize(&self.topic_builtin_topic_data.reliability),
+                )
+                .unwrap();
+        }
         if self.topic_builtin_topic_data.transport_priority != TransportPriorityQosPolicy::default()
         {
             parameter_list_serializer
@@ -180,21 +186,49 @@ impl DdsSerialize for SedpDiscoveredTopicData {
 }
 
 impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
-    fn deserialize(_buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-        todo!()
+    fn deserialize(buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+        let param_list: ParameterList = MappingRead::read(buf).unwrap();
+
+        let key = param_list
+            .get::<BuiltInTopicKeyDeserialize>(PID_ENDPOINT_GUID)
+            .unwrap()
+            .0;
+        let name = param_list.get(PID_TOPIC_NAME).unwrap();
+        let type_name = param_list.get(PID_TYPE_NAME).unwrap();
+
+        let topic_builtin_topic_data = TopicBuiltinTopicData {
+            key,
+            name,
+            type_name,
+            durability: DurabilityQosPolicy::default(),
+            durability_service: DurabilityServiceQosPolicy::default(),
+            deadline: DeadlineQosPolicy::default(),
+            latency_budget: LatencyBudgetQosPolicy::default(),
+            liveliness: LivelinessQosPolicy::default(),
+            reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+            transport_priority: TransportPriorityQosPolicy::default(),
+            lifespan: LifespanQosPolicy::default(),
+            ownership: OwnershipQosPolicy::default(),
+            destination_order: DestinationOrderQosPolicy::default(),
+            history: HistoryQosPolicy::default(),
+            resource_limits: ResourceLimitsQosPolicy::default(),
+            topic_data: TopicDataQosPolicy::default(),
+        };
+        Ok(Self {
+            topic_builtin_topic_data,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use rust_dds_api::{
-        dcps_psm::{BuiltInTopicKey, Duration},
+        dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
             DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy,
+            TopicDataQosPolicy, TransportPriorityQosPolicy,
         },
     };
 
@@ -222,10 +256,7 @@ mod tests {
                 deadline: DeadlineQosPolicy::default(),
                 latency_budget: LatencyBudgetQosPolicy::default(),
                 liveliness: LivelinessQosPolicy::default(),
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                    max_blocking_time: Duration::new(7, 476),
-                },
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
                 transport_priority: TransportPriorityQosPolicy::default(),
                 lifespan: LifespanQosPolicy::default(),
                 destination_order: DestinationOrderQosPolicy::default(),
@@ -249,12 +280,52 @@ mod tests {
             0x07, 0x00, 8, 0, // PID_TYPE_NAME, length
             3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
-            0x1a, 0x00, 12, 0, //PID_RELIABILITY, length
-            0, 0, 0, 0, // kind
-            7, 0, 0, 0, // max_blocking_time
-            0xdc, 0x01, 0x00, 0x00, // max_blocking_time
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(to_bytes_le(&data), expected);
+    }
+
+    #[test]
+    fn deserialize_all_default() {
+        let expected = SedpDiscoveredTopicData {
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 2, 3, 4],
+                },
+                name: "ab".to_string(),
+                type_name: "cd".to_string(),
+                durability: DurabilityQosPolicy::default(),
+                durability_service: DurabilityServiceQosPolicy::default(),
+                deadline: DeadlineQosPolicy::default(),
+                latency_budget: LatencyBudgetQosPolicy::default(),
+                liveliness: LivelinessQosPolicy::default(),
+                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                transport_priority: TransportPriorityQosPolicy::default(),
+                lifespan: LifespanQosPolicy::default(),
+                destination_order: DestinationOrderQosPolicy::default(),
+                history: HistoryQosPolicy::default(),
+                resource_limits: ResourceLimitsQosPolicy::default(),
+                ownership: OwnershipQosPolicy::default(),
+                topic_data: TopicDataQosPolicy::default(),
+            },
+        };
+
+        let mut data = &[
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            1, 0, 0, 0, // long,
+            2, 0, 0, 0, // long,
+            3, 0, 0, 0, // long,
+            4, 0, 0, 0, // long,
+            0x05, 0x00, 8, 0, // PID_TOPIC_NAME, length
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x07, 0x00, 8, 0, // PID_TYPE_NAME, length
+            3, 0x00, 0x00, 0x00, // DomainTag: string length (incl. terminator)
+            b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ][..];
+        let result: SedpDiscoveredTopicData = DdsDeserialize::deserialize(&mut data).unwrap();
+        assert_eq!(result, expected);
     }
 }

@@ -16,6 +16,7 @@ pub struct ParticipantBuiltinTopicData {
     pub user_data: UserDataQosPolicy,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct TopicBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub name: String,
