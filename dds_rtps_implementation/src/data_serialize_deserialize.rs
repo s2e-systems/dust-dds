@@ -15,7 +15,7 @@ where
     W: std::io::Write,
     E: Endianness,
 {
-    writer: W,
+    serializer: cdr::Serializer<W, E::Endianness>,
     phantom: PhantomData<E>,
 }
 
@@ -24,12 +24,13 @@ where
     W: std::io::Write,
     E: Endianness,
 {
-    pub fn new(mut writer: W) -> Self {
-        writer.write(&E::REPRESENTATION_IDENTIFIER).unwrap();
-        writer.write(&E::REPRESENTATION_OPTIONS).unwrap();
-
+    // Todo: return result since it may fail
+    pub fn new(writer: W) -> Self {
+        let mut serializer = cdr::Serializer::<_, E::Endianness>::new(writer);
+        E::REPRESENTATION_IDENTIFIER.serialize(&mut serializer).unwrap();
+        E::REPRESENTATION_OPTIONS.serialize(&mut serializer).unwrap();
         Self {
-            writer,
+            serializer,
             phantom: PhantomData,
         }
     }
@@ -43,27 +44,27 @@ where
         T: serde::Serialize,
     {
         let length_without_padding = (cdr::calc_serialized_size(&value) - 4) as i16;
-        let padding: &[u8] = match length_without_padding % 4 {
-            1 => &[0; 3],
-            2 => &[0; 2],
-            3 => &[0; 1],
-            _ => &[],
-        };
-        let length = length_without_padding + padding.len() as i16;
-        let mut serializer = cdr::Serializer::<_, E::Endianness>::new(&mut self.writer);
+        let padding_length = (4 - length_without_padding) & 3;
+        let length = length_without_padding + padding_length;
 
-        parameter_id.serialize(&mut serializer).map_err(|err| {
+        parameter_id.serialize(&mut self.serializer).map_err(|err| {
             std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
         })?;
 
-        length.serialize(&mut serializer).map_err(|err| {
+        length.serialize(&mut self.serializer).map_err(|err| {
             std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
         })?;
 
-        value.serialize(&mut serializer).map_err(|err| {
+        value.serialize(&mut self.serializer).map_err(|err| {
             std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
         })?;
-        self.writer.write_all(padding)
+
+        for _ in 0..padding_length {
+            0_u8.serialize(&mut self.serializer).map_err(|err| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -74,10 +75,9 @@ where
     E: Endianness,
 {
     fn drop(&mut self) {
-        let mut serializer = cdr::Serializer::<_, E::Endianness>::new(&mut self.writer);
 
-        PID_SENTINEL.serialize(&mut serializer).unwrap();
-        [0_u8, 0].serialize(&mut serializer).unwrap();
+        PID_SENTINEL.serialize(&mut self.serializer).unwrap();
+        [0_u8, 0].serialize(&mut self.serializer).unwrap();
     }
 }
 
