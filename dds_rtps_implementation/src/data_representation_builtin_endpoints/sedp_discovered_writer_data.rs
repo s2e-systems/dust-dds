@@ -21,7 +21,7 @@ use crate::{
     data_representation_builtin_endpoints::dds_serialize_deserialize_impl::{
         BuiltInTopicKeyDeserialize, EntityIdDeserialize,
     },
-    data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer},
+    data_serialize_deserialize::{ParameterList, ParameterSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
@@ -275,7 +275,7 @@ fn convert_built_in_topic_key_to_guid(key: &BuiltInTopicKey) -> Guid {
 
 impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
     fn deserialize(buf: &mut &'_ [u8]) -> DDSResult<Self> {
-        let param_list: ParameterList = MappingRead::read(buf).unwrap();
+        let param_list = ParameterList::read(buf).unwrap();
 
         // pub remote_writer_guid: Guid,
         // pub unicast_locator_list: L,

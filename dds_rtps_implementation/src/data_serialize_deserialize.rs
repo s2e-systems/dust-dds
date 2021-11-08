@@ -28,11 +28,6 @@ where
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Parameter<T> {
-    parameter_id: u16,
-    value: T,
-}
 
 const PID_SENTINEL: u16 = 1;
 
@@ -99,11 +94,15 @@ where
     }
 }
 
-pub trait MappingRead<'de>: Sized {
-    fn read(buf: &mut &'de [u8]) -> Result<Self, std::io::Error>;
+
+
+#[derive(Debug, PartialEq)]
+pub struct Parameter<'a> {
+    parameter_id: u16,
+    value: &'a [u8],
 }
 
-impl<'de: 'a, 'a> Parameter<&'a [u8]> {
+impl<'de: 'a, 'a> Parameter<'a> {
     fn read<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
         let parameter_id = buf.read_u16::<B>()?;
         let length = buf.read_i16::<B>()?;
@@ -122,8 +121,8 @@ enum RepresentationIdentifier {
     PlCdrLe,
 }
 
-impl<'de> MappingRead<'de> for RepresentationIdentifier {
-    fn read(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
+impl RepresentationIdentifier {
+    pub fn read(buf: &mut &[u8]) -> Result<Self, std::io::Error> {
         let mut representation_identifier = [0; 2];
         buf.read(&mut representation_identifier)?;
         match representation_identifier {
@@ -139,13 +138,13 @@ impl<'de> MappingRead<'de> for RepresentationIdentifier {
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterList<'a> {
-    parameter: Vec<Parameter<&'a [u8]>>,
+    parameter: Vec<Parameter<'a>>,
     representation_identifier: RepresentationIdentifier,
 }
 
-impl<'de: 'a, 'a> MappingRead<'de> for ParameterList<'a> {
-    fn read(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
-        let representation_identifier = MappingRead::read(buf)?;
+impl<'de: 'a, 'a> ParameterList<'a> {
+    pub fn read(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
+        let representation_identifier = RepresentationIdentifier::read(buf)?;
         // ignore representation_options
         buf.consume(2);
 
@@ -153,10 +152,10 @@ impl<'de: 'a, 'a> MappingRead<'de> for ParameterList<'a> {
         loop {
             let parameter_i = match representation_identifier {
                 RepresentationIdentifier::PlCdrBe => {
-                    Parameter::<&[u8]>::read::<byteorder::BigEndian>(buf)?
+                    Parameter::read::<byteorder::BigEndian>(buf)?
                 }
                 RepresentationIdentifier::PlCdrLe => {
-                    Parameter::<&[u8]>::read::<byteorder::LittleEndian>(buf)?
+                    Parameter::read::<byteorder::LittleEndian>(buf)?
                 }
             };
             if parameter_i.parameter_id == PID_SENTINEL {
@@ -202,7 +201,7 @@ impl<'de> ParameterList<'de> {
 
     fn deserialize_parameter<T: serde::Deserialize<'de>>(
         &self,
-        parameter: &Parameter<&[u8]>,
+        parameter: &Parameter,
     ) -> Result<T, std::io::Error> {
         Ok(match self.representation_identifier {
             RepresentationIdentifier::PlCdrBe => {
