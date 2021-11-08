@@ -1,33 +1,12 @@
 use std::{
-    io::{BufRead, Read, Write},
+    io::{BufRead, Read},
     marker::PhantomData,
 };
 
 use byteorder::{ByteOrder, ReadBytesExt};
+use serde::Serialize;
 
 use crate::dds_type::{BigEndian, Endianness, LittleEndian};
-
-pub trait MappingWriteByteOrdered {
-    fn write_ordered<W: Write, E: Endianness>(
-        &self,
-        writer: W,
-    ) -> std::result::Result<(), std::io::Error>;
-}
-
-impl<T> MappingWriteByteOrdered for T
-where
-    T: serde::Serialize,
-{
-    fn write_ordered<W: Write, E: Endianness>(
-        &self,
-        writer: W,
-    ) -> std::result::Result<(), std::io::Error> {
-        let mut serializer = cdr::Serializer::<_, E::Endianness>::new(writer);
-        serde::Serialize::serialize(self, &mut serializer)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
-    }
-}
-
 
 const PID_SENTINEL: u16 = 1;
 
@@ -71,9 +50,16 @@ where
             _ => &[],
         };
         let length = length_without_padding + padding.len() as i16;
-        parameter_id.write_ordered::<_, E>(&mut self.writer)?;
-        length.write_ordered::<_, E>(&mut self.writer)?;
         let mut serializer = cdr::Serializer::<_, E::Endianness>::new(&mut self.writer);
+
+        parameter_id.serialize(&mut serializer).map_err(|err| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
+        })?;
+
+        length.serialize(&mut serializer).map_err(|err| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
+        })?;
+
         value.serialize(&mut serializer).map_err(|err| {
             std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
         })?;
@@ -81,20 +67,19 @@ where
     }
 }
 
+// Todo: do not use Drop, since this may fail
 impl<W, E> Drop for ParameterSerializer<W, E>
 where
     W: std::io::Write,
     E: Endianness,
 {
     fn drop(&mut self) {
-        PID_SENTINEL
-            .write_ordered::<_, E>(&mut self.writer)
-            .unwrap();
-        [0_u8, 0].write_ordered::<_, E>(&mut self.writer).unwrap();
+        let mut serializer = cdr::Serializer::<_, E::Endianness>::new(&mut self.writer);
+
+        PID_SENTINEL.serialize(&mut serializer).unwrap();
+        [0_u8, 0].serialize(&mut serializer).unwrap();
     }
 }
-
-
 
 #[derive(Debug, PartialEq)]
 pub struct Parameter<'a> {
@@ -151,9 +136,7 @@ impl<'de: 'a, 'a> ParameterList<'a> {
         let mut parameter = vec![];
         loop {
             let parameter_i = match representation_identifier {
-                RepresentationIdentifier::PlCdrBe => {
-                    Parameter::read::<byteorder::BigEndian>(buf)?
-                }
+                RepresentationIdentifier::PlCdrBe => Parameter::read::<byteorder::BigEndian>(buf)?,
                 RepresentationIdentifier::PlCdrLe => {
                     Parameter::read::<byteorder::LittleEndian>(buf)?
                 }
