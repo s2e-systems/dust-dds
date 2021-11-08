@@ -1,9 +1,11 @@
-use std::{io::{BufRead, Read, Write}, marker::PhantomData};
+use std::{
+    io::{BufRead, Read, Write},
+    marker::PhantomData,
+};
 
 use byteorder::{ByteOrder, ReadBytesExt};
-use cdr::Serializer;
 
-use crate::dds_type::{Endianness, BigEndian, LittleEndian};
+use crate::dds_type::{BigEndian, Endianness, LittleEndian};
 
 pub trait MappingWriteByteOrdered {
     fn write_ordered<W: Write, E: Endianness>(
@@ -20,67 +22,19 @@ where
         &self,
         writer: W,
     ) -> std::result::Result<(), std::io::Error> {
-        let mut serializer = Serializer::<_, E::Endianness>::new(writer);
+        let mut serializer = cdr::Serializer::<_, E::Endianness>::new(writer);
         serde::Serialize::serialize(self, &mut serializer)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
     }
 }
 
 #[derive(Debug, PartialEq)]
-struct Parameter<T> {
+pub struct Parameter<T> {
     parameter_id: u16,
     value: T,
 }
 
-impl<T: serde::Serialize> Parameter<T> {
-    fn new(parameter_id: u16, value: T) -> Self {
-        Self {
-            parameter_id,
-            value,
-        }
-    }
-}
-
-impl<T: serde::Serialize> MappingWriteByteOrdered for Parameter<T> {
-    fn write_ordered<W: Write, E: Endianness>(
-        &self,
-        mut writer: W,
-    ) -> std::result::Result<(), std::io::Error> {
-        let length_without_padding = (cdr::calc_serialized_size(&self.value) - 4) as i16;
-        let padding: &[u8] = match length_without_padding % 4 {
-            1 => &[0; 3],
-            2 => &[0; 2],
-            3 => &[0; 1],
-            _ => &[],
-        };
-        let length = length_without_padding + padding.len() as i16;
-        self.parameter_id.write_ordered::<_, E>(&mut writer)?;
-        length.write_ordered::<_, E>(&mut writer)?;
-        let mut serializer = cdr::Serializer::<_, E::Endianness>::new(&mut writer);
-        self.value.serialize(&mut serializer).map_err(|err| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
-        })?;
-        writer.write_all(padding)
-    }
-}
-
 const PID_SENTINEL: u16 = 1;
-
-pub struct ParameterListSerialize(Vec<Parameter<Box<dyn erased_serde::Serialize>>>);
-impl MappingWriteByteOrdered for ParameterListSerialize {
-    fn write_ordered<W: Write, E: Endianness>(
-        &self,
-        mut writer: W,
-    ) -> std::result::Result<(), std::io::Error> {
-        writer.write(&E::REPRESENTATION_IDENTIFIER).unwrap();
-        writer.write(&E::REPRESENTATION_OPTIONS).unwrap();
-        for parameter_i in &self.0 {
-            parameter_i.write_ordered::<_, E>(&mut writer).unwrap();
-        }
-
-        Ok(())
-    }
-}
 
 pub struct ParameterSerializer<W, E>
 where
@@ -114,7 +68,21 @@ where
     where
         T: serde::Serialize,
     {
-        Parameter::new(parameter_id, value).write_ordered::<_, E>(&mut self.writer)
+        let length_without_padding = (cdr::calc_serialized_size(&value) - 4) as i16;
+        let padding: &[u8] = match length_without_padding % 4 {
+            1 => &[0; 3],
+            2 => &[0; 2],
+            3 => &[0; 1],
+            _ => &[],
+        };
+        let length = length_without_padding + padding.len() as i16;
+        parameter_id.write_ordered::<_, E>(&mut self.writer)?;
+        length.write_ordered::<_, E>(&mut self.writer)?;
+        let mut serializer = cdr::Serializer::<_, E::Endianness>::new(&mut self.writer);
+        value.serialize(&mut serializer).map_err(|err| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
+        })?;
+        self.writer.write_all(padding)
     }
 }
 
@@ -131,11 +99,9 @@ where
     }
 }
 
-
 pub trait MappingRead<'de>: Sized {
     fn read(buf: &mut &'de [u8]) -> Result<Self, std::io::Error>;
 }
-
 
 impl<'de: 'a, 'a> Parameter<&'a [u8]> {
     fn read<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
@@ -205,7 +171,6 @@ impl<'de: 'a, 'a> MappingRead<'de> for ParameterList<'a> {
         })
     }
 }
-
 
 impl<'de> ParameterList<'de> {
     pub fn get<T: serde::Deserialize<'de>>(&self, parameter_id: u16) -> Result<T, std::io::Error> {
