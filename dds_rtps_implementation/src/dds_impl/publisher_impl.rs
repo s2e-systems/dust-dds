@@ -44,17 +44,21 @@ use crate::{
 
 use super::data_writer_impl::DataWriterImpl;
 
+pub trait ProduceSubmessages {}
+
 pub trait DataWriterObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
     fn into_process_ack_nack_submessage(
         self: Arc<Self>,
     ) -> Arc<RwLock<dyn ProcessAckNackSubmessage>>;
+
+    fn into_produce_submessages(self: Arc<Self>) -> Arc<RwLock<dyn ProduceSubmessages>>;
 }
 
 impl<T> DataWriterObject for RwLock<T>
 where
-    T: Any + Send + Sync + ProcessAckNackSubmessage,
+    T: Any + Send + Sync + ProcessAckNackSubmessage + ProduceSubmessages,
 {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
@@ -63,6 +67,10 @@ where
     fn into_process_ack_nack_submessage(
         self: Arc<Self>,
     ) -> Arc<RwLock<dyn ProcessAckNackSubmessage>> {
+        self
+    }
+
+    fn into_produce_submessages(self: Arc<Self>) -> Arc<RwLock<dyn ProduceSubmessages>> {
         self
     }
 }
@@ -378,5 +386,19 @@ mod tests {
             1
         );
         assert_ne!(data_writer_counter_before, data_writer_counter_after);
+    }
+
+    #[test]
+    fn send_message() {
+        let (locator_sender, _) = sync_channel(0);
+        let (locator_list_sender, _) = sync_channel(0);
+        let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
+        let publisher_impl = PublisherImpl::new(
+            PublisherQos::default(),
+            rtps_group_impl,
+            vec![],
+            locator_sender,
+            locator_list_sender,
+        );
     }
 }

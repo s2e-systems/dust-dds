@@ -34,6 +34,8 @@ use crate::{
     utils::message_receiver::ProcessAckNackSubmessage,
 };
 
+use super::publisher_impl::ProduceSubmessages;
+
 pub enum RtpsWriterFlavor<T> {
     Stateful {
         stateful_writer: Arc<Mutex<RtpsStatefulWriterImpl<WriterHistoryCache<T>>>>,
@@ -425,6 +427,10 @@ impl<T> Entity for DataWriterImpl<T> {
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
     }
+}
+
+impl<T> ProduceSubmessages for DataWriterImpl<T> {
+
 }
 
 impl<T> ProcessAckNackSubmessage for DataWriterImpl<T> {
