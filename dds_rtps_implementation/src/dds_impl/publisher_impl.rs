@@ -2,7 +2,6 @@ use std::{
     any::Any,
     sync::{
         atomic::{self, AtomicU8},
-        mpsc::SyncSender,
         Arc, Mutex, RwLock, RwLockWriteGuard,
     },
 };
@@ -26,7 +25,7 @@ use rust_rtps_pim::{
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, Locator, ReliabilityKind, TopicKind, LOCATOR_INVALID, PROTOCOLVERSION,
+            EntityId, Guid, ReliabilityKind, TopicKind, LOCATOR_INVALID, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
     },
@@ -310,9 +309,6 @@ impl Entity for PublisherImpl {
 
 #[cfg(test)]
 mod tests {
-
-    use std::sync::mpsc::sync_channel;
-
     use crate::{dds_impl::topic_impl::TopicImpl, utils::shared_object::rtps_shared_downgrade};
 
     use super::*;
@@ -320,14 +316,16 @@ mod tests {
     use rust_rtps_pim::{
         messages::{
             submessage_elements::{
-                CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+                CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
             },
             types::Count,
         },
-        structure::types::{ENTITYID_UNKNOWN, GUID_UNKNOWN},
+        structure::types::{Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
     };
     use rust_rtps_psm::messages::{
-        overall_structure::RtpsMessageWrite, submessages::HeartbeatSubmessageWrite,
+        overall_structure::RtpsMessageWrite,
+        submessages::{DataSubmessageWrite, HeartbeatSubmessageWrite},
     };
 
     struct MockDDSType;
@@ -401,9 +399,9 @@ mod tests {
 
     #[test]
     fn send_message() {
-        struct MockMessageProducer;
+        struct MockHeartbeatMessageProducer;
 
-        impl ProcessAckNackSubmessage for MockMessageProducer {
+        impl ProcessAckNackSubmessage for MockHeartbeatMessageProducer {
             fn process_acknack_submessage(
                 &self,
                 _source_guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
@@ -413,7 +411,7 @@ mod tests {
             }
         }
 
-        impl ProduceSubmessages for MockMessageProducer {
+        impl ProduceSubmessages for MockHeartbeatMessageProducer {
             fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite> {
                 let endianness_flag = true;
                 let final_flag = true;
@@ -443,6 +441,52 @@ mod tests {
             }
         }
 
+        struct MockDataMessageProducer;
+
+        impl ProcessAckNackSubmessage for MockDataMessageProducer {
+            fn process_acknack_submessage(
+                &self,
+                _source_guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
+                _acknack: &rust_rtps_psm::messages::submessages::AckNackSubmessageRead,
+            ) {
+                todo!()
+            }
+        }
+
+        impl ProduceSubmessages for MockDataMessageProducer {
+            fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite> {
+                let endianness_flag = true;
+                let inline_qos_flag = true;
+                let data_flag = true;
+                let key_flag = false;
+                let non_standard_payload_flag = false;
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_sn = SequenceNumberSubmessageElement { value: 1 };
+                let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
+                let serialized_payload = SerializedDataSubmessageElement {
+                    value: &[1, 2, 3][..],
+                };
+
+                vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                    endianness_flag,
+                    inline_qos_flag,
+                    data_flag,
+                    key_flag,
+                    non_standard_payload_flag,
+                    reader_id,
+                    writer_id,
+                    writer_sn,
+                    inline_qos,
+                    serialized_payload,
+                ))]
+            }
+        }
+
         struct MockTransport;
 
         impl TransportWrite for MockTransport {
@@ -459,7 +503,7 @@ mod tests {
                 let first_sn = SequenceNumberSubmessageElement { value: 1 };
                 let last_sn = SequenceNumberSubmessageElement { value: 2 };
                 let count = CountSubmessageElement { value: Count(1) };
-                let heartbeat_submessage1 = HeartbeatSubmessageWrite::new(
+                let heartbeat_submessage = HeartbeatSubmessageWrite::new(
                     endianness_flag,
                     final_flag,
                     liveliness_flag,
@@ -471,31 +515,38 @@ mod tests {
                 );
 
                 let endianness_flag = true;
-                let final_flag = true;
-                let liveliness_flag = false;
+                let inline_qos_flag = true;
+                let data_flag = true;
+                let key_flag = false;
+                let non_standard_payload_flag = false;
                 let reader_id = EntityIdSubmessageElement {
                     value: ENTITYID_UNKNOWN,
                 };
                 let writer_id = EntityIdSubmessageElement {
                     value: ENTITYID_UNKNOWN,
                 };
-                let first_sn = SequenceNumberSubmessageElement { value: 1 };
-                let last_sn = SequenceNumberSubmessageElement { value: 2 };
-                let count = CountSubmessageElement { value: Count(1) };
-                let heartbeat_submessage2 = HeartbeatSubmessageWrite::new(
+                let writer_sn = SequenceNumberSubmessageElement { value: 1 };
+                let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
+                let serialized_payload = SerializedDataSubmessageElement {
+                    value: &[1, 2, 3][..],
+                };
+
+                let data_submessage = DataSubmessageWrite::new(
                     endianness_flag,
-                    final_flag,
-                    liveliness_flag,
+                    inline_qos_flag,
+                    data_flag,
+                    key_flag,
+                    non_standard_payload_flag,
                     reader_id,
                     writer_id,
-                    first_sn,
-                    last_sn,
-                    count,
+                    writer_sn,
+                    inline_qos,
+                    serialized_payload,
                 );
 
                 let expected_submessages = vec![
-                    RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage1),
-                    RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage2),
+                    RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage),
+                    RtpsSubmessageTypeWrite::Data(data_submessage),
                 ];
 
                 assert_eq!(message.submessages, expected_submessages)
@@ -507,8 +558,8 @@ mod tests {
             PublisherQos::default(),
             rtps_group_impl,
             vec![
-                Arc::new(RwLock::new(MockMessageProducer)),
-                Arc::new(RwLock::new(MockMessageProducer)),
+                Arc::new(RwLock::new(MockHeartbeatMessageProducer)),
+                Arc::new(RwLock::new(MockDataMessageProducer)),
             ],
         );
 
