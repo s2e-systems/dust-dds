@@ -16,7 +16,7 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer},
+    data_serialize_deserialize::{ParameterList, ParameterSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
@@ -260,7 +260,7 @@ fn convert_built_in_topic_key_to_guid(key: &BuiltInTopicKey) -> Guid {
 
 impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
     fn deserialize(buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-        let param_list: ParameterList = MappingRead::read(buf).unwrap();
+        let param_list = ParameterList::read(buf).unwrap();
 
         // reader_proxy
         let remote_group_entity_id = param_list

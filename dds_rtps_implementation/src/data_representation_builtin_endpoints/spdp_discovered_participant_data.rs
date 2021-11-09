@@ -16,7 +16,7 @@ use crate::{
         PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR,
         PID_PARTICIPANT_LEASE_DURATION,
     },
-    data_serialize_deserialize::{MappingRead, ParameterList, ParameterSerializer},
+    data_serialize_deserialize::{ParameterList, ParameterSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
 
@@ -202,7 +202,7 @@ fn convert_guid_to_built_in_topic_key(guid: &Guid) -> BuiltInTopicKey {
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-        let param_list: ParameterList = MappingRead::read(buf).unwrap();
+        let param_list = ParameterList::read(buf).unwrap();
 
         let guid = param_list
             .get::<GuidSerdeDeserialize>(PID_PARTICIPANT_GUID)
