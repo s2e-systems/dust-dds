@@ -3,7 +3,7 @@ use std::{
     sync::{
         atomic::{self, AtomicU8},
         mpsc::SyncSender,
-        Arc, Mutex, RwLock,
+        Arc, Mutex, RwLock, RwLockWriteGuard,
     },
 };
 
@@ -21,15 +21,18 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::structure::{
-    group::RtpsGroup,
-    types::{
-        EntityId, Guid, Locator, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-        USER_DEFINED_WRITER_WITH_KEY,
+use rust_rtps_pim::{
+    messages::overall_structure::RtpsMessageHeader,
+    structure::{
+        group::RtpsGroup,
+        types::{
+            EntityId, Guid, Locator, ReliabilityKind, TopicKind, LOCATOR_INVALID, PROTOCOLVERSION,
+            USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
+        },
     },
 };
 use rust_rtps_psm::{
-    messages::overall_structure::RtpsSubmessageTypeWrite,
+    messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
     rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 
@@ -113,7 +116,33 @@ impl PublisherImpl {
     }
 
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        todo!()
+        let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
+
+        let message_producer_list: Vec<Arc<RwLock<dyn ProduceSubmessages>>> = data_writer_list_lock
+            .iter()
+            .map(|x| x.clone().into_produce_submessages())
+            .collect();
+
+        let mut locked_message_producer_list: Vec<RwLockWriteGuard<dyn ProduceSubmessages>> =
+            message_producer_list
+                .iter()
+                .map(|x| x.write().unwrap())
+                .collect();
+
+        let mut submessages = Vec::new();
+        for locked_message_producer in &mut locked_message_producer_list {
+            submessages.append(&mut locked_message_producer.produce_submessages())
+        }
+
+        let header = RtpsMessageHeader {
+            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+            version: PROTOCOLVERSION,
+            vendor_id: VENDOR_ID_S2E,
+            guid_prefix: self.rtps_group.guid.prefix,
+        };
+        let message = RtpsMessageWrite::new(header, submessages);
+
+        transport.write(&message, &LOCATOR_INVALID);
     }
 }
 
@@ -466,19 +495,44 @@ mod tests {
                 let first_sn = SequenceNumberSubmessageElement { value: 1 };
                 let last_sn = SequenceNumberSubmessageElement { value: 2 };
                 let count = CountSubmessageElement { value: Count(1) };
+                let heartbeat_submessage1 = HeartbeatSubmessageWrite::new(
+                    endianness_flag,
+                    final_flag,
+                    liveliness_flag,
+                    reader_id,
+                    writer_id,
+                    first_sn,
+                    last_sn,
+                    count,
+                );
 
-                let expected_submessages = vec![RtpsSubmessageTypeWrite::Heartbeat(
-                    HeartbeatSubmessageWrite::new(
-                        endianness_flag,
-                        final_flag,
-                        liveliness_flag,
-                        reader_id,
-                        writer_id,
-                        first_sn,
-                        last_sn,
-                        count,
-                    ),
-                )];
+                let endianness_flag = true;
+                let final_flag = true;
+                let liveliness_flag = false;
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let first_sn = SequenceNumberSubmessageElement { value: 1 };
+                let last_sn = SequenceNumberSubmessageElement { value: 2 };
+                let count = CountSubmessageElement { value: Count(1) };
+                let heartbeat_submessage2 = HeartbeatSubmessageWrite::new(
+                    endianness_flag,
+                    final_flag,
+                    liveliness_flag,
+                    reader_id,
+                    writer_id,
+                    first_sn,
+                    last_sn,
+                    count,
+                );
+
+                let expected_submessages = vec![
+                    RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage1),
+                    RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage2),
+                ];
 
                 assert_eq!(message.submessages, expected_submessages)
             }
