@@ -11,9 +11,9 @@ use super::submessages::{
 };
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageTypeWrite {
+pub enum RtpsSubmessageTypeWrite<'a> {
     AckNack(AckNackSubmessageWrite),
-    Data(DataSubmessageWrite),
+    Data(DataSubmessageWrite<'a>),
     DataFrag(DataFragSubmessageWrite),
     Gap(GapSubmessageWrite),
     Heartbeat(HeartbeatSubmessageWrite),
@@ -43,10 +43,10 @@ pub enum RtpsSubmessageTypeRead<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct RtpsMessageWrite(RtpsMessage<Vec<RtpsSubmessageTypeWrite>>);
+pub struct RtpsMessageWrite<'a>(RtpsMessage<Vec<RtpsSubmessageTypeWrite<'a>>>);
 
-impl RtpsMessageWrite {
-    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageTypeWrite>) -> Self {
+impl<'a> RtpsMessageWrite<'a> {
+    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageTypeWrite<'a>>) -> Self {
         Self(RtpsMessage {
             header,
             submessages,
@@ -54,8 +54,8 @@ impl RtpsMessageWrite {
     }
 }
 
-impl std::ops::Deref for RtpsMessageWrite {
-    type Target = RtpsMessage<Vec<RtpsSubmessageTypeWrite>>;
+impl<'a> std::ops::Deref for RtpsMessageWrite<'a> {
+    type Target = RtpsMessage<Vec<RtpsSubmessageTypeWrite<'a>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

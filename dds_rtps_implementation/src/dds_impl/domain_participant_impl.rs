@@ -32,10 +32,17 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
-use crate::{data_representation_builtin_endpoints::{
+use crate::{
+    data_representation_builtin_endpoints::{
         sedp_discovered_reader_data::SedpDiscoveredReaderData,
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    }, utils::{message_receiver::ProcessDataSubmessage, shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared}, transport::{TransportRead, TransportWrite}}};
+    },
+    utils::{
+        message_receiver::ProcessDataSubmessage,
+        shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared},
+        transport::{TransportRead, TransportWrite},
+    },
+};
 
 use super::{
     publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy,
@@ -61,10 +68,6 @@ pub struct DomainParticipantImpl {
     _topic_list: Vec<RtpsShared<TopicImpl>>,
     default_topic_qos: TopicQos,
     is_enabled: Arc<AtomicBool>,
-    user_defined_locator_message_channel_sender:
-        SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
-    user_defined_locator_list_message_channel_sender:
-        SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
 }
 
 impl DomainParticipantImpl {
@@ -94,16 +97,6 @@ impl DomainParticipantImpl {
             Vec<RtpsSubmessageTypeWrite>,
         )>,
     ) -> Self {
-        let (
-            user_defined_locator_message_channel_sender,
-            user_defined_locator_message_channel_receiver,
-        ) = sync_channel(17);
-
-        let (
-            user_defined_locator_list_message_channel_sender,
-            _user_defined_locator_list_message_channel_receiver,
-        ) = sync_channel(17);
-
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
         let is_enabled = Arc::new(AtomicBool::new(false));
@@ -130,7 +123,6 @@ impl DomainParticipantImpl {
                 .lookup_datareader::<SedpDiscoveredReaderData>(&());
 
         struct Communication {
-            locator_message_channel_receiver: Receiver<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
             version: ProtocolVersion,
             vendor_id: VendorId,
             guid_prefix: GuidPrefix,
@@ -139,23 +131,23 @@ impl DomainParticipantImpl {
 
         impl Communication {
             fn send(&mut self) {
-                if let Ok((dst_locator, submessages)) =
-                    self.locator_message_channel_receiver.try_recv()
-                {
-                    let message = RtpsMessageWrite::new(
-                        RtpsMessageHeader {
-                            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                            version: self.version,
-                            vendor_id: self.vendor_id,
-                            guid_prefix: self.guid_prefix,
-                        },
-                        submessages,
-                    );
-                    self.transport.write(&message, &dst_locator);
-                };
+                // if let Ok((dst_locator, submessages)) =
+                //     self.locator_message_channel_receiver.try_recv()
+                // {
+                //     let message = RtpsMessageWrite::new(
+                //         RtpsMessageHeader {
+                //             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                //             version: self.version,
+                //             vendor_id: self.vendor_id,
+                //             guid_prefix: self.guid_prefix,
+                //         },
+                //         submessages,
+                //     );
+                //     self.transport.write(&message, &dst_locator);
+                // };
             }
 
-            fn receive(&mut self, list: &[RtpsShared<impl ProcessDataSubmessage>]){
+            fn receive(&mut self, list: &[RtpsShared<impl ProcessDataSubmessage>]) {
                 if let Some((source_locator, message)) = self.transport.read() {
                     crate::utils::message_receiver::MessageReceiver::new().process_message(
                         self.guid_prefix,
@@ -172,7 +164,6 @@ impl DomainParticipantImpl {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
             let mut communication = Communication {
-                locator_message_channel_receiver: metatraffic_locator_message_channel_receiver,
                 version: protocol_version,
                 vendor_id,
                 guid_prefix,
@@ -193,7 +184,6 @@ impl DomainParticipantImpl {
             }
 
             let mut communication = Communication {
-                locator_message_channel_receiver: user_defined_locator_message_channel_receiver,
                 version: protocol_version,
                 vendor_id,
                 guid_prefix,
@@ -206,8 +196,6 @@ impl DomainParticipantImpl {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });
-
-
 
         //     if let Some(spdp_builtin_participant_reader) =
         //         &option_spdp_builtin_participant_reader
@@ -243,8 +231,6 @@ impl DomainParticipantImpl {
         //         }
         //     }
 
-
-
         Self {
             guid_prefix,
             _qos: domain_participant_qos,
@@ -259,8 +245,6 @@ impl DomainParticipantImpl {
             _topic_list: Vec::new(),
             default_topic_qos: TopicQos::default(),
             is_enabled,
-            user_defined_locator_message_channel_sender,
-            user_defined_locator_list_message_channel_sender,
         }
     }
 }
@@ -284,14 +268,7 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
         let guid = Guid::new(self.guid_prefix, entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let data_writer_impl_list = Vec::new();
-        let publisher_impl = PublisherImpl::new(
-            publisher_qos,
-            rtps_group,
-            data_writer_impl_list,
-            self.user_defined_locator_message_channel_sender.clone(),
-            self.user_defined_locator_list_message_channel_sender
-                .clone(),
-        );
+        let publisher_impl = PublisherImpl::new(publisher_qos, rtps_group, data_writer_impl_list);
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
         let publisher_impl_weak = rtps_shared_downgrade(&publisher_impl_shared);
         self.user_defined_publisher_list
@@ -607,8 +584,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
@@ -644,8 +619,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([0; 12]),
@@ -683,8 +656,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -720,8 +691,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -762,8 +731,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -799,8 +766,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -836,8 +801,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -878,8 +841,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -931,8 +892,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
-            metatraffic_locator_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),

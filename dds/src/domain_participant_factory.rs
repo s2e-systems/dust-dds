@@ -153,10 +153,7 @@ impl DomainParticipantFactory {
         let spdp_builtin_participant_dds_data_writer =
             rtps_shared_new(DataWriterImpl::<SpdpDiscoveredParticipantData>::new(
                 DataWriterQos::default(),
-                RtpsWriterFlavor::new_stateless(
-                    spdp_builtin_participant_rtps_writer,
-                    metatraffic_locator_message_sender.clone(),
-                ),
+                RtpsWriterFlavor::new_stateless(spdp_builtin_participant_rtps_writer),
             ));
 
         let sedp_builtin_publications_dds_data_reader =
@@ -168,10 +165,7 @@ impl DomainParticipantFactory {
         let sedp_builtin_publications_dds_data_writer =
             rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData>::new(
                 DataWriterQos::default(),
-                RtpsWriterFlavor::new_stateful(
-                    sedp_builtin_publications_rtps_writer,
-                    metatraffic_locator_list_message_sender.clone(),
-                ),
+                RtpsWriterFlavor::new_stateful(sedp_builtin_publications_rtps_writer),
             ));
 
         let sedp_builtin_subscriptions_dds_data_reader =
@@ -183,10 +177,7 @@ impl DomainParticipantFactory {
         let sedp_builtin_subscriptions_dds_data_writer =
             rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData>::new(
                 DataWriterQos::default(),
-                RtpsWriterFlavor::new_stateful(
-                    sedp_builtin_subscriptions_rtps_writer,
-                    metatraffic_locator_list_message_sender.clone(),
-                ),
+                RtpsWriterFlavor::new_stateful(sedp_builtin_subscriptions_rtps_writer),
             ));
 
         let sedp_builtin_topics_dds_data_reader =
@@ -198,10 +189,7 @@ impl DomainParticipantFactory {
         let sedp_builtin_topics_dds_data_writer =
             rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData>::new(
                 DataWriterQos::default(),
-                RtpsWriterFlavor::new_stateful(
-                    sedp_builtin_topics_rtps_writer,
-                    metatraffic_locator_list_message_sender.clone(),
-                ),
+                RtpsWriterFlavor::new_stateful(sedp_builtin_topics_rtps_writer),
             ));
 
         // ////// Create built-in publisher and subscriber
@@ -217,8 +205,6 @@ impl DomainParticipantFactory {
                 sedp_builtin_subscriptions_dds_data_writer,
                 sedp_builtin_topics_dds_data_writer,
             ],
-            metatraffic_locator_message_sender.clone(),
-            metatraffic_locator_list_message_sender.clone(),
         ));
         let builtin_subscriber_storage = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),

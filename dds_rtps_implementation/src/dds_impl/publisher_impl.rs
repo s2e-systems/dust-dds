@@ -87,9 +87,6 @@ pub struct PublisherImpl {
     data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
-    locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
-    _locator_list_message_sender:
-        SyncSender<(Vec<Locator>, Vec<Locator>, Vec<RtpsSubmessageTypeWrite>)>,
 }
 
 impl PublisherImpl {
@@ -97,12 +94,6 @@ impl PublisherImpl {
         qos: PublisherQos,
         rtps_group: RtpsGroup,
         data_writer_impl_list: Vec<Arc<dyn DataWriterObject>>,
-        locator_message_sender: SyncSender<(Locator, Vec<RtpsSubmessageTypeWrite>)>,
-        locator_list_message_sender: SyncSender<(
-            Vec<Locator>,
-            Vec<Locator>,
-            Vec<RtpsSubmessageTypeWrite>,
-        )>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -110,8 +101,6 @@ impl PublisherImpl {
             data_writer_impl_list: Mutex::new(data_writer_impl_list),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            locator_message_sender,
-            _locator_list_message_sender: locator_list_message_sender,
         }
     }
 
@@ -188,21 +177,18 @@ where
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsWriterFlavor::new_stateless(
-            RtpsStatelessWriterImpl::new(
-                guid,
-                topic_kind,
-                reliability_level,
-                unicast_locator_list,
-                multicast_locator_list,
-                push_mode,
-                heartbeat_period,
-                nack_response_delay,
-                nack_suppression_duration,
-                data_max_size_serialized,
-            ),
-            self.locator_message_sender.clone(),
-        );
+        let rtps_writer_impl = RtpsWriterFlavor::new_stateless(RtpsStatelessWriterImpl::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        ));
         let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         self.data_writer_impl_list
@@ -358,16 +344,9 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_some_value() {
-        let (locator_sender, _) = sync_channel(0);
-        let (locator_list_sender, _) = sync_channel(0);
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let mut publisher_impl = PublisherImpl::new(
-            PublisherQos::default(),
-            rtps_group_impl,
-            vec![],
-            locator_sender,
-            locator_list_sender,
-        );
+        let mut publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -380,16 +359,9 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_none() {
-        let (locator_sender, _) = sync_channel(0);
-        let (locator_list_sender, _) = sync_channel(0);
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let mut publisher_impl = PublisherImpl::new(
-            PublisherQos::default(),
-            rtps_group_impl,
-            vec![],
-            locator_sender,
-            locator_list_sender,
-        );
+        let mut publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -406,16 +378,8 @@ mod tests {
 
     #[test]
     fn create_datawriter() {
-        let (locator_sender, _) = sync_channel(0);
-        let (locator_list_sender, _) = sync_channel(0);
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(
-            PublisherQos::default(),
-            rtps_group_impl,
-            vec![],
-            locator_sender,
-            locator_list_sender,
-        );
+        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
         let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default()));
         let _a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
 
@@ -538,8 +502,6 @@ mod tests {
             }
         }
 
-        let (locator_sender, _) = sync_channel(0);
-        let (locator_list_sender, _) = sync_channel(0);
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
         let publisher_impl = PublisherImpl::new(
             PublisherQos::default(),
@@ -548,8 +510,6 @@ mod tests {
                 Arc::new(RwLock::new(MockMessageProducer)),
                 Arc::new(RwLock::new(MockMessageProducer)),
             ],
-            locator_sender,
-            locator_list_sender,
         );
 
         publisher_impl.send_message(&mut MockTransport)

@@ -15,7 +15,7 @@ use super::submessages::submessage_header::{
     INFO_TS, NACK_FRAG, PAD,
 };
 
-impl MappingWrite for RtpsSubmessageTypeWrite {
+impl MappingWrite for RtpsSubmessageTypeWrite<'_> {
     fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
         match self {
             RtpsSubmessageTypeWrite::AckNack(s) => s.write(&mut writer)?,
@@ -35,7 +35,7 @@ impl MappingWrite for RtpsSubmessageTypeWrite {
     }
 }
 
-impl MappingWrite for RtpsMessageWrite {
+impl MappingWrite for RtpsMessageWrite<'_> {
     fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
         self.header.write(&mut writer)?;
         for submessage in &self.submessages {
@@ -146,7 +146,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: parameter_list,
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: vec![] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
             endianness_flag,

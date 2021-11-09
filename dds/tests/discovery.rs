@@ -91,7 +91,9 @@ fn send_and_receive_discovery_data_happy_path() {
 
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let dds_participant_data = ParticipantBuiltinTopicData {
-        key: BuiltInTopicKey { value: [0, 0, 0, 1,] },
+        key: BuiltInTopicKey {
+            value: [0, 0, 0, 1],
+        },
         user_data: UserDataQosPolicy { value: vec![] },
     };
     let participant_proxy = ParticipantProxy {
@@ -130,10 +132,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        RtpsWriterFlavor::new_stateless(
-            spdp_builtin_participant_rtps_writer,
-            metatraffic_locator_message_channel_sender.clone(),
-        ),
+        RtpsWriterFlavor::new_stateless(spdp_builtin_participant_rtps_writer),
     );
 
     data_writer
@@ -195,13 +194,6 @@ fn send_and_receive_discovery_data_happy_path() {
 
 #[test]
 fn process_discovery_data_happy_path() {
-    let (metatraffic_locator_message_channel_sender, metatraffic_locator_message_channel_receiver) =
-        sync_channel(17);
-    let (
-        metatraffic_locator_list_message_channel_sender,
-        metatraffic_locator_list_message_channel_receiver,
-    ) = sync_channel(17);
-
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -215,7 +207,9 @@ fn process_discovery_data_happy_path() {
     let domain_id = 1;
     let domain_tag = "ab";
     let dds_participant_data = ParticipantBuiltinTopicData {
-        key: BuiltInTopicKey { value: [0, 0, 0, 1] },
+        key: BuiltInTopicKey {
+            value: [0, 0, 0, 1],
+        },
         user_data: UserDataQosPolicy { value: vec![] },
     };
     let participant_proxy = ParticipantProxy {
@@ -260,10 +254,7 @@ fn process_discovery_data_happy_path() {
 
     let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        RtpsWriterFlavor::new_stateless(
-            spdp_builtin_participant_rtps_writer,
-            metatraffic_locator_message_channel_sender.clone(),
-        ),
+        RtpsWriterFlavor::new_stateless(spdp_builtin_participant_rtps_writer),
     );
 
     spdp_builtin_participant_data_writer
@@ -279,10 +270,7 @@ fn process_discovery_data_happy_path() {
 
     let sedp_builtin_publications_data_writer = DataWriterImpl::<SedpDiscoveredWriterData>::new(
         DataWriterQos::default(),
-        RtpsWriterFlavor::new_stateful(
-            sedp_builtin_publications_rtps_writer,
-            metatraffic_locator_list_message_channel_sender.clone(),
-        ),
+        RtpsWriterFlavor::new_stateful(sedp_builtin_publications_rtps_writer),
     );
 
     let publisher = PublisherImpl::new(
@@ -295,24 +283,22 @@ fn process_discovery_data_happy_path() {
             rtps_shared_new(spdp_builtin_participant_data_writer),
             rtps_shared_new(sedp_builtin_publications_data_writer),
         ],
-        metatraffic_locator_message_channel_sender.clone(),
-        metatraffic_locator_list_message_channel_sender.clone(),
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
     socket.set_nonblocking(true).unwrap();
     let mut transport = UdpTransport::new(socket);
-    if let Ok((dst_locator, submessages)) = metatraffic_locator_message_channel_receiver.try_recv()
-    {
-        let header = RtpsMessageHeader {
-            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-            version: PROTOCOLVERSION_2_4,
-            vendor_id: [0, 0],
-            guid_prefix: GuidPrefix([3; 12]),
-        };
-        let message = RtpsMessageWrite::new(header, submessages);
-        transport.write(&message, &dst_locator);
-    };
+    // if let Ok((dst_locator, submessages)) = metatraffic_locator_message_channel_receiver.try_recv()
+    // {
+    //     let header = RtpsMessageHeader {
+    //         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+    //         version: PROTOCOLVERSION_2_4,
+    //         vendor_id: [0, 0],
+    //         guid_prefix: GuidPrefix([3; 12]),
+    //     };
+    //     let message = RtpsMessageWrite::new(header, submessages);
+    //     transport.write(&message, &dst_locator);
+    // };
 
     // Reception
 
@@ -436,31 +422,31 @@ fn process_discovery_data_happy_path() {
     //     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR)
     // );
     for _i in 1..14 {
-        if let Ok((dst_locator, submessages)) =
-            metatraffic_locator_message_channel_receiver.try_recv()
-        {
-            let header = RtpsMessageHeader {
-                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                version: PROTOCOLVERSION_2_4,
-                vendor_id: [0, 0],
-                guid_prefix: GuidPrefix([3; 12]),
-            };
-            let message = RtpsMessageWrite::new(header, submessages);
-            transport.write(&message, &dst_locator);
-        };
+        // if let Ok((dst_locator, submessages)) =
+        //     metatraffic_locator_message_channel_receiver.try_recv()
+        // {
+        //     let header = RtpsMessageHeader {
+        //         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+        //         version: PROTOCOLVERSION_2_4,
+        //         vendor_id: [0, 0],
+        //         guid_prefix: GuidPrefix([3; 12]),
+        //     };
+        //     let message = RtpsMessageWrite::new(header, submessages);
+        //     transport.write(&message, &dst_locator);
+        // };
 
-        if let Ok((dst_unicast_locator, _dst_multicast_locator, submessages)) =
-            metatraffic_locator_list_message_channel_receiver.try_recv()
-        {
-            let header = RtpsMessageHeader {
-                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                version: PROTOCOLVERSION_2_4,
-                vendor_id: [0, 0],
-                guid_prefix: GuidPrefix([3; 12]),
-            };
-            let message = RtpsMessageWrite::new(header, submessages);
-            transport.write(&message, &dst_unicast_locator[0]);
-        };
+        // if let Ok((dst_unicast_locator, _dst_multicast_locator, submessages)) =
+        //     metatraffic_locator_list_message_channel_receiver.try_recv()
+        // {
+        //     let header = RtpsMessageHeader {
+        //         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+        //         version: PROTOCOLVERSION_2_4,
+        //         vendor_id: [0, 0],
+        //         guid_prefix: GuidPrefix([3; 12]),
+        //     };
+        //     let message = RtpsMessageWrite::new(header, submessages);
+        //     transport.write(&message, &dst_unicast_locator[0]);
+        // };
 
         std::thread::sleep(std::time::Duration::from_millis(200));
     }

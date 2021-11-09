@@ -54,9 +54,9 @@ impl Deref for AckNackSubmessageRead {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataSubmessageWrite(<Self as Deref>::Target);
+pub struct DataSubmessageWrite<'a>(<Self as Deref>::Target);
 
-impl DataSubmessageWrite {
+impl<'a> DataSubmessageWrite<'a> {
     pub fn new(
         endianness_flag: SubmessageFlag,
         inline_qos_flag: SubmessageFlag,
@@ -67,7 +67,7 @@ impl DataSubmessageWrite {
         writer_id: EntityIdSubmessageElement,
         writer_sn: SequenceNumberSubmessageElement,
         inline_qos: ParameterListSubmessageElement<Vec<Parameter<Vec<u8>>>>,
-        serialized_payload: SerializedDataSubmessageElement<Vec<u8>>,
+        serialized_payload: SerializedDataSubmessageElement<&'a [u8]>,
     ) -> Self {
         Self(DataSubmessage {
             endianness_flag,
@@ -84,8 +84,8 @@ impl DataSubmessageWrite {
     }
 }
 
-impl Deref for DataSubmessageWrite {
-    type Target = DataSubmessage<Vec<Parameter<Vec<u8>>>, Vec<u8>>;
+impl<'a> Deref for DataSubmessageWrite<'a> {
+    type Target = DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

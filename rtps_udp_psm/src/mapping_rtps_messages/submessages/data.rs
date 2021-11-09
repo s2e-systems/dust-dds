@@ -13,7 +13,7 @@ use crate::{
     serialize::{self, NumberOfBytes, Serialize, SerializeSubmessage},
 };
 
-impl SerializeSubmessage for DataSubmessageWrite {
+impl SerializeSubmessage for DataSubmessageWrite<'_> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -152,7 +152,7 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
-        let serialized_payload = SerializedDataSubmessageElement { value: vec![] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
@@ -197,7 +197,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: parameter_list,
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: vec![] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
@@ -244,7 +244,7 @@ mod tests {
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
-            value: vec![1_u8, 2, 3, 4],
+            value: &[1_u8, 2, 3, 4][..],
         };
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
@@ -287,7 +287,7 @@ mod tests {
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
-            value: vec![1_u8, 2, 3],
+            value: &[1_u8, 2, 3][..],
         };
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
