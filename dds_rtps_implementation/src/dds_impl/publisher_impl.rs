@@ -39,6 +39,7 @@ use crate::{
     utils::{
         message_receiver::ProcessAckNackSubmessage,
         shared_object::{rtps_shared_new, RtpsShared},
+        transport::TransportWrite,
     },
 };
 
@@ -107,6 +108,10 @@ impl PublisherImpl {
             locator_message_sender,
             _locator_list_message_sender: locator_list_message_sender,
         }
+    }
+
+    pub fn send_message(&self, transport: &mut impl TransportWrite) {
+        todo!()
     }
 }
 
@@ -296,6 +301,7 @@ mod tests {
     use super::*;
     use rust_dds_api::infrastructure::qos::TopicQos;
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
+    use rust_rtps_psm::messages::overall_structure::RtpsMessageWrite;
 
     struct MockDDSType;
 
@@ -390,15 +396,42 @@ mod tests {
 
     #[test]
     fn send_message() {
+        struct MockMessageProducer;
+
+        impl ProcessAckNackSubmessage for MockMessageProducer {
+            fn process_acknack_submessage(
+                &self,
+                _source_guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
+                _acknack: &rust_rtps_psm::messages::submessages::AckNackSubmessageRead,
+            ) {
+                todo!()
+            }
+        }
+
+        impl ProduceSubmessages for MockMessageProducer {}
+
+        struct MockTransport;
+
+        impl TransportWrite for MockTransport {
+            fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
+                todo!()
+            }
+        }
+
         let (locator_sender, _) = sync_channel(0);
         let (locator_list_sender, _) = sync_channel(0);
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
         let publisher_impl = PublisherImpl::new(
             PublisherQos::default(),
             rtps_group_impl,
-            vec![],
+            vec![
+                Arc::new(RwLock::new(MockMessageProducer)),
+                Arc::new(RwLock::new(MockMessageProducer)),
+            ],
             locator_sender,
             locator_list_sender,
         );
+
+        publisher_impl.send_message(&mut MockTransport)
     }
 }
