@@ -1,4 +1,16 @@
-use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, LivelinessQosPolicyKind, OwnershipQosPolicy, OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy, PresentationQosPolicyAccessScopeKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy}};
+use rust_dds_api::{
+    dcps_psm::BuiltInTopicKey,
+    infrastructure::qos_policy::{
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind,
+        DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy,
+        GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy,
+        LifespanQosPolicy, LivelinessQosPolicy, LivelinessQosPolicyKind, OwnershipQosPolicy,
+        OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PartitionQosPolicy,
+        PresentationQosPolicy, PresentationQosPolicyAccessScopeKind, ReliabilityQosPolicy,
+        ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
+        TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+    },
+};
 use rust_rtps_pim::{
     behavior::types::Duration,
     messages::types::Count,
@@ -79,8 +91,6 @@ pub struct GuidSerdeSerialize<'a>(#[serde(with = "GuidDef")] pub &'a Guid);
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct GuidSerdeDeserialize(#[serde(with = "GuidDef")] pub Guid);
 
-
-
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "EntityId")]
 pub struct EntityIdDef {
@@ -92,8 +102,6 @@ pub struct EntityIdSerialize<'a>(#[serde(with = "EntityIdDef")] pub &'a EntityId
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct EntityIdDeserialize(#[serde(with = "EntityIdDef")] pub EntityId);
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "GuidPrefix")]
@@ -136,12 +144,11 @@ pub struct BuiltinEndpointQosSerdeDeserialize(
     #[serde(with = "BuiltinEndpointQosDef")] pub BuiltinEndpointQos,
 );
 
-
 type BuiltInTopicKeyTypeNative = i32;
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltInTopicKey")]
-pub struct BuiltInTopicKeyDef{
+pub struct BuiltInTopicKeyDef {
     pub value: [BuiltInTopicKeyTypeNative; 4],
 }
 
@@ -151,9 +158,7 @@ pub struct BuiltInTopicKeySerialize<'a>(
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct BuiltInTopicKeyDeserialize(
-    #[serde(with = "BuiltInTopicKeyDef")] pub BuiltInTopicKey,
-);
+pub struct BuiltInTopicKeyDeserialize(#[serde(with = "BuiltInTopicKeyDef")] pub BuiltInTopicKey);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "DurabilityQosPolicyKind")]
@@ -180,7 +185,6 @@ pub struct DurabilityQosPolicySerialize<'a>(
 pub struct DurabilityQosPolicyDeserialize(
     #[serde(with = "DurabilityQosPolicyDef")] pub DurabilityQosPolicy,
 );
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "HistoryQosPolicyKind")]
@@ -218,14 +222,13 @@ pub struct DurabilityServiceQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct DurabilityServiceQosPolicySerialize<'a>(
-    #[serde(with = "DurabilityServiceQosPolicyDef")] pub &'a  DurabilityServiceQosPolicy,
+    #[serde(with = "DurabilityServiceQosPolicyDef")] pub &'a DurabilityServiceQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct  DurabilityServiceQosPolicyDeserialize(
-    #[serde(with = "DurabilityServiceQosPolicyDef")] pub  DurabilityServiceQosPolicy,
+pub struct DurabilityServiceQosPolicyDeserialize(
+    #[serde(with = "DurabilityServiceQosPolicyDef")] pub DurabilityServiceQosPolicy,
 );
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "DeadlineQosPolicy")]
@@ -236,14 +239,13 @@ pub struct DeadlineQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct DeadlineQosPolicySerialize<'a>(
-    #[serde(with = "DeadlineQosPolicyDef")] pub &'a  DeadlineQosPolicy,
+    #[serde(with = "DeadlineQosPolicyDef")] pub &'a DeadlineQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct  DeadlineQosPolicyDeserialize(
-    #[serde(with = "DeadlineQosPolicyDef")] pub  DeadlineQosPolicy,
+pub struct DeadlineQosPolicyDeserialize(
+    #[serde(with = "DeadlineQosPolicyDef")] pub DeadlineQosPolicy,
 );
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "LatencyBudgetQosPolicy")]
@@ -254,15 +256,13 @@ pub struct LatencyBudgetQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct LatencyBudgetQosPolicySerialize<'a>(
-    #[serde(with = "LatencyBudgetQosPolicyDef")] pub &'a  LatencyBudgetQosPolicy,
+    #[serde(with = "LatencyBudgetQosPolicyDef")] pub &'a LatencyBudgetQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct LatencyBudgetQosPolicyDeserialize(
-    #[serde(with = "LatencyBudgetQosPolicyDef")] pub  LatencyBudgetQosPolicy,
+    #[serde(with = "LatencyBudgetQosPolicyDef")] pub LatencyBudgetQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "LivelinessQosPolicyKind")]
@@ -271,8 +271,6 @@ pub enum LivelinessQosPolicyKindDef {
     ManualByParticipantLivelinessQoS,
     ManualByTopicLivelinessQoS,
 }
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "LivelinessQosPolicy")]
@@ -285,26 +283,47 @@ pub struct LivelinessQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct LivelinessQosPolicySerialize<'a>(
-    #[serde(with = "LivelinessQosPolicyDef")] pub &'a  LivelinessQosPolicy,
+    #[serde(with = "LivelinessQosPolicyDef")] pub &'a LivelinessQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct LivelinessQosPolicyDeserialize(
-    #[serde(with = "LivelinessQosPolicyDef")] pub  LivelinessQosPolicy,
+    #[serde(with = "LivelinessQosPolicyDef")] pub LivelinessQosPolicy,
 );
 
-
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "ReliabilityQosPolicyKind")]
+#[derive(Debug, PartialEq)]
 pub enum ReliabilityQosPolicyKindDef {
     BestEffortReliabilityQos,
     ReliableReliabilityQos,
 }
 
+impl<'de> ReliabilityQosPolicyKindDef {
+    pub fn serialize<S>(this: &ReliabilityQosPolicyKind, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match this {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+                serde::Serializer::serialize_unit_variant(
+                    serializer,
+                    "ReliabilityQosPolicyKindDef",
+                    1u32,
+                    "BestEffortReliabilityQos",
+                )
+            }
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => {
+                serde::Serializer::serialize_unit_variant(
+                    serializer,
+                    "ReliabilityQosPolicyKindDef",
+                    2u32,
+                    "ReliableReliabilityQos",
+                )
+            }
+        }
+    }
+}
 
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize)]
 #[serde(remote = "ReliabilityQosPolicy")]
 pub struct ReliabilityQosPolicyDef {
     #[serde(with = "ReliabilityQosPolicyKindDef")]
@@ -315,15 +334,13 @@ pub struct ReliabilityQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct ReliabilityQosPolicySerialize<'a>(
-    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a  ReliabilityQosPolicy,
+    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a ReliabilityQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct ReliabilityQosPolicyDeserialize(
-    #[serde(with = "ReliabilityQosPolicyDef")] pub  ReliabilityQosPolicy,
+    pub ReliabilityQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "TransportPriorityQosPolicy")]
@@ -333,15 +350,13 @@ pub struct TransportPriorityQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct TransportPriorityQosPolicySerialize<'a>(
-    #[serde(with = "TransportPriorityQosPolicyDef")] pub &'a  TransportPriorityQosPolicy,
+    #[serde(with = "TransportPriorityQosPolicyDef")] pub &'a TransportPriorityQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct TransportPriorityQosPolicyDeserialize(
-    #[serde(with = "TransportPriorityQosPolicyDef")] pub  TransportPriorityQosPolicy,
+    #[serde(with = "TransportPriorityQosPolicyDef")] pub TransportPriorityQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "LifespanQosPolicy")]
@@ -352,14 +367,13 @@ pub struct LifespanQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct LifespanQosPolicySerialize<'a>(
-    #[serde(with = "LifespanQosPolicyDef")] pub &'a  LifespanQosPolicy,
+    #[serde(with = "LifespanQosPolicyDef")] pub &'a LifespanQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct LifespanQosPolicyDeserialize(
-    #[serde(with = "LifespanQosPolicyDef")] pub  LifespanQosPolicy,
+    #[serde(with = "LifespanQosPolicyDef")] pub LifespanQosPolicy,
 );
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "DestinationOrderQosPolicyKind")]
@@ -367,8 +381,6 @@ pub enum DestinationOrderQosPolicyKindDef {
     ByReceptionTimestampDestinationOrderQoS,
     BySourceTimestampDestinationOrderQoS,
 }
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "DestinationOrderQosPolicy")]
@@ -379,15 +391,13 @@ pub struct DestinationOrderQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct DestinationOrderQosPolicySerialize<'a>(
-    #[serde(with = "DestinationOrderQosPolicyDef")] pub &'a  DestinationOrderQosPolicy,
+    #[serde(with = "DestinationOrderQosPolicyDef")] pub &'a DestinationOrderQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct DestinationOrderQosPolicyDeserialize(
-    #[serde(with = "DestinationOrderQosPolicyDef")] pub  DestinationOrderQosPolicy,
+    #[serde(with = "DestinationOrderQosPolicyDef")] pub DestinationOrderQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "HistoryQosPolicy")]
@@ -399,15 +409,11 @@ pub struct HistoryQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct HistoryQosPolicySerialize<'a>(
-    #[serde(with = "HistoryQosPolicyDef")] pub &'a  HistoryQosPolicy,
+    #[serde(with = "HistoryQosPolicyDef")] pub &'a HistoryQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct HistoryQosPolicyDeserialize(
-    #[serde(with = "HistoryQosPolicyDef")] pub  HistoryQosPolicy,
-);
-
-
+pub struct HistoryQosPolicyDeserialize(#[serde(with = "HistoryQosPolicyDef")] pub HistoryQosPolicy);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "ResourceLimitsQosPolicy")]
@@ -419,14 +425,13 @@ pub struct ResourceLimitsQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct ResourceLimitsQosPolicySerialize<'a>(
-    #[serde(with = "ResourceLimitsQosPolicyDef")] pub &'a  ResourceLimitsQosPolicy,
+    #[serde(with = "ResourceLimitsQosPolicyDef")] pub &'a ResourceLimitsQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct ResourceLimitsQosPolicyDeserialize(
-    #[serde(with = "ResourceLimitsQosPolicyDef")] pub  ResourceLimitsQosPolicy,
+    #[serde(with = "ResourceLimitsQosPolicyDef")] pub ResourceLimitsQosPolicy,
 );
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "OwnershipQosPolicyKind")]
@@ -434,8 +439,6 @@ pub enum OwnershipQosPolicyKindDef {
     SharedOwnershipQoS,
     ExclusiveOwnershipQoS,
 }
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "OwnershipQosPolicy")]
@@ -446,15 +449,13 @@ pub struct OwnershipQosPolicyDef {
 
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct OwnershipQosPolicySerialize<'a>(
-    #[serde(with = "OwnershipQosPolicyDef")] pub &'a  OwnershipQosPolicy,
+    #[serde(with = "OwnershipQosPolicyDef")] pub &'a OwnershipQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct OwnershipQosPolicyDeserialize(
-    #[serde(with = "OwnershipQosPolicyDef")] pub  OwnershipQosPolicy,
+    #[serde(with = "OwnershipQosPolicyDef")] pub OwnershipQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "TopicDataQosPolicy")]
@@ -463,14 +464,12 @@ pub struct TopicDataQosPolicyDef {
 }
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct TopicDataQosPolicySerialize<'a>(
-    #[serde(with = "TopicDataQosPolicyDef")] pub &'a  TopicDataQosPolicy,
+    #[serde(with = "TopicDataQosPolicyDef")] pub &'a TopicDataQosPolicy,
 );
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct TopicDataQosPolicyDeserialize(
-    #[serde(with = "TopicDataQosPolicyDef")] pub  TopicDataQosPolicy,
+    #[serde(with = "TopicDataQosPolicyDef")] pub TopicDataQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "OwnershipStrengthQosPolicy")]
@@ -479,14 +478,12 @@ pub struct OwnershipStrengthQosPolicyDef {
 }
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct OwnershipStrengthQosPolicySerialize<'a>(
-    #[serde(with = "OwnershipStrengthQosPolicyDef")] pub &'a  OwnershipStrengthQosPolicy,
+    #[serde(with = "OwnershipStrengthQosPolicyDef")] pub &'a OwnershipStrengthQosPolicy,
 );
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct OwnershipStrengthQosPolicyDeserialize(
-    #[serde(with = "OwnershipStrengthQosPolicyDef")] pub  OwnershipStrengthQosPolicy,
+    #[serde(with = "OwnershipStrengthQosPolicyDef")] pub OwnershipStrengthQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "PresentationQosPolicyAccessScopeKind")]
@@ -495,7 +492,6 @@ pub enum PresentationQosPolicyAccessScopeKindDef {
     TopicPresentationQoS,
     GroupPresentationQoS,
 }
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "PresentationQosPolicy")]
@@ -507,14 +503,12 @@ pub struct PresentationQosPolicyDef {
 }
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct PresentationQosPolicySerialize<'a>(
-    #[serde(with = "PresentationQosPolicyDef")] pub &'a  PresentationQosPolicy,
+    #[serde(with = "PresentationQosPolicyDef")] pub &'a PresentationQosPolicy,
 );
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct PresentationQosPolicyDeserialize(
-    #[serde(with = "PresentationQosPolicyDef")] pub  PresentationQosPolicy,
+    #[serde(with = "PresentationQosPolicyDef")] pub PresentationQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "PartitionQosPolicy")]
@@ -523,14 +517,12 @@ pub struct PartitionQosPolicyDef {
 }
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct PartitionQosPolicySerialize<'a>(
-    #[serde(with = "PartitionQosPolicyDef")] pub &'a  PartitionQosPolicy,
+    #[serde(with = "PartitionQosPolicyDef")] pub &'a PartitionQosPolicy,
 );
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct PartitionQosPolicyDeserialize(
-    #[serde(with = "PartitionQosPolicyDef")] pub  PartitionQosPolicy,
+    #[serde(with = "PartitionQosPolicyDef")] pub PartitionQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "GroupDataQosPolicy")]
@@ -539,13 +531,12 @@ pub struct GroupDataQosPolicyDef {
 }
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct GroupDataQosPolicySerialize<'a>(
-    #[serde(with = "GroupDataQosPolicyDef")] pub &'a  GroupDataQosPolicy,
+    #[serde(with = "GroupDataQosPolicyDef")] pub &'a GroupDataQosPolicy,
 );
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct GroupDataQosPolicyDeserialize(
-    #[serde(with = "GroupDataQosPolicyDef")] pub  GroupDataQosPolicy,
+    #[serde(with = "GroupDataQosPolicyDef")] pub GroupDataQosPolicy,
 );
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "TimeBasedFilterQosPolicy")]
@@ -555,9 +546,9 @@ pub struct TimeBasedFilterQosPolicyDef {
 }
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct TimeBasedFilterQosPolicySerialize<'a>(
-    #[serde(with = "TimeBasedFilterQosPolicyDef")] pub &'a  TimeBasedFilterQosPolicy,
+    #[serde(with = "TimeBasedFilterQosPolicyDef")] pub &'a TimeBasedFilterQosPolicy,
 );
 #[derive(Debug, PartialEq, serde::Deserialize)]
 pub struct TimeBasedFilterQosPolicyDeserialize(
-    #[serde(with = "TimeBasedFilterQosPolicyDef")] pub  TimeBasedFilterQosPolicy,
+    #[serde(with = "TimeBasedFilterQosPolicyDef")] pub TimeBasedFilterQosPolicy,
 );

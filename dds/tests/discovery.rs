@@ -395,7 +395,7 @@ fn process_discovery_data_happy_path() {
                 liveliness: LivelinessQosPolicy::default(),
                 reliability: ReliabilityQosPolicy {
                     kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                    max_blocking_time: Duration::new(0, 0),
+                    max_blocking_time: Duration::new(3, 0),
                 },
                 lifespan: LifespanQosPolicy::default(),
                 user_data: UserDataQosPolicy::default(),
