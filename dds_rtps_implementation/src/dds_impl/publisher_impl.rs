@@ -3,7 +3,7 @@ use std::{
     sync::{
         atomic::{self, AtomicU8},
         mpsc::SyncSender,
-        Arc, Mutex,
+        Arc, Mutex, RwLock,
     },
 };
 
@@ -44,15 +44,25 @@ use crate::{
 
 use super::data_writer_impl::DataWriterImpl;
 
-pub trait DataWriterObject: Any + Send + Sync + ProcessAckNackSubmessage {
+pub trait DataWriterObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+
+    fn into_process_ack_nack_submessage(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn ProcessAckNackSubmessage>>;
 }
 
-impl<T> DataWriterObject for T
+impl<T> DataWriterObject for RwLock<T>
 where
     T: Any + Send + Sync + ProcessAckNackSubmessage,
 {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
+    }
+
+    fn into_process_ack_nack_submessage(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn ProcessAckNackSubmessage>> {
         self
     }
 }

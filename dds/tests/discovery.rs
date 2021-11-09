@@ -79,10 +79,6 @@ use rust_rtps_psm::{
 fn send_and_receive_discovery_data_happy_path() {
     let (metatraffic_locator_message_channel_sender, metatraffic_locator_message_channel_receiver) =
         sync_channel(17);
-    let (
-        metatraffic_locator_list_message_channel_sender,
-        _metatraffic_locator_list_message_channel_receiver,
-    ) = sync_channel(17);
 
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
@@ -95,7 +91,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let dds_participant_data = ParticipantBuiltinTopicData {
-        key: BuiltInTopicKey { value: [0, 0, 1] },
+        key: BuiltInTopicKey { value: [0, 0, 0, 1,] },
         user_data: UserDataQosPolicy { value: vec![] },
     };
     let participant_proxy = ParticipantProxy {
@@ -147,17 +143,6 @@ fn send_and_receive_discovery_data_happy_path() {
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )
         .unwrap();
-
-    let _publisher = PublisherImpl::new(
-        PublisherQos::default(),
-        RtpsGroup::new(Guid::new(
-            GuidPrefix([4; 12]),
-            EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-        )),
-        vec![rtps_shared_new(data_writer)],
-        metatraffic_locator_message_channel_sender.clone(),
-        metatraffic_locator_list_message_channel_sender.clone(),
-    );
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
     socket.set_nonblocking(true).unwrap();
@@ -230,7 +215,7 @@ fn process_discovery_data_happy_path() {
     let domain_id = 1;
     let domain_tag = "ab";
     let dds_participant_data = ParticipantBuiltinTopicData {
-        key: BuiltInTopicKey { value: [0, 0, 1] },
+        key: BuiltInTopicKey { value: [0, 0, 0, 1] },
         user_data: UserDataQosPolicy { value: vec![] },
     };
     let participant_proxy = ParticipantProxy {
@@ -399,8 +384,8 @@ fn process_discovery_data_happy_path() {
                 remote_group_entity_id: EntityId::new([0; 3], 0),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
-                key: BuiltInTopicKey { value: [1; 3] },
-                participant_key: BuiltInTopicKey { value: [1; 3] },
+                key: BuiltInTopicKey { value: [1; 4] },
+                participant_key: BuiltInTopicKey { value: [1; 4] },
                 topic_name: "MyTopic".to_string(),
                 type_name: "MyType".to_string(),
                 durability: DurabilityQosPolicy::default(),

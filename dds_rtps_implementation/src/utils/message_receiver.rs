@@ -97,7 +97,7 @@ impl MessageReceiver {
 }
 
 pub trait ProcessDataSubmessage {
-    fn process_data_submessage(&self, source_guid_prefix: GuidPrefix, _data: &DataSubmessageRead);
+    fn process_data_submessage(&mut self, source_guid_prefix: GuidPrefix, _data: &DataSubmessageRead);
 }
 
 pub trait ProcessAckNackSubmessage {
@@ -167,7 +167,7 @@ mod tests {
 
         impl ProcessDataSubmessage for MockProcessDataSubmessage {
             fn process_data_submessage(
-                &self,
+                &mut self,
                 _source_guid_prefix: GuidPrefix,
                 _data: &DataSubmessageRead,
             ) {

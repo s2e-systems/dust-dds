@@ -16,6 +16,7 @@ pub struct ParticipantBuiltinTopicData {
     pub user_data: UserDataQosPolicy,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct TopicBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub name: String,
@@ -34,6 +35,8 @@ pub struct TopicBuiltinTopicData {
     pub ownership: OwnershipQosPolicy,
     pub topic_data: TopicDataQosPolicy,
 }
+
+#[derive(Debug, PartialEq)]
 pub struct PublicationBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,
@@ -57,6 +60,8 @@ pub struct PublicationBuiltinTopicData {
     pub topic_data: TopicDataQosPolicy,
     pub group_data: GroupDataQosPolicy,
 }
+
+#[derive(Debug, PartialEq)]
 pub struct SubscriptionBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,

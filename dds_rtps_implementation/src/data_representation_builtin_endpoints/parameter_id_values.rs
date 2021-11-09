@@ -1,6 +1,3 @@
-use rust_rtps_pim::behavior::types::Duration;
-use rust_rtps_psm::discovery::types::BuiltinEndpointQos;
-
 // Constant value from Table 9.13 - ParameterId Values
 pub const PID_PAD: u16 = 0x0000;
 pub const PID_SENTINEL: u16 = 0x0001;
@@ -47,12 +44,18 @@ pub const PID_PROPERTY_LIST: u16 = 0x0059;
 pub const PID_TYPE_MAX_SIZE_SERIALIZED: u16 = 0x0060;
 pub const PID_ENTITY_NAME: u16 = 0x0062;
 pub const PID_ENDPOINT_GUID: u16 = 0x005a;
+// Following PID is not defined in standard
+// (but its listed in "Table 9.14 - ParameterId mapping and default values")
+pub const PID_DATA_MAX_SIZE_SERIALIZED: u16 = PID_TYPE_MAX_SIZE_SERIALIZED;
+// Following PID is listed in "Table 9.19 – Deprecated ParameterId Values" but
+// also in "Table 9.14 - ParameterId mapping and default values"
+pub const PID_GROUP_ENTITYID: u16 = 0x0053;
 
 // Constant value from Table 9.14 - ParameterId mapping and default values
+// that are not N/A and not uniquly specified in DDS standard
 pub const DEFAULT_DOMAIN_TAG: &str = "";
 pub const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
-pub const DEFAULT_BUILTIN_ENDPOINT_QOS: BuiltinEndpointQos = BuiltinEndpointQos(0);
-pub const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration {
+pub const DEFAULT_PARTICIPANT_LEASE_DURATION: rust_rtps_pim::behavior::types::Duration = rust_rtps_pim::behavior::types::Duration {
     seconds: 100,
     fraction: 0,
 };

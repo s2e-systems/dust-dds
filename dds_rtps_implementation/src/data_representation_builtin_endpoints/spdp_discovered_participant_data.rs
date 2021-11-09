@@ -1,11 +1,14 @@
 use rust_dds_api::{
-    builtin_topics::ParticipantBuiltinTopicData, infrastructure::qos_policy::UserDataQosPolicy,
+    builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey,
+    infrastructure::qos_policy::UserDataQosPolicy,
 };
 use rust_rtps_pim::{
     behavior::types::Duration,
     structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
 };
-use rust_rtps_psm::discovery::spdp::participant_proxy::ParticipantProxy;
+use rust_rtps_psm::discovery::{
+    spdp::participant_proxy::ParticipantProxy, types::BuiltinEndpointQos,
+};
 
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
@@ -22,16 +25,15 @@ use super::{
         BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
         BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
         CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
-        DurationSerdeSerialize, GuidPrefixDef, GuidSerdeDeserialize, GuidSerdeSerialize,
-        LocatorSerdeDeserialize, LocatorSerdeSerialize, ProtocolVersionSerdeDeserialize,
-        ProtocolVersionSerdeSerialize, UserDataQosPolicySerdeDeserialize,
-        UserDataQosPolicySerdeSerialize,
+        DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize, LocatorDeserialize,
+        LocatorSerialize, ProtocolVersionSerdeDeserialize, ProtocolVersionSerdeSerialize,
+        UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
     },
     parameter_id_values::{
-        DEFAULT_BUILTIN_ENDPOINT_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
-        PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID,
-        PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
-        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+        DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET,
+        PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR,
+        PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+        PID_USER_DATA, PID_VENDORID,
     },
 };
 
@@ -104,7 +106,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_METATRAFFIC_UNICAST_LOCATOR,
-                    &LocatorSerdeSerialize(metatraffic_unicast_locator),
+                    &LocatorSerialize(metatraffic_unicast_locator),
                 )
                 .unwrap();
         }
@@ -115,7 +117,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_METATRAFFIC_MULTICAST_LOCATOR,
-                    &LocatorSerdeSerialize(metatraffic_multicast_locator),
+                    &LocatorSerialize(metatraffic_multicast_locator),
                 )
                 .unwrap();
         }
@@ -124,7 +126,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_DEFAULT_UNICAST_LOCATOR,
-                    &LocatorSerdeSerialize(default_unicast_locator),
+                    &LocatorSerialize(default_unicast_locator),
                 )
                 .unwrap();
         }
@@ -133,7 +135,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_DEFAULT_MULTICAST_LOCATOR,
-                    &LocatorSerdeSerialize(default_multicast_locator),
+                    &LocatorSerialize(default_multicast_locator),
                 )
                 .unwrap();
         }
@@ -154,7 +156,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             )
             .unwrap();
 
-        if self.participant_proxy.builtin_endpoint_qos != DEFAULT_BUILTIN_ENDPOINT_QOS {
+        if self.participant_proxy.builtin_endpoint_qos != BuiltinEndpointQos::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_BUILTIN_ENDPOINT_QOS,
@@ -174,12 +176,27 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_USER_DATA,
-                    &UserDataQosPolicySerdeSerialize(&self.dds_participant_data.user_data),
+                    &UserDataQosPolicySerialize(&self.dds_participant_data.user_data),
                 )
                 .unwrap();
         }
 
         Ok(())
+    }
+}
+
+fn convert_guid_to_built_in_topic_key(guid: &Guid) -> BuiltInTopicKey {
+    let value0 = [guid.prefix.0[0], guid.prefix.0[1], guid.prefix.0[2], guid.prefix.0[3]];
+    let value1 = [guid.prefix.0[4], guid.prefix.0[5], guid.prefix.0[6], guid.prefix.0[7]];
+    let value2 = [guid.prefix.0[8], guid.prefix.0[9], guid.prefix.0[10], guid.prefix.0[11]];
+    let value3 = [guid.entity_id.entity_key[0], guid.entity_id.entity_key[1], guid.entity_id.entity_key[2], guid.entity_id.entity_kind];
+    BuiltInTopicKey {
+        value: [
+            i32::from_le_bytes(value0),
+            i32::from_le_bytes(value1),
+            i32::from_le_bytes(value2),
+            i32::from_le_bytes(value3),
+        ],
     }
 }
 
@@ -191,16 +208,13 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             .get::<GuidSerdeDeserialize>(PID_PARTICIPANT_GUID)
             .unwrap()
             .0;
-        let guid_prefix = guid.prefix;
         let user_data = param_list
-            .get::<UserDataQosPolicySerdeDeserialize>(PID_USER_DATA)
-            .unwrap_or(UserDataQosPolicySerdeDeserialize(
-                UserDataQosPolicy::default(),
-            ))
+            .get::<UserDataQosPolicyDeserialize>(PID_USER_DATA)
+            .unwrap_or(UserDataQosPolicyDeserialize(UserDataQosPolicy::default()))
             .0;
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: GuidPrefixDef(guid_prefix.0).into(),
+            key: convert_guid_to_built_in_topic_key(&guid),
             user_data,
         };
 
@@ -217,16 +231,16 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             .get(PID_EXPECTS_INLINE_QOS)
             .unwrap_or(DEFAULT_EXPECTS_INLINE_QOS);
         let metatraffic_unicast_locator_list = param_list
-            .get_list::<LocatorSerdeDeserialize>(PID_METATRAFFIC_UNICAST_LOCATOR)
+            .get_list::<LocatorDeserialize>(PID_METATRAFFIC_UNICAST_LOCATOR)
             .unwrap();
         let metatraffic_multicast_locator_list = param_list
-            .get_list::<LocatorSerdeDeserialize>(PID_METATRAFFIC_MULTICAST_LOCATOR)
+            .get_list::<LocatorDeserialize>(PID_METATRAFFIC_MULTICAST_LOCATOR)
             .unwrap();
         let default_unicast_locator_list = param_list
-            .get_list::<LocatorSerdeDeserialize>(PID_DEFAULT_UNICAST_LOCATOR)
+            .get_list::<LocatorDeserialize>(PID_DEFAULT_UNICAST_LOCATOR)
             .unwrap();
         let default_multicast_locator_list = param_list
-            .get_list::<LocatorSerdeDeserialize>(PID_DEFAULT_MULTICAST_LOCATOR)
+            .get_list::<LocatorDeserialize>(PID_DEFAULT_MULTICAST_LOCATOR)
             .unwrap();
         let available_builtin_endpoints = param_list
             .get::<BuiltinEndpointSetSerdeDeserialize>(PID_BUILTIN_ENDPOINT_SET)
@@ -239,7 +253,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let builtin_endpoint_qos = param_list
             .get::<BuiltinEndpointQosSerdeDeserialize>(PID_BUILTIN_ENDPOINT_QOS)
             .unwrap_or(BuiltinEndpointQosSerdeDeserialize(
-                DEFAULT_BUILTIN_ENDPOINT_QOS,
+                BuiltinEndpointQos::default(),
             ))
             .0;
 
@@ -247,7 +261,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             domain_id,
             domain_tag,
             protocol_version,
-            guid_prefix,
+            guid_prefix: guid.prefix,
             vendor_id,
             expects_inline_qos,
             metatraffic_unicast_locator_list: metatraffic_unicast_locator_list
@@ -290,7 +304,7 @@ mod tests {
     use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
     use rust_rtps_pim::{
         messages::types::Count,
-        structure::types::{GuidPrefix, ProtocolVersion},
+        structure::types::{EntityId, GuidPrefix, ProtocolVersion},
     };
     use rust_rtps_psm::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
 
@@ -309,6 +323,13 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = GuidPrefix([8; 12]);
+        let guid = Guid {
+            prefix: guid_prefix,
+            entity_id: EntityId {
+                entity_key: [0, 0, 1],
+                entity_kind: 0xc1,
+            },
+        };
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -323,7 +344,7 @@ mod tests {
         );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: GuidPrefixDef(guid_prefix.0).into(),
+            key: convert_guid_to_built_in_topic_key(&guid),
             user_data: UserDataQosPolicy { value: vec![] },
         };
         let participant_proxy = ParticipantProxy {
@@ -429,6 +450,13 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = GuidPrefix([8; 12]);
+        let guid = Guid {
+            prefix: guid_prefix,
+            entity_id: EntityId {
+                entity_key: [0, 0, 1],
+                entity_kind: 0xc1,
+            },
+        };
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -443,7 +471,7 @@ mod tests {
         );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: GuidPrefixDef(guid_prefix.0).into(),
+            key: convert_guid_to_built_in_topic_key(&guid),
             user_data: UserDataQosPolicy { value: vec![] },
         };
         let participant_proxy = ParticipantProxy {
