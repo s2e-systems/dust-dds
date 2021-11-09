@@ -83,7 +83,7 @@ where
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
-    data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject>>>,
+    data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
 }
@@ -92,7 +92,7 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        data_writer_impl_list: Vec<Arc<dyn DataWriterObject>>,
+        data_writer_impl_list: Vec<Arc<dyn DataWriterObject + Send + Sync>>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -103,7 +103,7 @@ impl PublisherImpl {
         }
     }
 
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
+    pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
         let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
 
         let message_producer_list: Vec<Arc<RwLock<dyn ProduceSubmessages>>> = data_writer_list_lock

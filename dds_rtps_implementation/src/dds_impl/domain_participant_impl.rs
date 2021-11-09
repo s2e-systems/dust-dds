@@ -105,10 +105,11 @@ impl DomainParticipantImpl {
         // let metatraffic_transport = metatraffic_transport.clone();
         // let guid_prefix = guid_prefix;
         let builtin_subscriber_arc = builtin_subscriber.clone();
-        let _builtin_publisher_arc = builtin_publisher.clone();
+        let builtin_publisher_arc = builtin_publisher.clone();
         let user_defined_subscriber_list = Arc::new(Mutex::new(Vec::new()));
         let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
-        // let user_defined_publisher_list = user_defined_publisher_list.clone();
+        let user_defined_publisher_list = Arc::new(Mutex::new(Vec::new()));
+        let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
 
         let _option_spdp_builtin_participant_reader =
             builtin_subscriber
@@ -130,7 +131,13 @@ impl DomainParticipantImpl {
         }
 
         impl Communication {
-            fn send(&mut self) {
+            fn send(&mut self, list: &[RtpsShared<PublisherImpl>]) {
+                for publisher in list {
+                    publisher
+                        .write()
+                        .unwrap()
+                        .send_message(self.transport.as_mut());
+                }
                 // if let Ok((dst_locator, submessages)) =
                 //     self.locator_message_channel_receiver.try_recv()
                 // {
@@ -171,7 +178,7 @@ impl DomainParticipantImpl {
             };
 
             while is_enabled_arc.load(atomic::Ordering::SeqCst) {
-                communication.send();
+                communication.send(core::slice::from_ref(&builtin_publisher_arc));
                 communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
@@ -191,7 +198,7 @@ impl DomainParticipantImpl {
             };
 
             while is_enabled_arc.load(atomic::Ordering::SeqCst) {
-                communication.send();
+                communication.send(&user_defined_publisher_list_arc.lock().unwrap());
                 communication.receive(&user_defined_subscriber_list_arc.lock().unwrap());
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
@@ -239,7 +246,7 @@ impl DomainParticipantImpl {
             _user_defined_subscriber_list: user_defined_subscriber_list,
             _user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
-            user_defined_publisher_list: Arc::new(Mutex::new(Vec::new())),
+            user_defined_publisher_list,
             user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: PublisherQos::default(),
             _topic_list: Vec::new(),
