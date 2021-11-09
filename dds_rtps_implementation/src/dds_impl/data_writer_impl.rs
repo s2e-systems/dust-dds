@@ -36,20 +36,17 @@ use crate::{
 
 use super::publisher_impl::ProduceSubmessages;
 
-pub enum RtpsWriterFlavor<T> {
+pub enum RtpsWriterFlavor {
     Stateful {
-        stateful_writer: Arc<Mutex<RtpsStatefulWriterImpl<WriterHistoryCache<T>>>>,
+        stateful_writer: Arc<Mutex<RtpsStatefulWriterImpl<WriterHistoryCache>>>,
     },
     Stateless {
-        stateless_writer: Arc<Mutex<RtpsStatelessWriterImpl<WriterHistoryCache<T>>>>,
+        stateless_writer: Arc<Mutex<RtpsStatelessWriterImpl<WriterHistoryCache>>>,
     },
 }
 
-impl<T> RtpsWriterFlavor<T>
-where
-    T: Send + 'static,
-{
-    pub fn new_stateful(stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache<T>>) -> Self {
+impl RtpsWriterFlavor {
+    pub fn new_stateful(stateful_writer: RtpsStatefulWriterImpl<WriterHistoryCache>) -> Self {
         let stateful_writer = Arc::new(Mutex::new(stateful_writer));
         let stateful_writer_shared = stateful_writer.clone();
         // std::thread::spawn(move || {
@@ -92,7 +89,7 @@ where
         RtpsWriterFlavor::Stateful { stateful_writer }
     }
 
-    pub fn new_stateless(stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache<T>>) -> Self {
+    pub fn new_stateless(stateless_writer: RtpsStatelessWriterImpl<WriterHistoryCache>) -> Self {
         RtpsWriterFlavor::Stateless {
             stateless_writer: Arc::new(Mutex::new(stateless_writer)),
         }
@@ -101,7 +98,7 @@ where
 
 pub struct DataWriterImpl<T> {
     _qos: DataWriterQos,
-    pub rtps_writer_impl: RtpsWriterFlavor<T>,
+    pub rtps_writer_impl: RtpsWriterFlavor,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
 }
 
@@ -198,7 +195,7 @@ impl<T> DataWriterImpl<T>
 where
     T: Send + 'static,
 {
-    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor<T>) -> Self {
+    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterFlavor) -> Self {
         Self {
             _qos: qos,
             rtps_writer_impl,
@@ -248,13 +245,13 @@ where
         todo!()
     }
 
-    fn write(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, _data: &T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn write_w_timestamp(
         &mut self,
-        data: T,
+        data: &T,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
@@ -737,7 +734,7 @@ mod tests {
         let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
         data_writer_impl
             .write_w_timestamp(
-                data_value,
+                &data_value,
                 None,
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )

@@ -13,30 +13,30 @@ use rust_rtps_pim::{
 
 use crate::dds_type::{BigEndian, DdsSerialize};
 
-struct WriterCacheChange<T> {
+struct WriterCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
-    data: T,
+    data: Vec<u8>,
     _source_timestamp: Option<Time>,
     _view_state_kind: ViewStateKind,
     _instance_state_kind: InstanceStateKind,
 }
 
-pub struct WriterHistoryCache<T> {
-    changes: Vec<WriterCacheChange<T>>,
+pub struct WriterHistoryCache {
+    changes: Vec<WriterCacheChange>,
     source_timestamp: Option<Time>,
 }
 
-impl<T> WriterHistoryCache<T> {
+impl WriterHistoryCache {
     /// Set the Rtps history cache impl's info.
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
     }
 }
 
-impl<T> RtpsHistoryCacheConstructor for WriterHistoryCache<T> {
+impl RtpsHistoryCacheConstructor for WriterHistoryCache {
     fn new() -> Self {
         Self {
             changes: Vec::new(),
@@ -45,8 +45,11 @@ impl<T> RtpsHistoryCacheConstructor for WriterHistoryCache<T> {
     }
 }
 
-impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, T> for WriterHistoryCache<T> {
-    fn add_change(&mut self, change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, T>) {
+impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> for WriterHistoryCache
+where
+    T: DdsSerialize,
+{
+    fn add_change(&mut self, change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'_ T>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -54,12 +57,19 @@ impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, T> for WriterHistoryC
             ChangeKind::NotAliveUnregistered => todo!(),
         };
 
+        let mut data = Vec::new();
+        change
+            .data_value
+            .serialize::<_, BigEndian>(&mut data)
+            .ok()
+            .unwrap();
+
         let local_change = WriterCacheChange {
             kind: change.kind,
             writer_guid: change.writer_guid,
             sequence_number: change.sequence_number,
             instance_handle: change.instance_handle,
-            data: change.data_value,
+            data,
             _source_timestamp: self.source_timestamp,
             _view_state_kind: ViewStateKind::New,
             _instance_state_kind: instance_state_kind,
@@ -69,37 +79,28 @@ impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, T> for WriterHistoryC
     }
 }
 
-impl<T> RtpsHistoryCacheGetChange<'_, Vec<Parameter<Vec<u8>>>, Vec<u8>> for WriterHistoryCache<T>
-where
-    T: DdsSerialize,
-{
+impl<'a> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> for WriterHistoryCache {
     fn get_change(
-        &'_ self,
+        &'a self,
         seq_num: &SequenceNumber,
-    ) -> Option<RtpsCacheChange<Vec<Parameter<Vec<u8>>>, Vec<u8>>> {
+    ) -> Option<RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'a [u8]>> {
         let local_change = self
             .changes
             .iter()
             .find(|&cc| &cc.sequence_number == seq_num)?;
-
-        let mut data_value = Vec::new();
-        local_change
-            .data
-            .serialize::<_, BigEndian>(&mut data_value)
-            .ok()?;
 
         Some(RtpsCacheChange {
             kind: local_change.kind,
             writer_guid: local_change.writer_guid,
             instance_handle: local_change.instance_handle,
             sequence_number: local_change.sequence_number,
-            data_value,
+            data_value: local_change.data.as_ref(),
             inline_qos: vec![],
         })
     }
 }
 
-impl<T> RtpsHistoryCacheOperations for WriterHistoryCache<T> {
+impl RtpsHistoryCacheOperations for WriterHistoryCache {
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
