@@ -15,7 +15,8 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::writer::{
         reader_locator::RtpsReaderLocator,
-        stateful_writer::RtpsStatefulWriter,
+        reader_proxy::RtpsReaderProxy,
+        stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
         stateless_writer::{
             RtpsStatelessWriter, RtpsStatelessWriterOperations, StatelessWriterBehavior,
         },
@@ -24,7 +25,7 @@ use rust_rtps_pim::{
     messages::types::Count,
     structure::{
         history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, GuidPrefix, Locator},
+        types::{ChangeKind, Guid, GuidPrefix, Locator},
     },
 };
 use rust_rtps_psm::{
@@ -37,7 +38,6 @@ use rust_rtps_psm::{
     },
     rtps_reader_locator_impl::RtpsReaderLocatorImpl,
     rtps_reader_proxy_impl::RtpsReaderProxyImpl,
-    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
 };
 
 use crate::{
@@ -403,6 +403,34 @@ impl<T> RtpsStatelessWriterOperations for DataWriterImpl<T, RtpsStatelessWriterT
         for reader_locator in &mut self.rtps_writer_impl.reader_locators {
             reader_locator.unsent_changes_reset()
         }
+    }
+}
+
+impl<T> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, RtpsStatefulWriterType> {
+    fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
+        let reader_proxy = RtpsReaderProxyImpl::new(a_reader_proxy);
+        self.rtps_writer_impl.matched_readers.push(reader_proxy)
+    }
+
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid) {
+        self.rtps_writer_impl
+            .matched_readers
+            .retain(|x| &x.remote_reader_guid != reader_proxy_guid);
+    }
+
+    fn matched_reader_lookup(
+        &self,
+        a_reader_guid: &Guid,
+    ) -> Option<&RtpsReaderProxy<Vec<Locator>>> {
+        self.rtps_writer_impl
+            .matched_readers
+            .iter()
+            .find(|&x| &x.remote_reader_guid == a_reader_guid)
+            .map(|x| x.deref())
+    }
+
+    fn is_acked_by_all(&self) -> bool {
+        todo!()
     }
 }
 

@@ -33,7 +33,6 @@ use rust_rtps_pim::{
 use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
 use crate::{
-    dds_impl::data_writer_impl::RtpsStatelessWriterType,
     dds_type::DdsType,
     utils::{
         message_receiver::ProcessAckNackSubmessage,
