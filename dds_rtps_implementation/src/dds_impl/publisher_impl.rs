@@ -30,13 +30,10 @@ use rust_rtps_pim::{
         },
     },
 };
-use rust_rtps_psm::{
-    messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-};
+use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
 use crate::{
-    dds_impl::data_writer_impl::RtpsWriterFlavor,
+    dds_impl::data_writer_impl::RtpsStatelessWriterType,
     dds_type::DdsType,
     utils::{
         message_receiver::ProcessAckNackSubmessage,
@@ -45,7 +42,7 @@ use crate::{
     },
 };
 
-use super::data_writer_impl::DataWriterImpl;
+use super::data_writer_impl::{DataWriterImpl, RtpsStatefulWriterType};
 
 pub trait ProduceSubmessages {
     fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite>;
@@ -139,7 +136,7 @@ where
     T: DdsType + Send + 'static,
 {
     type TopicType = ();
-    type DataWriterType = RtpsShared<DataWriterImpl<T>>;
+    type DataWriterType = RtpsShared<DataWriterImpl<T, RtpsStatefulWriterType>>;
 
     fn create_datawriter_gat(
         &'_ self,
@@ -176,7 +173,7 @@ where
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsWriterFlavor::new_stateless(RtpsStatelessWriterImpl::new(
+        let rtps_writer_impl = RtpsStatefulWriterType::new(
             guid,
             topic_kind,
             reliability_level,
@@ -187,7 +184,7 @@ where
             nack_response_delay,
             nack_suppression_duration,
             data_max_size_serialized,
-        ));
+        );
         let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         self.data_writer_impl_list

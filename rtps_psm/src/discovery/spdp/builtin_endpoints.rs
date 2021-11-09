@@ -1,5 +1,5 @@
 use rust_rtps_pim::{
-    behavior::types::DURATION_ZERO,
+    behavior::{types::DURATION_ZERO, writer::stateless_writer::RtpsStatelessWriter},
     structure::{
         history_cache::RtpsHistoryCacheConstructor,
         types::{
@@ -11,7 +11,6 @@ use rust_rtps_pim::{
 
 use crate::{
     rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -23,18 +22,19 @@ pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
 pub struct SpdpBuiltinParticipantWriter;
 
 impl SpdpBuiltinParticipantWriter {
-    pub fn create<C>(
+    pub fn create<L, C, R>(
         guid_prefix: GuidPrefix,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-    ) -> RtpsStatelessWriterImpl<C>
+        unicast_locator_list: L,
+        multicast_locator_list: L,
+    ) -> RtpsStatelessWriter<L, C, R>
     where
         C: RtpsHistoryCacheConstructor,
+        R: Default,
     {
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
 
-        RtpsStatelessWriterImpl::new(
+        RtpsStatelessWriter::new(
             spdp_builtin_participant_writer_guid,
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
