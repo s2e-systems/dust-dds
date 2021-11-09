@@ -430,7 +430,9 @@ impl<T> Entity for DataWriterImpl<T> {
 }
 
 impl<T> ProduceSubmessages for DataWriterImpl<T> {
-
+    fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite> {
+        todo!()
+    }
 }
 
 impl<T> ProcessAckNackSubmessage for DataWriterImpl<T> {

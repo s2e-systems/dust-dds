@@ -45,7 +45,9 @@ use crate::{
 
 use super::data_writer_impl::DataWriterImpl;
 
-pub trait ProduceSubmessages {}
+pub trait ProduceSubmessages {
+    fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite>;
+}
 
 pub trait DataWriterObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
@@ -300,8 +302,18 @@ mod tests {
 
     use super::*;
     use rust_dds_api::infrastructure::qos::TopicQos;
-    use rust_rtps_pim::structure::types::GUID_UNKNOWN;
-    use rust_rtps_psm::messages::overall_structure::RtpsMessageWrite;
+    use rust_rtps_pim::{
+        messages::{
+            submessage_elements::{
+                CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+            },
+            types::Count,
+        },
+        structure::types::{ENTITYID_UNKNOWN, GUID_UNKNOWN},
+    };
+    use rust_rtps_psm::messages::{
+        overall_structure::RtpsMessageWrite, submessages::HeartbeatSubmessageWrite,
+    };
 
     struct MockDDSType;
 
@@ -408,13 +420,67 @@ mod tests {
             }
         }
 
-        impl ProduceSubmessages for MockMessageProducer {}
+        impl ProduceSubmessages for MockMessageProducer {
+            fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite> {
+                let endianness_flag = true;
+                let final_flag = true;
+                let liveliness_flag = false;
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let first_sn = SequenceNumberSubmessageElement { value: 1 };
+                let last_sn = SequenceNumberSubmessageElement { value: 2 };
+                let count = CountSubmessageElement { value: Count(1) };
+
+                vec![RtpsSubmessageTypeWrite::Heartbeat(
+                    HeartbeatSubmessageWrite::new(
+                        endianness_flag,
+                        final_flag,
+                        liveliness_flag,
+                        reader_id,
+                        writer_id,
+                        first_sn,
+                        last_sn,
+                        count,
+                    ),
+                )]
+            }
+        }
 
         struct MockTransport;
 
         impl TransportWrite for MockTransport {
-            fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
-                todo!()
+            fn write(&mut self, message: &RtpsMessageWrite, _destination_locator: &Locator) {
+                let endianness_flag = true;
+                let final_flag = true;
+                let liveliness_flag = false;
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let first_sn = SequenceNumberSubmessageElement { value: 1 };
+                let last_sn = SequenceNumberSubmessageElement { value: 2 };
+                let count = CountSubmessageElement { value: Count(1) };
+
+                let expected_submessages = vec![RtpsSubmessageTypeWrite::Heartbeat(
+                    HeartbeatSubmessageWrite::new(
+                        endianness_flag,
+                        final_flag,
+                        liveliness_flag,
+                        reader_id,
+                        writer_id,
+                        first_sn,
+                        last_sn,
+                        count,
+                    ),
+                )];
+
+                assert_eq!(message.submessages, expected_submessages)
             }
         }
 
