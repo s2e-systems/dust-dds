@@ -1,5 +1,7 @@
 use std::{
     any::Any,
+    cell::RefCell,
+    ops::{Deref, DerefMut},
     sync::{
         atomic::{self, AtomicU8},
         Arc, Mutex, RwLock, RwLockWriteGuard,
@@ -21,65 +23,70 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
+    behavior::writer::{
+        stateful_writer::RtpsStatefulWriterOperations, stateless_writer::StatelessWriterBehavior,
+    },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, ReliabilityKind, TopicKind, LOCATOR_INVALID, PROTOCOLVERSION,
+            EntityId, Guid, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
     },
 };
-use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
+use rust_rtps_psm::messages::{
+    overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
+    submessages::{DataSubmessageWrite, GapSubmessageWrite},
+};
 
 use crate::{
     dds_type::DdsType,
     utils::{
-        message_receiver::ProcessAckNackSubmessage,
         shared_object::{rtps_shared_new, RtpsShared},
         transport::TransportWrite,
     },
 };
 
-use super::data_writer_impl::{DataWriterImpl, RtpsStatefulWriterType};
-
-pub trait ProduceSubmessages {
-    fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite>;
-}
+use super::data_writer_impl::{DataWriterImpl, RtpsStatefulWriterType, RtpsStatelessWriterType};
 
 pub trait DataWriterObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
-
-    fn into_process_ack_nack_submessage(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn ProcessAckNackSubmessage>>;
-
-    fn into_produce_submessages(self: Arc<Self>) -> Arc<RwLock<dyn ProduceSubmessages>>;
 }
 
-impl<T> DataWriterObject for RwLock<T>
+impl<T> DataWriterObject for T
 where
-    T: Any + Send + Sync + ProcessAckNackSubmessage + ProduceSubmessages,
+    T: Any + Send + Sync,
 {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
+}
 
-    fn into_process_ack_nack_submessage(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn ProcessAckNackSubmessage>> {
-        self
-    }
+pub trait StatelessDataWriterObject:
+    DataWriterObject + Deref<Target = RtpsStatelessWriterType> + DerefMut
+{
+}
 
-    fn into_produce_submessages(self: Arc<Self>) -> Arc<RwLock<dyn ProduceSubmessages>> {
-        self
-    }
+impl<T> StatelessDataWriterObject for T where
+    T: DataWriterObject + Deref<Target = RtpsStatelessWriterType> + DerefMut
+{
+}
+
+pub trait StatefulDataWriterObject:
+    DataWriterObject + RtpsStatefulWriterOperations<Vec<Locator>>
+{
+}
+
+impl<T> StatefulDataWriterObject for T where
+    T: DataWriterObject + RtpsStatefulWriterOperations<Vec<Locator>>
+{
 }
 
 #[derive(Clone)]
 pub enum DataWriterFlavor {
-    Stateful(Arc<dyn DataWriterObject + Send + Sync>),
-    Stateless(Arc<dyn DataWriterObject + Send + Sync>),
+    Stateful(Arc<RwLock<dyn StatefulDataWriterObject + Send + Sync>>),
+    Stateless(Arc<RwLock<dyn StatelessDataWriterObject + Send + Sync>>),
 }
 
 pub struct PublisherImpl {
@@ -113,26 +120,62 @@ impl PublisherImpl {
         //     .map(|x| x.clone().into_produce_submessages())
         //     .collect();
 
-        // let mut locked_message_producer_list: Vec<RwLockWriteGuard<dyn ProduceSubmessages>> =
-        //     message_producer_list
-        //         .iter()
-        //         .map(|x| x.write().unwrap())
-        //         .collect();
+        let mut locked_stateless_writer_list: Vec<
+            RwLockWriteGuard<dyn StatelessDataWriterObject + Send + Sync>,
+        > = data_writer_list_lock
+            .iter()
+            .filter_map(|x| match x {
+                DataWriterFlavor::Stateful(_) => None,
+                DataWriterFlavor::Stateless(w) => Some(w.write().unwrap()),
+            })
+            .collect();
 
-        // let mut submessages = Vec::new();
-        // for locked_message_producer in &mut locked_message_producer_list {
-        //     submessages.append(&mut locked_message_producer.produce_submessages())
-        // }
+        for locked_stateless_writer in &mut locked_stateless_writer_list {
+            let destined_submessages = RefCell::new(Vec::new());
+            locked_stateless_writer.send_unsent_data(
+                |rl, data| {
+                    destined_submessages.borrow_mut().push((
+                        rl.locator,
+                        RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                            data.endianness_flag,
+                            data.inline_qos_flag,
+                            data.data_flag,
+                            data.key_flag,
+                            data.non_standard_payload_flag,
+                            data.reader_id,
+                            data.writer_id,
+                            data.writer_sn,
+                            data.inline_qos,
+                            data.serialized_payload,
+                        )),
+                    ));
+                },
+                |rl, gap| {
+                    destined_submessages.borrow_mut().push((
+                        rl.locator,
+                        RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                            gap.endianness_flag,
+                            gap.reader_id,
+                            gap.writer_id,
+                            gap.gap_start,
+                            gap.gap_list,
+                        )),
+                    ));
+                },
+            );
 
-        // let header = RtpsMessageHeader {
-        //     protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-        //     version: PROTOCOLVERSION,
-        //     vendor_id: VENDOR_ID_S2E,
-        //     guid_prefix: self.rtps_group.guid.prefix,
-        // };
-        // let message = RtpsMessageWrite::new(header, submessages);
+            for (locator, submessage) in destined_submessages.take() {
+                let header = RtpsMessageHeader {
+                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                    version: PROTOCOLVERSION,
+                    vendor_id: VENDOR_ID_S2E,
+                    guid_prefix: self.rtps_group.guid.prefix,
+                };
+                let message = RtpsMessageWrite::new(header, vec![submessage]);
 
-        // transport.write(&message, &LOCATOR_INVALID);
+                transport.write(&message, &locator);
+            }
+        }
     }
 }
 
@@ -404,91 +447,7 @@ mod tests {
     fn send_message() {
         struct MockHeartbeatMessageProducer;
 
-        impl ProcessAckNackSubmessage for MockHeartbeatMessageProducer {
-            fn process_acknack_submessage(
-                &self,
-                _source_guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-                _acknack: &rust_rtps_psm::messages::submessages::AckNackSubmessageRead,
-            ) {
-                todo!()
-            }
-        }
-
-        impl ProduceSubmessages for MockHeartbeatMessageProducer {
-            fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite> {
-                let endianness_flag = true;
-                let final_flag = true;
-                let liveliness_flag = false;
-                let reader_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let writer_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let first_sn = SequenceNumberSubmessageElement { value: 1 };
-                let last_sn = SequenceNumberSubmessageElement { value: 2 };
-                let count = CountSubmessageElement { value: Count(1) };
-
-                vec![RtpsSubmessageTypeWrite::Heartbeat(
-                    HeartbeatSubmessageWrite::new(
-                        endianness_flag,
-                        final_flag,
-                        liveliness_flag,
-                        reader_id,
-                        writer_id,
-                        first_sn,
-                        last_sn,
-                        count,
-                    ),
-                )]
-            }
-        }
-
         struct MockDataMessageProducer;
-
-        impl ProcessAckNackSubmessage for MockDataMessageProducer {
-            fn process_acknack_submessage(
-                &self,
-                _source_guid_prefix: rust_rtps_pim::structure::types::GuidPrefix,
-                _acknack: &rust_rtps_psm::messages::submessages::AckNackSubmessageRead,
-            ) {
-                todo!()
-            }
-        }
-
-        impl ProduceSubmessages for MockDataMessageProducer {
-            fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite> {
-                let endianness_flag = true;
-                let inline_qos_flag = true;
-                let data_flag = true;
-                let key_flag = false;
-                let non_standard_payload_flag = false;
-                let reader_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let writer_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let writer_sn = SequenceNumberSubmessageElement { value: 1 };
-                let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
-                let serialized_payload = SerializedDataSubmessageElement {
-                    value: &[1, 2, 3][..],
-                };
-
-                vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                    endianness_flag,
-                    inline_qos_flag,
-                    data_flag,
-                    key_flag,
-                    non_standard_payload_flag,
-                    reader_id,
-                    writer_id,
-                    writer_sn,
-                    inline_qos,
-                    serialized_payload,
-                ))]
-            }
-        }
 
         struct MockTransport;
 

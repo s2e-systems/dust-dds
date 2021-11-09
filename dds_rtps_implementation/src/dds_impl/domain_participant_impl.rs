@@ -1,6 +1,6 @@
 use std::sync::{
     atomic::{self, AtomicBool, AtomicU8},
-    mpsc::{sync_channel, Receiver, SyncSender},
+    mpsc::{Receiver, SyncSender},
     Arc, Mutex,
 };
 
@@ -20,17 +20,14 @@ use rust_dds_api::{
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::{
-    messages::overall_structure::RtpsMessageHeader,
-    structure::{
-        group::RtpsGroup,
-        types::{
-            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, PROTOCOLVERSION,
-            USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
-        },
+use rust_rtps_pim::structure::{
+    group::RtpsGroup,
+    types::{
+        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, PROTOCOLVERSION,
+        USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
     },
 };
-use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
+use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
 
 use crate::{
     data_representation_builtin_endpoints::{
@@ -558,6 +555,8 @@ impl Entity for DomainParticipantImpl {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc::sync_channel;
+
     use super::*;
     use rust_dds_api::return_type::DDSError;
     use rust_rtps_pim::structure::types::{Locator, GUID_UNKNOWN};

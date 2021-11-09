@@ -14,26 +14,16 @@ use rust_rtps_pim::{
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
         stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
-        stateless_writer::{
-            RtpsStatelessWriter, RtpsStatelessWriterOperations, StatelessWriterBehavior,
-        },
+        stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
         writer::{RtpsWriter, RtpsWriterOperations},
     },
-    messages::types::Count,
     structure::{
         history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, Guid, GuidPrefix, Locator},
     },
 };
 use rust_rtps_psm::{
-    messages::{
-        overall_structure::RtpsSubmessageTypeWrite,
-        submessages::{
-            AckNackSubmessageRead, DataSubmessageWrite, GapSubmessageWrite,
-            HeartbeatSubmessageWrite,
-        },
-    },
-    rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+    messages::submessages::AckNackSubmessageRead, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
     rtps_reader_proxy_impl::RtpsReaderProxyImpl,
 };
 
@@ -41,8 +31,6 @@ use crate::{
     dds_type::DdsSerialize, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
     utils::message_receiver::ProcessAckNackSubmessage,
 };
-
-use super::publisher_impl::ProduceSubmessages;
 
 pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
 pub type RtpsStatelessWriterType =
@@ -91,95 +79,6 @@ pub struct DataWriterImpl<T, W> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
-}
-
-impl<T, W> DataWriterImpl<T, W>
-where
-    T: DdsSerialize,
-{
-    fn send_change(&mut self) {
-        // match &mut self.rtps_writer_impl {
-        //     RtpsWriterFlavor::Stateful { stateful_writer } => {
-        //         stateful_writer.lock().unwrap().send_unsent_data(
-        //             |reader_proxy, data| {
-        //                 locator_list_message_sender
-        //                     .send((
-        //                         reader_proxy.unicast_locator_list.clone(),
-        //                         reader_proxy.multicast_locator_list.clone(),
-        //                         vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-        //                             data.endianness_flag,
-        //                             data.inline_qos_flag,
-        //                             data.data_flag,
-        //                             data.key_flag,
-        //                             data.non_standard_payload_flag,
-        //                             data.reader_id,
-        //                             data.writer_id,
-        //                             data.writer_sn,
-        //                             data.inline_qos,
-        //                             data.serialized_payload,
-        //                         ))],
-        //                     ))
-        //                     .unwrap();
-        //             },
-        //             |reader_proxy, gap| {
-        //                 locator_list_message_sender
-        //                     .send((
-        //                         reader_proxy.unicast_locator_list.clone(),
-        //                         reader_proxy.multicast_locator_list.clone(),
-        //                         vec![RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-        //                             gap.endianness_flag,
-        //                             gap.reader_id,
-        //                             gap.writer_id,
-        //                             gap.gap_start,
-        //                             gap.gap_list,
-        //                         ))],
-        //                     ))
-        //                     .unwrap();
-        //             },
-        //         )
-        //     }
-        //     RtpsWriterFlavor::Stateless {
-        //         stateless_writer,
-        //         locator_message_sender,
-        //     } => {
-        //         stateless_writer.lock().unwrap().send_unsent_data(
-        //             |reader_locator, data| {
-        //                 locator_message_sender
-        //                     .send((
-        //                         reader_locator.locator,
-        //                         vec![RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-        //                             data.endianness_flag,
-        //                             data.inline_qos_flag,
-        //                             data.data_flag,
-        //                             data.key_flag,
-        //                             data.non_standard_payload_flag,
-        //                             data.reader_id,
-        //                             data.writer_id,
-        //                             data.writer_sn,
-        //                             data.inline_qos,
-        //                             data.serialized_payload,
-        //                         ))],
-        //                     ))
-        //                     .unwrap();
-        //             },
-        //             |reader_locator, gap| {
-        //                 locator_message_sender
-        //                     .send((
-        //                         reader_locator.locator,
-        //                         vec![RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-        //                             gap.endianness_flag,
-        //                             gap.reader_id,
-        //                             gap.writer_id,
-        //                             gap.gap_start,
-        //                             gap.gap_list,
-        //                         ))],
-        //                     ))
-        //                     .unwrap();
-        //             },
-        //         );
-        //     }
-        // };
-    }
 }
 
 impl<T, W> DataWriterImpl<T, W>
@@ -441,12 +340,6 @@ impl<T> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, RtpsSta
     }
 
     fn is_acked_by_all(&self) -> bool {
-        todo!()
-    }
-}
-
-impl<T, W> ProduceSubmessages for DataWriterImpl<T, W> {
-    fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite> {
         todo!()
     }
 }
