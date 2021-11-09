@@ -1,7 +1,4 @@
-use std::{
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
-};
+use std::ops::{Deref, DerefMut};
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -92,7 +89,7 @@ pub type RtpsStatefulWriterType =
 
 pub struct DataWriterImpl<T, W> {
     _qos: DataWriterQos,
-    pub rtps_writer_impl: W,
+    rtps_writer_impl: W,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
 }
 
@@ -403,6 +400,20 @@ impl<T> RtpsStatelessWriterOperations for DataWriterImpl<T, RtpsStatelessWriterT
         for reader_locator in &mut self.rtps_writer_impl.reader_locators {
             reader_locator.unsent_changes_reset()
         }
+    }
+}
+
+impl<T, W> Deref for DataWriterImpl<T, W> {
+    type Target = W;
+
+    fn deref(&self) -> &Self::Target {
+        &self.rtps_writer_impl
+    }
+}
+
+impl<T, W> DerefMut for DataWriterImpl<T, W> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.rtps_writer_impl
     }
 }
 

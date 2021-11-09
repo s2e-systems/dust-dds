@@ -76,10 +76,16 @@ where
     }
 }
 
+#[derive(Clone)]
+pub enum DataWriterFlavor {
+    Stateful(Arc<dyn DataWriterObject + Send + Sync>),
+    Stateless(Arc<dyn DataWriterObject + Send + Sync>),
+}
+
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
-    data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject + Send + Sync>>>,
+    data_writer_impl_list: Mutex<Vec<DataWriterFlavor>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
 }
@@ -88,7 +94,7 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        data_writer_impl_list: Vec<Arc<dyn DataWriterObject + Send + Sync>>,
+        data_writer_impl_list: Vec<DataWriterFlavor>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -102,31 +108,31 @@ impl PublisherImpl {
     pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
         let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
 
-        let message_producer_list: Vec<Arc<RwLock<dyn ProduceSubmessages>>> = data_writer_list_lock
-            .iter()
-            .map(|x| x.clone().into_produce_submessages())
-            .collect();
+        // let message_producer_list: Vec<Arc<RwLock<dyn ProduceSubmessages>>> = data_writer_list_lock
+        //     .iter()
+        //     .map(|x| x.clone().into_produce_submessages())
+        //     .collect();
 
-        let mut locked_message_producer_list: Vec<RwLockWriteGuard<dyn ProduceSubmessages>> =
-            message_producer_list
-                .iter()
-                .map(|x| x.write().unwrap())
-                .collect();
+        // let mut locked_message_producer_list: Vec<RwLockWriteGuard<dyn ProduceSubmessages>> =
+        //     message_producer_list
+        //         .iter()
+        //         .map(|x| x.write().unwrap())
+        //         .collect();
 
-        let mut submessages = Vec::new();
-        for locked_message_producer in &mut locked_message_producer_list {
-            submessages.append(&mut locked_message_producer.produce_submessages())
-        }
+        // let mut submessages = Vec::new();
+        // for locked_message_producer in &mut locked_message_producer_list {
+        //     submessages.append(&mut locked_message_producer.produce_submessages())
+        // }
 
-        let header = RtpsMessageHeader {
-            protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-            version: PROTOCOLVERSION,
-            vendor_id: VENDOR_ID_S2E,
-            guid_prefix: self.rtps_group.guid.prefix,
-        };
-        let message = RtpsMessageWrite::new(header, submessages);
+        // let header = RtpsMessageHeader {
+        //     protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+        //     version: PROTOCOLVERSION,
+        //     vendor_id: VENDOR_ID_S2E,
+        //     guid_prefix: self.rtps_group.guid.prefix,
+        // };
+        // let message = RtpsMessageWrite::new(header, submessages);
 
-        transport.write(&message, &LOCATOR_INVALID);
+        // transport.write(&message, &LOCATOR_INVALID);
     }
 }
 
@@ -189,7 +195,7 @@ where
         self.data_writer_impl_list
             .lock()
             .unwrap()
-            .push(data_writer_impl_shared.clone());
+            .push(DataWriterFlavor::Stateful(data_writer_impl_shared.clone()));
         Some(data_writer_impl_shared)
     }
 
@@ -201,10 +207,11 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
-        let data_reader_list_lock = self.data_writer_impl_list.lock().unwrap();
-        data_reader_list_lock
-            .iter()
-            .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
+        todo!()
+        // let data_reader_list_lock = self.data_writer_impl_list.lock().unwrap();
+        // data_reader_list_lock
+        //     .iter()
+        //     .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
     }
 }
 
@@ -549,16 +556,16 @@ mod tests {
             }
         }
 
-        let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(
-            PublisherQos::default(),
-            rtps_group_impl,
-            vec![
-                Arc::new(RwLock::new(MockHeartbeatMessageProducer)),
-                Arc::new(RwLock::new(MockDataMessageProducer)),
-            ],
-        );
+        // let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
+        // let publisher_impl = PublisherImpl::new(
+        //     PublisherQos::default(),
+        //     rtps_group_impl,
+        //     vec![
+        //         Arc::new(RwLock::new(MockHeartbeatMessageProducer)),
+        //         Arc::new(RwLock::new(MockDataMessageProducer)),
+        //     ],
+        // );
 
-        publisher_impl.send_message(&mut MockTransport)
+        // publisher_impl.send_message(&mut MockTransport)
     }
 }
