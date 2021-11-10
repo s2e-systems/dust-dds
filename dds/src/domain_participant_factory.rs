@@ -1,7 +1,6 @@
 use std::{
     net::{Ipv4Addr, UdpSocket},
     str::FromStr,
-    sync::mpsc::sync_channel,
 };
 
 use rust_dds_api::{
@@ -108,11 +107,6 @@ impl DomainParticipantFactory {
         let socket = UdpSocket::bind("127.0.0.1:7410").unwrap();
         socket.set_nonblocking(true).unwrap();
         let default_transport = Box::new(UdpTransport::new(socket));
-
-        let (metatraffic_locator_message_sender, metatraffic_locator_message_receiver) =
-            sync_channel(17);
-        let (metatraffic_locator_list_message_sender, metatraffic_locator_list_message_receiver) =
-            sync_channel(17);
 
         // /////// Create SPDP and SEDP endpoints
         let spdp_builtin_participant_rtps_reader =
@@ -229,10 +223,6 @@ impl DomainParticipantFactory {
             builtin_publisher_storage,
             metatraffic_transport,
             default_transport,
-            metatraffic_locator_message_sender,
-            metatraffic_locator_message_receiver,
-            metatraffic_locator_list_message_sender,
-            metatraffic_locator_list_message_receiver,
         );
 
         Some(domain_participant)
