@@ -49,11 +49,11 @@ use super::data_writer_impl::{
     DataWriterImpl, RtpsStatefulWriterType, StatefulWriterBehaviorType, StatelessWriterBehaviorType,
 };
 
-pub trait DataWriterObject {
+pub trait IntoAnyArc {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 }
 
-impl<T> DataWriterObject for T
+impl<T> IntoAnyArc for T
 where
     T: Any + Send + Sync,
 {
@@ -62,17 +62,17 @@ where
     }
 }
 
-pub trait StatelessDataWriterObject: DataWriterObject + StatelessWriterBehaviorType {}
+pub trait StatelessDataWriterObject: IntoAnyArc + StatelessWriterBehaviorType {}
 
-impl<T> StatelessDataWriterObject for T where T: DataWriterObject + StatelessWriterBehaviorType {}
+impl<T> StatelessDataWriterObject for T where T: IntoAnyArc + StatelessWriterBehaviorType {}
 
 pub trait StatefulDataWriterObject:
-    DataWriterObject + RtpsStatefulWriterOperations<Vec<Locator>> + StatefulWriterBehaviorType
+    IntoAnyArc + RtpsStatefulWriterOperations<Vec<Locator>> + StatefulWriterBehaviorType
 {
 }
 
 impl<T> StatefulDataWriterObject for T where
-    T: DataWriterObject + RtpsStatefulWriterOperations<Vec<Locator>> + StatefulWriterBehaviorType
+    T: IntoAnyArc + RtpsStatefulWriterOperations<Vec<Locator>> + StatefulWriterBehaviorType
 {
 }
 
