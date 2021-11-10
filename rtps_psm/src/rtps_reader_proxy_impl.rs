@@ -84,11 +84,12 @@ impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
 
     fn requested_changes_set(
         &mut self,
-        mut req_seq_num_set: Self::SequenceNumberVector,
+        req_seq_num_set: &Self::SequenceNumberVector,
         last_change_sequence_number: &SequenceNumber,
     ) {
-        req_seq_num_set.retain(|x| x <= last_change_sequence_number);
-        self.requested_changes = req_seq_num_set;
+        let mut requested_changes = req_seq_num_set.clone();
+        requested_changes.retain(|x| x <= last_change_sequence_number);
+        self.requested_changes = requested_changes;
     }
 
     fn unacked_changes(
@@ -172,7 +173,7 @@ mod tests {
         let mut reader_proxy_impl = RtpsReaderProxyImpl::new(reader_proxy);
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_proxy_impl.requested_changes_set(req_seq_num_set, &3);
+        reader_proxy_impl.requested_changes_set(&req_seq_num_set, &3);
 
         let expected_requested_changes = vec![1, 2, 3];
         assert_eq!(
@@ -198,7 +199,7 @@ mod tests {
         let mut reader_proxy_impl = RtpsReaderProxyImpl::new(reader_proxy);
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_proxy_impl.requested_changes_set(req_seq_num_set, &1);
+        reader_proxy_impl.requested_changes_set(&req_seq_num_set, &1);
 
         let expected_requested_changes = vec![1];
         assert_eq!(

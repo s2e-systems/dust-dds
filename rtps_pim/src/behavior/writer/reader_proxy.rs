@@ -43,7 +43,7 @@ pub trait RtpsReaderProxyOperations {
     fn requested_changes(&self) -> Self::SequenceNumberVector;
     fn requested_changes_set(
         &mut self,
-        req_seq_num_set: Self::SequenceNumberVector,
+        req_seq_num_set: &Self::SequenceNumberVector,
         last_change_sequence_number: &SequenceNumber,
     );
     fn unacked_changes(
