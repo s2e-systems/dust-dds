@@ -46,7 +46,7 @@ use crate::{
 };
 
 use super::data_writer_impl::{
-    DataWriterImpl, RtpsStatefulWriterType, StatelessWriterBehaviorType,
+    DataWriterImpl, RtpsStatefulWriterType, StatefulWriterBehaviorType, StatelessWriterBehaviorType,
 };
 
 pub trait DataWriterObject {
@@ -67,12 +67,12 @@ pub trait StatelessDataWriterObject: DataWriterObject + StatelessWriterBehaviorT
 impl<T> StatelessDataWriterObject for T where T: DataWriterObject + StatelessWriterBehaviorType {}
 
 pub trait StatefulDataWriterObject:
-    DataWriterObject + RtpsStatefulWriterOperations<Vec<Locator>>
+    DataWriterObject + RtpsStatefulWriterOperations<Vec<Locator>> + StatefulWriterBehaviorType
 {
 }
 
 impl<T> StatefulDataWriterObject for T where
-    T: DataWriterObject + RtpsStatefulWriterOperations<Vec<Locator>>
+    T: DataWriterObject + RtpsStatefulWriterOperations<Vec<Locator>> + StatefulWriterBehaviorType
 {
 }
 

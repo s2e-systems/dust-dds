@@ -13,7 +13,9 @@ use rust_rtps_pim::{
     behavior::writer::{
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
-        stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
+        stateful_writer::{
+            RtpsStatefulWriter, RtpsStatefulWriterOperations, StatefulWriterBehavior,
+        },
         stateless_writer::{
             RtpsStatelessWriter, RtpsStatelessWriterOperations, StatelessWriterBehavior,
         },
@@ -66,6 +68,80 @@ impl<'a, T> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u
         send_gap: &mut dyn FnMut(&RtpsReaderLocator, GapSubmessage<Vec<SequenceNumber>>),
     ) {
         self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
+    }
+}
+
+pub trait StatefulWriterBehaviorType:
+    for<'a> StatefulWriterBehavior<
+    'a,
+    Vec<SequenceNumber>,
+    Vec<Parameter<Vec<u8>>>,
+    &'a [u8],
+    Vec<Locator>,
+>
+{
+}
+
+impl<T> StatefulWriterBehaviorType for T where
+    T: for<'a> StatefulWriterBehavior<
+        'a,
+        Vec<SequenceNumber>,
+        Vec<Parameter<Vec<u8>>>,
+        &'a [u8],
+        Vec<Locator>,
+    >
+{
+}
+
+impl<'a, T>
+    StatefulWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8], Vec<Locator>>
+    for DataWriterImpl<T, RtpsStatefulWriterType>
+{
+    fn send_unsent_data(
+        &'a mut self,
+        send_data: &mut dyn FnMut(
+            &RtpsReaderProxy<Vec<Locator>>,
+            DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
+        ),
+        send_gap: &mut dyn FnMut(
+            &RtpsReaderProxy<Vec<Locator>>,
+            GapSubmessage<Vec<SequenceNumber>>,
+        ),
+    ) {
+        self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
+    }
+
+    fn send_heartbeat(
+        &mut self,
+        count: rust_rtps_pim::messages::types::Count,
+        send_heartbeat: &mut dyn FnMut(
+            &RtpsReaderProxy<Vec<Locator>>,
+            rust_rtps_pim::messages::submessages::HeartbeatSubmessage,
+        ),
+    ) {
+        self.rtps_writer_impl.send_heartbeat(count, send_heartbeat)
+    }
+
+    fn send_requested_data(
+        &'a mut self,
+        send_data: &mut dyn FnMut(
+            &RtpsReaderProxy<Vec<Locator>>,
+            DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
+        ),
+        send_gap: &mut dyn FnMut(
+            &RtpsReaderProxy<Vec<Locator>>,
+            GapSubmessage<Vec<SequenceNumber>>,
+        ),
+    ) {
+        self.rtps_writer_impl
+            .send_requested_data(send_data, send_gap)
+    }
+
+    fn process_acknack_submessage(
+        &mut self,
+        acknack: &rust_rtps_pim::messages::submessages::AckNackSubmessage<Vec<SequenceNumber>>,
+    ) {
+        self.rtps_writer_impl.process_acknack_submessage(acknack)
     }
 }
 
