@@ -1,6 +1,5 @@
 use std::sync::{
     atomic::{self, AtomicBool, AtomicU8},
-    mpsc::{Receiver, SyncSender},
     Arc, Mutex,
 };
 
@@ -23,11 +22,10 @@ use rust_dds_api::{
 use rust_rtps_pim::structure::{
     group::RtpsGroup,
     types::{
-        EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, PROTOCOLVERSION,
+        EntityId, Guid, GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION,
         USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
     },
 };
-use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
 
 use crate::{
     data_representation_builtin_endpoints::{

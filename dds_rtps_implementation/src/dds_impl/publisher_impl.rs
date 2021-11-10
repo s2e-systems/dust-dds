@@ -1,7 +1,6 @@
 use std::{
     any::Any,
     cell::RefCell,
-    ops::{Deref, DerefMut},
     sync::{
         atomic::{self, AtomicU8},
         Arc, Mutex, RwLock, RwLockWriteGuard,
@@ -23,18 +22,12 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::writer::{
-        reader_locator::RtpsReaderLocator, stateful_writer::RtpsStatefulWriterOperations,
-        stateless_writer::StatelessWriterBehavior,
-    },
-    messages::{
-        overall_structure::RtpsMessageHeader, submessage_elements::Parameter,
-        submessages::DataSubmessage,
-    },
+    behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
+    messages::overall_structure::RtpsMessageHeader,
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind, PROTOCOLVERSION,
+            EntityId, Guid, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
     },
@@ -360,14 +353,21 @@ mod tests {
     use super::*;
     use rust_dds_api::infrastructure::qos::TopicQos;
     use rust_rtps_pim::{
+        behavior::writer::{
+            reader_locator::RtpsReaderLocator, stateless_writer::StatelessWriterBehavior,
+        },
         messages::{
             submessage_elements::{
-                CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+                CountSubmessageElement, EntityIdSubmessageElement, Parameter,
+                ParameterListSubmessageElement, SequenceNumberSubmessageElement,
+                SerializedDataSubmessageElement,
             },
+            submessages::DataSubmessage,
             types::Count,
         },
-        structure::types::{Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN, LOCATOR_INVALID},
+        structure::types::{
+            Locator, SequenceNumber, ENTITYID_UNKNOWN, GUID_UNKNOWN, LOCATOR_INVALID,
+        },
     };
     use rust_rtps_psm::messages::{
         overall_structure::RtpsMessageWrite,
@@ -512,7 +512,7 @@ mod tests {
                 let first_sn = SequenceNumberSubmessageElement { value: 1 };
                 let last_sn = SequenceNumberSubmessageElement { value: 2 };
                 let count = CountSubmessageElement { value: Count(1) };
-                let heartbeat_submessage = HeartbeatSubmessageWrite::new(
+                let _heartbeat_submessage = HeartbeatSubmessageWrite::new(
                     endianness_flag,
                     final_flag,
                     liveliness_flag,
