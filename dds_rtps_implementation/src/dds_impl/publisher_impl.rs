@@ -367,7 +367,7 @@ mod tests {
             },
             types::Count,
         },
-        structure::types::{Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+        structure::types::{Locator, ENTITYID_UNKNOWN, GUID_UNKNOWN, LOCATOR_INVALID},
     };
     use rust_rtps_psm::messages::{
         overall_structure::RtpsMessageWrite,
@@ -445,9 +445,56 @@ mod tests {
 
     #[test]
     fn send_message() {
-        struct MockHeartbeatMessageProducer;
+        struct MockStatelessWriterBehavior;
 
-        struct MockDataMessageProducer;
+        impl<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
+            for MockStatelessWriterBehavior
+        {
+            fn send_unsent_data(
+                &'a mut self,
+                send_data: &mut dyn FnMut(
+                    &RtpsReaderLocator,
+                    DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
+                ),
+                _send_gap: &mut dyn FnMut(
+                    &RtpsReaderLocator,
+                    rust_rtps_pim::messages::submessages::GapSubmessage<Vec<SequenceNumber>>,
+                ),
+            ) {
+                let endianness_flag = true;
+                let inline_qos_flag = true;
+                let data_flag = true;
+                let key_flag = false;
+                let non_standard_payload_flag = false;
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_sn = SequenceNumberSubmessageElement { value: 1 };
+                let inline_qos: ParameterListSubmessageElement<Vec<Parameter<Vec<u8>>>> =
+                    ParameterListSubmessageElement { parameter: vec![] };
+                let serialized_payload = SerializedDataSubmessageElement {
+                    value: &[1, 2, 3][..],
+                };
+
+                let data_submessage = DataSubmessage {
+                    endianness_flag,
+                    inline_qos_flag,
+                    data_flag,
+                    key_flag,
+                    non_standard_payload_flag,
+                    reader_id,
+                    writer_id,
+                    writer_sn,
+                    inline_qos,
+                    serialized_payload,
+                };
+                let reader_locator = RtpsReaderLocator::new(LOCATOR_INVALID, true);
+                send_data(&reader_locator, data_submessage)
+            }
+        }
 
         struct MockTransport;
 
@@ -507,7 +554,7 @@ mod tests {
                 );
 
                 let expected_submessages = vec![
-                    RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage),
+                    // RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage),
                     RtpsSubmessageTypeWrite::Data(data_submessage),
                 ];
 
@@ -515,16 +562,16 @@ mod tests {
             }
         }
 
-        // let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        // let publisher_impl = PublisherImpl::new(
-        //     PublisherQos::default(),
-        //     rtps_group_impl,
-        //     vec![
-        //         Arc::new(RwLock::new(MockHeartbeatMessageProducer)),
-        //         Arc::new(RwLock::new(MockDataMessageProducer)),
-        //     ],
-        // );
+        let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
+        let publisher_impl = PublisherImpl::new(
+            PublisherQos::default(),
+            rtps_group_impl,
+            vec![
+                DataWriterFlavor::Stateless(Arc::new(RwLock::new(MockStatelessWriterBehavior))),
+                DataWriterFlavor::Stateless(Arc::new(RwLock::new(MockStatelessWriterBehavior))),
+            ],
+        );
 
-        // publisher_impl.send_message(&mut MockTransport)
+        publisher_impl.send_message(&mut MockTransport)
     }
 }
