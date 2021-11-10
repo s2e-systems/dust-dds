@@ -24,13 +24,17 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::writer::{
-        stateful_writer::RtpsStatefulWriterOperations, stateless_writer::StatelessWriterBehavior,
+        reader_locator::RtpsReaderLocator, stateful_writer::RtpsStatefulWriterOperations,
+        stateless_writer::StatelessWriterBehavior,
     },
-    messages::overall_structure::RtpsMessageHeader,
+    messages::{
+        overall_structure::RtpsMessageHeader, submessage_elements::Parameter,
+        submessages::DataSubmessage,
+    },
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
+            EntityId, Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
     },
@@ -48,7 +52,9 @@ use crate::{
     },
 };
 
-use super::data_writer_impl::{DataWriterImpl, RtpsStatefulWriterType, RtpsStatelessWriterType};
+use super::data_writer_impl::{
+    DataWriterImpl, RtpsStatefulWriterType, StatelessWriterBehaviorType,
+};
 
 pub trait DataWriterObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
@@ -63,15 +69,9 @@ where
     }
 }
 
-pub trait StatelessDataWriterObject:
-    DataWriterObject + Deref<Target = RtpsStatelessWriterType> + DerefMut
-{
-}
+pub trait StatelessDataWriterObject: DataWriterObject + StatelessWriterBehaviorType {}
 
-impl<T> StatelessDataWriterObject for T where
-    T: DataWriterObject + Deref<Target = RtpsStatelessWriterType> + DerefMut
-{
-}
+impl<T> StatelessDataWriterObject for T where T: DataWriterObject + StatelessWriterBehaviorType {}
 
 pub trait StatefulDataWriterObject:
     DataWriterObject + RtpsStatefulWriterOperations<Vec<Locator>>
@@ -133,7 +133,7 @@ impl PublisherImpl {
         for locked_stateless_writer in &mut locked_stateless_writer_list {
             let destined_submessages = RefCell::new(Vec::new());
             locked_stateless_writer.send_unsent_data(
-                |rl, data| {
+                &mut |rl, data| {
                     destined_submessages.borrow_mut().push((
                         rl.locator,
                         RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
@@ -150,7 +150,7 @@ impl PublisherImpl {
                         )),
                     ));
                 },
-                |rl, gap| {
+                &mut |rl, gap| {
                     destined_submessages.borrow_mut().push((
                         rl.locator,
                         RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(

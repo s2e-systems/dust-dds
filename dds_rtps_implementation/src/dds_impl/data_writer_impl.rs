@@ -14,12 +14,18 @@ use rust_rtps_pim::{
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
         stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
-        stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
+        stateless_writer::{
+            RtpsStatelessWriter, RtpsStatelessWriterOperations, StatelessWriterBehavior,
+        },
         writer::{RtpsWriter, RtpsWriterOperations},
+    },
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
         history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, Guid, GuidPrefix, Locator},
+        types::{ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber},
     },
 };
 use rust_rtps_psm::{
@@ -37,6 +43,31 @@ pub type RtpsStatelessWriterType =
     RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>;
 pub type RtpsStatefulWriterType =
     RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderProxyImpl>>;
+
+pub trait StatelessWriterBehaviorType:
+    for<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
+{
+}
+
+impl<T> StatelessWriterBehaviorType for T where
+    T: for<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
+{
+}
+
+impl<'a, T> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
+    for DataWriterImpl<T, RtpsStatelessWriterType>
+{
+    fn send_unsent_data(
+        &'a mut self,
+        send_data: &mut dyn FnMut(
+            &RtpsReaderLocator,
+            DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
+        ),
+        send_gap: &mut dyn FnMut(&RtpsReaderLocator, GapSubmessage<Vec<SequenceNumber>>),
+    ) {
+        self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
+    }
+}
 
 // std::thread::spawn(move || {
 //     let mut heartbeat_count = Count(1);

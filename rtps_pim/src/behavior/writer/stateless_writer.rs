@@ -89,28 +89,24 @@ pub trait RtpsStatelessWriterOperations {
 }
 
 pub trait StatelessWriterBehavior<'a, S, P, D> {
-    type ReaderLocator;
-
     fn send_unsent_data(
         &'a mut self,
-        send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<P, D>),
-        send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
+        send_data: &mut dyn FnMut(&RtpsReaderLocator, DataSubmessage<P, D>),
+        send_gap: &mut dyn FnMut(&RtpsReaderLocator, GapSubmessage<S>),
     );
 }
 
 impl<'a, S, L, C, R, RL, P, D> StatelessWriterBehavior<'a, S, P, D> for RtpsStatelessWriter<L, C, R>
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RL>,
-    RL: RtpsReaderLocatorOperations,
+    RL: RtpsReaderLocatorOperations + Deref<Target = RtpsReaderLocator>,
     C: RtpsHistoryCacheGetChange<'a, P, D>,
     S: FromIterator<SequenceNumber>,
 {
-    type ReaderLocator = RL;
-
     fn send_unsent_data(
         &'a mut self,
-        mut send_data: impl FnMut(&Self::ReaderLocator, DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(&Self::ReaderLocator, GapSubmessage<S>),
+        send_data: &mut dyn FnMut(&RtpsReaderLocator, DataSubmessage<P, D>),
+        send_gap: &mut dyn FnMut(&RtpsReaderLocator, GapSubmessage<S>),
     ) {
         let reliability_level = self.writer.reliability_level;
         let last_change_sequence_number = self.writer.last_change_sequence_number;
@@ -120,8 +116,8 @@ where
                     reader_locator,
                     &self.writer.writer_cache,
                     &last_change_sequence_number,
-                    &mut send_data,
-                    &mut send_gap,
+                    send_data,
+                    send_gap,
                 ),
                 ReliabilityKind::Reliable => todo!(),
             }
@@ -133,10 +129,10 @@ fn best_effort_send_unsent_data<'a, RL, S, P, D>(
     reader_locator: &mut RL,
     writer_cache: &'a impl RtpsHistoryCacheGetChange<'a, P, D>,
     last_change_sequence_number: &SequenceNumber,
-    send_data: &mut impl FnMut(&RL, DataSubmessage<P, D>),
-    send_gap: &mut impl FnMut(&RL, GapSubmessage<S>),
+    send_data: &mut dyn FnMut(&RtpsReaderLocator, DataSubmessage<P, D>),
+    send_gap: &mut dyn FnMut(&RtpsReaderLocator, GapSubmessage<S>),
 ) where
-    RL: RtpsReaderLocatorOperations,
+    RL: RtpsReaderLocatorOperations + Deref<Target = RtpsReaderLocator>,
     S: FromIterator<SequenceNumber>,
 {
     while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
