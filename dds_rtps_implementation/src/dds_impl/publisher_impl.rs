@@ -49,37 +49,46 @@ use super::data_writer_impl::{
     DataWriterImpl, RtpsStatefulWriterType, StatefulWriterBehaviorType, StatelessWriterBehaviorType,
 };
 
-pub trait IntoAnyArc {
+pub trait StatelessDataWriterObject {
+    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+
+    fn into_stateless_writer_behavior(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn StatelessWriterBehaviorType>>;
+}
+
+impl<T> StatelessDataWriterObject for RwLock<T>
+where
+    T: StatelessWriterBehaviorType + Any + Send + Sync,
+{
+    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
+    }
+
+    fn into_stateless_writer_behavior(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn StatelessWriterBehaviorType>> {
+        self
+    }
+}
+
+pub trait StatefulDataWriterObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 }
 
-impl<T> IntoAnyArc for T
+impl<T> StatefulDataWriterObject for RwLock<T>
 where
-    T: Any + Send + Sync,
+    T: StatefulWriterBehaviorType + Any + Send + Sync,
 {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
 }
 
-pub trait StatelessDataWriterObject: IntoAnyArc + StatelessWriterBehaviorType {}
-
-impl<T> StatelessDataWriterObject for T where T: IntoAnyArc + StatelessWriterBehaviorType {}
-
-pub trait StatefulDataWriterObject:
-    IntoAnyArc + RtpsStatefulWriterOperations<Vec<Locator>> + StatefulWriterBehaviorType
-{
-}
-
-impl<T> StatefulDataWriterObject for T where
-    T: IntoAnyArc + RtpsStatefulWriterOperations<Vec<Locator>> + StatefulWriterBehaviorType
-{
-}
-
 #[derive(Clone)]
 pub enum DataWriterFlavor {
-    Stateful(Arc<RwLock<dyn StatefulDataWriterObject + Send + Sync>>),
-    Stateless(Arc<RwLock<dyn StatelessDataWriterObject + Send + Sync>>),
+    Stateful(Arc<dyn StatefulDataWriterObject + Send + Sync>),
+    Stateless(Arc<dyn StatelessDataWriterObject + Send + Sync>),
 }
 
 pub struct PublisherImpl {
@@ -108,19 +117,22 @@ impl PublisherImpl {
     pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
         let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
 
-        // let message_producer_list: Vec<Arc<RwLock<dyn ProduceSubmessages>>> = data_writer_list_lock
-        //     .iter()
-        //     .map(|x| x.clone().into_produce_submessages())
-        //     .collect();
+        let stateless_writer_behavior_list: Vec<Arc<RwLock<dyn StatelessWriterBehaviorType>>> =
+            data_writer_list_lock
+                .iter()
+                .filter_map(|x| match x {
+                    DataWriterFlavor::Stateful(_) => None,
+                    DataWriterFlavor::Stateless(w) => {
+                        Some(w.clone().into_stateless_writer_behavior())
+                    }
+                })
+                .collect();
 
         let mut locked_stateless_writer_list: Vec<
-            RwLockWriteGuard<dyn StatelessDataWriterObject + Send + Sync>,
-        > = data_writer_list_lock
+            RwLockWriteGuard<dyn StatelessWriterBehaviorType>,
+        > = stateless_writer_behavior_list
             .iter()
-            .filter_map(|x| match x {
-                DataWriterFlavor::Stateful(_) => None,
-                DataWriterFlavor::Stateless(w) => Some(w.write().unwrap()),
-            })
+            .map(|x| x.write().unwrap())
             .collect();
 
         for locked_stateless_writer in &mut locked_stateless_writer_list {
@@ -243,11 +255,11 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
-        todo!()
-        // let data_reader_list_lock = self.data_writer_impl_list.lock().unwrap();
-        // data_reader_list_lock
-        //     .iter()
-        //     .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
+        let data_reader_list_lock = self.data_writer_impl_list.lock().unwrap();
+        data_reader_list_lock.iter().find_map(|x| match x {
+            DataWriterFlavor::Stateful(w) => Arc::downcast(w.clone().into_any_arc()).ok(),
+            DataWriterFlavor::Stateless(w) => Arc::downcast(w.clone().into_any_arc()).ok(),
+        })
     }
 }
 
