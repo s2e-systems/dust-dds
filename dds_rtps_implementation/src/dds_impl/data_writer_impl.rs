@@ -113,13 +113,20 @@ impl<'a, T>
 
     fn send_heartbeat(
         &mut self,
-        count: rust_rtps_pim::messages::types::Count,
         send_heartbeat: &mut dyn FnMut(
             &RtpsReaderProxy<Vec<Locator>>,
             rust_rtps_pim::messages::submessages::HeartbeatSubmessage,
         ),
     ) {
-        self.rtps_writer_impl.send_heartbeat(count, send_heartbeat)
+        let heartbeat_period_duration = std::time::Duration::new(
+            self.rtps_writer_impl.heartbeat_period.seconds as u64,
+            self.rtps_writer_impl.heartbeat_period.fraction,
+        );
+        let since_last_heartbeat_sent = std::time::Instant::now() - self.last_sent_heartbeat;
+        if since_last_heartbeat_sent > heartbeat_period_duration {
+            self.rtps_writer_impl.send_heartbeat(send_heartbeat);
+            self.last_sent_heartbeat = std::time::Instant::now();
+        }
     }
 
     fn send_requested_data(
@@ -148,31 +155,11 @@ impl<'a, T>
 // std::thread::spawn(move || {
 //     let mut heartbeat_count = Count(1);
 //     let heartbeat_period = stateful_writer_shared.lock().unwrap().heartbeat_period;
-//     let heartbeat_period_duration = std::time::Duration::new(
-//         heartbeat_period.seconds as u64,
-//         heartbeat_period.fraction,
-//     );
+//
 //     loop {
 //         stateful_writer_shared.lock().unwrap().send_heartbeat(
 //             heartbeat_count,
-//             |reader_proxy, heartbeat| {
-//                 locator_list_message_sender_shared
-//                     .send((
-//                         reader_proxy.unicast_locator_list.clone(),
-//                         reader_proxy.multicast_locator_list.clone(),
-//                         vec![RtpsSubmessageTypeWrite::Heartbeat(
-//                             HeartbeatSubmessageWrite::new(
-//                                 heartbeat.endianness_flag,
-//                                 heartbeat.final_flag,
-//                                 heartbeat.liveliness_flag,
-//                                 heartbeat.reader_id,
-//                                 heartbeat.writer_id,
-//                                 heartbeat.first_sn,
-//                                 heartbeat.last_sn,
-//                                 heartbeat.count,
-//                             ),
-//                         )],
-//                     ))
+//
 //                     .unwrap();
 //             },
 //         );
@@ -186,6 +173,7 @@ pub struct DataWriterImpl<T, W> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
+    last_sent_heartbeat: std::time::Instant,
 }
 
 impl<T, W> DataWriterImpl<T, W>
@@ -197,6 +185,7 @@ where
             _qos: qos,
             rtps_writer_impl,
             _listener: None,
+            last_sent_heartbeat: std::time::Instant::now(),
         }
     }
 }

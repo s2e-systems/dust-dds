@@ -34,7 +34,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::{
     overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
-    submessages::{DataSubmessageWrite, GapSubmessageWrite},
+    submessages::{DataSubmessageWrite, GapSubmessageWrite, HeartbeatSubmessageWrite},
 };
 
 use crate::{
@@ -213,6 +213,23 @@ impl PublisherImpl {
 
         for locked_stateful_writer in &mut locked_stateful_writer_list {
             let destined_submessages = RefCell::new(Vec::new());
+
+            locked_stateful_writer.send_heartbeat(&mut |rp, heartbeat| {
+                destined_submessages.borrow_mut().push((
+                    rp.unicast_locator_list[0],
+                    RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
+                        heartbeat.endianness_flag,
+                        heartbeat.final_flag,
+                        heartbeat.liveliness_flag,
+                        heartbeat.reader_id,
+                        heartbeat.writer_id,
+                        heartbeat.first_sn,
+                        heartbeat.last_sn,
+                        heartbeat.count,
+                    )),
+                ))
+            });
+
             locked_stateful_writer.send_unsent_data(
                 &mut |rp, data| {
                     destined_submessages.borrow_mut().push((
