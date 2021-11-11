@@ -22,8 +22,7 @@ use rust_dds_api::{
 use rust_rtps_pim::structure::{
     group::RtpsGroup,
     types::{
-        EntityId, Guid, GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION,
-        USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
+        EntityId, Guid, GuidPrefix, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
     },
 };
 
@@ -34,7 +33,6 @@ use crate::{
     },
     utils::{
         communication::Communication,
-        message_receiver::ProcessDataSubmessage,
         shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared},
         transport::{TransportRead, TransportWrite},
     },

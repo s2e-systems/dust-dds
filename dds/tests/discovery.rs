@@ -66,7 +66,7 @@ use rust_rtps_psm::discovery::{
     participant_discovery::ParticipantDiscovery,
     sedp::builtin_endpoints::{
         SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
     },
     spdp::{
         builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},

@@ -22,12 +22,11 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::writer::stateful_writer::RtpsStatefulWriterOperations,
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
+            EntityId, Guid, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
     },
