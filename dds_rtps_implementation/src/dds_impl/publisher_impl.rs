@@ -74,6 +74,10 @@ where
 
 pub trait StatefulDataWriterObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+
+    fn into_stateful_writer_behavior(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn StatefulWriterBehaviorType>>;
 }
 
 impl<T> StatefulDataWriterObject for RwLock<T>
@@ -81,6 +85,12 @@ where
     T: StatefulWriterBehaviorType + Any + Send + Sync,
 {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
+    }
+
+    fn into_stateful_writer_behavior(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn StatefulWriterBehaviorType>> {
         self
     }
 }
@@ -117,6 +127,7 @@ impl PublisherImpl {
     pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
         let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
 
+        // Stateless writer sending
         let stateless_writer_behavior_list: Vec<Arc<RwLock<dyn StatelessWriterBehaviorType>>> =
             data_writer_list_lock
                 .iter()
@@ -158,6 +169,71 @@ impl PublisherImpl {
                 &mut |rl, gap| {
                     destined_submessages.borrow_mut().push((
                         rl.locator,
+                        RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                            gap.endianness_flag,
+                            gap.reader_id,
+                            gap.writer_id,
+                            gap.gap_start,
+                            gap.gap_list,
+                        )),
+                    ));
+                },
+            );
+
+            for (locator, submessage) in destined_submessages.take() {
+                let header = RtpsMessageHeader {
+                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                    version: PROTOCOLVERSION,
+                    vendor_id: VENDOR_ID_S2E,
+                    guid_prefix: self.rtps_group.guid.prefix,
+                };
+                let message = RtpsMessageWrite::new(header, vec![submessage]);
+
+                transport.write(&message, &locator);
+            }
+        }
+
+        // Stateful writer sending
+        let stateful_writer_behavior_list: Vec<Arc<RwLock<dyn StatefulWriterBehaviorType>>> =
+            data_writer_list_lock
+                .iter()
+                .filter_map(|x| match x {
+                    DataWriterFlavor::Stateful(w) => {
+                        Some(w.clone().into_stateful_writer_behavior())
+                    }
+                    DataWriterFlavor::Stateless(_) => None,
+                })
+                .collect();
+
+        let mut locked_stateful_writer_list: Vec<RwLockWriteGuard<dyn StatefulWriterBehaviorType>> =
+            stateful_writer_behavior_list
+                .iter()
+                .map(|x| x.write().unwrap())
+                .collect();
+
+        for locked_stateful_writer in &mut locked_stateful_writer_list {
+            let destined_submessages = RefCell::new(Vec::new());
+            locked_stateful_writer.send_unsent_data(
+                &mut |rp, data| {
+                    destined_submessages.borrow_mut().push((
+                        rp.unicast_locator_list[0],
+                        RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                            data.endianness_flag,
+                            data.inline_qos_flag,
+                            data.data_flag,
+                            data.key_flag,
+                            data.non_standard_payload_flag,
+                            data.reader_id,
+                            data.writer_id,
+                            data.writer_sn,
+                            data.inline_qos,
+                            data.serialized_payload,
+                        )),
+                    ));
+                },
+                &mut |rp, gap| {
+                    destined_submessages.borrow_mut().push((
+                        rp.unicast_locator_list[0],
                         RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
                             gap.endianness_flag,
                             gap.reader_id,
