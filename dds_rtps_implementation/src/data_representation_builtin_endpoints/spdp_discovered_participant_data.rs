@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::{
-    dds_serialize_deserialize_impl::{
+    serde_remote_rtps_pim::{
         CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
         DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize, LocatorDeserialize,
         LocatorSerialize, ProtocolVersionSerdeDeserialize, ProtocolVersionSerdeSerialize,

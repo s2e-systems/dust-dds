@@ -29,7 +29,7 @@ use super::{
         ReliabilityQosPolicySerialize, TimeBasedFilterQosPolicySerialize,
         TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
     },
-    dds_serialize_deserialize_impl::{
+    serde_remote_rtps_pim::{
         EntityIdDeserialize,
         EntityIdSerialize, LocatorDeserialize, LocatorSerialize,
     },
