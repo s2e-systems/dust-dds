@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::{
-    dds_serialize_deserialize_impl::{
+    serde_remote_dds_api::{
         BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
         DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize,
         DurabilityServiceQosPolicySerialize, HistoryQosPolicySerialize,
