@@ -1,5 +1,5 @@
 use rust_dds_api::{
-    dcps_psm::BuiltInTopicKey,
+    dcps_psm::{BuiltInTopicKey, Duration},
     infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind,
         DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy,
@@ -12,6 +12,7 @@ use rust_dds_api::{
     },
 };
 use rust_rtps_psm::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
+use serde::Serialize;
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "UserDataQosPolicy")]
@@ -29,8 +30,6 @@ pub struct UserDataQosPolicyDeserialize(
     #[serde(with = "UserDataQosPolicyDef")] pub UserDataQosPolicy,
 );
 
-
-
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointSet")]
 pub struct BuiltinEndpointSetDef(pub u32);
@@ -43,7 +42,6 @@ pub struct BuiltinEndpointSetSerdeSerialize<'a>(
 pub struct BuiltinEndpointSetSerdeDeserialize(
     #[serde(with = "BuiltinEndpointSetDef")] pub BuiltinEndpointSet,
 );
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointQos")]
@@ -109,16 +107,16 @@ pub enum HistoryQosPolicyKindDef {
 }
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "rust_dds_api::dcps_psm::Duration")]
+#[serde(remote = "Duration")]
 pub struct DcpsDurationDef {
-    #[serde(getter = "rust_dds_api::dcps_psm::Duration::sec")]
+    #[serde(getter = "Duration::sec")]
     sec: i32,
-    #[serde(getter = "rust_dds_api::dcps_psm::Duration::nanosec")]
+    #[serde(getter = "Duration::nanosec")]
     nanosec: u32,
 }
-impl From<DcpsDurationDef> for rust_dds_api::dcps_psm::Duration {
-    fn from(def: DcpsDurationDef) -> rust_dds_api::dcps_psm::Duration {
-        rust_dds_api::dcps_psm::Duration::new(def.sec, def.nanosec)
+impl From<DcpsDurationDef> for Duration {
+    fn from(def: DcpsDurationDef) -> Duration {
+        Duration::new(def.sec, def.nanosec)
     }
 }
 
@@ -126,7 +124,7 @@ impl From<DcpsDurationDef> for rust_dds_api::dcps_psm::Duration {
 #[serde(remote = "DurabilityServiceQosPolicy")]
 pub struct DurabilityServiceQosPolicyDef {
     #[serde(with = "DcpsDurationDef")]
-    pub service_cleanup_delay: rust_dds_api::dcps_psm::Duration,
+    pub service_cleanup_delay: Duration,
     #[serde(with = "HistoryQosPolicyKindDef")]
     pub history_kind: HistoryQosPolicyKind,
     pub history_depth: i32,
@@ -149,7 +147,7 @@ pub struct DurabilityServiceQosPolicyDeserialize(
 #[serde(remote = "DeadlineQosPolicy")]
 pub struct DeadlineQosPolicyDef {
     #[serde(with = "DcpsDurationDef")]
-    pub period: rust_dds_api::dcps_psm::Duration,
+    pub period: Duration,
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
@@ -166,7 +164,7 @@ pub struct DeadlineQosPolicyDeserialize(
 #[serde(remote = "LatencyBudgetQosPolicy")]
 pub struct LatencyBudgetQosPolicyDef {
     #[serde(with = "DcpsDurationDef")]
-    pub duration: rust_dds_api::dcps_psm::Duration,
+    pub duration: Duration,
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
@@ -193,7 +191,7 @@ pub struct LivelinessQosPolicyDef {
     #[serde(with = "LivelinessQosPolicyKindDef")]
     pub kind: LivelinessQosPolicyKind,
     #[serde(with = "DcpsDurationDef")]
-    pub lease_duration: rust_dds_api::dcps_psm::Duration,
+    pub lease_duration: Duration,
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
@@ -212,39 +210,55 @@ pub enum ReliabilityQosPolicyKindDef {
     ReliableReliabilityQos,
 }
 
+const BEST_EFFORT: i32 = 1;
+const RELIABLE: i32 = 2;
+struct ReliabilityQosPolicyKindVisitor;
+
+impl<'de> serde::de::Visitor<'de> for ReliabilityQosPolicyKindVisitor {
+    type Value = ReliabilityQosPolicyKind;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str(&format!("value `{:}` or `{:}`", BEST_EFFORT, RELIABLE))
+    }
+
+    fn visit_i32<E>(self, value: i32) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(match value {
+            BEST_EFFORT => ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+            RELIABLE => ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            _ => return Err(serde::de::Error::invalid_value(serde::de::Unexpected::Unsigned(value as u64), &self)),
+        })
+    }
+}
+
 impl<'de> ReliabilityQosPolicyKindDef {
     pub fn serialize<S>(this: &ReliabilityQosPolicyKind, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         match this {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
-                serde::Serializer::serialize_unit_variant(
-                    serializer,
-                    "ReliabilityQosPolicyKindDef",
-                    1u32,
-                    "BestEffortReliabilityQos",
-                )
-            }
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => {
-                serde::Serializer::serialize_unit_variant(
-                    serializer,
-                    "ReliabilityQosPolicyKindDef",
-                    2u32,
-                    "ReliableReliabilityQos",
-                )
-            }
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => BEST_EFFORT,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => RELIABLE,
         }
+        .serialize(serializer)
+    }
+
+    pub fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<ReliabilityQosPolicyKind, D::Error> {
+        deserializer.deserialize_i32(ReliabilityQosPolicyKindVisitor)
     }
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(remote = "ReliabilityQosPolicy")]
 pub struct ReliabilityQosPolicyDef {
     #[serde(with = "ReliabilityQosPolicyKindDef")]
     pub kind: ReliabilityQosPolicyKind,
     #[serde(with = "DcpsDurationDef")]
-    pub max_blocking_time: rust_dds_api::dcps_psm::Duration,
+    pub max_blocking_time: Duration,
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
@@ -252,10 +266,8 @@ pub struct ReliabilityQosPolicySerialize<'a>(
     #[serde(with = "ReliabilityQosPolicyDef")] pub &'a ReliabilityQosPolicy,
 );
 
-#[derive(Debug, PartialEq)]
-pub struct ReliabilityQosPolicyDeserialize(
-    pub ReliabilityQosPolicy,
-);
+#[derive(Debug, PartialEq, serde::Deserialize)]
+pub struct ReliabilityQosPolicyDeserialize(#[serde(with = "ReliabilityQosPolicyDef")] pub ReliabilityQosPolicy);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "TransportPriorityQosPolicy")]
@@ -277,7 +289,7 @@ pub struct TransportPriorityQosPolicyDeserialize(
 #[serde(remote = "LifespanQosPolicy")]
 pub struct LifespanQosPolicyDef {
     #[serde(with = "DcpsDurationDef")]
-    pub duration: rust_dds_api::dcps_psm::Duration,
+    pub duration: Duration,
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
@@ -457,7 +469,7 @@ pub struct GroupDataQosPolicyDeserialize(
 #[serde(remote = "TimeBasedFilterQosPolicy")]
 pub struct TimeBasedFilterQosPolicyDef {
     #[serde(with = "DcpsDurationDef")]
-    pub minimum_separation: rust_dds_api::dcps_psm::Duration,
+    pub minimum_separation: Duration,
 }
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct TimeBasedFilterQosPolicySerialize<'a>(
@@ -467,3 +479,52 @@ pub struct TimeBasedFilterQosPolicySerialize<'a>(
 pub struct TimeBasedFilterQosPolicyDeserialize(
     #[serde(with = "TimeBasedFilterQosPolicyDef")] pub TimeBasedFilterQosPolicy,
 );
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn to_bytes_le<S: serde::Serialize>(value: &S) -> Vec<u8> {
+        let mut writer = Vec::<u8>::new();
+        let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut writer);
+        serde::Serialize::serialize(value, &mut serializer).unwrap();
+        writer
+    }
+    fn from_bytes_le<'de, D: serde::Deserialize<'de>>(buf: &'de [u8]) -> D {
+        let mut deserializer =
+            cdr::de::Deserializer::<_, _, byteorder::LittleEndian>::new(buf, cdr::Infinite);
+        serde::Deserialize::deserialize(&mut deserializer).unwrap()
+    }
+
+    #[test]
+    fn serialize_reliability_qos_policy_def() {
+        let value = ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: Duration::new(0, 100),
+        };
+        let result = to_bytes_le(&ReliabilityQosPolicySerialize(&value));
+        assert_eq!(
+            result,
+            vec![
+                2, 0, 0, 0, // kind
+                0, 0, 0, 0, // max_blocking_time:  sec: i32,
+                100, 0, 0, 0, // max_blocking_time:  nanosec: u32,
+            ]
+        );
+    }
+    #[test]
+    fn deserialize_reliability_qos_policy_def() {
+        let data = &[
+            3u8, 0, 0, 0, // kind
+            0, 0, 0, 0, // max_blocking_time:  sec: i32,
+            100, 0, 0, 0, // max_blocking_time:  nanosec: u32,
+        ];
+        let expected = ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: Duration::new(0, 100),
+        };
+        let result: ReliabilityQosPolicyDeserialize = from_bytes_le(data);
+        assert_eq!(result.0, expected);
+    }
+}
