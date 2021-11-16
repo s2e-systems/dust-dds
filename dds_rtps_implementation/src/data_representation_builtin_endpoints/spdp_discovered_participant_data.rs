@@ -21,19 +21,21 @@ use crate::{
 };
 
 use super::{
-    dds_serialize_deserialize_impl::{
-        BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
-        BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
+    serde_remote_rtps_pim::{
         CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
         DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize, LocatorDeserialize,
         LocatorSerialize, ProtocolVersionSerdeDeserialize, ProtocolVersionSerdeSerialize,
-        UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
     },
     parameter_id_values::{
         DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET,
         PID_DEFAULT_MULTICAST_LOCATOR, PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR,
         PID_PARTICIPANT_GUID, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
         PID_USER_DATA, PID_VENDORID,
+    },
+    serde_remote_dds_api::{
+        BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
+        BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
+        UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
     },
 };
 
@@ -186,10 +188,30 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 }
 
 fn convert_guid_to_built_in_topic_key(guid: &Guid) -> BuiltInTopicKey {
-    let value0 = [guid.prefix.0[0], guid.prefix.0[1], guid.prefix.0[2], guid.prefix.0[3]];
-    let value1 = [guid.prefix.0[4], guid.prefix.0[5], guid.prefix.0[6], guid.prefix.0[7]];
-    let value2 = [guid.prefix.0[8], guid.prefix.0[9], guid.prefix.0[10], guid.prefix.0[11]];
-    let value3 = [guid.entity_id.entity_key[0], guid.entity_id.entity_key[1], guid.entity_id.entity_key[2], guid.entity_id.entity_kind];
+    let value0 = [
+        guid.prefix.0[0],
+        guid.prefix.0[1],
+        guid.prefix.0[2],
+        guid.prefix.0[3],
+    ];
+    let value1 = [
+        guid.prefix.0[4],
+        guid.prefix.0[5],
+        guid.prefix.0[6],
+        guid.prefix.0[7],
+    ];
+    let value2 = [
+        guid.prefix.0[8],
+        guid.prefix.0[9],
+        guid.prefix.0[10],
+        guid.prefix.0[11],
+    ];
+    let value3 = [
+        guid.entity_id.entity_key[0],
+        guid.entity_id.entity_key[1],
+        guid.entity_id.entity_key[2],
+        guid.entity_id.entity_kind,
+    ];
     BuiltInTopicKey {
         value: [
             i32::from_le_bytes(value0),

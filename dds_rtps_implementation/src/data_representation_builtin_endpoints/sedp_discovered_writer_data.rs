@@ -18,23 +18,13 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::dds_serialize_deserialize_impl::{
-        BuiltInTopicKeyDeserialize, EntityIdDeserialize,
-    },
+    data_representation_builtin_endpoints::serde_remote_rtps_pim::EntityIdDeserialize,
     data_serialize_deserialize::{ParameterList, ParameterSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
 use super::{
-    dds_serialize_deserialize_impl::{
-        BuiltInTopicKeySerialize, DeadlineQosPolicySerialize, DestinationOrderQosPolicySerialize,
-        DurabilityQosPolicySerialize, DurabilityServiceQosPolicySerialize, EntityIdSerialize,
-        GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize, LifespanQosPolicySerialize,
-        LivelinessQosPolicySerialize, LocatorDeserialize, LocatorSerialize,
-        OwnershipQosPolicySerialize, OwnershipStrengthQosPolicySerialize,
-        PartitionQosPolicySerialize, PresentationQosPolicySerialize, ReliabilityQosPolicySerialize,
-        TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
-    },
+    serde_remote_rtps_pim::{EntityIdSerialize, LocatorDeserialize, LocatorSerialize},
     parameter_id_values::{
         PID_DATA_MAX_SIZE_SERIALIZED, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
         PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID,
@@ -42,6 +32,15 @@ use super::{
         PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION,
         PID_RELIABILITY, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR,
         PID_USER_DATA,
+    },
+    serde_remote_dds_api::{
+        BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
+        DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize,
+        DurabilityServiceQosPolicySerialize, GroupDataQosPolicySerialize,
+        LatencyBudgetQosPolicySerialize, LifespanQosPolicySerialize, LivelinessQosPolicySerialize,
+        OwnershipQosPolicySerialize, OwnershipStrengthQosPolicySerialize,
+        PartitionQosPolicySerialize, PresentationQosPolicySerialize, ReliabilityQosPolicySerialize,
+        TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
     },
 };
 

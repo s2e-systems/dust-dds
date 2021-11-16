@@ -21,14 +21,17 @@ use crate::{
 };
 
 use super::{
-    dds_serialize_deserialize_impl::{
+    serde_remote_dds_api::{
         BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
-        DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize, EntityIdDeserialize,
-        EntityIdSerialize, GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize,
-        LivelinessQosPolicySerialize, LocatorDeserialize, LocatorSerialize,
+        DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize, GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize,
+        LivelinessQosPolicySerialize,
         OwnershipQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize,
         ReliabilityQosPolicySerialize, TimeBasedFilterQosPolicySerialize,
         TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
+    },
+    serde_remote_rtps_pim::{
+        EntityIdDeserialize,
+        EntityIdSerialize, LocatorDeserialize, LocatorSerialize,
     },
     parameter_id_values::{
         DEFAULT_EXPECTS_INLINE_QOS, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
