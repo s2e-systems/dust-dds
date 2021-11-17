@@ -1,38 +1,38 @@
-use rust_dds_api::{
-    builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey,
-    infrastructure::qos_policy::UserDataQosPolicy,
-};
+use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use rust_rtps_pim::{
     behavior::types::Duration,
     structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
 };
-use rust_rtps_psm::discovery::{
-    spdp::participant_proxy::ParticipantProxy, types::BuiltinEndpointQos,
-};
+use rust_rtps_psm::discovery::spdp::participant_proxy::ParticipantProxy;
 
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
-        DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, PID_DEFAULT_UNICAST_LOCATOR,
-        PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR,
-        PID_PARTICIPANT_LEASE_DURATION,
+        PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+        PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
     },
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
 
-use super::{parameter_id_values::{
+use super::{
+    parameter_id_values::{
         PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
         PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
         PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
-    }, parameter_list_deserializer::ParameterListDeserializer, parameter_list_serializer::ParameterListSerializer, serde_remote_dds_api::{
-        BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
-        BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
+    },
+    parameter_list_deserializer::ParameterListDeserializer,
+    parameter_list_serializer::ParameterListSerializer,
+    serde_remote_dds_api::{
+        BuiltinEndpointQosDeserialize, BuiltinEndpointQosSerialize,
+        BuiltinEndpointSetDeserialize, BuiltinEndpointSetSerialize,
         UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
-    }, serde_remote_rtps_pim::{
-        CountSerdeDeserialize, CountSerdeSerialize, DomainTagDeserialize, DurationSerdeDeserialize,
-        DurationSerdeSerialize, ExpectsInclineQosDeserialize, GuidDeserialize, GuidSerialize,
-        LocatorDeserialize, LocatorSerialize, ProtocolVersionSerdeDeserialize,
-        ProtocolVersionSerdeSerialize,
-    }};
+    },
+    serde_remote_rtps_pim::{
+        CountDeserialize, CountSerdeSerialize, DomainTagDeserialize, DomainTagSerialize,
+        DurationDeserialize, DurationSerialize, ExpectsInclineQosDeserialize,
+        ExpectsInclineQosSerialize, GuidDeserialize, GuidSerialize, LocatorDeserialize,
+        LocatorSerialize, ProtocolVersionDeserialize, ProtocolVersionSerialize,
+    },
+};
 
 #[derive(Debug, PartialEq)]
 pub struct SpdpDiscoveredParticipantData {
@@ -56,99 +56,70 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         &self,
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
+        let guid = Guid {
+            prefix: self.participant_proxy.guid_prefix,
+            entity_id: ENTITYID_PARTICIPANT,
+        };
+
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
             .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
-
-        if self.participant_proxy.domain_tag != DEFAULT_DOMAIN_TAG {
-            parameter_list_serializer
-                .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)?;
-        }
-
+        parameter_list_serializer.serialize_parameter_if_not_default::<DomainTagSerialize, _>(
+            PID_DOMAIN_TAG,
+            &self.participant_proxy.domain_tag.as_str().into(),
+        )?;
         parameter_list_serializer.serialize_parameter(
             PID_PROTOCOL_VERSION,
-            &ProtocolVersionSerdeSerialize(&self.participant_proxy.protocol_version),
+            &ProtocolVersionSerialize(&self.participant_proxy.protocol_version),
         )?;
-
-        parameter_list_serializer.serialize_parameter(
-            PID_PARTICIPANT_GUID,
-            &GuidSerialize(&Guid {
-                prefix: self.participant_proxy.guid_prefix,
-                entity_id: ENTITYID_PARTICIPANT,
-            }),
-        )?;
-
+        parameter_list_serializer
+            .serialize_parameter(PID_PARTICIPANT_GUID, &GuidSerialize(&guid))?;
         parameter_list_serializer
             .serialize_parameter(PID_VENDORID, &self.participant_proxy.vendor_id)?;
-
-        if self.participant_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
-            parameter_list_serializer.serialize_parameter(
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<ExpectsInclineQosSerialize, _>(
                 PID_EXPECTS_INLINE_QOS,
                 &self.participant_proxy.expects_inline_qos,
             )?;
-        }
-
-        for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
-        {
-            parameter_list_serializer.serialize_parameter(
-                PID_METATRAFFIC_UNICAST_LOCATOR,
-                &LocatorSerialize(metatraffic_unicast_locator),
-            )?;
-        }
-
-        for metatraffic_multicast_locator in
-            &self.participant_proxy.metatraffic_multicast_locator_list
-        {
-            parameter_list_serializer.serialize_parameter(
-                PID_METATRAFFIC_MULTICAST_LOCATOR,
-                &LocatorSerialize(metatraffic_multicast_locator),
-            )?;
-        }
-
-        for default_unicast_locator in &self.participant_proxy.default_unicast_locator_list {
-            parameter_list_serializer.serialize_parameter(
-                PID_DEFAULT_UNICAST_LOCATOR,
-                &LocatorSerialize(default_unicast_locator),
-            )?;
-        }
-
-        for default_multicast_locator in &self.participant_proxy.default_multicast_locator_list {
-            parameter_list_serializer.serialize_parameter(
-                PID_DEFAULT_MULTICAST_LOCATOR,
-                &LocatorSerialize(default_multicast_locator),
-            )?;
-        }
-
+        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+            PID_METATRAFFIC_UNICAST_LOCATOR,
+            &self.participant_proxy.metatraffic_unicast_locator_list,
+        )?;
+        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+            PID_METATRAFFIC_MULTICAST_LOCATOR,
+            &self.participant_proxy.metatraffic_multicast_locator_list,
+        )?;
+        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+            PID_DEFAULT_UNICAST_LOCATOR,
+            &self.participant_proxy.default_unicast_locator_list,
+        )?;
+        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+            PID_DEFAULT_MULTICAST_LOCATOR,
+            &self.participant_proxy.default_multicast_locator_list,
+        )?;
         parameter_list_serializer.serialize_parameter(
             PID_BUILTIN_ENDPOINT_SET,
-            &BuiltinEndpointSetSerdeSerialize(&self.participant_proxy.available_builtin_endpoints),
+            &BuiltinEndpointSetSerialize(&self.participant_proxy.available_builtin_endpoints),
         )?;
-
         parameter_list_serializer.serialize_parameter(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             &CountSerdeSerialize(&self.participant_proxy.manual_liveliness_count),
         )?;
-
-        if self.participant_proxy.builtin_endpoint_qos != BuiltinEndpointQos::default() {
-            parameter_list_serializer.serialize_parameter(
-                PID_BUILTIN_ENDPOINT_QOS,
-                &BuiltinEndpointQosSerdeSerialize(&self.participant_proxy.builtin_endpoint_qos),
-            )?;
-        }
-
+        parameter_list_serializer.serialize_parameter(
+            PID_BUILTIN_ENDPOINT_QOS,
+            &BuiltinEndpointQosSerialize(&self.participant_proxy.builtin_endpoint_qos),
+        )?;
         parameter_list_serializer.serialize_parameter(
             PID_PARTICIPANT_LEASE_DURATION,
-            &DurationSerdeSerialize(&self.lease_duration),
+            &DurationSerialize(&self.lease_duration),
         )?;
-
-        if self.dds_participant_data.user_data != UserDataQosPolicy::default() {
-            parameter_list_serializer.serialize_parameter(
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<UserDataQosPolicySerialize, _>(
                 PID_USER_DATA,
-                &UserDataQosPolicySerialize(&self.dds_participant_data.user_data),
+                &self.dds_participant_data.user_data,
             )?;
-        }
         parameter_list_serializer.serialize_sentinel()?;
         Ok(())
     }
@@ -199,8 +170,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let domain_id = param_list.get::<u32, _>(PID_DOMAIN_ID)?;
         let domain_tag = param_list.get_or_default::<DomainTagDeserialize, _>(PID_DOMAIN_TAG)?;
         let protocol_version =
-            param_list.get::<ProtocolVersionSerdeDeserialize, _>(PID_PROTOCOL_VERSION)?;
-        let vendor_id = param_list.get(PID_VENDORID)?;
+            param_list.get::<ProtocolVersionDeserialize, _>(PID_PROTOCOL_VERSION)?;
+        let vendor_id = param_list.get::<[u8; 2], _>(PID_VENDORID)?;
         let expects_inline_qos =
             param_list.get_or_default::<ExpectsInclineQosDeserialize, _>(PID_EXPECTS_INLINE_QOS)?;
         let metatraffic_unicast_locator_list =
@@ -212,13 +183,13 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let default_multicast_locator_list =
             param_list.get_list::<LocatorDeserialize, _>(PID_DEFAULT_MULTICAST_LOCATOR)?;
         let available_builtin_endpoints =
-            param_list.get::<BuiltinEndpointSetSerdeDeserialize, _>(PID_BUILTIN_ENDPOINT_SET)?;
+            param_list.get::<BuiltinEndpointSetDeserialize, _>(PID_BUILTIN_ENDPOINT_SET)?;
         let manual_liveliness_count =
-            param_list.get::<CountSerdeDeserialize, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
+            param_list.get::<CountDeserialize, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
         let builtin_endpoint_qos = param_list
-            .get_or_default::<BuiltinEndpointQosSerdeDeserialize, _>(PID_BUILTIN_ENDPOINT_QOS)?;
+            .get_or_default::<BuiltinEndpointQosDeserialize, _>(PID_BUILTIN_ENDPOINT_QOS)?;
         let lease_duration =
-            param_list.get::<DurationSerdeDeserialize, _>(PID_PARTICIPANT_LEASE_DURATION)?;
+            param_list.get::<DurationDeserialize, _>(PID_PARTICIPANT_LEASE_DURATION)?;
 
         Ok(Self {
             dds_participant_data: ParticipantBuiltinTopicData {

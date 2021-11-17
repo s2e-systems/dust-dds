@@ -15,11 +15,11 @@ pub struct DurationDef {
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
-pub struct DurationSerdeSerialize<'a>(#[serde(with = "DurationDef")] pub &'a Duration);
+pub struct DurationSerialize<'a>(#[serde(with = "DurationDef")] pub &'a Duration);
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
-pub struct DurationSerdeDeserialize(#[serde(with = "DurationDef")] pub Duration);
-impl Default for DurationSerdeDeserialize {
+pub struct DurationDeserialize(#[serde(with = "DurationDef")] pub Duration);
+impl Default for DurationDeserialize {
     fn default() -> Self {
         Self(DEFAULT_PARTICIPANT_LEASE_DURATION)
     }
@@ -32,7 +32,7 @@ pub struct LocatorDef {
     pub port: u32,
     pub address: [u8; 16],
 }
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct LocatorSerialize<'a>(#[serde(with = "LocatorDef")] pub &'a Locator);
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
@@ -45,12 +45,12 @@ pub struct ProtocolVersionDef {
     pub minor: u8,
 }
 #[derive(Debug, PartialEq, serde::Serialize)]
-pub struct ProtocolVersionSerdeSerialize<'a>(
+pub struct ProtocolVersionSerialize<'a>(
     #[serde(with = "ProtocolVersionDef")] pub &'a ProtocolVersion,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
-pub struct ProtocolVersionSerdeDeserialize(
+pub struct ProtocolVersionDeserialize(
     #[serde(with = "ProtocolVersionDef")] pub ProtocolVersion,
 );
 
@@ -94,8 +94,15 @@ pub struct CountDef(pub i32);
 pub struct CountSerdeSerialize<'a>(#[serde(with = "CountDef")] pub &'a Count);
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
-pub struct CountSerdeDeserialize(#[serde(with = "CountDef")] pub Count);
+pub struct CountDeserialize(#[serde(with = "CountDef")] pub Count);
 
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+pub struct ExpectsInclineQosSerialize<'a>(pub &'a bool);
+impl Default for ExpectsInclineQosSerialize<'_> {
+    fn default() -> Self {
+        Self(&DEFAULT_EXPECTS_INLINE_QOS)
+    }
+}
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct ExpectsInclineQosDeserialize(pub bool);
 impl Default for ExpectsInclineQosDeserialize {
@@ -103,6 +110,17 @@ impl Default for ExpectsInclineQosDeserialize {
         Self(DEFAULT_EXPECTS_INLINE_QOS)
     }
 }
+
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+pub struct DomainTag<'a>(pub &'a str);
+impl<'a> Default for DomainTag<'a> {
+    fn default() -> Self {
+        Self(DEFAULT_DOMAIN_TAG)
+    }
+}
+
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+pub struct DomainTagSerialize<'a>(pub &'a DomainTag<'a>);
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct DomainTagDeserialize(pub String);

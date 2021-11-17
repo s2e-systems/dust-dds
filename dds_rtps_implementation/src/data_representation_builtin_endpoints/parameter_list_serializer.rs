@@ -65,6 +65,35 @@ where
         Ok(())
     }
 
+    pub fn serialize_parameter_if_not_default<'a, T, U>(
+        &mut self,
+        parameter_id: u16,
+        value: &'a U,
+    ) -> DDSResult<()>
+    where
+        T: serde::Serialize + From<&'a U>,
+        U: PartialEq<U> + Default,
+    {
+        if value != &U::default() {
+            self.serialize_parameter(parameter_id, &T::from(value))?;
+        }
+        Ok(())
+    }
+
+    pub fn serialize_parameter_vector<'a, T, U>(
+        &mut self,
+        parameter_id: u16,
+        value: &'a Vec<U>,
+    ) -> DDSResult<()>
+    where
+        T: serde::Serialize + From<&'a U>,
+    {
+        for value_i in value.iter() {
+            self.serialize_parameter(parameter_id, &T::from(value_i))?;
+        }
+        Ok(())
+    }
+
     pub fn serialize_sentinel(&mut self) -> DDSResult<()> {
         PID_SENTINEL
             .serialize(&mut self.serializer)
