@@ -9,7 +9,7 @@ use rust_dds_api::{
 };
 
 use crate::{
-    data_serialize_deserialize::{ParameterList, ParameterSerializer},
+    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
 
@@ -50,7 +50,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
         &self,
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
-        let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
+        let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
@@ -160,7 +160,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
 
 impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
     fn deserialize(buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-        let param_list = ParameterList::read(buf).unwrap();
+        let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         let key = param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
         let name = param_list.get::<String, _>(PID_TOPIC_NAME)?;

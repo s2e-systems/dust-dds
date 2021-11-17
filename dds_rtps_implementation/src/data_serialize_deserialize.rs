@@ -8,7 +8,7 @@ use crate::dds_type::{BigEndian, Endianness, LittleEndian};
 
 const PID_SENTINEL: u16 = 1;
 
-pub struct ParameterSerializer<W, E>
+pub struct ParameterListSerializer<W, E>
 where
     W: std::io::Write,
     E: Endianness,
@@ -17,7 +17,7 @@ where
     phantom: PhantomData<E>,
 }
 
-impl<W, E> ParameterSerializer<W, E>
+impl<W, E> ParameterListSerializer<W, E>
 where
     W: std::io::Write,
     E: Endianness,
@@ -78,7 +78,7 @@ where
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Parameter<'a> {
+struct Parameter<'a> {
     parameter_id: u16,
     value: &'a [u8],
 }
@@ -107,7 +107,7 @@ enum RepresentationIdentifier {
 }
 
 impl RepresentationIdentifier {
-    pub fn read(buf: &mut &[u8]) -> DDSResult<Self> {
+    fn read(buf: &mut &[u8]) -> DDSResult<Self> {
         let mut representation_identifier = [0; 2];
         buf.read(&mut representation_identifier)
             .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
@@ -123,7 +123,7 @@ impl RepresentationIdentifier {
 
 struct RepresentationOptions([u8; 2]);
 impl RepresentationOptions {
-    pub fn read(buf: &mut &[u8]) -> DDSResult<Self> {
+    fn read(buf: &mut &[u8]) -> DDSResult<Self> {
         Ok(Self([
             buf.read_u8().map_err(|err| {
                 DDSError::PreconditionNotMet(format!(
@@ -142,12 +142,12 @@ impl RepresentationOptions {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ParameterList<'a> {
+pub struct ParameterListDeserializer<'a> {
     parameter: Vec<Parameter<'a>>,
     representation_identifier: RepresentationIdentifier,
 }
 
-impl<'de: 'a, 'a> ParameterList<'a> {
+impl<'de: 'a, 'a> ParameterListDeserializer<'a> {
     pub fn read(buf: &mut &'de [u8]) -> DDSResult<Self> {
         let representation_identifier = RepresentationIdentifier::read(buf)?;
         let _representation_options = RepresentationOptions::read(buf)?;
@@ -173,7 +173,7 @@ impl<'de: 'a, 'a> ParameterList<'a> {
     }
 }
 
-impl<'de> ParameterList<'de> {
+impl<'de> ParameterListDeserializer<'de> {
     pub fn get<T, U>(&self, parameter_id: u16) -> DDSResult<U>
     where
         T: serde::Deserialize<'de>,

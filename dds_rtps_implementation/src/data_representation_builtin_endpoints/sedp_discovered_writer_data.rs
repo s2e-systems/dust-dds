@@ -19,7 +19,7 @@ use rust_rtps_pim::{
 
 use crate::{
     data_representation_builtin_endpoints::serde_remote_rtps_pim::EntityIdDeserialize,
-    data_serialize_deserialize::{ParameterList, ParameterSerializer},
+    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
@@ -62,7 +62,7 @@ impl DdsType for SedpDiscoveredWriterData {
 
 impl DdsSerialize for SedpDiscoveredWriterData {
     fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DDSResult<()> {
-        let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
+        let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
         // omitted (as of table 9.10) writer_proxy.remote_writer_guid
@@ -253,7 +253,7 @@ fn convert_built_in_topic_key_to_guid(key: &BuiltInTopicKey) -> Guid {
 
 impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
     fn deserialize(buf: &mut &'_ [u8]) -> DDSResult<Self> {
-        let param_list = ParameterList::read(buf).unwrap();
+        let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         // pub remote_writer_guid: Guid,
         // pub unicast_locator_list: L,
