@@ -62,6 +62,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
         let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
+        parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
             .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)
@@ -174,7 +175,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
                     &UserDataQosPolicySerialize(&self.dds_participant_data.user_data),
                 )?;
         }
-
+        parameter_list_serializer.serialize_sentinel()?;
         Ok(())
     }
 }

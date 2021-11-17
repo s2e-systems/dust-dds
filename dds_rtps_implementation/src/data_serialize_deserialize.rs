@@ -25,19 +25,21 @@ where
     W: std::io::Write,
     E: Endianness,
 {
-    // Todo: return result since it may fail
     pub fn new(writer: W) -> Self {
-        let mut serializer = cdr::Serializer::<_, E::Endianness>::new(writer);
-        E::REPRESENTATION_IDENTIFIER
-            .serialize(&mut serializer)
-            .unwrap();
-        E::REPRESENTATION_OPTIONS
-            .serialize(&mut serializer)
-            .unwrap();
         Self {
-            serializer,
+            serializer: cdr::Serializer::<_, E::Endianness>::new(writer),
             phantom: PhantomData,
         }
+    }
+
+    pub fn serialize_payload_header(&mut self) -> DDSResult<()> {
+        E::REPRESENTATION_IDENTIFIER
+            .serialize(&mut self.serializer)
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+        E::REPRESENTATION_OPTIONS
+            .serialize(&mut self.serializer)
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+        Ok(())
     }
 
     pub fn serialize_parameter<T>(&mut self, parameter_id: u16, value: &T) -> DDSResult<()>
@@ -66,19 +68,14 @@ where
         }
         Ok(())
     }
-}
 
-// Todo: do not use Drop, since this may fail
-impl<W, E> Drop for ParameterSerializer<W, E>
-where
-    W: std::io::Write,
-    E: Endianness,
-{
-    fn drop(&mut self) {
-        PID_SENTINEL.serialize(&mut self.serializer).unwrap();
-        [0_u8, 0].serialize(&mut self.serializer).unwrap();
+    pub fn serialize_sentinel(&mut self) -> DDSResult<()> {
+        PID_SENTINEL.serialize(&mut self.serializer).map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+        [0_u8, 0].serialize(&mut self.serializer).map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+        Ok(())
     }
 }
+
 
 #[derive(Debug, PartialEq)]
 pub struct Parameter<'a> {

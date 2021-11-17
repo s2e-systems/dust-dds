@@ -64,7 +64,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
         let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
-
+        parameter_list_serializer.serialize_payload_header()?;
         // omitted (as of table 9.10) reader_proxy.remote_reader_guid
 
         for locator in &self.reader_proxy.unicast_locator_list {
@@ -225,7 +225,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                     &GroupDataQosPolicySerialize(&self.subscription_builtin_topic_data.group_data),
                 )?;
         }
-
+        parameter_list_serializer.serialize_sentinel()?;
         Ok(())
     }
 }

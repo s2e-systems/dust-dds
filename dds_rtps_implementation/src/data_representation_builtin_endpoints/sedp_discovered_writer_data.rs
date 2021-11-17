@@ -63,6 +63,7 @@ impl DdsType for SedpDiscoveredWriterData {
 impl DdsSerialize for SedpDiscoveredWriterData {
     fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DDSResult<()> {
         let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
+        parameter_list_serializer.serialize_payload_header()?;
 
         // omitted (as of table 9.10) writer_proxy.remote_writer_guid
 
@@ -229,6 +230,7 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                     &GroupDataQosPolicySerialize(&self.publication_builtin_topic_data.group_data),
                 )?;
         }
+        parameter_list_serializer.serialize_sentinel()?;
 
         Ok(())
     }

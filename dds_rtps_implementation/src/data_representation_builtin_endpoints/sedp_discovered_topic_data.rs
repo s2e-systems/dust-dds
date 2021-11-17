@@ -51,6 +51,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
         let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
+        parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
             .serialize_parameter(
@@ -167,7 +168,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
                     &TopicDataQosPolicySerialize(&self.topic_builtin_topic_data.topic_data),
                 )?;
         }
-
+        parameter_list_serializer.serialize_sentinel()?;
         Ok(())
     }
 }
