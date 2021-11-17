@@ -46,7 +46,7 @@ where
     where
         T: serde::Serialize,
     {
-        let length_without_padding = (cdr::calc_serialized_size(&value) - 4) as i16;
+        let length_without_padding = cdr::size::calc_serialized_data_size(&value) as i16;
         let padding_length = (4 - length_without_padding) & 3;
         let length = length_without_padding + padding_length;
 
