@@ -1,81 +1,11 @@
-use std::{io::Read, marker::PhantomData};
+use std::io::Read;
 
 use byteorder::{ByteOrder, ReadBytesExt};
 use rust_dds_api::return_type::{DDSError, DDSResult};
-use serde::Serialize;
 
 use crate::dds_type::{BigEndian, Endianness, LittleEndian};
 
-const PID_SENTINEL: u16 = 1;
-
-pub struct ParameterListSerializer<W, E>
-where
-    W: std::io::Write,
-    E: Endianness,
-{
-    serializer: cdr::Serializer<W, E::Endianness>,
-    phantom: PhantomData<E>,
-}
-
-impl<W, E> ParameterListSerializer<W, E>
-where
-    W: std::io::Write,
-    E: Endianness,
-{
-    pub fn new(writer: W) -> Self {
-        Self {
-            serializer: cdr::Serializer::<_, E::Endianness>::new(writer),
-            phantom: PhantomData,
-        }
-    }
-
-    pub fn serialize_payload_header(&mut self) -> DDSResult<()> {
-        E::REPRESENTATION_IDENTIFIER
-            .serialize(&mut self.serializer)
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
-        E::REPRESENTATION_OPTIONS
-            .serialize(&mut self.serializer)
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
-        Ok(())
-    }
-
-    pub fn serialize_parameter<T>(&mut self, parameter_id: u16, value: &T) -> DDSResult<()>
-    where
-        T: serde::Serialize,
-    {
-        let length_without_padding = cdr::size::calc_serialized_data_size(&value) as i16;
-        let padding_length = (4 - length_without_padding) & 3;
-        let length = length_without_padding + padding_length;
-
-        parameter_id
-            .serialize(&mut self.serializer)
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
-
-        length
-            .serialize(&mut self.serializer)
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
-
-        value
-            .serialize(&mut self.serializer)
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
-
-        for _ in 0..padding_length {
-            0_u8.serialize(&mut self.serializer)
-                .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
-        }
-        Ok(())
-    }
-
-    pub fn serialize_sentinel(&mut self) -> DDSResult<()> {
-        PID_SENTINEL
-            .serialize(&mut self.serializer)
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
-        [0_u8, 0]
-            .serialize(&mut self.serializer)
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
-        Ok(())
-    }
-}
+use super::parameter_id_values::PID_SENTINEL;
 
 #[derive(Debug, PartialEq)]
 struct Parameter<'a> {
@@ -202,7 +132,10 @@ impl<'de> ParameterListDeserializer<'de> {
         Ok(T::default().into())
     }
 
-    pub fn get_list<T, U>(&self, parameter_id: u16) -> DDSResult<Vec<U>> where T: serde::Deserialize<'de> + Into<U> {
+    pub fn get_list<T, U>(&self, parameter_id: u16) -> DDSResult<Vec<U>>
+    where
+        T: serde::Deserialize<'de> + Into<U>,
+    {
         let mut result = vec![];
         for parameter in self.parameter.iter() {
             if parameter.parameter_id == parameter_id {

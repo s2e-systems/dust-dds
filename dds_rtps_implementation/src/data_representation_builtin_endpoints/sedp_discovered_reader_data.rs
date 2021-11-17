@@ -19,28 +19,23 @@ use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
-use super::{
-    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
-    parameter_id_values::{
+use super::{parameter_id_values::{
         DEFAULT_EXPECTS_INLINE_QOS, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
         PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID,
         PID_LATENCY_BUDGET, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID,
         PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
         PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
-    },
-    serde_remote_dds_api::{
+    }, parameter_list_deserializer::ParameterListDeserializer, parameter_list_serializer::ParameterListSerializer, serde_remote_dds_api::{
         BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
         DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize,
         GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize, LivelinessQosPolicySerialize,
         OwnershipQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize,
         ReliabilityQosPolicySerialize, TimeBasedFilterQosPolicySerialize,
         TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
-    },
-    serde_remote_rtps_pim::{
+    }, serde_remote_rtps_pim::{
         EntityIdDeserialize, EntityIdSerialize, ExpectsInclineQosDeserialize, LocatorDeserialize,
         LocatorSerialize,
-    },
-};
+    }};
 
 #[derive(Debug, PartialEq)]
 pub struct SedpDiscoveredReaderData {

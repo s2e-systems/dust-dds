@@ -19,25 +19,20 @@ use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
 
-use super::{
-    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
-    parameter_id_values::{
+use super::{parameter_id_values::{
         PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
         PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
         PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
-    },
-    serde_remote_dds_api::{
+    }, parameter_list_deserializer::ParameterListDeserializer, parameter_list_serializer::ParameterListSerializer, serde_remote_dds_api::{
         BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
         BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
         UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
-    },
-    serde_remote_rtps_pim::{
+    }, serde_remote_rtps_pim::{
         CountSerdeDeserialize, CountSerdeSerialize, DomainTagDeserialize, DurationSerdeDeserialize,
         DurationSerdeSerialize, ExpectsInclineQosDeserialize, GuidDeserialize, GuidSerialize,
         LocatorDeserialize, LocatorSerialize, ProtocolVersionSerdeDeserialize,
         ProtocolVersionSerdeSerialize,
-    },
-};
+    }};
 
 #[derive(Debug, PartialEq)]
 pub struct SpdpDiscoveredParticipantData {

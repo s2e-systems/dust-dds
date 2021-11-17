@@ -10,14 +10,11 @@ use rust_dds_api::{
 
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 
-use super::{
-    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
-    parameter_id_values::{
+use super::{parameter_id_values::{
         PID_DEADLINE, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID,
         PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_RELIABILITY, PID_RESOURCE_LIMITS,
         PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
-    },
-    serde_remote_dds_api::{
+    }, parameter_list_deserializer::ParameterListDeserializer, parameter_list_serializer::ParameterListSerializer, serde_remote_dds_api::{
         BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
         DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize,
         DurabilityServiceQosPolicySerialize, HistoryQosPolicySerialize,
@@ -25,8 +22,7 @@ use super::{
         OwnershipQosPolicySerialize, ReliabilityQosPolicyDeserializeDataReaderAndTopics,
         ReliabilityQosPolicySerialize, ResourceLimitsQosPolicySerialize,
         TopicDataQosPolicySerialize, TransportPriorityQosPolicySerialize,
-    },
-};
+    }};
 
 #[derive(Debug, PartialEq)]
 pub struct SedpDiscoveredTopicData {

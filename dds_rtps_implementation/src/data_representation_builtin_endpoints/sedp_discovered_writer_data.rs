@@ -22,18 +22,14 @@ use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
-use super::{
-    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
-    serde_remote_rtps_pim::{EntityIdSerialize, LocatorDeserialize, LocatorSerialize},
-    parameter_id_values::{
+use super::{parameter_id_values::{
         PID_DATA_MAX_SIZE_SERIALIZED, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
         PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID,
         PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP,
         PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION,
         PID_RELIABILITY, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR,
         PID_USER_DATA,
-    },
-    serde_remote_dds_api::{
+    }, parameter_list_deserializer::ParameterListDeserializer, parameter_list_serializer::ParameterListSerializer, serde_remote_dds_api::{
         BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
         DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize,
         DurabilityServiceQosPolicySerialize, GroupDataQosPolicySerialize,
@@ -41,8 +37,7 @@ use super::{
         OwnershipQosPolicySerialize, OwnershipStrengthQosPolicySerialize,
         PartitionQosPolicySerialize, PresentationQosPolicySerialize, ReliabilityQosPolicySerialize,
         TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
-    },
-};
+    }, serde_remote_rtps_pim::{EntityIdSerialize, LocatorDeserialize, LocatorSerialize}};
 
 #[derive(Debug, PartialEq)]
 pub struct SedpDiscoveredWriterData {
