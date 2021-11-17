@@ -174,10 +174,14 @@ impl<'de: 'a, 'a> ParameterList<'a> {
 }
 
 impl<'de> ParameterList<'de> {
-    pub fn get<T: serde::Deserialize<'de>>(&self, parameter_id: u16) -> DDSResult<T> {
+    pub fn get<T, U>(&self, parameter_id: u16) -> DDSResult<U>
+    where
+        T: serde::Deserialize<'de>,
+        U: From<T>,
+    {
         for parameter in self.parameter.iter() {
             if parameter.parameter_id == parameter_id {
-                return Ok(self.deserialize_parameter(parameter)?);
+                return Ok(self.deserialize_parameter::<T>(parameter)?.into());
             }
         }
         Err(DDSError::PreconditionNotMet(format!(
@@ -185,10 +189,11 @@ impl<'de> ParameterList<'de> {
             parameter_id
         )))
     }
-    pub fn get_optional<T, U>(&self, parameter_id: u16) -> DDSResult<U>
-        where T: serde::Deserialize<'de>,
+    pub fn get_or_default<T, U>(&self, parameter_id: u16) -> DDSResult<U>
+    where
+        T: serde::Deserialize<'de>,
         U: From<T> + Default,
-        {
+    {
         for parameter in self.parameter.iter() {
             if parameter.parameter_id == parameter_id {
                 return Ok(self.deserialize_parameter::<T>(parameter)?.into());

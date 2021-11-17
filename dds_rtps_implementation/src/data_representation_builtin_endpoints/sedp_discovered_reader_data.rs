@@ -251,9 +251,7 @@ impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
 
         // reader_proxy
         let remote_group_entity_id = param_list
-            .get::<EntityIdDeserialize>(PID_GROUP_ENTITYID)
-            .unwrap()
-            .0;
+            .get::<EntityIdDeserialize, _>(PID_GROUP_ENTITYID)?;
         let unicast_locator_list = param_list
             .get_list::<LocatorDeserialize>(PID_UNICAST_LOCATOR)
             .unwrap()
@@ -267,20 +265,16 @@ impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
             .map(|l| l.0)
             .collect();
         let expects_inline_qos = param_list
-            .get::<bool>(PID_MULTICAST_LOCATOR)
+            .get::<bool, _>(PID_MULTICAST_LOCATOR)
             .unwrap_or(DEFAULT_EXPECTS_INLINE_QOS);
 
         // subscription_builtin_topic_data
         let key = param_list
-            .get::<BuiltInTopicKeyDeserialize>(PID_ENDPOINT_GUID)
-            .unwrap()
-            .0;
+            .get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
         let participant_key = param_list
-            .get::<BuiltInTopicKeyDeserialize>(PID_PARTICIPANT_GUID)
-            .unwrap()
-            .0;
-        let topic_name = param_list.get(PID_TOPIC_NAME).unwrap();
-        let type_name = param_list.get(PID_TYPE_NAME).unwrap();
+            .get::<BuiltInTopicKeyDeserialize, _>(PID_PARTICIPANT_GUID)?;
+        let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
+        let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
 
         // Assembly
         let remote_reader_guid = convert_built_in_topic_key_to_guid(&key);

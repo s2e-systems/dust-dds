@@ -294,23 +294,17 @@ impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
             .into_iter()
             .map(|l| l.0)
             .collect();
-        let data_max_size_serialized = param_list.get::<i32>(PID_DATA_MAX_SIZE_SERIALIZED).ok();
+        let data_max_size_serialized = param_list.get::<i32, _>(PID_DATA_MAX_SIZE_SERIALIZED).ok();
         let remote_group_entity_id = param_list
-            .get::<EntityIdDeserialize>(PID_GROUP_ENTITYID)
-            .unwrap()
-            .0;
+            .get::<EntityIdDeserialize, _>(PID_GROUP_ENTITYID)?;
 
         // publication_builtin_topic_data
         let key = param_list
-            .get::<BuiltInTopicKeyDeserialize>(PID_ENDPOINT_GUID)
-            .unwrap()
-            .0;
+            .get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
         let participant_key = param_list
-            .get::<BuiltInTopicKeyDeserialize>(PID_PARTICIPANT_GUID)
-            .unwrap()
-            .0;
-        let topic_name = param_list.get(PID_TOPIC_NAME).unwrap();
-        let type_name = param_list.get(PID_TYPE_NAME).unwrap();
+            .get::<BuiltInTopicKeyDeserialize, _>(PID_PARTICIPANT_GUID)?;
+        let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
+        let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
 
         // Assembly
         let remote_writer_guid = convert_built_in_topic_key_to_guid(&key);

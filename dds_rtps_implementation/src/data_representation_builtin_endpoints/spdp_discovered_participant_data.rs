@@ -34,7 +34,7 @@ use super::{
     },
     serde_remote_rtps_pim::{
         CountSerdeDeserialize, CountSerdeSerialize, DurationSerdeDeserialize,
-        DurationSerdeSerialize, GuidSerdeDeserialize, GuidSerdeSerialize, LocatorDeserialize,
+        DurationSerdeSerialize, GuidDeserialize, GuidSerialize, LocatorDeserialize,
         LocatorSerialize, ProtocolVersionSerdeDeserialize, ProtocolVersionSerdeSerialize,
     },
 };
@@ -79,7 +79,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 
         parameter_list_serializer.serialize_parameter(
             PID_PARTICIPANT_GUID,
-            &GuidSerdeSerialize(&Guid {
+            &GuidSerialize(&Guid {
                 prefix: self.participant_proxy.guid_prefix,
                 entity_id: ENTITYID_PARTICIPANT,
             }),
@@ -199,27 +199,20 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let param_list = ParameterList::read(buf)?;
 
         let guid = param_list
-            .get::<GuidSerdeDeserialize>(PID_PARTICIPANT_GUID)?
-            .0;
-        // let user_data = param_list
-        //     .get(PID_USER_DATA)
-        //     .unwrap_or(UserDataQosPolicyDeserialize(UserDataQosPolicy::default()))
-        //     .0;
-        let user_data = param_list.get_optional::<UserDataQosPolicyDeserialize, _>(PID_USER_DATA)?;
+            .get::<GuidDeserialize, _>(PID_PARTICIPANT_GUID)?;
+        let user_data = param_list.get_or_default::<UserDataQosPolicyDeserialize, _>(PID_USER_DATA)?;
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: convert_guid_to_built_in_topic_key(&guid),
             user_data,
         };
 
-        let domain_id = param_list.get(PID_DOMAIN_ID).unwrap();
+        let domain_id = param_list.get::<u32, _>(PID_DOMAIN_ID)?;
         let domain_tag = param_list
-            .get(PID_DOMAIN_TAG)
+            .get::<String, _>(PID_DOMAIN_TAG)
             .unwrap_or(DEFAULT_DOMAIN_TAG.to_string());
         let protocol_version = param_list
-            .get::<ProtocolVersionSerdeDeserialize>(PID_PROTOCOL_VERSION)
-            .unwrap()
-            .0;
+            .get::<ProtocolVersionSerdeDeserialize, _>(PID_PROTOCOL_VERSION)?;
         let vendor_id = param_list.get(PID_VENDORID).unwrap();
         let expects_inline_qos = param_list
             .get(PID_EXPECTS_INLINE_QOS)
@@ -237,15 +230,11 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             .get_list::<LocatorDeserialize>(PID_DEFAULT_MULTICAST_LOCATOR)
             .unwrap();
         let available_builtin_endpoints = param_list
-            .get::<BuiltinEndpointSetSerdeDeserialize>(PID_BUILTIN_ENDPOINT_SET)
-            .unwrap()
-            .0;
+            .get::<BuiltinEndpointSetSerdeDeserialize,_>(PID_BUILTIN_ENDPOINT_SET)?;
         let manual_liveliness_count = param_list
-            .get::<CountSerdeDeserialize>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)
-            .unwrap()
-            .0;
+            .get::<CountSerdeDeserialize, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
         let builtin_endpoint_qos = param_list
-            .get::<BuiltinEndpointQosSerdeDeserialize>(PID_BUILTIN_ENDPOINT_QOS)
+            .get::<BuiltinEndpointQosSerdeDeserialize, _>(PID_BUILTIN_ENDPOINT_QOS)
             .unwrap_or(BuiltinEndpointQosSerdeDeserialize(
                 BuiltinEndpointQos::default(),
             ))
@@ -279,7 +268,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             builtin_endpoint_qos,
         };
         let lease_duration = param_list
-            .get::<DurationSerdeDeserialize>(PID_PARTICIPANT_LEASE_DURATION)
+            .get::<DurationSerdeDeserialize, _>(PID_PARTICIPANT_LEASE_DURATION)
             .unwrap_or(DurationSerdeDeserialize(DEFAULT_PARTICIPANT_LEASE_DURATION))
             .0;
         Ok(Self {

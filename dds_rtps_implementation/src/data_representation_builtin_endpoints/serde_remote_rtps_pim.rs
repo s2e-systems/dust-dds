@@ -42,7 +42,7 @@ pub struct ProtocolVersionSerdeSerialize<'a>(
     #[serde(with = "ProtocolVersionDef")] pub &'a ProtocolVersion,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct ProtocolVersionSerdeDeserialize(
     #[serde(with = "ProtocolVersionDef")] pub ProtocolVersion,
 );
@@ -57,10 +57,10 @@ pub struct GuidDef {
 }
 
 #[derive(Debug, PartialEq, serde::Serialize)]
-pub struct GuidSerdeSerialize<'a>(#[serde(with = "GuidDef")] pub &'a Guid);
+pub struct GuidSerialize<'a>(#[serde(with = "GuidDef")] pub &'a Guid);
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct GuidSerdeDeserialize(#[serde(with = "GuidDef")] pub Guid);
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+pub struct GuidDeserialize(#[serde(with = "GuidDef")] pub Guid);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "EntityId")]
@@ -71,7 +71,7 @@ pub struct EntityIdDef {
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct EntityIdSerialize<'a>(#[serde(with = "EntityIdDef")] pub &'a EntityId);
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct EntityIdDeserialize(#[serde(with = "EntityIdDef")] pub EntityId);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -86,5 +86,5 @@ pub struct CountDef(pub i32);
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct CountSerdeSerialize<'a>(#[serde(with = "CountDef")] pub &'a Count);
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct CountSerdeDeserialize(#[serde(with = "CountDef")] pub Count);

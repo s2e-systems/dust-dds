@@ -24,15 +24,10 @@ pub struct UserDataQosPolicySerialize<'a>(
     #[serde(with = "UserDataQosPolicyDef")] pub &'a UserDataQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct UserDataQosPolicyDeserialize(
     #[serde(with = "UserDataQosPolicyDef")] pub UserDataQosPolicy,
 );
-impl From<UserDataQosPolicyDeserialize> for UserDataQosPolicy {
-    fn from(v: UserDataQosPolicyDeserialize) -> Self {
-        v.0
-    }
-}
 
 
 
@@ -44,7 +39,7 @@ pub struct BuiltinEndpointSetDef(pub u32);
 pub struct BuiltinEndpointSetSerdeSerialize<'a>(
     #[serde(with = "BuiltinEndpointSetDef")] pub &'a BuiltinEndpointSet,
 );
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct BuiltinEndpointSetSerdeDeserialize(
     #[serde(with = "BuiltinEndpointSetDef")] pub BuiltinEndpointSet,
 );
@@ -76,7 +71,7 @@ pub struct BuiltInTopicKeySerialize<'a>(
     #[serde(with = "BuiltInTopicKeyDef")] pub &'a BuiltInTopicKey,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct BuiltInTopicKeyDeserialize(#[serde(with = "BuiltInTopicKeyDef")] pub BuiltInTopicKey);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]

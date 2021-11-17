@@ -178,11 +178,9 @@ impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
         let param_list = ParameterList::read(buf).unwrap();
 
         let key = param_list
-            .get::<BuiltInTopicKeyDeserialize>(PID_ENDPOINT_GUID)
-            .unwrap()
-            .0;
-        let name = param_list.get(PID_TOPIC_NAME).unwrap();
-        let type_name = param_list.get(PID_TYPE_NAME).unwrap();
+            .get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
+        let name = param_list.get::<String,_>(PID_TOPIC_NAME)?;
+        let type_name = param_list.get::<String,_>(PID_TYPE_NAME).unwrap();
 
         let topic_builtin_topic_data = TopicBuiltinTopicData {
             key,
