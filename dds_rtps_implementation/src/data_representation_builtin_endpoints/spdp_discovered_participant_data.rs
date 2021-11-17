@@ -196,16 +196,16 @@ fn convert_guid_to_built_in_topic_key(guid: &Guid) -> BuiltInTopicKey {
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-        let param_list = ParameterList::read(buf).unwrap();
+        let param_list = ParameterList::read(buf)?;
 
         let guid = param_list
-            .get::<GuidSerdeDeserialize>(PID_PARTICIPANT_GUID)
-            .unwrap()
+            .get::<GuidSerdeDeserialize>(PID_PARTICIPANT_GUID)?
             .0;
-        let user_data = param_list
-            .get::<UserDataQosPolicyDeserialize>(PID_USER_DATA)
-            .unwrap_or(UserDataQosPolicyDeserialize(UserDataQosPolicy::default()))
-            .0;
+        // let user_data = param_list
+        //     .get(PID_USER_DATA)
+        //     .unwrap_or(UserDataQosPolicyDeserialize(UserDataQosPolicy::default()))
+        //     .0;
+        let user_data = param_list.get_optional::<UserDataQosPolicyDeserialize, _>(PID_USER_DATA)?;
 
         let dds_participant_data = ParticipantBuiltinTopicData {
             key: convert_guid_to_built_in_topic_key(&guid),

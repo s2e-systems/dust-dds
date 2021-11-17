@@ -12,7 +12,6 @@ use rust_dds_api::{
     },
 };
 use rust_rtps_psm::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
-use serde::Serialize;
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "UserDataQosPolicy")]
@@ -29,6 +28,13 @@ pub struct UserDataQosPolicySerialize<'a>(
 pub struct UserDataQosPolicyDeserialize(
     #[serde(with = "UserDataQosPolicyDef")] pub UserDataQosPolicy,
 );
+impl From<UserDataQosPolicyDeserialize> for UserDataQosPolicy {
+    fn from(v: UserDataQosPolicyDeserialize) -> Self {
+        v.0
+    }
+}
+
+
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointSet")]
@@ -238,11 +244,10 @@ impl<'de> ReliabilityQosPolicyKindDef {
     where
         S: serde::Serializer,
     {
-        match this {
+        serde::Serialize::serialize(&match this {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => BEST_EFFORT,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => RELIABLE,
-        }
-        .serialize(serializer)
+        }, serializer)
     }
 
     pub fn deserialize<D: serde::Deserializer<'de>>(

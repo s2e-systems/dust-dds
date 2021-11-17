@@ -1,7 +1,4 @@
-use std::{
-    io::{BufRead, Read},
-    marker::PhantomData,
-};
+use std::{io::Read, marker::PhantomData};
 
 use byteorder::{ByteOrder, ReadBytesExt};
 use rust_dds_api::return_type::{DDSError, DDSResult};
@@ -70,12 +67,15 @@ where
     }
 
     pub fn serialize_sentinel(&mut self) -> DDSResult<()> {
-        PID_SENTINEL.serialize(&mut self.serializer).map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
-        [0_u8, 0].serialize(&mut self.serializer).map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+        PID_SENTINEL
+            .serialize(&mut self.serializer)
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+        [0_u8, 0]
+            .serialize(&mut self.serializer)
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
         Ok(())
     }
 }
-
 
 #[derive(Debug, PartialEq)]
 pub struct Parameter<'a> {
@@ -84,9 +84,13 @@ pub struct Parameter<'a> {
 }
 
 impl<'de: 'a, 'a> Parameter<'a> {
-    fn read<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
-        let parameter_id = buf.read_u16::<B>()?;
-        let length = buf.read_i16::<B>()?;
+    fn read<B: ByteOrder>(buf: &mut &'de [u8]) -> DDSResult<Self> {
+        let parameter_id = buf
+            .read_u16::<B>()
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+        let length = buf
+            .read_i16::<B>()
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
         let (value, following) = buf.split_at(length as usize);
         *buf = following;
         Ok(Self {
@@ -103,17 +107,37 @@ enum RepresentationIdentifier {
 }
 
 impl RepresentationIdentifier {
-    pub fn read(buf: &mut &[u8]) -> Result<Self, std::io::Error> {
+    pub fn read(buf: &mut &[u8]) -> DDSResult<Self> {
         let mut representation_identifier = [0; 2];
-        buf.read(&mut representation_identifier)?;
+        buf.read(&mut representation_identifier)
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
         match representation_identifier {
             BigEndian::REPRESENTATION_IDENTIFIER => Ok(RepresentationIdentifier::PlCdrBe),
             LittleEndian::REPRESENTATION_IDENTIFIER => Ok(RepresentationIdentifier::PlCdrLe),
-            _ => Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Invalid representation identifier",
+            _ => Err(DDSError::PreconditionNotMet(
+                "Invalid representation identifier".to_string(),
             )),
         }
+    }
+}
+
+struct RepresentationOptions([u8; 2]);
+impl RepresentationOptions {
+    pub fn read(buf: &mut &[u8]) -> DDSResult<Self> {
+        Ok(Self([
+            buf.read_u8().map_err(|err| {
+                DDSError::PreconditionNotMet(format!(
+                    "read of representation options[0] failed with: {}",
+                    err.to_string()
+                ))
+            })?,
+            buf.read_u8().map_err(|err| {
+                DDSError::PreconditionNotMet(format!(
+                    "read of representation options[1] failed with: {}",
+                    err.to_string()
+                ))
+            })?,
+        ]))
     }
 }
 
@@ -124,10 +148,9 @@ pub struct ParameterList<'a> {
 }
 
 impl<'de: 'a, 'a> ParameterList<'a> {
-    pub fn read(buf: &mut &'de [u8]) -> Result<Self, std::io::Error> {
+    pub fn read(buf: &mut &'de [u8]) -> DDSResult<Self> {
         let representation_identifier = RepresentationIdentifier::read(buf)?;
-        // ignore representation_options
-        buf.consume(2);
+        let _representation_options = RepresentationOptions::read(buf)?;
 
         let mut parameter = vec![];
         loop {
@@ -151,28 +174,34 @@ impl<'de: 'a, 'a> ParameterList<'a> {
 }
 
 impl<'de> ParameterList<'de> {
-    pub fn get<T: serde::Deserialize<'de>>(&self, parameter_id: u16) -> Result<T, std::io::Error> {
+    pub fn get<T: serde::Deserialize<'de>>(&self, parameter_id: u16) -> DDSResult<T> {
         for parameter in self.parameter.iter() {
             if parameter.parameter_id == parameter_id {
                 return Ok(self.deserialize_parameter(parameter)?);
             }
         }
-        Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("Parameter with id {} not found", parameter_id),
-        ))
+        Err(DDSError::PreconditionNotMet(format!(
+            "Parameter with id {} not found",
+            parameter_id
+        )))
+    }
+    pub fn get_optional<T, U>(&self, parameter_id: u16) -> DDSResult<U>
+        where T: serde::Deserialize<'de>,
+        U: From<T> + Default,
+        {
+        for parameter in self.parameter.iter() {
+            if parameter.parameter_id == parameter_id {
+                return Ok(self.deserialize_parameter::<T>(parameter)?.into());
+            }
+        }
+        Ok(U::default())
     }
 
-    pub fn get_list<T: serde::Deserialize<'de>>(
-        &self,
-        parameter_id: u16,
-    ) -> Result<Vec<T>, std::io::Error> {
+    pub fn get_list<T: serde::Deserialize<'de>>(&self, parameter_id: u16) -> DDSResult<Vec<T>> {
         let mut result = vec![];
         for parameter in self.parameter.iter() {
             if parameter.parameter_id == parameter_id {
-                if let Ok(result_i) = self.deserialize_parameter(parameter) {
-                    result.push(result_i);
-                }
+                result.push(self.deserialize_parameter(parameter)?);
             }
         }
         Ok(result)
@@ -181,7 +210,7 @@ impl<'de> ParameterList<'de> {
     fn deserialize_parameter<T: serde::Deserialize<'de>>(
         &self,
         parameter: &Parameter,
-    ) -> Result<T, std::io::Error> {
+    ) -> DDSResult<T> {
         Ok(match self.representation_identifier {
             RepresentationIdentifier::PlCdrBe => {
                 let mut deserializer = cdr::Deserializer::<_, _, byteorder::BigEndian>::new(
@@ -189,7 +218,10 @@ impl<'de> ParameterList<'de> {
                     cdr::Infinite,
                 );
                 serde::Deserialize::deserialize(&mut deserializer).map_err(|err| {
-                    std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
+                    DDSError::PreconditionNotMet(format!(
+                        "deserialize_parameter big endian failed with: {}",
+                        err.to_string()
+                    ))
                 })?
             }
             RepresentationIdentifier::PlCdrLe => {
@@ -198,7 +230,10 @@ impl<'de> ParameterList<'de> {
                     cdr::Infinite,
                 );
                 serde::Deserialize::deserialize(&mut deserializer).map_err(|err| {
-                    std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string())
+                    DDSError::PreconditionNotMet(format!(
+                        "deserialize_parameter little endian failed with: {}",
+                        err.to_string()
+                    ))
                 })?
             }
         })
