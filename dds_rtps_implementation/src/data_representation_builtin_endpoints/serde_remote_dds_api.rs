@@ -516,7 +516,7 @@ mod tests {
     #[test]
     fn deserialize_reliability_qos_policy_def() {
         let data = &[
-            3u8, 0, 0, 0, // kind
+            2u8, 0, 0, 0, // kind
             0, 0, 0, 0, // max_blocking_time:  sec: i32,
             100, 0, 0, 0, // max_blocking_time:  nanosec: u32,
         ];
