@@ -19,11 +19,11 @@ use rust_rtps_pim::{
 
 use crate::{
     data_representation_builtin_endpoints::serde_remote_rtps_pim::EntityIdDeserialize,
-    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
 use super::{
+    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
     serde_remote_rtps_pim::{EntityIdSerialize, LocatorDeserialize, LocatorSerialize},
     parameter_id_values::{
         PID_DATA_MAX_SIZE_SERIALIZED, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,

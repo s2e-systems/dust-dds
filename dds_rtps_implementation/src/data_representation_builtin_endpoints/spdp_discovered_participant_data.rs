@@ -16,19 +16,28 @@ use crate::{
         PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_UNICAST_LOCATOR,
         PID_PARTICIPANT_LEASE_DURATION,
     },
-    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
 
-use super::{parameter_id_values::{
+use super::{
+    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
+    parameter_id_values::{
         PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
         PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
         PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
-    }, serde_remote_dds_api::{
+    },
+    serde_remote_dds_api::{
         BuiltinEndpointQosSerdeDeserialize, BuiltinEndpointQosSerdeSerialize,
         BuiltinEndpointSetSerdeDeserialize, BuiltinEndpointSetSerdeSerialize,
         UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
-    }, serde_remote_rtps_pim::{CountSerdeDeserialize, CountSerdeSerialize, DomainTagDeserialize, DurationSerdeDeserialize, DurationSerdeSerialize, ExpectsInclineQosDeserialize, GuidDeserialize, GuidSerialize, LocatorDeserialize, LocatorSerialize, ProtocolVersionSerdeDeserialize, ProtocolVersionSerdeSerialize}};
+    },
+    serde_remote_rtps_pim::{
+        CountSerdeDeserialize, CountSerdeSerialize, DomainTagDeserialize, DurationSerdeDeserialize,
+        DurationSerdeSerialize, ExpectsInclineQosDeserialize, GuidDeserialize, GuidSerialize,
+        LocatorDeserialize, LocatorSerialize, ProtocolVersionSerdeDeserialize,
+        ProtocolVersionSerdeSerialize,
+    },
+};
 
 #[derive(Debug, PartialEq)]
 pub struct SpdpDiscoveredParticipantData {
@@ -193,8 +202,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let user_data =
             param_list.get_or_default::<UserDataQosPolicyDeserialize, _>(PID_USER_DATA)?;
         let domain_id = param_list.get::<u32, _>(PID_DOMAIN_ID)?;
-        let domain_tag = param_list
-            .get_or_default::<DomainTagDeserialize, _>(PID_DOMAIN_TAG)?;
+        let domain_tag = param_list.get_or_default::<DomainTagDeserialize, _>(PID_DOMAIN_TAG)?;
         let protocol_version =
             param_list.get::<ProtocolVersionSerdeDeserialize, _>(PID_PROTOCOL_VERSION)?;
         let vendor_id = param_list.get(PID_VENDORID)?;

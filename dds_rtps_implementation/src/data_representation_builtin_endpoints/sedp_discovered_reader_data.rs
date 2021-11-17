@@ -16,11 +16,11 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
 use super::{
+    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
     parameter_id_values::{
         DEFAULT_EXPECTS_INLINE_QOS, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
         PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID,

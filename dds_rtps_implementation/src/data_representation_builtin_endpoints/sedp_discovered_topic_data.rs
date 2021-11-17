@@ -8,12 +8,10 @@ use rust_dds_api::{
     },
 };
 
-use crate::{
-    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
-};
+use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 
 use super::{
+    data_serialize_deserialize::{ParameterListDeserializer, ParameterListSerializer},
     parameter_id_values::{
         PID_DEADLINE, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID,
         PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_RELIABILITY, PID_RESOURCE_LIMITS,
