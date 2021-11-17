@@ -4,6 +4,8 @@ use rust_rtps_pim::{
     structure::types::{EntityId, EntityKind, Guid, GuidPrefix, Locator, ProtocolVersion},
 };
 
+use super::parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION};
+
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "Duration")]
@@ -15,8 +17,13 @@ pub struct DurationDef {
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct DurationSerdeSerialize<'a>(#[serde(with = "DurationDef")] pub &'a Duration);
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct DurationSerdeDeserialize(#[serde(with = "DurationDef")] pub Duration);
+impl Default for DurationSerdeDeserialize {
+    fn default() -> Self {
+        Self(DEFAULT_PARTICIPANT_LEASE_DURATION)
+    }
+}
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "Locator")]
@@ -28,7 +35,7 @@ pub struct LocatorDef {
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct LocatorSerialize<'a>(#[serde(with = "LocatorDef")] pub &'a Locator);
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct LocatorDeserialize(#[serde(with = "LocatorDef")] pub Locator);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -88,3 +95,19 @@ pub struct CountSerdeSerialize<'a>(#[serde(with = "CountDef")] pub &'a Count);
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct CountSerdeDeserialize(#[serde(with = "CountDef")] pub Count);
+
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+pub struct ExpectsInclineQosDeserialize(pub bool);
+impl Default for ExpectsInclineQosDeserialize {
+    fn default() -> Self {
+        Self(DEFAULT_EXPECTS_INLINE_QOS)
+    }
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+pub struct DomainTagDeserialize(pub String);
+impl Default for DomainTagDeserialize {
+    fn default() -> Self {
+        Self(DEFAULT_DOMAIN_TAG.to_string())
+    }
+}

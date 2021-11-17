@@ -191,22 +191,22 @@ impl<'de> ParameterList<'de> {
     }
     pub fn get_or_default<T, U>(&self, parameter_id: u16) -> DDSResult<U>
     where
-        T: serde::Deserialize<'de>,
-        U: From<T> + Default,
+        T: serde::Deserialize<'de> + Default,
+        U: From<T>,
     {
         for parameter in self.parameter.iter() {
             if parameter.parameter_id == parameter_id {
                 return Ok(self.deserialize_parameter::<T>(parameter)?.into());
             }
         }
-        Ok(U::default())
+        Ok(T::default().into())
     }
 
-    pub fn get_list<T: serde::Deserialize<'de>>(&self, parameter_id: u16) -> DDSResult<Vec<T>> {
+    pub fn get_list<T, U>(&self, parameter_id: u16) -> DDSResult<Vec<U>> where T: serde::Deserialize<'de> + Into<U> {
         let mut result = vec![];
         for parameter in self.parameter.iter() {
             if parameter.parameter_id == parameter_id {
-                result.push(self.deserialize_parameter(parameter)?);
+                result.push(self.deserialize_parameter::<T>(parameter)?.into());
             }
         }
         Ok(result)

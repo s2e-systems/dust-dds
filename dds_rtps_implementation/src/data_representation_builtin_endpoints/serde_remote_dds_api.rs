@@ -1,16 +1,4 @@
-use rust_dds_api::{
-    dcps_psm::{BuiltInTopicKey, Duration},
-    infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind,
-        DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy,
-        GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy,
-        LifespanQosPolicy, LivelinessQosPolicy, LivelinessQosPolicyKind, OwnershipQosPolicy,
-        OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, PresentationQosPolicyAccessScopeKind, ReliabilityQosPolicy,
-        ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
-        TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-    },
-};
+use rust_dds_api::{dcps_psm::{BuiltInTopicKey, Duration}, infrastructure::qos_policy::{DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, DurabilityQosPolicy, DurabilityQosPolicyKind, DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, LivelinessQosPolicyKind, OwnershipQosPolicy, OwnershipQosPolicyKind, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy, PresentationQosPolicyAccessScopeKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy}};
 use rust_rtps_psm::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -24,12 +12,10 @@ pub struct UserDataQosPolicySerialize<'a>(
     #[serde(with = "UserDataQosPolicyDef")] pub &'a UserDataQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct UserDataQosPolicyDeserialize(
     #[serde(with = "UserDataQosPolicyDef")] pub UserDataQosPolicy,
 );
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltinEndpointSet")]
@@ -53,7 +39,7 @@ pub struct BuiltinEndpointQosSerdeSerialize<'a>(
     #[serde(with = "BuiltinEndpointQosDef")] pub &'a BuiltinEndpointQos,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct BuiltinEndpointQosSerdeDeserialize(
     #[serde(with = "BuiltinEndpointQosDef")] pub BuiltinEndpointQos,
 );
@@ -266,8 +252,24 @@ pub struct ReliabilityQosPolicySerialize<'a>(
     #[serde(with = "ReliabilityQosPolicyDef")] pub &'a ReliabilityQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
-pub struct ReliabilityQosPolicyDeserialize(#[serde(with = "ReliabilityQosPolicyDef")] pub ReliabilityQosPolicy);
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+pub struct ReliabilityQosPolicyDeserializeDataWriter(
+    #[serde(with = "ReliabilityQosPolicyDef")] pub ReliabilityQosPolicy
+);
+impl Default for ReliabilityQosPolicyDeserializeDataWriter {
+    fn default() -> Self {
+        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)
+    }
+}
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+pub struct ReliabilityQosPolicyDeserializeDataReaderAndTopics(
+    #[serde(with = "ReliabilityQosPolicyDef")] pub ReliabilityQosPolicy
+);
+impl Default for ReliabilityQosPolicyDeserializeDataReaderAndTopics {
+    fn default() -> Self {
+        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
+    }
+}
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "TransportPriorityQosPolicy")]
@@ -524,7 +526,7 @@ mod tests {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
             max_blocking_time: Duration::new(0, 100),
         };
-        let result: ReliabilityQosPolicyDeserialize = from_bytes_le(data);
+        let result: ReliabilityQosPolicyDeserializeDataReaderAndTopics = from_bytes_le(data);
         assert_eq!(result.0, expected);
     }
 }

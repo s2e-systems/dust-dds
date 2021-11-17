@@ -283,17 +283,9 @@ impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
 
         // writer_proxy
         let unicast_locator_list = param_list
-            .get_list::<LocatorDeserialize>(PID_UNICAST_LOCATOR)
-            .unwrap()
-            .into_iter()
-            .map(|l| l.0)
-            .collect();
+            .get_list::<LocatorDeserialize, _>(PID_UNICAST_LOCATOR)?;
         let multicast_locator_list = param_list
-            .get_list::<LocatorDeserialize>(PID_MULTICAST_LOCATOR)
-            .unwrap()
-            .into_iter()
-            .map(|l| l.0)
-            .collect();
+            .get_list::<LocatorDeserialize, _>(PID_MULTICAST_LOCATOR)?;
         let data_max_size_serialized = param_list.get::<i32, _>(PID_DATA_MAX_SIZE_SERIALIZED).ok();
         let remote_group_entity_id = param_list
             .get::<EntityIdDeserialize, _>(PID_GROUP_ENTITYID)?;
