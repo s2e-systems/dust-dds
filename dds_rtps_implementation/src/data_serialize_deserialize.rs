@@ -4,6 +4,7 @@ use std::{
 };
 
 use byteorder::{ByteOrder, ReadBytesExt};
+use rust_dds_api::return_type::{DDSError, DDSResult};
 use serde::Serialize;
 
 use crate::dds_type::{BigEndian, Endianness, LittleEndian};
@@ -27,19 +28,19 @@ where
     // Todo: return result since it may fail
     pub fn new(writer: W) -> Self {
         let mut serializer = cdr::Serializer::<_, E::Endianness>::new(writer);
-        E::REPRESENTATION_IDENTIFIER.serialize(&mut serializer).unwrap();
-        E::REPRESENTATION_OPTIONS.serialize(&mut serializer).unwrap();
+        E::REPRESENTATION_IDENTIFIER
+            .serialize(&mut serializer)
+            .unwrap();
+        E::REPRESENTATION_OPTIONS
+            .serialize(&mut serializer)
+            .unwrap();
         Self {
             serializer,
             phantom: PhantomData,
         }
     }
 
-    pub fn serialize_parameter<T>(
-        &mut self,
-        parameter_id: u16,
-        value: &T,
-    ) -> std::result::Result<(), std::io::Error>
+    pub fn serialize_parameter<T>(&mut self, parameter_id: u16, value: &T) -> DDSResult<()>
     where
         T: serde::Serialize,
     {
@@ -47,22 +48,21 @@ where
         let padding_length = (4 - length_without_padding) & 3;
         let length = length_without_padding + padding_length;
 
-        parameter_id.serialize(&mut self.serializer).map_err(|err| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
-        })?;
+        parameter_id
+            .serialize(&mut self.serializer)
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
 
-        length.serialize(&mut self.serializer).map_err(|err| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
-        })?;
+        length
+            .serialize(&mut self.serializer)
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
 
-        value.serialize(&mut self.serializer).map_err(|err| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
-        })?;
+        value
+            .serialize(&mut self.serializer)
+            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
 
         for _ in 0..padding_length {
-            0_u8.serialize(&mut self.serializer).map_err(|err| {
-                std::io::Error::new(std::io::ErrorKind::InvalidInput, err.to_string())
-            })?;
+            0_u8.serialize(&mut self.serializer)
+                .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
         }
         Ok(())
     }
@@ -75,7 +75,6 @@ where
     E: Endianness,
 {
     fn drop(&mut self) {
-
         PID_SENTINEL.serialize(&mut self.serializer).unwrap();
         [0_u8, 0].serialize(&mut self.serializer).unwrap();
     }

@@ -69,8 +69,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
                 .serialize_parameter(
                     PID_DURABILITY,
                     &DurabilityQosPolicySerialize(&self.topic_builtin_topic_data.durability),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.durability_service != DurabilityServiceQosPolicy::default()
         {
@@ -80,32 +79,28 @@ impl DdsSerialize for SedpDiscoveredTopicData {
                     &DurabilityServiceQosPolicySerialize(
                         &self.topic_builtin_topic_data.durability_service,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.deadline != DeadlineQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_DEADLINE,
                     &DeadlineQosPolicySerialize(&self.topic_builtin_topic_data.deadline),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.latency_budget != LatencyBudgetQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_LATENCY_BUDGET,
                     &LatencyBudgetQosPolicySerialize(&self.topic_builtin_topic_data.latency_budget),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.liveliness != LivelinessQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_LIVELINESS,
                     &LivelinessQosPolicySerialize(&self.topic_builtin_topic_data.liveliness),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.reliability
             != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
@@ -114,8 +109,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
                 .serialize_parameter(
                     PID_RELIABILITY,
                     &ReliabilityQosPolicySerialize(&self.topic_builtin_topic_data.reliability),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.transport_priority != TransportPriorityQosPolicy::default()
         {
@@ -125,16 +119,14 @@ impl DdsSerialize for SedpDiscoveredTopicData {
                     &TransportPriorityQosPolicySerialize(
                         &self.topic_builtin_topic_data.transport_priority,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.lifespan != LifespanQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_LIFESPAN,
                     &LifespanQosPolicySerialize(&self.topic_builtin_topic_data.lifespan),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.destination_order != DestinationOrderQosPolicy::default() {
             parameter_list_serializer
@@ -143,16 +135,14 @@ impl DdsSerialize for SedpDiscoveredTopicData {
                     &DestinationOrderQosPolicySerialize(
                         &self.topic_builtin_topic_data.destination_order,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.history != HistoryQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_LIFESPAN,
                     &HistoryQosPolicySerialize(&self.topic_builtin_topic_data.history),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.resource_limits != ResourceLimitsQosPolicy::default() {
             parameter_list_serializer
@@ -161,24 +151,21 @@ impl DdsSerialize for SedpDiscoveredTopicData {
                     &ResourceLimitsQosPolicySerialize(
                         &self.topic_builtin_topic_data.resource_limits,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.ownership != OwnershipQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_RESOURCE_LIMITS,
                     &OwnershipQosPolicySerialize(&self.topic_builtin_topic_data.ownership),
-                )
-                .unwrap();
+                )?;
         }
         if self.topic_builtin_topic_data.topic_data != TopicDataQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_RESOURCE_LIMITS,
                     &TopicDataQosPolicySerialize(&self.topic_builtin_topic_data.topic_data),
-                )
-                .unwrap();
+                )?;
         }
 
         Ok(())

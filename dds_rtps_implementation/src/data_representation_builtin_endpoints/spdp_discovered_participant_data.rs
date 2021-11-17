@@ -69,8 +69,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 
         if self.participant_proxy.domain_tag != DEFAULT_DOMAIN_TAG {
             parameter_list_serializer
-                .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)
-                .unwrap();
+                .serialize_parameter(PID_DOMAIN_TAG, &self.participant_proxy.domain_tag)?;
         }
 
         parameter_list_serializer
@@ -99,8 +98,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
                 .serialize_parameter(
                     PID_EXPECTS_INLINE_QOS,
                     &self.participant_proxy.expects_inline_qos,
-                )
-                .unwrap();
+                )?;
         }
 
         for metatraffic_unicast_locator in &self.participant_proxy.metatraffic_unicast_locator_list
@@ -109,8 +107,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
                 .serialize_parameter(
                     PID_METATRAFFIC_UNICAST_LOCATOR,
                     &LocatorSerialize(metatraffic_unicast_locator),
-                )
-                .unwrap();
+                )?;
         }
 
         for metatraffic_multicast_locator in
@@ -120,8 +117,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
                 .serialize_parameter(
                     PID_METATRAFFIC_MULTICAST_LOCATOR,
                     &LocatorSerialize(metatraffic_multicast_locator),
-                )
-                .unwrap();
+                )?;
         }
 
         for default_unicast_locator in &self.participant_proxy.default_unicast_locator_list {
@@ -129,8 +125,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
                 .serialize_parameter(
                     PID_DEFAULT_UNICAST_LOCATOR,
                     &LocatorSerialize(default_unicast_locator),
-                )
-                .unwrap();
+                )?;
         }
 
         for default_multicast_locator in &self.participant_proxy.default_multicast_locator_list {
@@ -138,8 +133,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
                 .serialize_parameter(
                     PID_DEFAULT_MULTICAST_LOCATOR,
                     &LocatorSerialize(default_multicast_locator),
-                )
-                .unwrap();
+                )?;
         }
 
         parameter_list_serializer
@@ -163,8 +157,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
                 .serialize_parameter(
                     PID_BUILTIN_ENDPOINT_QOS,
                     &BuiltinEndpointQosSerdeSerialize(&self.participant_proxy.builtin_endpoint_qos),
-                )
-                .unwrap();
+                )?;
         }
 
         parameter_list_serializer
@@ -179,8 +172,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
                 .serialize_parameter(
                     PID_USER_DATA,
                     &UserDataQosPolicySerialize(&self.dds_participant_data.user_data),
-                )
-                .unwrap();
+                )?;
         }
 
         Ok(())

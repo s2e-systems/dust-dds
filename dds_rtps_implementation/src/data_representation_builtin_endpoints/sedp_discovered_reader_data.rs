@@ -69,13 +69,11 @@ impl DdsSerialize for SedpDiscoveredReaderData {
 
         for locator in &self.reader_proxy.unicast_locator_list {
             parameter_list_serializer
-                .serialize_parameter(PID_UNICAST_LOCATOR, &LocatorSerialize(locator))
-                .unwrap();
+                .serialize_parameter(PID_UNICAST_LOCATOR, &LocatorSerialize(locator))?;
         }
         for locator in &self.reader_proxy.multicast_locator_list {
             parameter_list_serializer
-                .serialize_parameter(PID_MULTICAST_LOCATOR, &LocatorSerialize(locator))
-                .unwrap();
+                .serialize_parameter(PID_MULTICAST_LOCATOR, &LocatorSerialize(locator))?;
         }
         parameter_list_serializer
             .serialize_parameter(
@@ -88,8 +86,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                 .serialize_parameter(
                     PID_EXPECTS_INLINE_QOS,
                     &self.reader_proxy.expects_inline_qos,
-                )
-                .unwrap();
+                )?;
         }
 
         parameter_list_serializer
@@ -123,16 +120,14 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                     &DurabilityQosPolicySerialize(
                         &self.subscription_builtin_topic_data.durability,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.deadline != DeadlineQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_DEADLINE,
                     &DeadlineQosPolicySerialize(&self.subscription_builtin_topic_data.deadline),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.latency_budget != LatencyBudgetQosPolicy::default()
         {
@@ -142,8 +137,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                     &LatencyBudgetQosPolicySerialize(
                         &self.subscription_builtin_topic_data.latency_budget,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.liveliness != LivelinessQosPolicy::default() {
             parameter_list_serializer
@@ -152,8 +146,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                     &LivelinessQosPolicySerialize(
                         &self.subscription_builtin_topic_data.liveliness,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.reliability
             != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
@@ -164,16 +157,14 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                     &ReliabilityQosPolicySerialize(
                         &self.subscription_builtin_topic_data.reliability,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.ownership != OwnershipQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_OWNERSHIP,
                     &OwnershipQosPolicySerialize(&self.subscription_builtin_topic_data.ownership),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.destination_order
             != DestinationOrderQosPolicy::default()
@@ -184,16 +175,14 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                     &DestinationOrderQosPolicySerialize(
                         &self.subscription_builtin_topic_data.destination_order,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.user_data != UserDataQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_USER_DATA,
                     &UserDataQosPolicySerialize(&self.subscription_builtin_topic_data.user_data),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.time_based_filter
             != TimeBasedFilterQosPolicy::default()
@@ -204,8 +193,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                     &TimeBasedFilterQosPolicySerialize(
                         &self.subscription_builtin_topic_data.time_based_filter,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.presentation != PresentationQosPolicy::default() {
             parameter_list_serializer
@@ -214,32 +202,28 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                     &PresentationQosPolicySerialize(
                         &self.subscription_builtin_topic_data.presentation,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.partition != PartitionQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_PARTITION,
                     &PartitionQosPolicySerialize(&self.subscription_builtin_topic_data.partition),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.topic_data != TopicDataQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_TOPIC_DATA,
                     &TopicDataQosPolicySerialize(&self.subscription_builtin_topic_data.topic_data),
-                )
-                .unwrap();
+                )?;
         }
         if self.subscription_builtin_topic_data.group_data != GroupDataQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_GROUP_DATA,
                     &GroupDataQosPolicySerialize(&self.subscription_builtin_topic_data.group_data),
-                )
-                .unwrap();
+                )?;
         }
 
         Ok(())

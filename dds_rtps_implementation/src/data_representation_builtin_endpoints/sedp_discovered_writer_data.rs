@@ -68,57 +68,48 @@ impl DdsSerialize for SedpDiscoveredWriterData {
 
         for locator in &self.writer_proxy.unicast_locator_list {
             parameter_list_serializer
-                .serialize_parameter(PID_UNICAST_LOCATOR, &LocatorSerialize(locator))
-                .unwrap();
+                .serialize_parameter(PID_UNICAST_LOCATOR, &LocatorSerialize(locator))?;
         }
         for locator in &self.writer_proxy.multicast_locator_list {
             parameter_list_serializer
-                .serialize_parameter(PID_MULTICAST_LOCATOR, &LocatorSerialize(locator))
-                .unwrap();
+                .serialize_parameter(PID_MULTICAST_LOCATOR, &LocatorSerialize(locator))?;
         }
         if let Some(data_max_size_serialized) = &self.writer_proxy.data_max_size_serialized {
             parameter_list_serializer
-                .serialize_parameter(PID_DATA_MAX_SIZE_SERIALIZED, data_max_size_serialized)
-                .unwrap();
+                .serialize_parameter(PID_DATA_MAX_SIZE_SERIALIZED, data_max_size_serialized)?;
         }
         parameter_list_serializer
             .serialize_parameter(
                 PID_GROUP_ENTITYID,
                 &EntityIdSerialize(&self.writer_proxy.remote_group_entity_id),
-            )
-            .unwrap();
+            )?;
 
         parameter_list_serializer
             .serialize_parameter(
                 PID_ENDPOINT_GUID,
                 &BuiltInTopicKeySerialize(&self.publication_builtin_topic_data.key),
-            )
-            .unwrap();
+            )?;
         parameter_list_serializer
             .serialize_parameter(
                 PID_PARTICIPANT_GUID,
                 &BuiltInTopicKeySerialize(&self.publication_builtin_topic_data.participant_key),
-            )
-            .unwrap();
+            )?;
         parameter_list_serializer
             .serialize_parameter(
                 PID_TOPIC_NAME,
                 &self.publication_builtin_topic_data.topic_name,
-            )
-            .unwrap();
+            )?;
         parameter_list_serializer
             .serialize_parameter(
                 PID_TYPE_NAME,
                 &self.publication_builtin_topic_data.type_name,
-            )
-            .unwrap();
+            )?;
         if self.publication_builtin_topic_data.durability != DurabilityQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_DURABILITY,
                     &DurabilityQosPolicySerialize(&self.publication_builtin_topic_data.durability),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.durability_service
             != DurabilityServiceQosPolicy::default()
@@ -129,16 +120,14 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                     &DurabilityServiceQosPolicySerialize(
                         &self.publication_builtin_topic_data.durability_service,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.deadline != DeadlineQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_DEADLINE,
                     &DeadlineQosPolicySerialize(&self.publication_builtin_topic_data.deadline),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.latency_budget != LatencyBudgetQosPolicy::default() {
             parameter_list_serializer
@@ -147,16 +136,14 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                     &LatencyBudgetQosPolicySerialize(
                         &self.publication_builtin_topic_data.latency_budget,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.liveliness != LivelinessQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_LIVELINESS,
                     &LivelinessQosPolicySerialize(&self.publication_builtin_topic_data.liveliness),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.reliability
             != DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER
@@ -167,32 +154,28 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                     &ReliabilityQosPolicySerialize(
                         &self.publication_builtin_topic_data.reliability,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.lifespan != LifespanQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_LIFESPAN,
                     &LifespanQosPolicySerialize(&self.publication_builtin_topic_data.lifespan),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.user_data != UserDataQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_USER_DATA,
                     &UserDataQosPolicySerialize(&self.publication_builtin_topic_data.user_data),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.ownership != OwnershipQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_OWNERSHIP,
                     &OwnershipQosPolicySerialize(&self.publication_builtin_topic_data.ownership),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.ownership_strength
             != OwnershipStrengthQosPolicy::default()
@@ -203,8 +186,7 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                     &OwnershipStrengthQosPolicySerialize(
                         &self.publication_builtin_topic_data.ownership_strength,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.destination_order
             != DestinationOrderQosPolicy::default()
@@ -215,8 +197,7 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                     &DestinationOrderQosPolicySerialize(
                         &self.publication_builtin_topic_data.destination_order,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.presentation != PresentationQosPolicy::default() {
             parameter_list_serializer
@@ -225,32 +206,28 @@ impl DdsSerialize for SedpDiscoveredWriterData {
                     &PresentationQosPolicySerialize(
                         &self.publication_builtin_topic_data.presentation,
                     ),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.partition != PartitionQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_PARTITION,
                     &PartitionQosPolicySerialize(&self.publication_builtin_topic_data.partition),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.topic_data != TopicDataQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_TOPIC_DATA,
                     &TopicDataQosPolicySerialize(&self.publication_builtin_topic_data.topic_data),
-                )
-                .unwrap();
+                )?;
         }
         if self.publication_builtin_topic_data.group_data != GroupDataQosPolicy::default() {
             parameter_list_serializer
                 .serialize_parameter(
                     PID_GROUP_DATA,
                     &GroupDataQosPolicySerialize(&self.publication_builtin_topic_data.group_data),
-                )
-                .unwrap();
+                )?;
         }
 
         Ok(())

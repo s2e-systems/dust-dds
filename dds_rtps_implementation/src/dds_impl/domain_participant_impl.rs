@@ -232,7 +232,7 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
+                "Publisher can only be deleted from its parent participant".to_string(),
             ))
         }
     }

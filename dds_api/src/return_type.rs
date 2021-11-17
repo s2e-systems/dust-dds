@@ -5,7 +5,7 @@ pub enum DDSError {
     Error,
     Unsupported,
     BadParameter,
-    PreconditionNotMet(&'static str),
+    PreconditionNotMet(String),
     OutOfResources,
     NotEnabled,
     ImmutablePolicy,
