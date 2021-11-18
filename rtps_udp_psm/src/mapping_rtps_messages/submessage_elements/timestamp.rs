@@ -4,20 +4,20 @@ use byteorder::ByteOrder;
 use rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
 
 use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
+    deserialize::{self, MappingReadByteOrdered},
+    serialize::{self, MappingWriteByteOrdered},
 };
 
-impl Serialize for TimestampSubmessageElement {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for TimestampSubmessageElement {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.value.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for TimestampSubmessageElement {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+impl<'de> MappingReadByteOrdered<'de> for TimestampSubmessageElement {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self {
-            value: Deserialize::deserialize::<B>(buf)?,
+            value: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
         })
     }
 }

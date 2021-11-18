@@ -2,8 +2,8 @@ use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::Su
 use rust_rtps_psm::messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite};
 
 use crate::{
-    deserialize::{self, Deserialize, DeserializeSubmessage},
-    serialize::{Serialize, SerializeSubmessage},
+    deserialize::{self, MappingReadByteOrdered, DeserializeSubmessage},
+    serialize::{MappingWriteByteOrdered, SerializeSubmessage},
 };
 
 use std::io::Write;
@@ -32,11 +32,11 @@ impl SerializeSubmessage for HeartbeatSubmessageWrite {
         &self,
         mut writer: W,
     ) -> crate::serialize::Result {
-        self.reader_id.serialize::<_, B>(&mut writer)?;
-        self.writer_id.serialize::<_, B>(&mut writer)?;
-        self.first_sn.serialize::<_, B>(&mut writer)?;
-        self.last_sn.serialize::<_, B>(&mut writer)?;
-        self.count.serialize::<_, B>(&mut writer)
+        self.reader_id.write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_id.write_byte_ordered::<_, B>(&mut writer)?;
+        self.first_sn.write_byte_ordered::<_, B>(&mut writer)?;
+        self.last_sn.write_byte_ordered::<_, B>(&mut writer)?;
+        self.count.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
@@ -45,11 +45,11 @@ impl<'de> DeserializeSubmessage<'de> for HeartbeatSubmessageRead {
         buf: &mut &'de [u8],
         header: rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader,
     ) -> deserialize::Result<Self> {
-        let reader_id = Deserialize::deserialize::<B>(buf)?;
-        let writer_id = Deserialize::deserialize::<B>(buf)?;
-        let first_sn = Deserialize::deserialize::<B>(buf)?;
-        let last_sn = Deserialize::deserialize::<B>(buf)?;
-        let count = Deserialize::deserialize::<B>(buf)?;
+        let reader_id = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+        let writer_id = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+        let first_sn = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+        let last_sn = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+        let count = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
         Ok(Self::new(
             header.flags[0],
             header.flags[1],

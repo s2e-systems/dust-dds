@@ -4,7 +4,7 @@ use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
 
 use crate::{
-    deserialize::{self, Deserialize, MappingRead},
+    deserialize::{self, MappingReadByteOrdered, MappingRead},
     serialize::{self, MappingWrite},
 };
 
@@ -19,9 +19,9 @@ impl MappingWrite for RtpsMessageHeader {
     }
 }
 
-impl<'de> Deserialize<'de> for RtpsMessageHeader {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let protocol: [u8; 4] = Deserialize::deserialize::<B>(buf)?;
+impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let protocol: [u8; 4] = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS
         } else {
@@ -32,9 +32,9 @@ impl<'de> Deserialize<'de> for RtpsMessageHeader {
         };
         Ok(Self {
             protocol,
-            version: Deserialize::deserialize::<B>(buf)?,
-            vendor_id: Deserialize::deserialize::<B>(buf)?,
-            guid_prefix: Deserialize::deserialize::<B>(buf)?,
+            version: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
+            vendor_id: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
+            guid_prefix: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
         })
     }
 }

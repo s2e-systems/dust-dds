@@ -4,32 +4,32 @@ use byteorder::ByteOrder;
 use rust_rtps_pim::{messages::{submessage_elements::FragmentNumberSubmessageElement, types::FragmentNumber}};
 
 use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
+    deserialize::{self, MappingReadByteOrdered},
+    serialize::{self, MappingWriteByteOrdered},
 };
 
-impl Serialize for FragmentNumber {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.0.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for FragmentNumber {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.0.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for FragmentNumber {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self(Deserialize::deserialize::<B>(buf)?))
+impl<'de> MappingReadByteOrdered<'de> for FragmentNumber {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self(MappingReadByteOrdered::read_byte_ordered::<B>(buf)?))
     }
 }
 
-impl Serialize for FragmentNumberSubmessageElement {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for FragmentNumberSubmessageElement {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.value.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for FragmentNumberSubmessageElement {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSubmessageElement {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self {
-            value: Deserialize::deserialize::<B>(buf)?,
+            value: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
         })
     }
 }

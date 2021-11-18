@@ -3,16 +3,16 @@ use std::io::Write;
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{submessage_elements::CountSubmessageElement, types::Count};
 
-use crate::{deserialize::{self, Deserialize}, serialize::{self, NumberOfBytes, Serialize}};
+use crate::{deserialize::{self, MappingReadByteOrdered}, serialize::{self, NumberOfBytes, MappingWriteByteOrdered}};
 
-impl Serialize for Count {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.0.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for Count {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.0.write_byte_ordered::<_, B>(&mut writer)
     }
 }
-impl<'de> Deserialize<'de> for Count {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self(Deserialize::deserialize::<B>(buf)?))
+impl<'de> MappingReadByteOrdered<'de> for Count {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self(MappingReadByteOrdered::read_byte_ordered::<B>(buf)?))
     }
 }
 impl NumberOfBytes for Count {
@@ -21,16 +21,16 @@ impl NumberOfBytes for Count {
     }
 }
 
-impl Serialize for CountSubmessageElement {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for CountSubmessageElement {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.value.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for CountSubmessageElement {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+impl<'de> MappingReadByteOrdered<'de> for CountSubmessageElement {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self {
-            value: Deserialize::deserialize::<B>(buf)?,
+            value: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
         })
     }
 }

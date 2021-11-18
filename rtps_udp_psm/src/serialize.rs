@@ -33,12 +33,12 @@ pub trait SerializeSubmessage {
     ) -> crate::serialize::Result;
 }
 
-pub trait Serialize {
-    fn serialize<W: Write, B: ByteOrder>(&self, writer: W) -> Result;
+pub trait MappingWriteByteOrdered {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result;
 }
 
-impl Serialize for u8 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+impl MappingWriteByteOrdered for u8 {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
         writer.write_u8(*self)
     }
 }
@@ -48,38 +48,38 @@ impl MappingWrite for u8 {
     }
 }
 
-impl Serialize for i8 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+impl MappingWriteByteOrdered for i8 {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
         writer.write_i8(*self)
     }
 }
 
-impl Serialize for u16 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+impl MappingWriteByteOrdered for u16 {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
         writer.write_u16::<B>(*self)
     }
 }
 
-impl Serialize for i16 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+impl MappingWriteByteOrdered for i16 {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
         writer.write_i16::<B>(*self)
     }
 }
 
-impl Serialize for u32 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+impl MappingWriteByteOrdered for u32 {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
         writer.write_u32::<B>(*self)
     }
 }
 
-impl Serialize for i32 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+impl MappingWriteByteOrdered for i32 {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
         writer.write_i32::<B>(*self)
     }
 }
 
-impl<const N: usize> Serialize for [u8; N] {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+impl<const N: usize> MappingWriteByteOrdered for [u8; N] {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
         writer.write_all(self)?;
         Ok(())
     }
@@ -90,28 +90,28 @@ impl<const N: usize> MappingWrite for [u8; N] {
     }
 }
 
-impl Serialize for &str {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+impl MappingWriteByteOrdered for &str {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
         let length = self.as_bytes().len() as u32 + 1;
-        length.serialize::<_, B>(&mut writer)?;
+        length.write_byte_ordered::<_, B>(&mut writer)?;
         writer.write_all(self.as_bytes())?;
         writer.write_u8(0)
     }
 }
 
-impl Serialize for bool {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
-        if *self { 1_u8 } else { 0 }.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for bool {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result {
+        if *self { 1_u8 } else { 0 }.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-pub fn to_writer_le<S: Serialize, W: Write>(value: &S, mut writer: W) -> Result {
-    value.serialize::<_, LittleEndian>(&mut writer)
+pub fn to_writer_le<S: MappingWriteByteOrdered, W: Write>(value: &S, mut writer: W) -> Result {
+    value.write_byte_ordered::<_, LittleEndian>(&mut writer)
 }
 
-pub fn to_bytes_le<S: Serialize>(value: &S) -> std::result::Result<Vec<u8>, std::io::Error> {
+pub fn to_bytes_le<S: MappingWriteByteOrdered>(value: &S) -> std::result::Result<Vec<u8>, std::io::Error> {
     let mut writer = Vec::<u8>::new();
-    value.serialize::<_, LittleEndian>(&mut writer)?;
+    value.write_byte_ordered::<_, LittleEndian>(&mut writer)?;
     Ok(writer)
 }
 

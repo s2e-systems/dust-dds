@@ -33,14 +33,14 @@ where
     }
 }
 
-pub trait Deserialize<'de>: Sized {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> Result<Self>
+pub trait MappingReadByteOrdered<'de>: Sized {
+    fn read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self>
     where
         B: ByteOrder;
 }
 
-impl<'de> Deserialize<'de> for u8 {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> Result<Self>
+impl<'de> MappingReadByteOrdered<'de> for u8 {
+    fn read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self>
     where
         B: ByteOrder,
     {
@@ -53,8 +53,8 @@ impl<'de> MappingRead<'de> for u8 {
     }
 }
 
-impl<'de> Deserialize<'de> for i8 {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> Result<Self>
+impl<'de> MappingReadByteOrdered<'de> for i8 {
+    fn read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self>
     where
         B: ByteOrder,
     {
@@ -62,8 +62,8 @@ impl<'de> Deserialize<'de> for i8 {
     }
 }
 
-impl<'de> Deserialize<'de> for u16 {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> Result<Self>
+impl<'de> MappingReadByteOrdered<'de> for u16 {
+    fn read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self>
     where
         B: ByteOrder,
     {
@@ -71,8 +71,8 @@ impl<'de> Deserialize<'de> for u16 {
     }
 }
 
-impl<'de> Deserialize<'de> for i16 {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> Result<Self>
+impl<'de> MappingReadByteOrdered<'de> for i16 {
+    fn read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self>
     where
         B: ByteOrder,
     {
@@ -80,8 +80,8 @@ impl<'de> Deserialize<'de> for i16 {
     }
 }
 
-impl<'de> Deserialize<'de> for u32 {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> Result<Self>
+impl<'de> MappingReadByteOrdered<'de> for u32 {
+    fn read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self>
     where
         B: ByteOrder,
     {
@@ -89,8 +89,8 @@ impl<'de> Deserialize<'de> for u32 {
     }
 }
 
-impl<'de> Deserialize<'de> for i32 {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> Result<Self>
+impl<'de> MappingReadByteOrdered<'de> for i32 {
+    fn read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self>
     where
         B: ByteOrder,
     {
@@ -98,8 +98,8 @@ impl<'de> Deserialize<'de> for i32 {
     }
 }
 
-impl<'de, const N: usize> Deserialize<'de> for [u8; N] {
-    fn deserialize<B>(buf: &mut &'de [u8]) -> Result<Self>
+impl<'de, const N: usize> MappingReadByteOrdered<'de> for [u8; N] {
+    fn read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self>
     where
         B: ByteOrder,
     {
@@ -116,9 +116,9 @@ impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
     }
 }
 
-impl<'de> Deserialize<'de> for bool {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self> {
-        let value: u8 = Deserialize::deserialize::<B>(buf)?;
+impl<'de> MappingReadByteOrdered<'de> for bool {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self> {
+        let value: u8 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
         match value {
             0 => Ok(false),
             1 => Ok(true),
@@ -130,9 +130,9 @@ impl<'de> Deserialize<'de> for bool {
     }
 }
 
-impl<'de> Deserialize<'de> for &'de str {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self> {
-        let length: u32 = Deserialize::deserialize::<B>(buf)?;
+impl<'de> MappingReadByteOrdered<'de> for &'de str {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self> {
+        let length: u32 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
         let length = length as usize;
         let result = std::str::from_utf8(&buf[..length - 1])
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string()))?;
@@ -141,8 +141,8 @@ impl<'de> Deserialize<'de> for &'de str {
     }
 }
 
-pub fn from_bytes_le<'de, D: Deserialize<'de>>(mut buf: &'de [u8]) -> Result<D> {
-    D::deserialize::<LittleEndian>(&mut buf)
+pub fn from_bytes_le<'de, D: MappingReadByteOrdered<'de>>(mut buf: &'de [u8]) -> Result<D> {
+    D::read_byte_ordered::<LittleEndian>(&mut buf)
 }
 
 pub fn from_bytes<'de, D: MappingRead<'de>>(mut buf: &'de [u8]) -> Result<D> {

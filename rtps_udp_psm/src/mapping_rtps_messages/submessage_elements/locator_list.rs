@@ -4,35 +4,35 @@ use byteorder::ByteOrder;
 use rust_rtps_pim::{messages::submessage_elements::LocatorListSubmessageElement, structure::types::Locator};
 
 use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
+    deserialize::{self, MappingReadByteOrdered},
+    serialize::{self, MappingWriteByteOrdered},
 };
 
 
-impl<T> Serialize for LocatorListSubmessageElement<T>
+impl<T> MappingWriteByteOrdered for LocatorListSubmessageElement<T>
 where
     for<'a> &'a T: IntoIterator<Item = &'a Locator>,
 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         let locator_list: Vec<&Locator> = self.value.into_iter().collect();
         let num_locators = locator_list.len() as u32;
-        num_locators.serialize::<_, B>(&mut writer)?;
+        num_locators.write_byte_ordered::<_, B>(&mut writer)?;
         for locator in locator_list {
-            locator.serialize::<_, B>(&mut writer)?;
+            locator.write_byte_ordered::<_, B>(&mut writer)?;
         };
         Ok(())
     }
 }
 
-impl<'de, T> Deserialize<'de> for LocatorListSubmessageElement<T>
+impl<'de, T> MappingReadByteOrdered<'de> for LocatorListSubmessageElement<T>
 where
     T: FromIterator<Locator>,
 {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let num_locators: u32 = Deserialize::deserialize::<B>(buf)?;
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let num_locators: u32 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
         let mut locator_list = Vec::new();
         for _ in 0..num_locators {
-            locator_list.push(Deserialize::deserialize::<B>(buf)?);
+            locator_list.push(MappingReadByteOrdered::read_byte_ordered::<B>(buf)?);
         };
         Ok(Self{value: T::from_iter(locator_list.into_iter())})
     }

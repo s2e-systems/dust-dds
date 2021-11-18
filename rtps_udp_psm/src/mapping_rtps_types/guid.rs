@@ -4,21 +4,21 @@ use byteorder::ByteOrder;
 use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
 use crate::{
-    deserialize::{self, Deserialize, MappingRead},
-    serialize::{self, MappingWrite, Serialize},
+    deserialize::{self, MappingReadByteOrdered, MappingRead},
+    serialize::{self, MappingWrite, MappingWriteByteOrdered},
 };
 
-impl Serialize for EntityId {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.entity_key.serialize::<_, B>(&mut writer)?;
-        self.entity_kind.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for EntityId {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.entity_key.write_byte_ordered::<_, B>(&mut writer)?;
+        self.entity_kind.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for EntityId {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let entity_key = Deserialize::deserialize::<B>(buf)?;
-        let entity_kind = Deserialize::deserialize::<B>(buf)?;
+impl<'de> MappingReadByteOrdered<'de> for EntityId {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let entity_key = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+        let entity_kind = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
         Ok(Self {
             entity_key,
             entity_kind,
@@ -26,15 +26,15 @@ impl<'de> Deserialize<'de> for EntityId {
     }
 }
 
-impl Serialize for GuidPrefix {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.0.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for GuidPrefix {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.0.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for GuidPrefix {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self(Deserialize::deserialize::<B>(buf)?))
+impl<'de> MappingReadByteOrdered<'de> for GuidPrefix {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self(MappingReadByteOrdered::read_byte_ordered::<B>(buf)?))
     }
 }
 
@@ -50,18 +50,18 @@ impl<'de> MappingRead<'de> for GuidPrefix {
     }
 }
 
-impl Serialize for Guid {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.prefix.serialize::<_, B>(&mut writer)?;
-        self.entity_id.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for Guid {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.prefix.write_byte_ordered::<_, B>(&mut writer)?;
+        self.entity_id.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for Guid {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+impl<'de> MappingReadByteOrdered<'de> for Guid {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self {
-            prefix: Deserialize::deserialize::<B>(buf)?,
-            entity_id: Deserialize::deserialize::<B>(buf)?,
+            prefix: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
+            entity_id: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
         })
     }
 }

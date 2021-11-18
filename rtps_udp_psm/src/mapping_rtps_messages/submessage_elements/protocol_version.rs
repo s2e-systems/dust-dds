@@ -6,12 +6,12 @@ use rust_rtps_pim::{
     structure::types::ProtocolVersion,
 };
 
-use crate::{deserialize::{self, Deserialize, MappingRead}, serialize::{self, MappingWrite, NumberOfBytes, Serialize}};
+use crate::{deserialize::{self, MappingReadByteOrdered, MappingRead}, serialize::{self, MappingWrite, NumberOfBytes, MappingWriteByteOrdered}};
 
-impl Serialize for ProtocolVersion {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.major.serialize::<_, B>(&mut writer)?;
-        self.minor.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for ProtocolVersion {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.major.write_byte_ordered::<_, B>(&mut writer)?;
+        self.minor.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
@@ -22,11 +22,11 @@ impl MappingWrite for ProtocolVersion {
     }
 }
 
-impl<'de> Deserialize<'de> for ProtocolVersion {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+impl<'de> MappingReadByteOrdered<'de> for ProtocolVersion {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self {
-            major: Deserialize::deserialize::<B>(buf)?,
-            minor: Deserialize::deserialize::<B>(buf)?,
+            major: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
+            minor: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
         })
     }
 }
@@ -46,15 +46,15 @@ impl NumberOfBytes for ProtocolVersion {
     }
 }
 
-impl Serialize for ProtocolVersionSubmessageElement {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for ProtocolVersionSubmessageElement {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.value.write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for ProtocolVersionSubmessageElement {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self { value: Deserialize::deserialize::<B>(buf)? })
+impl<'de> MappingReadByteOrdered<'de> for ProtocolVersionSubmessageElement {
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self { value: MappingReadByteOrdered::read_byte_ordered::<B>(buf)? })
     }
 }
 

@@ -3,13 +3,13 @@ use std::io::Write;
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElement;
 
-use crate::serialize::{self, NumberOfBytes, Serialize};
+use crate::serialize::{self, NumberOfBytes, MappingWriteByteOrdered};
 
-impl<D> Serialize for SerializedDataSubmessageElement<D>
+impl<D> MappingWriteByteOrdered for SerializedDataSubmessageElement<D>
 where
     D: AsRef<[u8]>,
 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         writer.write_all(self.value.as_ref())?;
         Ok(())
     }

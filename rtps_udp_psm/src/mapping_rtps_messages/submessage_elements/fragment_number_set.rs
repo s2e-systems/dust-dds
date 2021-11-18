@@ -6,15 +6,15 @@ use rust_rtps_pim::messages::{
 };
 
 use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
+    deserialize::{self, MappingReadByteOrdered},
+    serialize::{self, MappingWriteByteOrdered},
 };
 
-impl<T> Serialize for FragmentNumberSetSubmessageElement<T>
+impl<T> MappingWriteByteOrdered for FragmentNumberSetSubmessageElement<T>
 where
     for<'a> &'a T: IntoIterator<Item = &'a FragmentNumber>,
 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in &self.set {
@@ -27,26 +27,26 @@ where
         }
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
 
-        self.base.serialize::<_, B>(&mut writer)?;
-        num_bits.serialize::<_, B>(&mut writer)?;
+        self.base.write_byte_ordered::<_, B>(&mut writer)?;
+        num_bits.write_byte_ordered::<_, B>(&mut writer)?;
         for i in 0..number_of_bitmap_elements {
-            bitmap[i].serialize::<_, B>(&mut writer)?;
+            bitmap[i].write_byte_ordered::<_, B>(&mut writer)?;
         }
         Ok(())
     }
 }
 
-impl<'de, T> Deserialize<'de> for FragmentNumberSetSubmessageElement<T>
+impl<'de, T> MappingReadByteOrdered<'de> for FragmentNumberSetSubmessageElement<T>
 where
     T: FromIterator<FragmentNumber>,
 {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let base: FragmentNumber = Deserialize::deserialize::<B>(buf)?;
-        let num_bits: u32 = Deserialize::deserialize::<B>(buf)?;
+    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let base: FragmentNumber = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+        let num_bits: u32 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
         let mut bitmap = [0; 8];
         for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-            *bitmap_i = Deserialize::deserialize::<B>(buf)?;
+            *bitmap_i = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
         }
 
         let mut set = Vec::with_capacity(256);
