@@ -5,9 +5,11 @@ use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::Su
 use rust_rtps_psm::messages::submessages::{GapSubmessageRead, GapSubmessageWrite};
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered, MappingReadSubmessage},
-    serialize::{self, NumberOfBytes, MappingWriteByteOrdered, MappingWriteSubmessage},
+    deserialize::{self, MappingReadByteOrdered},
+    serialize::{self, MappingWriteByteOrdered, NumberOfBytes},
 };
+
+use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
 impl MappingWriteSubmessage for GapSubmessageWrite {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
@@ -32,10 +34,14 @@ impl MappingWriteSubmessage for GapSubmessageWrite {
         &self,
         mut writer: W,
     ) -> serialize::Result {
-        self.reader_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.gap_start.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.gap_list.mapping_write_byte_ordered::<_, B>(&mut writer)
+        self.reader_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.gap_start
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.gap_list
+            .mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 

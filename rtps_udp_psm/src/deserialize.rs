@@ -7,27 +7,6 @@ pub trait MappingRead<'de>: Sized {
     fn mapping_read(buf: &mut &'de [u8]) -> Result<Self>;
 }
 
-pub trait MappingReadSubmessage<'de>: Sized {
-    fn mapping_read_submessage<B: ByteOrder>(
-        buf: &mut &'de [u8],
-        header: RtpsSubmessageHeader,
-    ) -> Result<Self>;
-}
-
-impl<'a, 'de: 'a, T> MappingRead<'de> for T
-where
-    T: MappingReadSubmessage<'de>,
-{
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self> {
-        let header: RtpsSubmessageHeader = MappingRead::mapping_read(buf)?;
-        if header.flags[0] {
-            Self::mapping_read_submessage::<LittleEndian>(buf, header)
-        } else {
-            Self::mapping_read_submessage::<BigEndian>(buf, header)
-        }
-    }
-}
-
 pub trait MappingReadByteOrdered<'de>: Sized {
     fn mapping_read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self>
     where

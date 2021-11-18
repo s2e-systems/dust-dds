@@ -8,28 +8,6 @@ pub trait MappingWrite {
     fn mapping_write<W: Write>(&self, writer: W) -> Result;
 }
 
-impl<T> MappingWrite for T
-where
-    T: MappingWriteSubmessage,
-{
-    fn mapping_write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
-        self.submessage_header().mapping_write(&mut writer)?;
-        if self.submessage_header().flags[0] {
-            self.mapping_write_submessage_elements::<_, LittleEndian>(&mut writer)
-        } else {
-            self.mapping_write_submessage_elements::<_, BigEndian>(&mut writer)
-        }
-    }
-}
-
-pub trait MappingWriteSubmessage {
-    fn submessage_header(&self) -> RtpsSubmessageHeader;
-    fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(
-        &self,
-        writer: W,
-    ) -> crate::serialize::Result;
-}
-
 pub trait MappingWriteByteOrdered {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result;
 }

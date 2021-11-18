@@ -2,11 +2,13 @@ use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::Su
 use rust_rtps_psm::messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite};
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered, MappingReadSubmessage},
-    serialize::{MappingWriteByteOrdered, MappingWriteSubmessage},
+    deserialize::{self, MappingReadByteOrdered},
+    serialize::MappingWriteByteOrdered,
 };
 
 use std::io::Write;
+
+use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
 impl MappingWriteSubmessage for HeartbeatSubmessageWrite {
     fn submessage_header(
@@ -32,10 +34,14 @@ impl MappingWriteSubmessage for HeartbeatSubmessageWrite {
         &self,
         mut writer: W,
     ) -> crate::serialize::Result {
-        self.reader_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.first_sn.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.last_sn.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.reader_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.first_sn
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.last_sn
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.count.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }

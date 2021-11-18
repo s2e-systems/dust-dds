@@ -9,9 +9,11 @@ use rust_rtps_pim::messages::{
 use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered, MappingReadSubmessage},
-    serialize::{self, NumberOfBytes, MappingWriteByteOrdered, MappingWriteSubmessage},
+    deserialize::{self, MappingReadByteOrdered},
+    serialize::{self, MappingWriteByteOrdered, NumberOfBytes},
 };
+
+use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
 impl MappingWriteSubmessage for DataSubmessageWrite<'_> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
@@ -45,14 +47,19 @@ impl MappingWriteSubmessage for DataSubmessageWrite<'_> {
         const EXTRA_FLAGS: u16 = 0;
         EXTRA_FLAGS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         OCTETS_TO_INLINE_QOS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.reader_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_sn.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.reader_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_sn
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         if self.inline_qos_flag {
-            self.inline_qos.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+            self.inline_qos
+                .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         if self.data_flag || self.key_flag {
-            self.serialized_payload.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+            self.serialized_payload
+                .mapping_write_byte_ordered::<_, B>(&mut writer)?;
             // Pad to 32bit boundary
             let padding: &[u8] = match self.serialized_payload.number_of_bytes() % 4 {
                 1 => &[0; 3],
@@ -75,7 +82,8 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessageRead<'a> {
         let data_flag = header.flags[2];
         let key_flag = header.flags[3];
         let _extra_flags: u16 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let octets_to_inline_qos: u16 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let octets_to_inline_qos: u16 =
+            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let writer_sn = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;

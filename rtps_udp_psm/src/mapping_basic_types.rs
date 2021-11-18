@@ -4,9 +4,6 @@ use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 
 use crate::{deserialize::{MappingRead, MappingReadByteOrdered}, serialize::{MappingWrite, MappingWriteByteOrdered, NumberOfBytes}};
 
-// pub type Result = std::result::Result<(), std::io::Error>;
-
-
 impl MappingWrite for u8 {
     fn mapping_write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
         writer.write_u8(*self)
