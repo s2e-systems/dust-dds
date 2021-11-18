@@ -1,32 +1,32 @@
-use rust_dds_api::{
-    builtin_topics::TopicBuiltinTopicData,
-    infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-        DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-        LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
-        TransportPriorityQosPolicy,
-    },
-};
+use rust_dds_api::builtin_topics::TopicBuiltinTopicData;
 
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 
 use super::{
     parameter_id_values::{
-        PID_DEADLINE, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID,
-        PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_RELIABILITY, PID_RESOURCE_LIMITS,
-        PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
+        PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_DURABILITY_SERVICE,
+        PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
+        PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
+        PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
     },
     parameter_list_deserializer::ParameterListDeserializer,
     parameter_list_serializer::ParameterListSerializer,
     serde_remote_dds_api::{
-        BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
-        DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize,
-        DurabilityServiceQosPolicySerialize, HistoryQosPolicySerialize,
-        LatencyBudgetQosPolicySerialize, LifespanQosPolicySerialize, LivelinessQosPolicySerialize,
-        OwnershipQosPolicySerialize, ReliabilityQosPolicyDataReaderAndTopics,
+        BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicyDeserialize,
+        DeadlineQosPolicySerialize, DestinationOrderQosPolicyDeserialize,
+        DestinationOrderQosPolicySerialize, DurabilityQosPolicyDeserialize,
+        DurabilityQosPolicySerialize, DurabilityServiceQosPolicyDeserialize,
+        DurabilityServiceQosPolicySerialize, HistoryQosPolicyDeserialize,
+        HistoryQosPolicySerialize, LatencyBudgetQosPolicyDeserialize,
+        LatencyBudgetQosPolicySerialize, LifespanQosPolicyDeserialize, LifespanQosPolicySerialize,
+        LivelinessQosPolicyDeserialize, LivelinessQosPolicySerialize,
+        OwnershipQosPolicyDeserialize, OwnershipQosPolicySerialize,
+        ReliabilityQosPolicyDataReaderAndTopics,
         ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
-        ReliabilityQosPolicyDataReaderAndTopicsSerialize, ResourceLimitsQosPolicySerialize,
-        TopicDataQosPolicySerialize, TransportPriorityQosPolicySerialize,
+        ReliabilityQosPolicyDataReaderAndTopicsSerialize, ResourceLimitsQosPolicyDeserialize,
+        ResourceLimitsQosPolicySerialize, TopicDataQosPolicyDeserialize,
+        TopicDataQosPolicySerialize, TransportPriorityQosPolicyDeserialize,
+        TransportPriorityQosPolicySerialize,
     },
 };
 
@@ -107,12 +107,12 @@ impl DdsSerialize for SedpDiscoveredTopicData {
             )?;
         parameter_list_serializer
             .serialize_parameter_if_not_default::<DestinationOrderQosPolicySerialize, _>(
-                PID_LIFESPAN,
+                PID_DESTINATION_ORDER,
                 &self.topic_builtin_topic_data.destination_order,
             )?;
         parameter_list_serializer
             .serialize_parameter_if_not_default::<HistoryQosPolicySerialize, _>(
-                PID_LIFESPAN,
+                PID_HISTORY,
                 &self.topic_builtin_topic_data.history,
             )?;
         parameter_list_serializer
@@ -122,12 +122,12 @@ impl DdsSerialize for SedpDiscoveredTopicData {
             )?;
         parameter_list_serializer
             .serialize_parameter_if_not_default::<OwnershipQosPolicySerialize, _>(
-                PID_RESOURCE_LIMITS,
+                PID_OWNERSHIP,
                 &self.topic_builtin_topic_data.ownership,
             )?;
         parameter_list_serializer
             .serialize_parameter_if_not_default::<TopicDataQosPolicySerialize, _>(
-                PID_RESOURCE_LIMITS,
+                PID_TOPIC_DATA,
                 &self.topic_builtin_topic_data.topic_data,
             )?;
         parameter_list_serializer.serialize_sentinel()
@@ -141,38 +141,69 @@ impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
         let key = param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
         let name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
         let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
+        let durability =
+            param_list.get_or_default::<DurabilityQosPolicyDeserialize, _>(PID_DURABILITY)?;
+        let durability_service = param_list
+            .get_or_default::<DurabilityServiceQosPolicyDeserialize, _>(PID_DURABILITY_SERVICE)?;
+        let deadline =
+            param_list.get_or_default::<DeadlineQosPolicyDeserialize, _>(PID_DEADLINE)?;
+        let latency_budget = param_list
+            .get_or_default::<LatencyBudgetQosPolicyDeserialize, _>(PID_LATENCY_BUDGET)?;
+        let liveliness =
+            param_list.get_or_default::<LivelinessQosPolicyDeserialize, _>(PID_LIVELINESS)?;
         let reliability = param_list
             .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize, _>(
                 PID_RELIABILITY,
             )?;
+        let transport_priority = param_list
+            .get_or_default::<TransportPriorityQosPolicyDeserialize, _>(PID_TRANSPORT_PRIORITY)?;
+        let lifespan =
+            param_list.get_or_default::<LifespanQosPolicyDeserialize, _>(PID_LIFESPAN)?;
+        let ownership =
+            param_list.get_or_default::<OwnershipQosPolicyDeserialize, _>(PID_OWNERSHIP)?;
+        let destination_order = param_list
+            .get_or_default::<DestinationOrderQosPolicyDeserialize, _>(PID_DESTINATION_ORDER)?;
+        let history = param_list.get_or_default::<HistoryQosPolicyDeserialize, _>(PID_HISTORY)?;
+        let resource_limits = param_list
+            .get_or_default::<ResourceLimitsQosPolicyDeserialize, _>(PID_RESOURCE_LIMITS)?;
+        let topic_data =
+            param_list.get_or_default::<TopicDataQosPolicyDeserialize, _>(PID_TOPIC_DATA)?;
 
-        let topic_builtin_topic_data = TopicBuiltinTopicData {
-            key,
-            name,
-            type_name,
-            durability: DurabilityQosPolicy::default(),
-            durability_service: DurabilityServiceQosPolicy::default(),
-            deadline: DeadlineQosPolicy::default(),
-            latency_budget: LatencyBudgetQosPolicy::default(),
-            liveliness: LivelinessQosPolicy::default(),
-            reliability, //DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            transport_priority: TransportPriorityQosPolicy::default(),
-            lifespan: LifespanQosPolicy::default(),
-            ownership: OwnershipQosPolicy::default(),
-            destination_order: DestinationOrderQosPolicy::default(),
-            history: HistoryQosPolicy::default(),
-            resource_limits: ResourceLimitsQosPolicy::default(),
-            topic_data: TopicDataQosPolicy::default(),
-        };
         Ok(Self {
-            topic_builtin_topic_data,
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key,
+                name,
+                type_name,
+                durability,
+                durability_service,
+                deadline,
+                latency_budget,
+                liveliness,
+                reliability,
+                transport_priority,
+                lifespan,
+                ownership,
+                destination_order,
+                history,
+                resource_limits,
+                topic_data,
+            },
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy}};
+    use rust_dds_api::{
+        dcps_psm::BuiltInTopicKey,
+        infrastructure::qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+            DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy,
+            TopicDataQosPolicy, TransportPriorityQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        },
+    };
 
     use super::*;
 

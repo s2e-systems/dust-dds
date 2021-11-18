@@ -95,7 +95,7 @@ pub struct DurabilityQosPolicySerialize<'a>(
     #[serde(with = "DurabilityQosPolicyDef")] pub &'a DurabilityQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct DurabilityQosPolicyDeserialize(
     #[serde(with = "DurabilityQosPolicyDef")] pub DurabilityQosPolicy,
 );
@@ -139,7 +139,7 @@ pub struct DurabilityServiceQosPolicySerialize<'a>(
     #[serde(with = "DurabilityServiceQosPolicyDef")] pub &'a DurabilityServiceQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct DurabilityServiceQosPolicyDeserialize(
     #[serde(with = "DurabilityServiceQosPolicyDef")] pub DurabilityServiceQosPolicy,
 );
@@ -156,7 +156,7 @@ pub struct DeadlineQosPolicySerialize<'a>(
     #[serde(with = "DeadlineQosPolicyDef")] pub &'a DeadlineQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct DeadlineQosPolicyDeserialize(
     #[serde(with = "DeadlineQosPolicyDef")] pub DeadlineQosPolicy,
 );
@@ -173,7 +173,7 @@ pub struct LatencyBudgetQosPolicySerialize<'a>(
     #[serde(with = "LatencyBudgetQosPolicyDef")] &'a LatencyBudgetQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct LatencyBudgetQosPolicyDeserialize(
     #[serde(with = "LatencyBudgetQosPolicyDef")] pub LatencyBudgetQosPolicy,
 );
@@ -200,7 +200,7 @@ pub struct LivelinessQosPolicySerialize<'a>(
     #[serde(with = "LivelinessQosPolicyDef")] pub &'a LivelinessQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct LivelinessQosPolicyDeserialize(
     #[serde(with = "LivelinessQosPolicyDef")] pub LivelinessQosPolicy,
 );
@@ -333,7 +333,7 @@ pub struct TransportPriorityQosPolicySerialize<'a>(
     #[serde(with = "TransportPriorityQosPolicyDef")] pub &'a TransportPriorityQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct TransportPriorityQosPolicyDeserialize(
     #[serde(with = "TransportPriorityQosPolicyDef")] pub TransportPriorityQosPolicy,
 );
@@ -350,7 +350,7 @@ pub struct LifespanQosPolicySerialize<'a>(
     #[serde(with = "LifespanQosPolicyDef")] pub &'a LifespanQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct LifespanQosPolicyDeserialize(
     #[serde(with = "LifespanQosPolicyDef")] pub LifespanQosPolicy,
 );
@@ -374,7 +374,7 @@ pub struct DestinationOrderQosPolicySerialize<'a>(
     #[serde(with = "DestinationOrderQosPolicyDef")] pub &'a DestinationOrderQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct DestinationOrderQosPolicyDeserialize(
     #[serde(with = "DestinationOrderQosPolicyDef")] pub DestinationOrderQosPolicy,
 );
@@ -392,7 +392,7 @@ pub struct HistoryQosPolicySerialize<'a>(
     #[serde(with = "HistoryQosPolicyDef")] pub &'a HistoryQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct HistoryQosPolicyDeserialize(#[serde(with = "HistoryQosPolicyDef")] pub HistoryQosPolicy);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -408,7 +408,7 @@ pub struct ResourceLimitsQosPolicySerialize<'a>(
     #[serde(with = "ResourceLimitsQosPolicyDef")] pub &'a ResourceLimitsQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct ResourceLimitsQosPolicyDeserialize(
     #[serde(with = "ResourceLimitsQosPolicyDef")] pub ResourceLimitsQosPolicy,
 );
@@ -432,7 +432,7 @@ pub struct OwnershipQosPolicySerialize<'a>(
     #[serde(with = "OwnershipQosPolicyDef")] pub &'a OwnershipQosPolicy,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct OwnershipQosPolicyDeserialize(
     #[serde(with = "OwnershipQosPolicyDef")] pub OwnershipQosPolicy,
 );
@@ -446,7 +446,7 @@ pub struct TopicDataQosPolicyDef {
 pub struct TopicDataQosPolicySerialize<'a>(
     #[serde(with = "TopicDataQosPolicyDef")] pub &'a TopicDataQosPolicy,
 );
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct TopicDataQosPolicyDeserialize(
     #[serde(with = "TopicDataQosPolicyDef")] pub TopicDataQosPolicy,
 );
@@ -460,7 +460,7 @@ pub struct OwnershipStrengthQosPolicyDef {
 pub struct OwnershipStrengthQosPolicySerialize<'a>(
     #[serde(with = "OwnershipStrengthQosPolicyDef")] pub &'a OwnershipStrengthQosPolicy,
 );
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct OwnershipStrengthQosPolicyDeserialize(
     #[serde(with = "OwnershipStrengthQosPolicyDef")] pub OwnershipStrengthQosPolicy,
 );
@@ -485,7 +485,7 @@ pub struct PresentationQosPolicyDef {
 pub struct PresentationQosPolicySerialize<'a>(
     #[serde(with = "PresentationQosPolicyDef")] pub &'a PresentationQosPolicy,
 );
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct PresentationQosPolicyDeserialize(
     #[serde(with = "PresentationQosPolicyDef")] pub PresentationQosPolicy,
 );
@@ -499,7 +499,7 @@ pub struct PartitionQosPolicyDef {
 pub struct PartitionQosPolicySerialize<'a>(
     #[serde(with = "PartitionQosPolicyDef")] pub &'a PartitionQosPolicy,
 );
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct PartitionQosPolicyDeserialize(
     #[serde(with = "PartitionQosPolicyDef")] pub PartitionQosPolicy,
 );
@@ -513,7 +513,7 @@ pub struct GroupDataQosPolicyDef {
 pub struct GroupDataQosPolicySerialize<'a>(
     #[serde(with = "GroupDataQosPolicyDef")] pub &'a GroupDataQosPolicy,
 );
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct GroupDataQosPolicyDeserialize(
     #[serde(with = "GroupDataQosPolicyDef")] pub GroupDataQosPolicy,
 );
@@ -528,7 +528,7 @@ pub struct TimeBasedFilterQosPolicyDef {
 pub struct TimeBasedFilterQosPolicySerialize<'a>(
     #[serde(with = "TimeBasedFilterQosPolicyDef")] pub &'a TimeBasedFilterQosPolicy,
 );
-#[derive(Debug, PartialEq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct TimeBasedFilterQosPolicyDeserialize(
     #[serde(with = "TimeBasedFilterQosPolicyDef")] pub TimeBasedFilterQosPolicy,
 );

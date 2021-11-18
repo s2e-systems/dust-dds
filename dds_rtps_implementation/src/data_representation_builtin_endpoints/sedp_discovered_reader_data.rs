@@ -1,15 +1,6 @@
 use std::io::Write;
 
-use rust_dds_api::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    dcps_psm::BuiltInTopicKey,
-    infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-        LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    },
-};
+use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use rust_rtps_pim::{
     behavior::writer::reader_proxy::RtpsReaderProxy,
     structure::types::{EntityId, Guid, GuidPrefix, Locator},
@@ -21,19 +12,26 @@ use super::{
     parameter_id_values::{
         PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID,
         PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET,
-        PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION,
+        PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION,
         PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME,
         PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
     },
     parameter_list_deserializer::ParameterListDeserializer,
     parameter_list_serializer::ParameterListSerializer,
     serde_remote_dds_api::{
-        BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
-        DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize,
-        GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize, LivelinessQosPolicySerialize,
-        OwnershipQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize,
-        ReliabilityQosPolicyDataReaderAndTopics, ReliabilityQosPolicyDataReaderAndTopicsSerialize,
-        TimeBasedFilterQosPolicySerialize, TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
+        BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicyDeserialize,
+        DeadlineQosPolicySerialize, DestinationOrderQosPolicyDeserialize,
+        DestinationOrderQosPolicySerialize, DurabilityQosPolicyDeserialize,
+        DurabilityQosPolicySerialize, GroupDataQosPolicyDeserialize, GroupDataQosPolicySerialize,
+        LatencyBudgetQosPolicyDeserialize, LatencyBudgetQosPolicySerialize,
+        LivelinessQosPolicyDeserialize, LivelinessQosPolicySerialize,
+        OwnershipQosPolicyDeserialize, OwnershipQosPolicySerialize, PartitionQosPolicyDeserialize,
+        PartitionQosPolicySerialize, PresentationQosPolicyDeserialize,
+        PresentationQosPolicySerialize, ReliabilityQosPolicyDataReaderAndTopics,
+        ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
+        ReliabilityQosPolicyDataReaderAndTopicsSerialize, TimeBasedFilterQosPolicyDeserialize,
+        TimeBasedFilterQosPolicySerialize, TopicDataQosPolicyDeserialize,
+        TopicDataQosPolicySerialize, UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
     },
     serde_remote_rtps_pim::{
         EntityIdDeserialize, EntityIdSerialize, ExpectsInclineQosDeserialize,
@@ -163,8 +161,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
                 PID_GROUP_DATA,
                 &self.subscription_builtin_topic_data.group_data,
             )?;
-        parameter_list_serializer.serialize_sentinel()?;
-        Ok(())
+        parameter_list_serializer.serialize_sentinel()
     }
 }
 
@@ -203,38 +200,64 @@ impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
             param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_PARTICIPANT_GUID)?;
         let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
         let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
+        let durability =
+            param_list.get_or_default::<DurabilityQosPolicyDeserialize, _>(PID_DURABILITY)?;
+        let deadline =
+            param_list.get_or_default::<DeadlineQosPolicyDeserialize, _>(PID_DEADLINE)?;
+        let latency_budget = param_list
+            .get_or_default::<LatencyBudgetQosPolicyDeserialize, _>(PID_LATENCY_BUDGET)?;
+        let liveliness =
+            param_list.get_or_default::<LivelinessQosPolicyDeserialize, _>(PID_LIVELINESS)?;
+        let reliability = param_list
+            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize, _>(
+                PID_RELIABILITY,
+            )?;
+        let user_data =
+            param_list.get_or_default::<UserDataQosPolicyDeserialize, _>(PID_USER_DATA)?;
+        let ownership =
+            param_list.get_or_default::<OwnershipQosPolicyDeserialize, _>(PID_OWNERSHIP)?;
+        let destination_order = param_list
+            .get_or_default::<DestinationOrderQosPolicyDeserialize, _>(PID_DESTINATION_ORDER)?;
+        let time_based_filter = param_list
+            .get_or_default::<TimeBasedFilterQosPolicyDeserialize, _>(PID_TIME_BASED_FILTER)?;
+        let presentation =
+            param_list.get_or_default::<PresentationQosPolicyDeserialize, _>(PID_PRESENTATION)?;
+        let partition =
+            param_list.get_or_default::<PartitionQosPolicyDeserialize, _>(PID_PARTITION)?;
+        let topic_data =
+            param_list.get_or_default::<TopicDataQosPolicyDeserialize, _>(PID_TOPIC_DATA)?;
+        let group_data =
+            param_list.get_or_default::<GroupDataQosPolicyDeserialize, _>(PID_GROUP_DATA)?;
 
-        // Assembly
         let remote_reader_guid = convert_built_in_topic_key_to_guid(&key);
-        let reader_proxy = RtpsReaderProxy {
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-        };
-        let subscriptions_builtin_topic_data = SubscriptionBuiltinTopicData {
-            key,
-            participant_key,
-            topic_name,
-            type_name,
-            durability: DurabilityQosPolicy::default(),
-            deadline: DeadlineQosPolicy::default(),
-            latency_budget: LatencyBudgetQosPolicy::default(),
-            liveliness: LivelinessQosPolicy::default(),
-            reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            user_data: UserDataQosPolicy::default(),
-            ownership: OwnershipQosPolicy::default(),
-            destination_order: DestinationOrderQosPolicy::default(),
-            time_based_filter: TimeBasedFilterQosPolicy::default(),
-            presentation: PresentationQosPolicy::default(),
-            partition: PartitionQosPolicy::default(),
-            topic_data: TopicDataQosPolicy::default(),
-            group_data: GroupDataQosPolicy::default(),
-        };
+
         Ok(Self {
-            reader_proxy,
-            subscription_builtin_topic_data: subscriptions_builtin_topic_data,
+            reader_proxy: RtpsReaderProxy {
+                remote_reader_guid,
+                remote_group_entity_id,
+                unicast_locator_list,
+                multicast_locator_list,
+                expects_inline_qos,
+            },
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+                key,
+                participant_key,
+                topic_name,
+                type_name,
+                durability,
+                deadline,
+                latency_budget,
+                liveliness,
+                reliability,
+                user_data,
+                ownership,
+                destination_order,
+                time_based_filter,
+                presentation,
+                partition,
+                topic_data,
+                group_data,
+            },
         })
     }
 }
@@ -248,6 +271,7 @@ mod tests {
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
             LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
             PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
     };
     use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
