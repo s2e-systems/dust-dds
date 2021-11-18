@@ -1,20 +1,23 @@
-use std::{io::Write, iter::FromIterator};
+use std::{
+    io::{Error, Write},
+    iter::FromIterator,
+};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{
     submessage_elements::FragmentNumberSetSubmessageElement, types::FragmentNumber,
 };
 
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
-impl<T> Serialize for FragmentNumberSetSubmessageElement<T>
+impl<T> MappingWriteByteOrdered for FragmentNumberSetSubmessageElement<T>
 where
     for<'a> &'a T: IntoIterator<Item = &'a FragmentNumber>,
 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in &self.set {
@@ -27,26 +30,26 @@ where
         }
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
 
-        self.base.serialize::<_, B>(&mut writer)?;
-        num_bits.serialize::<_, B>(&mut writer)?;
+        self.base.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        num_bits.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         for i in 0..number_of_bitmap_elements {
-            bitmap[i].serialize::<_, B>(&mut writer)?;
+            bitmap[i].mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         Ok(())
     }
 }
 
-impl<'de, T> Deserialize<'de> for FragmentNumberSetSubmessageElement<T>
+impl<'de, T> MappingReadByteOrdered<'de> for FragmentNumberSetSubmessageElement<T>
 where
     T: FromIterator<FragmentNumber>,
 {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let base: FragmentNumber = Deserialize::deserialize::<B>(buf)?;
-        let num_bits: u32 = Deserialize::deserialize::<B>(buf)?;
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let base: FragmentNumber = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let num_bits: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
         let mut bitmap = [0; 8];
         for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
-            *bitmap_i = Deserialize::deserialize::<B>(buf)?;
+            *bitmap_i = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         }
 
         let mut set = Vec::with_capacity(256);
@@ -65,8 +68,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_fragment_number_max_gap() {

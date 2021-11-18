@@ -1,60 +1,70 @@
-use std::io::Write;
+use std::io::{Error, Read, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
 
-use crate::{
-    deserialize::{self, Deserialize, MappingRead},
-    serialize::{self, MappingWrite},
-};
+use crate::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWrite};
 
-impl MappingWrite for RtpsMessageHeader {
-    fn write<W: Write>(&self, mut writer: W) -> serialize::Result {
-        match self.protocol {
-            ProtocolId::PROTOCOL_RTPS => b"RTPS".write(&mut writer)?,
-        }
-        self.version.write(&mut writer)?;
-        self.vendor_id.write(&mut writer)?;
-        self.guid_prefix.write(&mut writer)
+impl<const N: usize> MappingWrite for [u8; N] {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+        writer.write_all(self)
+    }
+}
+impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
+    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let mut value = [0; N];
+        buf.read_exact(value.as_mut())?;
+        Ok(value)
     }
 }
 
-impl<'de> Deserialize<'de> for RtpsMessageHeader {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let protocol: [u8; 4] = Deserialize::deserialize::<B>(buf)?;
+impl MappingWrite for RtpsMessageHeader {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+        match self.protocol {
+            ProtocolId::PROTOCOL_RTPS => b"RTPS".mapping_write(&mut writer)?,
+        }
+        self.version.mapping_write(&mut writer)?;
+        self.vendor_id.mapping_write(&mut writer)?;
+        self.guid_prefix.mapping_write(&mut writer)
+    }
+}
+
+impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let protocol: [u8; 4] = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS
         } else {
-            return deserialize::Result::Err(std::io::Error::new(
+            return Result::Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Protocol not valid",
             ));
         };
         Ok(Self {
             protocol,
-            version: Deserialize::deserialize::<B>(buf)?,
-            vendor_id: Deserialize::deserialize::<B>(buf)?,
-            guid_prefix: Deserialize::deserialize::<B>(buf)?,
+            version: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+            vendor_id: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+            guid_prefix: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
     }
 }
 
 impl<'de> MappingRead<'de> for RtpsMessageHeader {
-    fn read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let protocol: [u8; 4] = MappingRead::read(buf)?;
+    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let protocol: [u8; 4] = MappingRead::mapping_read(buf)?;
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS
         } else {
-            return deserialize::Result::Err(std::io::Error::new(
+            return Result::Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Protocol not valid",
             ));
         };
         Ok(Self {
             protocol,
-            version: MappingRead::read(buf)?,
-            vendor_id: MappingRead::read(buf)?,
-            guid_prefix: MappingRead::read(buf)?,
+            version: MappingRead::mapping_read(buf)?,
+            vendor_id: MappingRead::mapping_read(buf)?,
+            guid_prefix: MappingRead::mapping_read(buf)?,
         })
     }
 }
@@ -64,8 +74,7 @@ mod tests {
     use rust_rtps_pim::structure::types::{GuidPrefix, ProtocolVersion};
 
     use super::*;
-    use crate::deserialize::from_bytes;
-    use crate::serialize::to_bytes;
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     #[test]
     fn serialize_rtps_header() {

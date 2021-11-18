@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{
@@ -8,12 +8,11 @@ use rust_rtps_pim::messages::{
 };
 use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
 
-use crate::{
-    deserialize::{self, Deserialize, DeserializeSubmessage},
-    serialize::{self, NumberOfBytes, Serialize, SerializeSubmessage},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
-impl SerializeSubmessage for DataSubmessageWrite<'_> {
+use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
+
+impl MappingWriteSubmessage for DataSubmessageWrite<'_> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -37,22 +36,27 @@ impl SerializeSubmessage for DataSubmessageWrite<'_> {
             submessage_length: octets_to_next_header as u16,
         }
     }
-    fn serialize_submessage_elements<W: Write, B: ByteOrder>(
+    fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
-    ) -> serialize::Result {
+    ) -> Result<(), Error> {
         const OCTETS_TO_INLINE_QOS: u16 = 16;
         const EXTRA_FLAGS: u16 = 0;
-        EXTRA_FLAGS.serialize::<_, B>(&mut writer)?;
-        OCTETS_TO_INLINE_QOS.serialize::<_, B>(&mut writer)?;
-        self.reader_id.serialize::<_, B>(&mut writer)?;
-        self.writer_id.serialize::<_, B>(&mut writer)?;
-        self.writer_sn.serialize::<_, B>(&mut writer)?;
+        EXTRA_FLAGS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        OCTETS_TO_INLINE_QOS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.reader_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_sn
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         if self.inline_qos_flag {
-            self.inline_qos.serialize::<_, B>(&mut writer)?;
+            self.inline_qos
+                .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         if self.data_flag || self.key_flag {
-            self.serialized_payload.serialize::<_, B>(&mut writer)?;
+            self.serialized_payload
+                .mapping_write_byte_ordered::<_, B>(&mut writer)?;
             // Pad to 32bit boundary
             let padding: &[u8] = match self.serialized_payload.number_of_bytes() % 4 {
                 1 => &[0; 3],
@@ -66,22 +70,23 @@ impl SerializeSubmessage for DataSubmessageWrite<'_> {
     }
 }
 
-impl<'de: 'a, 'a> DeserializeSubmessage<'de> for DataSubmessageRead<'a> {
-    fn deserialize_submessage<B: ByteOrder>(
+impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessageRead<'a> {
+    fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
-    ) -> deserialize::Result<Self> {
+    ) -> Result<Self, Error> {
         let inline_qos_flag = header.flags[1];
         let data_flag = header.flags[2];
         let key_flag = header.flags[3];
-        let _extra_flags: u16 = Deserialize::deserialize::<B>(buf)?;
-        let octets_to_inline_qos: u16 = Deserialize::deserialize::<B>(buf)?;
-        let reader_id = Deserialize::deserialize::<B>(buf)?;
-        let writer_id = Deserialize::deserialize::<B>(buf)?;
-        let writer_sn = Deserialize::deserialize::<B>(buf)?;
+        let _extra_flags: u16 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let octets_to_inline_qos: u16 =
+            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let writer_sn = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
 
         let inline_qos = if inline_qos_flag {
-            Deserialize::deserialize::<B>(buf)?
+            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?
         } else {
             ParameterListSubmessageElement { parameter: vec![] }
         };
@@ -123,7 +128,7 @@ impl<'de: 'a, 'a> DeserializeSubmessage<'de> for DataSubmessageRead<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{deserialize::from_bytes, serialize::to_bytes};
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
     use rust_rtps_pim::{

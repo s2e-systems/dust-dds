@@ -1,15 +1,18 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElement;
 
-use crate::serialize::{self, NumberOfBytes, Serialize};
+use crate::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes};
 
-impl<D> Serialize for SerializedDataSubmessageElement<D>
+impl<D> MappingWriteByteOrdered for SerializedDataSubmessageElement<D>
 where
     D: AsRef<[u8]>,
 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         writer.write_all(self.value.as_ref())?;
         Ok(())
     }
@@ -26,8 +29,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::mapping_traits::to_bytes_le;
+
     use super::*;
-    use crate::serialize::to_bytes_le;
 
     #[test]
     fn serialize_serialized_data() {

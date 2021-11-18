@@ -1,24 +1,22 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{
-    messages::submessage_elements::EntityIdSubmessageElement,
-};
+use rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElement;
 
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
-
-impl Serialize for EntityIdSubmessageElement {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for EntityIdSubmessageElement {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
+        self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
-impl<'de> Deserialize<'de> for EntityIdSubmessageElement {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self { value: Deserialize::deserialize::<B>(buf)? })
+impl<'de> MappingReadByteOrdered<'de> for EntityIdSubmessageElement {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        Ok(Self {
+            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+        })
     }
 }
-

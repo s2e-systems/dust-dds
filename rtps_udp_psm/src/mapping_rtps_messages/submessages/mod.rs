@@ -1,13 +1,14 @@
-pub mod submessage_header;
 pub mod ack_nack;
-pub mod gap;
 pub mod data;
 pub mod data_frag;
+pub mod gap;
 pub mod heart_beat;
 pub mod heart_beat_frag;
 pub mod info_destination;
 pub mod info_reply;
 pub mod info_source;
 pub mod info_timestamp;
-pub mod pad;
 pub mod nack_frag;
+pub mod pad;
+pub mod submessage;
+pub mod submessage_header;

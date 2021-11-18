@@ -1,4 +1,7 @@
-use std::{io::Write, iter::FromIterator};
+use std::{
+    io::{Error, Write},
+    iter::FromIterator,
+};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
@@ -6,10 +9,7 @@ use rust_rtps_pim::messages::{
     types::ParameterId,
 };
 
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, NumberOfBytes, Serialize},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 const PID_SENTINEL: ParameterId = ParameterId(1);
 const SENTINEL: Parameter<&[u8]> = Parameter {
@@ -18,56 +18,14 @@ const SENTINEL: Parameter<&[u8]> = Parameter {
     value: &[],
 };
 
-// impl crate::serialize::Serialize for u16 {
-//     fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
-//         &self,
-//         mut writer: W,
-//     ) -> crate::serialize::Result {
-//         writer.write_u16::<B>(*self)
-//     }
-// }
-// impl<'de> crate::deserialize::Deserialize<'de> for u16 {
-//     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
-//     where
-//         B: byteorder::ByteOrder,
-//     {
-//         buf.read_u16::<B>()
-//     }
-// }
-// impl crate::serialize::Serialize for i16 {
-//     fn serialize<W: std::io::Write, B: byteorder::ByteOrder>(
-//         &self,
-//         mut writer: W,
-//     ) -> crate::serialize::Result {
-//         writer.write_i16::<B>(*self)
-//     }
-// }
-// impl<'de> crate::deserialize::Deserialize<'de> for i16 {
-//     fn deserialize<B>(buf: &mut &'de [u8]) -> crate::deserialize::Result<Self>
-//     where
-//         B: byteorder::ByteOrder,
-//     {
-//         buf.read_i16::<B>()
-//     }
-// }
-
-// impl Serialize for ParameterId {
-//     fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-//         // self.0.serialize::<_, B>(&mut writer)
-//         writer.write_u16::<B>(self.0)
-//     }
-// }
-// impl<'de> Deserialize<'de> for ParameterId {
-//     fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-//         Ok(Self(Deserialize::deserialize::<B>(buf)?))
-//     }
-// }
-
-impl<T> Serialize for Parameter<T>
+impl<T> MappingWriteByteOrdered for Parameter<T>
 where
     T: AsRef<[u8]>,
 {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         writer.write_u16::<B>(self.parameter_id.0)?;
         writer.write_i16::<B>(self.length)?;
         writer.write_all(self.value.as_ref())?;
@@ -82,8 +40,8 @@ where
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for Parameter<&'a [u8]> {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<&'a [u8]> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let parameter_id = ParameterId(buf.read_u16::<B>()?);
         let length = buf.read_i16::<B>()?;
         let (value, following) = buf.split_at(length as usize);
@@ -102,26 +60,30 @@ impl<T> NumberOfBytes for Parameter<T> {
     }
 }
 
-impl Serialize for ParameterListSubmessageElement<Vec<Parameter<Vec<u8>>>> {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+impl MappingWriteByteOrdered for ParameterListSubmessageElement<Vec<Parameter<Vec<u8>>>> {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         for parameter in &self.parameter {
-            parameter.serialize::<_, B>(&mut writer)?;
+            parameter.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
-        SENTINEL.serialize::<_, B>(&mut writer)
+        SENTINEL.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de: 'a, 'a, T> Deserialize<'de> for ParameterListSubmessageElement<T>
+impl<'de: 'a, 'a, T> MappingReadByteOrdered<'de> for ParameterListSubmessageElement<T>
 where
     T: FromIterator<Parameter<&'a [u8]>>,
 {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
         let mut parameter = vec![];
 
         for _ in 0..MAX_PARAMETERS {
-            let parameter_i: Parameter<&[u8]> = Deserialize::deserialize::<B>(buf)?;
+            let parameter_i: Parameter<&[u8]> =
+                MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
 
             if parameter_i == SENTINEL {
                 break;
@@ -145,8 +107,7 @@ impl<'a, T: NumberOfBytes> NumberOfBytes for ParameterListSubmessageElement<T> {
 mod tests {
 
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_parameter() {

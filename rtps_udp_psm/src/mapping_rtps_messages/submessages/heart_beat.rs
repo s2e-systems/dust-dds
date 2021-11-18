@@ -1,14 +1,13 @@
 use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
 use rust_rtps_psm::messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite};
 
-use crate::{
-    deserialize::{self, Deserialize, DeserializeSubmessage},
-    serialize::{Serialize, SerializeSubmessage},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
-use std::io::Write;
+use std::io::{Error, Write};
 
-impl SerializeSubmessage for HeartbeatSubmessageWrite {
+use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
+
+impl MappingWriteSubmessage for HeartbeatSubmessageWrite {
     fn submessage_header(
         &self,
     ) -> rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
@@ -28,28 +27,32 @@ impl SerializeSubmessage for HeartbeatSubmessageWrite {
         }
     }
 
-    fn serialize_submessage_elements<W: Write, B: byteorder::ByteOrder>(
+    fn mapping_write_submessage_elements<W: Write, B: byteorder::ByteOrder>(
         &self,
         mut writer: W,
-    ) -> crate::serialize::Result {
-        self.reader_id.serialize::<_, B>(&mut writer)?;
-        self.writer_id.serialize::<_, B>(&mut writer)?;
-        self.first_sn.serialize::<_, B>(&mut writer)?;
-        self.last_sn.serialize::<_, B>(&mut writer)?;
-        self.count.serialize::<_, B>(&mut writer)
+    ) -> Result<(), Error> {
+        self.reader_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.first_sn
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.last_sn
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.count.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> DeserializeSubmessage<'de> for HeartbeatSubmessageRead {
-    fn deserialize_submessage<B: byteorder::ByteOrder>(
+impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessageRead {
+    fn mapping_read_submessage<B: byteorder::ByteOrder>(
         buf: &mut &'de [u8],
         header: rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader,
-    ) -> deserialize::Result<Self> {
-        let reader_id = Deserialize::deserialize::<B>(buf)?;
-        let writer_id = Deserialize::deserialize::<B>(buf)?;
-        let first_sn = Deserialize::deserialize::<B>(buf)?;
-        let last_sn = Deserialize::deserialize::<B>(buf)?;
-        let count = Deserialize::deserialize::<B>(buf)?;
+    ) -> Result<Self, Error> {
+        let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let first_sn = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let last_sn = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let count = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         Ok(Self::new(
             header.flags[0],
             header.flags[1],
@@ -65,7 +68,7 @@ impl<'de> DeserializeSubmessage<'de> for HeartbeatSubmessageRead {
 
 #[cfg(test)]
 mod tests {
-    use crate::{deserialize::from_bytes, serialize::to_bytes};
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
     use rust_rtps_pim::{

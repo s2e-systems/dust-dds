@@ -1,19 +1,16 @@
 use rust_rtps_psm::messages::submessages::{DataFragSubmessageRead, DataFragSubmessageWrite};
 
-use crate::{
-    deserialize::{self, MappingRead},
-    serialize::{self, MappingWrite},
-};
+use crate::mapping_traits::{MappingRead, MappingWrite};
 
-use std::io::Write;
+use std::io::{Error, Write};
 
 impl MappingWrite for DataFragSubmessageWrite {
-    fn write<W: Write>(&self, mut _writer: W) -> serialize::Result {
+    fn mapping_write<W: Write>(&self, mut _writer: W) -> Result<(), Error> {
         todo!()
     }
 }
 impl<'a, 'de: 'a> MappingRead<'de> for DataFragSubmessageRead {
-    fn read(_buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read(_buf: &mut &'de [u8]) -> Result<Self, Error> {
         todo!()
     }
 }

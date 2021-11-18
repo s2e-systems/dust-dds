@@ -1,14 +1,11 @@
-use std::io::{BufRead, Write};
+use std::io::{BufRead, Error, Write};
 
 use rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
 use rust_rtps_psm::messages::overall_structure::{
     RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageTypeRead, RtpsSubmessageTypeWrite,
 };
 
-use crate::{
-    deserialize::{self, MappingRead},
-    serialize::MappingWrite,
-};
+use crate::{mapping_traits::{MappingRead, MappingWrite}};
 
 use super::submessages::submessage_header::{
     ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
@@ -16,38 +13,38 @@ use super::submessages::submessage_header::{
 };
 
 impl MappingWrite for RtpsSubmessageTypeWrite<'_> {
-    fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         match self {
-            RtpsSubmessageTypeWrite::AckNack(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::Data(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::DataFrag(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::Gap(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::Heartbeat(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::HeartbeatFrag(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::InfoDestination(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::InfoReply(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::InfoSource(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::InfoTimestamp(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::NackFrag(s) => s.write(&mut writer)?,
-            RtpsSubmessageTypeWrite::Pad(s) => s.write(&mut writer)?,
+            RtpsSubmessageTypeWrite::AckNack(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::Data(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::DataFrag(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::Gap(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::Heartbeat(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::HeartbeatFrag(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::InfoDestination(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::InfoReply(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::InfoSource(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::InfoTimestamp(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::NackFrag(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageTypeWrite::Pad(s) => s.mapping_write(&mut writer)?,
         };
         Ok(())
     }
 }
 
 impl MappingWrite for RtpsMessageWrite<'_> {
-    fn write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
-        self.header.write(&mut writer)?;
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+        self.header.mapping_write(&mut writer)?;
         for submessage in &self.submessages {
-            submessage.write(&mut writer)?;
+            submessage.mapping_write(&mut writer)?;
         }
         Ok(())
     }
 }
 
 impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessageRead<'a> {
-    fn read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let header = MappingRead::read(buf)?;
+    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let header = MappingRead::mapping_read(buf)?;
         const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
         let mut submessages = vec![];
         for _ in 0..MAX_SUBMESSAGES {
@@ -57,20 +54,24 @@ impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessageRead<'a> {
             // Preview byte only (to allow full deserialization of submessage header)
             let submessage_id = buf[0];
             let submessage = match submessage_id {
-                ACKNACK => RtpsSubmessageTypeRead::AckNack(MappingRead::read(buf)?),
-                DATA => RtpsSubmessageTypeRead::Data(MappingRead::read(buf)?),
-                DATA_FRAG => RtpsSubmessageTypeRead::DataFrag(MappingRead::read(buf)?),
-                GAP => RtpsSubmessageTypeRead::Gap(MappingRead::read(buf)?),
-                HEARTBEAT => RtpsSubmessageTypeRead::Heartbeat(MappingRead::read(buf)?),
-                HEARTBEAT_FRAG => RtpsSubmessageTypeRead::HeartbeatFrag(MappingRead::read(buf)?),
-                INFO_DST => RtpsSubmessageTypeRead::InfoDestination(MappingRead::read(buf)?),
-                INFO_REPLY => RtpsSubmessageTypeRead::InfoReply(MappingRead::read(buf)?),
-                INFO_SRC => RtpsSubmessageTypeRead::InfoSource(MappingRead::read(buf)?),
-                INFO_TS => RtpsSubmessageTypeRead::InfoTimestamp(MappingRead::read(buf)?),
-                NACK_FRAG => RtpsSubmessageTypeRead::NackFrag(MappingRead::read(buf)?),
-                PAD => RtpsSubmessageTypeRead::Pad(MappingRead::read(buf)?),
+                ACKNACK => RtpsSubmessageTypeRead::AckNack(MappingRead::mapping_read(buf)?),
+                DATA => RtpsSubmessageTypeRead::Data(MappingRead::mapping_read(buf)?),
+                DATA_FRAG => RtpsSubmessageTypeRead::DataFrag(MappingRead::mapping_read(buf)?),
+                GAP => RtpsSubmessageTypeRead::Gap(MappingRead::mapping_read(buf)?),
+                HEARTBEAT => RtpsSubmessageTypeRead::Heartbeat(MappingRead::mapping_read(buf)?),
+                HEARTBEAT_FRAG => {
+                    RtpsSubmessageTypeRead::HeartbeatFrag(MappingRead::mapping_read(buf)?)
+                }
+                INFO_DST => {
+                    RtpsSubmessageTypeRead::InfoDestination(MappingRead::mapping_read(buf)?)
+                }
+                INFO_REPLY => RtpsSubmessageTypeRead::InfoReply(MappingRead::mapping_read(buf)?),
+                INFO_SRC => RtpsSubmessageTypeRead::InfoSource(MappingRead::mapping_read(buf)?),
+                INFO_TS => RtpsSubmessageTypeRead::InfoTimestamp(MappingRead::mapping_read(buf)?),
+                NACK_FRAG => RtpsSubmessageTypeRead::NackFrag(MappingRead::mapping_read(buf)?),
+                PAD => RtpsSubmessageTypeRead::Pad(MappingRead::mapping_read(buf)?),
                 _ => {
-                    let submessage_header: RtpsSubmessageHeader = MappingRead::read(buf)?;
+                    let submessage_header: RtpsSubmessageHeader = MappingRead::mapping_read(buf)?;
                     buf.consume(submessage_header.submessage_length as usize);
                     continue;
                 }
@@ -85,8 +86,7 @@ impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessageRead<'a> {
 mod tests {
 
     use super::*;
-    use crate::deserialize::from_bytes;
-    use crate::serialize::to_bytes;
+    use crate::mapping_traits::{from_bytes, to_bytes};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::{
         EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,

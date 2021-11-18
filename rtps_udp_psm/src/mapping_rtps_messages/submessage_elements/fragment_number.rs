@@ -1,35 +1,42 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{messages::{submessage_elements::FragmentNumberSubmessageElement, types::FragmentNumber}};
-
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
+use rust_rtps_pim::messages::{
+    submessage_elements::FragmentNumberSubmessageElement, types::FragmentNumber,
 };
 
-impl Serialize for FragmentNumber {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.0.serialize::<_, B>(&mut writer)
+use crate::{mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered}};
+
+impl MappingWriteByteOrdered for FragmentNumber {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
+        self.0.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for FragmentNumber {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self(Deserialize::deserialize::<B>(buf)?))
+impl<'de> MappingReadByteOrdered<'de> for FragmentNumber {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        Ok(Self(
+            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+        ))
     }
 }
 
-impl Serialize for FragmentNumberSubmessageElement {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for FragmentNumberSubmessageElement {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
+        self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for FragmentNumberSubmessageElement {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSubmessageElement {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
-            value: Deserialize::deserialize::<B>(buf)?,
+            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
     }
 }
@@ -37,12 +44,13 @@ impl<'de> Deserialize<'de> for FragmentNumberSubmessageElement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_fragment_number() {
-        let data = FragmentNumberSubmessageElement { value: FragmentNumber(7) };
+        let data = FragmentNumberSubmessageElement {
+            value: FragmentNumber(7),
+        };
         assert_eq!(
             to_bytes_le(&data).unwrap(),
             vec![
@@ -53,7 +61,9 @@ mod tests {
 
     #[test]
     fn deserialize_fragment_number() {
-        let expected = FragmentNumberSubmessageElement { value: FragmentNumber(7) };
+        let expected = FragmentNumberSubmessageElement {
+            value: FragmentNumber(7),
+        };
         assert_eq!(
             expected,
             from_bytes_le(&[

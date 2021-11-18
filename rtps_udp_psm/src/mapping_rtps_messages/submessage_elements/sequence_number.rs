@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::{
@@ -6,38 +6,41 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-use crate::{
-    deserialize::{self, Deserialize},
-    serialize::{self, Serialize},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
-impl Serialize for SequenceNumber {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+impl MappingWriteByteOrdered for SequenceNumber {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         let high = (self >> 32) as i32;
         let low = *self as i32;
-        high.serialize::<_, B>(&mut writer)?;
-        low.serialize::<_, B>(&mut writer)
+        high.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        low.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for SequenceNumber {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let high: i32 = Deserialize::deserialize::<B>(buf)?;
-        let low: i32 = Deserialize::deserialize::<B>(buf)?;
+impl<'de> MappingReadByteOrdered<'de> for SequenceNumber {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let high: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let low: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         Ok(((high as i64) << 32) + low as i64)
     }
 }
 
-impl Serialize for SequenceNumberSubmessageElement {
-    fn serialize<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.serialize::<_, B>(&mut writer)
+impl MappingWriteByteOrdered for SequenceNumberSubmessageElement {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
+        self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'de> Deserialize<'de> for SequenceNumberSubmessageElement {
-    fn deserialize<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSubmessageElement {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
-            value: Deserialize::deserialize::<B>(buf)?,
+            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
     }
 }
@@ -45,8 +48,7 @@ impl<'de> Deserialize<'de> for SequenceNumberSubmessageElement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_sequence_number() {
