@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::{
@@ -6,24 +6,30 @@ use rust_rtps_pim::{
     structure::types::ProtocolVersion,
 };
 
-use crate::{deserialize::{self, MappingReadByteOrdered, MappingRead}, serialize::{self, MappingWrite, NumberOfBytes, MappingWriteByteOrdered}};
+use crate::{
+    deserialize::{MappingRead, MappingReadByteOrdered},
+    serialize::{MappingWrite, MappingWriteByteOrdered, NumberOfBytes},
+};
 
 impl MappingWriteByteOrdered for ProtocolVersion {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         self.major.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.minor.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl MappingWrite for ProtocolVersion {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         self.major.mapping_write(&mut writer)?;
         self.minor.mapping_write(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for ProtocolVersion {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
             major: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
             minor: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
@@ -32,7 +38,7 @@ impl<'de> MappingReadByteOrdered<'de> for ProtocolVersion {
 }
 
 impl<'de> MappingRead<'de> for ProtocolVersion {
-    fn mapping_read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
             major: MappingRead::mapping_read(buf)?,
             minor: MappingRead::mapping_read(buf)?,
@@ -47,14 +53,19 @@ impl NumberOfBytes for ProtocolVersion {
 }
 
 impl MappingWriteByteOrdered for ProtocolVersionSubmessageElement {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for ProtocolVersionSubmessageElement {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self { value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)? })
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        Ok(Self {
+            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+        })
     }
 }
 

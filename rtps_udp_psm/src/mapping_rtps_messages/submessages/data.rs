@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{
@@ -9,8 +9,8 @@ use rust_rtps_pim::messages::{
 use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered},
-    serialize::{self, MappingWriteByteOrdered, NumberOfBytes},
+    deserialize::MappingReadByteOrdered,
+    serialize::{MappingWriteByteOrdered, NumberOfBytes},
 };
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
@@ -42,7 +42,7 @@ impl MappingWriteSubmessage for DataSubmessageWrite<'_> {
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
-    ) -> serialize::Result {
+    ) -> Result<(), Error> {
         const OCTETS_TO_INLINE_QOS: u16 = 16;
         const EXTRA_FLAGS: u16 = 0;
         EXTRA_FLAGS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
@@ -77,7 +77,7 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessageRead<'a> {
     fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
-    ) -> deserialize::Result<Self> {
+    ) -> Result<Self, Error> {
         let inline_qos_flag = header.flags[1];
         let data_flag = header.flags[2];
         let key_flag = header.flags[3];

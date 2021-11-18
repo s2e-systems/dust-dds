@@ -1,12 +1,12 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
 use rust_rtps_psm::messages::submessages::{GapSubmessageRead, GapSubmessageWrite};
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered},
-    serialize::{self, MappingWriteByteOrdered, NumberOfBytes},
+    deserialize::MappingReadByteOrdered,
+    serialize::{MappingWriteByteOrdered, NumberOfBytes},
 };
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
@@ -33,7 +33,7 @@ impl MappingWriteSubmessage for GapSubmessageWrite {
     fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
-    ) -> serialize::Result {
+    ) -> Result<(), Error> {
         self.reader_id
             .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.writer_id
@@ -49,7 +49,7 @@ impl<'de> MappingReadSubmessage<'de> for GapSubmessageRead {
     fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
-    ) -> deserialize::Result<Self> {
+    ) -> Result<Self, Error> {
         let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let gap_start = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;

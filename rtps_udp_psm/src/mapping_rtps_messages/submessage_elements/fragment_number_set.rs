@@ -1,20 +1,23 @@
-use std::{io::Write, iter::FromIterator};
+use std::{
+    io::{Error, Write},
+    iter::FromIterator,
+};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{
     submessage_elements::FragmentNumberSetSubmessageElement, types::FragmentNumber,
 };
 
-use crate::{
-    deserialize::{self, MappingReadByteOrdered},
-    serialize::{self, MappingWriteByteOrdered},
-};
+use crate::{deserialize::MappingReadByteOrdered, serialize::MappingWriteByteOrdered};
 
 impl<T> MappingWriteByteOrdered for FragmentNumberSetSubmessageElement<T>
 where
     for<'a> &'a T: IntoIterator<Item = &'a FragmentNumber>,
 {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in &self.set {
@@ -40,7 +43,7 @@ impl<'de, T> MappingReadByteOrdered<'de> for FragmentNumberSetSubmessageElement<
 where
     T: FromIterator<FragmentNumber>,
 {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let base: FragmentNumber = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let num_bits: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"

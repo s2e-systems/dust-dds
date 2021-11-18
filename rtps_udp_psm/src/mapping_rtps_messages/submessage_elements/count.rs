@@ -1,18 +1,26 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{submessage_elements::CountSubmessageElement, types::Count};
 
-use crate::{deserialize::{self, MappingReadByteOrdered}, serialize::{self, NumberOfBytes, MappingWriteByteOrdered}};
+use crate::{
+    deserialize::MappingReadByteOrdered,
+    serialize::{MappingWriteByteOrdered, NumberOfBytes},
+};
 
 impl MappingWriteByteOrdered for Count {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         self.0.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 impl<'de> MappingReadByteOrdered<'de> for Count {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?))
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        Ok(Self(
+            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+        ))
     }
 }
 impl NumberOfBytes for Count {
@@ -22,13 +30,16 @@ impl NumberOfBytes for Count {
 }
 
 impl MappingWriteByteOrdered for CountSubmessageElement {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for CountSubmessageElement {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
             value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })

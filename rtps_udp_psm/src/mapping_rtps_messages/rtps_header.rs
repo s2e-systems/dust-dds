@@ -1,20 +1,20 @@
-use std::io::{Read, Write};
+use std::io::{Error, Read, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered, MappingRead},
-    serialize::{self, MappingWrite},
+    deserialize::{self, MappingRead, MappingReadByteOrdered},
+    serialize::MappingWrite,
 };
 
 impl<const N: usize> MappingWrite for [u8; N] {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         writer.write_all(self)
     }
 }
 impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
-    fn mapping_read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let mut value = [0; N];
         buf.read_exact(value.as_mut())?;
         Ok(value)
@@ -22,7 +22,7 @@ impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
 }
 
 impl MappingWrite for RtpsMessageHeader {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         match self.protocol {
             ProtocolId::PROTOCOL_RTPS => b"RTPS".mapping_write(&mut writer)?,
         }
@@ -33,7 +33,7 @@ impl MappingWrite for RtpsMessageHeader {
 }
 
 impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let protocol: [u8; 4] = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS
@@ -53,7 +53,7 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
 }
 
 impl<'de> MappingRead<'de> for RtpsMessageHeader {
-    fn mapping_read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let protocol: [u8; 4] = MappingRead::mapping_read(buf)?;
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS

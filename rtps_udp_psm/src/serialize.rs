@@ -1,14 +1,14 @@
 use byteorder::{ByteOrder, LittleEndian};
-use std::io::Write;
+use std::{io::{Error, Write}, result::Result};
 
-pub type Result = std::result::Result<(), std::io::Error>;
+// pub type Result = Result<(), Error>;
 
 pub trait MappingWrite {
-    fn mapping_write<W: Write>(&self, writer: W) -> Result;
+    fn mapping_write<W: Write>(&self, writer: W) -> Result<(), Error>;
 }
 
 pub trait MappingWriteByteOrdered {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result;
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result<(), Error>;
 }
 
 pub trait NumberOfBytes {
@@ -17,13 +17,13 @@ pub trait NumberOfBytes {
 
 pub fn to_bytes_le<S: MappingWriteByteOrdered>(
     value: &S,
-) -> std::result::Result<Vec<u8>, std::io::Error> {
+) -> Result<Vec<u8>, Error> {
     let mut writer = Vec::<u8>::new();
     value.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
     Ok(writer)
 }
 
-pub fn to_bytes<S: MappingWrite>(value: &S) -> std::result::Result<Vec<u8>, std::io::Error> {
+pub fn to_bytes<S: MappingWrite>(value: &S) -> Result<Vec<u8>, Error> {
     let mut writer = Vec::<u8>::new();
     value.mapping_write(&mut writer)?;
     Ok(writer)

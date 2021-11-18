@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Error, Write};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
@@ -7,8 +7,8 @@ use rust_rtps_pim::messages::{
 };
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered, MappingRead},
-    serialize::{self, MappingWrite, MappingWriteByteOrdered},
+    deserialize::{MappingRead, MappingReadByteOrdered},
+    serialize::{MappingWrite, MappingWriteByteOrdered},
 };
 
 pub trait Submessage {
@@ -29,7 +29,10 @@ pub const NACK_FRAG: u8 = 0x12;
 pub const HEARTBEAT_FRAG: u8 = 0x13;
 
 impl MappingWriteByteOrdered for [SubmessageFlag; 8] {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         let mut flags = 0b_0000_0000_u8;
         for (i, &item) in self.iter().enumerate() {
             if item {
@@ -41,7 +44,7 @@ impl MappingWriteByteOrdered for [SubmessageFlag; 8] {
 }
 
 impl MappingWrite for [SubmessageFlag; 8] {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         let mut flags = 0b_0000_0000_u8;
         for (i, &item) in self.iter().enumerate() {
             if item {
@@ -53,7 +56,7 @@ impl MappingWrite for [SubmessageFlag; 8] {
 }
 
 impl<'de> MappingReadByteOrdered<'de> for [SubmessageFlag; 8] {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let value: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let mut flags = [false; 8];
         for (index, flag) in flags.iter_mut().enumerate() {
@@ -64,7 +67,7 @@ impl<'de> MappingReadByteOrdered<'de> for [SubmessageFlag; 8] {
 }
 
 impl<'de> MappingRead<'de> for [SubmessageFlag; 8] {
-    fn mapping_read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let value: u8 = MappingRead::mapping_read(buf)?;
         let mut flags = [false; 8];
         for (index, flag) in flags.iter_mut().enumerate() {
@@ -75,7 +78,7 @@ impl<'de> MappingRead<'de> for [SubmessageFlag; 8] {
 }
 
 impl MappingWrite for RtpsSubmessageHeader {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         let submessage_id = match self.submessage_id {
             SubmessageKind::DATA => DATA,
             SubmessageKind::GAP => GAP,
@@ -109,7 +112,10 @@ impl MappingWrite for RtpsSubmessageHeader {
 }
 
 impl MappingWriteByteOrdered for RtpsSubmessageHeader {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         let submessage_id = match self.submessage_id {
             SubmessageKind::DATA => DATA,
             SubmessageKind::GAP => GAP,
@@ -137,7 +143,7 @@ impl MappingWriteByteOrdered for RtpsSubmessageHeader {
 }
 
 impl<'de> MappingRead<'de> for RtpsSubmessageHeader {
-    fn mapping_read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let submessage_id: u8 = MappingRead::mapping_read(buf)?;
         let submessage_id = match submessage_id {
             DATA => SubmessageKind::DATA,
@@ -169,7 +175,7 @@ impl<'de> MappingRead<'de> for RtpsSubmessageHeader {
 }
 
 impl<'de> MappingReadByteOrdered<'de> for RtpsSubmessageHeader {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let submessage_id: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let submessage_id = match submessage_id {
             DATA => SubmessageKind::DATA,

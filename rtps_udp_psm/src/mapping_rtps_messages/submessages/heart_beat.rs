@@ -1,12 +1,9 @@
 use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
 use rust_rtps_psm::messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite};
 
-use crate::{
-    deserialize::{self, MappingReadByteOrdered},
-    serialize::MappingWriteByteOrdered,
-};
+use crate::{deserialize::MappingReadByteOrdered, serialize::MappingWriteByteOrdered};
 
-use std::io::Write;
+use std::io::{Error, Write};
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
@@ -33,7 +30,7 @@ impl MappingWriteSubmessage for HeartbeatSubmessageWrite {
     fn mapping_write_submessage_elements<W: Write, B: byteorder::ByteOrder>(
         &self,
         mut writer: W,
-    ) -> crate::serialize::Result {
+    ) -> Result<(), Error> {
         self.reader_id
             .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.writer_id
@@ -50,7 +47,7 @@ impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessageRead {
     fn mapping_read_submessage<B: byteorder::ByteOrder>(
         buf: &mut &'de [u8],
         header: rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader,
-    ) -> deserialize::Result<Self> {
+    ) -> Result<Self, Error> {
         let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let first_sn = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
