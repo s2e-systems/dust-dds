@@ -71,7 +71,7 @@ where
                 .delete_datawriter(a_datawriter.data_writer_impl())
         } else {
             Err(DDSError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher",
+                "Data writer can only be deleted from its parent publisher".to_string(),
             ))
         }
     }

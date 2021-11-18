@@ -1,44 +1,41 @@
 use std::io::Write;
 
-use rust_dds_api::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    dcps_psm::BuiltInTopicKey,
-    infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-        LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-    },
-};
+use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use rust_rtps_pim::{
     behavior::writer::reader_proxy::RtpsReaderProxy,
     structure::types::{EntityId, Guid, GuidPrefix, Locator},
 };
 
-use crate::{
-    data_serialize_deserialize::{ParameterList, ParameterSerializer},
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
-};
+use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
 use super::{
+    parameter_id_values::{
+        PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID,
+        PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET,
+        PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION,
+        PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME,
+        PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
+    },
+    parameter_list_deserializer::ParameterListDeserializer,
+    parameter_list_serializer::ParameterListSerializer,
     serde_remote_dds_api::{
-        BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicySerialize,
-        DestinationOrderQosPolicySerialize, DurabilityQosPolicySerialize, GroupDataQosPolicySerialize, LatencyBudgetQosPolicySerialize,
-        LivelinessQosPolicySerialize,
-        OwnershipQosPolicySerialize, PartitionQosPolicySerialize, PresentationQosPolicySerialize,
-        ReliabilityQosPolicySerialize, TimeBasedFilterQosPolicySerialize,
-        TopicDataQosPolicySerialize, UserDataQosPolicySerialize,
+        BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicyDeserialize,
+        DeadlineQosPolicySerialize, DestinationOrderQosPolicyDeserialize,
+        DestinationOrderQosPolicySerialize, DurabilityQosPolicyDeserialize,
+        DurabilityQosPolicySerialize, GroupDataQosPolicyDeserialize, GroupDataQosPolicySerialize,
+        LatencyBudgetQosPolicyDeserialize, LatencyBudgetQosPolicySerialize,
+        LivelinessQosPolicyDeserialize, LivelinessQosPolicySerialize,
+        OwnershipQosPolicyDeserialize, OwnershipQosPolicySerialize, PartitionQosPolicyDeserialize,
+        PartitionQosPolicySerialize, PresentationQosPolicyDeserialize,
+        PresentationQosPolicySerialize, ReliabilityQosPolicyDataReaderAndTopics,
+        ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
+        ReliabilityQosPolicyDataReaderAndTopicsSerialize, TimeBasedFilterQosPolicyDeserialize,
+        TimeBasedFilterQosPolicySerialize, TopicDataQosPolicyDeserialize,
+        TopicDataQosPolicySerialize, UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
     },
     serde_remote_rtps_pim::{
-        EntityIdDeserialize,
-        EntityIdSerialize, LocatorDeserialize, LocatorSerialize,
-    },
-    parameter_id_values::{
-        DEFAULT_EXPECTS_INLINE_QOS, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-        PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_DATA, PID_GROUP_ENTITYID,
-        PID_LATENCY_BUDGET, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID,
-        PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
-        PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
+        EntityIdDeserialize, EntityIdSerialize, ExpectsInclineQosDeserialize,
+        ExpectsInclineQosSerialize, LocatorDeserialize, LocatorSerialize,
     },
 };
 
@@ -63,186 +60,108 @@ impl DdsSerialize for SedpDiscoveredReaderData {
         &self,
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
-        let mut parameter_list_serializer = ParameterSerializer::<_, E>::new(writer);
+        let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
+        parameter_list_serializer.serialize_payload_header()?;
+        // reader_proxy.remote_reader_guid omitted as of table 9.10
 
-        // omitted (as of table 9.10) reader_proxy.remote_reader_guid
-
-        for locator in &self.reader_proxy.unicast_locator_list {
-            parameter_list_serializer
-                .serialize_parameter(PID_UNICAST_LOCATOR, &LocatorSerialize(locator))
-                .unwrap();
-        }
-        for locator in &self.reader_proxy.multicast_locator_list {
-            parameter_list_serializer
-                .serialize_parameter(PID_MULTICAST_LOCATOR, &LocatorSerialize(locator))
-                .unwrap();
-        }
+        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+            PID_UNICAST_LOCATOR,
+            &self.reader_proxy.unicast_locator_list,
+        )?;
+        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+            PID_MULTICAST_LOCATOR,
+            &self.reader_proxy.multicast_locator_list,
+        )?;
+        parameter_list_serializer.serialize_parameter::<EntityIdSerialize, _>(
+            PID_GROUP_ENTITYID,
+            &self.reader_proxy.remote_group_entity_id,
+        )?;
         parameter_list_serializer
-            .serialize_parameter(
-                PID_GROUP_ENTITYID,
-                &EntityIdSerialize(&self.reader_proxy.remote_group_entity_id),
-            )
-            .unwrap();
-        if self.reader_proxy.expects_inline_qos != DEFAULT_EXPECTS_INLINE_QOS {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_EXPECTS_INLINE_QOS,
-                    &self.reader_proxy.expects_inline_qos,
-                )
-                .unwrap();
-        }
-
+            .serialize_parameter_if_not_default::<ExpectsInclineQosSerialize, _>(
+                PID_EXPECTS_INLINE_QOS,
+                &self.reader_proxy.expects_inline_qos,
+            )?;
+        parameter_list_serializer.serialize_parameter::<BuiltInTopicKeySerialize, _>(
+            PID_ENDPOINT_GUID,
+            &self.subscription_builtin_topic_data.key,
+        )?;
+        parameter_list_serializer.serialize_parameter::<BuiltInTopicKeySerialize, _>(
+            PID_PARTICIPANT_GUID,
+            &self.subscription_builtin_topic_data.participant_key,
+        )?;
+        parameter_list_serializer.serialize_parameter::<String, _>(
+            PID_TOPIC_NAME,
+            &self.subscription_builtin_topic_data.topic_name,
+        )?;
+        parameter_list_serializer.serialize_parameter::<String, _>(
+            PID_TYPE_NAME,
+            &self.subscription_builtin_topic_data.type_name,
+        )?;
         parameter_list_serializer
-            .serialize_parameter(
-                PID_ENDPOINT_GUID,
-                &BuiltInTopicKeySerialize(&self.subscription_builtin_topic_data.key),
-            )
-            .unwrap();
+            .serialize_parameter_if_not_default::<DurabilityQosPolicySerialize, _>(
+                PID_DURABILITY,
+                &self.subscription_builtin_topic_data.durability,
+            )?;
         parameter_list_serializer
-            .serialize_parameter(
-                PID_PARTICIPANT_GUID,
-                &BuiltInTopicKeySerialize(&self.subscription_builtin_topic_data.participant_key),
-            )
-            .unwrap();
+            .serialize_parameter_if_not_default::<DeadlineQosPolicySerialize, _>(
+                PID_DEADLINE,
+                &self.subscription_builtin_topic_data.deadline,
+            )?;
         parameter_list_serializer
-            .serialize_parameter(
-                PID_TOPIC_NAME,
-                &self.subscription_builtin_topic_data.topic_name,
-            )
-            .unwrap();
+            .serialize_parameter_if_not_default::<LatencyBudgetQosPolicySerialize, _>(
+                PID_LATENCY_BUDGET,
+                &self.subscription_builtin_topic_data.latency_budget,
+            )?;
         parameter_list_serializer
-            .serialize_parameter(
-                PID_TYPE_NAME,
-                &self.subscription_builtin_topic_data.type_name,
-            )
-            .unwrap();
-        if self.subscription_builtin_topic_data.durability != DurabilityQosPolicy::default() {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_DURABILITY,
-                    &DurabilityQosPolicySerialize(
-                        &self.subscription_builtin_topic_data.durability,
-                    ),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.deadline != DeadlineQosPolicy::default() {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_DEADLINE,
-                    &DeadlineQosPolicySerialize(&self.subscription_builtin_topic_data.deadline),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.latency_budget != LatencyBudgetQosPolicy::default()
-        {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_LATENCY_BUDGET,
-                    &LatencyBudgetQosPolicySerialize(
-                        &self.subscription_builtin_topic_data.latency_budget,
-                    ),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.liveliness != LivelinessQosPolicy::default() {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_DURABILITY,
-                    &LivelinessQosPolicySerialize(
-                        &self.subscription_builtin_topic_data.liveliness,
-                    ),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.reliability
-            != DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS
-        {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_RELIABILITY,
-                    &ReliabilityQosPolicySerialize(
-                        &self.subscription_builtin_topic_data.reliability,
-                    ),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.ownership != OwnershipQosPolicy::default() {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_OWNERSHIP,
-                    &OwnershipQosPolicySerialize(&self.subscription_builtin_topic_data.ownership),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.destination_order
-            != DestinationOrderQosPolicy::default()
-        {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_DESTINATION_ORDER,
-                    &DestinationOrderQosPolicySerialize(
-                        &self.subscription_builtin_topic_data.destination_order,
-                    ),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.user_data != UserDataQosPolicy::default() {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_USER_DATA,
-                    &UserDataQosPolicySerialize(&self.subscription_builtin_topic_data.user_data),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.time_based_filter
-            != TimeBasedFilterQosPolicy::default()
-        {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_TIME_BASED_FILTER,
-                    &TimeBasedFilterQosPolicySerialize(
-                        &self.subscription_builtin_topic_data.time_based_filter,
-                    ),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.presentation != PresentationQosPolicy::default() {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_PRESENTATION,
-                    &PresentationQosPolicySerialize(
-                        &self.subscription_builtin_topic_data.presentation,
-                    ),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.partition != PartitionQosPolicy::default() {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_PARTITION,
-                    &PartitionQosPolicySerialize(&self.subscription_builtin_topic_data.partition),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.topic_data != TopicDataQosPolicy::default() {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_TOPIC_DATA,
-                    &TopicDataQosPolicySerialize(&self.subscription_builtin_topic_data.topic_data),
-                )
-                .unwrap();
-        }
-        if self.subscription_builtin_topic_data.group_data != GroupDataQosPolicy::default() {
-            parameter_list_serializer
-                .serialize_parameter(
-                    PID_GROUP_DATA,
-                    &GroupDataQosPolicySerialize(&self.subscription_builtin_topic_data.group_data),
-                )
-                .unwrap();
-        }
-
-        Ok(())
+            .serialize_parameter_if_not_default::<LivelinessQosPolicySerialize, _>(
+                PID_DURABILITY,
+                &self.subscription_builtin_topic_data.liveliness,
+            )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<ReliabilityQosPolicyDataReaderAndTopicsSerialize,_>(
+                PID_RELIABILITY,
+                &ReliabilityQosPolicyDataReaderAndTopics(&self.subscription_builtin_topic_data.reliability),
+            )?;
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<OwnershipQosPolicySerialize, _>(
+                PID_OWNERSHIP,
+                &self.subscription_builtin_topic_data.ownership,
+            )?;
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<DestinationOrderQosPolicySerialize, _>(
+                PID_DESTINATION_ORDER,
+                &self.subscription_builtin_topic_data.destination_order,
+            )?;
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<UserDataQosPolicySerialize, _>(
+                PID_USER_DATA,
+                &self.subscription_builtin_topic_data.user_data,
+            )?;
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<TimeBasedFilterQosPolicySerialize, _>(
+                PID_TIME_BASED_FILTER,
+                &self.subscription_builtin_topic_data.time_based_filter,
+            )?;
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<PresentationQosPolicySerialize, _>(
+                PID_PRESENTATION,
+                &self.subscription_builtin_topic_data.presentation,
+            )?;
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<PartitionQosPolicySerialize, _>(
+                PID_PARTITION,
+                &self.subscription_builtin_topic_data.partition,
+            )?;
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<TopicDataQosPolicySerialize, _>(
+                PID_TOPIC_DATA,
+                &self.subscription_builtin_topic_data.topic_data,
+            )?;
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<GroupDataQosPolicySerialize, _>(
+                PID_GROUP_DATA,
+                &self.subscription_builtin_topic_data.group_data,
+            )?;
+        parameter_list_serializer.serialize_sentinel()
     }
 }
 
@@ -263,72 +182,82 @@ fn convert_built_in_topic_key_to_guid(key: &BuiltInTopicKey) -> Guid {
 
 impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
     fn deserialize(buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-        let param_list = ParameterList::read(buf).unwrap();
+        let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         // reader_proxy
-        let remote_group_entity_id = param_list
-            .get::<EntityIdDeserialize>(PID_GROUP_ENTITYID)
-            .unwrap()
-            .0;
-        let unicast_locator_list = param_list
-            .get_list::<LocatorDeserialize>(PID_UNICAST_LOCATOR)
-            .unwrap()
-            .into_iter()
-            .map(|l| l.0)
-            .collect();
-        let multicast_locator_list = param_list
-            .get_list::<LocatorDeserialize>(PID_MULTICAST_LOCATOR)
-            .unwrap()
-            .into_iter()
-            .map(|l| l.0)
-            .collect();
-        let expects_inline_qos = param_list
-            .get::<bool>(PID_MULTICAST_LOCATOR)
-            .unwrap_or(DEFAULT_EXPECTS_INLINE_QOS);
+        let remote_group_entity_id =
+            param_list.get::<EntityIdDeserialize, _>(PID_GROUP_ENTITYID)?;
+        let unicast_locator_list =
+            param_list.get_list::<LocatorDeserialize, _>(PID_UNICAST_LOCATOR)?;
+        let multicast_locator_list =
+            param_list.get_list::<LocatorDeserialize, _>(PID_MULTICAST_LOCATOR)?;
+        let expects_inline_qos =
+            param_list.get_or_default::<ExpectsInclineQosDeserialize, _>(PID_MULTICAST_LOCATOR)?;
 
         // subscription_builtin_topic_data
-        let key = param_list
-            .get::<BuiltInTopicKeyDeserialize>(PID_ENDPOINT_GUID)
-            .unwrap()
-            .0;
-        let participant_key = param_list
-            .get::<BuiltInTopicKeyDeserialize>(PID_PARTICIPANT_GUID)
-            .unwrap()
-            .0;
-        let topic_name = param_list.get(PID_TOPIC_NAME).unwrap();
-        let type_name = param_list.get(PID_TYPE_NAME).unwrap();
+        let key = param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
+        let participant_key =
+            param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_PARTICIPANT_GUID)?;
+        let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
+        let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
+        let durability =
+            param_list.get_or_default::<DurabilityQosPolicyDeserialize, _>(PID_DURABILITY)?;
+        let deadline =
+            param_list.get_or_default::<DeadlineQosPolicyDeserialize, _>(PID_DEADLINE)?;
+        let latency_budget = param_list
+            .get_or_default::<LatencyBudgetQosPolicyDeserialize, _>(PID_LATENCY_BUDGET)?;
+        let liveliness =
+            param_list.get_or_default::<LivelinessQosPolicyDeserialize, _>(PID_LIVELINESS)?;
+        let reliability = param_list
+            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize, _>(
+                PID_RELIABILITY,
+            )?;
+        let user_data =
+            param_list.get_or_default::<UserDataQosPolicyDeserialize, _>(PID_USER_DATA)?;
+        let ownership =
+            param_list.get_or_default::<OwnershipQosPolicyDeserialize, _>(PID_OWNERSHIP)?;
+        let destination_order = param_list
+            .get_or_default::<DestinationOrderQosPolicyDeserialize, _>(PID_DESTINATION_ORDER)?;
+        let time_based_filter = param_list
+            .get_or_default::<TimeBasedFilterQosPolicyDeserialize, _>(PID_TIME_BASED_FILTER)?;
+        let presentation =
+            param_list.get_or_default::<PresentationQosPolicyDeserialize, _>(PID_PRESENTATION)?;
+        let partition =
+            param_list.get_or_default::<PartitionQosPolicyDeserialize, _>(PID_PARTITION)?;
+        let topic_data =
+            param_list.get_or_default::<TopicDataQosPolicyDeserialize, _>(PID_TOPIC_DATA)?;
+        let group_data =
+            param_list.get_or_default::<GroupDataQosPolicyDeserialize, _>(PID_GROUP_DATA)?;
 
-        // Assembly
         let remote_reader_guid = convert_built_in_topic_key_to_guid(&key);
-        let reader_proxy = RtpsReaderProxy {
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-        };
-        let subscriptions_builtin_topic_data = SubscriptionBuiltinTopicData {
-            key,
-            participant_key,
-            topic_name,
-            type_name,
-            durability: DurabilityQosPolicy::default(),
-            deadline: DeadlineQosPolicy::default(),
-            latency_budget: LatencyBudgetQosPolicy::default(),
-            liveliness: LivelinessQosPolicy::default(),
-            reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-            user_data: UserDataQosPolicy::default(),
-            ownership: OwnershipQosPolicy::default(),
-            destination_order: DestinationOrderQosPolicy::default(),
-            time_based_filter: TimeBasedFilterQosPolicy::default(),
-            presentation: PresentationQosPolicy::default(),
-            partition: PartitionQosPolicy::default(),
-            topic_data: TopicDataQosPolicy::default(),
-            group_data: GroupDataQosPolicy::default(),
-        };
+
         Ok(Self {
-            reader_proxy,
-            subscription_builtin_topic_data: subscriptions_builtin_topic_data,
+            reader_proxy: RtpsReaderProxy {
+                remote_reader_guid,
+                remote_group_entity_id,
+                unicast_locator_list,
+                multicast_locator_list,
+                expects_inline_qos,
+            },
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+                key,
+                participant_key,
+                topic_name,
+                type_name,
+                durability,
+                deadline,
+                latency_budget,
+                liveliness,
+                reliability,
+                user_data,
+                ownership,
+                destination_order,
+                time_based_filter,
+                presentation,
+                partition,
+                topic_data,
+                group_data,
+            },
         })
     }
 }
@@ -342,6 +271,7 @@ mod tests {
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
             LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
             PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
     };
     use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
@@ -370,7 +300,7 @@ mod tests {
                 },
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                expects_inline_qos: DEFAULT_EXPECTS_INLINE_QOS,
+                expects_inline_qos: *ExpectsInclineQosSerialize::default().0,
             },
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -439,7 +369,7 @@ mod tests {
                 },
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                expects_inline_qos: DEFAULT_EXPECTS_INLINE_QOS,
+                expects_inline_qos: ExpectsInclineQosDeserialize::default().0,
             },
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
