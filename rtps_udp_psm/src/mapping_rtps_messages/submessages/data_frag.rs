@@ -8,12 +8,12 @@ use crate::{
 use std::io::Write;
 
 impl MappingWrite for DataFragSubmessageWrite {
-    fn write<W: Write>(&self, mut _writer: W) -> serialize::Result {
+    fn mapping_write<W: Write>(&self, mut _writer: W) -> serialize::Result {
         todo!()
     }
 }
 impl<'a, 'de: 'a> MappingRead<'de> for DataFragSubmessageRead {
-    fn read(_buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read(_buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         todo!()
     }
 }

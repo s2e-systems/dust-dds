@@ -13,12 +13,12 @@ impl<T> MappingWriteByteOrdered for LocatorListSubmessageElement<T>
 where
     for<'a> &'a T: IntoIterator<Item = &'a Locator>,
 {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         let locator_list: Vec<&Locator> = self.value.into_iter().collect();
         let num_locators = locator_list.len() as u32;
-        num_locators.write_byte_ordered::<_, B>(&mut writer)?;
+        num_locators.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         for locator in locator_list {
-            locator.write_byte_ordered::<_, B>(&mut writer)?;
+            locator.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         };
         Ok(())
     }
@@ -28,11 +28,11 @@ impl<'de, T> MappingReadByteOrdered<'de> for LocatorListSubmessageElement<T>
 where
     T: FromIterator<Locator>,
 {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let num_locators: u32 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let num_locators: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let mut locator_list = Vec::new();
         for _ in 0..num_locators {
-            locator_list.push(MappingReadByteOrdered::read_byte_ordered::<B>(buf)?);
+            locator_list.push(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?);
         };
         Ok(Self{value: T::from_iter(locator_list.into_iter())})
     }

@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
@@ -8,20 +8,33 @@ use crate::{
     serialize::{self, MappingWrite},
 };
 
+impl<const N: usize> MappingWrite for [u8; N] {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> serialize::Result {
+        writer.write_all(self)
+    }
+}
+impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
+    fn mapping_read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let mut value = [0; N];
+        buf.read_exact(value.as_mut())?;
+        Ok(value)
+    }
+}
+
 impl MappingWrite for RtpsMessageHeader {
-    fn write<W: Write>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> serialize::Result {
         match self.protocol {
-            ProtocolId::PROTOCOL_RTPS => b"RTPS".write(&mut writer)?,
+            ProtocolId::PROTOCOL_RTPS => b"RTPS".mapping_write(&mut writer)?,
         }
-        self.version.write(&mut writer)?;
-        self.vendor_id.write(&mut writer)?;
-        self.guid_prefix.write(&mut writer)
+        self.version.mapping_write(&mut writer)?;
+        self.vendor_id.mapping_write(&mut writer)?;
+        self.guid_prefix.mapping_write(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let protocol: [u8; 4] = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let protocol: [u8; 4] = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS
         } else {
@@ -32,16 +45,16 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
         };
         Ok(Self {
             protocol,
-            version: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
-            vendor_id: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
-            guid_prefix: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
+            version: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+            vendor_id: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+            guid_prefix: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
     }
 }
 
 impl<'de> MappingRead<'de> for RtpsMessageHeader {
-    fn read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let protocol: [u8; 4] = MappingRead::read(buf)?;
+    fn mapping_read(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let protocol: [u8; 4] = MappingRead::mapping_read(buf)?;
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS
         } else {
@@ -52,9 +65,9 @@ impl<'de> MappingRead<'de> for RtpsMessageHeader {
         };
         Ok(Self {
             protocol,
-            version: MappingRead::read(buf)?,
-            vendor_id: MappingRead::read(buf)?,
-            guid_prefix: MappingRead::read(buf)?,
+            version: MappingRead::mapping_read(buf)?,
+            vendor_id: MappingRead::mapping_read(buf)?,
+            guid_prefix: MappingRead::mapping_read(buf)?,
         })
     }
 }

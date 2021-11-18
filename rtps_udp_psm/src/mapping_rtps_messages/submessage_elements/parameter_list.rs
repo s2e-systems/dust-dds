@@ -67,7 +67,7 @@ impl<T> MappingWriteByteOrdered for Parameter<T>
 where
     T: AsRef<[u8]>,
 {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         writer.write_u16::<B>(self.parameter_id.0)?;
         writer.write_i16::<B>(self.length)?;
         writer.write_all(self.value.as_ref())?;
@@ -83,7 +83,7 @@ where
 }
 
 impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<&'a [u8]> {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         let parameter_id = ParameterId(buf.read_u16::<B>()?);
         let length = buf.read_i16::<B>()?;
         let (value, following) = buf.split_at(length as usize);
@@ -103,11 +103,11 @@ impl<T> NumberOfBytes for Parameter<T> {
 }
 
 impl MappingWriteByteOrdered for ParameterListSubmessageElement<Vec<Parameter<Vec<u8>>>> {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         for parameter in &self.parameter {
-            parameter.write_byte_ordered::<_, B>(&mut writer)?;
+            parameter.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
-        SENTINEL.write_byte_ordered::<_, B>(&mut writer)
+        SENTINEL.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
@@ -115,13 +115,13 @@ impl<'de: 'a, 'a, T> MappingReadByteOrdered<'de> for ParameterListSubmessageElem
 where
     T: FromIterator<Parameter<&'a [u8]>>,
 {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
         let mut parameter = vec![];
 
         for _ in 0..MAX_PARAMETERS {
-            let parameter_i: Parameter<&[u8]> = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+            let parameter_i: Parameter<&[u8]> = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
 
             if parameter_i == SENTINEL {
                 break;

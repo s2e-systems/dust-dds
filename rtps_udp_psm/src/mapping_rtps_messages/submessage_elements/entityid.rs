@@ -12,13 +12,13 @@ use crate::{
 
 
 impl MappingWriteByteOrdered for EntityIdSubmessageElement {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.write_byte_ordered::<_, B>(&mut writer)
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 impl<'de> MappingReadByteOrdered<'de> for EntityIdSubmessageElement {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self { value: MappingReadByteOrdered::read_byte_ordered::<B>(buf)? })
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self { value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)? })
     }
 }
 

@@ -12,32 +12,32 @@ use crate::{
 };
 
 impl MappingWriteByteOrdered for SequenceNumber {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         let high = (self >> 32) as i32;
         let low = *self as i32;
-        high.write_byte_ordered::<_, B>(&mut writer)?;
-        low.write_byte_ordered::<_, B>(&mut writer)
+        high.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        low.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for SequenceNumber {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let high: i32 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let low: i32 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let high: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let low: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         Ok(((high as i64) << 32) + low as i64)
     }
 }
 
 impl MappingWriteByteOrdered for SequenceNumberSubmessageElement {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.write_byte_ordered::<_, B>(&mut writer)
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSubmessageElement {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self {
-            value: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
+            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
     }
 }

@@ -10,34 +10,34 @@ use rust_rtps_pim::{
 use crate::{deserialize::{self, MappingReadByteOrdered}, serialize::{self, NumberOfBytes, MappingWriteByteOrdered}};
 
 impl MappingWriteByteOrdered for Time {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         let seconds = (self.0 >> 32) as i32;
         let fraction = self.0 as i32;
-        seconds.write_byte_ordered::<_, B>(&mut writer)?;
-        fraction.write_byte_ordered::<_, B>(&mut writer)
+        seconds.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        fraction.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for Time {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let seconds: i32 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let fraction: u32 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let seconds: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let fraction: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         Ok(Self(((seconds as u64) << 32) + fraction as u64))
     }
 }
 
 impl MappingWriteByteOrdered for Duration {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.seconds.write_byte_ordered::<_, B>(&mut writer)?;
-        self.fraction.write_byte_ordered::<_, B>(&mut writer)
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.seconds.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.fraction.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for Duration {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self {
-            seconds: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
-            fraction: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
+            seconds: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+            fraction: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
     }
 }
@@ -49,18 +49,18 @@ impl NumberOfBytes for Duration {
 }
 
 impl MappingWriteByteOrdered for Locator {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.kind().write_byte_ordered::<_, B>(&mut writer)?;
-        self.port().write_byte_ordered::<_, B>(&mut writer)?;
-        self.address().write_byte_ordered::<_, B>(&mut writer)
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.kind().mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.port().mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.address().mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for Locator {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        let kind = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let port = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let address = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        let kind = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let port = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let address = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         Ok(Self::new(kind, port, address))
     }
 }
@@ -72,14 +72,14 @@ impl NumberOfBytes for Locator {
 }
 
 impl MappingWriteByteOrdered for GroupDigest {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.0.write_byte_ordered::<_, B>(&mut writer)
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.0.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for GroupDigest {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self(MappingReadByteOrdered::read_byte_ordered::<B>(buf)?))
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?))
     }
 }
 

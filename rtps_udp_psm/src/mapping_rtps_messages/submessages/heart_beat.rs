@@ -32,11 +32,11 @@ impl SerializeSubmessage for HeartbeatSubmessageWrite {
         &self,
         mut writer: W,
     ) -> crate::serialize::Result {
-        self.reader_id.write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_id.write_byte_ordered::<_, B>(&mut writer)?;
-        self.first_sn.write_byte_ordered::<_, B>(&mut writer)?;
-        self.last_sn.write_byte_ordered::<_, B>(&mut writer)?;
-        self.count.write_byte_ordered::<_, B>(&mut writer)
+        self.reader_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.first_sn.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.last_sn.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.count.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
@@ -45,11 +45,11 @@ impl<'de> DeserializeSubmessage<'de> for HeartbeatSubmessageRead {
         buf: &mut &'de [u8],
         header: rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader,
     ) -> deserialize::Result<Self> {
-        let reader_id = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let writer_id = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let first_sn = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let last_sn = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let count = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+        let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let first_sn = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let last_sn = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let count = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         Ok(Self::new(
             header.flags[0],
             header.flags[1],

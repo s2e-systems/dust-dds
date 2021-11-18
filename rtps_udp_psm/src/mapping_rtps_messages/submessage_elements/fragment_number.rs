@@ -9,27 +9,27 @@ use crate::{
 };
 
 impl MappingWriteByteOrdered for FragmentNumber {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.0.write_byte_ordered::<_, B>(&mut writer)
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.0.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for FragmentNumber {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
-        Ok(Self(MappingReadByteOrdered::read_byte_ordered::<B>(buf)?))
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+        Ok(Self(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?))
     }
 }
 
 impl MappingWriteByteOrdered for FragmentNumberSubmessageElement {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
-        self.value.write_byte_ordered::<_, B>(&mut writer)
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+        self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSubmessageElement {
-    fn read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> deserialize::Result<Self> {
         Ok(Self {
-            value: MappingReadByteOrdered::read_byte_ordered::<B>(buf)?,
+            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
     }
 }

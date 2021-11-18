@@ -9,7 +9,7 @@ impl<D> MappingWriteByteOrdered for SerializedDataSubmessageElement<D>
 where
     D: AsRef<[u8]>,
 {
-    fn write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> serialize::Result {
         writer.write_all(self.value.as_ref())?;
         Ok(())
     }

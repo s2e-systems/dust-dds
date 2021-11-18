@@ -32,10 +32,10 @@ impl SerializeSubmessage for GapSubmessageWrite {
         &self,
         mut writer: W,
     ) -> serialize::Result {
-        self.reader_id.write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_id.write_byte_ordered::<_, B>(&mut writer)?;
-        self.gap_start.write_byte_ordered::<_, B>(&mut writer)?;
-        self.gap_list.write_byte_ordered::<_, B>(&mut writer)
+        self.reader_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.gap_start.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.gap_list.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
@@ -44,10 +44,10 @@ impl<'de> DeserializeSubmessage<'de> for GapSubmessageRead {
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
     ) -> deserialize::Result<Self> {
-        let reader_id = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let writer_id = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let gap_start = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let gap_list = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+        let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let gap_start = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let gap_list = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         Ok(Self::new(
             header.flags[0],
             reader_id,

@@ -43,16 +43,16 @@ impl SerializeSubmessage for DataSubmessageWrite<'_> {
     ) -> serialize::Result {
         const OCTETS_TO_INLINE_QOS: u16 = 16;
         const EXTRA_FLAGS: u16 = 0;
-        EXTRA_FLAGS.write_byte_ordered::<_, B>(&mut writer)?;
-        OCTETS_TO_INLINE_QOS.write_byte_ordered::<_, B>(&mut writer)?;
-        self.reader_id.write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_id.write_byte_ordered::<_, B>(&mut writer)?;
-        self.writer_sn.write_byte_ordered::<_, B>(&mut writer)?;
+        EXTRA_FLAGS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        OCTETS_TO_INLINE_QOS.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.reader_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_id.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.writer_sn.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         if self.inline_qos_flag {
-            self.inline_qos.write_byte_ordered::<_, B>(&mut writer)?;
+            self.inline_qos.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         if self.data_flag || self.key_flag {
-            self.serialized_payload.write_byte_ordered::<_, B>(&mut writer)?;
+            self.serialized_payload.mapping_write_byte_ordered::<_, B>(&mut writer)?;
             // Pad to 32bit boundary
             let padding: &[u8] = match self.serialized_payload.number_of_bytes() % 4 {
                 1 => &[0; 3],
@@ -74,14 +74,14 @@ impl<'de: 'a, 'a> DeserializeSubmessage<'de> for DataSubmessageRead<'a> {
         let inline_qos_flag = header.flags[1];
         let data_flag = header.flags[2];
         let key_flag = header.flags[3];
-        let _extra_flags: u16 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let octets_to_inline_qos: u16 = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let reader_id = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let writer_id = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
-        let writer_sn = MappingReadByteOrdered::read_byte_ordered::<B>(buf)?;
+        let _extra_flags: u16 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let octets_to_inline_qos: u16 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let writer_sn = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
 
         let inline_qos = if inline_qos_flag {
-            MappingReadByteOrdered::read_byte_ordered::<B>(buf)?
+            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?
         } else {
             ParameterListSubmessageElement { parameter: vec![] }
         };
