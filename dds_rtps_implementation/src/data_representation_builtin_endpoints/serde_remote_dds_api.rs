@@ -35,7 +35,7 @@ pub struct UserDataQosPolicyDeserialize(
 #[serde(remote = "BuiltinEndpointSet")]
 pub struct BuiltinEndpointSetDef(pub u32);
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct BuiltinEndpointSetSerialize<'a>(
     #[serde(with = "BuiltinEndpointSetDef")] pub &'a BuiltinEndpointSet,
 );
@@ -48,7 +48,7 @@ pub struct BuiltinEndpointSetDeserialize(
 #[serde(remote = "BuiltinEndpointQos")]
 pub struct BuiltinEndpointQosDef(pub u32);
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct BuiltinEndpointQosSerialize<'a>(
     #[serde(with = "BuiltinEndpointQosDef")] pub &'a BuiltinEndpointQos,
 );
@@ -66,7 +66,7 @@ pub struct BuiltInTopicKeyDef {
     pub value: [BuiltInTopicKeyTypeNative; 4],
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct BuiltInTopicKeySerialize<'a>(
     #[serde(with = "BuiltInTopicKeyDef")] pub &'a BuiltInTopicKey,
 );
@@ -90,7 +90,7 @@ pub struct DurabilityQosPolicyDef {
     pub kind: DurabilityQosPolicyKind,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct DurabilityQosPolicySerialize<'a>(
     #[serde(with = "DurabilityQosPolicyDef")] pub &'a DurabilityQosPolicy,
 );
@@ -134,7 +134,7 @@ pub struct DurabilityServiceQosPolicyDef {
     pub max_samples_per_instance: i32,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct DurabilityServiceQosPolicySerialize<'a>(
     #[serde(with = "DurabilityServiceQosPolicyDef")] pub &'a DurabilityServiceQosPolicy,
 );
@@ -151,7 +151,7 @@ pub struct DeadlineQosPolicyDef {
     pub period: Duration,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct DeadlineQosPolicySerialize<'a>(
     #[serde(with = "DeadlineQosPolicyDef")] pub &'a DeadlineQosPolicy,
 );
@@ -168,9 +168,9 @@ pub struct LatencyBudgetQosPolicyDef {
     pub duration: Duration,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct LatencyBudgetQosPolicySerialize<'a>(
-    #[serde(with = "LatencyBudgetQosPolicyDef")] pub &'a LatencyBudgetQosPolicy,
+    #[serde(with = "LatencyBudgetQosPolicyDef")] &'a LatencyBudgetQosPolicy,
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
@@ -195,7 +195,7 @@ pub struct LivelinessQosPolicyDef {
     pub lease_duration: Duration,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct LivelinessQosPolicySerialize<'a>(
     #[serde(with = "LivelinessQosPolicyDef")] pub &'a LivelinessQosPolicy,
 );
@@ -269,25 +269,54 @@ pub struct ReliabilityQosPolicyDef {
     pub max_blocking_time: Duration,
 }
 
+
+
 #[derive(Debug, PartialEq, serde::Serialize)]
-pub struct ReliabilityQosPolicySerialize<'a>(
-    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a ReliabilityQosPolicy,
+pub struct ReliabilityQosPolicyDataWriter<'a>(
+    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a  ReliabilityQosPolicy,
+);
+impl<'a> Default for ReliabilityQosPolicyDataWriter<'a> {
+    fn default() -> Self {
+        Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)
+    }
+}
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+pub struct ReliabilityQosPolicyDataWriterSerialize<'a>(
+    pub &'a ReliabilityQosPolicyDataWriter<'a>,
 );
 
+
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From, derive_more::Into)]
+pub struct ReliabilityQosPolicyDataReaderAndTopics<'a>(
+    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a  ReliabilityQosPolicy,
+);
+impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
+    fn default() -> Self {
+        Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
+    }
+}
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
+    pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
+);
+
+
+
+
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
-pub struct ReliabilityQosPolicyDeserializeDataWriter(
+pub struct ReliabilityQosPolicyDataWriterDeserialize(
     #[serde(with = "ReliabilityQosPolicyDef")] pub ReliabilityQosPolicy,
 );
-impl Default for ReliabilityQosPolicyDeserializeDataWriter {
+impl Default for ReliabilityQosPolicyDataWriterDeserialize {
     fn default() -> Self {
         Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)
     }
 }
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
-pub struct ReliabilityQosPolicyDeserializeDataReaderAndTopics(
+pub struct ReliabilityQosPolicyDataReaderAndTopicsDeserialize(
     #[serde(with = "ReliabilityQosPolicyDef")] pub ReliabilityQosPolicy,
 );
-impl Default for ReliabilityQosPolicyDeserializeDataReaderAndTopics {
+impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
     fn default() -> Self {
         Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
     }
@@ -299,7 +328,7 @@ pub struct TransportPriorityQosPolicyDef {
     pub value: i32,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct TransportPriorityQosPolicySerialize<'a>(
     #[serde(with = "TransportPriorityQosPolicyDef")] pub &'a TransportPriorityQosPolicy,
 );
@@ -316,7 +345,7 @@ pub struct LifespanQosPolicyDef {
     pub duration: Duration,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct LifespanQosPolicySerialize<'a>(
     #[serde(with = "LifespanQosPolicyDef")] pub &'a LifespanQosPolicy,
 );
@@ -340,7 +369,7 @@ pub struct DestinationOrderQosPolicyDef {
     pub kind: DestinationOrderQosPolicyKind,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct DestinationOrderQosPolicySerialize<'a>(
     #[serde(with = "DestinationOrderQosPolicyDef")] pub &'a DestinationOrderQosPolicy,
 );
@@ -358,7 +387,7 @@ pub struct HistoryQosPolicyDef {
     pub depth: i32,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct HistoryQosPolicySerialize<'a>(
     #[serde(with = "HistoryQosPolicyDef")] pub &'a HistoryQosPolicy,
 );
@@ -374,7 +403,7 @@ pub struct ResourceLimitsQosPolicyDef {
     pub max_samples_per_instance: i32,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct ResourceLimitsQosPolicySerialize<'a>(
     #[serde(with = "ResourceLimitsQosPolicyDef")] pub &'a ResourceLimitsQosPolicy,
 );
@@ -398,7 +427,7 @@ pub struct OwnershipQosPolicyDef {
     pub kind: OwnershipQosPolicyKind,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct OwnershipQosPolicySerialize<'a>(
     #[serde(with = "OwnershipQosPolicyDef")] pub &'a OwnershipQosPolicy,
 );
@@ -413,7 +442,7 @@ pub struct OwnershipQosPolicyDeserialize(
 pub struct TopicDataQosPolicyDef {
     pub value: Vec<u8>,
 }
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct TopicDataQosPolicySerialize<'a>(
     #[serde(with = "TopicDataQosPolicyDef")] pub &'a TopicDataQosPolicy,
 );
@@ -427,7 +456,7 @@ pub struct TopicDataQosPolicyDeserialize(
 pub struct OwnershipStrengthQosPolicyDef {
     pub value: i32,
 }
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct OwnershipStrengthQosPolicySerialize<'a>(
     #[serde(with = "OwnershipStrengthQosPolicyDef")] pub &'a OwnershipStrengthQosPolicy,
 );
@@ -452,7 +481,7 @@ pub struct PresentationQosPolicyDef {
     pub coherent_access: bool,
     pub ordered_access: bool,
 }
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct PresentationQosPolicySerialize<'a>(
     #[serde(with = "PresentationQosPolicyDef")] pub &'a PresentationQosPolicy,
 );
@@ -466,7 +495,7 @@ pub struct PresentationQosPolicyDeserialize(
 pub struct PartitionQosPolicyDef {
     pub name: String,
 }
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct PartitionQosPolicySerialize<'a>(
     #[serde(with = "PartitionQosPolicyDef")] pub &'a PartitionQosPolicy,
 );
@@ -480,7 +509,7 @@ pub struct PartitionQosPolicyDeserialize(
 pub struct GroupDataQosPolicyDef {
     pub value: Vec<u8>,
 }
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct GroupDataQosPolicySerialize<'a>(
     #[serde(with = "GroupDataQosPolicyDef")] pub &'a GroupDataQosPolicy,
 );
@@ -495,7 +524,7 @@ pub struct TimeBasedFilterQosPolicyDef {
     #[serde(with = "DcpsDurationDef")]
     pub minimum_separation: Duration,
 }
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct TimeBasedFilterQosPolicySerialize<'a>(
     #[serde(with = "TimeBasedFilterQosPolicyDef")] pub &'a TimeBasedFilterQosPolicy,
 );
@@ -520,12 +549,12 @@ mod tests {
     }
 
     #[test]
-    fn serialize_reliability_qos_policy_def() {
+    fn serialize_reliability_qos_policy() {
         let value = ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
             max_blocking_time: Duration::new(0, 100),
         };
-        let result = to_bytes_le(&ReliabilityQosPolicySerialize(&value));
+        let result = to_bytes_le(&ReliabilityQosPolicyDataWriterSerialize(&ReliabilityQosPolicyDataWriter(&value)));
         assert_eq!(
             result,
             vec![
@@ -536,7 +565,7 @@ mod tests {
         );
     }
     #[test]
-    fn deserialize_reliability_qos_policy_def() {
+    fn deserialize_reliability_qos_policy() {
         let data = &[
             2u8, 0, 0, 0, // kind
             0, 0, 0, 0, // max_blocking_time:  sec: i32,
@@ -546,7 +575,7 @@ mod tests {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
             max_blocking_time: Duration::new(0, 100),
         };
-        let result: ReliabilityQosPolicyDeserializeDataReaderAndTopics = from_bytes_le(data);
+        let result: ReliabilityQosPolicyDataReaderAndTopicsDeserialize = from_bytes_le(data);
         assert_eq!(result.0, expected);
     }
 }

@@ -38,11 +38,17 @@ where
         Ok(())
     }
 
-    pub fn serialize_parameter<T>(&mut self, parameter_id: u16, value: &T) -> DDSResult<()>
+    pub fn serialize_parameter<'a, T, U>(
+        &mut self,
+        parameter_id: u16,
+        value: &'a U,
+    ) -> DDSResult<()>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + From<&'a U>,
+        U: 'a,
     {
-        let length_without_padding = cdr::size::calc_serialized_data_size(&value) as i16;
+        let serializale_value = &T::from(value);
+        let length_without_padding = cdr::size::calc_serialized_data_size(serializale_value) as i16;
         let padding_length = (4 - length_without_padding) & 3;
         let length = length_without_padding + padding_length;
 
@@ -54,7 +60,7 @@ where
             .serialize(&mut self.serializer)
             .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
 
-        value
+        serializale_value
             .serialize(&mut self.serializer)
             .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
 
@@ -75,7 +81,7 @@ where
         U: PartialEq<U> + Default,
     {
         if value != &U::default() {
-            self.serialize_parameter(parameter_id, &T::from(value))?;
+            self.serialize_parameter::<T,U>(parameter_id, value)?;
         }
         Ok(())
     }
@@ -89,7 +95,7 @@ where
         T: serde::Serialize + From<&'a U>,
     {
         for value_i in value.iter() {
-            self.serialize_parameter(parameter_id, &T::from(value_i))?;
+            self.serialize_parameter::<T,U>(parameter_id, value_i)?;
         }
         Ok(())
     }

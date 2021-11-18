@@ -115,7 +115,7 @@ impl<'de> ParameterListDeserializer<'de> {
             }
         }
         Err(DDSError::PreconditionNotMet(format!(
-            "Parameter with id {} not found",
+            "Parameter with id {:#06x} not found",
             parameter_id
         )))
     }

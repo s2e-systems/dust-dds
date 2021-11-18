@@ -22,12 +22,11 @@ use super::{
     parameter_list_deserializer::ParameterListDeserializer,
     parameter_list_serializer::ParameterListSerializer,
     serde_remote_dds_api::{
-        BuiltinEndpointQosDeserialize, BuiltinEndpointQosSerialize,
-        BuiltinEndpointSetDeserialize, BuiltinEndpointSetSerialize,
-        UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
+        BuiltinEndpointQosDeserialize, BuiltinEndpointQosSerialize, BuiltinEndpointSetDeserialize,
+        BuiltinEndpointSetSerialize, UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
     },
     serde_remote_rtps_pim::{
-        CountDeserialize, CountSerdeSerialize, DomainTagDeserialize, DomainTagSerialize,
+        CountDeserialize, CountSerdeSerialize, DomainTag, DomainTagDeserialize, DomainTagSerialize,
         DurationDeserialize, DurationSerialize, ExpectsInclineQosDeserialize,
         ExpectsInclineQosSerialize, GuidDeserialize, GuidSerialize, LocatorDeserialize,
         LocatorSerialize, ProtocolVersionDeserialize, ProtocolVersionSerialize,
@@ -65,19 +64,19 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
-            .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
+            .serialize_parameter::<&u32, _>(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
         parameter_list_serializer.serialize_parameter_if_not_default::<DomainTagSerialize, _>(
             PID_DOMAIN_TAG,
-            &self.participant_proxy.domain_tag.as_str().into(),
+            &DomainTag(&self.participant_proxy.domain_tag.as_str()),
         )?;
-        parameter_list_serializer.serialize_parameter(
+        parameter_list_serializer.serialize_parameter::<ProtocolVersionSerialize, _>(
             PID_PROTOCOL_VERSION,
-            &ProtocolVersionSerialize(&self.participant_proxy.protocol_version),
+            &self.participant_proxy.protocol_version,
         )?;
         parameter_list_serializer
-            .serialize_parameter(PID_PARTICIPANT_GUID, &GuidSerialize(&guid))?;
+            .serialize_parameter::<GuidSerialize, _>(PID_PARTICIPANT_GUID, &guid)?;
         parameter_list_serializer
-            .serialize_parameter(PID_VENDORID, &self.participant_proxy.vendor_id)?;
+            .serialize_parameter::<&[u8; 2], _>(PID_VENDORID, &self.participant_proxy.vendor_id)?;
         parameter_list_serializer
             .serialize_parameter_if_not_default::<ExpectsInclineQosSerialize, _>(
                 PID_EXPECTS_INLINE_QOS,
@@ -99,29 +98,28 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_DEFAULT_MULTICAST_LOCATOR,
             &self.participant_proxy.default_multicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter(
+        parameter_list_serializer.serialize_parameter::<BuiltinEndpointSetSerialize, _>(
             PID_BUILTIN_ENDPOINT_SET,
-            &BuiltinEndpointSetSerialize(&self.participant_proxy.available_builtin_endpoints),
+            &self.participant_proxy.available_builtin_endpoints,
         )?;
-        parameter_list_serializer.serialize_parameter(
+        parameter_list_serializer.serialize_parameter::<CountSerdeSerialize, _>(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-            &CountSerdeSerialize(&self.participant_proxy.manual_liveliness_count),
+            &self.participant_proxy.manual_liveliness_count,
         )?;
-        parameter_list_serializer.serialize_parameter(
+        parameter_list_serializer.serialize_parameter::<BuiltinEndpointQosSerialize, _>(
             PID_BUILTIN_ENDPOINT_QOS,
-            &BuiltinEndpointQosSerialize(&self.participant_proxy.builtin_endpoint_qos),
+            &self.participant_proxy.builtin_endpoint_qos,
         )?;
-        parameter_list_serializer.serialize_parameter(
+        parameter_list_serializer.serialize_parameter::<DurationSerialize, _>(
             PID_PARTICIPANT_LEASE_DURATION,
-            &DurationSerialize(&self.lease_duration),
+            &self.lease_duration,
         )?;
         parameter_list_serializer
             .serialize_parameter_if_not_default::<UserDataQosPolicySerialize, _>(
                 PID_USER_DATA,
                 &self.dds_participant_data.user_data,
             )?;
-        parameter_list_serializer.serialize_sentinel()?;
-        Ok(())
+        parameter_list_serializer.serialize_sentinel()
     }
 }
 

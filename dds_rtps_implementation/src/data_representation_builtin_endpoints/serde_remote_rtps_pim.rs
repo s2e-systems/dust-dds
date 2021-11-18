@@ -14,7 +14,7 @@ pub struct DurationDef {
     fraction: u32,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct DurationSerialize<'a>(#[serde(with = "DurationDef")] pub &'a Duration);
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
@@ -44,7 +44,7 @@ pub struct ProtocolVersionDef {
     pub major: u8,
     pub minor: u8,
 }
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct ProtocolVersionSerialize<'a>(
     #[serde(with = "ProtocolVersionDef")] pub &'a ProtocolVersion,
 );
@@ -63,7 +63,7 @@ pub struct GuidDef {
     pub entity_id: EntityId,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct GuidSerialize<'a>(#[serde(with = "GuidDef")] pub &'a Guid);
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
@@ -75,7 +75,7 @@ pub struct EntityIdDef {
     pub entity_key: [u8; 3],
     pub entity_kind: EntityKind,
 }
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct EntityIdSerialize<'a>(#[serde(with = "EntityIdDef")] pub &'a EntityId);
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
@@ -90,7 +90,7 @@ pub struct GuidPrefixDef(pub [u8; 12]);
 #[serde(remote = "Count")]
 pub struct CountDef(pub i32);
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct CountSerdeSerialize<'a>(#[serde(with = "CountDef")] pub &'a Count);
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
@@ -111,7 +111,7 @@ impl Default for ExpectsInclineQosDeserialize {
     }
 }
 
-#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+#[derive(Debug, PartialEq, serde::Serialize)]
 pub struct DomainTag<'a>(pub &'a str);
 impl<'a> Default for DomainTag<'a> {
     fn default() -> Self {
