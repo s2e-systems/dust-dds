@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElement;
 
-use crate::{deserialize::MappingReadByteOrdered, serialize::MappingWriteByteOrdered};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
 impl MappingWriteByteOrdered for VendorIdSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -25,8 +25,7 @@ impl<'de> MappingReadByteOrdered<'de> for VendorIdSubmessageElement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_vendor_id() {

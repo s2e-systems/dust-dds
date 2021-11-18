@@ -6,9 +6,8 @@ use rust_rtps_pim::{
     structure::types::ProtocolVersion,
 };
 
-use crate::{
-    deserialize::{MappingRead, MappingReadByteOrdered},
-    serialize::{MappingWrite, MappingWriteByteOrdered, NumberOfBytes},
+use crate::mapping_traits::{
+    MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered, NumberOfBytes,
 };
 
 impl MappingWriteByteOrdered for ProtocolVersion {
@@ -72,8 +71,7 @@ impl<'de> MappingReadByteOrdered<'de> for ProtocolVersionSubmessageElement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_protocol_version() {

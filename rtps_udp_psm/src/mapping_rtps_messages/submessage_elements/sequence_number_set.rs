@@ -9,10 +9,7 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-use crate::{
-    deserialize::MappingReadByteOrdered,
-    serialize::{MappingWriteByteOrdered, NumberOfBytes},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 impl<T> MappingWriteByteOrdered for SequenceNumberSetSubmessageElement<T>
 where
@@ -87,8 +84,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_sequence_number_max_gap() {

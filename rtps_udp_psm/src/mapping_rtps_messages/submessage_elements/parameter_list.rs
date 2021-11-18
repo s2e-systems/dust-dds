@@ -9,10 +9,7 @@ use rust_rtps_pim::messages::{
     types::ParameterId,
 };
 
-use crate::{
-    deserialize::MappingReadByteOrdered,
-    serialize::{MappingWriteByteOrdered, NumberOfBytes},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 const PID_SENTINEL: ParameterId = ParameterId(1);
 const SENTINEL: Parameter<&[u8]> = Parameter {
@@ -110,8 +107,7 @@ impl<'a, T: NumberOfBytes> NumberOfBytes for ParameterListSubmessageElement<T> {
 mod tests {
 
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_parameter() {

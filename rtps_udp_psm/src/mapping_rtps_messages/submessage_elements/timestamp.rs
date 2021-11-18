@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
 
-use crate::{deserialize::MappingReadByteOrdered, serialize::MappingWriteByteOrdered};
+use crate::{mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered}};
 
 impl MappingWriteByteOrdered for TimestampSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

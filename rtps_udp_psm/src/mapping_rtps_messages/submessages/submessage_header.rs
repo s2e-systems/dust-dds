@@ -6,10 +6,7 @@ use rust_rtps_pim::messages::{
     types::{SubmessageFlag, SubmessageKind},
 };
 
-use crate::{
-    deserialize::{MappingRead, MappingReadByteOrdered},
-    serialize::{MappingWrite, MappingWriteByteOrdered},
-};
+use crate::{mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered}};
 
 pub trait Submessage {
     fn submessage_header(&self) -> RtpsSubmessageHeader;
@@ -206,8 +203,7 @@ mod tests {
     use rust_rtps_pim::messages::types::SubmessageKind;
 
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_submessage_flags() {

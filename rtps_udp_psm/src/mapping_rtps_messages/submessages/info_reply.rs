@@ -1,6 +1,6 @@
 use rust_rtps_psm::messages::submessages::{InfoReplySubmessageRead, InfoReplySubmessageWrite};
 
-use crate::{deserialize::MappingRead, serialize::MappingWrite};
+use crate::mapping_traits::{MappingRead, MappingWrite};
 
 use std::io::{Error, Write};
 

@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElement;
 
-use crate::serialize::{MappingWriteByteOrdered, NumberOfBytes};
+use crate::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes};
 
 impl<D> MappingWriteByteOrdered for SerializedDataSubmessageElement<D>
 where
@@ -29,8 +29,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::mapping_traits::to_bytes_le;
+
     use super::*;
-    use crate::serialize::to_bytes_le;
 
     #[test]
     fn serialize_serialized_data() {

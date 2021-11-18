@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElement;
 
-use crate::{deserialize::MappingReadByteOrdered, serialize::MappingWriteByteOrdered};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
 impl MappingWriteByteOrdered for GuidPrefixSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -26,8 +26,7 @@ mod tests {
     use rust_rtps_pim::structure::types::GuidPrefix;
 
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_guid_prefix() {

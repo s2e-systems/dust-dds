@@ -8,10 +8,7 @@ use rust_rtps_pim::messages::{
 };
 use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
 
-use crate::{
-    deserialize::MappingReadByteOrdered,
-    serialize::{MappingWriteByteOrdered, NumberOfBytes},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
@@ -131,7 +128,7 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessageRead<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{deserialize::from_bytes, serialize::to_bytes};
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
     use rust_rtps_pim::{

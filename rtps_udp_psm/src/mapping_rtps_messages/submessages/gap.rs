@@ -4,10 +4,7 @@ use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
 use rust_rtps_psm::messages::submessages::{GapSubmessageRead, GapSubmessageWrite};
 
-use crate::{
-    deserialize::MappingReadByteOrdered,
-    serialize::{MappingWriteByteOrdered, NumberOfBytes},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
@@ -66,7 +63,7 @@ impl<'de> MappingReadSubmessage<'de> for GapSubmessageRead {
 
 #[cfg(test)]
 mod tests {
-    use crate::{deserialize::from_bytes, serialize::to_bytes};
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
     use rust_rtps_pim::{

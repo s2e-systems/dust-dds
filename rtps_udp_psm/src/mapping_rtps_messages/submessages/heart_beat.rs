@@ -1,7 +1,7 @@
 use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
 use rust_rtps_psm::messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite};
 
-use crate::{deserialize::MappingReadByteOrdered, serialize::MappingWriteByteOrdered};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
 use std::io::{Error, Write};
 
@@ -68,7 +68,7 @@ impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessageRead {
 
 #[cfg(test)]
 mod tests {
-    use crate::{deserialize::from_bytes, serialize::to_bytes};
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
     use rust_rtps_pim::{

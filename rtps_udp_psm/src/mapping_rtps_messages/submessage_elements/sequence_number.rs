@@ -6,7 +6,7 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-use crate::{deserialize::MappingReadByteOrdered, serialize::MappingWriteByteOrdered};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
 impl MappingWriteByteOrdered for SequenceNumber {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -48,8 +48,7 @@ impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSubmessageElement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_sequence_number() {

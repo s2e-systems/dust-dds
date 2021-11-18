@@ -5,7 +5,7 @@ use rust_rtps_pim::messages::{
     submessage_elements::FragmentNumberSubmessageElement, types::FragmentNumber,
 };
 
-use crate::{deserialize::MappingReadByteOrdered, serialize::MappingWriteByteOrdered};
+use crate::{mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered}};
 
 impl MappingWriteByteOrdered for FragmentNumber {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -44,8 +44,7 @@ impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSubmessageElement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_fragment_number() {

@@ -8,7 +8,7 @@ use rust_rtps_pim::messages::{
     submessage_elements::FragmentNumberSetSubmessageElement, types::FragmentNumber,
 };
 
-use crate::{deserialize::MappingReadByteOrdered, serialize::MappingWriteByteOrdered};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
 impl<T> MappingWriteByteOrdered for FragmentNumberSetSubmessageElement<T>
 where
@@ -68,8 +68,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_fragment_number_max_gap() {

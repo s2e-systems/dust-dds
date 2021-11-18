@@ -3,10 +3,7 @@ use std::io::{Error, Read, Write};
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
 
-use crate::{
-    deserialize::{self, MappingRead, MappingReadByteOrdered},
-    serialize::MappingWrite,
-};
+use crate::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWrite};
 
 impl<const N: usize> MappingWrite for [u8; N] {
     fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
@@ -38,7 +35,7 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS
         } else {
-            return deserialize::Result::Err(std::io::Error::new(
+            return Result::Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Protocol not valid",
             ));
@@ -58,7 +55,7 @@ impl<'de> MappingRead<'de> for RtpsMessageHeader {
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS
         } else {
-            return deserialize::Result::Err(std::io::Error::new(
+            return Result::Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Protocol not valid",
             ));
@@ -77,8 +74,7 @@ mod tests {
     use rust_rtps_pim::structure::types::{GuidPrefix, ProtocolVersion};
 
     use super::*;
-    use crate::deserialize::from_bytes;
-    use crate::serialize::to_bytes;
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     #[test]
     fn serialize_rtps_header() {

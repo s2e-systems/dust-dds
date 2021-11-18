@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
 
-use crate::{deserialize::MappingRead, serialize::MappingWrite};
+use crate::mapping_traits::{MappingRead, MappingWrite};
 
 pub trait MappingWriteSubmessage {
     fn submessage_header(&self) -> RtpsSubmessageHeader;

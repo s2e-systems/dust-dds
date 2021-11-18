@@ -3,9 +3,8 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
-use crate::{
-    deserialize::{MappingRead, MappingReadByteOrdered},
-    serialize::{MappingWrite, MappingWriteByteOrdered},
+use crate::mapping_traits::{
+    MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered,
 };
 
 impl MappingWriteByteOrdered for EntityId {
@@ -88,8 +87,7 @@ mod tests {
         EntityId, GuidPrefix, BUILT_IN_PARTICIPANT, USER_DEFINED_READER_NO_KEY,
     };
 
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_entity_id() {

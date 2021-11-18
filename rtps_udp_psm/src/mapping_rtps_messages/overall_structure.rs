@@ -5,7 +5,7 @@ use rust_rtps_psm::messages::overall_structure::{
     RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageTypeRead, RtpsSubmessageTypeWrite,
 };
 
-use crate::{deserialize::MappingRead, serialize::MappingWrite};
+use crate::{mapping_traits::{MappingRead, MappingWrite}};
 
 use super::submessages::submessage_header::{
     ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
@@ -86,8 +86,7 @@ impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessageRead<'a> {
 mod tests {
 
     use super::*;
-    use crate::deserialize::from_bytes;
-    use crate::serialize::to_bytes;
+    use crate::mapping_traits::{from_bytes, to_bytes};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::{
         EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,

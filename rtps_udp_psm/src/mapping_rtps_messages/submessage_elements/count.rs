@@ -3,10 +3,7 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{submessage_elements::CountSubmessageElement, types::Count};
 
-use crate::{
-    deserialize::MappingReadByteOrdered,
-    serialize::{MappingWriteByteOrdered, NumberOfBytes},
-};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 impl MappingWriteByteOrdered for Count {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -48,8 +45,7 @@ impl<'de> MappingReadByteOrdered<'de> for CountSubmessageElement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deserialize::from_bytes_le;
-    use crate::serialize::to_bytes_le;
+    use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_guid_prefix() {

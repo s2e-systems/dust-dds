@@ -5,10 +5,7 @@ use std::{
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 
-use crate::{
-    deserialize::{MappingRead, MappingReadByteOrdered},
-    serialize::{MappingWrite, MappingWriteByteOrdered, NumberOfBytes},
-};
+use crate::{mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered, NumberOfBytes}};
 
 impl MappingWrite for u8 {
     fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
