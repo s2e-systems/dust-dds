@@ -62,4 +62,4 @@ pub const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration {
     seconds: 100,
     fraction: 0,
 };
-pub const GROUP_ENTITYID: EntityId = ENTITYID_UNKNOWN;
+pub const DEFAULT_GROUP_ENTITYID: EntityId = ENTITYID_UNKNOWN;
