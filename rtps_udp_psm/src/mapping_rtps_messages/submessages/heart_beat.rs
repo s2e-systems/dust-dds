@@ -2,13 +2,13 @@ use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::Su
 use rust_rtps_psm::messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite};
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered, DeserializeSubmessage},
-    serialize::{MappingWriteByteOrdered, SerializeSubmessage},
+    deserialize::{self, MappingReadByteOrdered, MappingReadSubmessage},
+    serialize::{MappingWriteByteOrdered, MappingWriteSubmessage},
 };
 
 use std::io::Write;
 
-impl SerializeSubmessage for HeartbeatSubmessageWrite {
+impl MappingWriteSubmessage for HeartbeatSubmessageWrite {
     fn submessage_header(
         &self,
     ) -> rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
@@ -28,7 +28,7 @@ impl SerializeSubmessage for HeartbeatSubmessageWrite {
         }
     }
 
-    fn serialize_submessage_elements<W: Write, B: byteorder::ByteOrder>(
+    fn mapping_write_submessage_elements<W: Write, B: byteorder::ByteOrder>(
         &self,
         mut writer: W,
     ) -> crate::serialize::Result {
@@ -40,8 +40,8 @@ impl SerializeSubmessage for HeartbeatSubmessageWrite {
     }
 }
 
-impl<'de> DeserializeSubmessage<'de> for HeartbeatSubmessageRead {
-    fn deserialize_submessage<B: byteorder::ByteOrder>(
+impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessageRead {
+    fn mapping_read_submessage<B: byteorder::ByteOrder>(
         buf: &mut &'de [u8],
         header: rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader,
     ) -> deserialize::Result<Self> {

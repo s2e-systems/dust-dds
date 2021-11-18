@@ -5,11 +5,11 @@ use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::Su
 use rust_rtps_psm::messages::submessages::{GapSubmessageRead, GapSubmessageWrite};
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered, DeserializeSubmessage},
-    serialize::{self, NumberOfBytes, MappingWriteByteOrdered, SerializeSubmessage},
+    deserialize::{self, MappingReadByteOrdered, MappingReadSubmessage},
+    serialize::{self, NumberOfBytes, MappingWriteByteOrdered, MappingWriteSubmessage},
 };
 
-impl SerializeSubmessage for GapSubmessageWrite {
+impl MappingWriteSubmessage for GapSubmessageWrite {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let submessage_length = 16 + self.gap_list.number_of_bytes();
         RtpsSubmessageHeader {
@@ -28,7 +28,7 @@ impl SerializeSubmessage for GapSubmessageWrite {
         }
     }
 
-    fn serialize_submessage_elements<W: Write, B: ByteOrder>(
+    fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> serialize::Result {
@@ -39,8 +39,8 @@ impl SerializeSubmessage for GapSubmessageWrite {
     }
 }
 
-impl<'de> DeserializeSubmessage<'de> for GapSubmessageRead {
-    fn deserialize_submessage<B: ByteOrder>(
+impl<'de> MappingReadSubmessage<'de> for GapSubmessageRead {
+    fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
     ) -> deserialize::Result<Self> {

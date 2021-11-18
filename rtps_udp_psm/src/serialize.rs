@@ -10,24 +10,21 @@ pub trait MappingWrite {
 
 impl<T> MappingWrite for T
 where
-    T: SerializeSubmessage,
+    T: MappingWriteSubmessage,
 {
     fn mapping_write<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
-        self.serialize_submessage(&mut writer)
+        self.submessage_header().mapping_write(&mut writer)?;
+        if self.submessage_header().flags[0] {
+            self.mapping_write_submessage_elements::<_, LittleEndian>(&mut writer)
+        } else {
+            self.mapping_write_submessage_elements::<_, BigEndian>(&mut writer)
+        }
     }
 }
 
-pub trait SerializeSubmessage {
-    fn serialize_submessage<W: Write>(&self, mut writer: W) -> crate::serialize::Result {
-        self.submessage_header().mapping_write(&mut writer)?;
-        if self.submessage_header().flags[0] {
-            self.serialize_submessage_elements::<_, LittleEndian>(&mut writer)
-        } else {
-            self.serialize_submessage_elements::<_, BigEndian>(&mut writer)
-        }
-    }
+pub trait MappingWriteSubmessage {
     fn submessage_header(&self) -> RtpsSubmessageHeader;
-    fn serialize_submessage_elements<W: Write, B: ByteOrder>(
+    fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(
         &self,
         writer: W,
     ) -> crate::serialize::Result;

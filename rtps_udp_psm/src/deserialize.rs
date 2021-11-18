@@ -7,16 +7,8 @@ pub trait MappingRead<'de>: Sized {
     fn mapping_read(buf: &mut &'de [u8]) -> Result<Self>;
 }
 
-pub trait DeserializeSubmessage<'de>: Sized {
-    fn deserialize(buf: &mut &'de [u8]) -> Result<Self> {
-        let header: RtpsSubmessageHeader = MappingRead::mapping_read(buf)?;
-        if header.flags[0] {
-            Self::deserialize_submessage::<LittleEndian>(buf, header)
-        } else {
-            Self::deserialize_submessage::<BigEndian>(buf, header)
-        }
-    }
-    fn deserialize_submessage<B: ByteOrder>(
+pub trait MappingReadSubmessage<'de>: Sized {
+    fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
     ) -> Result<Self>;
@@ -24,10 +16,15 @@ pub trait DeserializeSubmessage<'de>: Sized {
 
 impl<'a, 'de: 'a, T> MappingRead<'de> for T
 where
-    T: DeserializeSubmessage<'de>,
+    T: MappingReadSubmessage<'de>,
 {
     fn mapping_read(buf: &mut &'de [u8]) -> Result<Self> {
-        DeserializeSubmessage::deserialize(buf)
+        let header: RtpsSubmessageHeader = MappingRead::mapping_read(buf)?;
+        if header.flags[0] {
+            Self::mapping_read_submessage::<LittleEndian>(buf, header)
+        } else {
+            Self::mapping_read_submessage::<BigEndian>(buf, header)
+        }
     }
 }
 

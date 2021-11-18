@@ -9,11 +9,11 @@ use rust_rtps_pim::messages::{
 use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
 
 use crate::{
-    deserialize::{self, MappingReadByteOrdered, DeserializeSubmessage},
-    serialize::{self, NumberOfBytes, MappingWriteByteOrdered, SerializeSubmessage},
+    deserialize::{self, MappingReadByteOrdered, MappingReadSubmessage},
+    serialize::{self, NumberOfBytes, MappingWriteByteOrdered, MappingWriteSubmessage},
 };
 
-impl SerializeSubmessage for DataSubmessageWrite<'_> {
+impl MappingWriteSubmessage for DataSubmessageWrite<'_> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -37,7 +37,7 @@ impl SerializeSubmessage for DataSubmessageWrite<'_> {
             submessage_length: octets_to_next_header as u16,
         }
     }
-    fn serialize_submessage_elements<W: Write, B: ByteOrder>(
+    fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> serialize::Result {
@@ -66,8 +66,8 @@ impl SerializeSubmessage for DataSubmessageWrite<'_> {
     }
 }
 
-impl<'de: 'a, 'a> DeserializeSubmessage<'de> for DataSubmessageRead<'a> {
-    fn deserialize_submessage<B: ByteOrder>(
+impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessageRead<'a> {
+    fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
     ) -> deserialize::Result<Self> {
