@@ -1,5 +1,4 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
+use byteorder::{ByteOrder, LittleEndian};
 
 pub type Result<T> = std::result::Result<T, std::io::Error>;
 

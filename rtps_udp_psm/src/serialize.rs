@@ -1,5 +1,4 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
+use byteorder::{ByteOrder, LittleEndian};
 use std::io::Write;
 
 pub type Result = std::result::Result<(), std::io::Error>;
@@ -14,10 +13,6 @@ pub trait MappingWriteByteOrdered {
 
 pub trait NumberOfBytes {
     fn number_of_bytes(&self) -> usize;
-}
-
-pub fn to_writer_le<S: MappingWriteByteOrdered, W: Write>(value: &S, mut writer: W) -> Result {
-    value.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)
 }
 
 pub fn to_bytes_le<S: MappingWriteByteOrdered>(
