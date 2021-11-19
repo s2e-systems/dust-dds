@@ -1,6 +1,7 @@
 use core::{
     iter::FromIterator,
     ops::{Deref, DerefMut},
+    slice::IterMut,
 };
 
 use crate::{
@@ -104,8 +105,8 @@ pub trait StatelessWriterBehavior<'a, S, P, D> {
 impl<'a, S, L, C, R, RL, P, D> StatelessWriterBehavior<'a, S, P, D>
     for RtpsStatelessWriterRef<'a, L, C, R>
 where
-    for<'b> &'b mut R: IntoIterator<Item = &'b mut RL>,
-    RL: RtpsReaderLocatorOperations + Deref<Target = RtpsReaderLocator>,
+    R: Iterator<Item = &'a mut RL>,
+    RL: RtpsReaderLocatorOperations + Deref<Target = RtpsReaderLocator> + 'a,
     C: RtpsHistoryCacheGetChange<'a, P, D>,
     S: FromIterator<SequenceNumber>,
 {

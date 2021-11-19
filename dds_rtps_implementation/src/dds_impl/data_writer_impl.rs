@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{ops::Deref, slice::IterMut};
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -14,10 +14,12 @@ use rust_rtps_pim::{
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
         stateful_writer::{
-            RtpsStatefulWriter, RtpsStatefulWriterOperations, StatefulWriterBehavior,
+            RtpsStatefulWriter, RtpsStatefulWriterOperations, RtpsStatefulWriterRef,
+            StatefulWriterBehavior,
         },
         stateless_writer::{
-            RtpsStatelessWriter, RtpsStatelessWriterOperations, StatelessWriterBehavior,
+            RtpsStatelessWriter, RtpsStatelessWriterOperations, RtpsStatelessWriterRef,
+            StatelessWriterBehavior,
         },
         writer::{RtpsWriter, RtpsWriterOperations},
     },
@@ -41,6 +43,48 @@ use crate::{
 };
 
 pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
+
+pub trait RtpsWriterBehavior {
+    fn stateless_writer(
+        &mut self,
+    ) -> RtpsStatelessWriterRef<
+        '_,
+        Vec<Locator>,
+        WriterHistoryCache,
+        IterMut<'_, RtpsReaderLocatorImpl>,
+    >;
+
+    fn stateful_writer(
+        &mut self,
+    ) -> RtpsStatefulWriterRef<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>;
+}
+
+impl<T> RtpsWriterBehavior for DataWriterImpl<T> {
+    fn stateless_writer(
+        &mut self,
+    ) -> RtpsStatelessWriterRef<
+        '_,
+        Vec<Locator>,
+        WriterHistoryCache,
+        IterMut<'_, RtpsReaderLocatorImpl>,
+    > {
+        RtpsStatelessWriterRef {
+            writer: &mut self.rtps_writer_impl,
+            reader_locators: self.reader_locators.iter_mut(),
+        }
+    }
+
+    fn stateful_writer(
+        &mut self,
+    ) -> RtpsStatefulWriterRef<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>
+    {
+        RtpsStatefulWriterRef {
+            writer: &mut self.rtps_writer_impl,
+            matched_readers: self.matched_readers.iter_mut(),
+        }
+    }
+}
+
 pub type RtpsStatelessWriterType =
     RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>;
 pub type RtpsStatefulWriterType =
