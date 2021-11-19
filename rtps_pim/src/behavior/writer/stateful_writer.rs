@@ -1,10 +1,6 @@
-use core::{
-    iter::FromIterator,
-    ops::{Deref, DerefMut},
-};
+use core::{iter::FromIterator, ops::Deref};
 
 use crate::{
-    behavior::types::Duration,
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
@@ -15,10 +11,8 @@ use crate::{
         types::Count,
     },
     structure::{
-        history_cache::{
-            RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations,
-        },
-        types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN},
+        history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
+        types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -30,60 +24,6 @@ use super::{
 pub struct RtpsStatefulWriterRef<'a, L, C, R> {
     pub writer: &'a mut RtpsWriter<L, C>,
     pub matched_readers: R,
-}
-
-pub struct RtpsStatefulWriter<L, C, R> {
-    writer: RtpsWriter<L, C>,
-    pub matched_readers: R,
-}
-
-impl<L, C, R> Deref for RtpsStatefulWriter<L, C, R> {
-    type Target = RtpsWriter<L, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.writer
-    }
-}
-
-impl<L, C, R> DerefMut for RtpsStatefulWriter<L, C, R> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.writer
-    }
-}
-
-impl<L, C, R> RtpsStatefulWriter<L, C, R>
-where
-    R: Default,
-    C: RtpsHistoryCacheConstructor,
-{
-    pub fn new(
-        guid: Guid,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: L,
-        multicast_locator_list: L,
-        push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
-        data_max_size_serialized: Option<i32>,
-    ) -> Self {
-        Self {
-            writer: RtpsWriter::new(
-                guid,
-                topic_kind,
-                reliability_level,
-                unicast_locator_list,
-                multicast_locator_list,
-                push_mode,
-                heartbeat_period,
-                nack_response_delay,
-                nack_suppression_duration,
-                data_max_size_serialized,
-            ),
-            matched_readers: R::default(),
-        }
-    }
 }
 
 pub trait RtpsStatefulWriterOperations<L> {
