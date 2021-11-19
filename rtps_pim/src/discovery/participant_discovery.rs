@@ -1,4 +1,4 @@
-use rust_rtps_pim::{
+use crate::{
     behavior::{
         reader::{stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxy},
         writer::{reader_proxy::RtpsReaderProxy, stateful_writer::RtpsStatefulWriterOperations},

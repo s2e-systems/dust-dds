@@ -51,6 +51,18 @@ use rust_rtps_pim::{
             reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
         },
     },
+    discovery::{
+        participant_discovery::ParticipantDiscovery,
+        sedp::builtin_endpoints::{
+            SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        },
+        spdp::{
+            builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
+            participant_proxy::ParticipantProxy,
+        },
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    },
     messages::types::Count,
     structure::{
         group::RtpsGroup,
@@ -59,18 +71,6 @@ use rust_rtps_pim::{
             BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN,
         },
     },
-};
-use rust_rtps_psm::discovery::{
-    participant_discovery::ParticipantDiscovery,
-    sedp::builtin_endpoints::{
-        SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    },
-    spdp::{
-        builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
-        participant_proxy::ParticipantProxy,
-    },
-    types::{BuiltinEndpointQos, BuiltinEndpointSet},
 };
 
 #[test]

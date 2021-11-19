@@ -28,6 +28,14 @@ use rust_rtps_pim::{
     behavior::writer::{
         reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
     },
+    discovery::{
+        sedp::builtin_endpoints::{
+            SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
+            SedpBuiltinSubscriptionsReader, SedpBuiltinSubscriptionsWriter,
+            SedpBuiltinTopicsReader, SedpBuiltinTopicsWriter,
+        },
+        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
+    },
     structure::{
         group::RtpsGroup,
         types::{
@@ -35,14 +43,6 @@ use rust_rtps_pim::{
             BUILT_IN_WRITER_GROUP,
         },
     },
-};
-use rust_rtps_psm::discovery::{
-    sedp::builtin_endpoints::{
-        SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
-        SedpBuiltinSubscriptionsReader, SedpBuiltinSubscriptionsWriter, SedpBuiltinTopicsReader,
-        SedpBuiltinTopicsWriter,
-    },
-    spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
 };
 
 use crate::udp_transport::UdpTransport;

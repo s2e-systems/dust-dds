@@ -1,4 +1,4 @@
-use rust_rtps_pim::{
+use crate::{
     messages::types::Count,
     structure::types::{GuidPrefix, ProtocolVersion, VendorId},
 };
