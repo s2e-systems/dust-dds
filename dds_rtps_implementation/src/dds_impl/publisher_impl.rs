@@ -103,7 +103,7 @@ impl PublisherImpl {
 
         for rtps_writer_behavior in &rtps_writer_behavior_list {
             let mut rtps_writer_behavior_lock = rtps_writer_behavior.write().unwrap();
-            let mut rtps_stateless_writer = rtps_writer_behavior_lock.stateless_writer();
+            let mut rtps_stateless_writer = rtps_writer_behavior_lock.get_stateless_writer();
 
             let destined_submessages = RefCell::new(Vec::new());
             rtps_stateless_writer.send_unsent_data(
@@ -150,7 +150,7 @@ impl PublisherImpl {
                 transport.write(&message, &locator);
             }
 
-            let mut rtps_stateful_writer = rtps_writer_behavior_lock.stateful_writer();
+            let mut rtps_stateful_writer = rtps_writer_behavior_lock.get_stateful_writer();
             let destined_submessages = RefCell::new(Vec::new());
 
             rtps_stateful_writer.send_heartbeat(&mut |rp, heartbeat| {

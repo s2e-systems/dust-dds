@@ -35,7 +35,7 @@ use crate::{
 pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
 
 pub trait RtpsWriterBehavior {
-    fn stateless_writer(
+    fn get_stateless_writer(
         &mut self,
     ) -> RtpsStatelessWriter<
         '_,
@@ -44,13 +44,13 @@ pub trait RtpsWriterBehavior {
         IterMut<'_, RtpsReaderLocatorImpl>,
     >;
 
-    fn stateful_writer(
+    fn get_stateful_writer(
         &mut self,
     ) -> RtpsStatefulWriter<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>;
 }
 
 impl<T> RtpsWriterBehavior for DataWriterImpl<T> {
-    fn stateless_writer(
+    fn get_stateless_writer(
         &mut self,
     ) -> RtpsStatelessWriter<
         '_,
@@ -64,7 +64,7 @@ impl<T> RtpsWriterBehavior for DataWriterImpl<T> {
         }
     }
 
-    fn stateful_writer(
+    fn get_stateful_writer(
         &mut self,
     ) -> RtpsStatefulWriter<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>
     {
