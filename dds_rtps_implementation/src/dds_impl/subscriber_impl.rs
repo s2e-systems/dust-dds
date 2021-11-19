@@ -17,16 +17,17 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::structure::{
-    group::RtpsGroup,
-    types::{
-        EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-        USER_DEFINED_WRITER_WITH_KEY,
+use rust_rtps_pim::{
+    behavior::reader::reader::RtpsReader,
+    structure::{
+        group::RtpsGroup,
+        types::{
+            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
+        },
     },
 };
-use rust_rtps_psm::{
-    messages::submessages::DataSubmessageRead, rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-};
+use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
@@ -36,7 +37,7 @@ use crate::{
     },
 };
 
-use super::data_reader_impl::{DataReaderImpl, RtpsReaderFlavor};
+use super::data_reader_impl::DataReaderImpl;
 
 pub trait DataReaderObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
@@ -121,7 +122,7 @@ where
         let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
-        let rtps_reader = RtpsReaderFlavor::Stateless(RtpsStatelessReaderImpl::new(
+        let rtps_reader = RtpsReader::new(
             guid,
             topic_kind,
             reliability_level,
@@ -130,7 +131,7 @@ where
             heartbeat_response_delay,
             heartbeat_supression_duration,
             expects_inline_qos,
-        ));
+        );
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
         self.data_reader_list
@@ -257,7 +258,11 @@ impl Entity for SubscriberImpl {
 }
 
 impl ProcessDataSubmessage for SubscriberImpl {
-    fn process_data_submessage(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessageRead) {
+    fn process_data_submessage(
+        &mut self,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessageRead,
+    ) {
         let data_reader_list = self.data_reader_list.lock().unwrap();
         for reader in data_reader_list.iter() {
             reader
