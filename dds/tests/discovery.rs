@@ -262,7 +262,7 @@ fn process_discovery_data_happy_path() {
     let sedp_builtin_publications_rtps_writer =
         SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]);
 
-    let sedp_builtin_publications_data_writer = DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
+    let sedp_builtin_publications_data_writer = DataWriterImpl::<SedpDiscoveredWriterData>::new(
         DataWriterQos::default(),
         sedp_builtin_publications_rtps_writer,
     );

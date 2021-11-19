@@ -57,7 +57,7 @@ impl<T> StatelessWriterBehaviorType for T where
 }
 
 impl<'a, T> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
-    for DataWriterImpl<T, RtpsStatelessWriterType>
+    for DataWriterImpl<T>
 {
     fn send_unsent_data(
         &'a mut self,
@@ -67,7 +67,8 @@ impl<'a, T> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u
         ),
         send_gap: &mut dyn FnMut(&RtpsReaderLocator, GapSubmessage<Vec<SequenceNumber>>),
     ) {
-        self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
+        // self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
+        todo!()
     }
 }
 
@@ -95,7 +96,7 @@ impl<T> StatefulWriterBehaviorType for T where
 
 impl<'a, T>
     StatefulWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8], Vec<Locator>>
-    for DataWriterImpl<T, RtpsStatefulWriterType>
+    for DataWriterImpl<T>
 {
     fn send_unsent_data(
         &'a mut self,
@@ -108,7 +109,8 @@ impl<'a, T>
             GapSubmessage<Vec<SequenceNumber>>,
         ),
     ) {
-        self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
+        // self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
+        todo!()
     }
 
     fn send_heartbeat(
@@ -124,8 +126,9 @@ impl<'a, T>
         );
         let since_last_heartbeat_sent = std::time::Instant::now() - self.last_sent_heartbeat;
         if since_last_heartbeat_sent > heartbeat_period_duration {
-            self.rtps_writer_impl.send_heartbeat(send_heartbeat);
-            self.last_sent_heartbeat = std::time::Instant::now();
+            // self.rtps_writer_impl.send_heartbeat(send_heartbeat);
+            // self.last_sent_heartbeat = std::time::Instant::now();
+            todo!()
         }
     }
 
@@ -140,15 +143,17 @@ impl<'a, T>
             GapSubmessage<Vec<SequenceNumber>>,
         ),
     ) {
-        self.rtps_writer_impl
-            .send_requested_data(send_data, send_gap)
+        todo!()
+        // self.rtps_writer_impl
+            // .send_requested_data(send_data, send_gap)
     }
 
     fn process_acknack_submessage(
         &mut self,
         acknack: &rust_rtps_pim::messages::submessages::AckNackSubmessage<Vec<SequenceNumber>>,
     ) {
-        self.rtps_writer_impl.process_acknack_submessage(acknack)
+        // self.rtps_writer_impl.process_acknack_submessage(acknack)
+        todo!()
     }
 }
 
@@ -169,20 +174,20 @@ impl<'a, T>
 //     }
 // });
 
-pub struct DataWriterImpl<T, W> {
+pub struct DataWriterImpl<T> {
     _qos: DataWriterQos,
-    rtps_writer_impl: W,
+    rtps_writer_impl: RtpsWriterType,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
     last_sent_heartbeat: std::time::Instant,
     reader_locators: Vec<RtpsReaderLocatorImpl>,
     matched_readers: Vec<RtpsReaderProxyImpl>,
 }
 
-impl<T, W> DataWriterImpl<T, W>
+impl<T> DataWriterImpl<T>
 where
     T: Send + 'static,
 {
-    pub fn new(qos: DataWriterQos, rtps_writer_impl: W) -> Self {
+    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterType) -> Self {
         Self {
             _qos: qos,
             rtps_writer_impl,
@@ -194,10 +199,9 @@ where
     }
 }
 
-impl<T, W> DataWriter<T> for DataWriterImpl<T, W>
+impl<T> DataWriter<T> for DataWriterImpl<T>
 where
     T: DdsSerialize,
-    W: Deref<Target = RtpsWriterType> + DerefMut,
 {
     fn register_instance(&mut self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
@@ -333,7 +337,7 @@ where
     }
 }
 
-impl<T, W> Entity for DataWriterImpl<T, W> {
+impl<T> Entity for DataWriterImpl<T> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<DataType = T>>;
 
@@ -381,7 +385,7 @@ impl<T, W> Entity for DataWriterImpl<T, W> {
     }
 }
 
-impl<T, W> RtpsStatelessWriterOperations for DataWriterImpl<T, W> {
+impl<T> RtpsStatelessWriterOperations for DataWriterImpl<T> {
     fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
         let reader_locator_impl = RtpsReaderLocatorImpl::new(a_locator);
         self.reader_locators.push(reader_locator_impl);
@@ -398,21 +402,7 @@ impl<T, W> RtpsStatelessWriterOperations for DataWriterImpl<T, W> {
     }
 }
 
-impl<T, W> Deref for DataWriterImpl<T, W> {
-    type Target = W;
-
-    fn deref(&self) -> &Self::Target {
-        &self.rtps_writer_impl
-    }
-}
-
-impl<T, W> DerefMut for DataWriterImpl<T, W> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.rtps_writer_impl
-    }
-}
-
-impl<T, W> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, W> {
+impl<T> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T> {
     fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
         let reader_proxy = RtpsReaderProxyImpl::new(a_reader_proxy);
         self.matched_readers.push(reader_proxy)
@@ -438,7 +428,7 @@ impl<T, W> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, W> {
     }
 }
 
-impl<T, W> ProcessAckNackSubmessage for DataWriterImpl<T, W> {
+impl<T> ProcessAckNackSubmessage for DataWriterImpl<T> {
     fn process_acknack_submessage(
         &self,
         _source_guid_prefix: GuidPrefix,
@@ -732,7 +722,7 @@ mod tests {
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_stateless_writer = RtpsStatelessWriterType::new(
+        let rtps_stateless_writer = RtpsWriterType::new(
             guid,
             topic_kind,
             reliability_level,

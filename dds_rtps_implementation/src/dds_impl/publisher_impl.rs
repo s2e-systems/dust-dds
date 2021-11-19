@@ -22,6 +22,7 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
+    behavior::writer::writer::RtpsWriter,
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         group::RtpsGroup,
@@ -45,7 +46,7 @@ use crate::{
 };
 
 use super::data_writer_impl::{
-    DataWriterImpl, RtpsStatefulWriterType, StatefulWriterBehaviorType, StatelessWriterBehaviorType,
+    DataWriterImpl, StatefulWriterBehaviorType, StatelessWriterBehaviorType,
 };
 
 pub trait StatelessDataWriterObject {
@@ -281,7 +282,7 @@ where
     T: DdsType + Send + 'static,
 {
     type TopicType = ();
-    type DataWriterType = RtpsShared<DataWriterImpl<T, RtpsStatefulWriterType>>;
+    type DataWriterType = RtpsShared<DataWriterImpl<T>>;
 
     fn create_datawriter_gat(
         &'_ self,
@@ -318,7 +319,7 @@ where
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsStatefulWriterType::new(
+        let rtps_writer_impl = RtpsWriter::new(
             guid,
             topic_kind,
             reliability_level,
