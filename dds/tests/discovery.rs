@@ -36,7 +36,7 @@ use rust_dds_rtps_implementation::{
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
         data_writer_impl::DataWriterImpl,
-        publisher_impl::{DataWriterFlavor, PublisherImpl},
+        publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
@@ -142,9 +142,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let publisher = PublisherImpl::new(
         PublisherQos::default(),
         RtpsGroup::new(GUID_UNKNOWN),
-        vec![DataWriterFlavor::Stateless(Arc::new(RwLock::new(
-            data_writer,
-        )))],
+        vec![Arc::new(RwLock::new(data_writer))],
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
@@ -274,8 +272,8 @@ fn process_discovery_data_happy_path() {
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
         vec![
-            DataWriterFlavor::Stateless(rtps_shared_new(spdp_builtin_participant_data_writer)),
-            DataWriterFlavor::Stateful(rtps_shared_new(sedp_builtin_publications_data_writer)),
+            rtps_shared_new(spdp_builtin_participant_data_writer),
+            rtps_shared_new(sedp_builtin_publications_data_writer),
         ],
     );
 

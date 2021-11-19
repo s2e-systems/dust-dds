@@ -21,7 +21,7 @@ use rust_dds_rtps_implementation::{
         data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
         data_writer_impl::DataWriterImpl,
         domain_participant_impl::DomainParticipantImpl,
-        publisher_impl::{DataWriterFlavor, PublisherImpl},
+        publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
     utils::shared_object::rtps_shared_new,
@@ -196,10 +196,10 @@ impl DomainParticipantFactory {
                 EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
             vec![
-                DataWriterFlavor::Stateless(spdp_builtin_participant_dds_data_writer),
-                DataWriterFlavor::Stateful(sedp_builtin_publications_dds_data_writer),
-                DataWriterFlavor::Stateful(sedp_builtin_subscriptions_dds_data_writer),
-                DataWriterFlavor::Stateful(sedp_builtin_topics_dds_data_writer),
+                spdp_builtin_participant_dds_data_writer,
+                sedp_builtin_publications_dds_data_writer,
+                sedp_builtin_subscriptions_dds_data_writer,
+                sedp_builtin_topics_dds_data_writer,
             ],
         ));
         let builtin_subscriber_storage = rtps_shared_new(SubscriberImpl::new(

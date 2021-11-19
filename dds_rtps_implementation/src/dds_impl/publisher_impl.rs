@@ -49,62 +49,23 @@ use super::data_writer_impl::{
     DataWriterImpl, StatefulWriterBehaviorType, StatelessWriterBehaviorType,
 };
 
-pub trait StatelessDataWriterObject {
+pub trait DataWriterObject {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
-
-    fn into_stateless_writer_behavior(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn StatelessWriterBehaviorType>>;
 }
 
-impl<T> StatelessDataWriterObject for RwLock<T>
+impl<T> DataWriterObject for RwLock<T>
 where
-    T: StatelessWriterBehaviorType + Any + Send + Sync,
+    T: Any + Send + Sync,
 {
     fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
-
-    fn into_stateless_writer_behavior(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn StatelessWriterBehaviorType>> {
-        self
-    }
-}
-
-pub trait StatefulDataWriterObject {
-    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
-
-    fn into_stateful_writer_behavior(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn StatefulWriterBehaviorType>>;
-}
-
-impl<T> StatefulDataWriterObject for RwLock<T>
-where
-    T: StatefulWriterBehaviorType + Any + Send + Sync,
-{
-    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
-        self
-    }
-
-    fn into_stateful_writer_behavior(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn StatefulWriterBehaviorType>> {
-        self
-    }
-}
-
-#[derive(Clone)]
-pub enum DataWriterFlavor {
-    Stateful(Arc<dyn StatefulDataWriterObject + Send + Sync>),
-    Stateless(Arc<dyn StatelessDataWriterObject + Send + Sync>),
 }
 
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
-    data_writer_impl_list: Mutex<Vec<DataWriterFlavor>>,
+    data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
 }
@@ -113,7 +74,7 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        data_writer_impl_list: Vec<DataWriterFlavor>,
+        data_writer_impl_list: Vec<Arc<dyn DataWriterObject + Send + Sync>>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -127,153 +88,154 @@ impl PublisherImpl {
     pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
         let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
 
-        // Stateless writer sending
-        let stateless_writer_behavior_list: Vec<Arc<RwLock<dyn StatelessWriterBehaviorType>>> =
-            data_writer_list_lock
-                .iter()
-                .filter_map(|x| match x {
-                    DataWriterFlavor::Stateful(_) => None,
-                    DataWriterFlavor::Stateless(w) => {
-                        Some(w.clone().into_stateless_writer_behavior())
-                    }
-                })
-                .collect();
+        // // Stateless writer sending
+        // let stateless_writer_behavior_list: Vec<Arc<RwLock<dyn StatelessWriterBehaviorType>>> =
+        //     data_writer_list_lock
+        //         .iter()
+        //         .filter_map(|x| match x {
+        //             DataWriterFlavor::Stateful(_) => None,
+        //             DataWriterFlavor::Stateless(w) => {
+        //                 Some(w.clone().into_stateless_writer_behavior())
+        //             }
+        //         })
+        //         .collect();
 
-        let mut locked_stateless_writer_list: Vec<
-            RwLockWriteGuard<dyn StatelessWriterBehaviorType>,
-        > = stateless_writer_behavior_list
-            .iter()
-            .map(|x| x.write().unwrap())
-            .collect();
+        // let mut locked_stateless_writer_list: Vec<
+        //     RwLockWriteGuard<dyn StatelessWriterBehaviorType>,
+        // > = stateless_writer_behavior_list
+        //     .iter()
+        //     .map(|x| x.write().unwrap())
+        //     .collect();
 
-        for locked_stateless_writer in &mut locked_stateless_writer_list {
-            let destined_submessages = RefCell::new(Vec::new());
-            locked_stateless_writer.send_unsent_data(
-                &mut |rl, data| {
-                    destined_submessages.borrow_mut().push((
-                        rl.locator,
-                        RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                            data.endianness_flag,
-                            data.inline_qos_flag,
-                            data.data_flag,
-                            data.key_flag,
-                            data.non_standard_payload_flag,
-                            data.reader_id,
-                            data.writer_id,
-                            data.writer_sn,
-                            data.inline_qos,
-                            data.serialized_payload,
-                        )),
-                    ));
-                },
-                &mut |rl, gap| {
-                    destined_submessages.borrow_mut().push((
-                        rl.locator,
-                        RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        )),
-                    ));
-                },
-            );
+        // for locked_stateless_writer in &mut locked_stateless_writer_list {
+        //     let destined_submessages = RefCell::new(Vec::new());
+        //     locked_stateless_writer.send_unsent_data(
+        //         &mut |rl, data| {
+        //             destined_submessages.borrow_mut().push((
+        //                 rl.locator,
+        //                 RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+        //                     data.endianness_flag,
+        //                     data.inline_qos_flag,
+        //                     data.data_flag,
+        //                     data.key_flag,
+        //                     data.non_standard_payload_flag,
+        //                     data.reader_id,
+        //                     data.writer_id,
+        //                     data.writer_sn,
+        //                     data.inline_qos,
+        //                     data.serialized_payload,
+        //                 )),
+        //             ));
+        //         },
+        //         &mut |rl, gap| {
+        //             destined_submessages.borrow_mut().push((
+        //                 rl.locator,
+        //                 RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+        //                     gap.endianness_flag,
+        //                     gap.reader_id,
+        //                     gap.writer_id,
+        //                     gap.gap_start,
+        //                     gap.gap_list,
+        //                 )),
+        //             ));
+        //         },
+        //     );
 
-            for (locator, submessage) in destined_submessages.take() {
-                let header = RtpsMessageHeader {
-                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: self.rtps_group.guid.prefix,
-                };
-                let message = RtpsMessageWrite::new(header, vec![submessage]);
+        //     for (locator, submessage) in destined_submessages.take() {
+        //         let header = RtpsMessageHeader {
+        //             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+        //             version: PROTOCOLVERSION,
+        //             vendor_id: VENDOR_ID_S2E,
+        //             guid_prefix: self.rtps_group.guid.prefix,
+        //         };
+        //         let message = RtpsMessageWrite::new(header, vec![submessage]);
 
-                transport.write(&message, &locator);
-            }
-        }
+        //         transport.write(&message, &locator);
+        //     }
+        // }
 
-        // Stateful writer sending
-        let stateful_writer_behavior_list: Vec<Arc<RwLock<dyn StatefulWriterBehaviorType>>> =
-            data_writer_list_lock
-                .iter()
-                .filter_map(|x| match x {
-                    DataWriterFlavor::Stateful(w) => {
-                        Some(w.clone().into_stateful_writer_behavior())
-                    }
-                    DataWriterFlavor::Stateless(_) => None,
-                })
-                .collect();
+        // // Stateful writer sending
+        // let stateful_writer_behavior_list: Vec<Arc<RwLock<dyn StatefulWriterBehaviorType>>> =
+        //     data_writer_list_lock
+        //         .iter()
+        //         .filter_map(|x| match x {
+        //             DataWriterFlavor::Stateful(w) => {
+        //                 Some(w.clone().into_stateful_writer_behavior())
+        //             }
+        //             DataWriterFlavor::Stateless(_) => None,
+        //         })
+        //         .collect();
 
-        let mut locked_stateful_writer_list: Vec<RwLockWriteGuard<dyn StatefulWriterBehaviorType>> =
-            stateful_writer_behavior_list
-                .iter()
-                .map(|x| x.write().unwrap())
-                .collect();
+        // let mut locked_stateful_writer_list: Vec<RwLockWriteGuard<dyn StatefulWriterBehaviorType>> =
+        //     stateful_writer_behavior_list
+        //         .iter()
+        //         .map(|x| x.write().unwrap())
+        //         .collect();
 
-        for locked_stateful_writer in &mut locked_stateful_writer_list {
-            let destined_submessages = RefCell::new(Vec::new());
+        // for locked_stateful_writer in &mut locked_stateful_writer_list {
+        //     let destined_submessages = RefCell::new(Vec::new());
 
-            locked_stateful_writer.send_heartbeat(&mut |rp, heartbeat| {
-                destined_submessages.borrow_mut().push((
-                    rp.unicast_locator_list[0],
-                    RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
-                        heartbeat.endianness_flag,
-                        heartbeat.final_flag,
-                        heartbeat.liveliness_flag,
-                        heartbeat.reader_id,
-                        heartbeat.writer_id,
-                        heartbeat.first_sn,
-                        heartbeat.last_sn,
-                        heartbeat.count,
-                    )),
-                ))
-            });
+        //     locked_stateful_writer.send_heartbeat(&mut |rp, heartbeat| {
+        //         destined_submessages.borrow_mut().push((
+        //             rp.unicast_locator_list[0],
+        //             RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
+        //                 heartbeat.endianness_flag,
+        //                 heartbeat.final_flag,
+        //                 heartbeat.liveliness_flag,
+        //                 heartbeat.reader_id,
+        //                 heartbeat.writer_id,
+        //                 heartbeat.first_sn,
+        //                 heartbeat.last_sn,
+        //                 heartbeat.count,
+        //             )),
+        //         ))
+        //     });
 
-            locked_stateful_writer.send_unsent_data(
-                &mut |rp, data| {
-                    destined_submessages.borrow_mut().push((
-                        rp.unicast_locator_list[0],
-                        RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                            data.endianness_flag,
-                            data.inline_qos_flag,
-                            data.data_flag,
-                            data.key_flag,
-                            data.non_standard_payload_flag,
-                            data.reader_id,
-                            data.writer_id,
-                            data.writer_sn,
-                            data.inline_qos,
-                            data.serialized_payload,
-                        )),
-                    ));
-                },
-                &mut |rp, gap| {
-                    destined_submessages.borrow_mut().push((
-                        rp.unicast_locator_list[0],
-                        RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        )),
-                    ));
-                },
-            );
+        //     locked_stateful_writer.send_unsent_data(
+        //         &mut |rp, data| {
+        //             destined_submessages.borrow_mut().push((
+        //                 rp.unicast_locator_list[0],
+        //                 RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+        //                     data.endianness_flag,
+        //                     data.inline_qos_flag,
+        //                     data.data_flag,
+        //                     data.key_flag,
+        //                     data.non_standard_payload_flag,
+        //                     data.reader_id,
+        //                     data.writer_id,
+        //                     data.writer_sn,
+        //                     data.inline_qos,
+        //                     data.serialized_payload,
+        //                 )),
+        //             ));
+        //         },
+        //         &mut |rp, gap| {
+        //             destined_submessages.borrow_mut().push((
+        //                 rp.unicast_locator_list[0],
+        //                 RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+        //                     gap.endianness_flag,
+        //                     gap.reader_id,
+        //                     gap.writer_id,
+        //                     gap.gap_start,
+        //                     gap.gap_list,
+        //                 )),
+        //             ));
+        //         },
+        //     );
 
-            for (locator, submessage) in destined_submessages.take() {
-                let header = RtpsMessageHeader {
-                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: self.rtps_group.guid.prefix,
-                };
-                let message = RtpsMessageWrite::new(header, vec![submessage]);
+        //     for (locator, submessage) in destined_submessages.take() {
+        //         let header = RtpsMessageHeader {
+        //             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+        //             version: PROTOCOLVERSION,
+        //             vendor_id: VENDOR_ID_S2E,
+        //             guid_prefix: self.rtps_group.guid.prefix,
+        //         };
+        //         let message = RtpsMessageWrite::new(header, vec![submessage]);
 
-                transport.write(&message, &locator);
-            }
-        }
+        //         transport.write(&message, &locator);
+        //     }
+        // }
+        todo!()
     }
 }
 
@@ -336,7 +298,7 @@ where
         self.data_writer_impl_list
             .lock()
             .unwrap()
-            .push(DataWriterFlavor::Stateful(data_writer_impl_shared.clone()));
+            .push(data_writer_impl_shared.clone());
         Some(data_writer_impl_shared)
     }
 
@@ -348,11 +310,11 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
-        let data_reader_list_lock = self.data_writer_impl_list.lock().unwrap();
-        data_reader_list_lock.iter().find_map(|x| match x {
-            DataWriterFlavor::Stateful(w) => Arc::downcast(w.clone().into_any_arc()).ok(),
-            DataWriterFlavor::Stateless(w) => Arc::downcast(w.clone().into_any_arc()).ok(),
-        })
+        self.data_writer_impl_list
+            .lock()
+            .unwrap()
+            .iter()
+            .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
     }
 }
 
@@ -672,8 +634,8 @@ mod tests {
             PublisherQos::default(),
             rtps_group_impl,
             vec![
-                DataWriterFlavor::Stateless(Arc::new(RwLock::new(MockStatelessWriterBehavior))),
-                DataWriterFlavor::Stateless(Arc::new(RwLock::new(MockStatelessWriterBehavior))),
+                Arc::new(RwLock::new(MockStatelessWriterBehavior)),
+                Arc::new(RwLock::new(MockStatelessWriterBehavior)),
             ],
         );
 

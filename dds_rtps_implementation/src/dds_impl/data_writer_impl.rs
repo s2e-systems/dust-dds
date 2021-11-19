@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -145,7 +145,7 @@ impl<'a, T>
     ) {
         todo!()
         // self.rtps_writer_impl
-            // .send_requested_data(send_data, send_gap)
+        // .send_requested_data(send_data, send_gap)
     }
 
     fn process_acknack_submessage(
