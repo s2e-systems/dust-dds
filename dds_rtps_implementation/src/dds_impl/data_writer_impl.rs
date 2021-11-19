@@ -13,23 +13,13 @@ use rust_rtps_pim::{
     behavior::writer::{
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
-        stateful_writer::{
-            RtpsStatefulWriter, RtpsStatefulWriterOperations, RtpsStatefulWriterRef,
-            StatefulWriterBehavior,
-        },
-        stateless_writer::{
-            RtpsStatelessWriter, RtpsStatelessWriterOperations, RtpsStatelessWriterRef,
-            StatelessWriterBehavior,
-        },
+        stateful_writer::{RtpsStatefulWriterOperations, RtpsStatefulWriterRef},
+        stateless_writer::{RtpsStatelessWriterOperations, RtpsStatelessWriterRef},
         writer::{RtpsWriter, RtpsWriterOperations},
-    },
-    messages::{
-        submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
         history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber},
+        types::{ChangeKind, Guid, GuidPrefix, Locator},
     },
 };
 use rust_rtps_psm::{
@@ -85,144 +75,30 @@ impl<T> RtpsWriterBehavior for DataWriterImpl<T> {
     }
 }
 
-pub type RtpsStatelessWriterType =
-    RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>;
-pub type RtpsStatefulWriterType =
-    RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderProxyImpl>>;
-
-pub trait StatelessWriterBehaviorType:
-    for<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
-{
-}
-
-impl<T> StatelessWriterBehaviorType for T where
-    T: for<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
-{
-}
-
-impl<'a, T> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
-    for DataWriterImpl<T>
-{
-    fn send_unsent_data(
-        &'a mut self,
-        send_data: &mut dyn FnMut(
-            &RtpsReaderLocator,
-            DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
-        ),
-        send_gap: &mut dyn FnMut(&RtpsReaderLocator, GapSubmessage<Vec<SequenceNumber>>),
-    ) {
-        // self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
-        todo!()
-    }
-}
-
-pub trait StatefulWriterBehaviorType:
-    for<'a> StatefulWriterBehavior<
-    'a,
-    Vec<SequenceNumber>,
-    Vec<Parameter<Vec<u8>>>,
-    &'a [u8],
-    Vec<Locator>,
->
-{
-}
-
-impl<T> StatefulWriterBehaviorType for T where
-    T: for<'a> StatefulWriterBehavior<
-        'a,
-        Vec<SequenceNumber>,
-        Vec<Parameter<Vec<u8>>>,
-        &'a [u8],
-        Vec<Locator>,
-    >
-{
-}
-
-impl<'a, T>
-    StatefulWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8], Vec<Locator>>
-    for DataWriterImpl<T>
-{
-    fn send_unsent_data(
-        &'a mut self,
-        send_data: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
-        ),
-        send_gap: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            GapSubmessage<Vec<SequenceNumber>>,
-        ),
-    ) {
-        // self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
-        todo!()
-    }
-
-    fn send_heartbeat(
-        &mut self,
-        send_heartbeat: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            rust_rtps_pim::messages::submessages::HeartbeatSubmessage,
-        ),
-    ) {
-        let heartbeat_period_duration = std::time::Duration::new(
-            self.rtps_writer_impl.heartbeat_period.seconds as u64,
-            self.rtps_writer_impl.heartbeat_period.fraction,
-        );
-        let since_last_heartbeat_sent = std::time::Instant::now() - self.last_sent_heartbeat;
-        if since_last_heartbeat_sent > heartbeat_period_duration {
-            // self.rtps_writer_impl.send_heartbeat(send_heartbeat);
-            // self.last_sent_heartbeat = std::time::Instant::now();
-            todo!()
-        }
-    }
-
-    fn send_requested_data(
-        &'a mut self,
-        send_data: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
-        ),
-        send_gap: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            GapSubmessage<Vec<SequenceNumber>>,
-        ),
-    ) {
-        todo!()
-        // self.rtps_writer_impl
-        // .send_requested_data(send_data, send_gap)
-    }
-
-    fn process_acknack_submessage(
-        &mut self,
-        acknack: &rust_rtps_pim::messages::submessages::AckNackSubmessage<Vec<SequenceNumber>>,
-    ) {
-        // self.rtps_writer_impl.process_acknack_submessage(acknack)
-        todo!()
-    }
-}
-
-// std::thread::spawn(move || {
-//     let mut heartbeat_count = Count(1);
-//     let heartbeat_period = stateful_writer_shared.lock().unwrap().heartbeat_period;
-//
-//     loop {
-//         stateful_writer_shared.lock().unwrap().send_heartbeat(
-//             heartbeat_count,
-//
-//                     .unwrap();
-//             },
-//         );
-//         heartbeat_count += Count(1);
-
-//         std::thread::sleep(heartbeat_period_duration);
+// fn send_heartbeat(
+//     &mut self,
+//     send_heartbeat: &mut dyn FnMut(
+//         &RtpsReaderProxy<Vec<Locator>>,
+//         rust_rtps_pim::messages::submessages::HeartbeatSubmessage,
+//     ),
+// ) {
+//     let heartbeat_period_duration = std::time::Duration::new(
+//         self.rtps_writer_impl.heartbeat_period.seconds as u64,
+//         self.rtps_writer_impl.heartbeat_period.fraction,
+//     );
+//     let since_last_heartbeat_sent = std::time::Instant::now() - self.last_sent_heartbeat;
+//     if since_last_heartbeat_sent > heartbeat_period_duration {
+//         // self.rtps_writer_impl.send_heartbeat(send_heartbeat);
+//         // self.last_sent_heartbeat = std::time::Instant::now();
+//         todo!()
 //     }
-// });
+// }
 
 pub struct DataWriterImpl<T> {
     _qos: DataWriterQos,
     rtps_writer_impl: RtpsWriterType,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
-    last_sent_heartbeat: std::time::Instant,
+    _last_sent_heartbeat: std::time::Instant,
     reader_locators: Vec<RtpsReaderLocatorImpl>,
     matched_readers: Vec<RtpsReaderProxyImpl>,
 }
@@ -236,7 +112,7 @@ where
             _qos: qos,
             rtps_writer_impl,
             _listener: None,
-            last_sent_heartbeat: std::time::Instant::now(),
+            _last_sent_heartbeat: std::time::Instant::now(),
             reader_locators: Vec::new(),
             matched_readers: Vec::new(),
         }

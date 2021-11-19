@@ -1,7 +1,6 @@
 use core::{
     iter::FromIterator,
     ops::{Deref, DerefMut},
-    slice::IterMut,
 };
 
 use crate::{
