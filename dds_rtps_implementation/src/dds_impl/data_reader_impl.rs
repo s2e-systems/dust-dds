@@ -20,12 +20,14 @@ use rust_rtps_pim::{
         types::{Guid, GuidPrefix, Locator},
     },
 };
-use rust_rtps_psm::{
-    messages::submessages::DataSubmessageRead, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
-};
+use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
-    dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
+    dds_type::DdsDeserialize,
+    rtps_impl::{
+        rtps_reader_history_cache_impl::ReaderHistoryCache,
+        rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    },
     utils::message_receiver::ProcessDataSubmessage,
 };
 

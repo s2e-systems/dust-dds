@@ -13,8 +13,8 @@ use rust_rtps_pim::{
     behavior::writer::{
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
-        stateful_writer::{RtpsStatefulWriterOperations, RtpsStatefulWriter},
-        stateless_writer::{RtpsStatelessWriterOperations, RtpsStatelessWriter},
+        stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
+        stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
         writer::{RtpsWriter, RtpsWriterOperations},
     },
     structure::{
@@ -22,13 +22,15 @@ use rust_rtps_pim::{
         types::{ChangeKind, Guid, GuidPrefix, Locator},
     },
 };
-use rust_rtps_psm::{
-    messages::submessages::AckNackSubmessageRead, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
-    rtps_reader_proxy_impl::RtpsReaderProxyImpl,
-};
+use rust_rtps_psm::messages::submessages::AckNackSubmessageRead;
 
 use crate::{
-    dds_type::DdsSerialize, rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCache,
+    dds_type::DdsSerialize,
+    rtps_impl::{
+        rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_reader_proxy_impl::RtpsReaderProxyImpl,
+        rtps_writer_history_cache_impl::WriterHistoryCache,
+    },
     utils::message_receiver::ProcessAckNackSubmessage,
 };
 
@@ -37,12 +39,7 @@ pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
 pub trait RtpsWriterBehavior {
     fn get_stateless_writer(
         &mut self,
-    ) -> RtpsStatelessWriter<
-        '_,
-        Vec<Locator>,
-        WriterHistoryCache,
-        IterMut<'_, RtpsReaderLocatorImpl>,
-    >;
+    ) -> RtpsStatelessWriter<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderLocatorImpl>>;
 
     fn get_stateful_writer(
         &mut self,
@@ -52,12 +49,8 @@ pub trait RtpsWriterBehavior {
 impl<T> RtpsWriterBehavior for DataWriterImpl<T> {
     fn get_stateless_writer(
         &mut self,
-    ) -> RtpsStatelessWriter<
-        '_,
-        Vec<Locator>,
-        WriterHistoryCache,
-        IterMut<'_, RtpsReaderLocatorImpl>,
-    > {
+    ) -> RtpsStatelessWriter<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderLocatorImpl>>
+    {
         RtpsStatelessWriter {
             writer: &mut self.rtps_writer_impl,
             reader_locators: self.reader_locators.iter_mut(),
