@@ -174,6 +174,8 @@ pub struct DataWriterImpl<T, W> {
     rtps_writer_impl: W,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
     last_sent_heartbeat: std::time::Instant,
+    reader_locators: Vec<RtpsReaderLocatorImpl>,
+    matched_readers: Vec<RtpsReaderProxyImpl>,
 }
 
 impl<T, W> DataWriterImpl<T, W>
@@ -186,6 +188,8 @@ where
             rtps_writer_impl,
             _listener: None,
             last_sent_heartbeat: std::time::Instant::now(),
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
         }
     }
 }
@@ -377,22 +381,18 @@ impl<T, W> Entity for DataWriterImpl<T, W> {
     }
 }
 
-impl<T> RtpsStatelessWriterOperations for DataWriterImpl<T, RtpsStatelessWriterType> {
+impl<T, W> RtpsStatelessWriterOperations for DataWriterImpl<T, W> {
     fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
         let reader_locator_impl = RtpsReaderLocatorImpl::new(a_locator);
-        self.rtps_writer_impl
-            .reader_locators
-            .push(reader_locator_impl);
+        self.reader_locators.push(reader_locator_impl);
     }
 
     fn reader_locator_remove(&mut self, a_locator: &Locator) {
-        self.rtps_writer_impl
-            .reader_locators
-            .retain(|x| &x.locator != a_locator)
+        self.reader_locators.retain(|x| &x.locator != a_locator)
     }
 
     fn unsent_changes_reset(&mut self) {
-        for reader_locator in &mut self.rtps_writer_impl.reader_locators {
+        for reader_locator in &mut self.reader_locators {
             reader_locator.unsent_changes_reset()
         }
     }
@@ -412,15 +412,14 @@ impl<T, W> DerefMut for DataWriterImpl<T, W> {
     }
 }
 
-impl<T> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, RtpsStatefulWriterType> {
+impl<T, W> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, W> {
     fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
         let reader_proxy = RtpsReaderProxyImpl::new(a_reader_proxy);
-        self.rtps_writer_impl.matched_readers.push(reader_proxy)
+        self.matched_readers.push(reader_proxy)
     }
 
     fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid) {
-        self.rtps_writer_impl
-            .matched_readers
+        self.matched_readers
             .retain(|x| &x.remote_reader_guid != reader_proxy_guid);
     }
 
@@ -428,8 +427,7 @@ impl<T> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, RtpsSta
         &self,
         a_reader_guid: &Guid,
     ) -> Option<&RtpsReaderProxy<Vec<Locator>>> {
-        self.rtps_writer_impl
-            .matched_readers
+        self.matched_readers
             .iter()
             .find(|&x| &x.remote_reader_guid == a_reader_guid)
             .map(|x| x.deref())
