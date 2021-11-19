@@ -27,8 +27,9 @@ use super::{
     writer::RtpsWriter,
 };
 
-pub trait RtpsStatefulWriterTrait<L,C, R> {
-    fn stateful_writer(&mut self) -> (&RtpsWriter<L,C>, core::slice::IterMut<'_, R>);
+pub struct RtpsStatefulWriterRef<'a, L, C, R> {
+    pub writer: &'a mut RtpsWriter<L, C>,
+    pub matched_readers: R,
 }
 
 pub struct RtpsStatefulWriter<L, C, R> {
@@ -117,7 +118,7 @@ pub trait StatefulWriterBehavior<'a, S, P, D, L> {
 }
 
 impl<'a, S, P, D, L, C, R, RP> StatefulWriterBehavior<'a, S, P, D, L>
-    for RtpsStatefulWriter<L, C, R>
+    for RtpsStatefulWriterRef<'a, L, C, R>
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RP>,
     RP: RtpsReaderProxyOperations<SequenceNumberVector = S> + Deref<Target = RtpsReaderProxy<L>>,
