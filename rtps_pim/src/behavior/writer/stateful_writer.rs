@@ -30,7 +30,6 @@ use super::{
 pub struct RtpsStatefulWriter<L, C, R> {
     writer: RtpsWriter<L, C>,
     pub matched_readers: R,
-    heartbeat_count: Count, // This member is a deviation from the standard to implement the behavior
 }
 
 impl<L, C, R> Deref for RtpsStatefulWriter<L, C, R> {
@@ -78,7 +77,6 @@ where
                 data_max_size_serialized,
             ),
             matched_readers: R::default(),
-            heartbeat_count: Count(1),
         }
     }
 }
@@ -215,7 +213,7 @@ where
                 value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
             };
             let count = CountSubmessageElement {
-                value: self.heartbeat_count,
+                value: self.writer.heartbeat_count,
             };
             let heartbeat_submessage = HeartbeatSubmessage {
                 endianness_flag,
@@ -227,7 +225,7 @@ where
                 last_sn,
                 count,
             };
-            self.heartbeat_count += Count(1);
+            self.writer.heartbeat_count += Count(1);
             send_heartbeat(reader_proxy, heartbeat_submessage)
         }
     }
