@@ -27,6 +27,10 @@ use super::{
     writer::RtpsWriter,
 };
 
+pub trait RtpsStatefulWriterTrait<L,C, R> {
+    fn stateful_writer(&mut self) -> (&RtpsWriter<L,C>, core::slice::IterMut<'_, R>);
+}
+
 pub struct RtpsStatefulWriter<L, C, R> {
     writer: RtpsWriter<L, C>,
     pub matched_readers: R,
