@@ -11,7 +11,7 @@ use rust_rtps_pim::{
     behavior::{
         reader::{
             reader::RtpsReader, stateful_reader::RtpsStatefulReaderOperations,
-            writer_proxy::RtpsWriterProxy,
+            stateless_reader::RtpsStatelessReader, writer_proxy::RtpsWriterProxy,
         },
         stateless_reader_behavior::StatelessReaderBehavior,
     },
@@ -21,9 +21,7 @@ use rust_rtps_pim::{
     },
 };
 use rust_rtps_psm::{
-    messages::submessages::DataSubmessageRead, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    messages::submessages::DataSubmessageRead, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 
 use crate::{
@@ -49,13 +47,11 @@ where
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        todo!()
-        // match &mut self.rtps_reader {
-        //     RtpsReaderFlavor::Stateful(_) => todo!(),
-        //     RtpsReaderFlavor::Stateless(stateless_reader) => {
-        //         stateless_reader.receive_data(source_guid_prefix, data)
-        //     }
-        // };
+        let mut stateless_reader = RtpsStatelessReader {
+            reader: &mut self.rtps_reader,
+        };
+
+        stateless_reader.receive_data(source_guid_prefix, data)
     }
 }
 
