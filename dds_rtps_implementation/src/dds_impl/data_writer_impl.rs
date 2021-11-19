@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::{ops::Deref, slice::IterMut};
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -13,21 +13,13 @@ use rust_rtps_pim::{
     behavior::writer::{
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
-        stateful_writer::{
-            RtpsStatefulWriter, RtpsStatefulWriterOperations, StatefulWriterBehavior,
-        },
-        stateless_writer::{
-            RtpsStatelessWriter, RtpsStatelessWriterOperations, StatelessWriterBehavior,
-        },
+        stateful_writer::{RtpsStatefulWriterOperations, RtpsStatefulWriter},
+        stateless_writer::{RtpsStatelessWriterOperations, RtpsStatelessWriter},
         writer::{RtpsWriter, RtpsWriterOperations},
-    },
-    messages::{
-        submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
         history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber},
+        types::{ChangeKind, Guid, GuidPrefix, Locator},
     },
 };
 use rust_rtps_psm::{
@@ -41,159 +33,95 @@ use crate::{
 };
 
 pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
-pub type RtpsStatelessWriterType =
-    RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>;
-pub type RtpsStatefulWriterType =
-    RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderProxyImpl>>;
 
-pub trait StatelessWriterBehaviorType:
-    for<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
-{
-}
-
-impl<T> StatelessWriterBehaviorType for T where
-    T: for<'a> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
-{
-}
-
-impl<'a, T> StatelessWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8]>
-    for DataWriterImpl<T, RtpsStatelessWriterType>
-{
-    fn send_unsent_data(
-        &'a mut self,
-        send_data: &mut dyn FnMut(
-            &RtpsReaderLocator,
-            DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
-        ),
-        send_gap: &mut dyn FnMut(&RtpsReaderLocator, GapSubmessage<Vec<SequenceNumber>>),
-    ) {
-        self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
-    }
-}
-
-pub trait StatefulWriterBehaviorType:
-    for<'a> StatefulWriterBehavior<
-    'a,
-    Vec<SequenceNumber>,
-    Vec<Parameter<Vec<u8>>>,
-    &'a [u8],
-    Vec<Locator>,
->
-{
-}
-
-impl<T> StatefulWriterBehaviorType for T where
-    T: for<'a> StatefulWriterBehavior<
-        'a,
-        Vec<SequenceNumber>,
-        Vec<Parameter<Vec<u8>>>,
-        &'a [u8],
-        Vec<Locator>,
-    >
-{
-}
-
-impl<'a, T>
-    StatefulWriterBehavior<'a, Vec<SequenceNumber>, Vec<Parameter<Vec<u8>>>, &'a [u8], Vec<Locator>>
-    for DataWriterImpl<T, RtpsStatefulWriterType>
-{
-    fn send_unsent_data(
-        &'a mut self,
-        send_data: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
-        ),
-        send_gap: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            GapSubmessage<Vec<SequenceNumber>>,
-        ),
-    ) {
-        self.rtps_writer_impl.send_unsent_data(send_data, send_gap)
-    }
-
-    fn send_heartbeat(
+pub trait RtpsWriterBehavior {
+    fn get_stateless_writer(
         &mut self,
-        send_heartbeat: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            rust_rtps_pim::messages::submessages::HeartbeatSubmessage,
-        ),
-    ) {
-        let heartbeat_period_duration = std::time::Duration::new(
-            self.rtps_writer_impl.heartbeat_period.seconds as u64,
-            self.rtps_writer_impl.heartbeat_period.fraction,
-        );
-        let since_last_heartbeat_sent = std::time::Instant::now() - self.last_sent_heartbeat;
-        if since_last_heartbeat_sent > heartbeat_period_duration {
-            self.rtps_writer_impl.send_heartbeat(send_heartbeat);
-            self.last_sent_heartbeat = std::time::Instant::now();
+    ) -> RtpsStatelessWriter<
+        '_,
+        Vec<Locator>,
+        WriterHistoryCache,
+        IterMut<'_, RtpsReaderLocatorImpl>,
+    >;
+
+    fn get_stateful_writer(
+        &mut self,
+    ) -> RtpsStatefulWriter<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>;
+}
+
+impl<T> RtpsWriterBehavior for DataWriterImpl<T> {
+    fn get_stateless_writer(
+        &mut self,
+    ) -> RtpsStatelessWriter<
+        '_,
+        Vec<Locator>,
+        WriterHistoryCache,
+        IterMut<'_, RtpsReaderLocatorImpl>,
+    > {
+        RtpsStatelessWriter {
+            writer: &mut self.rtps_writer_impl,
+            reader_locators: self.reader_locators.iter_mut(),
         }
     }
 
-    fn send_requested_data(
-        &'a mut self,
-        send_data: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            DataSubmessage<Vec<Parameter<Vec<u8>>>, &'a [u8]>,
-        ),
-        send_gap: &mut dyn FnMut(
-            &RtpsReaderProxy<Vec<Locator>>,
-            GapSubmessage<Vec<SequenceNumber>>,
-        ),
-    ) {
-        self.rtps_writer_impl
-            .send_requested_data(send_data, send_gap)
-    }
-
-    fn process_acknack_submessage(
+    fn get_stateful_writer(
         &mut self,
-        acknack: &rust_rtps_pim::messages::submessages::AckNackSubmessage<Vec<SequenceNumber>>,
-    ) {
-        self.rtps_writer_impl.process_acknack_submessage(acknack)
+    ) -> RtpsStatefulWriter<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>
+    {
+        RtpsStatefulWriter {
+            writer: &mut self.rtps_writer_impl,
+            matched_readers: self.matched_readers.iter_mut(),
+        }
     }
 }
 
-// std::thread::spawn(move || {
-//     let mut heartbeat_count = Count(1);
-//     let heartbeat_period = stateful_writer_shared.lock().unwrap().heartbeat_period;
-//
-//     loop {
-//         stateful_writer_shared.lock().unwrap().send_heartbeat(
-//             heartbeat_count,
-//
-//                     .unwrap();
-//             },
-//         );
-//         heartbeat_count += Count(1);
-
-//         std::thread::sleep(heartbeat_period_duration);
+// fn send_heartbeat(
+//     &mut self,
+//     send_heartbeat: &mut dyn FnMut(
+//         &RtpsReaderProxy<Vec<Locator>>,
+//         rust_rtps_pim::messages::submessages::HeartbeatSubmessage,
+//     ),
+// ) {
+//     let heartbeat_period_duration = std::time::Duration::new(
+//         self.rtps_writer_impl.heartbeat_period.seconds as u64,
+//         self.rtps_writer_impl.heartbeat_period.fraction,
+//     );
+//     let since_last_heartbeat_sent = std::time::Instant::now() - self.last_sent_heartbeat;
+//     if since_last_heartbeat_sent > heartbeat_period_duration {
+//         // self.rtps_writer_impl.send_heartbeat(send_heartbeat);
+//         // self.last_sent_heartbeat = std::time::Instant::now();
+//         todo!()
 //     }
-// });
+// }
 
-pub struct DataWriterImpl<T, W> {
+pub struct DataWriterImpl<T> {
     _qos: DataWriterQos,
-    rtps_writer_impl: W,
+    rtps_writer_impl: RtpsWriterType,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
-    last_sent_heartbeat: std::time::Instant,
+    _last_sent_heartbeat: std::time::Instant,
+    reader_locators: Vec<RtpsReaderLocatorImpl>,
+    matched_readers: Vec<RtpsReaderProxyImpl>,
 }
 
-impl<T, W> DataWriterImpl<T, W>
+impl<T> DataWriterImpl<T>
 where
     T: Send + 'static,
 {
-    pub fn new(qos: DataWriterQos, rtps_writer_impl: W) -> Self {
+    pub fn new(qos: DataWriterQos, rtps_writer_impl: RtpsWriterType) -> Self {
         Self {
             _qos: qos,
             rtps_writer_impl,
             _listener: None,
-            last_sent_heartbeat: std::time::Instant::now(),
+            _last_sent_heartbeat: std::time::Instant::now(),
+            reader_locators: Vec::new(),
+            matched_readers: Vec::new(),
         }
     }
 }
 
-impl<T, W> DataWriter<T> for DataWriterImpl<T, W>
+impl<T> DataWriter<T> for DataWriterImpl<T>
 where
     T: DdsSerialize,
-    W: Deref<Target = RtpsWriterType> + DerefMut,
 {
     fn register_instance(&mut self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
@@ -329,7 +257,7 @@ where
     }
 }
 
-impl<T, W> Entity for DataWriterImpl<T, W> {
+impl<T> Entity for DataWriterImpl<T> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<DataType = T>>;
 
@@ -377,50 +305,31 @@ impl<T, W> Entity for DataWriterImpl<T, W> {
     }
 }
 
-impl<T> RtpsStatelessWriterOperations for DataWriterImpl<T, RtpsStatelessWriterType> {
+impl<T> RtpsStatelessWriterOperations for DataWriterImpl<T> {
     fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
         let reader_locator_impl = RtpsReaderLocatorImpl::new(a_locator);
-        self.rtps_writer_impl
-            .reader_locators
-            .push(reader_locator_impl);
+        self.reader_locators.push(reader_locator_impl);
     }
 
     fn reader_locator_remove(&mut self, a_locator: &Locator) {
-        self.rtps_writer_impl
-            .reader_locators
-            .retain(|x| &x.locator != a_locator)
+        self.reader_locators.retain(|x| &x.locator != a_locator)
     }
 
     fn unsent_changes_reset(&mut self) {
-        for reader_locator in &mut self.rtps_writer_impl.reader_locators {
+        for reader_locator in &mut self.reader_locators {
             reader_locator.unsent_changes_reset()
         }
     }
 }
 
-impl<T, W> Deref for DataWriterImpl<T, W> {
-    type Target = W;
-
-    fn deref(&self) -> &Self::Target {
-        &self.rtps_writer_impl
-    }
-}
-
-impl<T, W> DerefMut for DataWriterImpl<T, W> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.rtps_writer_impl
-    }
-}
-
-impl<T> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, RtpsStatefulWriterType> {
+impl<T> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T> {
     fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
         let reader_proxy = RtpsReaderProxyImpl::new(a_reader_proxy);
-        self.rtps_writer_impl.matched_readers.push(reader_proxy)
+        self.matched_readers.push(reader_proxy)
     }
 
     fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid) {
-        self.rtps_writer_impl
-            .matched_readers
+        self.matched_readers
             .retain(|x| &x.remote_reader_guid != reader_proxy_guid);
     }
 
@@ -428,8 +337,7 @@ impl<T> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, RtpsSta
         &self,
         a_reader_guid: &Guid,
     ) -> Option<&RtpsReaderProxy<Vec<Locator>>> {
-        self.rtps_writer_impl
-            .matched_readers
+        self.matched_readers
             .iter()
             .find(|&x| &x.remote_reader_guid == a_reader_guid)
             .map(|x| x.deref())
@@ -440,7 +348,7 @@ impl<T> RtpsStatefulWriterOperations<Vec<Locator>> for DataWriterImpl<T, RtpsSta
     }
 }
 
-impl<T, W> ProcessAckNackSubmessage for DataWriterImpl<T, W> {
+impl<T> ProcessAckNackSubmessage for DataWriterImpl<T> {
     fn process_acknack_submessage(
         &self,
         _source_guid_prefix: GuidPrefix,
@@ -734,7 +642,7 @@ mod tests {
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_stateless_writer = RtpsStatelessWriterType::new(
+        let rtps_stateless_writer = RtpsWriterType::new(
             guid,
             topic_kind,
             reliability_level,

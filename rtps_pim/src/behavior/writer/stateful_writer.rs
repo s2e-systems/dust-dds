@@ -1,10 +1,6 @@
-use core::{
-    iter::FromIterator,
-    ops::{Deref, DerefMut},
-};
+use core::{iter::FromIterator, ops::Deref};
 
 use crate::{
-    behavior::types::Duration,
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
@@ -15,10 +11,8 @@ use crate::{
         types::Count,
     },
     structure::{
-        history_cache::{
-            RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations,
-        },
-        types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind, ENTITYID_UNKNOWN},
+        history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
+        types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -27,60 +21,9 @@ use super::{
     writer::RtpsWriter,
 };
 
-pub struct RtpsStatefulWriter<L, C, R> {
-    writer: RtpsWriter<L, C>,
+pub struct RtpsStatefulWriter<'a, L, C, R> {
+    pub writer: &'a mut RtpsWriter<L, C>,
     pub matched_readers: R,
-    heartbeat_count: Count, // This member is a deviation from the standard to implement the behavior
-}
-
-impl<L, C, R> Deref for RtpsStatefulWriter<L, C, R> {
-    type Target = RtpsWriter<L, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.writer
-    }
-}
-
-impl<L, C, R> DerefMut for RtpsStatefulWriter<L, C, R> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.writer
-    }
-}
-
-impl<L, C, R> RtpsStatefulWriter<L, C, R>
-where
-    R: Default,
-    C: RtpsHistoryCacheConstructor,
-{
-    pub fn new(
-        guid: Guid,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: L,
-        multicast_locator_list: L,
-        push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
-        data_max_size_serialized: Option<i32>,
-    ) -> Self {
-        Self {
-            writer: RtpsWriter::new(
-                guid,
-                topic_kind,
-                reliability_level,
-                unicast_locator_list,
-                multicast_locator_list,
-                push_mode,
-                heartbeat_period,
-                nack_response_delay,
-                nack_suppression_duration,
-                data_max_size_serialized,
-            ),
-            matched_readers: R::default(),
-            heartbeat_count: Count(1),
-        }
-    }
 }
 
 pub trait RtpsStatefulWriterOperations<L> {
@@ -115,10 +58,12 @@ pub trait StatefulWriterBehavior<'a, S, P, D, L> {
 }
 
 impl<'a, S, P, D, L, C, R, RP> StatefulWriterBehavior<'a, S, P, D, L>
-    for RtpsStatefulWriter<L, C, R>
+    for RtpsStatefulWriter<'a, L, C, R>
 where
-    for<'b> &'b mut R: IntoIterator<Item = &'b mut RP>,
-    RP: RtpsReaderProxyOperations<SequenceNumberVector = S> + Deref<Target = RtpsReaderProxy<L>>,
+    R: Iterator<Item = &'a mut RP>,
+    RP: RtpsReaderProxyOperations<SequenceNumberVector = S>
+        + Deref<Target = RtpsReaderProxy<L>>
+        + 'a,
     S: FromIterator<SequenceNumber>,
     C: RtpsHistoryCacheGetChange<'a, P, D> + RtpsHistoryCacheOperations,
 {
@@ -215,7 +160,7 @@ where
                 value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
             };
             let count = CountSubmessageElement {
-                value: self.heartbeat_count,
+                value: self.writer.heartbeat_count,
             };
             let heartbeat_submessage = HeartbeatSubmessage {
                 endianness_flag,
@@ -227,7 +172,7 @@ where
                 last_sn,
                 count,
             };
-            self.heartbeat_count += Count(1);
+            self.writer.heartbeat_count += Count(1);
             send_heartbeat(reader_proxy, heartbeat_submessage)
         }
     }

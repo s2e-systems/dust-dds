@@ -52,7 +52,7 @@ pub struct DomainParticipantImpl {
     guid_prefix: GuidPrefix,
     _qos: DomainParticipantQos,
     _builtin_subscriber: RtpsShared<SubscriberImpl>,
-    _builtin_publisher: RtpsShared<PublisherImpl>,
+    builtin_publisher: RtpsShared<PublisherImpl>,
     _user_defined_subscriber_list: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
     _user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
@@ -175,7 +175,7 @@ impl DomainParticipantImpl {
             guid_prefix,
             _qos: domain_participant_qos,
             _builtin_subscriber: builtin_subscriber,
-            _builtin_publisher: builtin_publisher,
+            builtin_publisher,
             _user_defined_subscriber_list: user_defined_subscriber_list,
             _user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
@@ -485,6 +485,11 @@ impl Entity for DomainParticipantImpl {
 
     fn enable(&self) -> DDSResult<()> {
         self.is_enabled.store(true, atomic::Ordering::SeqCst);
+        let _spdp_builtin_participant_writer = self.builtin_publisher
+            .write()
+            .unwrap()
+            .lookup_datawriter::<SpdpDiscoveredParticipantData>(&()).unwrap();
+
         Ok(())
     }
 }
