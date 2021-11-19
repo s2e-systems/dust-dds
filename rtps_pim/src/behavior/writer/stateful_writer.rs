@@ -21,7 +21,7 @@ use super::{
     writer::RtpsWriter,
 };
 
-pub struct RtpsStatefulWriterRef<'a, L, C, R> {
+pub struct RtpsStatefulWriter<'a, L, C, R> {
     pub writer: &'a mut RtpsWriter<L, C>,
     pub matched_readers: R,
 }
@@ -58,7 +58,7 @@ pub trait StatefulWriterBehavior<'a, S, P, D, L> {
 }
 
 impl<'a, S, P, D, L, C, R, RP> StatefulWriterBehavior<'a, S, P, D, L>
-    for RtpsStatefulWriterRef<'a, L, C, R>
+    for RtpsStatefulWriter<'a, L, C, R>
 where
     R: Iterator<Item = &'a mut RP>,
     RP: RtpsReaderProxyOperations<SequenceNumberVector = S>

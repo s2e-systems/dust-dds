@@ -20,7 +20,7 @@ use super::{
     writer::RtpsWriter,
 };
 
-pub struct RtpsStatelessWriterRef<'a, L, C, R> {
+pub struct RtpsStatelessWriter<'a, L, C, R> {
     pub writer: &'a mut RtpsWriter<L, C>,
     pub reader_locators: R,
 }
@@ -42,7 +42,7 @@ pub trait StatelessWriterBehavior<'a, S, P, D> {
 }
 
 impl<'a, S, L, C, R, RL, P, D> StatelessWriterBehavior<'a, S, P, D>
-    for RtpsStatelessWriterRef<'a, L, C, R>
+    for RtpsStatelessWriter<'a, L, C, R>
 where
     R: Iterator<Item = &'a mut RL>,
     RL: RtpsReaderLocatorOperations + Deref<Target = RtpsReaderLocator> + 'a,

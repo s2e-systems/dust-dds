@@ -13,8 +13,8 @@ use rust_rtps_pim::{
     behavior::writer::{
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
-        stateful_writer::{RtpsStatefulWriterOperations, RtpsStatefulWriterRef},
-        stateless_writer::{RtpsStatelessWriterOperations, RtpsStatelessWriterRef},
+        stateful_writer::{RtpsStatefulWriterOperations, RtpsStatefulWriter},
+        stateless_writer::{RtpsStatelessWriterOperations, RtpsStatelessWriter},
         writer::{RtpsWriter, RtpsWriterOperations},
     },
     structure::{
@@ -37,7 +37,7 @@ pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
 pub trait RtpsWriterBehavior {
     fn stateless_writer(
         &mut self,
-    ) -> RtpsStatelessWriterRef<
+    ) -> RtpsStatelessWriter<
         '_,
         Vec<Locator>,
         WriterHistoryCache,
@@ -46,19 +46,19 @@ pub trait RtpsWriterBehavior {
 
     fn stateful_writer(
         &mut self,
-    ) -> RtpsStatefulWriterRef<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>;
+    ) -> RtpsStatefulWriter<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>;
 }
 
 impl<T> RtpsWriterBehavior for DataWriterImpl<T> {
     fn stateless_writer(
         &mut self,
-    ) -> RtpsStatelessWriterRef<
+    ) -> RtpsStatelessWriter<
         '_,
         Vec<Locator>,
         WriterHistoryCache,
         IterMut<'_, RtpsReaderLocatorImpl>,
     > {
-        RtpsStatelessWriterRef {
+        RtpsStatelessWriter {
             writer: &mut self.rtps_writer_impl,
             reader_locators: self.reader_locators.iter_mut(),
         }
@@ -66,9 +66,9 @@ impl<T> RtpsWriterBehavior for DataWriterImpl<T> {
 
     fn stateful_writer(
         &mut self,
-    ) -> RtpsStatefulWriterRef<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>
+    ) -> RtpsStatefulWriter<'_, Vec<Locator>, WriterHistoryCache, IterMut<'_, RtpsReaderProxyImpl>>
     {
-        RtpsStatefulWriterRef {
+        RtpsStatefulWriter {
             writer: &mut self.rtps_writer_impl,
             matched_readers: self.matched_readers.iter_mut(),
         }
