@@ -1,15 +1,13 @@
-use rust_rtps_pim::{
-    behavior::{types::DURATION_ZERO, writer::writer::RtpsWriter},
+use crate::{
+    behavior::{reader::reader::RtpsReader, types::DURATION_ZERO, writer::writer::RtpsWriter},
     structure::{
         history_cache::RtpsHistoryCacheConstructor,
         types::{
-            EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
-            BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY,
+            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
+            BUILT_IN_WRITER_WITH_KEY,
         },
     },
 };
-
-use crate::rtps_stateless_reader_impl::RtpsStatelessReaderImpl;
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
@@ -49,18 +47,18 @@ impl SpdpBuiltinParticipantWriter {
 pub struct SpdpBuiltinParticipantReader;
 
 impl SpdpBuiltinParticipantReader {
-    pub fn create<C>(
+    pub fn create<L, C>(
         guid_prefix: GuidPrefix,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-    ) -> RtpsStatelessReaderImpl<C>
+        unicast_locator_list: L,
+        multicast_locator_list: L,
+    ) -> RtpsReader<L, C>
     where
         C: RtpsHistoryCacheConstructor,
     {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
 
-        RtpsStatelessReaderImpl::new(
+        RtpsReader::new(
             spdp_builtin_participant_reader_guid,
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,

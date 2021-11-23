@@ -34,10 +34,8 @@ use rust_dds_rtps_implementation::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_impl::{
-        data_reader_impl::{DataReaderImpl, RtpsReaderFlavor},
-        data_writer_impl::DataWriterImpl,
-        publisher_impl::PublisherImpl,
-        subscriber_impl::SubscriberImpl,
+        data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
+        publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
     },
     rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::{
@@ -53,6 +51,18 @@ use rust_rtps_pim::{
             reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
         },
     },
+    discovery::{
+        participant_discovery::ParticipantDiscovery,
+        sedp::builtin_endpoints::{
+            SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        },
+        spdp::{
+            builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
+            participant_proxy::ParticipantProxy,
+        },
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    },
     messages::types::Count,
     structure::{
         group::RtpsGroup,
@@ -61,18 +71,6 @@ use rust_rtps_pim::{
             BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN,
         },
     },
-};
-use rust_rtps_psm::discovery::{
-    participant_discovery::ParticipantDiscovery,
-    sedp::builtin_endpoints::{
-        SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    },
-    spdp::{
-        builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
-        participant_proxy::ParticipantProxy,
-    },
-    types::{BuiltinEndpointQos, BuiltinEndpointSet},
 };
 
 #[test]
@@ -157,7 +155,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     let data_reader: DataReaderImpl<SpdpDiscoveredParticipantData> = DataReaderImpl::new(
         DataReaderQos::default(),
-        RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader_impl),
+        spdp_builtin_participant_rtps_reader_impl,
     );
     let shared_data_reader = rtps_shared_new(data_reader);
     let subscriber = SubscriberImpl::new(
@@ -290,7 +288,7 @@ fn process_discovery_data_happy_path() {
     let spdp_builtin_participant_data_reader: DataReaderImpl<SpdpDiscoveredParticipantData> =
         DataReaderImpl::new(
             DataReaderQos::default(),
-            RtpsReaderFlavor::Stateless(spdp_builtin_participant_rtps_reader_impl),
+            spdp_builtin_participant_rtps_reader_impl,
         );
     let shared_data_reader = rtps_shared_new(spdp_builtin_participant_data_reader);
     let subscriber = SubscriberImpl::new(
@@ -314,18 +312,22 @@ fn process_discovery_data_happy_path() {
 
     let discovered_participant = shared_data_reader.read(1, &[], &[], &[]).unwrap();
 
-    let mut sedp_builtin_publications_rtps_reader = SedpBuiltinPublicationsReader::create::<
+    let sedp_builtin_publications_rtps_reader = SedpBuiltinPublicationsReader::create::<
+        _,
         ReaderHistoryCache<SedpDiscoveredWriterData>,
     >(guid_prefix, vec![], vec![]);
+    let mut sedp_built_publications_reader = DataReaderImpl::new(
+        DataReaderQos::default(),
+        sedp_builtin_publications_rtps_reader,
+    );
 
     if let Ok(participant_discovery) = ParticipantDiscovery::new(
         &discovered_participant[0].participant_proxy,
         domain_id,
         domain_tag,
     ) {
-        participant_discovery.discovered_participant_add_publications_reader(
-            &mut sedp_builtin_publications_rtps_reader,
-        );
+        participant_discovery
+            .discovered_participant_add_publications_reader(&mut sedp_built_publications_reader);
 
         let sedp_builtin_publications_data_writer = publisher
             .lookup_datawriter::<SedpDiscoveredWriterData>(&())
@@ -381,12 +383,9 @@ fn process_discovery_data_happy_path() {
             .unwrap();
     }
 
+    assert_eq!(sedp_built_publications_reader.matched_writers.len(), 1);
     assert_eq!(
-        sedp_builtin_publications_rtps_reader.matched_writers.len(),
-        1
-    );
-    assert_eq!(
-        sedp_builtin_publications_rtps_reader.matched_writers[0].remote_writer_guid,
+        sedp_built_publications_reader.matched_writers[0].remote_writer_guid,
         Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
     );
 

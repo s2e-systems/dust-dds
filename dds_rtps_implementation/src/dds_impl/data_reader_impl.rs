@@ -8,40 +8,34 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
+    behavior::{
+        reader::{
+            reader::RtpsReader, stateful_reader::RtpsStatefulReaderOperations,
+            stateless_reader::RtpsStatelessReader, writer_proxy::RtpsWriterProxy,
+        },
+        stateless_reader_behavior::StatelessReaderBehavior,
+    },
     structure::{
         history_cache::RtpsHistoryCacheGetChange,
-        types::{GuidPrefix, Locator},
+        types::{Guid, GuidPrefix, Locator},
     },
 };
-use rust_rtps_psm::{
-    messages::submessages::DataSubmessageRead, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-};
+use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
-    dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
+    dds_type::DdsDeserialize,
+    rtps_impl::{
+        rtps_reader_history_cache_impl::ReaderHistoryCache,
+        rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    },
     utils::message_receiver::ProcessDataSubmessage,
 };
 
-pub enum RtpsReaderFlavor<T> {
-    Stateful(RtpsStatefulReaderImpl<ReaderHistoryCache<T>>),
-    Stateless(RtpsStatelessReaderImpl<ReaderHistoryCache<T>>),
-}
-
-impl<T> Deref for RtpsReaderFlavor<T> {
-    type Target = RtpsReader<Vec<Locator>, ReaderHistoryCache<T>>;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            RtpsReaderFlavor::Stateful(stateful_reader) => &stateful_reader,
-            RtpsReaderFlavor::Stateless(stateless_reader) => &stateless_reader,
-        }
-    }
-}
+pub type RtpsReaderType<T> = RtpsReader<Vec<Locator>, ReaderHistoryCache<T>>;
 
 pub struct DataReaderImpl<T> {
-    pub rtps_reader: RtpsReaderFlavor<T>,
+    pub rtps_reader: RtpsReaderType<T>,
+    pub matched_writers: Vec<RtpsWriterProxyImpl>,
     _qos: DataReaderQos,
     _listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }
@@ -50,20 +44,24 @@ impl<T> ProcessDataSubmessage for DataReaderImpl<T>
 where
     T: for<'a> DdsDeserialize<'a>,
 {
-    fn process_data_submessage(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessageRead) {
-        match &mut self.rtps_reader {
-            RtpsReaderFlavor::Stateful(_) => todo!(),
-            RtpsReaderFlavor::Stateless(stateless_reader) => {
-                stateless_reader.receive_data(source_guid_prefix, data)
-            }
+    fn process_data_submessage(
+        &mut self,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessageRead,
+    ) {
+        let mut stateless_reader = RtpsStatelessReader {
+            reader: &mut self.rtps_reader,
         };
+
+        stateless_reader.receive_data(source_guid_prefix, data)
     }
 }
 
 impl<T> DataReaderImpl<T> {
-    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderFlavor<T>) -> Self {
+    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderType<T>) -> Self {
         Self {
             rtps_reader,
+            matched_writers: Vec::new(),
             _qos: qos,
             _listener: None,
         }
@@ -395,5 +393,27 @@ impl<T> Entity for DataReaderImpl<T> {
 
     fn get_instance_handle(&self) -> DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
         todo!()
+    }
+}
+
+impl<T> RtpsStatefulReaderOperations<Vec<Locator>> for DataReaderImpl<T> {
+    fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<Vec<Locator>>) {
+        let writer_proxy = RtpsWriterProxyImpl::new(a_writer_proxy);
+        self.matched_writers.push(writer_proxy);
+    }
+
+    fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid) {
+        self.matched_writers
+            .retain(|x| &x.remote_writer_guid != writer_proxy_guid)
+    }
+
+    fn matched_writer_lookup(
+        &self,
+        a_writer_guid: &Guid,
+    ) -> Option<&RtpsWriterProxy<Vec<Locator>>> {
+        self.matched_writers
+            .iter()
+            .find(|&x| &x.remote_writer_guid == a_writer_guid)
+            .map(|x| x.deref())
     }
 }

@@ -1,9 +1,9 @@
 use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use rust_rtps_pim::{
     behavior::types::Duration,
+    discovery::spdp::participant_proxy::ParticipantProxy,
     structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
 };
-use rust_rtps_psm::discovery::spdp::participant_proxy::ParticipantProxy;
 
 use crate::{
     data_representation_builtin_endpoints::parameter_id_values::{
@@ -221,10 +221,10 @@ mod tests {
     use super::*;
     use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
     use rust_rtps_pim::{
+        discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,
         structure::types::{EntityId, GuidPrefix, ProtocolVersion},
     };
-    use rust_rtps_psm::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
 
     pub fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
