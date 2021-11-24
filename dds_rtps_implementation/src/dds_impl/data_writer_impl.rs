@@ -30,12 +30,6 @@ use crate::{
 
 pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
 
-pub trait GetRtpsWriter {
-    fn rtps_writer(&self) -> &RtpsWriterType;
-
-    fn rtps_writer_mut(&mut self) -> &mut RtpsWriterType;
-}
-
 // pub trait RtpsWriterBehavior {
 //     fn get_stateless_writer(
 //         &mut self,
@@ -87,13 +81,15 @@ pub trait GetRtpsWriter {
 //     }
 // }
 
-pub trait GetWriter<W> {
-    fn get_writer(&self) -> &W;
+impl<T, W> AsRef<W> for DataWriterImpl<T, W> {
+    fn as_ref(&self) -> &W {
+        &self.rtps_writer_impl
+    }
 }
 
-impl<T, W> GetWriter<W> for DataWriterImpl<T, W> {
-    fn get_writer(&self) -> &W {
-        &self.rtps_writer_impl
+impl<T, W> AsMut<W> for DataWriterImpl<T, W> {
+    fn as_mut(&mut self) -> &mut W {
+        &mut self.rtps_writer_impl
     }
 }
 
@@ -122,7 +118,7 @@ where
 impl<T, W> DataWriter<T> for DataWriterImpl<T, W>
 where
     T: DdsSerialize,
-    W: GetRtpsWriter,
+    W: AsMut<RtpsWriterType>,
 {
     fn register_instance(&mut self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
@@ -171,7 +167,7 @@ where
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let rtps_writer_impl = self.rtps_writer_impl.rtps_writer_mut();
+        let rtps_writer_impl = self.rtps_writer_impl.as_mut();
         let change = rtps_writer_impl.new_change(ChangeKind::Alive, data, vec![], 0);
         let time = rust_rtps_pim::messages::types::Time(0);
         rtps_writer_impl

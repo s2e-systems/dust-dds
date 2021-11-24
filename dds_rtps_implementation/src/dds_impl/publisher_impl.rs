@@ -42,7 +42,6 @@ use rust_rtps_psm::messages::{
 };
 
 use crate::{
-    dds_impl::data_writer_impl::GetWriter,
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     utils::{
@@ -96,7 +95,7 @@ impl PublisherImpl {
         let data_writer_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
         data_writer_list_lock[0]
             .into_any()
-            .downcast_ref::<Arc<RwLock<dyn GetWriter<RtpsStatelessWriterImpl>>>>();
+            .downcast_ref::<Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>>>();
 
         // let rtps_writer_behavior_list: Vec<Arc<RwLock<dyn RtpsWriterBehavior>>> =
         //     data_writer_list_lock

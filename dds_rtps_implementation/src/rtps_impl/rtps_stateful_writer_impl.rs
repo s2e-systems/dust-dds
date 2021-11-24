@@ -8,7 +8,7 @@ use rust_rtps_pim::{
     structure::types::{Guid, Locator},
 };
 
-use crate::dds_impl::data_writer_impl::{GetRtpsWriter, RtpsWriterType};
+use crate::dds_impl::data_writer_impl::RtpsWriterType;
 
 use super::{
     rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_writer_history_cache_impl::WriterHistoryCache,
@@ -72,12 +72,14 @@ impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
     }
 }
 
-impl GetRtpsWriter for RtpsStatefulWriterImpl {
-    fn rtps_writer(&self) -> &RtpsWriterType {
+impl AsRef<RtpsWriterType> for RtpsStatefulWriterImpl {
+    fn as_ref(&self) -> &RtpsWriterType {
         self.0.deref()
     }
+}
 
-    fn rtps_writer_mut(&mut self) -> &mut RtpsWriterType {
+impl AsMut<RtpsWriterType> for RtpsStatefulWriterImpl {
+    fn as_mut(&mut self) -> &mut RtpsWriterType {
         self.0.deref_mut()
     }
 }
