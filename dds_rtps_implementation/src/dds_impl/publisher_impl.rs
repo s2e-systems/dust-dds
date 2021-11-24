@@ -56,6 +56,52 @@ use crate::{
     },
 };
 
+pub trait AnyStatelessDataWriter {
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any>;
+
+    fn into_as_mut_stateless_writer(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>>;
+}
+
+impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl>>
+where
+    T: 'static,
+{
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any> {
+        self
+    }
+
+    fn into_as_mut_stateless_writer(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>> {
+        self
+    }
+}
+
+pub trait AnyStatefulDataWriter {
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any>;
+
+    fn into_as_mut_stateful_writer(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn AsMut<RtpsStatefulWriterImpl>>>;
+}
+
+impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl>>
+where
+    T: 'static,
+{
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any> {
+        self
+    }
+
+    fn into_as_mut_stateful_writer(
+        self: Arc<Self>,
+    ) -> Arc<RwLock<dyn AsMut<RtpsStatefulWriterImpl>>> {
+        self
+    }
+}
+
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
@@ -83,12 +129,16 @@ impl PublisherImpl {
         let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
 
         let any_writer = data_writer_list_lock[0].clone();
-
         let stateless_writer = Arc::downcast::<
             RwLock<DataWriterImpl<SpdpDiscoveredParticipantData, RtpsStatelessWriterImpl>>,
         >(any_writer)
         .unwrap();
 
+        let any_writer = data_writer_list_lock[0].clone();
+        let stateless_writer = <dyn Any>::downcast_ref::<
+            Arc<RwLock<DataWriterImpl<SpdpDiscoveredParticipantData, RtpsStatelessWriterImpl>>>,
+        >(&any_writer)
+        .unwrap();
         // let stateless_writer_lock = stateless_writer.write().unwrap();
 
         // for stateless_writer in data_writer_list_lock
