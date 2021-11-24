@@ -42,18 +42,20 @@ use rust_rtps_psm::messages::{
 };
 
 use crate::{
+    dds_impl::data_writer_impl::GetWriter,
     dds_type::{DdsSerialize, DdsType},
+    rtps_impl::rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     utils::{
         shared_object::{rtps_shared_new, RtpsShared},
         transport::TransportWrite,
     },
 };
 
-pub trait DataWriterObject {
+pub trait AnyDataWriter {
     fn into_any(&self) -> &dyn Any;
 }
 
-impl<T> DataWriterObject for RwLock<T>
+impl<T> AnyDataWriter for RwLock<T>
 where
     T: Any + Send + Sync,
 {
@@ -65,8 +67,8 @@ where
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
-    stateless_data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject + Send + Sync>>>,
-    stateful_data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject + Send + Sync>>>,
+    stateless_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
+    stateful_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
 }
@@ -75,8 +77,8 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        stateless_data_writer_impl_list: Vec<Arc<dyn DataWriterObject + Send + Sync>>,
-        stateful_data_writer_impl_list: Vec<Arc<dyn DataWriterObject + Send + Sync>>,
+        stateless_data_writer_impl_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
+        stateful_data_writer_impl_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -90,7 +92,11 @@ impl PublisherImpl {
 
     pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
         todo!("Implement sending of messages");
+
         let data_writer_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
+        data_writer_list_lock[0]
+            .into_any()
+            .downcast_ref::<Arc<RwLock<dyn GetWriter<RtpsStatelessWriterImpl>>>>();
 
         // let rtps_writer_behavior_list: Vec<Arc<RwLock<dyn RtpsWriterBehavior>>> =
         //     data_writer_list_lock

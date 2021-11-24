@@ -87,6 +87,16 @@ pub trait GetRtpsWriter {
 //     }
 // }
 
+pub trait GetWriter<W> {
+    fn get_writer(&self) -> &W;
+}
+
+impl<T, W> GetWriter<W> for DataWriterImpl<T, W> {
+    fn get_writer(&self) -> &W {
+        &self.rtps_writer_impl
+    }
+}
+
 pub struct DataWriterImpl<T, W> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
