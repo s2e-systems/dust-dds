@@ -49,12 +49,8 @@ use crate::{
     },
 };
 
-use super::data_writer_impl::DataWriterImpl;
-
 pub trait DataWriterObject {
     fn into_any(&self) -> &dyn Any;
-
-    // fn into_rtps_writer_behavior(self: Arc<Self>) -> Arc<RwLock<dyn RtpsWriterBehavior>>;
 }
 
 impl<T> DataWriterObject for RwLock<T>
@@ -64,16 +60,13 @@ where
     fn into_any(&self) -> &dyn Any {
         self
     }
-
-    // fn into_rtps_writer_behavior(self: Arc<Self>) -> Arc<RwLock<dyn RtpsWriterBehavior>> {
-    //     self
-    // }
 }
 
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
-    data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject + Send + Sync>>>,
+    stateless_data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject + Send + Sync>>>,
+    stateful_data_writer_impl_list: Mutex<Vec<Arc<dyn DataWriterObject + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
 }
@@ -82,19 +75,22 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        data_writer_impl_list: Vec<Arc<dyn DataWriterObject + Send + Sync>>,
+        stateless_data_writer_impl_list: Vec<Arc<dyn DataWriterObject + Send + Sync>>,
+        stateful_data_writer_impl_list: Vec<Arc<dyn DataWriterObject + Send + Sync>>,
     ) -> Self {
         Self {
             _qos: qos,
             rtps_group,
-            data_writer_impl_list: Mutex::new(data_writer_impl_list),
+            stateless_data_writer_impl_list: Mutex::new(stateless_data_writer_impl_list),
+            stateful_data_writer_impl_list: Mutex::new(stateful_data_writer_impl_list),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
         }
     }
 
     pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
-        let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
+        todo!("Implement sending of messages");
+        let data_writer_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
 
         // let rtps_writer_behavior_list: Vec<Arc<RwLock<dyn RtpsWriterBehavior>>> =
         //     data_writer_list_lock
@@ -289,7 +285,7 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
-        let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
+        let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock
             .iter()
             .find_map(|x| x.into_any().downcast_ref::<Self::DataWriterType>())?;
@@ -426,7 +422,7 @@ mod tests {
     fn set_default_datawriter_qos_some_value() {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
         let mut publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -441,7 +437,7 @@ mod tests {
     fn set_default_datawriter_qos_none() {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
         let mut publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -459,7 +455,8 @@ mod tests {
     #[test]
     fn create_datawriter() {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
+        let publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
         let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default()));
         let _a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
 
@@ -473,7 +470,11 @@ mod tests {
 
         assert!(datawriter.is_some());
         assert_eq!(
-            publisher_impl.data_writer_impl_list.lock().unwrap().len(),
+            publisher_impl
+                .stateless_data_writer_impl_list
+                .lock()
+                .unwrap()
+                .len(),
             1
         );
         assert_ne!(data_writer_counter_before, data_writer_counter_after);

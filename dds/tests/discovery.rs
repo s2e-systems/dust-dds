@@ -148,6 +148,7 @@ fn send_and_receive_discovery_data_happy_path() {
         PublisherQos::default(),
         RtpsGroup::new(GUID_UNKNOWN),
         vec![Arc::new(RwLock::new(data_writer))],
+        vec![],
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
@@ -280,10 +281,8 @@ fn process_discovery_data_happy_path() {
             GuidPrefix([4; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
-        vec![
-            rtps_shared_new(spdp_builtin_participant_data_writer),
-            rtps_shared_new(sedp_builtin_publications_data_writer),
-        ],
+        vec![rtps_shared_new(spdp_builtin_participant_data_writer)],
+        vec![rtps_shared_new(sedp_builtin_publications_data_writer)],
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
