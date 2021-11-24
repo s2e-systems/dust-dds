@@ -115,7 +115,7 @@ pub trait StatefulWriterBehavior<'a, S, P, D, L> {
 impl<'a, S, P, D, L, C, R, RP> StatefulWriterBehavior<'a, S, P, D, L>
     for RtpsStatefulWriter<L, C, R>
 where
-    R: Iterator<Item = &'a mut RP>,
+    for<'b> &'b mut R: IntoIterator<Item = &'b mut RP>,
     RP: RtpsReaderProxyOperations<SequenceNumberVector = S>
         + Deref<Target = RtpsReaderProxy<L>>
         + 'a,

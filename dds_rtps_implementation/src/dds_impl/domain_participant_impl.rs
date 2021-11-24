@@ -208,7 +208,8 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
         let guid = Guid::new(self.guid_prefix, entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let data_writer_impl_list = Vec::new();
-        let publisher_impl = PublisherImpl::new(publisher_qos, rtps_group, data_writer_impl_list);
+        let publisher_impl =
+            PublisherImpl::new(publisher_qos, rtps_group, data_writer_impl_list, vec![]);
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
         let publisher_impl_weak = rtps_shared_downgrade(&publisher_impl_shared);
         self.user_defined_publisher_list
@@ -528,6 +529,7 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
+            vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
@@ -555,6 +557,7 @@ mod tests {
         let builtin_publisher = rtps_shared_new(PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
+            vec![],
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
@@ -586,6 +589,7 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
+            vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -613,6 +617,7 @@ mod tests {
         let builtin_publisher = rtps_shared_new(PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
+            vec![],
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
@@ -647,6 +652,7 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
+            vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -675,6 +681,7 @@ mod tests {
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
+            vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -702,6 +709,7 @@ mod tests {
         let builtin_publisher = rtps_shared_new(PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
+            vec![],
             vec![],
         ));
         let mut domain_participant = DomainParticipantImpl::new(
@@ -735,6 +743,7 @@ mod tests {
         let builtin_publisher = rtps_shared_new(PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
+            vec![],
             vec![],
         ));
         let domain_participant = DomainParticipantImpl::new(
@@ -778,6 +787,7 @@ mod tests {
         let builtin_publisher = rtps_shared_new(PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroup::new(GUID_UNKNOWN),
+            vec![],
             vec![],
         ));
         let domain_participant = DomainParticipantImpl::new(
