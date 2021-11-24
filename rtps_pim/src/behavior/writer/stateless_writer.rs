@@ -98,7 +98,7 @@ pub trait StatelessWriterBehavior<'a, S, P, D> {
 
 impl<'a, S, L, C, R, RL, P, D> StatelessWriterBehavior<'a, S, P, D> for RtpsStatelessWriter<L, C, R>
 where
-    R: Iterator<Item = &'a mut RL>,
+    for<'b> &'b mut R: IntoIterator<Item = &'b mut RL>,
     RL: RtpsReaderLocatorOperations + Deref<Target = RtpsReaderLocator> + 'a,
     C: RtpsHistoryCacheGetChange<'a, P, D>,
     S: FromIterator<SequenceNumber>,

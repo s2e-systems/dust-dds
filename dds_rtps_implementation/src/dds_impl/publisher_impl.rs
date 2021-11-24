@@ -24,7 +24,8 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::writer::{
-        stateful_writer::StatefulWriterBehavior, stateless_writer::StatelessWriterBehavior,
+        stateful_writer::{RtpsStatefulWriter, StatefulWriterBehavior},
+        stateless_writer::StatelessWriterBehavior,
         writer::RtpsWriter,
     },
     messages::overall_structure::RtpsMessageHeader,
@@ -42,32 +43,22 @@ use rust_rtps_psm::messages::{
 };
 
 use crate::{
+    dds_impl::data_writer_impl::DataWriterImpl,
     dds_type::{DdsSerialize, DdsType},
-    rtps_impl::rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    rtps_impl::{
+        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    },
     utils::{
         shared_object::{rtps_shared_new, RtpsShared},
         transport::TransportWrite,
     },
 };
 
-pub trait AnyDataWriter {
-    fn into_any(&self) -> &dyn Any;
-}
-
-impl<T> AnyDataWriter for RwLock<T>
-where
-    T: Any + Send + Sync,
-{
-    fn into_any(&self) -> &dyn Any {
-        self
-    }
-}
-
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroup,
-    stateless_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
-    stateful_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
+    data_writer_impl_list: Mutex<Vec<Arc<dyn Any + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
 }
@@ -76,14 +67,12 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
-        stateless_data_writer_impl_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
-        stateful_data_writer_impl_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
+        data_writer_impl_list: Vec<Arc<dyn Any + Send + Sync>>,
     ) -> Self {
         Self {
             _qos: qos,
             rtps_group,
-            stateless_data_writer_impl_list: Mutex::new(stateless_data_writer_impl_list),
-            stateful_data_writer_impl_list: Mutex::new(stateful_data_writer_impl_list),
+            data_writer_impl_list: Mutex::new(data_writer_impl_list),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
         }
@@ -92,10 +81,16 @@ impl PublisherImpl {
     pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
         todo!("Implement sending of messages");
 
-        let data_writer_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
-        data_writer_list_lock[0]
-            .into_any()
-            .downcast_ref::<Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>>>();
+        let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
+        let stateless_writer = data_writer_list_lock[0]
+            .downcast_ref::<Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>>>()
+            .unwrap();
+
+        let stateless_writer_lock = stateless_writer.write().unwrap();
+
+        // stateless_writer_lock
+        //     .as_mut()
+        //     .send_unsent_data(&mut |_, _| (), &mut |_, | ());
 
         // let rtps_writer_behavior_list: Vec<Arc<RwLock<dyn RtpsWriterBehavior>>> =
         //     data_writer_list_lock
@@ -228,58 +223,57 @@ where
     fn create_datawriter_gat(
         &'_ self,
         _a_topic: &'_ Self::TopicType,
-        _qos: Option<DataWriterQos>,
+        qos: Option<DataWriterQos>,
         _a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        todo!()
-        // let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
-        // let user_defined_data_writer_counter = self
-        //     .user_defined_data_writer_counter
-        //     .fetch_add(1, atomic::Ordering::SeqCst);
-        // let (entity_kind, topic_kind) = match T::has_key() {
-        //     true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
-        //     false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
-        // };
-        // let entity_id = EntityId::new(
-        //     [
-        //         self.rtps_group.guid.entity_id().entity_key()[0],
-        //         user_defined_data_writer_counter,
-        //         0,
-        //     ],
-        //     entity_kind,
-        // );
-        // let guid = Guid::new(*self.rtps_group.guid.prefix(), entity_id);
-        // let reliability_level = match qos.reliability.kind {
-        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        // };
-        // let unicast_locator_list = vec![];
-        // let multicast_locator_list = vec![];
-        // let push_mode = true;
-        // let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
-        // let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        // let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        // let data_max_size_serialized = None;
-        // let rtps_writer_impl = RtpsWriter::new(
-        //     guid,
-        //     topic_kind,
-        //     reliability_level,
-        //     unicast_locator_list,
-        //     multicast_locator_list,
-        //     push_mode,
-        //     heartbeat_period,
-        //     nack_response_delay,
-        //     nack_suppression_duration,
-        //     data_max_size_serialized,
-        // );
-        // let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
-        // let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
-        // self.data_writer_impl_list
-        //     .lock()
-        //     .unwrap()
-        //     .push(data_writer_impl_shared.clone());
-        // Some(data_writer_impl_shared)
+        let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
+        let user_defined_data_writer_counter = self
+            .user_defined_data_writer_counter
+            .fetch_add(1, atomic::Ordering::SeqCst);
+        let (entity_kind, topic_kind) = match T::has_key() {
+            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
+            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
+        };
+        let entity_id = EntityId::new(
+            [
+                self.rtps_group.guid.entity_id().entity_key()[0],
+                user_defined_data_writer_counter,
+                0,
+            ],
+            entity_kind,
+        );
+        let guid = Guid::new(*self.rtps_group.guid.prefix(), entity_id);
+        let reliability_level = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        };
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let push_mode = true;
+        let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
+        let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        let data_max_size_serialized = None;
+        let rtps_writer_impl = RtpsStatefulWriterImpl::new(RtpsStatefulWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        ));
+        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
+        let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
+        self.data_writer_impl_list
+            .lock()
+            .unwrap()
+            .push(data_writer_impl_shared.clone());
+        Some(data_writer_impl_shared)
     }
 
     fn delete_datawriter_gat(&self, _a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
@@ -290,10 +284,10 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
-        let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
+        let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock
             .iter()
-            .find_map(|x| x.into_any().downcast_ref::<Self::DataWriterType>())?;
+            .find_map(|x| x.downcast_ref::<Self::DataWriterType>())?;
 
         Some(found_data_writer.clone())
     }
@@ -427,7 +421,7 @@ mod tests {
     fn set_default_datawriter_qos_some_value() {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
         let mut publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -442,7 +436,7 @@ mod tests {
     fn set_default_datawriter_qos_none() {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
         let mut publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -460,8 +454,7 @@ mod tests {
     #[test]
     fn create_datawriter() {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
+        let publisher_impl = PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![]);
         let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default()));
         let _a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
 
@@ -475,11 +468,7 @@ mod tests {
 
         assert!(datawriter.is_some());
         assert_eq!(
-            publisher_impl
-                .stateless_data_writer_impl_list
-                .lock()
-                .unwrap()
-                .len(),
+            publisher_impl.data_writer_impl_list.lock().unwrap().len(),
             1
         );
         assert_ne!(data_writer_counter_before, data_writer_counter_after);
