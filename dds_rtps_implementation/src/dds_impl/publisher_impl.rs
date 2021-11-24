@@ -15,6 +15,7 @@ use rust_dds_api::{
         qos_policy::ReliabilityQosPolicyKind,
     },
     publication::{
+        data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
         publisher::{DataWriterGAT, Publisher},
         publisher_listener::PublisherListener,
@@ -41,32 +42,32 @@ use rust_rtps_psm::messages::{
 };
 
 use crate::{
-    dds_type::DdsType,
+    dds_type::{DdsSerialize, DdsType},
     utils::{
         shared_object::{rtps_shared_new, RtpsShared},
         transport::TransportWrite,
     },
 };
 
-use super::data_writer_impl::{DataWriterImpl, RtpsWriterBehavior};
+use super::data_writer_impl::DataWriterImpl;
 
 pub trait DataWriterObject {
-    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+    fn into_any(&self) -> &dyn Any;
 
-    fn into_rtps_writer_behavior(self: Arc<Self>) -> Arc<RwLock<dyn RtpsWriterBehavior>>;
+    // fn into_rtps_writer_behavior(self: Arc<Self>) -> Arc<RwLock<dyn RtpsWriterBehavior>>;
 }
 
 impl<T> DataWriterObject for RwLock<T>
 where
-    T: RtpsWriterBehavior + Any + Send + Sync,
+    T: Any + Send + Sync,
 {
-    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+    fn into_any(&self) -> &dyn Any {
         self
     }
 
-    fn into_rtps_writer_behavior(self: Arc<Self>) -> Arc<RwLock<dyn RtpsWriterBehavior>> {
-        self
-    }
+    // fn into_rtps_writer_behavior(self: Arc<Self>) -> Arc<RwLock<dyn RtpsWriterBehavior>> {
+    //     self
+    // }
 }
 
 pub struct PublisherImpl {
@@ -95,188 +96,189 @@ impl PublisherImpl {
     pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
         let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
 
-        let rtps_writer_behavior_list: Vec<Arc<RwLock<dyn RtpsWriterBehavior>>> =
-            data_writer_list_lock
-                .iter()
-                .map(|x| x.clone().into_rtps_writer_behavior())
-                .collect();
+        // let rtps_writer_behavior_list: Vec<Arc<RwLock<dyn RtpsWriterBehavior>>> =
+        //     data_writer_list_lock
+        //         .iter()
+        //         .map(|x| x.clone().into_rtps_writer_behavior())
+        //         .collect();
 
-        for rtps_writer_behavior in &rtps_writer_behavior_list {
-            let mut rtps_writer_behavior_lock = rtps_writer_behavior.write().unwrap();
-            let mut rtps_stateless_writer = rtps_writer_behavior_lock.get_stateless_writer();
+        // for rtps_writer_behavior in &rtps_writer_behavior_list {
+        //     let mut rtps_writer_behavior_lock = rtps_writer_behavior.write().unwrap();
+        //     let mut rtps_stateless_writer = rtps_writer_behavior_lock.get_stateless_writer();
 
-            let destined_submessages = RefCell::new(Vec::new());
-            rtps_stateless_writer.send_unsent_data(
-                &mut |rl, data| {
-                    destined_submessages.borrow_mut().push((
-                        rl.locator,
-                        RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                            data.endianness_flag,
-                            data.inline_qos_flag,
-                            data.data_flag,
-                            data.key_flag,
-                            data.non_standard_payload_flag,
-                            data.reader_id,
-                            data.writer_id,
-                            data.writer_sn,
-                            data.inline_qos,
-                            data.serialized_payload,
-                        )),
-                    ));
-                },
-                &mut |rl, gap| {
-                    destined_submessages.borrow_mut().push((
-                        rl.locator,
-                        RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        )),
-                    ));
-                },
-            );
+        //     let destined_submessages = RefCell::new(Vec::new());
+        //     rtps_stateless_writer.send_unsent_data(
+        //         &mut |rl, data| {
+        //             destined_submessages.borrow_mut().push((
+        //                 rl.locator,
+        //                 RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+        //                     data.endianness_flag,
+        //                     data.inline_qos_flag,
+        //                     data.data_flag,
+        //                     data.key_flag,
+        //                     data.non_standard_payload_flag,
+        //                     data.reader_id,
+        //                     data.writer_id,
+        //                     data.writer_sn,
+        //                     data.inline_qos,
+        //                     data.serialized_payload,
+        //                 )),
+        //             ));
+        //         },
+        //         &mut |rl, gap| {
+        //             destined_submessages.borrow_mut().push((
+        //                 rl.locator,
+        //                 RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+        //                     gap.endianness_flag,
+        //                     gap.reader_id,
+        //                     gap.writer_id,
+        //                     gap.gap_start,
+        //                     gap.gap_list,
+        //                 )),
+        //             ));
+        //         },
+        //     );
 
-            for (locator, submessage) in destined_submessages.take() {
-                let header = RtpsMessageHeader {
-                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: self.rtps_group.guid.prefix,
-                };
-                let message = RtpsMessageWrite::new(header, vec![submessage]);
+        //     for (locator, submessage) in destined_submessages.take() {
+        //         let header = RtpsMessageHeader {
+        //             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+        //             version: PROTOCOLVERSION,
+        //             vendor_id: VENDOR_ID_S2E,
+        //             guid_prefix: self.rtps_group.guid.prefix,
+        //         };
+        //         let message = RtpsMessageWrite::new(header, vec![submessage]);
 
-                transport.write(&message, &locator);
-            }
+        //         transport.write(&message, &locator);
+        //     }
 
-            let mut rtps_stateful_writer = rtps_writer_behavior_lock.get_stateful_writer();
-            let destined_submessages = RefCell::new(Vec::new());
+        //     let mut rtps_stateful_writer = rtps_writer_behavior_lock.get_stateful_writer();
+        //     let destined_submessages = RefCell::new(Vec::new());
 
-            rtps_stateful_writer.send_heartbeat(&mut |rp, heartbeat| {
-                destined_submessages.borrow_mut().push((
-                    rp.unicast_locator_list[0],
-                    RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
-                        heartbeat.endianness_flag,
-                        heartbeat.final_flag,
-                        heartbeat.liveliness_flag,
-                        heartbeat.reader_id,
-                        heartbeat.writer_id,
-                        heartbeat.first_sn,
-                        heartbeat.last_sn,
-                        heartbeat.count,
-                    )),
-                ))
-            });
+        //     rtps_stateful_writer.send_heartbeat(&mut |rp, heartbeat| {
+        //         destined_submessages.borrow_mut().push((
+        //             rp.unicast_locator_list[0],
+        //             RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
+        //                 heartbeat.endianness_flag,
+        //                 heartbeat.final_flag,
+        //                 heartbeat.liveliness_flag,
+        //                 heartbeat.reader_id,
+        //                 heartbeat.writer_id,
+        //                 heartbeat.first_sn,
+        //                 heartbeat.last_sn,
+        //                 heartbeat.count,
+        //             )),
+        //         ))
+        //     });
 
-            rtps_stateful_writer.send_unsent_data(
-                &mut |rp, data| {
-                    destined_submessages.borrow_mut().push((
-                        rp.unicast_locator_list[0],
-                        RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                            data.endianness_flag,
-                            data.inline_qos_flag,
-                            data.data_flag,
-                            data.key_flag,
-                            data.non_standard_payload_flag,
-                            data.reader_id,
-                            data.writer_id,
-                            data.writer_sn,
-                            data.inline_qos,
-                            data.serialized_payload,
-                        )),
-                    ));
-                },
-                &mut |rp, gap| {
-                    destined_submessages.borrow_mut().push((
-                        rp.unicast_locator_list[0],
-                        RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        )),
-                    ));
-                },
-            );
+        //     rtps_stateful_writer.send_unsent_data(
+        //         &mut |rp, data| {
+        //             destined_submessages.borrow_mut().push((
+        //                 rp.unicast_locator_list[0],
+        //                 RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+        //                     data.endianness_flag,
+        //                     data.inline_qos_flag,
+        //                     data.data_flag,
+        //                     data.key_flag,
+        //                     data.non_standard_payload_flag,
+        //                     data.reader_id,
+        //                     data.writer_id,
+        //                     data.writer_sn,
+        //                     data.inline_qos,
+        //                     data.serialized_payload,
+        //                 )),
+        //             ));
+        //         },
+        //         &mut |rp, gap| {
+        //             destined_submessages.borrow_mut().push((
+        //                 rp.unicast_locator_list[0],
+        //                 RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+        //                     gap.endianness_flag,
+        //                     gap.reader_id,
+        //                     gap.writer_id,
+        //                     gap.gap_start,
+        //                     gap.gap_list,
+        //                 )),
+        //             ));
+        //         },
+        //     );
 
-            for (locator, submessage) in destined_submessages.take() {
-                let header = RtpsMessageHeader {
-                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: self.rtps_group.guid.prefix,
-                };
-                let message = RtpsMessageWrite::new(header, vec![submessage]);
+        //     for (locator, submessage) in destined_submessages.take() {
+        //         let header = RtpsMessageHeader {
+        //             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+        //             version: PROTOCOLVERSION,
+        //             vendor_id: VENDOR_ID_S2E,
+        //             guid_prefix: self.rtps_group.guid.prefix,
+        //         };
+        //         let message = RtpsMessageWrite::new(header, vec![submessage]);
 
-                transport.write(&message, &locator);
-            }
-        }
+        //         transport.write(&message, &locator);
+        //     }
+        // }
     }
 }
 
 impl<T> DataWriterGAT<'_, '_, T> for PublisherImpl
 where
-    T: DdsType + Send + 'static,
+    T: DdsType + DdsSerialize + Send + 'static,
 {
     type TopicType = ();
-    type DataWriterType = RtpsShared<DataWriterImpl<T>>;
+    type DataWriterType = RtpsShared<dyn DataWriter<T> + Send + Sync>;
 
     fn create_datawriter_gat(
         &'_ self,
         _a_topic: &'_ Self::TopicType,
-        qos: Option<DataWriterQos>,
+        _qos: Option<DataWriterQos>,
         _a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
-        let user_defined_data_writer_counter = self
-            .user_defined_data_writer_counter
-            .fetch_add(1, atomic::Ordering::SeqCst);
-        let (entity_kind, topic_kind) = match T::has_key() {
-            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
-            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
-        };
-        let entity_id = EntityId::new(
-            [
-                self.rtps_group.guid.entity_id().entity_key()[0],
-                user_defined_data_writer_counter,
-                0,
-            ],
-            entity_kind,
-        );
-        let guid = Guid::new(*self.rtps_group.guid.prefix(), entity_id);
-        let reliability_level = match qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        };
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
-        let push_mode = true;
-        let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
-        let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsWriter::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
-        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
-        let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
-        self.data_writer_impl_list
-            .lock()
-            .unwrap()
-            .push(data_writer_impl_shared.clone());
-        Some(data_writer_impl_shared)
+        todo!()
+        // let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
+        // let user_defined_data_writer_counter = self
+        //     .user_defined_data_writer_counter
+        //     .fetch_add(1, atomic::Ordering::SeqCst);
+        // let (entity_kind, topic_kind) = match T::has_key() {
+        //     true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
+        //     false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
+        // };
+        // let entity_id = EntityId::new(
+        //     [
+        //         self.rtps_group.guid.entity_id().entity_key()[0],
+        //         user_defined_data_writer_counter,
+        //         0,
+        //     ],
+        //     entity_kind,
+        // );
+        // let guid = Guid::new(*self.rtps_group.guid.prefix(), entity_id);
+        // let reliability_level = match qos.reliability.kind {
+        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        // };
+        // let unicast_locator_list = vec![];
+        // let multicast_locator_list = vec![];
+        // let push_mode = true;
+        // let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
+        // let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        // let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        // let data_max_size_serialized = None;
+        // let rtps_writer_impl = RtpsWriter::new(
+        //     guid,
+        //     topic_kind,
+        //     reliability_level,
+        //     unicast_locator_list,
+        //     multicast_locator_list,
+        //     push_mode,
+        //     heartbeat_period,
+        //     nack_response_delay,
+        //     nack_suppression_duration,
+        //     data_max_size_serialized,
+        // );
+        // let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
+        // let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
+        // self.data_writer_impl_list
+        //     .lock()
+        //     .unwrap()
+        //     .push(data_writer_impl_shared.clone());
+        // Some(data_writer_impl_shared)
     }
 
     fn delete_datawriter_gat(&self, _a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
@@ -287,11 +289,12 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
-        self.data_writer_impl_list
-            .lock()
-            .unwrap()
+        let data_writer_impl_list_lock = self.data_writer_impl_list.lock().unwrap();
+        let found_data_writer = data_writer_impl_list_lock
             .iter()
-            .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
+            .find_map(|x| x.into_any().downcast_ref::<Self::DataWriterType>())?;
+
+        Some(found_data_writer.clone())
     }
 }
 
@@ -407,6 +410,15 @@ mod tests {
 
         fn has_key() -> bool {
             true
+        }
+    }
+
+    impl DdsSerialize for MockDDSType {
+        fn serialize<W: std::io::Write, E: crate::dds_type::Endianness>(
+            &self,
+            _writer: W,
+        ) -> DDSResult<()> {
+            todo!()
         }
     }
 

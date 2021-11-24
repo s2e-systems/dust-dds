@@ -1,4 +1,7 @@
-use core::{iter::FromIterator, ops::Deref};
+use core::{
+    iter::FromIterator,
+    ops::{Deref, DerefMut},
+};
 
 use crate::{
     messages::{
@@ -21,9 +24,23 @@ use super::{
     writer::RtpsWriter,
 };
 
-pub struct RtpsStatefulWriter<'a, L, C, R> {
-    pub writer: &'a mut RtpsWriter<L, C>,
+pub struct RtpsStatefulWriter<L, C, R> {
+    writer: RtpsWriter<L, C>,
     pub matched_readers: R,
+}
+
+impl<L, C, R> Deref for RtpsStatefulWriter<L, C, R> {
+    type Target = RtpsWriter<L, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.writer
+    }
+}
+
+impl<L, C, R> DerefMut for RtpsStatefulWriter<L, C, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
+    }
 }
 
 pub trait RtpsStatefulWriterOperations<L> {
@@ -58,7 +75,7 @@ pub trait StatefulWriterBehavior<'a, S, P, D, L> {
 }
 
 impl<'a, S, P, D, L, C, R, RP> StatefulWriterBehavior<'a, S, P, D, L>
-    for RtpsStatefulWriter<'a, L, C, R>
+    for RtpsStatefulWriter<L, C, R>
 where
     R: Iterator<Item = &'a mut RP>,
     RP: RtpsReaderProxyOperations<SequenceNumberVector = S>
