@@ -34,10 +34,8 @@ use rust_dds_rtps_implementation::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_impl::{
-        data_reader_impl::DataReaderImpl,
-        data_writer_impl::{DataWriterImpl, DataWriterImplFlavor},
-        publisher_impl::PublisherImpl,
-        subscriber_impl::SubscriberImpl,
+        data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
+        publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
         rtps_reader_history_cache_impl::ReaderHistoryCache,
@@ -132,10 +130,10 @@ fn send_and_receive_discovery_data_happy_path() {
 
     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-    let mut data_writer = DataWriterImplFlavor::Stateless(DataWriterImpl::new(
+    let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         spdp_builtin_participant_rtps_writer,
-    ));
+    );
 
     data_writer
         .write_w_timestamp(
@@ -251,11 +249,10 @@ fn process_discovery_data_happy_path() {
 
     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-    let mut spdp_builtin_participant_data_writer =
-        DataWriterImplFlavor::Stateless(DataWriterImpl::new(
-            DataWriterQos::default(),
-            spdp_builtin_participant_rtps_writer,
-        ));
+    let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
+        DataWriterQos::default(),
+        spdp_builtin_participant_rtps_writer,
+    );
 
     spdp_builtin_participant_data_writer
         .write_w_timestamp(
@@ -269,11 +266,10 @@ fn process_discovery_data_happy_path() {
         SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]),
     );
 
-    let sedp_builtin_publications_data_writer =
-        DataWriterImplFlavor::<SedpDiscoveredWriterData>::Stateful(DataWriterImpl::new(
-            DataWriterQos::default(),
-            sedp_builtin_publications_rtps_writer,
-        ));
+    let sedp_builtin_publications_data_writer = DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
+        DataWriterQos::default(),
+        sedp_builtin_publications_rtps_writer,
+    );
 
     let publisher = PublisherImpl::new(
         PublisherQos::default(),

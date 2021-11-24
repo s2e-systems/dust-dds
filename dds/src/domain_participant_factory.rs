@@ -18,10 +18,8 @@ use rust_dds_rtps_implementation::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_impl::{
-        data_reader_impl::DataReaderImpl,
-        data_writer_impl::{DataWriterImpl, DataWriterImplFlavor},
-        domain_participant_impl::DomainParticipantImpl,
-        publisher_impl::PublisherImpl,
+        data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
+        domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
@@ -153,12 +151,11 @@ impl DomainParticipantFactory {
                 spdp_builtin_participant_rtps_reader,
             ));
 
-        let spdp_builtin_participant_dds_data_writer = DataWriterImplFlavor::Stateless(
+        let spdp_builtin_participant_dds_data_writer =
             DataWriterImpl::<SpdpDiscoveredParticipantData, _>::new(
                 DataWriterQos::default(),
                 spdp_builtin_participant_rtps_writer,
-            ),
-        );
+            );
 
         let spdp_builtin_participant_dds_data_writer =
             rtps_shared_new(spdp_builtin_participant_dds_data_writer);
@@ -170,13 +167,10 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_publications_dds_data_writer =
-            rtps_shared_new(DataWriterImplFlavor::Stateful(DataWriterImpl::<
-                SedpDiscoveredWriterData,
-                _,
-            >::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_publications_rtps_writer,
-            )));
+            ));
 
         let sedp_builtin_subscriptions_dds_data_reader =
             rtps_shared_new(DataReaderImpl::<SedpDiscoveredReaderData>::new(
@@ -185,13 +179,10 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_subscriptions_dds_data_writer =
-            rtps_shared_new(DataWriterImplFlavor::Stateful(DataWriterImpl::<
-                SedpDiscoveredReaderData,
-                _,
-            >::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_subscriptions_rtps_writer,
-            )));
+            ));
 
         let sedp_builtin_topics_dds_data_reader =
             rtps_shared_new(DataReaderImpl::<SedpDiscoveredTopicData>::new(
@@ -200,13 +191,10 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_topics_dds_data_writer =
-            rtps_shared_new(DataWriterImplFlavor::Stateful(DataWriterImpl::<
-                SedpDiscoveredTopicData,
-                _,
-            >::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_topics_rtps_writer,
-            )));
+            ));
 
         // ////// Create built-in publisher and subscriber
         let builtin_publisher_storage = rtps_shared_new(PublisherImpl::new(

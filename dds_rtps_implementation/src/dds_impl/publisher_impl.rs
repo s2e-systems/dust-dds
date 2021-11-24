@@ -218,7 +218,7 @@ where
     T: DdsType + DdsSerialize + Send + 'static,
 {
     type TopicType = ();
-    type DataWriterType = RtpsShared<dyn DataWriter<T> + Send + Sync>;
+    type DataWriterType = Arc<RwLock<dyn DataWriter<T> + Send + Sync>>;
 
     fn create_datawriter_gat(
         &'_ self,

@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
@@ -29,6 +29,12 @@ use crate::{
 };
 
 pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
+
+pub trait GetRtpsWriter {
+    fn rtps_writer(&self) -> &RtpsWriterType;
+
+    fn rtps_writer_mut(&mut self) -> &mut RtpsWriterType;
+}
 
 // pub trait RtpsWriterBehavior {
 //     fn get_stateless_writer(
@@ -81,11 +87,6 @@ pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
 //     }
 // }
 
-pub enum DataWriterImplFlavor<T> {
-    Stateful(DataWriterImpl<T, RtpsStatefulWriterImpl>),
-    Stateless(DataWriterImpl<T, RtpsStatelessWriterImpl>),
-}
-
 pub struct DataWriterImpl<T, W> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
@@ -108,9 +109,10 @@ where
     }
 }
 
-impl<T> DataWriter<T> for DataWriterImplFlavor<T>
+impl<T, W> DataWriter<T> for DataWriterImpl<T, W>
 where
     T: DdsSerialize,
+    W: GetRtpsWriter,
 {
     fn register_instance(&mut self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
@@ -159,10 +161,7 @@ where
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let rtps_writer_impl = match self {
-            DataWriterImplFlavor::Stateful(w) => w.rtps_writer_impl.deref_mut().deref_mut(),
-            DataWriterImplFlavor::Stateless(w) => w.rtps_writer_impl.deref_mut().deref_mut(),
-        };
+        let rtps_writer_impl = self.rtps_writer_impl.rtps_writer_mut();
         let change = rtps_writer_impl.new_change(ChangeKind::Alive, data, vec![], 0);
         let time = rust_rtps_pim::messages::types::Time(0);
         rtps_writer_impl
@@ -248,7 +247,7 @@ where
     }
 }
 
-impl<T> Entity for DataWriterImplFlavor<T> {
+impl<T, W> Entity for DataWriterImpl<T, W> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<DataType = T>>;
 
@@ -632,9 +631,9 @@ mod tests {
         };
         rtps_stateless_writer.reader_locator_add(a_reader_locator);
 
-        let data_writer_impl = DataWriterImpl::new(DataWriterQos::default(), rtps_stateless_writer);
+        let mut dds_data_writer =
+            DataWriterImpl::new(DataWriterQos::default(), rtps_stateless_writer);
 
-        let mut dds_data_writer = DataWriterImplFlavor::Stateless(data_writer_impl);
         let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
         dds_data_writer
             .write_w_timestamp(
