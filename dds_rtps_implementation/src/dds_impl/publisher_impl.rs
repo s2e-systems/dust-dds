@@ -43,6 +43,7 @@ use rust_rtps_psm::messages::{
 };
 
 use crate::{
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     dds_impl::data_writer_impl::DataWriterImpl,
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::{
@@ -79,26 +80,22 @@ impl PublisherImpl {
     }
 
     pub fn send_message(&self, transport: &mut (impl TransportWrite + ?Sized)) {
-        todo!("Implement sending of messages");
-
         let data_writer_list_lock = self.data_writer_impl_list.lock().unwrap();
-        let stateless_writer = data_writer_list_lock[0]
-            .downcast_ref::<Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>>>()
-            .unwrap();
 
-        let stateless_writer_lock = stateless_writer.write().unwrap();
+        let any_writer = data_writer_list_lock[0].clone();
 
-        // stateless_writer_lock
-        //     .as_mut()
-        //     .send_unsent_data(&mut |_, _| (), &mut |_, | ());
+        let stateless_writer = Arc::downcast::<
+            RwLock<DataWriterImpl<SpdpDiscoveredParticipantData, RtpsStatelessWriterImpl>>,
+        >(any_writer)
+        .unwrap();
 
-        // let rtps_writer_behavior_list: Vec<Arc<RwLock<dyn RtpsWriterBehavior>>> =
-        //     data_writer_list_lock
-        //         .iter()
-        //         .map(|x| x.clone().into_rtps_writer_behavior())
-        //         .collect();
+        // let stateless_writer_lock = stateless_writer.write().unwrap();
 
-        // for rtps_writer_behavior in &rtps_writer_behavior_list {
+        // for stateless_writer in data_writer_list_lock
+        //     .iter()
+        //     .filter_map(|x| x.downcast_ref::<Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>>>())
+        // {
+        println!("Found stateless! YAY!");
         //     let mut rtps_writer_behavior_lock = rtps_writer_behavior.write().unwrap();
         //     let mut rtps_stateless_writer = rtps_writer_behavior_lock.get_stateless_writer();
 
