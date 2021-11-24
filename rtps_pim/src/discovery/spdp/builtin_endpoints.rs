@@ -1,5 +1,8 @@
 use crate::{
-    behavior::{reader::reader::RtpsReader, types::DURATION_ZERO, writer::writer::RtpsWriter},
+    behavior::{
+        reader::reader::RtpsReader, types::DURATION_ZERO,
+        writer::stateless_writer::RtpsStatelessWriter,
+    },
     structure::{
         history_cache::RtpsHistoryCacheConstructor,
         types::{
@@ -18,18 +21,19 @@ pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
 pub struct SpdpBuiltinParticipantWriter;
 
 impl SpdpBuiltinParticipantWriter {
-    pub fn create<L, C>(
+    pub fn create<L, C, R>(
         guid_prefix: GuidPrefix,
         unicast_locator_list: L,
         multicast_locator_list: L,
-    ) -> RtpsWriter<L, C>
+    ) -> RtpsStatelessWriter<L, C, R>
     where
         C: RtpsHistoryCacheConstructor,
+        R: Default,
     {
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
 
-        RtpsWriter::new(
+        RtpsStatelessWriter::new(
             spdp_builtin_participant_writer_guid,
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,

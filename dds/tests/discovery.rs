@@ -34,10 +34,16 @@ use rust_dds_rtps_implementation::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_impl::{
-        data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
-        publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
+        data_reader_impl::DataReaderImpl,
+        data_writer_impl::{DataWriterImpl, DataWriterImplFlavor},
+        publisher_impl::PublisherImpl,
+        subscriber_impl::SubscriberImpl,
     },
-    rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
+    rtps_impl::{
+        rtps_reader_history_cache_impl::ReaderHistoryCache,
+        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    },
     utils::{
         message_receiver::MessageReceiver,
         shared_object::{rtps_shared_new, rtps_shared_read_lock},
@@ -75,15 +81,6 @@ use rust_rtps_pim::{
 
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
-    let spdp_discovery_locator = RtpsReaderLocator::new(
-        Locator::new(
-            LOCATOR_KIND_UDPv4,
-            7400,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-        ),
-        false,
-    );
-
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey {
@@ -120,15 +117,25 @@ fn send_and_receive_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let spdp_builtin_participant_rtps_writer =
-        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]);
-
-    let mut data_writer = DataWriterImpl::new(
-        DataWriterQos::default(),
-        spdp_builtin_participant_rtps_writer,
+    let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
+        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]),
     );
 
-    data_writer.reader_locator_add(spdp_discovery_locator);
+    let spdp_discovery_locator = RtpsReaderLocator::new(
+        Locator::new(
+            LOCATOR_KIND_UDPv4,
+            7400,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+        ),
+        false,
+    );
+
+    spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
+
+    let mut data_writer = DataWriterImplFlavor::Stateless(DataWriterImpl::new(
+        DataWriterQos::default(),
+        spdp_builtin_participant_rtps_writer,
+    ));
 
     data_writer
         .write_w_timestamp(
@@ -184,15 +191,6 @@ fn send_and_receive_discovery_data_happy_path() {
 
 #[test]
 fn process_discovery_data_happy_path() {
-    let spdp_discovery_locator = RtpsReaderLocator::new(
-        Locator::new(
-            LOCATOR_KIND_UDPv4,
-            7402,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-        ),
-        false,
-    );
-
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let domain_id = 1;
     let domain_tag = "ab";
@@ -237,15 +235,26 @@ fn process_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let spdp_builtin_participant_rtps_writer =
-        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]);
-
-    let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
-        DataWriterQos::default(),
-        spdp_builtin_participant_rtps_writer,
+    let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
+        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]),
     );
 
-    spdp_builtin_participant_data_writer.reader_locator_add(spdp_discovery_locator);
+    let spdp_discovery_locator = RtpsReaderLocator::new(
+        Locator::new(
+            LOCATOR_KIND_UDPv4,
+            7402,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+        ),
+        false,
+    );
+
+    spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
+
+    let mut spdp_builtin_participant_data_writer =
+        DataWriterImplFlavor::Stateless(DataWriterImpl::new(
+            DataWriterQos::default(),
+            spdp_builtin_participant_rtps_writer,
+        ));
 
     spdp_builtin_participant_data_writer
         .write_w_timestamp(
@@ -255,13 +264,15 @@ fn process_discovery_data_happy_path() {
         )
         .unwrap();
 
-    let sedp_builtin_publications_rtps_writer =
-        SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]);
-
-    let sedp_builtin_publications_data_writer = DataWriterImpl::<SedpDiscoveredWriterData>::new(
-        DataWriterQos::default(),
-        sedp_builtin_publications_rtps_writer,
+    let sedp_builtin_publications_rtps_writer = RtpsStatefulWriterImpl::new(
+        SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]),
     );
+
+    let sedp_builtin_publications_data_writer =
+        DataWriterImplFlavor::<SedpDiscoveredWriterData>::Stateful(DataWriterImpl::new(
+            DataWriterQos::default(),
+            sedp_builtin_publications_rtps_writer,
+        ));
 
     let publisher = PublisherImpl::new(
         PublisherQos::default(),
@@ -334,9 +345,10 @@ fn process_discovery_data_happy_path() {
             .unwrap();
         let mut sedp_builtin_publications_data_writer_lock =
             sedp_builtin_publications_data_writer.write().unwrap();
-        participant_discovery.discovered_participant_add_publications_writer(
-            &mut *sedp_builtin_publications_data_writer_lock,
-        );
+        todo!();
+        // participant_discovery.discovered_participant_add_publications_writer(
+        //     &mut *sedp_builtin_publications_data_writer_lock,
+        // );
         let sedp_discovered_writer_data = SedpDiscoveredWriterData {
             writer_proxy: RtpsWriterProxy {
                 remote_writer_guid: Guid::new(

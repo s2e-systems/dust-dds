@@ -2,7 +2,7 @@ use crate::{
     behavior::{
         reader::reader::RtpsReader,
         types::{Duration, DURATION_ZERO},
-        writer::writer::RtpsWriter,
+        writer::stateful_writer::RtpsStatefulWriter,
     },
     structure::{
         history_cache::RtpsHistoryCacheConstructor,
@@ -53,13 +53,14 @@ const DEFAULT_HEARTBEAT_SUPRESSION_DURATION: Duration = DURATION_ZERO;
 pub struct SedpBuiltinPublicationsWriter;
 
 impl SedpBuiltinPublicationsWriter {
-    pub fn create<L, C>(
+    pub fn create<L, C, R>(
         guid_prefix: GuidPrefix,
         unicast_locator_list: L,
         multicast_locator_list: L,
-    ) -> RtpsWriter<L, C>
+    ) -> RtpsStatefulWriter<L, C, R>
     where
         C: RtpsHistoryCacheConstructor,
+        R: Default,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
@@ -69,7 +70,7 @@ impl SedpBuiltinPublicationsWriter {
         let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
         let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
         let data_max_size_serialized = None;
-        RtpsWriter::new(
+        RtpsStatefulWriter::new(
             guid,
             topic_kind,
             reliability_level,
@@ -117,13 +118,14 @@ impl SedpBuiltinPublicationsReader {
 pub struct SedpBuiltinSubscriptionsWriter;
 
 impl SedpBuiltinSubscriptionsWriter {
-    pub fn create<L, C>(
+    pub fn create<L, C, R>(
         guid_prefix: GuidPrefix,
         unicast_locator_list: L,
         multicast_locator_list: L,
-    ) -> RtpsWriter<L, C>
+    ) -> RtpsStatefulWriter<L, C, R>
     where
         C: RtpsHistoryCacheConstructor,
+        R: Default,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
@@ -133,7 +135,7 @@ impl SedpBuiltinSubscriptionsWriter {
         let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
         let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
         let data_max_size_serialized = None;
-        RtpsWriter::new(
+        RtpsStatefulWriter::new(
             guid,
             topic_kind,
             reliability_level,
@@ -181,13 +183,14 @@ impl SedpBuiltinSubscriptionsReader {
 pub struct SedpBuiltinTopicsWriter;
 
 impl SedpBuiltinTopicsWriter {
-    pub fn create<L, C>(
+    pub fn create<L, C, R>(
         guid_prefix: GuidPrefix,
         unicast_locator_list: L,
         multicast_locator_list: L,
-    ) -> RtpsWriter<L, C>
+    ) -> RtpsStatefulWriter<L, C, R>
     where
         C: RtpsHistoryCacheConstructor,
+        R: Default,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
@@ -197,7 +200,7 @@ impl SedpBuiltinTopicsWriter {
         let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
         let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
         let data_max_size_serialized = None;
-        RtpsWriter::new(
+        RtpsStatefulWriter::new(
             guid,
             topic_kind,
             reliability_level,
