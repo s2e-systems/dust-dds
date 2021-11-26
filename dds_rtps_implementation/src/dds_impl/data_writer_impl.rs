@@ -21,8 +21,6 @@ use crate::{
     utils::message_receiver::ProcessAckNackSubmessage,
 };
 
-pub type RtpsWriterType = RtpsWriter<Vec<Locator>, WriterHistoryCache>;
-
 // pub trait RtpsWriterBehavior {
 //     fn get_stateless_writer(
 //         &mut self,

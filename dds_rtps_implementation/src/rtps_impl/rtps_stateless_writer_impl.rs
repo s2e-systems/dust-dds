@@ -14,7 +14,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::{dds_impl::data_writer_impl::RtpsWriterType, dds_type::DdsSerialize};
+use crate::dds_type::DdsSerialize;
 
 use super::{
     rtps_reader_locator_impl::RtpsReaderLocatorImpl,
@@ -88,17 +88,5 @@ where
         &'_ mut self,
     ) -> &mut dyn RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> {
         &mut self.0.writer.writer_cache
-    }
-}
-
-impl AsRef<RtpsWriterType> for RtpsStatelessWriterImpl {
-    fn as_ref(&self) -> &RtpsWriterType {
-        &self.0.writer
-    }
-}
-
-impl AsMut<RtpsWriterType> for RtpsStatelessWriterImpl {
-    fn as_mut(&mut self) -> &mut RtpsWriterType {
-        &mut self.0.writer
     }
 }
