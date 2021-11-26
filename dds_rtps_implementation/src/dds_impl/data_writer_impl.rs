@@ -574,14 +574,13 @@ impl<T, R> ProcessAckNackSubmessage for DataWriterImpl<T, R> {
 mod tests {
 
     use rust_rtps_pim::{
-        behavior::writer::{
-            reader_locator::RtpsReaderLocator,
-            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
+        messages::submessage_elements::Parameter,
+        structure::{
+            cache_change::RtpsCacheChange,
+            history_cache::RtpsHistoryCacheAddChange,
+            types::{InstanceHandle, GUID_UNKNOWN},
         },
-        structure::types::{ReliabilityKind, TopicKind, GUID_UNKNOWN},
     };
-
-    use crate::rtps_impl::rtps_stateless_writer_impl::RtpsStatelessWriterImpl;
 
     use super::*;
 
@@ -599,40 +598,51 @@ mod tests {
             }
         }
 
-        let guid = GUID_UNKNOWN;
-        let topic_kind = TopicKind::WithKey;
-        let reliability_level = ReliabilityKind::BestEffort;
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
-        let push_mode = true;
-        let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
-        let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let data_max_size_serialized = None;
-        let mut rtps_stateless_writer = RtpsStatelessWriterImpl::new(RtpsStatelessWriter::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        ));
-        let a_reader_locator = RtpsReaderLocator {
-            locator: Locator {
-                kind: 1,
-                port: 2,
-                address: [3; 16],
-            },
-            expects_inline_qos: false,
-        };
-        rtps_stateless_writer.reader_locator_add(a_reader_locator);
+        struct MockWriterCache;
 
-        let mut dds_data_writer =
-            DataWriterImpl::new(DataWriterQos::default(), rtps_stateless_writer);
+        impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> for MockWriterCache {
+            fn add_change(&mut self, _change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'_ T>) {
+
+            }
+        }
+
+        struct MockWriter {
+            cache: MockWriterCache,
+        }
+
+        impl RtpsWriterOperations for MockWriter {
+            fn new_change<'a, P, D>(
+                &mut self,
+                kind: ChangeKind,
+                data: D,
+                inline_qos: P,
+                handle: InstanceHandle,
+            ) -> RtpsCacheChange<P, D> {
+                RtpsCacheChange {
+                    data_value: data,
+                    kind,
+                    instance_handle: handle,
+                    inline_qos,
+                    sequence_number: 1,
+                    writer_guid: GUID_UNKNOWN,
+                }
+            }
+        }
+
+        impl<T> WriterHistoryCacheAddChangeMut<'_, T> for MockWriter {
+            fn get_writer_history_cache_add_change_mut(
+                &'_ mut self,
+            ) -> &mut dyn RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> {
+                &mut self.cache
+            }
+        }
+
+        let mut dds_data_writer = DataWriterImpl::new(
+            DataWriterQos::default(),
+            MockWriter {
+                cache: MockWriterCache,
+            },
+        );
 
         let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
         dds_data_writer
