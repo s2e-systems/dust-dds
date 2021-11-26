@@ -26,7 +26,6 @@ use rust_rtps_pim::{
     behavior::writer::{
         stateful_writer::{RtpsStatefulWriter, StatefulWriterBehavior},
         stateless_writer::StatelessWriterBehavior,
-        writer::RtpsWriter,
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
@@ -43,17 +42,13 @@ use rust_rtps_psm::messages::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     dds_impl::data_writer_impl::DataWriterImpl,
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::{
-        shared_object::{rtps_shared_new, RtpsShared},
-        transport::TransportWrite,
-    },
+    utils::{shared_object::rtps_shared_new, transport::TransportWrite},
 };
 
 pub trait AnyStatelessDataWriter {

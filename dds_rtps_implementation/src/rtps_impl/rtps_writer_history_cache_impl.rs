@@ -45,6 +45,12 @@ impl RtpsHistoryCacheConstructor for WriterHistoryCache {
     }
 }
 
+pub trait WriterHistoryCacheAddChangeMut<'a, T> {
+    fn get_writer_history_cache_add_change_mut(
+        &'a mut self,
+    ) -> &mut dyn RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T>;
+}
+
 impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> for WriterHistoryCache
 where
     T: DdsSerialize,

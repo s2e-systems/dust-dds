@@ -1,5 +1,3 @@
-use std::ops::{Deref, DerefMut};
-
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
     infrastructure::{entity::Entity, qos::DataWriterQos},
@@ -11,19 +9,14 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::writer::writer::{RtpsWriter, RtpsWriterOperations},
-    structure::{
-        history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, GuidPrefix, Locator},
-    },
+    structure::types::{ChangeKind, GuidPrefix, Locator},
 };
 use rust_rtps_psm::messages::submessages::AckNackSubmessageRead;
 
 use crate::{
     dds_type::DdsSerialize,
-    rtps_impl::{
-        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-        rtps_writer_history_cache_impl::WriterHistoryCache,
+    rtps_impl::rtps_writer_history_cache_impl::{
+        WriterHistoryCache, WriterHistoryCacheAddChangeMut,
     },
     utils::message_receiver::ProcessAckNackSubmessage,
 };
@@ -118,7 +111,7 @@ where
 impl<T, W> DataWriter<T> for DataWriterImpl<T, W>
 where
     T: DdsSerialize,
-    W: AsMut<RtpsWriterType>,
+    W: RtpsWriterOperations + for<'a> WriterHistoryCacheAddChangeMut<'a, T>,
 {
     fn register_instance(&mut self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
@@ -167,13 +160,12 @@ where
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let rtps_writer_impl = self.rtps_writer_impl.as_mut();
-        let change = rtps_writer_impl.new_change(ChangeKind::Alive, data, vec![], 0);
-        let time = rust_rtps_pim::messages::types::Time(0);
-        rtps_writer_impl
-            .writer_cache
-            .set_source_timestamp(Some(time));
-        rtps_writer_impl.writer_cache.add_change(change);
+        let change = self
+            .rtps_writer_impl
+            .new_change(ChangeKind::Alive, data, vec![], 0);
+        self.rtps_writer_impl
+            .get_writer_history_cache_add_change_mut()
+            .add_change(change);
         Ok(())
     }
 
@@ -588,6 +580,8 @@ mod tests {
         },
         structure::types::{ReliabilityKind, TopicKind, GUID_UNKNOWN},
     };
+
+    use crate::rtps_impl::rtps_stateless_writer_impl::RtpsStatelessWriterImpl;
 
     use super::*;
 

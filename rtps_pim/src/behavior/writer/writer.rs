@@ -57,7 +57,7 @@ impl<L, C> RtpsWriter<L, C> {
     }
 }
 
-impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
+impl<L, C> RtpsWriterOperations for RtpsWriter<L, C> {
     fn new_change<'a, P, D>(
         &mut self,
         kind: ChangeKind,
@@ -77,7 +77,7 @@ impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
     }
 }
 
-pub trait RtpsWriterOperations<C> {
+pub trait RtpsWriterOperations {
     fn new_change<'a, P, D>(
         &mut self,
         kind: ChangeKind,

@@ -1,7 +1,4 @@
-use core::{
-    iter::FromIterator,
-    ops::{Deref, DerefMut},
-};
+use core::{iter::FromIterator, ops::Deref};
 
 use crate::{
     behavior::types::Duration,
@@ -27,7 +24,7 @@ use super::{
 };
 
 pub struct RtpsStatelessWriter<L, C, R> {
-    writer: RtpsWriter<L, C>,
+    pub writer: RtpsWriter<L, C>,
     pub reader_locators: R,
 }
 
@@ -63,20 +60,6 @@ where
             ),
             reader_locators: R::default(),
         }
-    }
-}
-
-impl<L, C, R> Deref for RtpsStatelessWriter<L, C, R> {
-    type Target = RtpsWriter<L, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.writer
-    }
-}
-
-impl<L, C, R> DerefMut for RtpsStatelessWriter<L, C, R> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.writer
     }
 }
 
