@@ -8,16 +8,14 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 use rust_rtps_pim::{
-    behavior::writer::writer::{RtpsWriter, RtpsWriterOperations},
-    structure::types::{ChangeKind, GuidPrefix, Locator},
+    behavior::writer::writer::RtpsWriterOperations,
+    structure::types::{ChangeKind, GuidPrefix},
 };
 use rust_rtps_psm::messages::submessages::AckNackSubmessageRead;
 
 use crate::{
     dds_type::DdsSerialize,
-    rtps_impl::rtps_writer_history_cache_impl::{
-        WriterHistoryCache, WriterHistoryCacheAddChangeMut,
-    },
+    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut,
     utils::message_receiver::ProcessAckNackSubmessage,
 };
 
@@ -599,9 +597,7 @@ mod tests {
         struct MockWriterCache;
 
         impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> for MockWriterCache {
-            fn add_change(&mut self, _change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'_ T>) {
-
-            }
+            fn add_change(&mut self, _change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'_ T>) {}
         }
 
         struct MockWriter {

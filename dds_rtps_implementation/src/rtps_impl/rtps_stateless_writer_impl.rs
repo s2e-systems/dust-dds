@@ -1,17 +1,26 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::RefCell,
+    ops::{Deref, DerefMut},
+};
 
 use rust_rtps_pim::{
-    behavior::writer::{
-        reader_locator::RtpsReaderLocator,
-        stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
-        writer::RtpsWriterOperations,
+    behavior::{
+        writer::{
+            reader_locator::{RtpsReaderLocator, RtpsReaderLocatorOperations},
+            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
+            writer::RtpsWriterOperations,
+        },
     },
     messages::submessage_elements::Parameter,
     structure::{
         cache_change::RtpsCacheChange,
         history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, InstanceHandle, Locator},
+        types::{ChangeKind, InstanceHandle, Locator, SequenceNumber},
     },
+};
+use rust_rtps_psm::messages::{
+    overall_structure::RtpsSubmessageTypeWrite,
+    submessages::{DataSubmessageWrite, GapSubmessageWrite},
 };
 
 use crate::dds_type::DdsSerialize;
@@ -34,6 +43,48 @@ impl RtpsStatelessWriterImpl {
         >,
     ) -> Self {
         Self(stateless_writer)
+    }
+
+    pub fn produce_submessages(&mut self) -> Vec<RtpsSubmessageTypeWrite<'_>> {
+        let destined_submessages = RefCell::new(Vec::new());
+
+        for reader_locator in &mut self.0.reader_locators {
+            let reader_locator_operations: &mut dyn RtpsReaderLocatorOperations<
+                SequenceNumberVector = Vec<SequenceNumber>,
+            > = reader_locator;
+            reader_locator_operations.send_unsent_data(
+                &self.0.writer.writer_cache,
+                self.0.writer.last_change_sequence_number,
+                &mut |data| {
+                    destined_submessages
+                        .borrow_mut()
+                        .push(RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                            data.endianness_flag,
+                            data.inline_qos_flag,
+                            data.data_flag,
+                            data.key_flag,
+                            data.non_standard_payload_flag,
+                            data.reader_id,
+                            data.writer_id,
+                            data.writer_sn,
+                            data.inline_qos,
+                            data.serialized_payload,
+                        )))
+                },
+                &mut |gap| {
+                    destined_submessages
+                        .borrow_mut()
+                        .push(RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                            gap.endianness_flag,
+                            gap.reader_id,
+                            gap.writer_id,
+                            gap.gap_start,
+                            gap.gap_list,
+                        )))
+                },
+            )
+        }
+        destined_submessages.take()
     }
 }
 
