@@ -108,7 +108,7 @@ where
         send_data: &mut dyn FnMut(&RtpsReaderLocator, DataSubmessage<P, D>),
         send_gap: &mut dyn FnMut(&RtpsReaderLocator, GapSubmessage<S>),
     ) {
-        let reliability_level = self.writer.reliability_level;
+        let reliability_level = self.writer.endpoint.reliability_level;
         let last_change_sequence_number = self.writer.last_change_sequence_number;
         for reader_locator in &mut self.reader_locators {
             match reliability_level {

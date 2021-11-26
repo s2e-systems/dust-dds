@@ -20,7 +20,7 @@ where
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>) {
         let reader_id = data.reader_id.value;
-        if &reader_id == self.reader.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
+        if &reader_id == self.reader.endpoint.entity.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
             let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,

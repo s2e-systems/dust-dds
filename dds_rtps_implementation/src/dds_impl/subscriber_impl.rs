@@ -105,13 +105,13 @@ where
         };
         let entity_id = EntityId::new(
             [
-                self.rtps_group.guid.entity_id().entity_key()[0],
+                self.rtps_group.entity.guid.entity_id().entity_key()[0],
                 self.user_defined_data_reader_counter,
                 0,
             ],
             entity_kind,
         );
-        let guid = Guid::new(*self.rtps_group.guid.prefix(), entity_id);
+        let guid = Guid::new(*self.rtps_group.entity.guid.prefix(), entity_id);
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,

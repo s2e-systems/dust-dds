@@ -174,7 +174,7 @@ impl PublisherImpl {
                     protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
                     version: PROTOCOLVERSION,
                     vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: self.rtps_group.guid.prefix,
+                    guid_prefix: self.rtps_group.entity.guid.prefix,
                 };
                 let message = RtpsMessageWrite::new(header, vec![submessage]);
 
@@ -244,7 +244,7 @@ impl PublisherImpl {
                     protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
                     version: PROTOCOLVERSION,
                     vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: self.rtps_group.guid.prefix,
+                    guid_prefix: self.rtps_group.entity.guid.prefix,
                 };
                 let message = RtpsMessageWrite::new(header, vec![submessage]);
 
@@ -278,13 +278,13 @@ where
         };
         let entity_id = EntityId::new(
             [
-                self.rtps_group.guid.entity_id().entity_key()[0],
+                self.rtps_group.entity.guid.entity_id().entity_key()[0],
                 user_defined_data_writer_counter,
                 0,
             ],
             entity_kind,
         );
-        let guid = Guid::new(*self.rtps_group.guid.prefix(), entity_id);
+        let guid = Guid::new(*self.rtps_group.entity.guid.prefix(), entity_id);
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -326,22 +326,20 @@ where
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         let data_writer_impl_list_lock = self.stateful_data_writer_impl_list.lock().unwrap();
-        let found_data_writer = data_writer_impl_list_lock
-            .iter()
-            .cloned()
-            .find_map(|x| Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl>>>(x.into_any()).ok());
+        let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
+            Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl>>>(x.into_any()).ok()
+        });
 
-        if let Some(found_data_writer) = found_data_writer{
+        if let Some(found_data_writer) = found_data_writer {
             return Some(found_data_writer);
         };
 
         let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
-        let found_data_writer = data_writer_impl_list_lock
-            .iter()
-            .cloned()
-            .find_map(|x| Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl>>>(x.into_any()).ok());
+        let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
+            Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl>>>(x.into_any()).ok()
+        });
 
-        if let Some(found_data_writer) = found_data_writer{
+        if let Some(found_data_writer) = found_data_writer {
             return Some(found_data_writer);
         };
 

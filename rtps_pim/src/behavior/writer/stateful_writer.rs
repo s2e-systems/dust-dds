@@ -1,7 +1,4 @@
-use core::{
-    iter::FromIterator,
-    ops::{Deref, DerefMut},
-};
+use core::{iter::FromIterator, ops::Deref};
 
 use crate::{
     behavior::types::Duration,
@@ -28,22 +25,8 @@ use super::{
 };
 
 pub struct RtpsStatefulWriter<L, C, R> {
-    writer: RtpsWriter<L, C>,
+    pub writer: RtpsWriter<L, C>,
     pub matched_readers: R,
-}
-
-impl<L, C, R> Deref for RtpsStatefulWriter<L, C, R> {
-    type Target = RtpsWriter<L, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.writer
-    }
-}
-
-impl<L, C, R> DerefMut for RtpsStatefulWriter<L, C, R> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.writer
-    }
 }
 
 impl<L, C, R> RtpsStatefulWriter<L, C, R>
@@ -176,7 +159,7 @@ where
                         value: ENTITYID_UNKNOWN,
                     };
                     let writer_id = EntityIdSubmessageElement {
-                        value: self.writer.guid.entity_id,
+                        value: self.writer.endpoint.entity.guid.entity_id,
                     };
                     let gap_start = SequenceNumberSubmessageElement { value: seq_num };
                     let set = core::iter::empty().collect();
@@ -206,7 +189,7 @@ where
                 value: ENTITYID_UNKNOWN,
             };
             let writer_id = EntityIdSubmessageElement {
-                value: self.writer.guid.entity_id,
+                value: self.writer.endpoint.entity.guid.entity_id,
             };
             let first_sn = SequenceNumberSubmessageElement {
                 value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),

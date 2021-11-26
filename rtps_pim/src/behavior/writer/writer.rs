@@ -1,5 +1,3 @@
-use core::ops::{Deref, DerefMut};
-
 use crate::{
     behavior::types::Duration,
     messages::types::Count,
@@ -12,7 +10,7 @@ use crate::{
 };
 
 pub struct RtpsWriter<L, C> {
-    endpoint: RtpsEndpoint<L>,
+    pub endpoint: RtpsEndpoint<L>,
     pub push_mode: bool,
     pub heartbeat_period: Duration,
     pub nack_response_delay: Duration,
@@ -21,20 +19,6 @@ pub struct RtpsWriter<L, C> {
     pub data_max_size_serialized: Option<i32>,
     pub writer_cache: C,
     pub heartbeat_count: Count, // This member is a deviation from the standard to implement the behavior
-}
-
-impl<L, C> Deref for RtpsWriter<L, C> {
-    type Target = RtpsEndpoint<L>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.endpoint
-    }
-}
-
-impl<L, C> DerefMut for RtpsWriter<L, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.endpoint
-    }
 }
 
 impl<L, C> RtpsWriter<L, C> {
@@ -84,7 +68,7 @@ impl<L, C> RtpsWriterOperations<C> for RtpsWriter<L, C> {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
         RtpsCacheChange {
             kind,
-            writer_guid: self.endpoint.guid,
+            writer_guid: self.endpoint.entity.guid,
             instance_handle: handle,
             sequence_number: self.last_change_sequence_number,
             data_value: data,

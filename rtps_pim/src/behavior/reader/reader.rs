@@ -1,34 +1,18 @@
-use core::ops::{Deref, DerefMut};
-
 use crate::{
     behavior::types::Duration,
     structure::{
         endpoint::RtpsEndpoint,
-        history_cache::{RtpsHistoryCacheConstructor},
+        history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, ReliabilityKind, TopicKind},
     },
 };
 
 pub struct RtpsReader<L, C> {
-    endpoint: RtpsEndpoint<L>,
+    pub endpoint: RtpsEndpoint<L>,
     pub heartbeat_response_delay: Duration,
     pub heartbeat_supression_duration: Duration,
     pub reader_cache: C,
     pub expects_inline_qos: bool,
-}
-
-impl<L, C> Deref for RtpsReader<L, C> {
-    type Target = RtpsEndpoint<L>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.endpoint
-    }
-}
-
-impl<L, C> DerefMut for RtpsReader<L, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.endpoint
-    }
 }
 
 impl<L, C> RtpsReader<L, C> {

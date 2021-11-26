@@ -1,30 +1,14 @@
-use core::ops::{Deref, DerefMut};
-
 use super::{
     entity::RtpsEntity,
     types::{Guid, ProtocolVersion, VendorId},
 };
 
 pub struct RtpsParticipant<L> {
-    entity: RtpsEntity,
+    pub entity: RtpsEntity,
     pub protocol_version: ProtocolVersion,
     pub vendor_id: VendorId,
     pub default_unicast_locator_list: L,
     pub default_multicast_locator_list: L,
-}
-
-impl<L> Deref for RtpsParticipant<L> {
-    type Target = RtpsEntity;
-
-    fn deref(&self) -> &Self::Target {
-        &self.entity
-    }
-}
-
-impl<L> DerefMut for RtpsParticipant<L> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.entity
-    }
 }
 
 impl<L> RtpsParticipant<L> {

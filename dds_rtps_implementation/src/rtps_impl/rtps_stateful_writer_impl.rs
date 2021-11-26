@@ -74,12 +74,12 @@ impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
 
 impl AsRef<RtpsWriterType> for RtpsStatefulWriterImpl {
     fn as_ref(&self) -> &RtpsWriterType {
-        self.0.deref()
+        &self.0.writer
     }
 }
 
 impl AsMut<RtpsWriterType> for RtpsStatefulWriterImpl {
     fn as_mut(&mut self) -> &mut RtpsWriterType {
-        self.0.deref_mut()
+        &mut self.0.writer
     }
 }
