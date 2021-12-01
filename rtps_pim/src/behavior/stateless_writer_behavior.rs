@@ -1,3 +1,5 @@
+/// This file implements the behaviors described in 8.4.8 RTPS StatelessWriter Behavior
+
 use core::iter::FromIterator;
 
 use crate::{
@@ -18,14 +20,12 @@ use crate::{
 
 use super::writer::{reader_locator::RtpsReaderLocatorOperations, writer::RtpsWriter};
 
-/// This file implements the behaviors described in 8.4.8 RTPS StatelessWriter Behavior
-
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.1 Best-Effort StatelessWriter Behavior
 pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
     /// Implement 8.4.8.1.4 Transition T4
-    pub fn send_unsent_change<'a, L, C, P, D, S>(
+    pub fn send_unsent_changes<'a, L, C, P, D, S>(
         reader_locator: &mut impl RtpsReaderLocatorOperations,
         writer: &'a RtpsWriter<L, C>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
@@ -234,7 +234,7 @@ impl ReliableStatelessWriterBehavior {
         );
     }
 
-    /// Implement 8.4.8.2.10 Transition T10
+    /// Implement 8.4.9.2.12 Transition T10
     pub fn send_requested_changes<'a, L, C, P, D, S>(
         reader_locator: &mut impl RtpsReaderLocatorOperations,
         writer: &'a RtpsWriter<L, C>,

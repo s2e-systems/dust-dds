@@ -84,10 +84,11 @@ impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
 
     fn requested_changes_set(
         &mut self,
-        req_seq_num_set: &Self::SequenceNumberVector,
+        req_seq_num_set: &[SequenceNumber],
         last_change_sequence_number: &SequenceNumber,
     ) {
-        let mut requested_changes = req_seq_num_set.clone();
+        let mut requested_changes: Self::SequenceNumberVector =
+            req_seq_num_set.iter().cloned().collect();
         requested_changes.retain(|x| x <= last_change_sequence_number);
         self.requested_changes = requested_changes;
     }

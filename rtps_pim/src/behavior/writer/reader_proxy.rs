@@ -61,7 +61,7 @@ pub trait RtpsReaderProxyOperations {
     fn requested_changes(&self) -> Self::SequenceNumberVector;
     fn requested_changes_set(
         &mut self,
-        req_seq_num_set: &Self::SequenceNumberVector,
+        req_seq_num_set: &[SequenceNumber],
         last_change_sequence_number: &SequenceNumber,
     );
     fn unacked_changes(
@@ -149,7 +149,7 @@ where
 impl<'a, S, P, D, L, C, T> StatefulWriterBehaviorPerProxy<'a, S, P, D, L, C> for T
 where
     T: RtpsReaderProxyOperations<SequenceNumberVector = S>,
-    S: FromIterator<SequenceNumber>,
+    S: FromIterator<SequenceNumber> + AsRef<[SequenceNumber]>,
     C: RtpsHistoryCacheGetChange<'a, P, D> + RtpsHistoryCacheOperations,
 {
     fn send_unsent_data(
@@ -339,7 +339,7 @@ where
         // if self.remote_reader_guid.entity_id == acknack.reader_id.value {
         self.acked_changes_set(acknack.reader_sn_state.base - 1);
         self.requested_changes_set(
-            &acknack.reader_sn_state.set,
+            acknack.reader_sn_state.set.as_ref(),
             &writer.last_change_sequence_number,
         );
         // }
