@@ -1,15 +1,10 @@
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
+use std::cell::RefCell;
 
 use rust_rtps_pim::{
-    behavior::{
-        writer::{
-            reader_locator::{RtpsReaderLocator, RtpsReaderLocatorOperations},
-            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
-            writer::RtpsWriterOperations,
-        },
+    behavior::writer::{
+        reader_locator::{RtpsReaderLocator, RtpsReaderLocatorOperations},
+        stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
+        writer::RtpsWriterOperations,
     },
     messages::submessage_elements::Parameter,
     structure::{
@@ -88,32 +83,18 @@ impl RtpsStatelessWriterImpl {
     }
 }
 
-impl Deref for RtpsStatelessWriterImpl {
-    type Target = RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for RtpsStatelessWriterImpl {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
     fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
         let reader_locator_impl = RtpsReaderLocatorImpl::new(a_locator);
-        self.reader_locators.push(reader_locator_impl);
+        self.0.reader_locators.push(reader_locator_impl);
     }
 
     fn reader_locator_remove(&mut self, a_locator: &Locator) {
-        self.reader_locators.retain(|x| &x.locator != a_locator)
+        self.0.reader_locators.retain(|x| &x.locator != a_locator)
     }
 
     fn unsent_changes_reset(&mut self) {
-        for reader_locator in &mut self.reader_locators {
+        for reader_locator in &mut self.0.reader_locators {
             reader_locator.unsent_changes_reset()
         }
     }
