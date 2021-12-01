@@ -71,7 +71,16 @@ pub trait RtpsStatelessWriterOperations {
     fn unsent_changes_reset(&mut self);
 }
 
-pub trait StatelessWriterBehavior<'a, S, P, D> {
+pub trait StatelessWriterBehavior<'a, S, P, D, L, C> {
+    fn send_unsent_data(
+        &mut self,
+        writer: &'a RtpsWriter<L, C>,
+        send_data: &mut dyn FnMut(DataSubmessage<P, D>),
+        send_gap: &mut dyn FnMut(GapSubmessage<S>),
+    );
+}
+
+pub trait StatelessWriterBehaviorObsolete<'a, S, P, D> {
     fn send_unsent_data(
         &'a mut self,
         send_data: &mut dyn FnMut(&RtpsReaderLocator, DataSubmessage<P, D>),
@@ -79,7 +88,8 @@ pub trait StatelessWriterBehavior<'a, S, P, D> {
     );
 }
 
-impl<'a, S, L, C, R, RL, P, D> StatelessWriterBehavior<'a, S, P, D> for RtpsStatelessWriter<L, C, R>
+impl<'a, S, L, C, R, RL, P, D> StatelessWriterBehaviorObsolete<'a, S, P, D>
+    for RtpsStatelessWriter<L, C, R>
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RL>,
     RL: RtpsReaderLocatorOperations + Deref<Target = RtpsReaderLocator> + 'a,

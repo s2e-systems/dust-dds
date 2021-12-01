@@ -25,7 +25,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::writer::{
         stateful_writer::{RtpsStatefulWriter, StatefulWriterBehavior},
-        stateless_writer::StatelessWriterBehavior,
+        stateless_writer::StatelessWriterBehaviorObsolete,
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
