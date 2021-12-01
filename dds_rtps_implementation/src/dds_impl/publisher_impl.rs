@@ -22,20 +22,16 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::writer::{
+use rust_rtps_pim::{behavior::writer::{
         stateful_writer::{RtpsStatefulWriter, StatefulWriterBehaviorPerProxy},
         stateless_writer::StatelessWriterBehavior,
-    },
-    messages::overall_structure::RtpsMessageHeader,
-    structure::{
+    }, messages::{overall_structure::RtpsMessageHeader, types::Count}, structure::{
         group::RtpsGroup,
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
-    },
-};
+    }};
 use rust_rtps_psm::messages::{
     overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
     submessages::{DataSubmessageWrite, GapSubmessageWrite, HeartbeatSubmessageWrite},
@@ -190,24 +186,36 @@ impl PublisherImpl {
 
             let destined_submessages = RefCell::new(Vec::new());
 
+            let should_send_heartbeat_now = rtps_stateful_writer.is_after_heartbeat_period();
+            rtps_stateful_writer.reset_heartbeat_instant();
+
             for reader_proxy in &mut rtps_stateful_writer.stateful_writer.matched_readers {
                 let locator = reader_proxy.unicast_locator_list[0];
-                // reader_proxy.send_heartbeat(&mut |heartbeat| {
-                //     destined_submessages.borrow_mut().push((
-                //         locator,
-                //         RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
-                //             heartbeat.endianness_flag,
-                //             heartbeat.final_flag,
-                //             heartbeat.liveliness_flag,
-                //             heartbeat.reader_id,
-                //             heartbeat.writer_id,
-                //             heartbeat.first_sn,
-                //             heartbeat.last_sn,
-                //             heartbeat.count,
-                //         )),
-                //     ))
-                // });
-                reader_proxy.send_unsent_data(&rtps_stateful_writer.stateful_writer.writer,
+                if should_send_heartbeat_now {
+                    reader_proxy.send_heartbeat(
+                        &rtps_stateful_writer.stateful_writer.writer,
+                        rtps_stateful_writer.heartbeat_count,
+                        &mut |heartbeat| {
+                            destined_submessages.borrow_mut().push((
+                                locator,
+                                RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
+                                    heartbeat.endianness_flag,
+                                    heartbeat.final_flag,
+                                    heartbeat.liveliness_flag,
+                                    heartbeat.reader_id,
+                                    heartbeat.writer_id,
+                                    heartbeat.first_sn,
+                                    heartbeat.last_sn,
+                                    heartbeat.count,
+                                )),
+                            ))
+                        },
+                    );
+                    rtps_stateful_writer.heartbeat_count += Count(1);
+                }
+
+                reader_proxy.send_unsent_data(
+                    &rtps_stateful_writer.stateful_writer.writer,
                     &mut |data| {
                         destined_submessages.borrow_mut().push((
                             locator,
@@ -239,7 +247,6 @@ impl PublisherImpl {
                     },
                 )
             }
-
 
             for (locator, submessage) in destined_submessages.take() {
                 let header = RtpsMessageHeader {

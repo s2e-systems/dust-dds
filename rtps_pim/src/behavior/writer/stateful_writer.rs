@@ -1,13 +1,9 @@
-use crate::{
-    behavior::types::Duration,
-    messages::submessages::{
+use crate::{behavior::types::Duration, messages::{submessages::{
         AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage,
-    },
-    structure::{
+    }, types::Count}, structure::{
         history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, ReliabilityKind, TopicKind},
-    },
-};
+    }};
 
 use super::{reader_proxy::RtpsReaderProxy, writer::RtpsWriter};
 
@@ -77,8 +73,9 @@ pub trait StatefulWriterBehaviorPerProxy<'a, S, P, D, L, C> {
     );
 
     fn send_heartbeat(
-        &mut self,
-        writer: &'a mut RtpsWriter<L, C>,
+        &self,
+        writer: &RtpsWriter<L, C>,
+        heartbeat_count: Count,
         send_heartbeat: &mut dyn FnMut(HeartbeatSubmessage),
     );
 

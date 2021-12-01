@@ -1,18 +1,14 @@
 use std::ops::Deref;
 
-use rust_rtps_pim::{
-    behavior::writer::{
+use rust_rtps_pim::{behavior::writer::{
         reader_proxy::RtpsReaderProxy,
         stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
         writer::RtpsWriterOperations,
-    },
-    messages::submessage_elements::Parameter,
-    structure::{
+    }, messages::{submessage_elements::Parameter, types::Count}, structure::{
         cache_change::RtpsCacheChange,
         history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, Guid, InstanceHandle, Locator},
-    },
-};
+    }};
 
 use crate::dds_type::DdsSerialize;
 
@@ -25,6 +21,7 @@ pub struct RtpsStatefulWriterImpl {
     pub stateful_writer:
         RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderProxyImpl>>,
     last_sent_heartbeat_instant: std::time::Instant,
+    pub heartbeat_count: Count,
 }
 impl RtpsStatefulWriterImpl {
     pub fn new(
@@ -37,21 +34,24 @@ impl RtpsStatefulWriterImpl {
         Self {
             stateful_writer,
             last_sent_heartbeat_instant: std::time::Instant::now(),
+            heartbeat_count: Count(0)
         }
     }
 
-    fn is_after_heartbeat_period(&mut self) -> bool {
+    pub fn is_after_heartbeat_period(&self) -> bool {
         if self.last_sent_heartbeat_instant.elapsed()
             > std::time::Duration::new(
                 self.stateful_writer.writer.heartbeat_period.seconds as u64,
                 self.stateful_writer.writer.heartbeat_period.fraction,
             )
         {
-            self.last_sent_heartbeat_instant = std::time::Instant::now();
             true
         } else {
             false
         }
+    }
+    pub fn reset_heartbeat_instant(&mut self) {
+        self.last_sent_heartbeat_instant = std::time::Instant::now();
     }
 }
 

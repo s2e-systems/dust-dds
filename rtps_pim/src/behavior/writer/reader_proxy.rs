@@ -294,8 +294,9 @@ where
     }
 
     fn send_heartbeat(
-        &mut self,
-        writer: &'a mut RtpsWriter<L, C>,
+        &self,
+        writer: &RtpsWriter<L, C>,
+        heartbeat_count: Count,
         send_heartbeat: &mut dyn FnMut(HeartbeatSubmessage),
     ) {
         let endianness_flag = true;
@@ -314,7 +315,7 @@ where
             value: writer.writer_cache.get_seq_num_min().unwrap_or(0),
         };
         let count = CountSubmessageElement {
-            value: writer.heartbeat_count,
+            value: heartbeat_count,
         };
         let heartbeat_submessage = HeartbeatSubmessage {
             endianness_flag,
@@ -326,7 +327,6 @@ where
             last_sn,
             count,
         };
-        writer.heartbeat_count += Count(1);
         send_heartbeat(heartbeat_submessage)
     }
 

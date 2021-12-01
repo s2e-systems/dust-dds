@@ -18,7 +18,6 @@ pub struct RtpsWriter<L, C> {
     pub last_change_sequence_number: SequenceNumber,
     pub data_max_size_serialized: Option<i32>,
     pub writer_cache: C,
-    pub heartbeat_count: Count, // This member is a deviation from the standard to implement the behavior
 }
 
 impl<L, C> RtpsWriter<L, C> {
@@ -52,7 +51,6 @@ impl<L, C> RtpsWriter<L, C> {
             last_change_sequence_number: 0,
             data_max_size_serialized,
             writer_cache: C::new(),
-            heartbeat_count: Count(0),
         }
     }
 }
