@@ -3,14 +3,15 @@ use core::iter::FromIterator;
 use crate::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElement, ParameterListSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
             SerializedDataSubmessageElement,
         },
         submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        types::Count,
     },
     structure::{
-        history_cache::RtpsHistoryCacheGetChange,
+        history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
         types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
@@ -145,34 +146,202 @@ where
     }
 }
 
-impl<'a, S, P, D, L, T> StatefulWriterBehaviorPerProxy<'a, S, P, D, L> for T
+impl<'a, S, P, D, L, C, T> StatefulWriterBehaviorPerProxy<'a, S, P, D, L, C> for T
 where
     T: RtpsReaderProxyOperations<SequenceNumberVector = S>,
+    S: FromIterator<SequenceNumber>,
+    C: RtpsHistoryCacheGetChange<'a, P, D> + RtpsHistoryCacheOperations,
 {
     fn send_unsent_data(
-        &'a mut self,
-        send_data: &mut dyn FnMut(&RtpsReaderProxy<L>, DataSubmessage<P, D>),
-        send_gap: &mut dyn FnMut(&RtpsReaderProxy<L>, GapSubmessage<S>),
+        &mut self,
+        writer: &'a RtpsWriter<L, C>,
+        send_data: &mut dyn FnMut(DataSubmessage<P, D>),
+        send_gap: &mut dyn FnMut(GapSubmessage<S>),
     ) {
-        todo!()
+        let last_change_sequence_number = writer.last_change_sequence_number;
+
+        while let Some(seq_num) = self.next_unsent_change(&last_change_sequence_number) {
+            if let Some(change) = writer.writer_cache.get_change(&seq_num) {
+                let endianness_flag = true;
+                let inline_qos_flag = true;
+                let (data_flag, key_flag) = match change.kind {
+                    ChangeKind::Alive => (true, false),
+                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
+                        (false, true)
+                    }
+                    _ => todo!(),
+                };
+                let non_standard_payload_flag = false;
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: change.writer_guid.entity_id,
+                };
+                let writer_sn = SequenceNumberSubmessageElement {
+                    value: change.sequence_number,
+                };
+                let inline_qos = ParameterListSubmessageElement {
+                    parameter: change.inline_qos,
+                };
+                let serialized_payload = SerializedDataSubmessageElement {
+                    value: change.data_value,
+                };
+                let data_submessage = DataSubmessage {
+                    endianness_flag,
+                    inline_qos_flag,
+                    data_flag,
+                    key_flag,
+                    non_standard_payload_flag,
+                    reader_id,
+                    writer_id,
+                    writer_sn,
+                    inline_qos,
+                    serialized_payload,
+                };
+                send_data(data_submessage)
+            } else {
+                let endianness_flag = true;
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: writer.endpoint.entity.guid.entity_id,
+                };
+                let gap_start = SequenceNumberSubmessageElement { value: seq_num };
+                let set = core::iter::empty().collect();
+                let gap_list = SequenceNumberSetSubmessageElement { base: seq_num, set };
+                let gap_submessage = GapSubmessage {
+                    endianness_flag,
+                    reader_id,
+                    writer_id,
+                    gap_start,
+                    gap_list,
+                };
+                send_gap(gap_submessage)
+            }
+        }
     }
 
     fn send_requested_data(
-        &'a mut self,
-        send_data: &mut dyn FnMut(&RtpsReaderProxy<L>, DataSubmessage<P, D>),
-        send_gap: &mut dyn FnMut(&RtpsReaderProxy<L>, GapSubmessage<S>),
+        &mut self,
+        writer: &'a RtpsWriter<L, C>,
+        send_data: &mut dyn FnMut(DataSubmessage<P, D>),
+        send_gap: &mut dyn FnMut(GapSubmessage<S>),
     ) {
-        todo!()
+        // Pushing state
+        while let Some(seq_num) = self.next_requested_change() {
+            if let Some(change) = writer.writer_cache.get_change(&seq_num) {
+                let endianness_flag = true;
+                let inline_qos_flag = true;
+                let (data_flag, key_flag) = match change.kind {
+                    ChangeKind::Alive => (true, false),
+                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
+                        (false, true)
+                    }
+                    _ => todo!(),
+                };
+                let non_standard_payload_flag = false;
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: *change.writer_guid.entity_id(),
+                };
+                let writer_sn = SequenceNumberSubmessageElement {
+                    value: change.sequence_number,
+                };
+                let inline_qos = ParameterListSubmessageElement {
+                    parameter: change.inline_qos,
+                };
+                let serialized_payload = SerializedDataSubmessageElement {
+                    value: change.data_value,
+                };
+                let data_submessage = DataSubmessage {
+                    endianness_flag,
+                    inline_qos_flag,
+                    data_flag,
+                    key_flag,
+                    non_standard_payload_flag,
+                    reader_id,
+                    writer_id,
+                    writer_sn,
+                    inline_qos,
+                    serialized_payload,
+                };
+                send_data(data_submessage)
+            } else {
+                let endianness_flag = true;
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let gap_start = SequenceNumberSubmessageElement { value: seq_num };
+                let set = core::iter::empty().collect();
+                let gap_list = SequenceNumberSetSubmessageElement { base: seq_num, set };
+                let gap_submessage = GapSubmessage {
+                    endianness_flag,
+                    reader_id,
+                    writer_id,
+                    gap_start,
+                    gap_list,
+                };
+                send_gap(gap_submessage)
+            }
+        }
     }
 
-    fn send_heartbeat(&mut self, send_heartbeat: &mut dyn FnMut(HeartbeatSubmessage)) {
-        todo!()
+    fn send_heartbeat(
+        &mut self,
+        writer: &'a mut RtpsWriter<L, C>,
+        send_heartbeat: &mut dyn FnMut(HeartbeatSubmessage),
+    ) {
+        let endianness_flag = true;
+        let final_flag = false;
+        let liveliness_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: writer.endpoint.entity.guid.entity_id,
+        };
+        let first_sn = SequenceNumberSubmessageElement {
+            value: writer.writer_cache.get_seq_num_min().unwrap_or(0),
+        };
+        let last_sn = SequenceNumberSubmessageElement {
+            value: writer.writer_cache.get_seq_num_min().unwrap_or(0),
+        };
+        let count = CountSubmessageElement {
+            value: writer.heartbeat_count,
+        };
+        let heartbeat_submessage = HeartbeatSubmessage {
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        };
+        writer.heartbeat_count += Count(1);
+        send_heartbeat(heartbeat_submessage)
     }
 
     fn process_acknack_submessage(
         &mut self,
+        writer: &'a RtpsWriter<L, C>,
         acknack: &crate::messages::submessages::AckNackSubmessage<S>,
     ) {
-        todo!()
+        // TODO: maybe do this outside:
+        // if self.remote_reader_guid.entity_id == acknack.reader_id.value {
+        self.acked_changes_set(acknack.reader_sn_state.base - 1);
+        self.requested_changes_set(
+            &acknack.reader_sn_state.set,
+            &writer.last_change_sequence_number,
+        );
+        // }
     }
 }
