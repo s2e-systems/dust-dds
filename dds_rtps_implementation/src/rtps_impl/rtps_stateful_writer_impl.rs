@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 
 use rust_rtps_pim::{
     behavior::writer::{
@@ -22,7 +22,7 @@ use super::{
 };
 
 pub struct RtpsStatefulWriterImpl(
-    RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderProxyImpl>>,
+    pub RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderProxyImpl>>,
 );
 
 impl RtpsStatefulWriterImpl {
@@ -34,20 +34,6 @@ impl RtpsStatefulWriterImpl {
         >,
     ) -> Self {
         Self(stateful_writer)
-    }
-}
-
-impl Deref for RtpsStatefulWriterImpl {
-    type Target = RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderProxyImpl>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for RtpsStatefulWriterImpl {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 

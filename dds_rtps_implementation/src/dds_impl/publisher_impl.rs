@@ -186,7 +186,7 @@ impl PublisherImpl {
 
             let destined_submessages = RefCell::new(Vec::new());
 
-            rtps_stateful_writer.send_heartbeat(&mut |rp, heartbeat| {
+            rtps_stateful_writer.0.send_heartbeat(&mut |rp, heartbeat| {
                 destined_submessages.borrow_mut().push((
                     rp.unicast_locator_list[0],
                     RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
@@ -202,7 +202,7 @@ impl PublisherImpl {
                 ))
             });
 
-            rtps_stateful_writer.send_unsent_data(
+            rtps_stateful_writer.0.send_unsent_data(
                 &mut |rp, data| {
                     destined_submessages.borrow_mut().push((
                         rp.unicast_locator_list[0],

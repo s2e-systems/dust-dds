@@ -31,7 +31,7 @@ use super::{
 };
 
 pub struct RtpsStatelessWriterImpl(
-    RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>,
+    pub RtpsStatelessWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderLocatorImpl>>,
 );
 
 impl RtpsStatelessWriterImpl {

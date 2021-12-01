@@ -15,6 +15,8 @@ use crate::{
     },
 };
 
+use super::writer::RtpsWriter;
+
 #[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxy<L> {
     pub remote_reader_guid: Guid,
@@ -71,16 +73,16 @@ impl<'a, S> dyn RtpsReaderProxyOperations<SequenceNumberVector = S> + 'a
 where
     S: FromIterator<SequenceNumber>,
 {
-    pub fn send_unsent_data<P, D>(
+    pub fn send_unsent_data<P, D, L, C>(
         &mut self,
-        writer_cache: &'a impl RtpsHistoryCacheGetChange<'a, P, D>,
-        last_change_sequence_number: &SequenceNumber,
-        writer_entity_id: EntityId,
+        writer: &'a RtpsWriter<L, C>,
         send_data: &mut dyn FnMut(DataSubmessage<P, D>),
         send_gap: &mut dyn FnMut(GapSubmessage<S>),
-    ) {
-        while let Some(seq_num) = self.next_unsent_change(&last_change_sequence_number) {
-            if let Some(change) = writer_cache.get_change(&seq_num) {
+    ) where
+        C: RtpsHistoryCacheGetChange<'a, P, D>,
+    {
+        while let Some(seq_num) = self.next_unsent_change(&writer.last_change_sequence_number) {
+            if let Some(change) = writer.writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind {
@@ -125,7 +127,7 @@ where
                     value: ENTITYID_UNKNOWN,
                 };
                 let writer_id = EntityIdSubmessageElement {
-                    value: writer_entity_id,
+                    value: writer.endpoint.entity.guid.entity_id,
                 };
                 let gap_start = SequenceNumberSubmessageElement { value: seq_num };
                 let set = core::iter::empty().collect();
