@@ -22,20 +22,16 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::writer::{
-        stateful_writer::{RtpsStatefulWriter, StatefulWriterBehavior},
+use rust_rtps_pim::{behavior::writer::{
+        stateful_writer::{RtpsStatefulWriter, StatefulWriterBehaviorPerProxy},
         stateless_writer::StatelessWriterBehavior,
-    },
-    messages::overall_structure::RtpsMessageHeader,
-    structure::{
+    }, messages::{overall_structure::RtpsMessageHeader, types::Count}, structure::{
         group::RtpsGroup,
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
-    },
-};
+    }};
 use rust_rtps_psm::messages::{
     overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
     submessages::{DataSubmessageWrite, GapSubmessageWrite, HeartbeatSubmessageWrite},
@@ -130,39 +126,43 @@ impl PublisherImpl {
             let rtps_stateless_writer_arc_lock = stateless_writer.into_as_mut_stateless_writer();
             let mut rtps_stateless_writer_lock = rtps_stateless_writer_arc_lock.write().unwrap();
             let rtps_stateless_writer = rtps_stateless_writer_lock.as_mut();
-
             let destined_submessages = RefCell::new(Vec::new());
-            rtps_stateless_writer.send_unsent_data(
-                &mut |rl, data| {
-                    destined_submessages.borrow_mut().push((
-                        rl.locator,
-                        RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                            data.endianness_flag,
-                            data.inline_qos_flag,
-                            data.data_flag,
-                            data.key_flag,
-                            data.non_standard_payload_flag,
-                            data.reader_id,
-                            data.writer_id,
-                            data.writer_sn,
-                            data.inline_qos,
-                            data.serialized_payload,
-                        )),
-                    ));
-                },
-                &mut |rl, gap| {
-                    destined_submessages.borrow_mut().push((
-                        rl.locator,
-                        RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        )),
-                    ));
-                },
-            );
+
+            for reader_locator in &mut rtps_stateless_writer.0.reader_locators {
+                let locator = reader_locator.locator;
+                reader_locator.send_unsent_data(
+                    &rtps_stateless_writer.0.writer,
+                    &mut |data| {
+                        destined_submessages.borrow_mut().push((
+                            locator,
+                            RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                                data.endianness_flag,
+                                data.inline_qos_flag,
+                                data.data_flag,
+                                data.key_flag,
+                                data.non_standard_payload_flag,
+                                data.reader_id,
+                                data.writer_id,
+                                data.writer_sn,
+                                data.inline_qos,
+                                data.serialized_payload,
+                            )),
+                        ))
+                    },
+                    &mut |gap| {
+                        destined_submessages.borrow_mut().push((
+                            locator,
+                            RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                                gap.endianness_flag,
+                                gap.reader_id,
+                                gap.writer_id,
+                                gap.gap_start,
+                                gap.gap_list,
+                            )),
+                        ));
+                    },
+                );
+            }
 
             for (locator, submessage) in destined_submessages.take() {
                 let header = RtpsMessageHeader {
@@ -186,53 +186,67 @@ impl PublisherImpl {
 
             let destined_submessages = RefCell::new(Vec::new());
 
-            rtps_stateful_writer.send_heartbeat(&mut |rp, heartbeat| {
-                destined_submessages.borrow_mut().push((
-                    rp.unicast_locator_list[0],
-                    RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
-                        heartbeat.endianness_flag,
-                        heartbeat.final_flag,
-                        heartbeat.liveliness_flag,
-                        heartbeat.reader_id,
-                        heartbeat.writer_id,
-                        heartbeat.first_sn,
-                        heartbeat.last_sn,
-                        heartbeat.count,
-                    )),
-                ))
-            });
+            let should_send_heartbeat_now = rtps_stateful_writer.is_after_heartbeat_period();
+            rtps_stateful_writer.reset_heartbeat_instant();
 
-            rtps_stateful_writer.send_unsent_data(
-                &mut |rp, data| {
-                    destined_submessages.borrow_mut().push((
-                        rp.unicast_locator_list[0],
-                        RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                            data.endianness_flag,
-                            data.inline_qos_flag,
-                            data.data_flag,
-                            data.key_flag,
-                            data.non_standard_payload_flag,
-                            data.reader_id,
-                            data.writer_id,
-                            data.writer_sn,
-                            data.inline_qos,
-                            data.serialized_payload,
-                        )),
-                    ));
-                },
-                &mut |rp, gap| {
-                    destined_submessages.borrow_mut().push((
-                        rp.unicast_locator_list[0],
-                        RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        )),
-                    ));
-                },
-            );
+            for reader_proxy in &mut rtps_stateful_writer.stateful_writer.matched_readers {
+                let locator = reader_proxy.unicast_locator_list[0];
+                if should_send_heartbeat_now {
+                    reader_proxy.send_heartbeat(
+                        &rtps_stateful_writer.stateful_writer.writer,
+                        rtps_stateful_writer.heartbeat_count,
+                        &mut |heartbeat| {
+                            destined_submessages.borrow_mut().push((
+                                locator,
+                                RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
+                                    heartbeat.endianness_flag,
+                                    heartbeat.final_flag,
+                                    heartbeat.liveliness_flag,
+                                    heartbeat.reader_id,
+                                    heartbeat.writer_id,
+                                    heartbeat.first_sn,
+                                    heartbeat.last_sn,
+                                    heartbeat.count,
+                                )),
+                            ))
+                        },
+                    );
+                    rtps_stateful_writer.heartbeat_count += Count(1);
+                }
+
+                reader_proxy.send_unsent_data(
+                    &rtps_stateful_writer.stateful_writer.writer,
+                    &mut |data| {
+                        destined_submessages.borrow_mut().push((
+                            locator,
+                            RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
+                                data.endianness_flag,
+                                data.inline_qos_flag,
+                                data.data_flag,
+                                data.key_flag,
+                                data.non_standard_payload_flag,
+                                data.reader_id,
+                                data.writer_id,
+                                data.writer_sn,
+                                data.inline_qos,
+                                data.serialized_payload,
+                            )),
+                        ));
+                    },
+                    &mut |gap| {
+                        destined_submessages.borrow_mut().push((
+                            locator,
+                            RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
+                                gap.endianness_flag,
+                                gap.reader_id,
+                                gap.writer_id,
+                                gap.gap_start,
+                                gap.gap_list,
+                            )),
+                        ));
+                    },
+                )
+            }
 
             for (locator, submessage) in destined_submessages.take() {
                 let header = RtpsMessageHeader {
