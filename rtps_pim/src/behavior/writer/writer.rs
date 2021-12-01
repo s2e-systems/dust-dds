@@ -1,6 +1,5 @@
 use crate::{
     behavior::types::Duration,
-    messages::types::Count,
     structure::{
         cache_change::RtpsCacheChange,
         endpoint::RtpsEndpoint,

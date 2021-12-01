@@ -14,7 +14,6 @@ use rust_dds::{
             ReliabilityQosPolicyKind, TopicDataQosPolicy,
         },
     },
-    publication::publisher::Publisher,
     subscription::data_reader::DataReader,
     types::Duration,
     udp_transport::UdpTransport,
