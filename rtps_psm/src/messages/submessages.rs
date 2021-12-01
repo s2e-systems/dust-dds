@@ -19,6 +19,8 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
+use super::overall_structure::RtpsSubmessageTypeWrite;
+
 #[derive(Debug, PartialEq)]
 pub struct AckNackSubmessageWrite(AckNackSubmessage<Vec<SequenceNumber>>);
 
@@ -33,6 +35,12 @@ impl Deref for AckNackSubmessageWrite {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<'a> From<<AckNackSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(_: <AckNackSubmessageWrite as Deref>::Target) -> Self {
+        todo!()
     }
 }
 
@@ -92,6 +100,23 @@ impl<'a> Deref for DataSubmessageWrite<'a> {
     }
 }
 
+impl<'a> From<<DataSubmessageWrite<'a> as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(s: <DataSubmessageWrite<'a> as Deref>::Target) -> Self {
+        Self::Data(DataSubmessageWrite::new(
+            s.endianness_flag,
+            s.inline_qos_flag,
+            s.data_flag,
+            s.key_flag,
+            s.non_standard_payload_flag,
+            s.reader_id,
+            s.writer_id,
+            s.writer_sn,
+            s.inline_qos,
+            s.serialized_payload,
+        ))
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct DataSubmessageRead<'a>(<Self as Deref>::Target);
 
@@ -148,6 +173,12 @@ impl Deref for DataFragSubmessageWrite {
     }
 }
 
+impl<'a> From<<DataFragSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(_: <DataFragSubmessageWrite as Deref>::Target) -> Self {
+        todo!()
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct DataFragSubmessageRead(<Self as Deref>::Target);
 
@@ -191,6 +222,17 @@ impl Deref for GapSubmessageWrite {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+impl<'a> From<<GapSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(s: <GapSubmessageWrite as Deref>::Target) -> Self {
+        Self::Gap(GapSubmessageWrite::new(
+            s.endianness_flag,
+            s.reader_id,
+            s.writer_id,
+            s.gap_start,
+            s.gap_list,
+        ))
     }
 }
 
@@ -258,6 +300,21 @@ impl Deref for HeartbeatSubmessageWrite {
     }
 }
 
+impl<'a> From<<HeartbeatSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(s: <HeartbeatSubmessageWrite as Deref>::Target) -> Self {
+        Self::Heartbeat(HeartbeatSubmessageWrite::new(
+            s.endianness_flag,
+            s.final_flag,
+            s.liveliness_flag,
+            s.reader_id,
+            s.writer_id,
+            s.first_sn,
+            s.last_sn,
+            s.count,
+        ))
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct HeartbeatSubmessageRead(<Self as Deref>::Target);
 
@@ -309,6 +366,11 @@ impl Deref for HeartbeatFragSubmessageWrite {
         &self.0
     }
 }
+impl<'a> From<<HeartbeatFragSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(_: <HeartbeatFragSubmessageWrite as Deref>::Target) -> Self {
+        todo!()
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct HeartbeatFragSubmessageRead(<Self as Deref>::Target);
@@ -341,6 +403,12 @@ impl Deref for InfoDestinationSubmessageWrite {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<'a> From<<InfoDestinationSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(_: <InfoDestinationSubmessageWrite as Deref>::Target) -> Self {
+        todo!()
     }
 }
 
@@ -379,6 +447,12 @@ impl Deref for InfoReplySubmessageWrite {
     }
 }
 
+impl<'a> From<<InfoReplySubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(_: <InfoReplySubmessageWrite as Deref>::Target) -> Self {
+        todo!()
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct InfoReplySubmessageRead(<Self as Deref>::Target);
 
@@ -413,6 +487,12 @@ impl Deref for InfoSourceSubmessageWrite {
     }
 }
 
+impl<'a> From<<InfoSourceSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(_: <InfoSourceSubmessageWrite as Deref>::Target) -> Self {
+        todo!()
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct InfoSourceSubmessageRead(<Self as Deref>::Target);
 
@@ -444,6 +524,12 @@ impl Deref for InfoTimestampSubmessageWrite {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<'a> From<<InfoTimestampSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(_: <InfoTimestampSubmessageWrite as Deref>::Target) -> Self {
+        todo!()
     }
 }
 
@@ -489,6 +575,12 @@ impl Deref for NackFragSubmessageWrite {
     }
 }
 
+impl<'a> From<<NackFragSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(_: <NackFragSubmessageWrite as Deref>::Target) -> Self {
+        todo!()
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct NackFragSubmessageRead(<Self as Deref>::Target);
 
@@ -520,6 +612,12 @@ impl Deref for PadSubmessageWrite {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<'a> From<<PadSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
+    fn from(_: <PadSubmessageWrite as Deref>::Target) -> Self {
+        todo!()
     }
 }
 
