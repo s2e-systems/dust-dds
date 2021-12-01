@@ -74,16 +74,11 @@ pub trait RtpsStatefulWriterOperations<L> {
     fn is_acked_by_all(&self) -> bool;
 }
 
-pub trait StatefulWriterBehavior<'a, S, P, D, L> {
+pub trait StatefulWriterBehaviorPerProxy<'a, S, P, D, L> {
     fn send_unsent_data(
         &'a mut self,
         send_data: &mut dyn FnMut(&RtpsReaderProxy<L>, DataSubmessage<P, D>),
         send_gap: &mut dyn FnMut(&RtpsReaderProxy<L>, GapSubmessage<S>),
-    );
-
-    fn send_heartbeat(
-        &mut self,
-        send_heartbeat: &mut dyn FnMut(&RtpsReaderProxy<L>, HeartbeatSubmessage),
     );
 
     fn send_requested_data(
@@ -92,10 +87,12 @@ pub trait StatefulWriterBehavior<'a, S, P, D, L> {
         send_gap: &mut dyn FnMut(&RtpsReaderProxy<L>, GapSubmessage<S>),
     );
 
+    fn send_heartbeat(&mut self, send_heartbeat: &mut dyn FnMut(HeartbeatSubmessage));
+
     fn process_acknack_submessage(&mut self, acknack: &AckNackSubmessage<S>);
 }
 
-impl<'a, S, P, D, L, C, R, RP> StatefulWriterBehavior<'a, S, P, D, L>
+impl<'a, S, P, D, L, C, R, RP> StatefulWriterBehaviorPerProxy<'a, S, P, D, L>
     for RtpsStatefulWriter<L, C, R>
 where
     for<'b> &'b mut R: IntoIterator<Item = &'b mut RP>,
@@ -177,42 +174,37 @@ where
         }
     }
 
-    fn send_heartbeat(
-        &mut self,
-        send_heartbeat: &mut dyn FnMut(&RtpsReaderProxy<L>, HeartbeatSubmessage),
-    ) {
-        for reader_proxy in &mut self.matched_readers {
-            let endianness_flag = true;
-            let final_flag = false;
-            let liveliness_flag = false;
-            let reader_id = EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN,
-            };
-            let writer_id = EntityIdSubmessageElement {
-                value: self.writer.endpoint.entity.guid.entity_id,
-            };
-            let first_sn = SequenceNumberSubmessageElement {
-                value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
-            };
-            let last_sn = SequenceNumberSubmessageElement {
-                value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
-            };
-            let count = CountSubmessageElement {
-                value: self.writer.heartbeat_count,
-            };
-            let heartbeat_submessage = HeartbeatSubmessage {
-                endianness_flag,
-                final_flag,
-                liveliness_flag,
-                reader_id,
-                writer_id,
-                first_sn,
-                last_sn,
-                count,
-            };
-            self.writer.heartbeat_count += Count(1);
-            send_heartbeat(reader_proxy, heartbeat_submessage)
-        }
+    fn send_heartbeat(&mut self, send_heartbeat: &mut dyn FnMut(HeartbeatSubmessage)) {
+        let endianness_flag = true;
+        let final_flag = false;
+        let liveliness_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: self.writer.endpoint.entity.guid.entity_id,
+        };
+        let first_sn = SequenceNumberSubmessageElement {
+            value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
+        };
+        let last_sn = SequenceNumberSubmessageElement {
+            value: self.writer.writer_cache.get_seq_num_min().unwrap_or(0),
+        };
+        let count = CountSubmessageElement {
+            value: self.writer.heartbeat_count,
+        };
+        let heartbeat_submessage = HeartbeatSubmessage {
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        };
+        self.writer.heartbeat_count += Count(1);
+        send_heartbeat(heartbeat_submessage)
     }
 
     fn send_requested_data(

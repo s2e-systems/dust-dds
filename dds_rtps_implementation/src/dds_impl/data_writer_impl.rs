@@ -86,7 +86,6 @@ pub struct DataWriterImpl<T, W> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
-    _last_sent_heartbeat: std::time::Instant,
 }
 
 impl<T, W> DataWriterImpl<T, W>
@@ -98,8 +97,6 @@ where
             _qos: qos,
             rtps_writer_impl,
             _listener: None,
-            _last_sent_heartbeat: std::time::Instant::now(),
-            // matched_readers: Vec::new(),
         }
     }
 }

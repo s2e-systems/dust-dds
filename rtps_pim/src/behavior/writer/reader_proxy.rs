@@ -7,7 +7,7 @@ use crate::{
             SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
             SerializedDataSubmessageElement,
         },
-        submessages::{DataSubmessage, GapSubmessage},
+        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage},
     },
     structure::{
         history_cache::RtpsHistoryCacheGetChange,
@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::writer::RtpsWriter;
+use super::{stateful_writer::StatefulWriterBehaviorPerProxy, writer::RtpsWriter};
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxy<L> {
@@ -142,5 +142,37 @@ where
                 send_gap(gap_submessage)
             }
         }
+    }
+}
+
+impl<'a, S, P, D, L, T> StatefulWriterBehaviorPerProxy<'a, S, P, D, L> for T
+where
+    T: RtpsReaderProxyOperations<SequenceNumberVector = S>,
+{
+    fn send_unsent_data(
+        &'a mut self,
+        send_data: &mut dyn FnMut(&RtpsReaderProxy<L>, DataSubmessage<P, D>),
+        send_gap: &mut dyn FnMut(&RtpsReaderProxy<L>, GapSubmessage<S>),
+    ) {
+        todo!()
+    }
+
+    fn send_requested_data(
+        &'a mut self,
+        send_data: &mut dyn FnMut(&RtpsReaderProxy<L>, DataSubmessage<P, D>),
+        send_gap: &mut dyn FnMut(&RtpsReaderProxy<L>, GapSubmessage<S>),
+    ) {
+        todo!()
+    }
+
+    fn send_heartbeat(&mut self, send_heartbeat: &mut dyn FnMut(HeartbeatSubmessage)) {
+        todo!()
+    }
+
+    fn process_acknack_submessage(
+        &mut self,
+        acknack: &crate::messages::submessages::AckNackSubmessage<S>,
+    ) {
+        todo!()
     }
 }

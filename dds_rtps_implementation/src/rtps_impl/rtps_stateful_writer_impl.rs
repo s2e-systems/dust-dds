@@ -21,10 +21,11 @@ use super::{
     rtps_writer_history_cache_impl::{WriterHistoryCache, WriterHistoryCacheAddChangeMut},
 };
 
-pub struct RtpsStatefulWriterImpl(
-    pub RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderProxyImpl>>,
-);
-
+pub struct RtpsStatefulWriterImpl {
+    pub stateful_writer:
+        RtpsStatefulWriter<Vec<Locator>, WriterHistoryCache, Vec<RtpsReaderProxyImpl>>,
+    last_sent_heartbeat_instant: std::time::Instant,
+}
 impl RtpsStatefulWriterImpl {
     pub fn new(
         stateful_writer: RtpsStatefulWriter<
@@ -33,18 +34,35 @@ impl RtpsStatefulWriterImpl {
             Vec<RtpsReaderProxyImpl>,
         >,
     ) -> Self {
-        Self(stateful_writer)
+        Self {
+            stateful_writer,
+            last_sent_heartbeat_instant: std::time::Instant::now(),
+        }
+    }
+
+    fn is_after_heartbeat_period(&mut self) -> bool {
+        if self.last_sent_heartbeat_instant.elapsed()
+            > std::time::Duration::new(
+                self.stateful_writer.writer.heartbeat_period.seconds as u64,
+                self.stateful_writer.writer.heartbeat_period.fraction,
+            )
+        {
+            self.last_sent_heartbeat_instant = std::time::Instant::now();
+            true
+        } else {
+            false
+        }
     }
 }
 
 impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
     fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
         let reader_proxy = RtpsReaderProxyImpl::new(a_reader_proxy);
-        self.0.matched_readers.push(reader_proxy)
+        self.stateful_writer.matched_readers.push(reader_proxy)
     }
 
     fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid) {
-        self.0
+        self.stateful_writer
             .matched_readers
             .retain(|x| &x.remote_reader_guid != reader_proxy_guid);
     }
@@ -53,7 +71,7 @@ impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
         &self,
         a_reader_guid: &Guid,
     ) -> Option<&RtpsReaderProxy<Vec<Locator>>> {
-        self.0
+        self.stateful_writer
             .matched_readers
             .iter()
             .find(|&x| &x.remote_reader_guid == a_reader_guid)
@@ -73,7 +91,9 @@ impl RtpsWriterOperations for RtpsStatefulWriterImpl {
         inline_qos: P,
         handle: InstanceHandle,
     ) -> RtpsCacheChange<P, D> {
-        self.0.writer.new_change(kind, data, inline_qos, handle)
+        self.stateful_writer
+            .writer
+            .new_change(kind, data, inline_qos, handle)
     }
 }
 
@@ -84,6 +104,6 @@ where
     fn get_writer_history_cache_add_change_mut(
         &'_ mut self,
     ) -> &mut dyn RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> {
-        &mut self.0.writer.writer_cache
+        &mut self.stateful_writer.writer.writer_cache
     }
 }

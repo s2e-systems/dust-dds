@@ -24,7 +24,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::writer::{
-        stateful_writer::{RtpsStatefulWriter, StatefulWriterBehavior},
+        stateful_writer::{RtpsStatefulWriter, StatefulWriterBehaviorPerProxy},
         stateless_writer::StatelessWriterBehavior,
     },
     messages::overall_structure::RtpsMessageHeader,
@@ -190,23 +190,26 @@ impl PublisherImpl {
 
             let destined_submessages = RefCell::new(Vec::new());
 
-            rtps_stateful_writer.0.send_heartbeat(&mut |rp, heartbeat| {
-                destined_submessages.borrow_mut().push((
-                    rp.unicast_locator_list[0],
-                    RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
-                        heartbeat.endianness_flag,
-                        heartbeat.final_flag,
-                        heartbeat.liveliness_flag,
-                        heartbeat.reader_id,
-                        heartbeat.writer_id,
-                        heartbeat.first_sn,
-                        heartbeat.last_sn,
-                        heartbeat.count,
-                    )),
-                ))
-            });
+            for reader_proxy in &mut rtps_stateful_writer.stateful_writer.matched_readers {
+                let locator = reader_proxy.unicast_locator_list[0];
+                reader_proxy.send_heartbeat(&mut |heartbeat| {
+                    destined_submessages.borrow_mut().push((
+                        locator,
+                        RtpsSubmessageTypeWrite::Heartbeat(HeartbeatSubmessageWrite::new(
+                            heartbeat.endianness_flag,
+                            heartbeat.final_flag,
+                            heartbeat.liveliness_flag,
+                            heartbeat.reader_id,
+                            heartbeat.writer_id,
+                            heartbeat.first_sn,
+                            heartbeat.last_sn,
+                            heartbeat.count,
+                        )),
+                    ))
+                });
+            }
 
-            rtps_stateful_writer.0.send_unsent_data(
+            rtps_stateful_writer.stateful_writer.send_unsent_data(
                 &mut |rp, data| {
                     destined_submessages.borrow_mut().push((
                         rp.unicast_locator_list[0],
