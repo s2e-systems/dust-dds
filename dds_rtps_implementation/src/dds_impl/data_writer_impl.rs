@@ -364,13 +364,13 @@ mod tests {
     use rust_rtps_pim::{
         behavior::{
             types::{Duration, DURATION_ZERO},
-            writer::stateful_writer::RtpsStatefulWriter,
+            writer::stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
         },
         messages::submessage_elements::Parameter,
         structure::{
             cache_change::RtpsCacheChange,
             history_cache::RtpsHistoryCacheAddChange,
-            types::{InstanceHandle, ReliabilityKind, TopicKind, GUID_UNKNOWN},
+            types::{InstanceHandle, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
         },
     };
 
@@ -457,7 +457,7 @@ mod tests {
     }
 
     #[test]
-    fn stateful_writer_heartbeat_send() {
+    fn stateful_writer_heartbeat_send_timer() {
         struct MockTimer;
 
         impl Timer for MockTimer {
@@ -478,7 +478,7 @@ mod tests {
         let nack_suppression_duration = DURATION_ZERO;
         let data_max_size_serialized = None;
 
-        let rtps_writer_impl = RtpsStatefulWriterImpl::new(RtpsStatefulWriter::new(
+        let mut rtps_writer_impl = RtpsStatefulWriterImpl::new(RtpsStatefulWriter::new(
             guid,
             topic_kind,
             reliability_level,
@@ -490,6 +490,10 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         ));
+        let reader_proxy =
+            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, vec![], vec![], false);
+
+        rtps_writer_impl.matched_reader_add(reader_proxy);
 
         let mut data_writer_impl: DataWriterImpl<MockData, _> = DataWriterImpl::new(
             DataWriterQos::default(),
@@ -497,10 +501,23 @@ mod tests {
             Box::new(MockTimer),
         );
 
-        let produced_submessages1 = data_writer_impl.produce_submessages();
-        assert!(produced_submessages1.is_empty());
+        let destined_submessages1 = data_writer_impl.produce_submessages();
+        let produced_submessages1 = &destined_submessages1[0].1;
+        assert_eq!(produced_submessages1.len(), 1);
+        if let RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage) = &produced_submessages1[0]
+        {
+            assert_eq!(heartbeat_submessage.count.value, Count(1));
+        } else {
+            assert!(false, "Wrong submessage");
+        }
 
-        let produced_submessages2 = data_writer_impl.produce_submessages();
-        assert!(produced_submessages2.is_empty());
+        let destined_submessages2 = data_writer_impl.produce_submessages();
+        let produced_submessages2 = &destined_submessages2[0].1;
+        if let RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage) = &produced_submessages2[0]
+        {
+            assert_eq!(heartbeat_submessage.count.value, Count(2));
+        } else {
+            assert!(false, "Wrong submessage");
+        }
     }
 }
