@@ -36,10 +36,7 @@ use rust_rtps_pim::{
         },
     },
 };
-use rust_rtps_psm::messages::{
-    overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
-    submessages::{DataSubmessageWrite, GapSubmessageWrite},
-};
+use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
 use crate::{
     dds_impl::data_writer_impl::DataWriterImpl,
@@ -129,13 +126,13 @@ impl PublisherImpl {
         for stateless_writer in stateless_data_writer_list_lock.iter().cloned() {
             let rtps_stateless_writer_arc_lock = stateless_writer.into_as_mut_stateless_writer();
             let mut rtps_stateless_writer_lock = rtps_stateless_writer_arc_lock.write().unwrap();
-            let rtps_stateless_writer = rtps_stateless_writer_lock.as_mut();
+            let rtps_stateless_writer_impl = rtps_stateless_writer_lock.as_mut();
             let destined_submessages = RefCell::new(Vec::new());
 
-            for reader_locator in &mut rtps_stateless_writer.0.reader_locators {
+            for reader_locator in &mut rtps_stateless_writer_impl.0.reader_locators {
                 let locator = reader_locator.locator;
                 reader_locator.send_unsent_data(
-                    &rtps_stateless_writer.0.writer,
+                    &rtps_stateless_writer_impl.0.writer,
                     &mut |data| {
                         destined_submessages
                             .borrow_mut()

@@ -7,16 +7,11 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::topic::Topic,
 };
-use rust_rtps_pim::{
-    behavior::writer::writer::RtpsWriterOperations,
-    structure::types::{ChangeKind, GuidPrefix},
-};
-use rust_rtps_psm::messages::submessages::AckNackSubmessageRead;
+use rust_rtps_pim::{behavior::writer::writer::RtpsWriterOperations, structure::types::ChangeKind};
 
 use crate::{
     dds_type::DdsSerialize,
     rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut,
-    utils::message_receiver::ProcessAckNackSubmessage,
 };
 
 // pub trait RtpsWriterBehavior {
@@ -304,16 +299,6 @@ impl<T, W> Entity for DataWriterImpl<T, W> {
 //         }
 //     }
 // }
-
-impl<T, R> ProcessAckNackSubmessage for DataWriterImpl<T, R> {
-    fn process_acknack_submessage(
-        &self,
-        _source_guid_prefix: GuidPrefix,
-        _acknack: &AckNackSubmessageRead,
-    ) {
-        todo!()
-    }
-}
 
 // impl RtpsSubmessageSender for DataWriterImpl {
 //     fn create_submessages(&mut self) -> Vec<(Locator, Vec<RtpsSubmessageTypeWrite>)> {
