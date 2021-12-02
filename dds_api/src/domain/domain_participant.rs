@@ -8,7 +8,7 @@ use crate::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-pub trait SubscriberGAT<'s> {
+pub trait DomainParticipantSubscriberFactory<'s> {
     type SubscriberType;
 
     fn create_subscriber_gat(
@@ -22,7 +22,7 @@ pub trait SubscriberGAT<'s> {
 
     fn get_builtin_subscriber_gat(&'s self) -> Self::SubscriberType;
 }
-pub trait TopicGAT<'t, T: 'static> {
+pub trait DomainParticipantTopicFactory<'t, T: 'static> {
     type TopicType;
 
     fn create_topic_gat(
@@ -38,7 +38,7 @@ pub trait TopicGAT<'t, T: 'static> {
     fn find_topic_gat(&'t self, topic_name: &'t str, timeout: Duration) -> Option<Self::TopicType>;
 }
 
-pub trait PublisherGAT<'p> {
+pub trait DomainParticipantPublisherFactory<'p> {
     type PublisherType;
 
     fn create_publisher_gat(
@@ -66,9 +66,9 @@ pub trait DomainParticipant {
         mask: StatusMask,
     ) -> Option<Self::PublisherType>
     where
-        Self: PublisherGAT<'p> + Sized,
+        Self: DomainParticipantPublisherFactory<'p> + Sized,
     {
-        <Self as PublisherGAT<'p>>::create_publisher_gat(self, qos, a_listener, mask)
+        <Self as DomainParticipantPublisherFactory<'p>>::create_publisher_gat(self, qos, a_listener, mask)
     }
 
     /// This operation deletes an existing Publisher.
@@ -80,9 +80,9 @@ pub trait DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_publisher<'p>(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>
     where
-        Self: PublisherGAT<'p> + Sized,
+        Self: DomainParticipantPublisherFactory<'p> + Sized,
     {
-        <Self as PublisherGAT<'p>>::delete_publisher_gat(self, a_publisher)
+        <Self as DomainParticipantPublisherFactory<'p>>::delete_publisher_gat(self, a_publisher)
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -100,9 +100,9 @@ pub trait DomainParticipant {
         mask: StatusMask,
     ) -> Option<Self::SubscriberType>
     where
-        Self: SubscriberGAT<'s> + Sized,
+        Self: DomainParticipantSubscriberFactory<'s> + Sized,
     {
-        <Self as SubscriberGAT<'s>>::create_subscriber_gat(self, qos, a_listener, mask)
+        <Self as DomainParticipantSubscriberFactory<'s>>::create_subscriber_gat(self, qos, a_listener, mask)
     }
 
     /// This operation deletes an existing Subscriber.
@@ -114,9 +114,9 @@ pub trait DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_subscriber<'s>(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()>
     where
-        Self: SubscriberGAT<'s> + Sized,
+        Self: DomainParticipantSubscriberFactory<'s> + Sized,
     {
-        <Self as SubscriberGAT<'s>>::delete_subscriber_gat(self, a_subscriber)
+        <Self as DomainParticipantSubscriberFactory<'s>>::delete_subscriber_gat(self, a_subscriber)
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -137,9 +137,9 @@ pub trait DomainParticipant {
         mask: StatusMask,
     ) -> Option<Self::TopicType>
     where
-        Self: TopicGAT<'t, T> + Sized,
+        Self: DomainParticipantTopicFactory<'t, T> + Sized,
     {
-        <Self as TopicGAT<'t, T>>::create_topic_gat(self, topic_name, qos, a_listener, mask)
+        <Self as DomainParticipantTopicFactory<'t, T>>::create_topic_gat(self, topic_name, qos, a_listener, mask)
     }
 
     /// This operation deletes a Topic.
@@ -151,9 +151,9 @@ pub trait DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_topic<'t, T: 'static>(&self, a_topic: &Self::TopicType) -> DDSResult<()>
     where
-        Self: TopicGAT<'t, T> + Sized,
+        Self: DomainParticipantTopicFactory<'t, T> + Sized,
     {
-        <Self as TopicGAT<'t, T>>::delete_topic_gat(self, a_topic)
+        <Self as DomainParticipantTopicFactory<'t, T>>::delete_topic_gat(self, a_topic)
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
@@ -173,9 +173,9 @@ pub trait DomainParticipant {
         timeout: Duration,
     ) -> Option<Self::TopicType>
     where
-        Self: TopicGAT<'t, T> + Sized,
+        Self: DomainParticipantTopicFactory<'t, T> + Sized,
     {
-        <Self as TopicGAT<'t, T>>::find_topic_gat(self, topic_name, timeout)
+        <Self as DomainParticipantTopicFactory<'t, T>>::find_topic_gat(self, topic_name, timeout)
     }
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
@@ -202,9 +202,9 @@ pub trait DomainParticipant {
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
     fn get_builtin_subscriber<'s>(&'s self) -> Self::SubscriberType
     where
-        Self: SubscriberGAT<'s> + Sized,
+        Self: DomainParticipantSubscriberFactory<'s> + Sized,
     {
-        <Self as SubscriberGAT<'s>>::get_builtin_subscriber_gat(self)
+        <Self as DomainParticipantSubscriberFactory<'s>>::get_builtin_subscriber_gat(self)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point

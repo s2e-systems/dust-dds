@@ -16,7 +16,7 @@ use rust_dds_api::{
     publication::{
         data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
-        publisher::{DataWriterGAT, Publisher},
+        publisher::{PublisherDataWriterFactory, Publisher},
         publisher_listener::PublisherListener,
     },
     return_type::DDSResult,
@@ -170,7 +170,7 @@ impl PublisherImpl {
     }
 }
 
-impl<T> DataWriterGAT<'_, '_, T> for PublisherImpl
+impl<T> PublisherDataWriterFactory<'_, '_, T> for PublisherImpl
 where
     T: DdsType + DdsSerialize + Send + 'static,
 {

@@ -8,7 +8,7 @@ use rust_dds_api::{
     publication::{
         data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
-        publisher::{DataWriterGAT, Publisher},
+        publisher::{PublisherDataWriterFactory, Publisher},
     },
     return_type::{DDSError, DDSResult},
     topic::topic::Topic,
@@ -39,11 +39,11 @@ impl<'p, P> PublisherProxy<'p, P> {
     }
 }
 
-impl<'dw, 'p, 't, T, P, DW, I> DataWriterGAT<'dw, 't, T> for PublisherProxy<'p, P>
+impl<'dw, 'p, 't, T, P, DW, I> PublisherDataWriterFactory<'dw, 't, T> for PublisherProxy<'p, P>
 where
     DW: DataWriter<T>,
     I: Topic<T>,
-    P: for<'a, 'b> DataWriterGAT<'a, 'b, T, TopicType = RtpsWeak<I>, DataWriterType = RtpsWeak<DW>>,
+    P: for<'a, 'b> PublisherDataWriterFactory<'a, 'b, T, TopicType = RtpsWeak<I>, DataWriterType = RtpsWeak<DW>>,
     T: 't + 'dw,
 {
     type TopicType = TopicProxy<'t, T, I>;

@@ -13,7 +13,7 @@ use rust_dds_api::{
     return_type::DDSResult,
     subscription::{
         data_reader_listener::DataReaderListener,
-        subscriber::{DataReaderGAT, Subscriber},
+        subscriber::{SubscriberDataReaderFactory, Subscriber},
         subscriber_listener::SubscriberListener,
     },
 };
@@ -82,7 +82,7 @@ impl SubscriberImpl {
     }
 }
 
-impl<T> DataReaderGAT<'_, '_, T> for SubscriberImpl
+impl<T> SubscriberDataReaderFactory<'_, '_, T> for SubscriberImpl
 where
     T: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {

@@ -7,7 +7,7 @@ use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
-        domain_participant::{DomainParticipant, PublisherGAT, SubscriberGAT, TopicGAT},
+        domain_participant::{DomainParticipant, DomainParticipantPublisherFactory, DomainParticipantSubscriberFactory, DomainParticipantTopicFactory},
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{
@@ -189,7 +189,7 @@ impl DomainParticipantImpl {
     }
 }
 
-impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
+impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl {
     type PublisherType = PublisherProxy<'p, PublisherImpl>;
     fn create_publisher_gat(
         &'p self,
@@ -239,7 +239,7 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
     }
 }
 
-impl<'s> SubscriberGAT<'s> for DomainParticipantImpl {
+impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl {
     type SubscriberType = SubscriberProxy<'s, SubscriberImpl>;
 
     fn create_subscriber_gat(
@@ -304,7 +304,7 @@ impl<'s> SubscriberGAT<'s> for DomainParticipantImpl {
     }
 }
 
-impl<'t, T: 'static> TopicGAT<'t, T> for DomainParticipantImpl {
+impl<'t, T: 'static> DomainParticipantTopicFactory<'t, T> for DomainParticipantImpl {
     type TopicType = TopicProxy<'t, T, TopicImpl>;
 
     fn create_topic_gat(

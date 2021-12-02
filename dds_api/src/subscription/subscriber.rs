@@ -7,7 +7,7 @@ use crate::{
 
 use super::{data_reader::AnyDataReader, data_reader_listener::DataReaderListener};
 
-pub trait DataReaderGAT<'dr, 't, T>: Subscriber {
+pub trait SubscriberDataReaderFactory<'dr, 't, T> {
     type TopicType;
     type DataReaderType;
 
@@ -71,9 +71,9 @@ pub trait Subscriber {
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>
     where
-        Self: DataReaderGAT<'dr, 't, T> + Sized,
+        Self: SubscriberDataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as DataReaderGAT<'dr, 't, T>>::create_datareader_gat(
+        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::create_datareader_gat(
             self, a_topic, qos, a_listener, mask,
         )
     }
@@ -92,9 +92,9 @@ pub trait Subscriber {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datareader<'dr, 't, T>(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>
     where
-        Self: DataReaderGAT<'dr, 't, T> + Sized,
+        Self: SubscriberDataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as DataReaderGAT<'dr, 't, T>>::delete_datareader_gat(self, a_datareader)
+        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::delete_datareader_gat(self, a_datareader)
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -107,9 +107,9 @@ pub trait Subscriber {
         topic: &'dr Self::TopicType,
     ) -> Option<Self::DataReaderType>
     where
-        Self: DataReaderGAT<'dr, 't, T> + Sized,
+        Self: SubscriberDataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as DataReaderGAT<'dr, 't, T>>::lookup_datareader_gat(self, topic)
+        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::lookup_datareader_gat(self, topic)
     }
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
