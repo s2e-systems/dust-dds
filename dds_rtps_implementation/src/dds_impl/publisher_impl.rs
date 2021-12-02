@@ -177,7 +177,7 @@ where
     type TopicType = ();
     type DataWriterType = Arc<RwLock<dyn DataWriter<T> + Send + Sync>>;
 
-    fn create_datawriter_gat(
+    fn datawriter_factory_create_datawriter(
         &'_ self,
         _a_topic: &'_ Self::TopicType,
         qos: Option<DataWriterQos>,
@@ -233,11 +233,11 @@ where
         Some(data_writer_impl_shared)
     }
 
-    fn delete_datawriter_gat(&self, _a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
+    fn datawriter_factory_delete_datawriter(&self, _a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_datawriter_gat(
+    fn datawriter_factory_lookup_datawriter(
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {

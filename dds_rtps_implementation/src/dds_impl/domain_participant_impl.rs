@@ -191,7 +191,7 @@ impl DomainParticipantImpl {
 
 impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl {
     type PublisherType = PublisherProxy<'p, PublisherImpl>;
-    fn create_publisher_gat(
+    fn publisher_factory_create_publisher(
         &'p self,
         qos: Option<PublisherQos>,
         _a_listener: Option<&'static dyn PublisherListener>,
@@ -221,7 +221,7 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl {
         Some(publisher)
     }
 
-    fn delete_publisher_gat(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+    fn publisher_factory_delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         // let publisher = a_publisher.upgrade()?;
 
         if std::ptr::eq(a_publisher.get_participant(), self) {
@@ -242,7 +242,7 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl {
 impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl {
     type SubscriberType = SubscriberProxy<'s, SubscriberImpl>;
 
-    fn create_subscriber_gat(
+    fn subscriber_factory_create_subscriber(
         &'s self,
         _qos: Option<SubscriberQos>,
         _a_listener: Option<&'static dyn SubscriberListener>,
@@ -274,7 +274,7 @@ impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl {
         todo!()
     }
 
-    fn delete_subscriber_gat(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+    fn subscriber_factory_delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         // let subscriber_storage = a_subscriber.upgrade()?;
         // self.user_defined_subscriber_storage
         //     .retain(|x| x != &subscriber_storage);
@@ -292,7 +292,7 @@ impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl {
         todo!()
     }
 
-    fn get_builtin_subscriber_gat(&'s self) -> Self::SubscriberType {
+    fn subscriber_factory_get_builtin_subscriber(&'s self) -> Self::SubscriberType {
         // self.builtin_subscriber_storage[0].clone().downgrade()
 
         // let subscriber_storage_weak = self
@@ -307,7 +307,7 @@ impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl {
 impl<'t, T: 'static> DomainParticipantTopicFactory<'t, T> for DomainParticipantImpl {
     type TopicType = TopicProxy<'t, T, TopicImpl>;
 
-    fn create_topic_gat(
+    fn topic_factory_create_topic(
         &'t self,
         _topic_name: &str,
         _qos: Option<TopicQos>,
@@ -330,11 +330,11 @@ impl<'t, T: 'static> DomainParticipantTopicFactory<'t, T> for DomainParticipantI
         todo!()
     }
 
-    fn delete_topic_gat(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {
+    fn topic_factory_delete_topic(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {
         todo!()
     }
 
-    fn find_topic_gat(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
+    fn topic_factory_find_topic(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
         todo!()
     }
 }

@@ -11,7 +11,7 @@ pub trait SubscriberDataReaderFactory<'dr, 't, T> {
     type TopicType;
     type DataReaderType;
 
-    fn create_datareader_gat(
+    fn datareader_factory_create_datareader(
         &'dr self,
         a_topic: &'dr Self::TopicType,
         qos: Option<DataReaderQos>,
@@ -19,9 +19,9 @@ pub trait SubscriberDataReaderFactory<'dr, 't, T> {
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>;
 
-    fn delete_datareader_gat(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>;
+    fn datareader_factory_delete_datareader(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>;
 
-    fn lookup_datareader_gat(
+    fn datareader_factory_lookup_datareader(
         &'dr self,
         topic: &'dr Self::TopicType,
     ) -> Option<Self::DataReaderType>;
@@ -73,7 +73,7 @@ pub trait Subscriber {
     where
         Self: SubscriberDataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::create_datareader_gat(
+        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::datareader_factory_create_datareader(
             self, a_topic, qos, a_listener, mask,
         )
     }
@@ -94,7 +94,7 @@ pub trait Subscriber {
     where
         Self: SubscriberDataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::delete_datareader_gat(self, a_datareader)
+        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::datareader_factory_delete_datareader(self, a_datareader)
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -109,7 +109,7 @@ pub trait Subscriber {
     where
         Self: SubscriberDataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::lookup_datareader_gat(self, topic)
+        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::datareader_factory_lookup_datareader(self, topic)
     }
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to

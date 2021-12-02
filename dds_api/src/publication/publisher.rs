@@ -11,7 +11,7 @@ pub trait PublisherDataWriterFactory<'dw, 't, T>: Publisher {
     type TopicType;
     type DataWriterType;
 
-    fn create_datawriter_gat(
+    fn datawriter_factory_create_datawriter(
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
@@ -19,9 +19,9 @@ pub trait PublisherDataWriterFactory<'dw, 't, T>: Publisher {
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>;
 
-    fn delete_datawriter_gat(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()>;
+    fn datawriter_factory_delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()>;
 
-    fn lookup_datawriter_gat(
+    fn datawriter_factory_lookup_datawriter(
         &'dw self,
         topic: &'dw Self::TopicType,
     ) -> Option<Self::DataWriterType>;
@@ -65,7 +65,7 @@ pub trait Publisher {
     where
         Self: PublisherDataWriterFactory<'dw, 't, T> + Sized,
     {
-        <Self as PublisherDataWriterFactory<'dw, 't, T>>::create_datawriter_gat(
+        <Self as PublisherDataWriterFactory<'dw, 't, T>>::datawriter_factory_create_datawriter(
             self, a_topic, qos, a_listener, mask,
         )
     }
@@ -85,7 +85,7 @@ pub trait Publisher {
     where
         Self: PublisherDataWriterFactory<'dw, 't, T> + Sized,
     {
-        <Self as PublisherDataWriterFactory<'dw, 't, T>>::delete_datawriter_gat(self, a_datawriter)
+        <Self as PublisherDataWriterFactory<'dw, 't, T>>::datawriter_factory_delete_datawriter(self, a_datawriter)
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
@@ -99,7 +99,7 @@ pub trait Publisher {
     where
         Self: PublisherDataWriterFactory<'dw, 't, T> + Sized,
     {
-        <Self as PublisherDataWriterFactory<'dw, 't, T>>::lookup_datawriter_gat(self, topic)
+        <Self as PublisherDataWriterFactory<'dw, 't, T>>::datawriter_factory_lookup_datawriter(self, topic)
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects

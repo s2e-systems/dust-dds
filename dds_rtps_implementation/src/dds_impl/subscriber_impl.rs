@@ -89,7 +89,7 @@ where
     type TopicType = ();
     type DataReaderType = RtpsShared<DataReaderImpl<T>>;
 
-    fn create_datareader_gat(
+    fn datareader_factory_create_datareader(
         &'_ self,
         _a_topic: &'_ Self::TopicType,
         qos: Option<DataReaderQos>,
@@ -141,11 +141,11 @@ where
         Some(reader_storage_shared)
     }
 
-    fn delete_datareader_gat(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
+    fn datareader_factory_delete_datareader(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_datareader_gat(
+    fn datareader_factory_lookup_datareader(
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {

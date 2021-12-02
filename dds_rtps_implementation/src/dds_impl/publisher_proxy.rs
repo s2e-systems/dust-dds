@@ -49,7 +49,7 @@ where
     type TopicType = TopicProxy<'t, T, I>;
     type DataWriterType = DataWriterProxy<'dw, T, DW>;
 
-    fn create_datawriter_gat(
+    fn datawriter_factory_create_datawriter(
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
@@ -58,14 +58,14 @@ where
     ) -> Option<Self::DataWriterType> {
         let data_writer_weak =
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl).ok()?)
-                .create_datawriter_gat(a_topic.topic_impl(), qos, a_listener, mask)?;
+                .datawriter_factory_create_datawriter(a_topic.topic_impl(), qos, a_listener, mask)?;
 
         let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
 
         Some(datawriter)
     }
 
-    fn delete_datawriter_gat(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
+    fn datawriter_factory_delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
         if std::ptr::eq(a_datawriter.get_publisher(), self) {
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
                 .delete_datawriter(a_datawriter.data_writer_impl())
@@ -76,7 +76,7 @@ where
         }
     }
 
-    fn lookup_datawriter_gat(
+    fn datawriter_factory_lookup_datawriter(
         &'dw self,
         _topic: &'dw Self::TopicType,
     ) -> Option<Self::DataWriterType> {
