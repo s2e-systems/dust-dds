@@ -32,7 +32,7 @@ pub trait DomainParticipantTopicFactory<'t, T: 'static> {
         &'t self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<&'static dyn TopicListener<DataPIM = T>>,
+        a_listener: Option<&'static dyn TopicListener<DataType = T>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>;
 
@@ -143,7 +143,7 @@ pub trait DomainParticipant {
         &'t self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<&'static dyn TopicListener<DataPIM = T>>,
+        a_listener: Option<&'static dyn TopicListener<DataType = T>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>
     where
