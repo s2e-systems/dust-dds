@@ -44,7 +44,7 @@ use crate::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::{shared_object::rtps_shared_new, transport::TransportWrite},
+    utils::{clock::StdTimer, shared_object::rtps_shared_new, transport::TransportWrite},
 };
 
 pub trait StatelessWriterSubmessageProducer {
@@ -224,7 +224,8 @@ where
             nack_suppression_duration,
             data_max_size_serialized,
         ));
-        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
+        let data_writer_impl =
+            DataWriterImpl::new(qos, rtps_writer_impl, Box::new(StdTimer::new()));
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         self.stateful_data_writer_impl_list
             .lock()

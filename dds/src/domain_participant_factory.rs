@@ -26,7 +26,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::shared_object::rtps_shared_new,
+    utils::{clock::StdTimer, shared_object::rtps_shared_new},
 };
 use rust_rtps_pim::{
     behavior::writer::{
@@ -155,6 +155,7 @@ impl DomainParticipantFactory {
             DataWriterImpl::<SpdpDiscoveredParticipantData, _>::new(
                 DataWriterQos::default(),
                 spdp_builtin_participant_rtps_writer,
+                Box::new(StdTimer::new()),
             );
 
         let spdp_builtin_participant_dds_data_writer =
@@ -170,6 +171,7 @@ impl DomainParticipantFactory {
             rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_publications_rtps_writer,
+                Box::new(StdTimer::new()),
             ));
 
         let sedp_builtin_subscriptions_dds_data_reader =
@@ -182,6 +184,7 @@ impl DomainParticipantFactory {
             rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_subscriptions_rtps_writer,
+                Box::new(StdTimer::new()),
             ));
 
         let sedp_builtin_topics_dds_data_reader =
@@ -194,6 +197,7 @@ impl DomainParticipantFactory {
             rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_topics_rtps_writer,
+                Box::new(StdTimer::new()),
             ));
 
         // ////// Create built-in publisher and subscriber

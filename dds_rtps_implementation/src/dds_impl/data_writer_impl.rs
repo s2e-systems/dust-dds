@@ -30,6 +30,7 @@ use crate::{
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
         rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut,
     },
+    utils::clock::Timer,
 };
 
 use super::publisher_impl::{StatefulWriterSubmessageProducer, StatelessWriterSubmessageProducer};
@@ -50,7 +51,7 @@ pub struct DataWriterImpl<T, W> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
-    last_sent_heartbeat_instant: std::time::Instant,
+    heartbeat_timer: Box<dyn Timer + Send + Sync>,
     heartbeat_count: Count,
 }
 
@@ -58,12 +59,16 @@ impl<T, W> DataWriterImpl<T, W>
 where
     T: Send + 'static,
 {
-    pub fn new(qos: DataWriterQos, rtps_writer_impl: W) -> Self {
+    pub fn new(
+        qos: DataWriterQos,
+        rtps_writer_impl: W,
+        heartbeat_timer: Box<dyn Timer + Send + Sync>,
+    ) -> Self {
         Self {
             _qos: qos,
             rtps_writer_impl,
             _listener: None,
-            last_sent_heartbeat_instant: std::time::Instant::now(),
+            heartbeat_timer,
             heartbeat_count: Count(1),
         }
     }
@@ -295,7 +300,7 @@ impl<T> StatefulWriterSubmessageProducer for DataWriterImpl<T, RtpsStatefulWrite
         let mut destined_submessages = Vec::new();
 
         let mut heartbeat_submessage = None;
-        if self.last_sent_heartbeat_instant.elapsed()
+        if self.heartbeat_timer.elapsed()
             > std::time::Duration::new(
                 self.rtps_writer_impl
                     .stateful_writer
@@ -318,7 +323,7 @@ impl<T> StatefulWriterSubmessageProducer for DataWriterImpl<T, RtpsStatefulWrite
                     },
                 );
                 self.heartbeat_count += Count(1);
-                self.last_sent_heartbeat_instant = std::time::Instant::now();
+                self.heartbeat_timer.reset();
             }
         }
 
@@ -366,6 +371,18 @@ mod tests {
     };
 
     use super::*;
+
+    struct MockTimer;
+
+    impl Timer for MockTimer {
+        fn reset(&mut self) {
+            todo!()
+        }
+
+        fn elapsed(&self) -> std::time::Duration {
+            todo!()
+        }
+    }
 
     #[test]
     fn write_w_timestamp() {
@@ -423,6 +440,7 @@ mod tests {
             MockWriter {
                 cache: MockWriterCache,
             },
+            Box::new(MockTimer),
         );
 
         let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);

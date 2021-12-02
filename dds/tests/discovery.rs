@@ -42,6 +42,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::{
+        clock::StdTimer,
         message_receiver::MessageReceiver,
         shared_object::{rtps_shared_new, rtps_shared_read_lock},
         transport::TransportRead,
@@ -132,6 +133,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         spdp_builtin_participant_rtps_writer,
+        Box::new(StdTimer::new()),
     );
 
     data_writer
@@ -144,7 +146,8 @@ fn send_and_receive_discovery_data_happy_path() {
     let publisher = PublisherImpl::new(
         PublisherQos::default(),
         RtpsGroup::new(GUID_UNKNOWN),
-        vec![Arc::new(RwLock::new(data_writer))], vec![],
+        vec![Arc::new(RwLock::new(data_writer))],
+        vec![],
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
@@ -250,6 +253,7 @@ fn process_discovery_data_happy_path() {
     let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         spdp_builtin_participant_rtps_writer,
+        Box::new(StdTimer::new()),
     );
 
     spdp_builtin_participant_data_writer
@@ -264,10 +268,12 @@ fn process_discovery_data_happy_path() {
         SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]),
     );
 
-    let sedp_builtin_publications_data_writer = rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
-        DataWriterQos::default(),
-        sedp_builtin_publications_rtps_writer,
-    ));
+    let sedp_builtin_publications_data_writer =
+        rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
+            DataWriterQos::default(),
+            sedp_builtin_publications_rtps_writer,
+            Box::new(StdTimer::new()),
+        ));
 
     let publisher = PublisherImpl::new(
         PublisherQos::default(),
@@ -275,12 +281,8 @@ fn process_discovery_data_happy_path() {
             GuidPrefix([4; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
-        vec![
-            rtps_shared_new(spdp_builtin_participant_data_writer),
-        ],
-        vec![
-            sedp_builtin_publications_data_writer.clone(),
-        ],
+        vec![rtps_shared_new(spdp_builtin_participant_data_writer)],
+        vec![sedp_builtin_publications_data_writer.clone()],
     );
 
     let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
