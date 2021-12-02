@@ -18,7 +18,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
 
-use crate::{dds_impl::publisher_impl::SubmessageProducer, dds_type::DdsSerialize};
+use crate::{dds_impl::publisher_impl::StatelessWriterSubmessageProducer, dds_type::DdsSerialize};
 
 use super::{
     rtps_reader_locator_impl::RtpsReaderLocatorImpl,
@@ -41,10 +41,10 @@ impl RtpsStatelessWriterImpl {
     }
 }
 
-impl<'a> SubmessageProducer<'a> for RtpsStatelessWriterImpl {
-    type DestinedSubmessages = Vec<(&'a RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'a>>)>;
-
-    fn produce_submessages(&'a mut self) -> Self::DestinedSubmessages {
+impl StatelessWriterSubmessageProducer for RtpsStatelessWriterImpl {
+    fn produce_submessages(
+        &mut self,
+    ) -> Vec<(&'_ RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
         let mut destined_submessages = Vec::new();
 
         for reader_locator_impl in &mut self.0.reader_locators {

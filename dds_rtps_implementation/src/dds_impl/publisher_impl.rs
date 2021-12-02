@@ -22,17 +22,20 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::writer::stateful_writer::RtpsStatefulWriter,
+    behavior::writer::{
+        reader_locator::RtpsReaderLocator, reader_proxy::RtpsReaderProxy,
+        stateful_writer::RtpsStatefulWriter,
+    },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, ReliabilityKind, TopicKind, PROTOCOLVERSION,
+            EntityId, Guid, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
     },
 };
-use rust_rtps_psm::messages::overall_structure::RtpsMessageWrite;
+use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
 use crate::{
     dds_impl::data_writer_impl::DataWriterImpl,
@@ -44,9 +47,19 @@ use crate::{
     utils::{shared_object::rtps_shared_new, transport::TransportWrite},
 };
 
-pub trait SubmessageProducer<'a> {
-    type DestinedSubmessages;
-    fn produce_submessages(&'a mut self) -> Self::DestinedSubmessages;
+pub trait StatelessWriterSubmessageProducer {
+    fn produce_submessages(
+        &mut self,
+    ) -> Vec<(&'_ RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)>;
+}
+
+pub trait StatefulWriterSubmessageProducer {
+    fn produce_submessages(
+        &mut self,
+    ) -> Vec<(
+        &'_ RtpsReaderProxy<Vec<Locator>>,
+        Vec<RtpsSubmessageTypeWrite<'_>>,
+    )>;
 }
 
 pub trait AnyStatelessDataWriter {
