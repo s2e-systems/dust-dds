@@ -55,7 +55,10 @@ pub trait DomainParticipantPublisherFactory<'p> {
         mask: StatusMask,
     ) -> Option<Self::PublisherType>;
 
-    fn publisher_factory_delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
+    fn publisher_factory_delete_publisher(
+        &self,
+        a_publisher: &Self::PublisherType,
+    ) -> DDSResult<()>;
 }
 
 pub trait DomainParticipant {
@@ -75,9 +78,7 @@ pub trait DomainParticipant {
     where
         Self: DomainParticipantPublisherFactory<'p> + Sized,
     {
-        <Self as DomainParticipantPublisherFactory<'p>>::publisher_factory_create_publisher(
-            self, qos, a_listener, mask,
-        )
+        self.publisher_factory_create_publisher(qos, a_listener, mask)
     }
 
     /// This operation deletes an existing Publisher.
@@ -91,7 +92,7 @@ pub trait DomainParticipant {
     where
         Self: DomainParticipantPublisherFactory<'p> + Sized,
     {
-        <Self as DomainParticipantPublisherFactory<'p>>::publisher_factory_delete_publisher(self, a_publisher)
+        self.publisher_factory_delete_publisher(a_publisher)
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -111,9 +112,7 @@ pub trait DomainParticipant {
     where
         Self: DomainParticipantSubscriberFactory<'s> + Sized,
     {
-        <Self as DomainParticipantSubscriberFactory<'s>>::subscriber_factory_create_subscriber(
-            self, qos, a_listener, mask,
-        )
+        self.subscriber_factory_create_subscriber(qos, a_listener, mask)
     }
 
     /// This operation deletes an existing Subscriber.
@@ -127,10 +126,7 @@ pub trait DomainParticipant {
     where
         Self: DomainParticipantSubscriberFactory<'s> + Sized,
     {
-        <Self as DomainParticipantSubscriberFactory<'s>>::subscriber_factory_delete_subscriber(
-            self,
-            a_subscriber,
-        )
+        self.subscriber_factory_delete_subscriber(a_subscriber)
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -153,9 +149,7 @@ pub trait DomainParticipant {
     where
         Self: DomainParticipantTopicFactory<'t, T> + Sized,
     {
-        <Self as DomainParticipantTopicFactory<'t, T>>::topic_factory_create_topic(
-            self, topic_name, qos, a_listener, mask,
-        )
+        self.topic_factory_create_topic(topic_name, qos, a_listener, mask)
     }
 
     /// This operation deletes a Topic.
@@ -169,7 +163,7 @@ pub trait DomainParticipant {
     where
         Self: DomainParticipantTopicFactory<'t, T> + Sized,
     {
-        <Self as DomainParticipantTopicFactory<'t, T>>::topic_factory_delete_topic(self, a_topic)
+        self.topic_factory_delete_topic(a_topic)
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
@@ -191,9 +185,7 @@ pub trait DomainParticipant {
     where
         Self: DomainParticipantTopicFactory<'t, T> + Sized,
     {
-        <Self as DomainParticipantTopicFactory<'t, T>>::topic_factory_find_topic(
-            self, topic_name, timeout,
-        )
+        self.topic_factory_find_topic(topic_name, timeout)
     }
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
@@ -222,9 +214,7 @@ pub trait DomainParticipant {
     where
         Self: DomainParticipantSubscriberFactory<'s> + Sized,
     {
-        <Self as DomainParticipantSubscriberFactory<'s>>::subscriber_factory_get_builtin_subscriber(
-            self,
-        )
+        self.subscriber_factory_get_builtin_subscriber()
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point

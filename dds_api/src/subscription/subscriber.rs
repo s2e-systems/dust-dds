@@ -19,7 +19,10 @@ pub trait SubscriberDataReaderFactory<'dr, 't, T> {
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>;
 
-    fn datareader_factory_delete_datareader(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>;
+    fn datareader_factory_delete_datareader(
+        &self,
+        a_datareader: &Self::DataReaderType,
+    ) -> DDSResult<()>;
 
     fn datareader_factory_lookup_datareader(
         &'dr self,
@@ -73,9 +76,7 @@ pub trait Subscriber {
     where
         Self: SubscriberDataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::datareader_factory_create_datareader(
-            self, a_topic, qos, a_listener, mask,
-        )
+        self.datareader_factory_create_datareader(a_topic, qos, a_listener, mask)
     }
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
@@ -94,7 +95,7 @@ pub trait Subscriber {
     where
         Self: SubscriberDataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::datareader_factory_delete_datareader(self, a_datareader)
+        self.datareader_factory_delete_datareader(a_datareader)
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -109,7 +110,7 @@ pub trait Subscriber {
     where
         Self: SubscriberDataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as SubscriberDataReaderFactory<'dr, 't, T>>::datareader_factory_lookup_datareader(self, topic)
+        self.datareader_factory_lookup_datareader(topic)
     }
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
