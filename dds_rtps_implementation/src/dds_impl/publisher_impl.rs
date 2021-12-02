@@ -67,7 +67,7 @@ pub trait AnyStatelessDataWriter {
 
     fn into_as_mut_stateless_writer(
         self: Arc<Self>,
-    ) -> Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>>;
+    ) -> Arc<RwLock<dyn StatelessWriterSubmessageProducer>>;
 }
 
 impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl>>
@@ -80,7 +80,7 @@ where
 
     fn into_as_mut_stateless_writer(
         self: Arc<Self>,
-    ) -> Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>> {
+    ) -> Arc<RwLock<dyn StatelessWriterSubmessageProducer>> {
         self
     }
 }
@@ -90,7 +90,7 @@ pub trait AnyStatefulDataWriter {
 
     fn into_as_mut_stateful_writer(
         self: Arc<Self>,
-    ) -> Arc<RwLock<dyn AsMut<RtpsStatefulWriterImpl>>>;
+    ) -> Arc<RwLock<dyn StatefulWriterSubmessageProducer>>;
 }
 
 impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl>>
@@ -103,7 +103,7 @@ where
 
     fn into_as_mut_stateful_writer(
         self: Arc<Self>,
-    ) -> Arc<RwLock<dyn AsMut<RtpsStatefulWriterImpl>>> {
+    ) -> Arc<RwLock<dyn StatefulWriterSubmessageProducer>> {
         self
     }
 }
@@ -146,8 +146,7 @@ impl PublisherImpl {
         for stateless_writer in stateless_data_writer_list_lock.iter().cloned() {
             let rtps_stateless_writer_arc_lock = stateless_writer.into_as_mut_stateless_writer();
             let mut rtps_stateless_writer_lock = rtps_stateless_writer_arc_lock.write().unwrap();
-            let rtps_stateless_writer_impl = rtps_stateless_writer_lock.as_mut();
-            let destined_submessages = rtps_stateless_writer_impl.produce_submessages();
+            let destined_submessages = rtps_stateless_writer_lock.produce_submessages();
 
             for (reader_locator, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);
@@ -160,9 +159,8 @@ impl PublisherImpl {
         for stateful_writer in stateful_data_writer_list_lock.iter().cloned() {
             let rtps_stateful_writer_arc_lock = stateful_writer.into_as_mut_stateful_writer();
             let mut rtps_stateful_writer_lock = rtps_stateful_writer_arc_lock.write().unwrap();
-            let rtps_stateful_writer_impl = rtps_stateful_writer_lock.as_mut();
 
-            let destined_submessages = rtps_stateful_writer_impl.produce_submessages();
+            let destined_submessages = rtps_stateful_writer_lock.produce_submessages();
 
             for (reader_proxy, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);

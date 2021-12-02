@@ -1,13 +1,8 @@
-use std::cell::RefCell;
-
 use rust_rtps_pim::{
-    behavior::{
-        stateless_writer_behavior::BestEffortStatelessWriterBehavior,
-        writer::{
-            reader_locator::RtpsReaderLocator,
-            stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
-            writer::RtpsWriterOperations,
-        },
+    behavior::writer::{
+        reader_locator::RtpsReaderLocator,
+        stateless_writer::{RtpsStatelessWriter, RtpsStatelessWriterOperations},
+        writer::RtpsWriterOperations,
     },
     messages::submessage_elements::Parameter,
     structure::{
@@ -16,9 +11,8 @@ use rust_rtps_pim::{
         types::{ChangeKind, InstanceHandle, Locator},
     },
 };
-use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
 
-use crate::{dds_impl::publisher_impl::StatelessWriterSubmessageProducer, dds_type::DdsSerialize};
+use crate::dds_type::DdsSerialize;
 
 use super::{
     rtps_reader_locator_impl::RtpsReaderLocatorImpl,
@@ -38,37 +32,6 @@ impl RtpsStatelessWriterImpl {
         >,
     ) -> Self {
         Self(stateless_writer)
-    }
-}
-
-impl StatelessWriterSubmessageProducer for RtpsStatelessWriterImpl {
-    fn produce_submessages(
-        &mut self,
-    ) -> Vec<(&'_ RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
-        let mut destined_submessages = Vec::new();
-
-        for reader_locator_impl in &mut self.0.reader_locators {
-            let submessages = RefCell::new(Vec::new());
-            BestEffortStatelessWriterBehavior::send_unsent_changes(
-                reader_locator_impl,
-                &self.0.writer,
-                |data| {
-                    submessages
-                        .borrow_mut()
-                        .push(RtpsSubmessageTypeWrite::from(data))
-                },
-                |gap| {
-                    submessages
-                        .borrow_mut()
-                        .push(RtpsSubmessageTypeWrite::from(gap))
-                },
-            );
-            let submessages = submessages.take();
-            if !submessages.is_empty() {
-                destined_submessages.push((&reader_locator_impl.reader_locator, submessages));
-            }
-        }
-        destined_submessages
     }
 }
 

@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
     infrastructure::{entity::Entity, qos::DataWriterQos},
@@ -7,12 +9,30 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::topic::Topic,
 };
-use rust_rtps_pim::{behavior::writer::writer::RtpsWriterOperations, structure::types::ChangeKind};
+use rust_rtps_pim::{
+    behavior::{
+        stateful_writer_behavior::ReliableStatefulWriterBehavior,
+        stateless_writer_behavior::BestEffortStatelessWriterBehavior,
+        writer::{
+            reader_locator::RtpsReaderLocator, reader_proxy::RtpsReaderProxy,
+            writer::RtpsWriterOperations,
+        },
+    },
+    messages::types::Count,
+    structure::types::{ChangeKind, Locator},
+};
+use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
 
 use crate::{
     dds_type::DdsSerialize,
-    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut,
+    rtps_impl::{
+        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut,
+    },
 };
+
+use super::publisher_impl::{StatefulWriterSubmessageProducer, StatelessWriterSubmessageProducer};
 
 // pub trait RtpsWriterBehavior {
 //     fn get_stateless_writer(
@@ -81,6 +101,8 @@ pub struct DataWriterImpl<T, W> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
+    last_sent_heartbeat_instant: std::time::Instant,
+    heartbeat_count: Count,
 }
 
 impl<T, W> DataWriterImpl<T, W>
@@ -92,6 +114,8 @@ where
             _qos: qos,
             rtps_writer_impl,
             _listener: None,
+            last_sent_heartbeat_instant: std::time::Instant::now(),
+            heartbeat_count: Count(1),
         }
     }
 }
@@ -278,6 +302,105 @@ impl<T, W> Entity for DataWriterImpl<T, W> {
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
+    }
+}
+
+impl<T> StatelessWriterSubmessageProducer for DataWriterImpl<T, RtpsStatelessWriterImpl> {
+    fn produce_submessages(
+        &mut self,
+    ) -> Vec<(&'_ RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
+        let mut destined_submessages = Vec::new();
+
+        for reader_locator_impl in &mut self.rtps_writer_impl.0.reader_locators {
+            let submessages = RefCell::new(Vec::new());
+            BestEffortStatelessWriterBehavior::send_unsent_changes(
+                reader_locator_impl,
+                &self.rtps_writer_impl.0.writer,
+                |data| {
+                    submessages
+                        .borrow_mut()
+                        .push(RtpsSubmessageTypeWrite::from(data))
+                },
+                |gap| {
+                    submessages
+                        .borrow_mut()
+                        .push(RtpsSubmessageTypeWrite::from(gap))
+                },
+            );
+            let submessages = submessages.take();
+            if !submessages.is_empty() {
+                destined_submessages.push((&reader_locator_impl.reader_locator, submessages));
+            }
+        }
+        destined_submessages
+    }
+}
+
+impl<T> StatefulWriterSubmessageProducer for DataWriterImpl<T, RtpsStatefulWriterImpl> {
+    fn produce_submessages(
+        &mut self,
+    ) -> Vec<(
+        &'_ RtpsReaderProxy<Vec<Locator>>,
+        Vec<RtpsSubmessageTypeWrite<'_>>,
+    )> {
+        let mut destined_submessages = Vec::new();
+
+        let mut heartbeat_submessage = None;
+        if self.last_sent_heartbeat_instant.elapsed()
+            > std::time::Duration::new(
+                self.rtps_writer_impl
+                    .stateful_writer
+                    .writer
+                    .heartbeat_period
+                    .seconds as u64,
+                self.rtps_writer_impl
+                    .stateful_writer
+                    .writer
+                    .heartbeat_period
+                    .fraction,
+            )
+        {
+            {
+                ReliableStatefulWriterBehavior::send_heartbeat(
+                    &self.rtps_writer_impl.stateful_writer.writer,
+                    self.heartbeat_count,
+                    &mut |heartbeat| {
+                        heartbeat_submessage = Some(heartbeat);
+                    },
+                );
+                self.heartbeat_count += Count(1);
+                self.last_sent_heartbeat_instant = std::time::Instant::now();
+            }
+        }
+
+        for reader_proxy in &mut self.rtps_writer_impl.stateful_writer.matched_readers {
+            let submessages = RefCell::new(Vec::new());
+            ReliableStatefulWriterBehavior::send_unsent_changes(
+                reader_proxy,
+                &self.rtps_writer_impl.stateful_writer.writer,
+                |data| {
+                    submessages
+                        .borrow_mut()
+                        .push(RtpsSubmessageTypeWrite::from(data))
+                },
+                |gap| {
+                    submessages
+                        .borrow_mut()
+                        .push(RtpsSubmessageTypeWrite::from(gap))
+                },
+            );
+            let mut submessages = submessages.take();
+
+            // Add heartbeat to the submessages to be sent to every proxy
+            if let Some(heartbeat_submessage) = heartbeat_submessage.clone() {
+                submessages.push(RtpsSubmessageTypeWrite::from(heartbeat_submessage));
+            }
+
+            if !submessages.is_empty() {
+                destined_submessages.push((&reader_proxy.reader_proxy, submessages));
+            }
+        }
+        destined_submessages
     }
 }
 
