@@ -86,7 +86,7 @@ impl DomainParticipantFactory {
     /// to call,e.g. create_topic(), because we can't write impl DomainParticipant + for<'t, T> TopicGAT<'t, T> on the return. This issue will
     /// probably be solved once the GAT functionality is available on stable.
     pub fn create_participant(
-        _domain_id: DomainId,
+        domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
@@ -230,6 +230,7 @@ impl DomainParticipantFactory {
 
         let domain_participant = DomainParticipantImpl::new(
             guid_prefix,
+            domain_id,
             qos.unwrap_or_default(),
             builtin_subscriber_storage,
             builtin_publisher_storage,

@@ -5,7 +5,7 @@ use std::sync::{
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
+    dcps_psm::{BuiltInTopicKey, DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
         domain_participant::{DomainParticipant, PublisherGAT, SubscriberGAT, TopicGAT},
         domain_participant_listener::DomainParticipantListener,
@@ -19,10 +19,20 @@ use rust_dds_api::{
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::{
-    group::RtpsGroup,
-    types::{
-        EntityId, Guid, GuidPrefix, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
+use rust_rtps_pim::{
+    discovery::{
+        spdp::participant_proxy::ParticipantProxy,
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    },
+    messages::types::Count,
+    structure::{
+        entity::RtpsEntity,
+        group::RtpsGroup,
+        participant::RtpsParticipant,
+        types::{
+            EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
+            USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
+        },
     },
 };
 
@@ -49,8 +59,9 @@ pub trait Transport: TransportRead + TransportWrite + Send + Sync {}
 impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
 
 pub struct DomainParticipantImpl {
-    guid_prefix: GuidPrefix,
-    _qos: DomainParticipantQos,
+    rtps_participant: RtpsParticipant<Vec<Locator>>,
+    domain_id: DomainId,
+    qos: DomainParticipantQos,
     _builtin_subscriber: RtpsShared<SubscriberImpl>,
     builtin_publisher: RtpsShared<PublisherImpl>,
     _user_defined_subscriber_list: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
@@ -67,6 +78,7 @@ pub struct DomainParticipantImpl {
 impl DomainParticipantImpl {
     pub fn new(
         guid_prefix: GuidPrefix,
+        domain_id: DomainId,
         domain_participant_qos: DomainParticipantQos,
         builtin_subscriber: RtpsShared<SubscriberImpl>,
         builtin_publisher: RtpsShared<PublisherImpl>,
@@ -75,11 +87,17 @@ impl DomainParticipantImpl {
     ) -> Self {
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
+        let rtps_participant = RtpsParticipant {
+            entity: RtpsEntity {
+                guid: Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
+            },
+            protocol_version,
+            vendor_id,
+            default_unicast_locator_list: vec![],
+            default_multicast_locator_list: vec![],
+        };
         let is_enabled = Arc::new(AtomicBool::new(false));
         let is_enabled_arc = is_enabled.clone();
-        // let default_transport = default_transport.clone();
-        // let metatraffic_transport = metatraffic_transport.clone();
-        // let guid_prefix = guid_prefix;
         let builtin_subscriber_arc = builtin_subscriber.clone();
         let builtin_publisher_arc = builtin_publisher.clone();
         let user_defined_subscriber_list = Arc::new(Mutex::new(Vec::new()));
@@ -172,8 +190,9 @@ impl DomainParticipantImpl {
         //     }
 
         Self {
-            guid_prefix,
-            _qos: domain_participant_qos,
+            rtps_participant,
+            domain_id,
+            qos: domain_participant_qos,
             _builtin_subscriber: builtin_subscriber,
             builtin_publisher,
             _user_defined_subscriber_list: user_defined_subscriber_list,
@@ -205,7 +224,7 @@ impl<'p> PublisherGAT<'p> for DomainParticipantImpl {
             [user_defined_publisher_counter, 0, 0],
             USER_DEFINED_WRITER_GROUP,
         );
-        let guid = Guid::new(self.guid_prefix, entity_id);
+        let guid = Guid::new(self.rtps_participant.entity.guid.prefix, entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let data_writer_impl_list = Vec::new();
         let publisher_impl =
@@ -486,11 +505,45 @@ impl Entity for DomainParticipantImpl {
 
     fn enable(&self) -> DDSResult<()> {
         self.is_enabled.store(true, atomic::Ordering::SeqCst);
-        let _spdp_builtin_participant_writer = self
+        let spdp_builtin_participant_writer = self
             .builtin_publisher
             .write()
             .unwrap()
             .lookup_datawriter::<SpdpDiscoveredParticipantData>(&())
+            .unwrap();
+        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey { value: [1; 4] }, // GUID,
+                user_data: self.qos.user_data.clone(),
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: self.domain_id as u32,
+                domain_tag: "ab".to_string(),
+                protocol_version: self.rtps_participant.protocol_version,
+                guid_prefix: self.rtps_participant.entity.guid.prefix,
+                vendor_id: self.rtps_participant.vendor_id,
+                expects_inline_qos: false,
+                metatraffic_unicast_locator_list: vec![],
+                metatraffic_multicast_locator_list: vec![],
+                default_unicast_locator_list: vec![],
+                default_multicast_locator_list: vec![],
+                available_builtin_endpoints: BuiltinEndpointSet(0),
+                manual_liveliness_count: Count(0),
+                builtin_endpoint_qos: BuiltinEndpointQos(0),
+            },
+            lease_duration: rust_rtps_pim::behavior::types::Duration {
+                seconds: 120,
+                fraction: 0,
+            },
+        };
+        spdp_builtin_participant_writer
+            .write()
+            .unwrap()
+            .write_w_timestamp(
+                &spdp_discovered_participant_data,
+                None,
+                Time { sec: 0, nanosec: 0 },
+            )
             .unwrap();
 
         Ok(())
@@ -533,6 +586,7 @@ mod tests {
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
+            1,
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -562,6 +616,7 @@ mod tests {
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([0; 12]),
+            1,
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -593,6 +648,7 @@ mod tests {
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
+            1,
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -622,6 +678,7 @@ mod tests {
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
+            1,
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -656,6 +713,7 @@ mod tests {
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
+            1,
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -685,6 +743,7 @@ mod tests {
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
+            1,
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -714,6 +773,7 @@ mod tests {
         ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
+            1,
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -748,6 +808,7 @@ mod tests {
         ));
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
+            1,
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -792,6 +853,7 @@ mod tests {
         ));
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
+            1,
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
