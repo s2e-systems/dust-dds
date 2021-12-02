@@ -35,35 +35,31 @@ use crate::{
 
 use super::publisher_impl::{StatefulWriterSubmessageProducer, StatelessWriterSubmessageProducer};
 
-impl<T, W> AsRef<W> for DataWriterImpl<T, W> {
+impl<T, W, C> AsRef<W> for DataWriterImpl<T, W, C> {
     fn as_ref(&self) -> &W {
         &self.rtps_writer_impl
     }
 }
 
-impl<T, W> AsMut<W> for DataWriterImpl<T, W> {
+impl<T, W, C> AsMut<W> for DataWriterImpl<T, W, C> {
     fn as_mut(&mut self) -> &mut W {
         &mut self.rtps_writer_impl
     }
 }
 
-pub struct DataWriterImpl<T, W> {
+pub struct DataWriterImpl<T, W, C> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
     _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
-    heartbeat_timer: Box<dyn Timer + Send + Sync>,
+    heartbeat_timer: C,
     heartbeat_count: Count,
 }
 
-impl<T, W> DataWriterImpl<T, W>
+impl<T, W, C> DataWriterImpl<T, W, C>
 where
     T: Send + 'static,
 {
-    pub fn new(
-        qos: DataWriterQos,
-        rtps_writer_impl: W,
-        heartbeat_timer: Box<dyn Timer + Send + Sync>,
-    ) -> Self {
+    pub fn new(qos: DataWriterQos, rtps_writer_impl: W, heartbeat_timer: C) -> Self {
         Self {
             _qos: qos,
             rtps_writer_impl,
@@ -74,7 +70,7 @@ where
     }
 }
 
-impl<T, W> DataWriter<T> for DataWriterImpl<T, W>
+impl<T, W, C> DataWriter<T> for DataWriterImpl<T, W, C>
 where
     T: DdsSerialize,
     W: RtpsWriterOperations + for<'a> WriterHistoryCacheAddChangeMut<'a, T>,
@@ -211,7 +207,7 @@ where
     }
 }
 
-impl<T, W> Entity for DataWriterImpl<T, W> {
+impl<T, W, C> Entity for DataWriterImpl<T, W, C> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<DataType = T>>;
 
@@ -259,7 +255,7 @@ impl<T, W> Entity for DataWriterImpl<T, W> {
     }
 }
 
-impl<T> StatelessWriterSubmessageProducer for DataWriterImpl<T, RtpsStatelessWriterImpl> {
+impl<T, C> StatelessWriterSubmessageProducer for DataWriterImpl<T, RtpsStatelessWriterImpl, C> {
     fn produce_submessages(
         &mut self,
     ) -> Vec<(&'_ RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
@@ -290,7 +286,10 @@ impl<T> StatelessWriterSubmessageProducer for DataWriterImpl<T, RtpsStatelessWri
     }
 }
 
-impl<T> StatefulWriterSubmessageProducer for DataWriterImpl<T, RtpsStatefulWriterImpl> {
+impl<T, C> StatefulWriterSubmessageProducer for DataWriterImpl<T, RtpsStatefulWriterImpl, C>
+where
+    C: Timer,
+{
     fn produce_submessages(
         &mut self,
     ) -> Vec<(
@@ -495,11 +494,8 @@ mod tests {
 
         rtps_writer_impl.matched_reader_add(reader_proxy);
 
-        let mut data_writer_impl: DataWriterImpl<MockData, _> = DataWriterImpl::new(
-            DataWriterQos::default(),
-            rtps_writer_impl,
-            Box::new(MockTimer),
-        );
+        let mut data_writer_impl: DataWriterImpl<MockData, _, _> =
+            DataWriterImpl::new(DataWriterQos::default(), rtps_writer_impl, MockTimer);
 
         let destined_submessages1 = data_writer_impl.produce_submessages();
         let produced_submessages1 = &destined_submessages1[0].1;

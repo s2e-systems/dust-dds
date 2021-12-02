@@ -70,7 +70,7 @@ pub trait AnyStatelessDataWriter {
     ) -> Arc<RwLock<dyn StatelessWriterSubmessageProducer>>;
 }
 
-impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl>>
+impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl, StdTimer>>
 where
     T: 'static,
 {
@@ -93,7 +93,7 @@ pub trait AnyStatefulDataWriter {
     ) -> Arc<RwLock<dyn StatefulWriterSubmessageProducer>>;
 }
 
-impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl>>
+impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl, StdTimer>>
 where
     T: 'static,
 {
@@ -224,8 +224,7 @@ where
             nack_suppression_duration,
             data_max_size_serialized,
         ));
-        let data_writer_impl =
-            DataWriterImpl::new(qos, rtps_writer_impl, Box::new(StdTimer::new()));
+        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl, StdTimer::new());
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         self.stateful_data_writer_impl_list
             .lock()
@@ -244,7 +243,10 @@ where
     ) -> Option<Self::DataWriterType> {
         let data_writer_impl_list_lock = self.stateful_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl>>>(x.into_any()).ok()
+            Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl, StdTimer>>>(
+                x.into_any(),
+            )
+            .ok()
         });
 
         if let Some(found_data_writer) = found_data_writer {
@@ -253,7 +255,10 @@ where
 
         let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl>>>(x.into_any()).ok()
+            Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl, StdTimer>>>(
+                x.into_any(),
+            )
+            .ok()
         });
 
         if let Some(found_data_writer) = found_data_writer {

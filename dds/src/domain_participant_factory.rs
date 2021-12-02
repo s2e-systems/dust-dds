@@ -152,10 +152,10 @@ impl DomainParticipantFactory {
             ));
 
         let spdp_builtin_participant_dds_data_writer =
-            DataWriterImpl::<SpdpDiscoveredParticipantData, _>::new(
+            DataWriterImpl::<SpdpDiscoveredParticipantData, _, _>::new(
                 DataWriterQos::default(),
                 spdp_builtin_participant_rtps_writer,
-                Box::new(StdTimer::new()),
+                StdTimer::new(),
             );
 
         let spdp_builtin_participant_dds_data_writer =
@@ -168,10 +168,10 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_publications_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_publications_rtps_writer,
-                Box::new(StdTimer::new()),
+                StdTimer::new(),
             ));
 
         let sedp_builtin_subscriptions_dds_data_reader =
@@ -181,10 +181,10 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_subscriptions_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData, _, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_subscriptions_rtps_writer,
-                Box::new(StdTimer::new()),
+                StdTimer::new(),
             ));
 
         let sedp_builtin_topics_dds_data_reader =
@@ -194,10 +194,10 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_topics_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData, _, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_topics_rtps_writer,
-                Box::new(StdTimer::new()),
+                StdTimer::new(),
             ));
 
         // ////// Create built-in publisher and subscriber
