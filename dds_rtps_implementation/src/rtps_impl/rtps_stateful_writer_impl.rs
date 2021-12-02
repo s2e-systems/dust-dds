@@ -9,7 +9,7 @@ use rust_rtps_pim::{
             writer::RtpsWriterOperations,
         },
     },
-    messages::{submessage_elements::Parameter, submessages::HeartbeatSubmessage, types::Count},
+    messages::{submessage_elements::Parameter, types::Count},
     structure::{
         cache_change::RtpsCacheChange,
         history_cache::RtpsHistoryCacheAddChange,
@@ -52,6 +52,26 @@ impl RtpsStatefulWriterImpl {
     pub fn produce_submessages(&mut self) -> Vec<(&Locator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
         let mut destined_submessages = Vec::new();
 
+        let mut heartbeat_submessage = None;
+        if self.last_sent_heartbeat_instant.elapsed()
+            > std::time::Duration::new(
+                self.stateful_writer.writer.heartbeat_period.seconds as u64,
+                self.stateful_writer.writer.heartbeat_period.fraction,
+            )
+        {
+            {
+                ReliableStatefulWriterBehavior::send_heartbeat(
+                    &self.stateful_writer.writer,
+                    self.heartbeat_count,
+                    &mut |heartbeat| {
+                        heartbeat_submessage = Some(heartbeat);
+                    },
+                );
+                self.heartbeat_count += Count(1);
+                self.last_sent_heartbeat_instant = std::time::Instant::now();
+            }
+        }
+
         for reader_proxy in &mut self.stateful_writer.matched_readers {
             let submessages = RefCell::new(Vec::new());
             ReliableStatefulWriterBehavior::send_unsent_changes(
@@ -85,45 +105,12 @@ impl RtpsStatefulWriterImpl {
                     ))
                 },
             );
-
-            destined_submessages.push((&reader_proxy.unicast_locator_list[0], submessages.take()));
+            let submessages = submessages.take();
+            if !submessages.is_empty() {
+                destined_submessages.push((&reader_proxy.unicast_locator_list[0], submessages));
+            }
         }
         destined_submessages
-    }
-
-    pub fn try_create_heartbeat_submessage(&mut self) -> Option<HeartbeatSubmessage> {
-        let mut heartbeat_submessage = None;
-        if self.is_after_heartbeat_period() {
-            ReliableStatefulWriterBehavior::send_heartbeat(
-                &self.stateful_writer.writer,
-                self.heartbeat_count,
-                &mut |heartbeat| {
-                    heartbeat_submessage = Some(heartbeat);
-                },
-            );
-            self.increment_heartbeat_count();
-            self.reset_heartbeat_instant();
-        }
-        heartbeat_submessage
-    }
-
-    fn is_after_heartbeat_period(&self) -> bool {
-        if self.last_sent_heartbeat_instant.elapsed()
-            > std::time::Duration::new(
-                self.stateful_writer.writer.heartbeat_period.seconds as u64,
-                self.stateful_writer.writer.heartbeat_period.fraction,
-            )
-        {
-            true
-        } else {
-            false
-        }
-    }
-    fn reset_heartbeat_instant(&mut self) {
-        self.last_sent_heartbeat_instant = std::time::Instant::now();
-    }
-    fn increment_heartbeat_count(&mut self) {
-        self.heartbeat_count += Count(1);
     }
 }
 

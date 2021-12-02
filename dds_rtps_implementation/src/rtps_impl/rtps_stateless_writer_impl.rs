@@ -16,10 +16,7 @@ use rust_rtps_pim::{
         types::{ChangeKind, InstanceHandle, Locator},
     },
 };
-use rust_rtps_psm::messages::{
-    overall_structure::RtpsSubmessageTypeWrite,
-    submessages::{DataSubmessageWrite, GapSubmessageWrite},
-};
+use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
 
 use crate::dds_type::DdsSerialize;
 
@@ -52,35 +49,20 @@ impl RtpsStatelessWriterImpl {
                 reader_locator,
                 &self.0.writer,
                 |data| {
-                    submessages.borrow_mut().push(RtpsSubmessageTypeWrite::Data(
-                        DataSubmessageWrite::new(
-                            data.endianness_flag,
-                            data.inline_qos_flag,
-                            data.data_flag,
-                            data.key_flag,
-                            data.non_standard_payload_flag,
-                            data.reader_id,
-                            data.writer_id,
-                            data.writer_sn,
-                            data.inline_qos,
-                            data.serialized_payload,
-                        ),
-                    ))
+                    submessages
+                        .borrow_mut()
+                        .push(RtpsSubmessageTypeWrite::from(data))
                 },
                 |gap| {
-                    submessages.borrow_mut().push(RtpsSubmessageTypeWrite::Gap(
-                        GapSubmessageWrite::new(
-                            gap.endianness_flag,
-                            gap.reader_id,
-                            gap.writer_id,
-                            gap.gap_start,
-                            gap.gap_list,
-                        ),
-                    ))
+                    submessages
+                        .borrow_mut()
+                        .push(RtpsSubmessageTypeWrite::from(gap))
                 },
             );
-
-            destined_submessages.push((&reader_locator.locator, submessages.take()));
+            let submessages = submessages.take();
+            if !submessages.is_empty() {
+                destined_submessages.push((&reader_locator.locator, submessages));
+            }
         }
         destined_submessages
     }
