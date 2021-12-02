@@ -398,6 +398,6 @@ fn process_discovery_data_happy_path() {
     for _i in 1..14 {
         publisher.send_message(&mut transport);
 
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::thread::sleep(std::time::Duration::from_millis(500));
     }
 }

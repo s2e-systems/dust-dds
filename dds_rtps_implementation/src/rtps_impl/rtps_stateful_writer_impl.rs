@@ -45,7 +45,7 @@ impl RtpsStatefulWriterImpl {
         Self {
             stateful_writer,
             last_sent_heartbeat_instant: std::time::Instant::now(),
-            heartbeat_count: Count(0),
+            heartbeat_count: Count(1),
         }
     }
 
@@ -105,7 +105,13 @@ impl RtpsStatefulWriterImpl {
                     ))
                 },
             );
-            let submessages = submessages.take();
+            let mut submessages = submessages.take();
+
+            // Add heartbeat to the submessages to be sent to every proxy
+            if let Some(heartbeat_submessage) = heartbeat_submessage.clone() {
+                submessages.push(RtpsSubmessageTypeWrite::from(heartbeat_submessage));
+            }
+
             if !submessages.is_empty() {
                 destined_submessages.push((&reader_proxy.unicast_locator_list[0], submessages));
             }

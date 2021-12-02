@@ -148,7 +148,6 @@ impl PublisherImpl {
 
             for (locator, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);
-
                 transport.write(&message, &locator);
             }
         }
