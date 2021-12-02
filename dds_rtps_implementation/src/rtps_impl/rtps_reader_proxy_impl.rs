@@ -6,7 +6,7 @@ use rust_rtps_pim::{
 };
 
 pub struct RtpsReaderProxyImpl {
-    reader_proxy: RtpsReaderProxy<Vec<Locator>>,
+    pub reader_proxy: RtpsReaderProxy<Vec<Locator>>,
     last_sent_sequence_number: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
     highest_acknowledge_change_sequence_number: SequenceNumber,

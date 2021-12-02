@@ -49,7 +49,12 @@ impl RtpsStatefulWriterImpl {
         }
     }
 
-    pub fn produce_submessages(&mut self) -> Vec<(&Locator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
+    pub fn produce_submessages(
+        &mut self,
+    ) -> Vec<(
+        &RtpsReaderProxy<Vec<Locator>>,
+        Vec<RtpsSubmessageTypeWrite<'_>>,
+    )> {
         let mut destined_submessages = Vec::new();
 
         let mut heartbeat_submessage = None;
@@ -113,7 +118,7 @@ impl RtpsStatefulWriterImpl {
             }
 
             if !submessages.is_empty() {
-                destined_submessages.push((&reader_proxy.unicast_locator_list[0], submessages));
+                destined_submessages.push((&reader_proxy.reader_proxy, submessages));
             }
         }
         destined_submessages

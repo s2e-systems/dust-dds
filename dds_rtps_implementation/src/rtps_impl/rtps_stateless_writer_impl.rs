@@ -40,13 +40,15 @@ impl RtpsStatelessWriterImpl {
         Self(stateless_writer)
     }
 
-    pub fn produce_submessages(&mut self) -> Vec<(&Locator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
+    pub fn produce_submessages(
+        &mut self,
+    ) -> Vec<(&RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
         let mut destined_submessages = Vec::new();
 
-        for reader_locator in &mut self.0.reader_locators {
+        for reader_locator_impl in &mut self.0.reader_locators {
             let submessages = RefCell::new(Vec::new());
             BestEffortStatelessWriterBehavior::send_unsent_changes(
-                reader_locator,
+                reader_locator_impl,
                 &self.0.writer,
                 |data| {
                     submessages
@@ -61,7 +63,7 @@ impl RtpsStatelessWriterImpl {
             );
             let submessages = submessages.take();
             if !submessages.is_empty() {
-                destined_submessages.push((&reader_locator.locator, submessages));
+                destined_submessages.push((&reader_locator_impl.reader_locator, submessages));
             }
         }
         destined_submessages

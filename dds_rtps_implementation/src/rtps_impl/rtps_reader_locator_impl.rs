@@ -5,7 +5,7 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 pub struct RtpsReaderLocatorImpl {
-    reader_locator: RtpsReaderLocator,
+    pub reader_locator: RtpsReaderLocator,
     last_sent_sequence_number: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
 }

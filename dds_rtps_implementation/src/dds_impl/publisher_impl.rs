@@ -131,9 +131,9 @@ impl PublisherImpl {
             let rtps_stateless_writer_impl = rtps_stateless_writer_lock.as_mut();
             let destined_submessages = rtps_stateless_writer_impl.produce_submessages();
 
-            for (locator, submessage) in destined_submessages {
+            for (reader_locator, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);
-                transport.write(&message, locator);
+                transport.write(&message, &reader_locator.locator);
             }
         }
 
@@ -146,9 +146,9 @@ impl PublisherImpl {
 
             let destined_submessages = rtps_stateful_writer_impl.produce_submessages();
 
-            for (locator, submessage) in destined_submessages {
+            for (reader_proxy, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);
-                transport.write(&message, &locator);
+                transport.write(&message, &reader_proxy.unicast_locator_list[0]);
             }
         }
     }
