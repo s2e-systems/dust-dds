@@ -21,7 +21,7 @@ use rust_rtps_psm::messages::{
     submessages::{DataSubmessageWrite, GapSubmessageWrite},
 };
 
-use crate::dds_type::DdsSerialize;
+use crate::{dds_impl::publisher_impl::SubmessageProducer, dds_type::DdsSerialize};
 
 use super::{
     rtps_reader_proxy_impl::RtpsReaderProxyImpl,
@@ -48,13 +48,15 @@ impl RtpsStatefulWriterImpl {
             heartbeat_count: Count(1),
         }
     }
+}
 
-    pub fn produce_submessages(
-        &mut self,
-    ) -> Vec<(
-        &RtpsReaderProxy<Vec<Locator>>,
-        Vec<RtpsSubmessageTypeWrite<'_>>,
-    )> {
+impl<'a> SubmessageProducer<'a> for RtpsStatefulWriterImpl {
+    type DestinedSubmessages = Vec<(
+        &'a RtpsReaderProxy<Vec<Locator>>,
+        Vec<RtpsSubmessageTypeWrite<'a>>,
+    )>;
+
+    fn produce_submessages(&'a mut self) -> Self::DestinedSubmessages {
         let mut destined_submessages = Vec::new();
 
         let mut heartbeat_submessage = None;

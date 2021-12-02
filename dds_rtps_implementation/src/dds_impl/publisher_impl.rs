@@ -44,6 +44,11 @@ use crate::{
     utils::{shared_object::rtps_shared_new, transport::TransportWrite},
 };
 
+pub trait SubmessageProducer<'a> {
+    type DestinedSubmessages;
+    fn produce_submessages(&'a mut self) -> Self::DestinedSubmessages;
+}
+
 pub trait AnyStatelessDataWriter {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
