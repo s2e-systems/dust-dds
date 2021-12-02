@@ -53,6 +53,9 @@ impl RtpsStatefulWriterImpl {
     pub fn reset_heartbeat_instant(&mut self) {
         self.last_sent_heartbeat_instant = std::time::Instant::now();
     }
+    pub fn increment_heartbeat_count(&mut self) {
+        self.heartbeat_count += Count(1);
+    }
 }
 
 impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
