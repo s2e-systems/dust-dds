@@ -23,10 +23,7 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::writer::{
-        stateful_writer::{RtpsStatefulWriter, StatefulWriterBehaviorPerProxy},
-        stateless_writer::StatelessWriterBehavior,
-    },
+    behavior::writer::stateful_writer::{RtpsStatefulWriter, StatefulWriterBehaviorPerProxy},
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         group::RtpsGroup,
@@ -127,35 +124,20 @@ impl PublisherImpl {
             let rtps_stateless_writer_arc_lock = stateless_writer.into_as_mut_stateless_writer();
             let mut rtps_stateless_writer_lock = rtps_stateless_writer_arc_lock.write().unwrap();
             let rtps_stateless_writer_impl = rtps_stateless_writer_lock.as_mut();
-            let destined_submessages = RefCell::new(Vec::new());
+            let destined_submessages = rtps_stateless_writer_impl.produce_submessages();
 
-            for reader_locator in &mut rtps_stateless_writer_impl.0.reader_locators {
-                let locator = reader_locator.locator;
-                reader_locator.send_unsent_data(
-                    &rtps_stateless_writer_impl.0.writer,
-                    &mut |data| {
-                        destined_submessages
-                            .borrow_mut()
-                            .push((locator, RtpsSubmessageTypeWrite::from(data)))
-                    },
-                    &mut |gap| {
-                        destined_submessages
-                            .borrow_mut()
-                            .push((locator, RtpsSubmessageTypeWrite::from(gap)));
-                    },
-                );
-            }
+            for (locator, submessage) in destined_submessages {
+                if !submessage.is_empty() {
+                    let header = RtpsMessageHeader {
+                        protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                        version: PROTOCOLVERSION,
+                        vendor_id: VENDOR_ID_S2E,
+                        guid_prefix: self.rtps_group.entity.guid.prefix,
+                    };
+                    let message = RtpsMessageWrite::new(header, submessage);
 
-            for (locator, submessage) in destined_submessages.take() {
-                let header = RtpsMessageHeader {
-                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: self.rtps_group.entity.guid.prefix,
-                };
-                let message = RtpsMessageWrite::new(header, vec![submessage]);
-
-                transport.write(&message, &locator);
+                    transport.write(&message, locator);
+                }
             }
         }
 

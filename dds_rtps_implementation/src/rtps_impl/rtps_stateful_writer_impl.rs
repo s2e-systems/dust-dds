@@ -1,14 +1,25 @@
-use std::ops::Deref;
+use std::{cell::RefCell, ops::Deref};
 
-use rust_rtps_pim::{behavior::{stateful_writer_behavior::ReliableStatefulWriterBehavior, writer::{
-        reader_proxy::RtpsReaderProxy,
-        stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
-        writer::RtpsWriterOperations,
-    }}, messages::{submessage_elements::Parameter, submessages::HeartbeatSubmessage, types::Count}, structure::{
+use rust_rtps_pim::{
+    behavior::{
+        stateful_writer_behavior::ReliableStatefulWriterBehavior,
+        writer::{
+            reader_proxy::RtpsReaderProxy,
+            stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
+            writer::RtpsWriterOperations,
+        },
+    },
+    messages::{submessage_elements::Parameter, submessages::HeartbeatSubmessage, types::Count},
+    structure::{
         cache_change::RtpsCacheChange,
         history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, Guid, InstanceHandle, Locator},
-    }};
+    },
+};
+use rust_rtps_psm::messages::{
+    overall_structure::RtpsSubmessageTypeWrite,
+    submessages::{DataSubmessageWrite, GapSubmessageWrite},
+};
 
 use crate::dds_type::DdsSerialize;
 
@@ -34,8 +45,50 @@ impl RtpsStatefulWriterImpl {
         Self {
             stateful_writer,
             last_sent_heartbeat_instant: std::time::Instant::now(),
-            heartbeat_count: Count(0)
+            heartbeat_count: Count(0),
         }
+    }
+
+    pub fn produce_submessages(&mut self) -> Vec<(&Locator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
+        let mut destined_submessages = Vec::new();
+
+        for reader_proxy in &mut self.stateful_writer.matched_readers {
+            let submessages = RefCell::new(Vec::new());
+            ReliableStatefulWriterBehavior::send_unsent_changes(
+                reader_proxy,
+                &self.stateful_writer.writer,
+                |data| {
+                    submessages.borrow_mut().push(RtpsSubmessageTypeWrite::Data(
+                        DataSubmessageWrite::new(
+                            data.endianness_flag,
+                            data.inline_qos_flag,
+                            data.data_flag,
+                            data.key_flag,
+                            data.non_standard_payload_flag,
+                            data.reader_id,
+                            data.writer_id,
+                            data.writer_sn,
+                            data.inline_qos,
+                            data.serialized_payload,
+                        ),
+                    ))
+                },
+                |gap| {
+                    submessages.borrow_mut().push(RtpsSubmessageTypeWrite::Gap(
+                        GapSubmessageWrite::new(
+                            gap.endianness_flag,
+                            gap.reader_id,
+                            gap.writer_id,
+                            gap.gap_start,
+                            gap.gap_list,
+                        ),
+                    ))
+                },
+            );
+
+            destined_submessages.push((&reader_proxy.unicast_locator_list[0], submessages.take()));
+        }
+        destined_submessages
     }
 
     pub fn try_create_heartbeat_submessage(&mut self) -> Option<HeartbeatSubmessage> {
