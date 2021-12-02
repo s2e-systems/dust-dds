@@ -8,7 +8,7 @@ use rust_dds_api::{
     publication::{
         data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
-        publisher::{PublisherDataWriterFactory, Publisher},
+        publisher::{Publisher, PublisherDataWriterFactory},
     },
     return_type::{DDSError, DDSResult},
     topic::topic::Topic,
@@ -43,7 +43,13 @@ impl<'dw, 'p, 't, T, P, DW, I> PublisherDataWriterFactory<'dw, 't, T> for Publis
 where
     DW: DataWriter<T>,
     I: Topic<T>,
-    P: for<'a, 'b> PublisherDataWriterFactory<'a, 'b, T, TopicType = RtpsWeak<I>, DataWriterType = RtpsWeak<DW>>,
+    P: for<'a, 'b> PublisherDataWriterFactory<
+        'a,
+        'b,
+        T,
+        TopicType = RtpsWeak<I>,
+        DataWriterType = RtpsWeak<DW>,
+    >,
     T: 't + 'dw,
 {
     type TopicType = TopicProxy<'t, T, I>;
@@ -58,17 +64,25 @@ where
     ) -> Option<Self::DataWriterType> {
         let data_writer_weak =
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl).ok()?)
-                .datawriter_factory_create_datawriter(a_topic.topic_impl(), qos, a_listener, mask)?;
+                .datawriter_factory_create_datawriter(
+                    a_topic.topic_impl(),
+                    qos,
+                    a_listener,
+                    mask,
+                )?;
 
         let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
 
         Some(datawriter)
     }
 
-    fn datawriter_factory_delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
+    fn datawriter_factory_delete_datawriter(
+        &self,
+        a_datawriter: &Self::DataWriterType,
+    ) -> DDSResult<()> {
         if std::ptr::eq(a_datawriter.get_publisher(), self) {
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
-                .delete_datawriter(a_datawriter.data_writer_impl())
+                .datawriter_factory_delete_datawriter(a_datawriter.data_writer_impl())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
