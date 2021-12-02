@@ -362,42 +362,45 @@ impl<T> StatefulWriterSubmessageProducer for DataWriterImpl<T, RtpsStatefulWrite
 mod tests {
 
     use rust_rtps_pim::{
+        behavior::{
+            types::{Duration, DURATION_ZERO},
+            writer::stateful_writer::RtpsStatefulWriter,
+        },
         messages::submessage_elements::Parameter,
         structure::{
             cache_change::RtpsCacheChange,
             history_cache::RtpsHistoryCacheAddChange,
-            types::{InstanceHandle, GUID_UNKNOWN},
+            types::{InstanceHandle, ReliabilityKind, TopicKind, GUID_UNKNOWN},
         },
     };
 
     use super::*;
+    struct EmptyTimer;
 
-    struct MockTimer;
-
-    impl Timer for MockTimer {
+    impl Timer for EmptyTimer {
         fn reset(&mut self) {
-            todo!()
+            unimplemented!()
         }
 
         fn elapsed(&self) -> std::time::Duration {
-            todo!()
+            unimplemented!()
+        }
+    }
+
+    struct MockData(Vec<u8>);
+
+    impl DdsSerialize for MockData {
+        fn serialize<W: std::io::Write, R: crate::dds_type::Endianness>(
+            &self,
+            mut writer: W,
+        ) -> DDSResult<()> {
+            writer.write(&self.0).unwrap();
+            Ok(())
         }
     }
 
     #[test]
     fn write_w_timestamp() {
-        struct MockData(Vec<u8>);
-
-        impl DdsSerialize for MockData {
-            fn serialize<W: std::io::Write, R: crate::dds_type::Endianness>(
-                &self,
-                mut writer: W,
-            ) -> DDSResult<()> {
-                writer.write(&self.0).unwrap();
-                Ok(())
-            }
-        }
-
         struct MockWriterCache;
 
         impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> for MockWriterCache {
@@ -440,7 +443,7 @@ mod tests {
             MockWriter {
                 cache: MockWriterCache,
             },
-            Box::new(MockTimer),
+            Box::new(EmptyTimer),
         );
 
         let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
@@ -451,5 +454,53 @@ mod tests {
                 rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
             )
             .unwrap();
+    }
+
+    #[test]
+    fn stateful_writer_heartbeat_send() {
+        struct MockTimer;
+
+        impl Timer for MockTimer {
+            fn reset(&mut self) {}
+
+            fn elapsed(&self) -> std::time::Duration {
+                std::time::Duration::new(5, 0)
+            }
+        }
+        let guid = GUID_UNKNOWN;
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::Reliable;
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let push_mode = true;
+        let heartbeat_period = Duration::new(2, 0);
+        let nack_response_delay = DURATION_ZERO;
+        let nack_suppression_duration = DURATION_ZERO;
+        let data_max_size_serialized = None;
+
+        let rtps_writer_impl = RtpsStatefulWriterImpl::new(RtpsStatefulWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        ));
+
+        let mut data_writer_impl: DataWriterImpl<MockData, _> = DataWriterImpl::new(
+            DataWriterQos::default(),
+            rtps_writer_impl,
+            Box::new(MockTimer),
+        );
+
+        let produced_submessages1 = data_writer_impl.produce_submessages();
+        assert!(produced_submessages1.is_empty());
+
+        let produced_submessages2 = data_writer_impl.produce_submessages();
+        assert!(produced_submessages2.is_empty());
     }
 }
