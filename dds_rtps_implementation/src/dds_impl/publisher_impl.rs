@@ -23,11 +23,9 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 use rust_rtps_pim::{
-    behavior::{
-        writer::{
-            stateful_writer::{RtpsStatefulWriter, StatefulWriterBehaviorPerProxy},
-            stateless_writer::StatelessWriterBehavior,
-        },
+    behavior::writer::{
+        stateful_writer::{RtpsStatefulWriter, StatefulWriterBehaviorPerProxy},
+        stateless_writer::StatelessWriterBehavior,
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
@@ -139,33 +137,14 @@ impl PublisherImpl {
                 reader_locator.send_unsent_data(
                     &rtps_stateless_writer.0.writer,
                     &mut |data| {
-                        destined_submessages.borrow_mut().push((
-                            locator,
-                            RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                                data.endianness_flag,
-                                data.inline_qos_flag,
-                                data.data_flag,
-                                data.key_flag,
-                                data.non_standard_payload_flag,
-                                data.reader_id,
-                                data.writer_id,
-                                data.writer_sn,
-                                data.inline_qos,
-                                data.serialized_payload,
-                            )),
-                        ))
+                        destined_submessages
+                            .borrow_mut()
+                            .push((locator, RtpsSubmessageTypeWrite::from(data)))
                     },
                     &mut |gap| {
-                        destined_submessages.borrow_mut().push((
-                            locator,
-                            RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                                gap.endianness_flag,
-                                gap.reader_id,
-                                gap.writer_id,
-                                gap.gap_start,
-                                gap.gap_list,
-                            )),
-                        ));
+                        destined_submessages
+                            .borrow_mut()
+                            .push((locator, RtpsSubmessageTypeWrite::from(gap)));
                     },
                 );
             }
@@ -207,33 +186,14 @@ impl PublisherImpl {
                 reader_proxy.send_unsent_data(
                     &rtps_stateful_writer_impl.stateful_writer.writer,
                     &mut |data| {
-                        destined_submessages.borrow_mut().push((
-                            locator,
-                            RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
-                                data.endianness_flag,
-                                data.inline_qos_flag,
-                                data.data_flag,
-                                data.key_flag,
-                                data.non_standard_payload_flag,
-                                data.reader_id,
-                                data.writer_id,
-                                data.writer_sn,
-                                data.inline_qos,
-                                data.serialized_payload,
-                            )),
-                        ));
+                        destined_submessages
+                            .borrow_mut()
+                            .push((locator, RtpsSubmessageTypeWrite::from(data)))
                     },
                     &mut |gap| {
-                        destined_submessages.borrow_mut().push((
-                            locator,
-                            RtpsSubmessageTypeWrite::Gap(GapSubmessageWrite::new(
-                                gap.endianness_flag,
-                                gap.reader_id,
-                                gap.writer_id,
-                                gap.gap_start,
-                                gap.gap_list,
-                            )),
-                        ));
+                        destined_submessages
+                            .borrow_mut()
+                            .push((locator, RtpsSubmessageTypeWrite::from(gap)));
                     },
                 )
             }
