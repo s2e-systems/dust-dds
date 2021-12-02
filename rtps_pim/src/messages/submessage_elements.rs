@@ -31,7 +31,7 @@ pub struct GuidPrefixSubmessageElement {
     pub value: GuidPrefix,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct EntityIdSubmessageElement {
     pub value: EntityId,
 }
@@ -46,7 +46,7 @@ pub struct ProtocolVersionSubmessageElement {
     pub value: ProtocolVersion,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SequenceNumberSubmessageElement {
     pub value: SequenceNumber,
 }
@@ -99,7 +99,7 @@ pub struct ParameterListSubmessageElement<T> {
     pub parameter: T,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct CountSubmessageElement {
     pub value: Count,
 }

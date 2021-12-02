@@ -24,15 +24,13 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer_behavior::{
-             ReliableStatefulWriterBehavior,
-        },
+        stateful_writer_behavior::ReliableStatefulWriterBehavior,
         writer::{
             stateful_writer::{RtpsStatefulWriter, StatefulWriterBehaviorPerProxy},
             stateless_writer::StatelessWriterBehavior,
         },
     },
-    messages::{overall_structure::RtpsMessageHeader, },
+    messages::overall_structure::RtpsMessageHeader,
     structure::{
         group::RtpsGroup,
         types::{
@@ -43,7 +41,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::{
     overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
-    submessages::{DataSubmessageWrite, GapSubmessageWrite, },
+    submessages::{DataSubmessageWrite, GapSubmessageWrite},
 };
 
 use crate::{
@@ -195,24 +193,27 @@ impl PublisherImpl {
 
             let destined_submessages = RefCell::new(Vec::new());
 
-            let should_send_heartbeat_now = rtps_stateful_writer.is_after_heartbeat_period();
-            if should_send_heartbeat_now {
+            let mut heartbeat_submessage = None;
+            if rtps_stateful_writer.is_after_heartbeat_period() {
+                ReliableStatefulWriterBehavior::send_heartbeat(
+                    &rtps_stateful_writer.stateful_writer.writer,
+                    rtps_stateful_writer.heartbeat_count,
+                    &mut |heartbeat| {
+                        heartbeat_submessage = Some(heartbeat);
+                    },
+                );
                 rtps_stateful_writer.increment_heartbeat_count();
                 rtps_stateful_writer.reset_heartbeat_instant();
             }
 
             for reader_proxy in &mut rtps_stateful_writer.stateful_writer.matched_readers {
                 let locator = reader_proxy.unicast_locator_list[0];
-                if should_send_heartbeat_now {
-                    ReliableStatefulWriterBehavior::send_heartbeat(
-                        &rtps_stateful_writer.stateful_writer.writer,
-                        rtps_stateful_writer.heartbeat_count,
-                        &mut |heartbeat| {
-                            destined_submessages
-                                .borrow_mut()
-                                .push((locator, RtpsSubmessageTypeWrite::from(heartbeat)))
-                        },
-                    );
+
+                if let Some(heartbeat_submessage) = &heartbeat_submessage {
+                    destined_submessages.borrow_mut().push((
+                        locator,
+                        RtpsSubmessageTypeWrite::from(heartbeat_submessage.clone()),
+                    ))
                 }
 
                 reader_proxy.send_unsent_data(

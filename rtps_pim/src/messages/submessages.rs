@@ -63,7 +63,7 @@ pub struct GapSubmessage<S> {
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct HeartbeatSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
