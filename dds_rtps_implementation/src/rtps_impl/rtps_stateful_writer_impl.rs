@@ -1,10 +1,10 @@
 use std::ops::Deref;
 
-use rust_rtps_pim::{behavior::writer::{
+use rust_rtps_pim::{behavior::{stateful_writer_behavior::ReliableStatefulWriterBehavior, writer::{
         reader_proxy::RtpsReaderProxy,
         stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
         writer::RtpsWriterOperations,
-    }, messages::{submessage_elements::Parameter, types::Count}, structure::{
+    }}, messages::{submessage_elements::Parameter, submessages::HeartbeatSubmessage, types::Count}, structure::{
         cache_change::RtpsCacheChange,
         history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, Guid, InstanceHandle, Locator},
@@ -38,7 +38,23 @@ impl RtpsStatefulWriterImpl {
         }
     }
 
-    pub fn is_after_heartbeat_period(&self) -> bool {
+    pub fn try_create_heartbeat_submessage(&mut self) -> Option<HeartbeatSubmessage> {
+        let mut heartbeat_submessage = None;
+        if self.is_after_heartbeat_period() {
+            ReliableStatefulWriterBehavior::send_heartbeat(
+                &self.stateful_writer.writer,
+                self.heartbeat_count,
+                &mut |heartbeat| {
+                    heartbeat_submessage = Some(heartbeat);
+                },
+            );
+            self.increment_heartbeat_count();
+            self.reset_heartbeat_instant();
+        }
+        heartbeat_submessage
+    }
+
+    fn is_after_heartbeat_period(&self) -> bool {
         if self.last_sent_heartbeat_instant.elapsed()
             > std::time::Duration::new(
                 self.stateful_writer.writer.heartbeat_period.seconds as u64,
@@ -50,10 +66,10 @@ impl RtpsStatefulWriterImpl {
             false
         }
     }
-    pub fn reset_heartbeat_instant(&mut self) {
+    fn reset_heartbeat_instant(&mut self) {
         self.last_sent_heartbeat_instant = std::time::Instant::now();
     }
-    pub fn increment_heartbeat_count(&mut self) {
+    fn increment_heartbeat_count(&mut self) {
         self.heartbeat_count += Count(1);
     }
 }

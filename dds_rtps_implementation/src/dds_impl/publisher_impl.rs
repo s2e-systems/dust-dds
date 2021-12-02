@@ -24,7 +24,6 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer_behavior::ReliableStatefulWriterBehavior,
         writer::{
             stateful_writer::{RtpsStatefulWriter, StatefulWriterBehaviorPerProxy},
             stateless_writer::StatelessWriterBehavior,
@@ -189,24 +188,13 @@ impl PublisherImpl {
         for stateful_writer in stateful_data_writer_list_lock.iter().cloned() {
             let rtps_stateful_writer_arc_lock = stateful_writer.into_as_mut_stateful_writer();
             let mut rtps_stateful_writer_lock = rtps_stateful_writer_arc_lock.write().unwrap();
-            let rtps_stateful_writer = rtps_stateful_writer_lock.as_mut();
+            let rtps_stateful_writer_impl = rtps_stateful_writer_lock.as_mut();
 
             let destined_submessages = RefCell::new(Vec::new());
 
-            let mut heartbeat_submessage = None;
-            if rtps_stateful_writer.is_after_heartbeat_period() {
-                ReliableStatefulWriterBehavior::send_heartbeat(
-                    &rtps_stateful_writer.stateful_writer.writer,
-                    rtps_stateful_writer.heartbeat_count,
-                    &mut |heartbeat| {
-                        heartbeat_submessage = Some(heartbeat);
-                    },
-                );
-                rtps_stateful_writer.increment_heartbeat_count();
-                rtps_stateful_writer.reset_heartbeat_instant();
-            }
+            let heartbeat_submessage = rtps_stateful_writer_impl.try_create_heartbeat_submessage();
 
-            for reader_proxy in &mut rtps_stateful_writer.stateful_writer.matched_readers {
+            for reader_proxy in &mut rtps_stateful_writer_impl.stateful_writer.matched_readers {
                 let locator = reader_proxy.unicast_locator_list[0];
 
                 if let Some(heartbeat_submessage) = &heartbeat_submessage {
@@ -217,7 +205,7 @@ impl PublisherImpl {
                 }
 
                 reader_proxy.send_unsent_data(
-                    &rtps_stateful_writer.stateful_writer.writer,
+                    &rtps_stateful_writer_impl.stateful_writer.writer,
                     &mut |data| {
                         destined_submessages.borrow_mut().push((
                             locator,
