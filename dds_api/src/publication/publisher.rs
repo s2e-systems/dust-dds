@@ -7,7 +7,7 @@ use crate::{
 
 use super::data_writer_listener::DataWriterListener;
 
-pub trait PublisherDataWriterFactory<'dw, 't, T>: Publisher {
+pub trait PublisherDataWriterFactory<'dw, 't, T> {
     type TopicType;
     type DataWriterType;
 
