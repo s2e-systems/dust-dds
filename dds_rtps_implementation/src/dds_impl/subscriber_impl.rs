@@ -13,7 +13,7 @@ use rust_dds_api::{
     return_type::DDSResult,
     subscription::{
         data_reader_listener::DataReaderListener,
-        subscriber::{DataReaderGAT, Subscriber},
+        subscriber::{SubscriberDataReaderFactory, Subscriber},
         subscriber_listener::SubscriberListener,
     },
 };
@@ -82,14 +82,14 @@ impl SubscriberImpl {
     }
 }
 
-impl<T> DataReaderGAT<'_, '_, T> for SubscriberImpl
+impl<T> SubscriberDataReaderFactory<'_, '_, T> for SubscriberImpl
 where
     T: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
     type TopicType = ();
     type DataReaderType = RtpsShared<DataReaderImpl<T>>;
 
-    fn create_datareader_gat(
+    fn datareader_factory_create_datareader(
         &'_ self,
         _a_topic: &'_ Self::TopicType,
         qos: Option<DataReaderQos>,
@@ -141,11 +141,11 @@ where
         Some(reader_storage_shared)
     }
 
-    fn delete_datareader_gat(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
+    fn datareader_factory_delete_datareader(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_datareader_gat(
+    fn datareader_factory_lookup_datareader(
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {

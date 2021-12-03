@@ -12,7 +12,7 @@ use rust_dds_api::{
     subscription::{
         data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
-        subscriber::{DataReaderGAT, Subscriber},
+        subscriber::{SubscriberDataReaderFactory, Subscriber},
     },
     topic::topic_description::TopicDescription,
 };
@@ -45,17 +45,17 @@ impl<'s, S> SubscriberProxy<'s, S> {
     }
 }
 
-impl<'dr, 's, 't, T, S, DR, I> DataReaderGAT<'dr, 't, T> for SubscriberProxy<'s, S>
+impl<'dr, 's, 't, T, S, DR, I> SubscriberDataReaderFactory<'dr, 't, T> for SubscriberProxy<'s, S>
 where
     T: 't + 'dr,
     I: TopicDescription<T> + 't,
     DR: DataReader<'dr, T>,
-    S: for<'a, 'b> DataReaderGAT<'a, 'b, T, TopicType = RtpsWeak<I>, DataReaderType = RtpsWeak<DR>>,
+    S: for<'a, 'b> SubscriberDataReaderFactory<'a, 'b, T, TopicType = RtpsWeak<I>, DataReaderType = RtpsWeak<DR>>,
 {
     type TopicType = TopicProxy<'t, T, I>;
     type DataReaderType = DataReaderProxy<'dr, T, DR>;
 
-    fn create_datareader_gat(
+    fn datareader_factory_create_datareader(
         &'dr self,
         a_topic: &'dr Self::TopicType,
         qos: Option<DataReaderQos>,
@@ -64,15 +64,15 @@ where
     ) -> Option<Self::DataReaderType> {
         let reader_storage_weak =
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl).ok()?)
-                .create_datareader(a_topic.topic_impl(), qos, a_listener, mask)?;
+                .datareader_factory_create_datareader(a_topic.topic_impl(), qos, a_listener, mask)?;
         let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
         Some(data_reader)
     }
 
-    fn delete_datareader_gat(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()> {
+    fn datareader_factory_delete_datareader(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()> {
         if std::ptr::eq(a_datareader.get_subscriber(), self) {
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?)
-                .delete_datareader(a_datareader.data_reader_impl())
+                .datareader_factory_delete_datareader(a_datareader.data_reader_impl())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
@@ -80,7 +80,7 @@ where
         }
     }
 
-    fn lookup_datareader_gat<'a>(
+    fn datareader_factory_lookup_datareader<'a>(
         &'a self,
         _topic: &'a Self::TopicType,
     ) -> Option<Self::DataReaderType> {
