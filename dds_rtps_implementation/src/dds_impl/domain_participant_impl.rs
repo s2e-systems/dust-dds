@@ -79,6 +79,10 @@ pub struct DomainParticipantImpl {
     is_enabled: Arc<AtomicBool>,
     manual_liveliness_count: Count,
     lease_duration: rust_rtps_pim::behavior::types::Duration,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
 }
 
 impl DomainParticipantImpl {
@@ -95,6 +99,10 @@ impl DomainParticipantImpl {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(120, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
+        let metatraffic_unicast_locator_list = vec![];
+        let metatraffic_multicast_locator_list = vec![];
+        let default_unicast_locator_list = vec![];
+        let default_multicast_locator_list = vec![];
         let rtps_participant = RtpsParticipant {
             entity: RtpsEntity {
                 guid: Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
@@ -197,7 +205,6 @@ impl DomainParticipantImpl {
         //         }
         //     }
 
-
         Self {
             rtps_participant,
             domain_id,
@@ -216,6 +223,10 @@ impl DomainParticipantImpl {
             is_enabled,
             manual_liveliness_count: Count(0),
             lease_duration,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
         }
     }
 }
@@ -536,7 +547,9 @@ impl Entity for DomainParticipantImpl {
             .unwrap();
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey { value: [1; 16] }, // GUID,
+                key: BuiltInTopicKey {
+                    value: self.rtps_participant.entity.guid.into(),
+                },
                 user_data: self.qos.user_data.clone(),
             },
             participant_proxy: ParticipantProxy {
@@ -546,10 +559,10 @@ impl Entity for DomainParticipantImpl {
                 guid_prefix: self.rtps_participant.entity.guid.prefix,
                 vendor_id: self.rtps_participant.vendor_id,
                 expects_inline_qos: false,
-                metatraffic_unicast_locator_list: vec![],
-                metatraffic_multicast_locator_list: vec![],
-                default_unicast_locator_list: vec![],
-                default_multicast_locator_list: vec![],
+                metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
+                metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
+                default_unicast_locator_list: self.default_unicast_locator_list.clone(),
+                default_multicast_locator_list: self.default_multicast_locator_list.clone(),
                 available_builtin_endpoints: BuiltinEndpointSet::default(),
                 manual_liveliness_count: self.manual_liveliness_count,
                 builtin_endpoint_qos: BuiltinEndpointQos::default(),
