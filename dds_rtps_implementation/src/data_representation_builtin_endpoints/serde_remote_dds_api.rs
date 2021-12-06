@@ -58,12 +58,12 @@ pub struct BuiltinEndpointQosDeserialize(
     #[serde(with = "BuiltinEndpointQosDef")] pub BuiltinEndpointQos,
 );
 
-type BuiltInTopicKeyTypeNative = i32;
+type BuiltInTopicKeyTypeNative = u8;
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "BuiltInTopicKey")]
 pub struct BuiltInTopicKeyDef {
-    pub value: [BuiltInTopicKeyTypeNative; 4],
+    pub value: [BuiltInTopicKeyTypeNative; 16],
 }
 
 #[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
@@ -269,11 +269,9 @@ pub struct ReliabilityQosPolicyDef {
     pub max_blocking_time: Duration,
 }
 
-
-
 #[derive(Debug, PartialEq, serde::Serialize)]
 pub struct ReliabilityQosPolicyDataWriter<'a>(
-    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a  ReliabilityQosPolicy,
+    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a ReliabilityQosPolicy,
 );
 impl<'a> Default for ReliabilityQosPolicyDataWriter<'a> {
     fn default() -> Self {
@@ -281,14 +279,11 @@ impl<'a> Default for ReliabilityQosPolicyDataWriter<'a> {
     }
 }
 #[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
-pub struct ReliabilityQosPolicyDataWriterSerialize<'a>(
-    pub &'a ReliabilityQosPolicyDataWriter<'a>,
-);
-
+pub struct ReliabilityQosPolicyDataWriterSerialize<'a>(pub &'a ReliabilityQosPolicyDataWriter<'a>);
 
 #[derive(Debug, PartialEq, serde::Serialize, derive_more::From, derive_more::Into)]
 pub struct ReliabilityQosPolicyDataReaderAndTopics<'a>(
-    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a  ReliabilityQosPolicy,
+    #[serde(with = "ReliabilityQosPolicyDef")] pub &'a ReliabilityQosPolicy,
 );
 impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
     fn default() -> Self {
@@ -299,9 +294,6 @@ impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
 pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
     pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
 );
-
-
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
 pub struct ReliabilityQosPolicyDataWriterDeserialize(
@@ -554,7 +546,9 @@ mod tests {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
             max_blocking_time: Duration::new(0, 100),
         };
-        let result = to_bytes_le(&ReliabilityQosPolicyDataWriterSerialize(&ReliabilityQosPolicyDataWriter(&value)));
+        let result = to_bytes_le(&ReliabilityQosPolicyDataWriterSerialize(
+            &ReliabilityQosPolicyDataWriter(&value),
+        ));
         assert_eq!(
             result,
             vec![

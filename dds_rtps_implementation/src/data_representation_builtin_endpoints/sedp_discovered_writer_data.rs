@@ -1,14 +1,9 @@
 use std::io::Write;
 
 use rust_dds_api::{
-    builtin_topics::PublicationBuiltinTopicData,
-    dcps_psm::BuiltInTopicKey,
-    return_type::DDSResult,
+    builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey, return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::reader::writer_proxy::RtpsWriterProxy,
-    structure::types::{EntityId, Guid, GuidPrefix, Locator},
-};
+use rust_rtps_pim::{behavior::reader::writer_proxy::RtpsWriterProxy, structure::types::Locator};
 
 use crate::{
     data_representation_builtin_endpoints::serde_remote_rtps_pim::EntityIdDeserialize,
@@ -182,21 +177,6 @@ impl DdsSerialize for SedpDiscoveredWriterData {
     }
 }
 
-fn convert_built_in_topic_key_to_guid(key: &BuiltInTopicKey) -> Guid {
-    let v0 = key.value[0].to_le_bytes();
-    let v1 = key.value[1].to_le_bytes();
-    let v2 = key.value[2].to_le_bytes();
-    let v3 = key.value[3].to_le_bytes();
-    let prefix = GuidPrefix([
-        v0[0], v0[1], v0[2], v0[3], v1[0], v1[1], v1[2], v1[3], v2[0], v2[1], v2[2], v2[3],
-    ]);
-    let entity_id = EntityId {
-        entity_key: [v3[0], v3[1], v3[2]],
-        entity_kind: v3[3],
-    };
-    Guid { prefix, entity_id }
-}
-
 impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
     fn deserialize(buf: &mut &'_ [u8]) -> DDSResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
@@ -211,7 +191,8 @@ impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
             param_list.get::<EntityIdDeserialize, _>(PID_GROUP_ENTITYID)?;
 
         // publication_builtin_topic_data
-        let key = param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
+        let key =
+            param_list.get::<BuiltInTopicKeyDeserialize, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
         let participant_key =
             param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_PARTICIPANT_GUID)?;
         let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
@@ -247,7 +228,7 @@ impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
         let group_data =
             param_list.get_or_default::<GroupDataQosPolicyDeserialize, _>(PID_GROUP_DATA)?;
 
-        let remote_writer_guid = convert_built_in_topic_key_to_guid(&key);
+        let remote_writer_guid = key.value.into();
         Ok(Self {
             writer_proxy: RtpsWriterProxy {
                 remote_writer_guid,
@@ -283,7 +264,16 @@ impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER, DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy}};
+    use rust_dds_api::{
+        dcps_psm::BuiltInTopicKey,
+        infrastructure::qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+            DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        },
+    };
     use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     use super::*;
@@ -316,10 +306,10 @@ mod tests {
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: [1, 2, 3, 4],
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
                 participant_key: BuiltInTopicKey {
-                    value: [6, 7, 8, 9],
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
                 topic_name: "ab".to_string(),
                 type_name: "cd".to_string(),
@@ -346,15 +336,15 @@ mod tests {
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 25, // u8[3], u8
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-            1, 0, 0, 0, // long,
-            2, 0, 0, 0, // long,
-            3, 0, 0, 0, // long,
-            4, 0, 0, 0, // long,
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
             0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-            6, 0, 0, 0, // long,
-            7, 0, 0, 0, // long,
-            8, 0, 0, 0, // long,
-            9, 0, 0, 0, // long,
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
             0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'a', b'b', 0, 0x00, // string + padding (1 byte)
@@ -388,10 +378,10 @@ mod tests {
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: [1, 2, 3, 4],
+                    value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
                 participant_key: BuiltInTopicKey {
-                    value: [6, 7, 8, 9],
+                    value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
                 topic_name: "ab".to_string(),
                 type_name: "cd".to_string(),
@@ -418,15 +408,15 @@ mod tests {
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 25, // u8[3], u8
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
-            1, 0, 0, 0, // long,
-            2, 0, 0, 0, // long,
-            3, 0, 0, 0, // long,
-            4, 0, 0, 0, // long,
+            1, 0, 0, 0, // ,
+            2, 0, 0, 0, // ,
+            3, 0, 0, 0, // ,
+            4, 0, 0, 0, // ,
             0x50, 0x00, 16, 0, //PID_PARTICIPANT_GUID, length
-            6, 0, 0, 0, // long,
-            7, 0, 0, 0, // long,
-            8, 0, 0, 0, // long,
-            9, 0, 0, 0, // long,
+            6, 0, 0, 0, // ,
+            7, 0, 0, 0, // ,
+            8, 0, 0, 0, // ,
+            9, 0, 0, 0, // ,
             0x05, 0x00, 0x08, 0x00, // PID_TOPIC_NAME, Length: 8
             3, 0x00, 0x00, 0x00, // string length (incl. terminator)
             b'a', b'b', 0, 0x00, // string + padding (1 byte)

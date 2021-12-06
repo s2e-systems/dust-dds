@@ -536,7 +536,7 @@ impl Entity for DomainParticipantImpl {
             .unwrap();
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey { value: [1; 4] }, // GUID,
+                key: BuiltInTopicKey { value: [1; 16] }, // GUID,
                 user_data: self.qos.user_data.clone(),
             },
             participant_proxy: ParticipantProxy {

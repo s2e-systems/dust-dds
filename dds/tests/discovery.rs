@@ -82,7 +82,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey {
-            value: [0, 0, 0, 1],
+            value: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         },
         user_data: UserDataQosPolicy { value: vec![] },
     };
@@ -196,7 +196,7 @@ fn process_discovery_data_happy_path() {
     let domain_tag = "ab";
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey {
-            value: [0, 0, 0, 1],
+            value: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         },
         user_data: UserDataQosPolicy { value: vec![] },
     };
@@ -357,8 +357,8 @@ fn process_discovery_data_happy_path() {
                 remote_group_entity_id: EntityId::new([0; 3], 0),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
-                key: BuiltInTopicKey { value: [1; 4] },
-                participant_key: BuiltInTopicKey { value: [1; 4] },
+                key: BuiltInTopicKey { value: [1; 16] },
+                participant_key: BuiltInTopicKey { value: [1; 16] },
                 topic_name: "MyTopic".to_string(),
                 type_name: "MyType".to_string(),
                 durability: DurabilityQosPolicy::default(),

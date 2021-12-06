@@ -123,46 +123,11 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
     }
 }
 
-fn convert_guid_to_built_in_topic_key(guid: &Guid) -> BuiltInTopicKey {
-    let value0 = [
-        guid.prefix.0[0],
-        guid.prefix.0[1],
-        guid.prefix.0[2],
-        guid.prefix.0[3],
-    ];
-    let value1 = [
-        guid.prefix.0[4],
-        guid.prefix.0[5],
-        guid.prefix.0[6],
-        guid.prefix.0[7],
-    ];
-    let value2 = [
-        guid.prefix.0[8],
-        guid.prefix.0[9],
-        guid.prefix.0[10],
-        guid.prefix.0[11],
-    ];
-    let value3 = [
-        guid.entity_id.entity_key[0],
-        guid.entity_id.entity_key[1],
-        guid.entity_id.entity_key[2],
-        guid.entity_id.entity_kind,
-    ];
-    BuiltInTopicKey {
-        value: [
-            i32::from_le_bytes(value0),
-            i32::from_le_bytes(value1),
-            i32::from_le_bytes(value2),
-            i32::from_le_bytes(value3),
-        ],
-    }
-}
-
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
-        let guid = param_list.get::<GuidDeserialize, _>(PID_PARTICIPANT_GUID)?;
+        let guid = param_list.get::<GuidDeserialize, Guid>(PID_PARTICIPANT_GUID)?;
         let user_data =
             param_list.get_or_default::<UserDataQosPolicyDeserialize, _>(PID_USER_DATA)?;
         let domain_id = param_list.get::<u32, _>(PID_DOMAIN_ID)?;
@@ -191,7 +156,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 
         Ok(Self {
             dds_participant_data: ParticipantBuiltinTopicData {
-                key: convert_guid_to_built_in_topic_key(&guid),
+                key: BuiltInTopicKey { value: guid.into() },
                 user_data,
             },
             participant_proxy: ParticipantProxy {
@@ -262,7 +227,7 @@ mod tests {
         );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: convert_guid_to_built_in_topic_key(&guid),
+            key: BuiltInTopicKey { value: guid.into() },
             user_data: UserDataQosPolicy { value: vec![] },
         };
         let participant_proxy = ParticipantProxy {
@@ -389,7 +354,7 @@ mod tests {
         );
 
         let dds_participant_data = ParticipantBuiltinTopicData {
-            key: convert_guid_to_built_in_topic_key(&guid),
+            key: BuiltInTopicKey { value: guid.into() },
             user_data: UserDataQosPolicy { value: vec![] },
         };
         let participant_proxy = ParticipantProxy {

@@ -1,14 +1,14 @@
 pub type DomainIdTypeNative = i32;
 pub type HandleTypeNative = i32;
 pub const HANDLE_NIL_NATIVE: HandleTypeNative = 0;
-pub type BuiltInTopicKeyTypeNative = i32;
+pub type BuiltInTopicKeyTypeNative = u8; // Originally in the DDS idl i32
 
 pub type DomainId = DomainIdTypeNative;
 pub type InstanceHandle = HandleTypeNative;
 
 #[derive(Debug, PartialEq)]
 pub struct BuiltInTopicKey {
-    pub value: [BuiltInTopicKeyTypeNative; 4],
+    pub value: [BuiltInTopicKeyTypeNative; 16], // Originally in the DDS idl [i32;3]
 }
 
 pub type InstanceHandleSeq<'a> = &'a [InstanceHandle];
