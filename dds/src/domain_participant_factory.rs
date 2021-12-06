@@ -93,7 +93,25 @@ impl DomainParticipantFactory {
     ) -> Option<DomainParticipantImpl> {
         // /////// Define guid prefix
         let guid_prefix = GuidPrefix([3; 12]);
+
+        // /////// Define other configurations
         let domain_tag = "".to_string();
+        let metatraffic_unicast_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDPv4,
+            7400,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+        )];
+        let metatraffic_multicast_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDPv4,
+            7400,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        )];
+        let default_unicast_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDPv4,
+            7410,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+        )];
+        let default_multicast_locator_list = vec![];
 
         // /////// Create transports
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
@@ -238,6 +256,10 @@ impl DomainParticipantFactory {
             builtin_publisher_storage,
             metatraffic_transport,
             default_transport,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
         );
 
         Some(domain_participant)

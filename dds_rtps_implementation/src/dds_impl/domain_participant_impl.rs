@@ -95,14 +95,14 @@ impl DomainParticipantImpl {
         builtin_publisher: RtpsShared<PublisherImpl>,
         metatraffic_transport: Box<dyn Transport>,
         default_transport: Box<dyn Transport>,
+        metatraffic_unicast_locator_list: Vec<Locator>,
+        metatraffic_multicast_locator_list: Vec<Locator>,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
     ) -> Self {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(120, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
-        let metatraffic_unicast_locator_list = vec![];
-        let metatraffic_multicast_locator_list = vec![];
-        let default_unicast_locator_list = vec![];
-        let default_multicast_locator_list = vec![];
         let rtps_participant = RtpsParticipant {
             entity: RtpsEntity {
                 guid: Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
@@ -626,6 +626,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -657,6 +661,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -690,6 +698,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -721,6 +733,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -757,6 +773,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -788,6 +808,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
         );
         let mut qos = TopicQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
@@ -819,6 +843,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -855,6 +883,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
         );
 
         let publisher_counter_before = domain_participant
@@ -901,6 +933,10 @@ mod tests {
             builtin_publisher,
             Box::new(MockTransport),
             Box::new(MockTransport),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
         );
         let a_publisher = domain_participant.create_publisher(None, None, 0).unwrap();
 
