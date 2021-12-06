@@ -93,6 +93,7 @@ impl DomainParticipantFactory {
     ) -> Option<DomainParticipantImpl> {
         // /////// Define guid prefix
         let guid_prefix = GuidPrefix([3; 12]);
+        let domain_tag = "".to_string();
 
         // /////// Create transports
         let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
@@ -231,6 +232,7 @@ impl DomainParticipantFactory {
         let domain_participant = DomainParticipantImpl::new(
             guid_prefix,
             domain_id,
+            domain_tag,
             qos.unwrap_or_default(),
             builtin_subscriber_storage,
             builtin_publisher_storage,

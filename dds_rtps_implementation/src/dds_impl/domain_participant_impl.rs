@@ -64,6 +64,7 @@ impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
 pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipant<Vec<Locator>>,
     domain_id: DomainId,
+    domain_tag: String,
     qos: DomainParticipantQos,
     _builtin_subscriber: RtpsShared<SubscriberImpl>,
     builtin_publisher: RtpsShared<PublisherImpl>,
@@ -82,6 +83,7 @@ impl DomainParticipantImpl {
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
+        domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
         builtin_subscriber: RtpsShared<SubscriberImpl>,
         builtin_publisher: RtpsShared<PublisherImpl>,
@@ -195,6 +197,7 @@ impl DomainParticipantImpl {
         Self {
             rtps_participant,
             domain_id,
+            domain_tag,
             qos: domain_participant_qos,
             _builtin_subscriber: builtin_subscriber,
             builtin_publisher,
@@ -532,7 +535,7 @@ impl Entity for DomainParticipantImpl {
             },
             participant_proxy: ParticipantProxy {
                 domain_id: self.domain_id as u32,
-                domain_tag: "ab".to_string(),
+                domain_tag: self.domain_tag.clone(),
                 protocol_version: self.rtps_participant.protocol_version,
                 guid_prefix: self.rtps_participant.entity.guid.prefix,
                 vendor_id: self.rtps_participant.vendor_id,
@@ -601,6 +604,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
             1,
+            "".to_string(),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -631,6 +635,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([0; 12]),
             1,
+            "".to_string(),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -663,6 +668,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
+            "".to_string(),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -693,6 +699,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
+            "".to_string(),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -728,6 +735,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
+            "".to_string(),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -758,6 +766,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
+            "".to_string(),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -788,6 +797,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
+            "".to_string(),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -823,6 +833,7 @@ mod tests {
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
+            "".to_string(),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
@@ -868,6 +879,7 @@ mod tests {
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
+            "".to_string(),
             DomainParticipantQos::default(),
             builtin_subscriber,
             builtin_publisher,
