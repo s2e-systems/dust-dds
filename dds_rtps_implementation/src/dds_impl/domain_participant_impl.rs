@@ -77,6 +77,8 @@ pub struct DomainParticipantImpl {
     _topic_list: Vec<RtpsShared<TopicImpl>>,
     default_topic_qos: TopicQos,
     is_enabled: Arc<AtomicBool>,
+    manual_liveliness_count: Count,
+    lease_duration: rust_rtps_pim::behavior::types::Duration,
 }
 
 impl DomainParticipantImpl {
@@ -90,6 +92,7 @@ impl DomainParticipantImpl {
         metatraffic_transport: Box<dyn Transport>,
         default_transport: Box<dyn Transport>,
     ) -> Self {
+        let lease_duration = rust_rtps_pim::behavior::types::Duration::new(120, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
         let rtps_participant = RtpsParticipant {
@@ -194,6 +197,7 @@ impl DomainParticipantImpl {
         //         }
         //     }
 
+
         Self {
             rtps_participant,
             domain_id,
@@ -210,6 +214,8 @@ impl DomainParticipantImpl {
             _topic_list: Vec::new(),
             default_topic_qos: TopicQos::default(),
             is_enabled,
+            manual_liveliness_count: Count(0),
+            lease_duration,
         }
     }
 }
@@ -544,14 +550,11 @@ impl Entity for DomainParticipantImpl {
                 metatraffic_multicast_locator_list: vec![],
                 default_unicast_locator_list: vec![],
                 default_multicast_locator_list: vec![],
-                available_builtin_endpoints: BuiltinEndpointSet(0),
-                manual_liveliness_count: Count(0),
-                builtin_endpoint_qos: BuiltinEndpointQos(0),
+                available_builtin_endpoints: BuiltinEndpointSet::default(),
+                manual_liveliness_count: self.manual_liveliness_count,
+                builtin_endpoint_qos: BuiltinEndpointQos::default(),
             },
-            lease_duration: rust_rtps_pim::behavior::types::Duration {
-                seconds: 120,
-                fraction: 0,
-            },
+            lease_duration: self.lease_duration,
         };
         spdp_builtin_participant_writer
             .write()
