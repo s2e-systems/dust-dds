@@ -7,11 +7,11 @@ use crate::{
 
 use super::data_writer_listener::DataWriterListener;
 
-pub trait DataWriterGAT<'dw, 't, T>: Publisher {
+pub trait PublisherDataWriterFactory<'dw, 't, T> {
     type TopicType;
     type DataWriterType;
 
-    fn create_datawriter_gat(
+    fn datawriter_factory_create_datawriter(
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
@@ -19,9 +19,12 @@ pub trait DataWriterGAT<'dw, 't, T>: Publisher {
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>;
 
-    fn delete_datawriter_gat(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()>;
+    fn datawriter_factory_delete_datawriter(
+        &self,
+        a_datawriter: &Self::DataWriterType,
+    ) -> DDSResult<()>;
 
-    fn lookup_datawriter_gat(
+    fn datawriter_factory_lookup_datawriter(
         &'dw self,
         topic: &'dw Self::TopicType,
     ) -> Option<Self::DataWriterType>;
@@ -63,11 +66,9 @@ pub trait Publisher {
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>
     where
-        Self: DataWriterGAT<'dw, 't, T> + Sized,
+        Self: PublisherDataWriterFactory<'dw, 't, T> + Sized,
     {
-        <Self as DataWriterGAT<'dw, 't, T>>::create_datawriter_gat(
-            self, a_topic, qos, a_listener, mask,
-        )
+        self.datawriter_factory_create_datawriter(a_topic, qos, a_listener, mask)
     }
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
@@ -83,9 +84,9 @@ pub trait Publisher {
         a_datawriter: &'dw Self::DataWriterType,
     ) -> DDSResult<()>
     where
-        Self: DataWriterGAT<'dw, 't, T> + Sized,
+        Self: PublisherDataWriterFactory<'dw, 't, T> + Sized,
     {
-        <Self as DataWriterGAT<'dw, 't, T>>::delete_datawriter_gat(self, a_datawriter)
+        self.datawriter_factory_delete_datawriter(a_datawriter)
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
@@ -97,9 +98,9 @@ pub trait Publisher {
         topic: &'dw Self::TopicType,
     ) -> Option<Self::DataWriterType>
     where
-        Self: DataWriterGAT<'dw, 't, T> + Sized,
+        Self: PublisherDataWriterFactory<'dw, 't, T> + Sized,
     {
-        <Self as DataWriterGAT<'dw, 't, T>>::lookup_datawriter_gat(self, topic)
+        self.datawriter_factory_lookup_datawriter(topic)
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
