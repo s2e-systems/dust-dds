@@ -23,7 +23,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::clock::StdTimer,
+    utils::{clock::StdTimer, thread::StdThread},
 };
 use rust_rtps_pim::{
     behavior::writer::{
@@ -208,7 +208,7 @@ impl DomainParticipantFactory {
                 StdTimer::new(),
             );
 
-        let domain_participant = DomainParticipantImpl::new(
+        let domain_participant = DomainParticipantImpl::new::<StdThread, _>(
             guid_prefix,
             domain_id,
             domain_tag,

@@ -54,6 +54,7 @@ use crate::{
         clock::StdTimer,
         communication::Communication,
         shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared},
+        thread::Thread,
         transport::{TransportRead, TransportWrite},
     },
 };
@@ -94,13 +95,13 @@ pub struct DomainParticipantImpl {
 }
 
 impl DomainParticipantImpl {
-    pub fn new(
+    pub fn new<TH, TR>(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
-        metatraffic_transport: impl TransportRead + TransportWrite + Send + Sync + 'static,
-        default_transport: impl TransportRead + TransportWrite + Send + Sync + 'static,
+        metatraffic_transport: TR,
+        default_transport: TR,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
         default_unicast_locator_list: Vec<Locator>,
@@ -121,7 +122,11 @@ impl DomainParticipantImpl {
         sedp_builtin_topics_data_writer: Option<
             DataWriterImpl<SedpDiscoveredTopicData, RtpsStatefulWriterImpl, StdTimer>,
         >,
-    ) -> Self {
+    ) -> Self
+    where
+        TH: Thread,
+        TR: TransportRead + TransportWrite + Send + Sync + 'static,
+    {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
@@ -212,7 +217,7 @@ impl DomainParticipantImpl {
                 .unwrap()
                 .lookup_datareader::<SedpDiscoveredReaderData>(&());
 
-        std::thread::spawn(move || {
+        TH::spawn(move || {
             while !is_enabled_arc.load(atomic::Ordering::SeqCst) {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
@@ -228,10 +233,11 @@ impl DomainParticipantImpl {
                 communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
-        });
+        })
+        .unwrap();
 
         let is_enabled_arc = is_enabled.clone();
-        std::thread::spawn(move || {
+        TH::spawn(move || {
             while !is_enabled_arc.load(atomic::Ordering::SeqCst) {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
@@ -248,7 +254,8 @@ impl DomainParticipantImpl {
                 communication.receive(&user_defined_subscriber_list_arc.lock().unwrap());
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
-        });
+        })
+        .unwrap();
 
         //     if let Some(spdp_builtin_participant_reader) =
         //         &option_spdp_builtin_participant_reader
@@ -687,9 +694,23 @@ mod tests {
         }
     }
 
+    struct MockThread;
+
+    impl Thread for MockThread {
+        type Handle = ();
+
+        fn spawn<F>(_f: F) -> std::io::Result<Self::Handle>
+        where
+            F: FnOnce(),
+            F: Send + 'static,
+        {
+            Ok(())
+        }
+    }
+
     #[test]
     fn set_default_publisher_qos_some_value() {
-        let mut domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([3; 12]),
             1,
             "".to_string(),
@@ -719,7 +740,7 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_none() {
-        let mut domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([0; 12]),
             1,
             "".to_string(),
@@ -751,7 +772,7 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_some_value() {
-        let mut domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
@@ -781,7 +802,7 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_none() {
-        let mut domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
@@ -816,7 +837,7 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_some_value() {
-        let mut domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
@@ -846,7 +867,7 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_inconsistent() {
-        let mut domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
@@ -876,7 +897,7 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_none() {
-        let mut domain_participant = DomainParticipantImpl::new(
+        let mut domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
@@ -911,7 +932,7 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let domain_participant = DomainParticipantImpl::new(
+        let domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
@@ -956,7 +977,7 @@ mod tests {
 
     #[test]
     fn delete_publisher() {
-        let domain_participant = DomainParticipantImpl::new(
+        let domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
@@ -991,7 +1012,7 @@ mod tests {
 
     #[test]
     fn domain_participant_as_spdp_discovered_participant_data() {
-        let domain_participant = DomainParticipantImpl::new(
+        let domain_participant = DomainParticipantImpl::new::<MockThread, _>(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
