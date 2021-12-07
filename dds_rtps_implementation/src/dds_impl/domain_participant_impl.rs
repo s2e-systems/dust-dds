@@ -308,6 +308,33 @@ impl DomainParticipantImpl {
             default_multicast_locator_list,
         }
     }
+
+    fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
+        SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: self.rtps_participant.entity.guid.into(),
+                },
+                user_data: self.qos.user_data.clone(),
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: self.domain_id as u32,
+                domain_tag: self.domain_tag.clone(),
+                protocol_version: self.rtps_participant.protocol_version,
+                guid_prefix: self.rtps_participant.entity.guid.prefix,
+                vendor_id: self.rtps_participant.vendor_id,
+                expects_inline_qos: false,
+                metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
+                metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
+                default_unicast_locator_list: self.default_unicast_locator_list.clone(),
+                default_multicast_locator_list: self.default_multicast_locator_list.clone(),
+                available_builtin_endpoints: BuiltinEndpointSet::default(),
+                manual_liveliness_count: self.manual_liveliness_count,
+                builtin_endpoint_qos: BuiltinEndpointQos::default(),
+            },
+            lease_duration: self.lease_duration,
+        }
+    }
 }
 
 impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl {
@@ -624,30 +651,7 @@ impl Entity for DomainParticipantImpl {
             .unwrap()
             .lookup_datawriter::<SpdpDiscoveredParticipantData>(&())
             .unwrap();
-        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: self.rtps_participant.entity.guid.into(),
-                },
-                user_data: self.qos.user_data.clone(),
-            },
-            participant_proxy: ParticipantProxy {
-                domain_id: self.domain_id as u32,
-                domain_tag: self.domain_tag.clone(),
-                protocol_version: self.rtps_participant.protocol_version,
-                guid_prefix: self.rtps_participant.entity.guid.prefix,
-                vendor_id: self.rtps_participant.vendor_id,
-                expects_inline_qos: false,
-                metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
-                metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
-                default_unicast_locator_list: self.default_unicast_locator_list.clone(),
-                default_multicast_locator_list: self.default_multicast_locator_list.clone(),
-                available_builtin_endpoints: BuiltinEndpointSet::default(),
-                manual_liveliness_count: self.manual_liveliness_count,
-                builtin_endpoint_qos: BuiltinEndpointQos::default(),
-            },
-            lease_duration: self.lease_duration,
-        };
+        let spdp_discovered_participant_data = self.as_spdp_discovered_participant_data();
         spdp_builtin_participant_writer
             .write()
             .unwrap()
@@ -665,7 +669,7 @@ impl Entity for DomainParticipantImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_dds_api::return_type::DDSError;
+    use rust_dds_api::{infrastructure::qos_policy::UserDataQosPolicy, return_type::DDSError};
     use rust_rtps_pim::structure::types::Locator;
     use rust_rtps_psm::messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite};
 
@@ -984,4 +988,84 @@ mod tests {
             0
         );
     }
+
+    #[test]
+    fn domain_participant_as_spdp_discovered_participant_data() {
+        let domain_participant = DomainParticipantImpl::new(
+            GuidPrefix([1; 12]),
+            1,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        );
+        let spdp_discovered_participant_data =
+            domain_participant.as_spdp_discovered_participant_data();
+        let expected_spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0xc1],
+                },
+                user_data: UserDataQosPolicy { value: vec![] },
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: 1,
+                domain_tag: "".to_string(),
+                protocol_version: PROTOCOLVERSION,
+                guid_prefix: GuidPrefix([1; 12]),
+                vendor_id: VENDOR_ID_S2E,
+                expects_inline_qos: false,
+                metatraffic_unicast_locator_list: vec![],
+                metatraffic_multicast_locator_list: vec![],
+                default_unicast_locator_list: vec![],
+                default_multicast_locator_list: vec![],
+                available_builtin_endpoints: BuiltinEndpointSet::default(),
+                manual_liveliness_count: Count(0),
+                builtin_endpoint_qos: BuiltinEndpointQos::default(),
+            },
+            lease_duration: rust_rtps_pim::behavior::types::Duration::new(100, 0),
+        };
+
+        assert_eq!(
+            spdp_discovered_participant_data,
+            expected_spdp_discovered_participant_data
+        );
+    }
+
+    // #[test]
+    // fn spdp_data_sent() {
+    //     let domain_participant = DomainParticipantImpl::new(
+    //         GuidPrefix([1; 12]),
+    //         1,
+    //         "".to_string(),
+    //         DomainParticipantQos::default(),
+    //         MockTransport,
+    //         MockTransport,
+    //         vec![],
+    //         vec![],
+    //         vec![],
+    //         vec![],
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //     );
+    //     domain_participant.enable();
+    // }
 }
