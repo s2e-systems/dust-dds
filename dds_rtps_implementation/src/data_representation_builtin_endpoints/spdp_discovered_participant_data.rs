@@ -27,8 +27,8 @@ use super::{
     },
     serde_remote_rtps_pim::{
         CountDeserialize, CountSerdeSerialize, DomainTag, DomainTagDeserialize, DomainTagSerialize,
-        DurationDeserialize, DurationSerialize, ExpectsInclineQosDeserialize,
-        ExpectsInclineQosSerialize, GuidDeserialize, GuidSerialize, LocatorDeserialize,
+        DurationDeserialize, DurationSerialize, ExpectsInlineQosDeserialize,
+        ExpectsInlineQosSerialize, GuidDeserialize, GuidSerialize, LocatorDeserialize,
         LocatorSerialize, ProtocolVersionDeserialize, ProtocolVersionSerialize,
     },
 };
@@ -78,7 +78,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         parameter_list_serializer
             .serialize_parameter::<&[u8; 2], _>(PID_VENDORID, &self.participant_proxy.vendor_id)?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<ExpectsInclineQosSerialize, _>(
+            .serialize_parameter_if_not_default::<ExpectsInlineQosSerialize, _>(
                 PID_EXPECTS_INLINE_QOS,
                 &self.participant_proxy.expects_inline_qos,
             )?;
@@ -106,7 +106,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             &self.participant_proxy.manual_liveliness_count,
         )?;
-        parameter_list_serializer.serialize_parameter::<BuiltinEndpointQosSerialize, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default::<BuiltinEndpointQosSerialize, _>(
             PID_BUILTIN_ENDPOINT_QOS,
             &self.participant_proxy.builtin_endpoint_qos,
         )?;
@@ -136,7 +136,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             param_list.get::<ProtocolVersionDeserialize, _>(PID_PROTOCOL_VERSION)?;
         let vendor_id = param_list.get::<[u8; 2], _>(PID_VENDORID)?;
         let expects_inline_qos =
-            param_list.get_or_default::<ExpectsInclineQosDeserialize, _>(PID_EXPECTS_INLINE_QOS)?;
+            param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_EXPECTS_INLINE_QOS)?;
         let metatraffic_unicast_locator_list =
             param_list.get_list::<LocatorDeserialize, _>(PID_METATRAFFIC_UNICAST_LOCATOR)?;
         let metatraffic_multicast_locator_list =

@@ -97,15 +97,15 @@ pub struct CountSerdeSerialize<'a>(#[serde(with = "CountDef")] pub &'a Count);
 pub struct CountDeserialize(#[serde(with = "CountDef")] pub Count);
 
 #[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
-pub struct ExpectsInclineQosSerialize<'a>(pub &'a bool);
-impl Default for ExpectsInclineQosSerialize<'_> {
+pub struct ExpectsInlineQosSerialize<'a>(pub &'a bool);
+impl Default for ExpectsInlineQosSerialize<'_> {
     fn default() -> Self {
         Self(&DEFAULT_EXPECTS_INLINE_QOS)
     }
 }
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
-pub struct ExpectsInclineQosDeserialize(pub bool);
-impl Default for ExpectsInclineQosDeserialize {
+pub struct ExpectsInlineQosDeserialize(pub bool);
+impl Default for ExpectsInlineQosDeserialize {
     fn default() -> Self {
         Self(DEFAULT_EXPECTS_INLINE_QOS)
     }

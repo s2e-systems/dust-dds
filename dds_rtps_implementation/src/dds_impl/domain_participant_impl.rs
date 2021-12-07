@@ -100,7 +100,7 @@ impl DomainParticipantImpl {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
     ) -> Self {
-        let lease_duration = rust_rtps_pim::behavior::types::Duration::new(120, 0);
+        let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
         let rtps_participant = RtpsParticipant {

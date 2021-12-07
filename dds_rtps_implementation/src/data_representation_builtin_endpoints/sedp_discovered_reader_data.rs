@@ -31,8 +31,8 @@ use super::{
         TopicDataQosPolicySerialize, UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
     },
     serde_remote_rtps_pim::{
-        EntityIdDeserialize, EntityIdSerialize, ExpectsInclineQosDeserialize,
-        ExpectsInclineQosSerialize, LocatorDeserialize, LocatorSerialize,
+        EntityIdDeserialize, EntityIdSerialize, ExpectsInlineQosDeserialize,
+        ExpectsInlineQosSerialize, LocatorDeserialize, LocatorSerialize,
     },
 };
 
@@ -74,7 +74,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
             &self.reader_proxy.remote_group_entity_id,
         )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<ExpectsInclineQosSerialize, _>(
+            .serialize_parameter_if_not_default::<ExpectsInlineQosSerialize, _>(
                 PID_EXPECTS_INLINE_QOS,
                 &self.reader_proxy.expects_inline_qos,
             )?;
@@ -174,7 +174,7 @@ impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
         let multicast_locator_list =
             param_list.get_list::<LocatorDeserialize, _>(PID_MULTICAST_LOCATOR)?;
         let expects_inline_qos =
-            param_list.get_or_default::<ExpectsInclineQosDeserialize, _>(PID_MULTICAST_LOCATOR)?;
+            param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_MULTICAST_LOCATOR)?;
 
         // subscription_builtin_topic_data
         let key =
@@ -283,7 +283,7 @@ mod tests {
                 },
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                expects_inline_qos: *ExpectsInclineQosSerialize::default().0,
+                expects_inline_qos: *ExpectsInlineQosSerialize::default().0,
             },
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -352,7 +352,7 @@ mod tests {
                 },
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                expects_inline_qos: ExpectsInclineQosDeserialize::default().0,
+                expects_inline_qos: ExpectsInlineQosDeserialize::default().0,
             },
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
