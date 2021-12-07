@@ -123,11 +123,11 @@ impl DomainParticipantFactory {
             )
             .unwrap();
         socket.set_multicast_loop_v4(true).unwrap();
-        let metatraffic_transport = Box::new(UdpTransport::new(socket));
+        let metatraffic_transport = UdpTransport::new(socket);
 
         let socket = UdpSocket::bind("127.0.0.1:7410").unwrap();
         socket.set_nonblocking(true).unwrap();
-        let default_transport = Box::new(UdpTransport::new(socket));
+        let default_transport = UdpTransport::new(socket);
 
         // /////// Create SPDP and SEDP endpoints
         let spdp_builtin_participant_rtps_reader =
