@@ -6,9 +6,7 @@ use std::{
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::qos::{
-        DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
-    },
+    infrastructure::qos::{DataReaderQos, DataWriterQos, DomainParticipantQos},
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
@@ -19,14 +17,13 @@ use rust_dds_rtps_implementation::{
     },
     dds_impl::{
         data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
-        domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
-        subscriber_impl::SubscriberImpl,
+        domain_participant_impl::DomainParticipantImpl,
     },
     rtps_impl::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::{clock::StdTimer, shared_object::rtps_shared_new},
+    utils::clock::StdTimer,
 };
 use rust_rtps_pim::{
     behavior::writer::{
@@ -40,13 +37,7 @@ use rust_rtps_pim::{
         },
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
     },
-    structure::{
-        group::RtpsGroup,
-        types::{
-            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
-            BUILT_IN_WRITER_GROUP,
-        },
-    },
+    structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator},
 };
 
 use crate::udp_transport::UdpTransport;
@@ -91,6 +82,8 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> Option<DomainParticipantImpl> {
+        let domain_participant_qos = qos.unwrap_or_default();
+
         // /////// Define guid prefix
         let guid_prefix = GuidPrefix([3; 12]);
 
@@ -165,10 +158,10 @@ impl DomainParticipantFactory {
 
         // ///////// Create built-in DDS data readers and data writers
         let spdp_builtin_participant_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
+            DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
                 DataReaderQos::default(),
                 spdp_builtin_participant_rtps_reader,
-            ));
+            );
 
         let spdp_builtin_participant_dds_data_writer =
             DataWriterImpl::<SpdpDiscoveredParticipantData, _, _>::new(
@@ -177,83 +170,49 @@ impl DomainParticipantFactory {
                 StdTimer::new(),
             );
 
-        let spdp_builtin_participant_dds_data_writer =
-            rtps_shared_new(spdp_builtin_participant_dds_data_writer);
-
         let sedp_builtin_publications_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SedpDiscoveredWriterData>::new(
+            DataReaderImpl::<SedpDiscoveredWriterData>::new(
                 DataReaderQos::default(),
                 sedp_builtin_publications_rtps_reader,
-            ));
+            );
 
         let sedp_builtin_publications_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _, _>::new(
+            DataWriterImpl::<SedpDiscoveredWriterData, _, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_publications_rtps_writer,
                 StdTimer::new(),
-            ));
+            );
 
         let sedp_builtin_subscriptions_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SedpDiscoveredReaderData>::new(
+            DataReaderImpl::<SedpDiscoveredReaderData>::new(
                 DataReaderQos::default(),
                 sedp_builtin_subscriptions_rtps_reader,
-            ));
+            );
 
         let sedp_builtin_subscriptions_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData, _, _>::new(
+            DataWriterImpl::<SedpDiscoveredReaderData, _, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_subscriptions_rtps_writer,
                 StdTimer::new(),
-            ));
+            );
 
-        let sedp_builtin_topics_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SedpDiscoveredTopicData>::new(
-                DataReaderQos::default(),
-                sedp_builtin_topics_rtps_reader,
-            ));
+        let sedp_builtin_topics_dds_data_reader = DataReaderImpl::<SedpDiscoveredTopicData>::new(
+            DataReaderQos::default(),
+            sedp_builtin_topics_rtps_reader,
+        );
 
         let sedp_builtin_topics_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData, _, _>::new(
+            DataWriterImpl::<SedpDiscoveredTopicData, _, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_topics_rtps_writer,
                 StdTimer::new(),
-            ));
-
-        // ////// Create built-in publisher and subscriber
-        let builtin_publisher_storage = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-            )),
-            vec![spdp_builtin_participant_dds_data_writer],
-            vec![
-                sedp_builtin_publications_dds_data_writer,
-                sedp_builtin_subscriptions_dds_data_writer,
-                sedp_builtin_topics_dds_data_writer,
-            ],
-        ));
-        let builtin_subscriber_storage = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
-            vec![
-                spdp_builtin_participant_dds_data_reader,
-                sedp_builtin_publications_dds_data_reader,
-                sedp_builtin_subscriptions_dds_data_reader,
-                sedp_builtin_topics_dds_data_reader,
-            ],
-        ));
+            );
 
         let domain_participant = DomainParticipantImpl::new(
             guid_prefix,
             domain_id,
             domain_tag,
-            qos.unwrap_or_default(),
-            builtin_subscriber_storage,
-            builtin_publisher_storage,
+            domain_participant_qos,
             metatraffic_transport,
             default_transport,
             metatraffic_unicast_locator_list,

@@ -33,8 +33,8 @@ use rust_rtps_pim::{
         group::RtpsGroup,
         participant::RtpsParticipant,
         types::{
-            EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
-            USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
+            EntityId, Guid, GuidPrefix, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
+            ENTITYID_PARTICIPANT, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
         },
     },
 };
@@ -87,8 +87,6 @@ impl DomainParticipantImpl {
         domain_id: DomainId,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
-        builtin_subscriber: RtpsShared<SubscriberImpl>,
-        builtin_publisher: RtpsShared<PublisherImpl>,
         metatraffic_transport: impl TransportRead + TransportWrite + Send + Sync + 'static,
         default_transport: impl TransportRead + TransportWrite + Send + Sync + 'static,
         metatraffic_unicast_locator_list: Vec<Locator>,
@@ -108,6 +106,32 @@ impl DomainParticipantImpl {
             default_unicast_locator_list: vec![],
             default_multicast_locator_list: vec![],
         };
+        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroup::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+            )),
+            vec![], //spdp_builtin_participant_dds_data_writer
+            vec![
+                // sedp_builtin_publications_dds_data_writer,
+                // sedp_builtin_subscriptions_dds_data_writer,
+                // sedp_builtin_topics_dds_data_writer,
+            ],
+        ));
+        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroup::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+            )),
+            vec![
+                // spdp_builtin_participant_dds_data_reader,
+                // sedp_builtin_publications_dds_data_reader,
+                // sedp_builtin_subscriptions_dds_data_reader,
+                // sedp_builtin_topics_dds_data_reader,
+            ],
+        ));
         let is_enabled = Arc::new(AtomicBool::new(false));
         let is_enabled_arc = is_enabled.clone();
         let builtin_subscriber_arc = builtin_subscriber.clone();
@@ -583,7 +607,7 @@ impl Entity for DomainParticipantImpl {
 mod tests {
     use super::*;
     use rust_dds_api::return_type::DDSError;
-    use rust_rtps_pim::structure::types::{Locator, GUID_UNKNOWN};
+    use rust_rtps_pim::structure::types::Locator;
     use rust_rtps_psm::messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite};
 
     struct MockTransport;
@@ -602,24 +626,11 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_some_value() {
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-        ));
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-            vec![],
-        ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            builtin_subscriber,
-            builtin_publisher,
             MockTransport,
             MockTransport,
             vec![],
@@ -637,24 +648,11 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_none() {
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-        ));
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-            vec![],
-        ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([0; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            builtin_subscriber,
-            builtin_publisher,
             MockTransport,
             MockTransport,
             vec![],
@@ -674,24 +672,11 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_some_value() {
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-        ));
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-            vec![],
-        ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            builtin_subscriber,
-            builtin_publisher,
             MockTransport,
             MockTransport,
             vec![],
@@ -709,24 +694,11 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_none() {
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-        ));
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-            vec![],
-        ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            builtin_subscriber,
-            builtin_publisher,
             MockTransport,
             MockTransport,
             vec![],
@@ -749,24 +721,11 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_some_value() {
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-        ));
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-            vec![],
-        ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            builtin_subscriber,
-            builtin_publisher,
             MockTransport,
             MockTransport,
             vec![],
@@ -784,24 +743,11 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_inconsistent() {
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-        ));
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-            vec![],
-        ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            builtin_subscriber,
-            builtin_publisher,
             MockTransport,
             MockTransport,
             vec![],
@@ -819,24 +765,11 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_none() {
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-        ));
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-            vec![],
-        ));
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            builtin_subscriber,
-            builtin_publisher,
             MockTransport,
             MockTransport,
             vec![],
@@ -859,24 +792,11 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-        ));
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-            vec![],
-        ));
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            builtin_subscriber,
-            builtin_publisher,
             MockTransport,
             MockTransport,
             vec![],
@@ -909,24 +829,11 @@ mod tests {
 
     #[test]
     fn delete_publisher() {
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-        ));
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
-            vec![],
-            vec![],
-        ));
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            builtin_subscriber,
-            builtin_publisher,
             MockTransport,
             MockTransport,
             vec![],
