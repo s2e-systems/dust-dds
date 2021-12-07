@@ -208,7 +208,7 @@ impl DomainParticipantFactory {
                 StdTimer::new(),
             );
 
-        let domain_participant = DomainParticipantImpl::new::<StdThread, _>(
+        let domain_participant = DomainParticipantImpl::new(
             guid_prefix,
             domain_id,
             domain_tag,
@@ -227,6 +227,7 @@ impl DomainParticipantFactory {
             Some(sedp_builtin_subscriptions_dds_data_writer),
             Some(sedp_builtin_topics_dds_data_reader),
             Some(sedp_builtin_topics_dds_data_writer),
+            StdThread,
         );
 
         Some(domain_participant)

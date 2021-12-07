@@ -1,24 +1,20 @@
-use std::thread::JoinHandle;
-
-pub trait Thread {
-    type Handle;
-
-    fn spawn<F>(f: F) -> std::io::Result<Self::Handle>
+pub trait ThreadManager {
+    fn spawn<F>(&mut self, f: F) -> std::io::Result<()>
     where
         F: FnOnce(),
-        F: Send + 'static;
+        F: Send + 'static,
+        Self: Sized;
 }
 
 pub struct StdThread;
 
-impl Thread for StdThread {
-    type Handle = JoinHandle<()>;
-
-    fn spawn<F>(f: F) -> std::io::Result<JoinHandle<()>>
+impl ThreadManager for StdThread {
+    fn spawn<F>(&mut self, f: F) -> std::io::Result<()>
     where
         F: FnOnce(),
         F: Send + 'static,
     {
-        Ok(std::thread::spawn(f))
+        std::thread::spawn(f);
+        Ok(())
     }
 }
