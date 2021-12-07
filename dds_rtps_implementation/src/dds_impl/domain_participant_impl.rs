@@ -1,6 +1,6 @@
 use std::sync::{
     atomic::{self, AtomicBool, AtomicU8},
-    Arc, Mutex,
+    Arc, Mutex, RwLock,
 };
 
 use rust_dds_api::{
@@ -42,9 +42,16 @@ use rust_rtps_pim::{
 use crate::{
     data_representation_builtin_endpoints::{
         sedp_discovered_reader_data::SedpDiscoveredReaderData,
+        sedp_discovered_topic_data::SedpDiscoveredTopicData,
+        sedp_discovered_writer_data::SedpDiscoveredWriterData,
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
+    rtps_impl::{
+        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    },
     utils::{
+        clock::StdTimer,
         communication::Communication,
         shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared},
         transport::{TransportRead, TransportWrite},
@@ -52,8 +59,13 @@ use crate::{
 };
 
 use super::{
-    publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy,
-    subscriber_impl::SubscriberImpl, subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl,
+    data_reader_impl::DataReaderImpl,
+    data_writer_impl::DataWriterImpl,
+    publisher_impl::{AnyStatefulDataWriter, AnyStatelessDataWriter, PublisherImpl},
+    publisher_proxy::PublisherProxy,
+    subscriber_impl::{DataReaderObject, SubscriberImpl},
+    subscriber_proxy::SubscriberProxy,
+    topic_impl::TopicImpl,
     topic_proxy::TopicProxy,
 };
 
@@ -93,6 +105,22 @@ impl DomainParticipantImpl {
         metatraffic_multicast_locator_list: Vec<Locator>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
+        spdp_builtin_participant_data_reader: Option<DataReaderImpl<SpdpDiscoveredParticipantData>>,
+        spdp_builtin_participant_data_writer: Option<
+            DataWriterImpl<SpdpDiscoveredParticipantData, RtpsStatelessWriterImpl, StdTimer>,
+        >,
+        sedp_builtin_publications_data_reader: Option<DataReaderImpl<SedpDiscoveredWriterData>>,
+        sedp_builtin_publications_data_writer: Option<
+            DataWriterImpl<SedpDiscoveredWriterData, RtpsStatefulWriterImpl, StdTimer>,
+        >,
+        sedp_builtin_subscriptions_data_reader: Option<DataReaderImpl<SedpDiscoveredReaderData>>,
+        sedp_builtin_subscriptions_data_writer: Option<
+            DataWriterImpl<SedpDiscoveredReaderData, RtpsStatefulWriterImpl, StdTimer>,
+        >,
+        sedp_builtin_topics_data_reader: Option<DataReaderImpl<SedpDiscoveredTopicData>>,
+        sedp_builtin_topics_data_writer: Option<
+            DataWriterImpl<SedpDiscoveredTopicData, RtpsStatefulWriterImpl, StdTimer>,
+        >,
     ) -> Self {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
@@ -106,32 +134,63 @@ impl DomainParticipantImpl {
             default_unicast_locator_list: vec![],
             default_multicast_locator_list: vec![],
         };
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-            )),
-            vec![], //spdp_builtin_participant_dds_data_writer
-            vec![
-                // sedp_builtin_publications_dds_data_writer,
-                // sedp_builtin_subscriptions_dds_data_writer,
-                // sedp_builtin_topics_dds_data_writer,
-            ],
-        ));
+
+        let mut data_reader_list: Vec<Arc<dyn DataReaderObject + Send + Sync>> = Vec::new();
+        if let Some(spdp_builtin_participant_data_reader) = spdp_builtin_participant_data_reader {
+            data_reader_list.push(Arc::new(RwLock::new(spdp_builtin_participant_data_reader)));
+        }
+        if let Some(sedp_builtin_publications_data_reader) = sedp_builtin_publications_data_reader {
+            data_reader_list.push(Arc::new(RwLock::new(sedp_builtin_publications_data_reader)));
+        }
+        if let Some(sedp_builtin_subscriptions_data_reader) = sedp_builtin_subscriptions_data_reader
+        {
+            data_reader_list.push(Arc::new(RwLock::new(
+                sedp_builtin_subscriptions_data_reader,
+            )));
+        }
+        if let Some(sedp_builtin_topics_data_reader) = sedp_builtin_topics_data_reader {
+            data_reader_list.push(Arc::new(RwLock::new(sedp_builtin_topics_data_reader)));
+        }
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
             RtpsGroup::new(Guid::new(
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
-            vec![
-                // spdp_builtin_participant_dds_data_reader,
-                // sedp_builtin_publications_dds_data_reader,
-                // sedp_builtin_subscriptions_dds_data_reader,
-                // sedp_builtin_topics_dds_data_reader,
-            ],
+            data_reader_list,
         ));
+
+        let mut stateless_data_writer_list: Vec<Arc<dyn AnyStatelessDataWriter + Send + Sync>> =
+            Vec::new();
+        let mut stateful_data_writer_list: Vec<Arc<dyn AnyStatefulDataWriter + Send + Sync>> =
+            Vec::new();
+        if let Some(spdp_builtin_participant_data_writer) = spdp_builtin_participant_data_writer {
+            stateless_data_writer_list
+                .push(Arc::new(RwLock::new(spdp_builtin_participant_data_writer)));
+        };
+        if let Some(sedp_builtin_publications_data_writer) = sedp_builtin_publications_data_writer {
+            stateful_data_writer_list
+                .push(Arc::new(RwLock::new(sedp_builtin_publications_data_writer)))
+        }
+        if let Some(sedp_builtin_subscriptions_data_writer) = sedp_builtin_subscriptions_data_writer
+        {
+            stateful_data_writer_list.push(Arc::new(RwLock::new(
+                sedp_builtin_subscriptions_data_writer,
+            )))
+        }
+        if let Some(sedp_builtin_topics_data_writer) = sedp_builtin_topics_data_writer {
+            stateful_data_writer_list.push(Arc::new(RwLock::new(sedp_builtin_topics_data_writer)))
+        }
+        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroup::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+            )),
+            stateless_data_writer_list,
+            stateful_data_writer_list,
+        ));
+
         let is_enabled = Arc::new(AtomicBool::new(false));
         let is_enabled_arc = is_enabled.clone();
         let builtin_subscriber_arc = builtin_subscriber.clone();
@@ -637,6 +696,14 @@ mod tests {
             vec![],
             vec![],
             vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -659,6 +726,14 @@ mod tests {
             vec![],
             vec![],
             vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -683,6 +758,14 @@ mod tests {
             vec![],
             vec![],
             vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -705,6 +788,14 @@ mod tests {
             vec![],
             vec![],
             vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -732,6 +823,14 @@ mod tests {
             vec![],
             vec![],
             vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -754,6 +853,14 @@ mod tests {
             vec![],
             vec![],
             vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
         let mut qos = TopicQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
@@ -776,6 +883,14 @@ mod tests {
             vec![],
             vec![],
             vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -803,6 +918,14 @@ mod tests {
             vec![],
             vec![],
             vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
 
         let publisher_counter_before = domain_participant
@@ -840,6 +963,14 @@ mod tests {
             vec![],
             vec![],
             vec![],
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
         let a_publisher = domain_participant.create_publisher(None, None, 0).unwrap();
 

@@ -219,6 +219,14 @@ impl DomainParticipantFactory {
             metatraffic_multicast_locator_list,
             default_unicast_locator_list,
             default_multicast_locator_list,
+            Some(spdp_builtin_participant_dds_data_reader),
+            Some(spdp_builtin_participant_dds_data_writer),
+            Some(sedp_builtin_publications_dds_data_reader),
+            Some(sedp_builtin_publications_dds_data_writer),
+            Some(sedp_builtin_subscriptions_dds_data_reader),
+            Some(sedp_builtin_subscriptions_dds_data_writer),
+            Some(sedp_builtin_topics_dds_data_reader),
+            Some(sedp_builtin_topics_dds_data_writer),
         );
 
         Some(domain_participant)
