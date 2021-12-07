@@ -57,10 +57,6 @@ use super::{
     topic_proxy::TopicProxy,
 };
 
-pub trait Transport: TransportRead + TransportWrite + Send + Sync {}
-
-impl<T> Transport for T where T: TransportRead + TransportWrite + Send + Sync {}
-
 pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipant<Vec<Locator>>,
     domain_id: DomainId,
@@ -93,8 +89,8 @@ impl DomainParticipantImpl {
         domain_participant_qos: DomainParticipantQos,
         builtin_subscriber: RtpsShared<SubscriberImpl>,
         builtin_publisher: RtpsShared<PublisherImpl>,
-        metatraffic_transport: impl Transport + 'static,
-        default_transport: impl Transport + 'static,
+        metatraffic_transport: impl TransportRead + TransportWrite + Send + Sync + 'static,
+        default_transport: impl TransportRead + TransportWrite + Send + Sync + 'static,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
         default_unicast_locator_list: Vec<Locator>,
@@ -141,7 +137,7 @@ impl DomainParticipantImpl {
                 version: protocol_version,
                 vendor_id,
                 guid_prefix,
-                transport: Box::new(metatraffic_transport),
+                transport: metatraffic_transport,
             };
 
             while is_enabled_arc.load(atomic::Ordering::SeqCst) {
@@ -161,7 +157,7 @@ impl DomainParticipantImpl {
                 version: protocol_version,
                 vendor_id,
                 guid_prefix,
-                transport: Box::new(default_transport),
+                transport: default_transport,
             };
 
             while is_enabled_arc.load(atomic::Ordering::SeqCst) {

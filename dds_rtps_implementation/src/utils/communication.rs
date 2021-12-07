@@ -1,23 +1,27 @@
 use rust_rtps_pim::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
 
-use crate::dds_impl::{domain_participant_impl::Transport, publisher_impl::PublisherImpl};
+use crate::dds_impl::publisher_impl::PublisherImpl;
 
-use super::{message_receiver::ProcessDataSubmessage, shared_object::RtpsShared};
+use super::{
+    message_receiver::ProcessDataSubmessage,
+    shared_object::RtpsShared,
+    transport::{TransportRead, TransportWrite},
+};
 
-pub struct Communication {
+pub struct Communication<T> {
     pub version: ProtocolVersion,
     pub vendor_id: VendorId,
     pub guid_prefix: GuidPrefix,
-    pub transport: Box<dyn Transport>,
+    pub transport: T,
 }
 
-impl Communication {
+impl<T> Communication<T>
+where
+    T: TransportRead + TransportWrite,
+{
     pub fn send(&mut self, list: &[RtpsShared<PublisherImpl>]) {
         for publisher in list {
-            publisher
-                .write()
-                .unwrap()
-                .send_message(self.transport.as_mut());
+            publisher.write().unwrap().send_message(&mut self.transport);
         }
         // if let Ok((dst_locator, submessages)) =
         //     self.locator_message_channel_receiver.try_recv()
