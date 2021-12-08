@@ -1,6 +1,6 @@
 use std::sync::{
-    atomic::{self, AtomicU8},
-    Arc, Mutex, RwLock,
+    atomic::{self, AtomicBool, AtomicU8},
+    Arc,
 };
 
 use rust_dds_api::{
@@ -19,14 +19,11 @@ use rust_dds_api::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     return_type::{DDSError, DDSResult},
-    subscription::{
-        data_reader::DataReader, subscriber::Subscriber, subscriber_listener::SubscriberListener,
-    },
+    subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::{
     discovery::{
-        participant_discovery::ParticipantDiscovery,
         spdp::participant_proxy::ParticipantProxy,
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
@@ -36,54 +33,37 @@ use rust_rtps_pim::{
         group::RtpsGroup,
         participant::RtpsParticipant,
         types::{
-            EntityId, Guid, GuidPrefix, Locator, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP,
-            ENTITYID_PARTICIPANT, PROTOCOLVERSION, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
+            EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
+            USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
         },
     },
 };
 
 use crate::{
-    data_representation_builtin_endpoints::{
-        sedp_discovered_reader_data::SedpDiscoveredReaderData,
-        sedp_discovered_topic_data::SedpDiscoveredTopicData,
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    },
-    rtps_impl::{
-        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-    },
-    utils::{
-        clock::StdTimer,
-        communication::Communication,
-        shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared},
-        tasks::Spawner,
-        transport::{TransportRead, TransportWrite},
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    utils::shared_object::{
+        rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, rtps_weak_upgrade,
+        RtpsShared,
     },
 };
 
 use super::{
-    data_reader_impl::DataReaderImpl,
-    data_writer_impl::DataWriterImpl,
-    publisher_impl::{AnyStatefulDataWriter, AnyStatelessDataWriter, PublisherImpl},
-    publisher_proxy::PublisherProxy,
-    subscriber_impl::{DataReaderObject, SubscriberImpl},
-    subscriber_proxy::SubscriberProxy,
-    topic_impl::TopicImpl,
+    publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy,
+    subscriber_impl::SubscriberImpl, subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl,
     topic_proxy::TopicProxy,
 };
 
-pub struct DomainParticipantImpl {
+pub struct DomainParticipantImpl<S, P> {
     rtps_participant: RtpsParticipant<Vec<Locator>>,
     domain_id: DomainId,
     domain_tag: String,
     qos: DomainParticipantQos,
-    builtin_subscriber: RtpsShared<SubscriberImpl>,
-    builtin_publisher: RtpsShared<PublisherImpl>,
-    _user_defined_subscriber_list: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
+    _builtin_subscriber: RtpsShared<S>,
+    builtin_publisher: RtpsShared<P>,
+    _user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<S>>>,
     _user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: Arc<Mutex<Vec<RtpsShared<PublisherImpl>>>>,
+    user_defined_publisher_list: RtpsShared<Vec<RtpsShared<P>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
     _topic_list: Vec<RtpsShared<TopicImpl>>,
@@ -92,40 +72,24 @@ pub struct DomainParticipantImpl {
     lease_duration: rust_rtps_pim::behavior::types::Duration,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
-    default_unicast_locator_list: Vec<Locator>,
-    default_multicast_locator_list: Vec<Locator>,
-    spawner: Spawner,
+    enabled: Arc<AtomicBool>,
 }
 
-impl DomainParticipantImpl {
+impl<S, P> DomainParticipantImpl<S, P> {
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
-        metatraffic_transport: impl TransportRead + TransportWrite + Send + Sync + 'static,
-        default_transport: impl TransportRead + TransportWrite + Send + Sync + 'static,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        mut spdp_builtin_participant_data_reader: Option<DataReaderImpl<SpdpDiscoveredParticipantData>>,
-        spdp_builtin_participant_data_writer: Option<
-            DataWriterImpl<SpdpDiscoveredParticipantData, RtpsStatelessWriterImpl, StdTimer>,
-        >,
-        sedp_builtin_publications_data_reader: Option<DataReaderImpl<SedpDiscoveredWriterData>>,
-        mut sedp_builtin_publications_data_writer: Option<
-            DataWriterImpl<SedpDiscoveredWriterData, RtpsStatefulWriterImpl, StdTimer>,
-        >,
-        sedp_builtin_subscriptions_data_reader: Option<DataReaderImpl<SedpDiscoveredReaderData>>,
-        sedp_builtin_subscriptions_data_writer: Option<
-            DataWriterImpl<SedpDiscoveredReaderData, RtpsStatefulWriterImpl, StdTimer>,
-        >,
-        sedp_builtin_topics_data_reader: Option<DataReaderImpl<SedpDiscoveredTopicData>>,
-        sedp_builtin_topics_data_writer: Option<
-            DataWriterImpl<SedpDiscoveredTopicData, RtpsStatefulWriterImpl, StdTimer>,
-        >,
-        spawner: Spawner,
+        builtin_subscriber: RtpsShared<S>,
+        builtin_publisher: RtpsShared<P>,
+        user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<S>>>,
+        user_defined_publisher_list: RtpsShared<Vec<RtpsShared<P>>>,
+        enabled: Arc<AtomicBool>,
     ) -> Self {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
@@ -136,132 +100,16 @@ impl DomainParticipantImpl {
             },
             protocol_version,
             vendor_id,
-            default_unicast_locator_list: vec![],
-            default_multicast_locator_list: vec![],
+            default_unicast_locator_list,
+            default_multicast_locator_list,
         };
-
-        {
-            if let Some(spdp_builtin_participant_reader) = &mut spdp_builtin_participant_data_reader
-            {
-                let samples = spdp_builtin_participant_reader
-                    .read(1, &[], &[], &[])
-                    .unwrap_or(vec![]);
-                for discovered_participant in samples {
-                    if let Ok(participant_discovery) = ParticipantDiscovery::new(
-                        &discovered_participant.participant_proxy,
-                        domain_id as u32,
-                        domain_tag.as_ref(),
-                    ) {
-                        if let Some(sedp_builtin_publications_writer) =
-                            &mut sedp_builtin_publications_data_writer
-                        {
-                            participant_discovery.discovered_participant_add_publications_writer(
-                                sedp_builtin_publications_writer.as_mut(),
-                            );
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut data_reader_list: Vec<Arc<dyn DataReaderObject + Send + Sync>> = Vec::new();
-        if let Some(spdp_builtin_participant_data_reader) = spdp_builtin_participant_data_reader {
-            data_reader_list.push(Arc::new(RwLock::new(spdp_builtin_participant_data_reader)));
-        }
-        if let Some(sedp_builtin_publications_data_reader) = sedp_builtin_publications_data_reader {
-            data_reader_list.push(Arc::new(RwLock::new(sedp_builtin_publications_data_reader)));
-        }
-        if let Some(sedp_builtin_subscriptions_data_reader) = sedp_builtin_subscriptions_data_reader
-        {
-            data_reader_list.push(Arc::new(RwLock::new(
-                sedp_builtin_subscriptions_data_reader,
-            )));
-        }
-        if let Some(sedp_builtin_topics_data_reader) = sedp_builtin_topics_data_reader {
-            data_reader_list.push(Arc::new(RwLock::new(sedp_builtin_topics_data_reader)));
-        }
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
-            data_reader_list,
-        ));
-
-        let mut stateless_data_writer_list: Vec<Arc<dyn AnyStatelessDataWriter + Send + Sync>> =
-            Vec::new();
-        let mut stateful_data_writer_list: Vec<Arc<dyn AnyStatefulDataWriter + Send + Sync>> =
-            Vec::new();
-        if let Some(spdp_builtin_participant_data_writer) = spdp_builtin_participant_data_writer {
-            stateless_data_writer_list
-                .push(Arc::new(RwLock::new(spdp_builtin_participant_data_writer)));
-        };
-        if let Some(sedp_builtin_publications_data_writer) = sedp_builtin_publications_data_writer {
-            stateful_data_writer_list
-                .push(Arc::new(RwLock::new(sedp_builtin_publications_data_writer)))
-        }
-        if let Some(sedp_builtin_subscriptions_data_writer) = sedp_builtin_subscriptions_data_writer
-        {
-            stateful_data_writer_list.push(Arc::new(RwLock::new(
-                sedp_builtin_subscriptions_data_writer,
-            )))
-        }
-        if let Some(sedp_builtin_topics_data_writer) = sedp_builtin_topics_data_writer {
-            stateful_data_writer_list.push(Arc::new(RwLock::new(sedp_builtin_topics_data_writer)))
-        }
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroup::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-            )),
-            stateless_data_writer_list,
-            stateful_data_writer_list,
-        ));
-
-        let builtin_subscriber_arc = builtin_subscriber.clone();
-        let builtin_publisher_arc = builtin_publisher.clone();
-        let user_defined_subscriber_list = Arc::new(Mutex::new(Vec::new()));
-        let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
-        let user_defined_publisher_list = Arc::new(Mutex::new(Vec::new()));
-        let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
-
-        let mut communication = Communication {
-            version: protocol_version,
-            vendor_id,
-            guid_prefix,
-            transport: metatraffic_transport,
-        };
-        spawner.spawn_enabled_periodic_task(
-            "builtin communication",
-            move || {
-                communication.send(core::slice::from_ref(&builtin_publisher_arc));
-                communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
-            },
-            std::time::Duration::from_millis(100),
-        );
-        let mut communication = Communication {
-            version: protocol_version,
-            vendor_id,
-            guid_prefix,
-            transport: default_transport,
-        };
-        spawner.spawn_enabled_periodic_task(
-            "user-defined communication",
-            move || {
-                communication.send(&user_defined_publisher_list_arc.lock().unwrap());
-                communication.receive(&user_defined_subscriber_list_arc.lock().unwrap());
-            },
-            std::time::Duration::from_millis(100),
-        );
 
         Self {
             rtps_participant,
             domain_id,
             domain_tag,
             qos: domain_participant_qos,
-            builtin_subscriber,
+            _builtin_subscriber: builtin_subscriber,
             builtin_publisher,
             _user_defined_subscriber_list: user_defined_subscriber_list,
             _user_defined_subscriber_counter: 0,
@@ -275,13 +123,11 @@ impl DomainParticipantImpl {
             lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            spawner,
+            enabled,
         }
     }
 
-    fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
+    pub fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
         SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -298,8 +144,14 @@ impl DomainParticipantImpl {
                 expects_inline_qos: false,
                 metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
                 metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
-                default_unicast_locator_list: self.default_unicast_locator_list.clone(),
-                default_multicast_locator_list: self.default_multicast_locator_list.clone(),
+                default_unicast_locator_list: self
+                    .rtps_participant
+                    .default_unicast_locator_list
+                    .clone(),
+                default_multicast_locator_list: self
+                    .rtps_participant
+                    .default_multicast_locator_list
+                    .clone(),
                 available_builtin_endpoints: BuiltinEndpointSet::default(),
                 manual_liveliness_count: self.manual_liveliness_count,
                 builtin_endpoint_qos: BuiltinEndpointQos::default(),
@@ -309,7 +161,7 @@ impl DomainParticipantImpl {
     }
 }
 
-impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl {
+impl<'p, S> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl<S, PublisherImpl> {
     type PublisherType = PublisherProxy<'p, PublisherImpl>;
 
     fn publisher_factory_create_publisher(
@@ -333,10 +185,7 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl {
             PublisherImpl::new(publisher_qos, rtps_group, data_writer_impl_list, vec![]);
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
         let publisher_impl_weak = rtps_shared_downgrade(&publisher_impl_shared);
-        self.user_defined_publisher_list
-            .lock()
-            .unwrap()
-            .push(publisher_impl_shared);
+        rtps_shared_write_lock(&self.user_defined_publisher_list).push(publisher_impl_shared);
         let publisher = PublisherProxy::new(self, publisher_impl_weak);
 
         Some(publisher)
@@ -350,9 +199,7 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl {
 
         if std::ptr::eq(a_publisher.get_participant(), self) {
             let publisher_impl_shared = rtps_weak_upgrade(&a_publisher.publisher_impl())?;
-            self.user_defined_publisher_list
-                .lock()
-                .unwrap()
+            rtps_shared_write_lock(&self.user_defined_publisher_list)
                 .retain(|x| !Arc::ptr_eq(&x, &publisher_impl_shared));
             Ok(())
         } else {
@@ -363,7 +210,7 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl {
     }
 }
 
-impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl {
+impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<SubscriberImpl, P> {
     type SubscriberType = SubscriberProxy<'s, SubscriberImpl>;
 
     fn subscriber_factory_create_subscriber(
@@ -431,7 +278,7 @@ impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl {
     }
 }
 
-impl<'t, T: 'static> DomainParticipantTopicFactory<'t, T> for DomainParticipantImpl {
+impl<'t, T: 'static, S, P> DomainParticipantTopicFactory<'t, T> for DomainParticipantImpl<S, P> {
     type TopicType = TopicProxy<'t, T, TopicImpl>;
 
     fn topic_factory_create_topic(
@@ -470,7 +317,7 @@ impl<'t, T: 'static> DomainParticipantTopicFactory<'t, T> for DomainParticipantI
     }
 }
 
-impl DomainParticipant for DomainParticipantImpl {
+impl<S, P> DomainParticipant for DomainParticipantImpl<S, P> {
     fn lookup_topicdescription<'t, T>(
         &'t self,
         _name: &'t str,
@@ -572,7 +419,7 @@ impl DomainParticipant for DomainParticipantImpl {
     }
 }
 
-impl Entity for DomainParticipantImpl {
+impl<S> Entity for DomainParticipantImpl<S, PublisherImpl> {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
@@ -616,7 +463,7 @@ impl Entity for DomainParticipantImpl {
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.spawner.enable_tasks();
+        self.enabled.store(true, atomic::Ordering::SeqCst);
 
         let builtin_publisher_lock = self.builtin_publisher.write().unwrap();
         if let Some(spdp_builtin_participant_writer) =
@@ -640,72 +487,29 @@ impl Entity for DomainParticipantImpl {
 
 #[cfg(test)]
 mod tests {
-    use crate::dds_type::{DdsSerialize, LittleEndian};
+
+    use crate::utils::shared_object::rtps_shared_read_lock;
 
     use super::*;
-    use rust_dds_api::{
-        infrastructure::{
-            qos::{DataReaderQos, DataWriterQos},
-            qos_policy::UserDataQosPolicy,
-        },
-        return_type::DDSError,
-    };
-    use rust_rtps_pim::{
-        behavior::writer::{
-            reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
-        },
-        discovery::spdp::builtin_endpoints::{
-            SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter,
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-        },
-        structure::{
-            cache_change::RtpsCacheChange,
-            history_cache::RtpsHistoryCacheAddChange,
-            types::{ChangeKind, LOCATOR_KIND_UDPv4, Locator, ENTITYID_UNKNOWN},
-        },
-    };
-    use rust_rtps_psm::messages::overall_structure::{
-        RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageTypeWrite,
-    };
-
-    struct MockTransport;
-
-    impl TransportRead for MockTransport {
-        fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-            todo!()
-        }
-    }
-
-    impl TransportWrite for MockTransport {
-        fn write(&mut self, _message: &RtpsMessageWrite, _destination_locator: &Locator) {
-            todo!()
-        }
-    }
+    use rust_dds_api::{infrastructure::qos_policy::UserDataQosPolicy, return_type::DDSError};
+    use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
     #[test]
     fn set_default_publisher_qos_some_value() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(()),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -717,28 +521,20 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_none() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([0; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(()),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -752,28 +548,20 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_some_value() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(()),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -785,28 +573,20 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_none() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(()),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -823,28 +603,20 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_some_value() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(()),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -856,28 +628,20 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_inconsistent() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(()),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
         let mut qos = TopicQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
@@ -889,28 +653,20 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_none() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(()),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -927,28 +683,26 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroup::new(GUID_UNKNOWN),
+            vec![],
+            vec![],
+        );
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(builtin_publisher),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
 
         let publisher_counter_before = domain_participant
@@ -961,11 +715,7 @@ mod tests {
             .load(atomic::Ordering::Relaxed);
 
         assert_eq!(
-            domain_participant
-                .user_defined_publisher_list
-                .lock()
-                .unwrap()
-                .len(),
+            rtps_shared_read_lock(&domain_participant.user_defined_publisher_list).len(),
             1
         );
 
@@ -975,66 +725,52 @@ mod tests {
 
     #[test]
     fn delete_publisher() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroup::new(GUID_UNKNOWN),
+            vec![],
+            vec![],
+        );
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(builtin_publisher),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
         let a_publisher = domain_participant.create_publisher(None, None, 0).unwrap();
 
         domain_participant.delete_publisher(&a_publisher).unwrap();
         assert_eq!(
-            domain_participant
-                .user_defined_publisher_list
-                .lock()
-                .unwrap()
-                .len(),
+            rtps_shared_read_lock(&domain_participant.user_defined_publisher_list).len(),
             0
         );
     }
 
     #[test]
     fn domain_participant_as_spdp_discovered_participant_data() {
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
             "".to_string(),
             DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
             vec![],
             vec![],
             vec![],
             vec![],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
+            rtps_shared_new(()),
+            rtps_shared_new(()),
+            rtps_shared_new(Vec::new()),
+            rtps_shared_new(Vec::new()),
+            Arc::new(AtomicBool::new(false)),
         );
         let spdp_discovered_participant_data =
             domain_participant.as_spdp_discovered_participant_data();
@@ -1069,210 +805,206 @@ mod tests {
         );
     }
 
-    #[test]
-    fn spdp_data_sent() {
-        const SPDP_TEST_LOCATOR: Locator = Locator {
-            kind: LOCATOR_KIND_UDPv4,
-            port: 7400,
-            address: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
-        };
-        struct TestTransport;
-        impl TransportRead for TestTransport {
-            fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-                None
-            }
-        }
-        impl TransportWrite for TestTransport {
-            fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
-                assert_eq!(message.submessages.len(), 1);
-                match &message.submessages[0] {
-                    RtpsSubmessageTypeWrite::Data(data_submessage) => {
-                        assert_eq!(data_submessage.reader_id.value, ENTITYID_UNKNOWN);
-                        assert_eq!(
-                            data_submessage.writer_id.value,
-                            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER
-                        );
-                    }
-                    _ => assert!(false),
-                };
-                assert_eq!(destination_locator, &SPDP_TEST_LOCATOR);
-                println!("Writing {:?}, to {:?}", message, destination_locator);
-            }
-        }
+    // #[test]
+    // fn spdp_data_sent() {
+    //     const SPDP_TEST_LOCATOR: Locator = Locator {
+    //         kind: LOCATOR_KIND_UDPv4,
+    //         port: 7400,
+    //         address: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+    //     };
+    //     struct TestTransport;
+    //     impl TransportRead for TestTransport {
+    //         fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
+    //             None
+    //         }
+    //     }
+    //     impl TransportWrite for TestTransport {
+    //         fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
+    //             assert_eq!(message.submessages.len(), 1);
+    //             match &message.submessages[0] {
+    //                 RtpsSubmessageTypeWrite::Data(data_submessage) => {
+    //                     assert_eq!(data_submessage.reader_id.value, ENTITYID_UNKNOWN);
+    //                     assert_eq!(
+    //                         data_submessage.writer_id.value,
+    //                         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER
+    //                     );
+    //                 }
+    //                 _ => assert!(false),
+    //             };
+    //             assert_eq!(destination_locator, &SPDP_TEST_LOCATOR);
+    //             println!("Writing {:?}, to {:?}", message, destination_locator);
+    //         }
+    //     }
 
-        let (sender, receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
+    //     let guid_prefix = GuidPrefix([1; 12]);
+    //     let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
+    //         SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]),
+    //     );
 
-        let guid_prefix = GuidPrefix([1; 12]);
-        let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
-            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]),
-        );
+    //     let spdp_discovery_locator = RtpsReaderLocator::new(SPDP_TEST_LOCATOR, false);
 
-        let spdp_discovery_locator = RtpsReaderLocator::new(SPDP_TEST_LOCATOR, false);
+    //     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-        spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
+    //     let spdp_builtin_participant_data_writer =
+    //         Some(DataWriterImpl::<SpdpDiscoveredParticipantData, _, _>::new(
+    //             DataWriterQos::default(),
+    //             spdp_builtin_participant_rtps_writer,
+    //             StdTimer::new(),
+    //         ));
 
-        let spdp_builtin_participant_data_writer =
-            Some(DataWriterImpl::<SpdpDiscoveredParticipantData, _, _>::new(
-                DataWriterQos::default(),
-                spdp_builtin_participant_rtps_writer,
-                StdTimer::new(),
-            ));
+    //     let domain_participant = DomainParticipantImpl::new(
+    //         guid_prefix,
+    //         1,
+    //         "".to_string(),
+    //         DomainParticipantQos::default(),
+    //         TestTransport,
+    //         TestTransport,
+    //         vec![],
+    //         vec![],
+    //         vec![],
+    //         vec![],
+    //         None,
+    //         spdp_builtin_participant_data_writer,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //     );
+    //     let mut tasks = Vec::new();
+    //     tasks.push(receiver.recv().unwrap());
+    //     tasks.push(receiver.recv().unwrap());
 
-        let domain_participant = DomainParticipantImpl::new(
-            guid_prefix,
-            1,
-            "".to_string(),
-            DomainParticipantQos::default(),
-            TestTransport,
-            TestTransport,
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            None,
-            spdp_builtin_participant_data_writer,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
-        );
-        let mut tasks = Vec::new();
-        tasks.push(receiver.recv().unwrap());
-        tasks.push(receiver.recv().unwrap());
+    //     domain_participant.enable().unwrap();
 
-        domain_participant.enable().unwrap();
+    //     let builtin_communication_task = tasks
+    //         .iter_mut()
+    //         .find(|x| x.name == "builtin communication")
+    //         .unwrap();
 
-        let builtin_communication_task = tasks
-            .iter_mut()
-            .find(|x| x.name == "builtin communication")
-            .unwrap();
+    //     (builtin_communication_task.task)()
+    // }
 
-        (builtin_communication_task.task)()
-    }
+    // #[test]
+    // fn spdp_discovery_read() {
+    //     const SPDP_TEST_LOCATOR: Locator = Locator {
+    //         kind: LOCATOR_KIND_UDPv4,
+    //         port: 7400,
+    //         address: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+    //     };
+    //     struct TestTransport;
+    //     impl TransportRead for TestTransport {
+    //         fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
+    //             None
+    //         }
+    //     }
+    //     impl TransportWrite for TestTransport {
+    //         fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
+    //             assert_eq!(message.submessages.len(), 1);
+    //             match &message.submessages[0] {
+    //                 RtpsSubmessageTypeWrite::Data(data_submessage) => {
+    //                     assert_eq!(data_submessage.reader_id.value, ENTITYID_UNKNOWN);
+    //                     assert_eq!(
+    //                         data_submessage.writer_id.value,
+    //                         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER
+    //                     );
+    //                 }
+    //                 _ => assert!(false),
+    //             };
+    //             assert_eq!(destination_locator, &SPDP_TEST_LOCATOR);
+    //             println!("Writing {:?}, to {:?}", message, destination_locator);
+    //         }
+    //     }
 
-    #[test]
-    fn spdp_discovery_read() {
-        const SPDP_TEST_LOCATOR: Locator = Locator {
-            kind: LOCATOR_KIND_UDPv4,
-            port: 7400,
-            address: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
-        };
-        struct TestTransport;
-        impl TransportRead for TestTransport {
-            fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
-                None
-            }
-        }
-        impl TransportWrite for TestTransport {
-            fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
-                assert_eq!(message.submessages.len(), 1);
-                match &message.submessages[0] {
-                    RtpsSubmessageTypeWrite::Data(data_submessage) => {
-                        assert_eq!(data_submessage.reader_id.value, ENTITYID_UNKNOWN);
-                        assert_eq!(
-                            data_submessage.writer_id.value,
-                            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER
-                        );
-                    }
-                    _ => assert!(false),
-                };
-                assert_eq!(destination_locator, &SPDP_TEST_LOCATOR);
-                println!("Writing {:?}, to {:?}", message, destination_locator);
-            }
-        }
+    //     let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+    //     let spawner = Spawner::new(sender);
 
-        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
-        let spawner = Spawner::new(sender);
+    //     let guid_prefix = GuidPrefix([1; 12]);
+    //     let spdp_builtin_participant_rtps_reader =
+    //         SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]);
 
-        let guid_prefix = GuidPrefix([1; 12]);
-        let spdp_builtin_participant_rtps_reader =
-            SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]);
+    //     let mut spdp_builtin_participant_data_reader =
+    //         DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
+    //             DataReaderQos::default(),
+    //             spdp_builtin_participant_rtps_reader,
+    //         );
 
-        let mut spdp_builtin_participant_data_reader =
-            DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
-                DataReaderQos::default(),
-                spdp_builtin_participant_rtps_reader,
-            );
+    //     let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+    //         dds_participant_data: ParticipantBuiltinTopicData {
+    //             key: BuiltInTopicKey { value: [2; 16] },
+    //             user_data: UserDataQosPolicy { value: vec![] },
+    //         },
+    //         participant_proxy: ParticipantProxy {
+    //             domain_id: 1,
+    //             domain_tag: "".to_string(),
+    //             protocol_version: PROTOCOLVERSION,
+    //             guid_prefix: GuidPrefix([2; 12]),
+    //             vendor_id: VENDOR_ID_S2E,
+    //             expects_inline_qos: false,
+    //             metatraffic_unicast_locator_list: vec![],
+    //             metatraffic_multicast_locator_list: vec![],
+    //             default_unicast_locator_list: vec![],
+    //             default_multicast_locator_list: vec![],
+    //             available_builtin_endpoints: BuiltinEndpointSet::default(),
+    //             manual_liveliness_count: Count(1),
+    //             builtin_endpoint_qos: BuiltinEndpointQos::default(),
+    //         },
+    //         lease_duration: rust_rtps_pim::behavior::types::Duration::new(100, 0),
+    //     };
 
-        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey { value: [2; 16] },
-                user_data: UserDataQosPolicy { value: vec![] },
-            },
-            participant_proxy: ParticipantProxy {
-                domain_id: 1,
-                domain_tag: "".to_string(),
-                protocol_version: PROTOCOLVERSION,
-                guid_prefix: GuidPrefix([2; 12]),
-                vendor_id: VENDOR_ID_S2E,
-                expects_inline_qos: false,
-                metatraffic_unicast_locator_list: vec![],
-                metatraffic_multicast_locator_list: vec![],
-                default_unicast_locator_list: vec![],
-                default_multicast_locator_list: vec![],
-                available_builtin_endpoints: BuiltinEndpointSet::default(),
-                manual_liveliness_count: Count(1),
-                builtin_endpoint_qos: BuiltinEndpointQos::default(),
-            },
-            lease_duration: rust_rtps_pim::behavior::types::Duration::new(100, 0),
-        };
+    //     let mut serialized_data = Vec::new();
+    //     spdp_discovered_participant_data
+    //         .serialize::<_, LittleEndian>(&mut serialized_data)
+    //         .unwrap();
 
-        let mut serialized_data = Vec::new();
-        spdp_discovered_participant_data
-            .serialize::<_, LittleEndian>(&mut serialized_data)
-            .unwrap();
+    //     spdp_builtin_participant_data_reader
+    //         .rtps_reader
+    //         .reader_cache
+    //         .add_change(RtpsCacheChange {
+    //             kind: ChangeKind::Alive,
+    //             writer_guid: Guid::new(
+    //                 GuidPrefix([2; 12]),
+    //                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+    //             ),
+    //             instance_handle: 1,
+    //             sequence_number: 1,
+    //             data_value: &serialized_data,
+    //             inline_qos: &[],
+    //         });
 
-        spdp_builtin_participant_data_reader
-            .rtps_reader
-            .reader_cache
-            .add_change(RtpsCacheChange {
-                kind: ChangeKind::Alive,
-                writer_guid: Guid::new(
-                    GuidPrefix([2; 12]),
-                    ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-                ),
-                instance_handle: 1,
-                sequence_number: 1,
-                data_value: &serialized_data,
-                inline_qos: &[],
-            });
+    //     let domain_participant = DomainParticipantImpl::new(
+    //         guid_prefix,
+    //         1,
+    //         "".to_string(),
+    //         DomainParticipantQos::default(),
+    //         TestTransport,
+    //         TestTransport,
+    //         vec![],
+    //         vec![],
+    //         vec![],
+    //         vec![],
+    //         Some(spdp_builtin_participant_data_reader),
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         None,
+    //         spawner,
+    //     );
+    //     // let mut tasks = Vec::new();
+    //     // tasks.push(receiver.recv().unwrap());
+    //     // tasks.push(receiver.recv().unwrap());
 
-        let domain_participant = DomainParticipantImpl::new(
-            guid_prefix,
-            1,
-            "".to_string(),
-            DomainParticipantQos::default(),
-            TestTransport,
-            TestTransport,
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            Some(spdp_builtin_participant_data_reader),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            spawner,
-        );
-        // let mut tasks = Vec::new();
-        // tasks.push(receiver.recv().unwrap());
-        // tasks.push(receiver.recv().unwrap());
+    //     domain_participant.enable().unwrap();
 
-        domain_participant.enable().unwrap();
+    //     // let builtin_communication_task = tasks
+    //     //     .iter_mut()
+    //     //     .find(|x| x.name == "builtin communication")
+    //     //     .unwrap();
 
-        // let builtin_communication_task = tasks
-        //     .iter_mut()
-        //     .find(|x| x.name == "builtin communication")
-        //     .unwrap();
-
-        // (builtin_communication_task.task)()
-    }
+    //     // (builtin_communication_task.task)()
+    // }
 }

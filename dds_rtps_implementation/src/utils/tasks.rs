@@ -11,10 +11,10 @@ pub struct Spawner {
 }
 
 impl Spawner {
-    pub fn new(task_sender: SyncSender<EnabledPeriodicTask>) -> Self {
+    pub fn new(task_sender: SyncSender<EnabledPeriodicTask>, enabled: Arc<AtomicBool>) -> Self {
         Self {
             task_sender,
-            enabled: Arc::new(AtomicBool::new(false)),
+            enabled,
         }
     }
 

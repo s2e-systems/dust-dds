@@ -2,13 +2,20 @@ use async_std::stream::StreamExt;
 use std::{
     net::{Ipv4Addr, UdpSocket},
     str::FromStr,
-    sync::{atomic, mpsc::Receiver},
+    sync::{
+        atomic::{self, AtomicBool},
+        mpsc::Receiver,
+        Arc,
+    },
 };
 
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::qos::{DataReaderQos, DataWriterQos, DomainParticipantQos},
+    infrastructure::qos::{
+        DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
+    },
+    subscription::data_reader::DataReader,
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
@@ -19,7 +26,8 @@ use rust_dds_rtps_implementation::{
     },
     dds_impl::{
         data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
-        domain_participant_impl::DomainParticipantImpl,
+        domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
+        subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
@@ -27,6 +35,8 @@ use rust_dds_rtps_implementation::{
     },
     utils::{
         clock::StdTimer,
+        communication::Communication,
+        shared_object::{rtps_shared_new, rtps_shared_write_lock},
         tasks::{EnabledPeriodicTask, Spawner},
     },
 };
@@ -42,7 +52,13 @@ use rust_rtps_pim::{
         },
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
     },
-    structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator},
+    structure::{
+        group::RtpsGroup,
+        types::{
+            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
+            BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_S2E,
+        },
+    },
 };
 
 use crate::udp_transport::UdpTransport;
@@ -108,7 +124,7 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<DomainParticipantImpl> {
+    ) -> Option<DomainParticipantImpl<SubscriberImpl, PublisherImpl>> {
         let domain_participant_qos = qos.unwrap_or_default();
 
         // /////// Define guid prefix
@@ -185,80 +201,181 @@ impl DomainParticipantFactory {
 
         // ///////// Create built-in DDS data readers and data writers
         let spdp_builtin_participant_dds_data_reader =
-            DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
+            rtps_shared_new(DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
                 DataReaderQos::default(),
                 spdp_builtin_participant_rtps_reader,
-            );
+            ));
 
         let spdp_builtin_participant_dds_data_writer =
-            DataWriterImpl::<SpdpDiscoveredParticipantData, _, _>::new(
+            rtps_shared_new(DataWriterImpl::<SpdpDiscoveredParticipantData, _, _>::new(
                 DataWriterQos::default(),
                 spdp_builtin_participant_rtps_writer,
                 StdTimer::new(),
-            );
+            ));
 
         let sedp_builtin_publications_dds_data_reader =
-            DataReaderImpl::<SedpDiscoveredWriterData>::new(
+            rtps_shared_new(DataReaderImpl::<SedpDiscoveredWriterData>::new(
                 DataReaderQos::default(),
                 sedp_builtin_publications_rtps_reader,
-            );
+            ));
 
         let sedp_builtin_publications_dds_data_writer =
-            DataWriterImpl::<SedpDiscoveredWriterData, _, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_publications_rtps_writer,
                 StdTimer::new(),
-            );
+            ));
 
         let sedp_builtin_subscriptions_dds_data_reader =
-            DataReaderImpl::<SedpDiscoveredReaderData>::new(
+            rtps_shared_new(DataReaderImpl::<SedpDiscoveredReaderData>::new(
                 DataReaderQos::default(),
                 sedp_builtin_subscriptions_rtps_reader,
-            );
+            ));
 
         let sedp_builtin_subscriptions_dds_data_writer =
-            DataWriterImpl::<SedpDiscoveredReaderData, _, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData, _, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_subscriptions_rtps_writer,
                 StdTimer::new(),
-            );
+            ));
 
-        let sedp_builtin_topics_dds_data_reader = DataReaderImpl::<SedpDiscoveredTopicData>::new(
-            DataReaderQos::default(),
-            sedp_builtin_topics_rtps_reader,
-        );
+        let sedp_builtin_topics_dds_data_reader =
+            rtps_shared_new(DataReaderImpl::<SedpDiscoveredTopicData>::new(
+                DataReaderQos::default(),
+                sedp_builtin_topics_rtps_reader,
+            ));
 
         let sedp_builtin_topics_dds_data_writer =
-            DataWriterImpl::<SedpDiscoveredTopicData, _, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData, _, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_topics_rtps_writer,
                 StdTimer::new(),
-            );
+            ));
+
+        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroup::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+            )),
+            vec![
+                spdp_builtin_participant_dds_data_reader.clone(),
+                sedp_builtin_publications_dds_data_reader.clone(),
+                sedp_builtin_subscriptions_dds_data_reader.clone(),
+                sedp_builtin_topics_dds_data_reader.clone(),
+            ],
+        ));
+
+        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroup::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+            )),
+            vec![spdp_builtin_participant_dds_data_writer.clone()],
+            vec![
+                sedp_builtin_publications_dds_data_writer.clone(),
+                sedp_builtin_subscriptions_dds_data_writer.clone(),
+                sedp_builtin_topics_dds_data_writer.clone(),
+            ],
+        ));
+
+        let user_defined_subscriber_list = rtps_shared_new(Vec::new());
+        let user_defined_publisher_list = rtps_shared_new(Vec::new());
+        let enabled = Arc::new(AtomicBool::new(false));
 
         let (sender, receiver) = std::sync::mpsc::sync_channel(10);
         let executor = Executor { receiver };
-        let spawner = Spawner::new(sender);
+        let spawner = Spawner::new(sender, enabled.clone());
+
+        let mut communication = Communication {
+            version: PROTOCOLVERSION,
+            vendor_id: VENDOR_ID_S2E,
+            guid_prefix,
+            transport: metatraffic_transport,
+        };
+        let builtin_publisher_arc = builtin_publisher.clone();
+        let builtin_subscriber_arc = builtin_subscriber.clone();
+        spawner.spawn_enabled_periodic_task(
+            "builtin communication",
+            move || {
+                communication.send(core::slice::from_ref(&builtin_publisher_arc));
+                communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
+            },
+            std::time::Duration::from_millis(500),
+        );
+
+        let mut communication = Communication {
+            version: PROTOCOLVERSION,
+            vendor_id: VENDOR_ID_S2E,
+            guid_prefix,
+            transport: default_transport,
+        };
+        let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
+        let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
+        spawner.spawn_enabled_periodic_task(
+            "user-defined communication",
+            move || {
+                communication.send(&rtps_shared_write_lock(&user_defined_publisher_list_arc));
+                communication.receive(&rtps_shared_write_lock(&user_defined_subscriber_list_arc));
+            },
+            std::time::Duration::from_millis(500),
+        );
+        let spdp_builtin_participant_data_reader_arc =
+            spdp_builtin_participant_dds_data_reader.clone();
+
+        spawner.spawn_enabled_periodic_task(
+            "discovery",
+            move || {
+                let spdp_builtin_participant_data_reader_lock =
+                    rtps_shared_write_lock(&spdp_builtin_participant_data_reader_arc);
+                let samples = spdp_builtin_participant_data_reader_lock
+                    .read(1, &[], &[], &[])
+                    .unwrap_or(vec![]);
+                for discovered_participant in samples {
+                    println!{"Discovered {:?}", discovered_participant};
+                    // {
+                    //     if let Some(spdp_builtin_participant_reader) = &mut spdp_builtin_participant_data_reader
+                    //     {
+                    //         let samples = spdp_builtin_participant_reader
+                    //             .read(1, &[], &[], &[])
+                    //             .unwrap_or(vec![]);
+                    //         for discovered_participant in samples {
+                    //             if let Ok(participant_discovery) = ParticipantDiscovery::new(
+                    //                 &discovered_participant.participant_proxy,
+                    //                 domain_id as u32,
+                    //                 domain_tag.as_ref(),
+                    //             ) {
+                    //                 if let Some(sedp_builtin_publications_writer) =
+                    //                     &mut sedp_builtin_publications_data_writer
+                    //                 {
+                    //                     participant_discovery.discovered_participant_add_publications_writer(
+                    //                         sedp_builtin_publications_writer.as_mut(),
+                    //                     );
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+                    // }
+                }
+            },
+            std::time::Duration::from_millis(500),
+        );
 
         let domain_participant = DomainParticipantImpl::new(
             guid_prefix,
             domain_id,
             domain_tag,
             domain_participant_qos,
-            metatraffic_transport,
-            default_transport,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
             default_unicast_locator_list,
             default_multicast_locator_list,
-            Some(spdp_builtin_participant_dds_data_reader),
-            Some(spdp_builtin_participant_dds_data_writer),
-            Some(sedp_builtin_publications_dds_data_reader),
-            Some(sedp_builtin_publications_dds_data_writer),
-            Some(sedp_builtin_subscriptions_dds_data_reader),
-            Some(sedp_builtin_subscriptions_dds_data_writer),
-            Some(sedp_builtin_topics_dds_data_reader),
-            Some(sedp_builtin_topics_dds_data_writer),
-            spawner,
+            builtin_subscriber,
+            builtin_publisher,
+            user_defined_subscriber_list,
+            user_defined_publisher_list,
+            enabled,
         );
 
         executor.run();
