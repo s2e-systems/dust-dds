@@ -19,7 +19,9 @@ use rust_dds_api::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     return_type::{DDSError, DDSResult},
-    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
+    subscription::{
+        data_reader::DataReader, subscriber::Subscriber, subscriber_listener::SubscriberListener,
+    },
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::{
@@ -75,7 +77,7 @@ pub struct DomainParticipantImpl {
     domain_id: DomainId,
     domain_tag: String,
     qos: DomainParticipantQos,
-    _builtin_subscriber: RtpsShared<SubscriberImpl>,
+    builtin_subscriber: RtpsShared<SubscriberImpl>,
     builtin_publisher: RtpsShared<PublisherImpl>,
     _user_defined_subscriber_list: Arc<Mutex<Vec<RtpsShared<SubscriberImpl>>>>,
     _user_defined_subscriber_counter: u8,
@@ -279,7 +281,7 @@ impl DomainParticipantImpl {
             domain_id,
             domain_tag,
             qos: domain_participant_qos,
-            _builtin_subscriber: builtin_subscriber,
+            builtin_subscriber,
             builtin_publisher,
             _user_defined_subscriber_list: user_defined_subscriber_list,
             _user_defined_subscriber_counter: 0,
@@ -635,6 +637,7 @@ impl Entity for DomainParticipantImpl {
 
     fn enable(&self) -> DDSResult<()> {
         self.spawner.enable_tasks();
+
         let builtin_publisher_lock = self.builtin_publisher.write().unwrap();
         if let Some(spdp_builtin_participant_writer) =
             builtin_publisher_lock.lookup_datawriter::<SpdpDiscoveredParticipantData>(&())
@@ -649,6 +652,20 @@ impl Entity for DomainParticipantImpl {
                     Time { sec: 0, nanosec: 0 },
                 )
                 .unwrap();
+        }
+
+        let builtin_subscriber_lock = self.builtin_subscriber.write().unwrap();
+        if let Some(spdp_builtin_participant_reader) =
+            builtin_subscriber_lock.lookup_datareader::<SpdpDiscoveredParticipantData>(&())
+        {
+            let spdp_builtin_participant_reader_lock =
+                spdp_builtin_participant_reader.write().unwrap();
+            let samples = spdp_builtin_participant_reader_lock
+                .read(1, &[], &[], &[])
+                .unwrap_or(vec![]);
+            for sample in samples {
+                println!("Received sample {:?}", sample);
+            }
         }
 
         Ok(())
@@ -666,7 +683,9 @@ mod tests {
         behavior::writer::{
             reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
         },
-        discovery::spdp::builtin_endpoints::{SpdpBuiltinParticipantWriter, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER},
+        discovery::spdp::builtin_endpoints::{
+            SpdpBuiltinParticipantWriter, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        },
         structure::types::{LOCATOR_KIND_UDPv4, Locator, ENTITYID_UNKNOWN},
     };
     use rust_rtps_psm::messages::overall_structure::{
@@ -1093,8 +1112,11 @@ mod tests {
                 match &message.submessages[0] {
                     RtpsSubmessageTypeWrite::Data(data_submessage) => {
                         assert_eq!(data_submessage.reader_id.value, ENTITYID_UNKNOWN);
-                        assert_eq!(data_submessage.writer_id.value, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-                    },
+                        assert_eq!(
+                            data_submessage.writer_id.value,
+                            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER
+                        );
+                    }
                     _ => assert!(false),
                 };
                 assert_eq!(destination_locator, &SPDP_TEST_LOCATOR);
