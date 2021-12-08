@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
     sync::{
         atomic::{self, AtomicBool},
-        mpsc::Receiver,
+        mpsc::{Receiver, SyncSender},
         Arc,
     },
 };
@@ -35,9 +35,7 @@ use rust_dds_rtps_implementation::{
     },
     utils::{
         clock::StdTimer,
-        communication::Communication,
         shared_object::{rtps_shared_new, rtps_shared_write_lock},
-        tasks::{EnabledPeriodicTask, Spawner},
     },
 };
 use rust_rtps_pim::{
@@ -61,7 +59,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::udp_transport::UdpTransport;
+use crate::{communication::Communication, udp_transport::UdpTransport};
 
 pub struct Executor {
     receiver: Receiver<EnabledPeriodicTask>,
@@ -83,6 +81,52 @@ impl Executor {
             });
         }
     }
+}
+
+#[derive(Clone)]
+pub struct Spawner {
+    task_sender: SyncSender<EnabledPeriodicTask>,
+    enabled: Arc<AtomicBool>,
+}
+
+impl Spawner {
+    pub fn new(task_sender: SyncSender<EnabledPeriodicTask>, enabled: Arc<AtomicBool>) -> Self {
+        Self {
+            task_sender,
+            enabled,
+        }
+    }
+
+    pub fn spawn_enabled_periodic_task(
+        &self,
+        name: &'static str,
+        task: impl FnMut() -> () + Send + Sync + 'static,
+        period: std::time::Duration,
+    ) {
+        self.task_sender
+            .send(EnabledPeriodicTask {
+                name,
+                task: Box::new(task),
+                period,
+                enabled: self.enabled.clone(),
+            })
+            .unwrap();
+    }
+
+    pub fn enable_tasks(&self) {
+        self.enabled.store(true, atomic::Ordering::SeqCst);
+    }
+
+    pub fn disable_tasks(&self) {
+        self.enabled.store(false, atomic::Ordering::SeqCst);
+    }
+}
+
+pub struct EnabledPeriodicTask {
+    pub name: &'static str,
+    pub task: Box<dyn FnMut() -> () + Send + Sync>,
+    pub period: std::time::Duration,
+    pub enabled: Arc<AtomicBool>,
 }
 
 /// The DomainParticipant object plays several roles:
@@ -333,7 +377,7 @@ impl DomainParticipantFactory {
                     .read(1, &[], &[], &[])
                     .unwrap_or(vec![]);
                 for discovered_participant in samples {
-                    println!{"Discovered {:?}", discovered_participant};
+                    println! {"Discovered {:?}", discovered_participant};
                     // {
                     //     if let Some(spdp_builtin_participant_reader) = &mut spdp_builtin_participant_data_reader
                     //     {

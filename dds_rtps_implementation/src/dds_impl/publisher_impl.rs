@@ -16,7 +16,7 @@ use rust_dds_api::{
     publication::{
         data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
-        publisher::{PublisherDataWriterFactory, Publisher},
+        publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
     return_type::DDSResult,
@@ -233,7 +233,10 @@ where
         Some(data_writer_impl_shared)
     }
 
-    fn datawriter_factory_delete_datawriter(&self, _a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
+    fn datawriter_factory_delete_datawriter(
+        &self,
+        _a_datawriter: &Self::DataWriterType,
+    ) -> DDSResult<()> {
         todo!()
     }
 
