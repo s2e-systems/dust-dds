@@ -43,6 +43,7 @@ use rust_rtps_pim::{
         reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
     },
     discovery::{
+        participant_discovery::ParticipantDiscovery,
         sedp::builtin_endpoints::{
             SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
             SedpBuiltinSubscriptionsReader, SedpBuiltinSubscriptionsWriter,
@@ -175,7 +176,7 @@ impl DomainParticipantFactory {
         let guid_prefix = GuidPrefix([3; 12]);
 
         // /////// Define other configurations
-        let domain_tag = "".to_string();
+        let domain_tag = Arc::new("".to_string());
         let metatraffic_unicast_locator_list = vec![Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
@@ -367,6 +368,7 @@ impl DomainParticipantFactory {
         );
         let spdp_builtin_participant_data_reader_arc =
             spdp_builtin_participant_dds_data_reader.clone();
+        let domain_tag_arc = domain_tag.clone();
 
         spawner.spawn_enabled_periodic_task(
             "discovery",
@@ -378,29 +380,15 @@ impl DomainParticipantFactory {
                     .unwrap_or(vec![]);
                 for discovered_participant in samples {
                     println! {"Discovered {:?}", discovered_participant};
-                    // {
-                    //     if let Some(spdp_builtin_participant_reader) = &mut spdp_builtin_participant_data_reader
-                    //     {
-                    //         let samples = spdp_builtin_participant_reader
-                    //             .read(1, &[], &[], &[])
-                    //             .unwrap_or(vec![]);
-                    //         for discovered_participant in samples {
-                    //             if let Ok(participant_discovery) = ParticipantDiscovery::new(
-                    //                 &discovered_participant.participant_proxy,
-                    //                 domain_id as u32,
-                    //                 domain_tag.as_ref(),
-                    //             ) {
-                    //                 if let Some(sedp_builtin_publications_writer) =
-                    //                     &mut sedp_builtin_publications_data_writer
-                    //                 {
-                    //                     participant_discovery.discovered_participant_add_publications_writer(
-                    //                         sedp_builtin_publications_writer.as_mut(),
-                    //                     );
-                    //                 }
-                    //             }
-                    //         }
-                    //     }
-                    // }
+                    if let Ok(participant_discovery) = ParticipantDiscovery::new(
+                        &discovered_participant.participant_proxy,
+                        domain_id as u32,
+                        domain_tag_arc.as_ref(),
+                    ) {
+                        participant_discovery.discovered_participant_add_publications_writer(
+                            rtps_shared_write_lock(&sedp_builtin_publications_dds_data_writer).as_mut(),
+                        );
+                    }
                 }
             },
             std::time::Duration::from_millis(500),

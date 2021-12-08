@@ -56,7 +56,7 @@ use super::{
 pub struct DomainParticipantImpl<S, P> {
     rtps_participant: RtpsParticipant<Vec<Locator>>,
     domain_id: DomainId,
-    domain_tag: String,
+    domain_tag: Arc<String>,
     qos: DomainParticipantQos,
     _builtin_subscriber: RtpsShared<S>,
     builtin_publisher: RtpsShared<P>,
@@ -79,7 +79,7 @@ impl<S, P> DomainParticipantImpl<S, P> {
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
-        domain_tag: String,
+        domain_tag: Arc<String>,
         domain_participant_qos: DomainParticipantQos,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
@@ -137,7 +137,7 @@ impl<S, P> DomainParticipantImpl<S, P> {
             },
             participant_proxy: ParticipantProxy {
                 domain_id: self.domain_id as u32,
-                domain_tag: self.domain_tag.clone(),
+                domain_tag: self.domain_tag.as_ref().clone(),
                 protocol_version: self.rtps_participant.protocol_version,
                 guid_prefix: self.rtps_participant.entity.guid.prefix,
                 vendor_id: self.rtps_participant.vendor_id,
@@ -499,7 +499,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
@@ -524,7 +524,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([0; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
@@ -551,7 +551,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
@@ -576,7 +576,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
@@ -606,7 +606,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
@@ -631,7 +631,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
@@ -656,7 +656,7 @@ mod tests {
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
@@ -692,7 +692,7 @@ mod tests {
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
@@ -734,7 +734,7 @@ mod tests {
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
@@ -760,7 +760,7 @@ mod tests {
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
-            "".to_string(),
+            Arc::new("".to_string()),
             DomainParticipantQos::default(),
             vec![],
             vec![],
