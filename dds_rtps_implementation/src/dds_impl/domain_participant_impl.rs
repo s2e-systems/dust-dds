@@ -1,5 +1,5 @@
 use std::sync::{
-    atomic::{self, AtomicBool, AtomicU8},
+    atomic::{self, AtomicU8},
     Arc, Mutex, RwLock,
 };
 
@@ -54,7 +54,7 @@ use crate::{
         clock::StdTimer,
         communication::Communication,
         shared_object::{rtps_shared_downgrade, rtps_shared_new, rtps_weak_upgrade, RtpsShared},
-        thread::ThreadManager,
+        tasks::Spawner,
         transport::{TransportRead, TransportWrite},
     },
 };
@@ -85,14 +85,13 @@ pub struct DomainParticipantImpl {
     default_publisher_qos: PublisherQos,
     _topic_list: Vec<RtpsShared<TopicImpl>>,
     default_topic_qos: TopicQos,
-    is_enabled: Arc<AtomicBool>,
     manual_liveliness_count: Count,
     lease_duration: rust_rtps_pim::behavior::types::Duration,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
     default_unicast_locator_list: Vec<Locator>,
     default_multicast_locator_list: Vec<Locator>,
-    _thread_manager: Box<dyn ThreadManager>,
+    spawner: Spawner,
 }
 
 impl DomainParticipantImpl {
@@ -123,7 +122,7 @@ impl DomainParticipantImpl {
         sedp_builtin_topics_data_writer: Option<
             DataWriterImpl<SedpDiscoveredTopicData, RtpsStatefulWriterImpl, StdTimer>,
         >,
-        mut thread_manager: impl ThreadManager + 'static,
+        spawner: Spawner,
     ) -> Self {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
@@ -194,8 +193,6 @@ impl DomainParticipantImpl {
             stateful_data_writer_list,
         ));
 
-        let is_enabled = Arc::new(AtomicBool::new(false));
-        let is_enabled_arc = is_enabled.clone();
         let builtin_subscriber_arc = builtin_subscriber.clone();
         let builtin_publisher_arc = builtin_publisher.clone();
         let user_defined_subscriber_list = Arc::new(Mutex::new(Vec::new()));
@@ -214,48 +211,32 @@ impl DomainParticipantImpl {
                 .read()
                 .unwrap()
                 .lookup_datareader::<SedpDiscoveredReaderData>(&());
-
-        thread_manager
-            .spawn(move || {
-                while !is_enabled_arc.load(atomic::Ordering::SeqCst) {
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                }
-                let mut communication = Communication {
-                    version: protocol_version,
-                    vendor_id,
-                    guid_prefix,
-                    transport: metatraffic_transport,
-                };
-
-                while is_enabled_arc.load(atomic::Ordering::SeqCst) {
-                    communication.send(core::slice::from_ref(&builtin_publisher_arc));
-                    communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                }
-            })
-            .unwrap();
-
-        let is_enabled_arc = is_enabled.clone();
-        thread_manager
-            .spawn(move || {
-                while !is_enabled_arc.load(atomic::Ordering::SeqCst) {
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                }
-
-                let mut communication = Communication {
-                    version: protocol_version,
-                    vendor_id,
-                    guid_prefix,
-                    transport: default_transport,
-                };
-
-                while is_enabled_arc.load(atomic::Ordering::SeqCst) {
-                    communication.send(&user_defined_publisher_list_arc.lock().unwrap());
-                    communication.receive(&user_defined_subscriber_list_arc.lock().unwrap());
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                }
-            })
-            .unwrap();
+        let mut communication = Communication {
+            version: protocol_version,
+            vendor_id,
+            guid_prefix,
+            transport: metatraffic_transport,
+        };
+        spawner.spawn_enabled_periodic_task(
+            move || {
+                communication.send(core::slice::from_ref(&builtin_publisher_arc));
+                communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
+            },
+            std::time::Duration::from_millis(100),
+        );
+        let mut communication = Communication {
+            version: protocol_version,
+            vendor_id,
+            guid_prefix,
+            transport: default_transport,
+        };
+        spawner.spawn_enabled_periodic_task(
+            move || {
+                communication.send(&user_defined_publisher_list_arc.lock().unwrap());
+                communication.receive(&user_defined_subscriber_list_arc.lock().unwrap());
+            },
+            std::time::Duration::from_millis(100),
+        );
 
         //     if let Some(spdp_builtin_participant_reader) =
         //         &option_spdp_builtin_participant_reader
@@ -306,14 +287,13 @@ impl DomainParticipantImpl {
             default_publisher_qos: PublisherQos::default(),
             _topic_list: Vec::new(),
             default_topic_qos: TopicQos::default(),
-            is_enabled,
             manual_liveliness_count: Count(0),
             lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
             default_unicast_locator_list,
             default_multicast_locator_list,
-            _thread_manager: Box::new(thread_manager),
+            spawner,
         }
     }
 
@@ -652,7 +632,7 @@ impl Entity for DomainParticipantImpl {
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.is_enabled.store(true, atomic::Ordering::SeqCst);
+        self.spawner.enable_tasks();
         let spdp_builtin_participant_writer = self
             .builtin_publisher
             .write()
@@ -695,20 +675,10 @@ mod tests {
         }
     }
 
-    struct MockThread;
-
-    impl ThreadManager for MockThread {
-        fn spawn<F>(&mut self, _f: F) -> std::io::Result<()>
-        where
-            F: FnOnce(),
-            F: Send + 'static,
-        {
-            Ok(())
-        }
-    }
-
     #[test]
     fn set_default_publisher_qos_some_value() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
             1,
@@ -728,7 +698,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -740,6 +710,8 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_none() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([0; 12]),
             1,
@@ -759,7 +731,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -773,6 +745,8 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_some_value() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -792,7 +766,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -804,6 +778,8 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_none() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -823,7 +799,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
@@ -840,6 +816,8 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_some_value() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -859,7 +837,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -871,6 +849,8 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_inconsistent() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -890,7 +870,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
         let mut qos = TopicQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
@@ -902,6 +882,8 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_none() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -921,7 +903,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -938,6 +920,8 @@ mod tests {
 
     #[test]
     fn create_publisher() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -957,7 +941,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
 
         let publisher_counter_before = domain_participant
@@ -984,6 +968,8 @@ mod tests {
 
     #[test]
     fn delete_publisher() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -1003,7 +989,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
         let a_publisher = domain_participant.create_publisher(None, None, 0).unwrap();
 
@@ -1020,6 +1006,8 @@ mod tests {
 
     #[test]
     fn domain_participant_as_spdp_discovered_participant_data() {
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -1039,7 +1027,7 @@ mod tests {
             None,
             None,
             None,
-            MockThread
+            spawner,
         );
         let spdp_discovered_participant_data =
             domain_participant.as_spdp_discovered_participant_data();

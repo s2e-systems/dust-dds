@@ -1,12 +1,11 @@
 use rust_rtps_pim::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
 
-use crate::dds_impl::publisher_impl::PublisherImpl;
-
 use super::{
     message_receiver::ProcessDataSubmessage,
     shared_object::RtpsShared,
     transport::{TransportRead, TransportWrite},
 };
+use crate::dds_impl::publisher_impl::PublisherImpl;
 
 pub struct Communication<T> {
     pub version: ProtocolVersion,
@@ -17,7 +16,7 @@ pub struct Communication<T> {
 
 impl<T> Communication<T>
 where
-    T: TransportRead + TransportWrite,
+    T: TransportWrite,
 {
     pub fn send(&mut self, list: &[RtpsShared<PublisherImpl>]) {
         for publisher in list {
@@ -38,7 +37,11 @@ where
         //     self.transport.write(&message, &dst_locator);
         // };
     }
-
+}
+impl<T> Communication<T>
+where
+    T: TransportRead,
+{
     pub fn receive(&mut self, list: &[RtpsShared<impl ProcessDataSubmessage>]) {
         if let Some((source_locator, message)) = self.transport.read() {
             crate::utils::message_receiver::MessageReceiver::new().process_message(

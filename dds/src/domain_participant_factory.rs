@@ -1,6 +1,8 @@
+use async_std::stream::StreamExt;
 use std::{
     net::{Ipv4Addr, UdpSocket},
     str::FromStr,
+    sync::{atomic, mpsc::Receiver},
 };
 
 use rust_dds_api::{
@@ -23,7 +25,10 @@ use rust_dds_rtps_implementation::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::{clock::StdTimer, thread::StdThread},
+    utils::{
+        clock::StdTimer,
+        tasks::{EnabledPeriodicTask, Spawner},
+    },
 };
 use rust_rtps_pim::{
     behavior::writer::{
@@ -41,6 +46,28 @@ use rust_rtps_pim::{
 };
 
 use crate::udp_transport::UdpTransport;
+
+pub struct Executor {
+    receiver: Receiver<EnabledPeriodicTask>,
+}
+
+impl Executor {
+    pub fn run(&self) {
+        while let Ok(mut enabled_periodic_task) = self.receiver.try_recv() {
+            async_std::task::spawn(async move {
+                let mut interval = async_std::stream::interval(enabled_periodic_task.period);
+                loop {
+                    if enabled_periodic_task.enabled.load(atomic::Ordering::SeqCst) {
+                        (enabled_periodic_task.task)();
+                    } else {
+                        println!("Not enabled");
+                    }
+                    interval.next().await;
+                }
+            });
+        }
+    }
+}
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -208,6 +235,10 @@ impl DomainParticipantFactory {
                 StdTimer::new(),
             );
 
+        let (sender, receiver) = std::sync::mpsc::sync_channel(10);
+        let executor = Executor { receiver };
+        let spawner = Spawner::new(sender);
+
         let domain_participant = DomainParticipantImpl::new(
             guid_prefix,
             domain_id,
@@ -227,8 +258,10 @@ impl DomainParticipantFactory {
             Some(sedp_builtin_subscriptions_dds_data_writer),
             Some(sedp_builtin_topics_dds_data_reader),
             Some(sedp_builtin_topics_dds_data_writer),
-            StdThread,
+            spawner,
         );
+
+        executor.run();
 
         Some(domain_participant)
     }
