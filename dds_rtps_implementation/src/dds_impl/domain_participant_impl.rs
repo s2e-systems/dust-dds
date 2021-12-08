@@ -218,6 +218,7 @@ impl DomainParticipantImpl {
             transport: metatraffic_transport,
         };
         spawner.spawn_enabled_periodic_task(
+            "builtin communication",
             move || {
                 communication.send(core::slice::from_ref(&builtin_publisher_arc));
                 communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
@@ -231,6 +232,7 @@ impl DomainParticipantImpl {
             transport: default_transport,
         };
         spawner.spawn_enabled_periodic_task(
+            "user-defined communication",
             move || {
                 communication.send(&user_defined_publisher_list_arc.lock().unwrap());
                 communication.receive(&user_defined_subscriber_list_arc.lock().unwrap());
@@ -633,22 +635,21 @@ impl Entity for DomainParticipantImpl {
 
     fn enable(&self) -> DDSResult<()> {
         self.spawner.enable_tasks();
-        let spdp_builtin_participant_writer = self
-            .builtin_publisher
-            .write()
-            .unwrap()
-            .lookup_datawriter::<SpdpDiscoveredParticipantData>(&())
-            .unwrap();
-        let spdp_discovered_participant_data = self.as_spdp_discovered_participant_data();
-        spdp_builtin_participant_writer
-            .write()
-            .unwrap()
-            .write_w_timestamp(
-                &spdp_discovered_participant_data,
-                None,
-                Time { sec: 0, nanosec: 0 },
-            )
-            .unwrap();
+        let builtin_publisher_lock = self.builtin_publisher.write().unwrap();
+        if let Some(spdp_builtin_participant_writer) =
+            builtin_publisher_lock.lookup_datawriter::<SpdpDiscoveredParticipantData>(&())
+        {
+            let spdp_discovered_participant_data = self.as_spdp_discovered_participant_data();
+            spdp_builtin_participant_writer
+                .write()
+                .unwrap()
+                .write_w_timestamp(
+                    &spdp_discovered_participant_data,
+                    None,
+                    Time { sec: 0, nanosec: 0 },
+                )
+                .unwrap();
+        }
 
         Ok(())
     }
@@ -657,9 +658,20 @@ impl Entity for DomainParticipantImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_dds_api::{infrastructure::qos_policy::UserDataQosPolicy, return_type::DDSError};
-    use rust_rtps_pim::structure::types::Locator;
-    use rust_rtps_psm::messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite};
+    use rust_dds_api::{
+        infrastructure::{qos::DataWriterQos, qos_policy::UserDataQosPolicy},
+        return_type::DDSError,
+    };
+    use rust_rtps_pim::{
+        behavior::writer::{
+            reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
+        },
+        discovery::spdp::builtin_endpoints::{SpdpBuiltinParticipantWriter, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER},
+        structure::types::{LOCATOR_KIND_UDPv4, Locator, ENTITYID_UNKNOWN},
+    };
+    use rust_rtps_psm::messages::overall_structure::{
+        RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageTypeWrite,
+    };
 
     struct MockTransport;
 
@@ -1062,28 +1074,85 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn spdp_data_sent() {
-    //     let domain_participant = DomainParticipantImpl::new(
-    //         GuidPrefix([1; 12]),
-    //         1,
-    //         "".to_string(),
-    //         DomainParticipantQos::default(),
-    //         MockTransport,
-    //         MockTransport,
-    //         vec![],
-    //         vec![],
-    //         vec![],
-    //         vec![],
-    //         None,
-    //         None,
-    //         None,
-    //         None,
-    //         None,
-    //         None,
-    //         None,
-    //         None,
-    //     );
-    //     domain_participant.enable();
-    // }
+    #[test]
+    fn spdp_data_sent() {
+        const SPDP_TEST_LOCATOR: Locator = Locator {
+            kind: LOCATOR_KIND_UDPv4,
+            port: 7400,
+            address: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        };
+        struct TestTransport;
+        impl TransportRead for TestTransport {
+            fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
+                None
+            }
+        }
+        impl TransportWrite for TestTransport {
+            fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
+                assert_eq!(message.submessages.len(), 1);
+                match &message.submessages[0] {
+                    RtpsSubmessageTypeWrite::Data(data_submessage) => {
+                        assert_eq!(data_submessage.reader_id.value, ENTITYID_UNKNOWN);
+                        assert_eq!(data_submessage.writer_id.value, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+                    },
+                    _ => assert!(false),
+                };
+                assert_eq!(destination_locator, &SPDP_TEST_LOCATOR);
+                println!("Writing {:?}, to {:?}", message, destination_locator);
+            }
+        }
+
+        let (sender, receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
+
+        let guid_prefix = GuidPrefix([1; 12]);
+        let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
+            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]),
+        );
+
+        let spdp_discovery_locator = RtpsReaderLocator::new(SPDP_TEST_LOCATOR, false);
+
+        spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
+
+        let spdp_builtin_participant_data_writer =
+            Some(DataWriterImpl::<SpdpDiscoveredParticipantData, _, _>::new(
+                DataWriterQos::default(),
+                spdp_builtin_participant_rtps_writer,
+                StdTimer::new(),
+            ));
+
+        let domain_participant = DomainParticipantImpl::new(
+            guid_prefix,
+            1,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            TestTransport,
+            TestTransport,
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            None,
+            spdp_builtin_participant_data_writer,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            spawner,
+        );
+        let mut tasks = Vec::new();
+        tasks.push(receiver.recv().unwrap());
+        tasks.push(receiver.recv().unwrap());
+
+        domain_participant.enable().unwrap();
+
+        let builtin_communication_task = tasks
+            .iter_mut()
+            .find(|x| x.name == "builtin communication")
+            .unwrap();
+
+        (builtin_communication_task.task)()
+    }
 }
