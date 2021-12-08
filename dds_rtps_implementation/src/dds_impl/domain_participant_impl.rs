@@ -676,7 +676,10 @@ impl Entity for DomainParticipantImpl {
 mod tests {
     use super::*;
     use rust_dds_api::{
-        infrastructure::{qos::DataWriterQos, qos_policy::UserDataQosPolicy},
+        infrastructure::{
+            qos::{DataReaderQos, DataWriterQos},
+            qos_policy::UserDataQosPolicy,
+        },
         return_type::DDSError,
     };
     use rust_rtps_pim::{
@@ -684,9 +687,13 @@ mod tests {
             reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
         },
         discovery::spdp::builtin_endpoints::{
-            SpdpBuiltinParticipantWriter, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+            SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
         },
-        structure::types::{LOCATOR_KIND_UDPv4, Locator, ENTITYID_UNKNOWN},
+        structure::{
+            history_cache::RtpsHistoryCacheAddChange,
+            types::{LOCATOR_KIND_UDPv4, Locator, ENTITYID_UNKNOWN},
+        },
     };
     use rust_rtps_psm::messages::overall_structure::{
         RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageTypeWrite,
@@ -1176,5 +1183,86 @@ mod tests {
             .unwrap();
 
         (builtin_communication_task.task)()
+    }
+
+    #[test]
+    fn spdp_discovery_read() {
+        const SPDP_TEST_LOCATOR: Locator = Locator {
+            kind: LOCATOR_KIND_UDPv4,
+            port: 7400,
+            address: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        };
+        struct TestTransport;
+        impl TransportRead for TestTransport {
+            fn read(&mut self) -> Option<(Locator, RtpsMessageRead)> {
+                None
+            }
+        }
+        impl TransportWrite for TestTransport {
+            fn write(&mut self, message: &RtpsMessageWrite, destination_locator: &Locator) {
+                assert_eq!(message.submessages.len(), 1);
+                match &message.submessages[0] {
+                    RtpsSubmessageTypeWrite::Data(data_submessage) => {
+                        assert_eq!(data_submessage.reader_id.value, ENTITYID_UNKNOWN);
+                        assert_eq!(
+                            data_submessage.writer_id.value,
+                            ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER
+                        );
+                    }
+                    _ => assert!(false),
+                };
+                assert_eq!(destination_locator, &SPDP_TEST_LOCATOR);
+                println!("Writing {:?}, to {:?}", message, destination_locator);
+            }
+        }
+
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(10);
+        let spawner = Spawner::new(sender);
+
+        let guid_prefix = GuidPrefix([1; 12]);
+        let mut spdp_builtin_participant_rtps_reader =
+            SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]);
+
+        let spdp_builtin_participant_data_reader =
+            DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
+                DataReaderQos::default(),
+                spdp_builtin_participant_rtps_reader,
+            );
+
+        // &spdp_builtin_participant_data_reader.rtps_reader.reader_cache.changes;
+
+        let domain_participant = DomainParticipantImpl::new(
+            guid_prefix,
+            1,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            TestTransport,
+            TestTransport,
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            Some(spdp_builtin_participant_data_reader),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            spawner,
+        );
+        // let mut tasks = Vec::new();
+        // tasks.push(receiver.recv().unwrap());
+        // tasks.push(receiver.recv().unwrap());
+
+        domain_participant.enable().unwrap();
+
+        // let builtin_communication_task = tasks
+        //     .iter_mut()
+        //     .find(|x| x.name == "builtin communication")
+        //     .unwrap();
+
+        // (builtin_communication_task.task)()
     }
 }
