@@ -201,9 +201,9 @@ pub struct QosPolicyCount {
     pub count: i32,
 }
 
-pub type QosPolicyCountSeq<'a> = &'a [QosPolicyCount];
+pub type QosPolicyCountSeq = Vec<QosPolicyCount>;
 
-pub struct OfferedIncompatibleQosStatus<'a> {
+pub struct OfferedIncompatibleQosStatus {
     /// Total cumulative number of times the concerned DataWriter
     /// discovered a DataReader for the same Topic with a requested QoS that
     /// is incompatible with that offered by the DataWriter.
@@ -218,10 +218,10 @@ pub struct OfferedIncompatibleQosStatus<'a> {
     /// concerned DataWriter discovered a DataReader for the same Topic
     /// with a requested QoS that is incompatible with that offered by the
     /// DataWriter.
-    pub policies: &'a [QosPolicyCount],
+    pub policies: QosPolicyCountSeq,
 }
 
-pub struct RequestedIncompatibleQosStatus<'a> {
+pub struct RequestedIncompatibleQosStatus {
     /// Total cumulative number of times the concerned DataReader
     /// discovered a DataWriter for the same Topic with an offered QoS that
     /// was incompatible with that requested by the DataReader.
@@ -236,7 +236,7 @@ pub struct RequestedIncompatibleQosStatus<'a> {
     /// concerned DataReader discovered a DataWriter for the same Topic
     /// with an offered QoS that is incompatible with that requested by the
     /// DataReader.
-    pub policies: &'a [QosPolicyCount],
+    pub policies: QosPolicyCountSeq,
 }
 
 pub struct PublicationMatchedStatus {

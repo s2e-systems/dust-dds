@@ -480,9 +480,21 @@ impl DomainParticipantFactory {
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
+    use mockall::{mock, predicate};
+    use rust_dds_api::{
+        builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
+        dcps_psm::{
+            BuiltInTopicKey, InstanceHandle, InstanceStateKind, LivelinessChangedStatus,
+            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+            SampleRejectedStatus, SampleStateKind, SubscriptionMatchedStatus, ViewStateKind,
+        },
+        infrastructure::{read_condition::ReadCondition, sample_info::SampleInfo},
+        return_type::DDSResult,
+        subscription::{query_condition::QueryCondition, subscriber::Subscriber},
+        topic::topic_description::TopicDescription,
+    };
     use rust_rtps_pim::{
-        behavior::writer::reader_proxy::RtpsReaderProxy,
+        behavior::{reader::writer_proxy::RtpsWriterProxy, writer::reader_proxy::RtpsReaderProxy},
         discovery::{
             spdp::participant_proxy::ParticipantProxy,
             types::{BuiltinEndpointQos, BuiltinEndpointSet},
@@ -491,364 +503,374 @@ mod tests {
         structure::types::ENTITYID_UNKNOWN,
     };
 
+    struct MockSpdpDataReader(Vec<SpdpDiscoveredParticipantData>);
+
+    impl<'a> DataReader<'a, SpdpDiscoveredParticipantData> for MockSpdpDataReader {
+        type Samples = Vec<&'a SpdpDiscoveredParticipantData>;
+
+        fn read(
+            &'a self,
+            _max_samples: i32,
+            _sample_states: &[SampleStateKind],
+            _view_states: &[ViewStateKind],
+            _instance_states: &[InstanceStateKind],
+        ) -> DDSResult<Self::Samples> {
+            Ok(self.0.iter().collect())
+        }
+
+        fn take(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+            _max_samples: i32,
+            _sample_states: &[SampleStateKind],
+            _view_states: &[ViewStateKind],
+            _instance_states: &[InstanceStateKind],
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn read_w_condition(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+            _max_samples: i32,
+            _a_condition: ReadCondition,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn take_w_condition(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+            _max_samples: i32,
+            _a_condition: ReadCondition,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn read_next_sample(
+            &self,
+            _data_value: &mut [SpdpDiscoveredParticipantData],
+            _sample_info: &mut [SampleInfo],
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn take_next_sample(
+            &self,
+            _data_value: &mut [SpdpDiscoveredParticipantData],
+            _sample_info: &mut [SampleInfo],
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn read_instance(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+            _max_samples: i32,
+            _a_handle: InstanceHandle,
+            _sample_states: &[SampleStateKind],
+            _view_states: &[ViewStateKind],
+            _instance_states: &[InstanceStateKind],
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn take_instance(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+            _max_samples: i32,
+            _a_handle: InstanceHandle,
+            _sample_states: &[SampleStateKind],
+            _view_states: &[ViewStateKind],
+            _instance_states: &[InstanceStateKind],
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn read_next_instance(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+            _max_samples: i32,
+            _previous_handle: InstanceHandle,
+            _sample_states: &[SampleStateKind],
+            _view_states: &[ViewStateKind],
+            _instance_states: &[InstanceStateKind],
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn take_next_instance(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+            _max_samples: i32,
+            _previous_handle: InstanceHandle,
+            _sample_states: &[SampleStateKind],
+            _view_states: &[ViewStateKind],
+            _instance_states: &[InstanceStateKind],
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn read_next_instance_w_condition(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+            _max_samples: i32,
+            _previous_handle: InstanceHandle,
+            _a_condition: ReadCondition,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn take_next_instance_w_condition(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+            _max_samples: i32,
+            _previous_handle: InstanceHandle,
+            _a_condition: ReadCondition,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn return_loan(
+            &self,
+            _data_values: &mut [SpdpDiscoveredParticipantData],
+            _sample_infos: &mut [SampleInfo],
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_key_value(
+            &self,
+            _key_holder: &mut SpdpDiscoveredParticipantData,
+            _handle: InstanceHandle,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn lookup_instance(&self, _instance: &SpdpDiscoveredParticipantData) -> InstanceHandle {
+            todo!()
+        }
+
+        fn create_readcondition(
+            &self,
+            _sample_states: &[SampleStateKind],
+            _view_states: &[ViewStateKind],
+            _instance_states: &[InstanceStateKind],
+        ) -> ReadCondition {
+            todo!()
+        }
+
+        fn create_querycondition(
+            &self,
+            _sample_states: &[SampleStateKind],
+            _view_statessss: &[ViewStateKind],
+            _instance_states: &[InstanceStateKind],
+            _query_expression: &'static str,
+            _query_parameters: &[&'static str],
+        ) -> QueryCondition {
+            todo!()
+        }
+
+        fn delete_readcondition(&self, _a_condition: ReadCondition) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_liveliness_changed_status(
+            &self,
+            _status: &mut LivelinessChangedStatus,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_requested_deadline_missed_status(
+            &self,
+            _status: &mut RequestedDeadlineMissedStatus,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_requested_incompatible_qos_status(
+            &self,
+            _status: &mut RequestedIncompatibleQosStatus,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_sample_rejected_status(&self, _status: &mut SampleRejectedStatus) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_subscription_matched_status(
+            &self,
+            _status: &mut SubscriptionMatchedStatus,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_topicdescription(&self) -> &dyn TopicDescription<SpdpDiscoveredParticipantData> {
+            todo!()
+        }
+
+        fn get_subscriber(&self) -> &dyn Subscriber {
+            todo!()
+        }
+
+        fn delete_contained_entities(&self) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn wait_for_historical_data(&self) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_matched_publication_data(
+            &self,
+            _publication_data: &mut PublicationBuiltinTopicData,
+            _publication_handle: InstanceHandle,
+        ) -> DDSResult<()> {
+            todo!()
+        }
+
+        fn get_match_publication(
+            &self,
+            _publication_handles: &mut [InstanceHandle],
+        ) -> DDSResult<()> {
+            todo!()
+        }
+    }
+
     use super::*;
+    mock! {
+        StatefulReader {}
 
-    // #[test]
-    // fn discovery_task_all_sedp_endpoints() {
-    //     struct MockSpdpDataReader(Vec<SpdpDiscoveredParticipantData>);
+        impl RtpsStatefulReaderOperations<Vec<Locator>> for StatefulReader {
+            fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<Vec<Locator>>);
+            fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid);
+            fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&'static RtpsWriterProxy<Vec<Locator>>>;
+        }
+    }
 
-    //     impl<'a> DataReader<'a, SpdpDiscoveredParticipantData> for MockSpdpDataReader {
-    //         type Samples = Vec<&'a SpdpDiscoveredParticipantData>;
+    mock! {
+        StatefulWriter {}
 
-    //         fn read(
-    //             &'a self,
-    //             _max_samples: i32,
-    //             _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-    //             _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-    //             _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-    //         ) -> rust_dds_api::return_type::DDSResult<Self::Samples> {
-    //             Ok(self.0.iter().collect())
-    //         }
+        impl RtpsStatefulWriterOperations<Vec<Locator>> for StatefulWriter {
+            fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>);
+            fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid);
+            fn matched_reader_lookup(&self, a_reader_guid: &Guid) -> Option<&'static RtpsReaderProxy<Vec<Locator>>>;
+            fn is_acked_by_all(&self) -> bool;
+        }
+    }
 
-    //         fn take(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //             _max_samples: i32,
-    //             _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-    //             _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-    //             _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
+    #[test]
+    fn discovery_task_all_sedp_endpoints() {
+        let mock_spdp_data_reader = MockSpdpDataReader(vec![SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey { value: [5; 16] },
+                user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
+                    value: vec![],
+                },
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: 1,
+                domain_tag: String::new(),
+                protocol_version: PROTOCOLVERSION,
+                guid_prefix: GuidPrefix([5; 12]),
+                vendor_id: VENDOR_ID_S2E,
+                expects_inline_qos: false,
+                metatraffic_unicast_locator_list: vec![],
+                metatraffic_multicast_locator_list: vec![],
+                default_unicast_locator_list: vec![],
+                default_multicast_locator_list: vec![],
+                available_builtin_endpoints: BuiltinEndpointSet(
+                    BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
+                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR
+                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER
+                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR
+                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER
+                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR,
+                ),
+                manual_liveliness_count: Count(1),
+                builtin_endpoint_qos: BuiltinEndpointQos(0),
+            },
+            lease_duration: rust_rtps_pim::behavior::types::Duration {
+                seconds: 100,
+                fraction: 0,
+            },
+        }]);
 
-    //         fn read_w_condition(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //             _max_samples: i32,
-    //             _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
+        let mut mock_builtin_publications_writer = MockStatefulWriter::new();
+        mock_builtin_publications_writer
+            .expect_matched_reader_add()
+            .with(predicate::eq(RtpsReaderProxy {
+                remote_reader_guid: Guid::new(GuidPrefix([5; 12]), EntityId::new([0, 0, 3], 199)),
+                remote_group_entity_id: ENTITYID_UNKNOWN,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            }))
+            .times(1)
+            .return_const(());
 
-    //         fn take_w_condition(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //             _max_samples: i32,
-    //             _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
+        let mut mock_builtin_publications_reader = MockStatefulReader::new();
+        mock_builtin_publications_reader
+            .expect_matched_writer_add()
+            .withf(|a_writer_proxy| true)
+            .once()
+            .return_const(());
 
-    //         fn read_next_sample(
-    //             &self,
-    //             _data_value: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_info: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
+        let mut mock_builtin_subscriptions_writer = MockStatefulWriter::new();
+        mock_builtin_subscriptions_writer
+            .expect_matched_reader_add()
+            .withf(|a_reader_proxy| true)
+            .once()
+            .return_const(());
 
-    //         fn take_next_sample(
-    //             &self,
-    //             _data_value: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_info: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
+        let mut mock_builtin_subscriptions_reader = MockStatefulReader::new();
+        mock_builtin_subscriptions_writer
+            .expect_matched_reader_add()
+            .withf(|a_writer_proxy| true)
+            .once()
+            .return_const(());
 
-    //         fn read_instance(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //             _max_samples: i32,
-    //             _a_handle: rust_dds_api::dcps_psm::InstanceHandle,
-    //             _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-    //             _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-    //             _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
+        let mut mock_builtin_topics_writer = MockStatefulWriter::new();
+        mock_builtin_topics_writer
+            .expect_matched_reader_add()
+            .withf(|a_reader_proxy| true)
+            .once()
+            .return_const(());
 
-    //         fn take_instance(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //             _max_samples: i32,
-    //             _a_handle: rust_dds_api::dcps_psm::InstanceHandle,
-    //             _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-    //             _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-    //             _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
+        let mut mock_builtin_topics_reader = MockStatefulReader::new();
+        mock_builtin_topics_reader
+            .expect_matched_writer_add()
+            .once()
+            .withf(|a_writer_proxy| true)
+            .return_const(());
 
-    //         fn read_next_instance(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //             _max_samples: i32,
-    //             _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
-    //             _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-    //             _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-    //             _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn take_next_instance(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //             _max_samples: i32,
-    //             _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
-    //             _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-    //             _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-    //             _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn read_next_instance_w_condition(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //             _max_samples: i32,
-    //             _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
-    //             _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn take_next_instance_w_condition(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //             _max_samples: i32,
-    //             _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
-    //             _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn return_loan(
-    //             &self,
-    //             _data_values: &mut [SpdpDiscoveredParticipantData],
-    //             _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_key_value(
-    //             &self,
-    //             _key_holder: &mut SpdpDiscoveredParticipantData,
-    //             _handle: rust_dds_api::dcps_psm::InstanceHandle,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn lookup_instance(
-    //             &self,
-    //             _instance: &SpdpDiscoveredParticipantData,
-    //         ) -> rust_dds_api::dcps_psm::InstanceHandle {
-    //             todo!()
-    //         }
-
-    //         fn create_readcondition(
-    //             &self,
-    //             _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-    //             _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-    //             _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-    //         ) -> rust_dds_api::infrastructure::read_condition::ReadCondition {
-    //             todo!()
-    //         }
-
-    //         fn create_querycondition(
-    //             &self,
-    //             _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-    //             _view_statessss: &[rust_dds_api::dcps_psm::ViewStateKind],
-    //             _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
-    //             _query_expression: &'static str,
-    //             _query_parameters: &[&'static str],
-    //         ) -> rust_dds_api::subscription::query_condition::QueryCondition {
-    //             todo!()
-    //         }
-
-    //         fn delete_readcondition(
-    //             &self,
-    //             _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_liveliness_changed_status(
-    //             &self,
-    //             _status: &mut rust_dds_api::dcps_psm::LivelinessChangedStatus,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_requested_deadline_missed_status(
-    //             &self,
-    //             _status: &mut rust_dds_api::dcps_psm::RequestedDeadlineMissedStatus,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_requested_incompatible_qos_status(
-    //             &self,
-    //             _status: &mut rust_dds_api::dcps_psm::RequestedIncompatibleQosStatus,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_sample_lost_status(
-    //             &self,
-    //             _status: &mut rust_dds_api::dcps_psm::SampleLostStatus,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_sample_rejected_status(
-    //             &self,
-    //             _status: &mut rust_dds_api::dcps_psm::SampleRejectedStatus,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_subscription_matched_status(
-    //             &self,
-    //             _status: &mut rust_dds_api::dcps_psm::SubscriptionMatchedStatus,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_topicdescription(
-    //             &self,
-    //         ) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<
-    //             SpdpDiscoveredParticipantData,
-    //         > {
-    //             todo!()
-    //         }
-
-    //         fn get_subscriber(&self) -> &dyn rust_dds_api::subscription::subscriber::Subscriber {
-    //             todo!()
-    //         }
-
-    //         fn delete_contained_entities(&self) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn wait_for_historical_data(&self) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_matched_publication_data(
-    //             &self,
-    //             _publication_data: &mut rust_dds_api::builtin_topics::PublicationBuiltinTopicData,
-    //             _publication_handle: rust_dds_api::dcps_psm::InstanceHandle,
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-
-    //         fn get_match_publication(
-    //             &self,
-    //             _publication_handles: &mut [rust_dds_api::dcps_psm::InstanceHandle],
-    //         ) -> rust_dds_api::return_type::DDSResult<()> {
-    //             todo!()
-    //         }
-    //     }
-
-    //     struct MockBuiltinPublicationsWriter;
-
-    //     impl RtpsStatefulWriterOperations<Vec<Locator>> for MockBuiltinPublicationsWriter {
-    //         fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
-    //             let expected_reader_proxy = RtpsReaderProxy {
-    //                 remote_reader_guid: Guid::new(
-    //                     GuidPrefix([5; 12]),
-    //                     EntityId::new([0, 0, 3], 199),
-    //                 ),
-    //                 remote_group_entity_id: ENTITYID_UNKNOWN,
-    //                 unicast_locator_list: vec![],
-    //                 multicast_locator_list: vec![],
-    //                 expects_inline_qos: false,
-    //             };
-    //             assert_eq!(a_reader_proxy, expected_reader_proxy);
-    //         }
-
-    //         fn matched_reader_remove(&mut self, _reader_proxy_guid: &Guid) {
-    //             todo!()
-    //         }
-
-    //         fn matched_reader_lookup(
-    //             &self,
-    //             _a_reader_guid: &Guid,
-    //         ) -> Option<&RtpsReaderProxy<Vec<Locator>>> {
-    //             todo!()
-    //         }
-
-    //         fn is_acked_by_all(&self) -> bool {
-    //             todo!()
-    //         }
-    //     }
-
-    //     struct MockBuiltinPublicationsReader;
-
-    //     impl RtpsStatefulReaderOperations<Vec<Locator>> for MockBuiltinPublicationsReader {
-    //         fn matched_writer_add(
-    //             &mut self,
-    //             a_writer_proxy: rust_rtps_pim::behavior::reader::writer_proxy::RtpsWriterProxy<
-    //                 Vec<Locator>,
-    //             >,
-    //         ) {
-    //             todo!()
-    //         }
-
-    //         fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid) {
-    //             todo!()
-    //         }
-
-    //         fn matched_writer_lookup(
-    //             &self,
-    //             a_writer_guid: &Guid,
-    //         ) -> Option<&rust_rtps_pim::behavior::reader::writer_proxy::RtpsWriterProxy<Vec<Locator>>>
-    //         {
-    //             todo!()
-    //         }
-    //     }
-
-    //     let mock_spdp_data_reader = MockSpdpDataReader(vec![SpdpDiscoveredParticipantData {
-    //         dds_participant_data: ParticipantBuiltinTopicData {
-    //             key: BuiltInTopicKey { value: [5; 16] },
-    //             user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
-    //                 value: vec![],
-    //             },
-    //         },
-    //         participant_proxy: ParticipantProxy {
-    //             domain_id: 1,
-    //             domain_tag: "".to_string(),
-    //             protocol_version: PROTOCOLVERSION,
-    //             guid_prefix: GuidPrefix([5; 12]),
-    //             vendor_id: VENDOR_ID_S2E,
-    //             expects_inline_qos: false,
-    //             metatraffic_unicast_locator_list: vec![],
-    //             metatraffic_multicast_locator_list: vec![],
-    //             default_unicast_locator_list: vec![],
-    //             default_multicast_locator_list: vec![],
-    //             available_builtin_endpoints: BuiltinEndpointSet::default(),
-    //             manual_liveliness_count: Count(1),
-    //             builtin_endpoint_qos: BuiltinEndpointQos::default(),
-    //         },
-    //         lease_duration: rust_rtps_pim::behavior::types::Duration::new(100, 0),
-    //     }]);
-
-    //     task_discovery(
-    //         &rtps_shared_new(mock_spdp_data_reader),
-    //         1,
-    //         "",
-    //         &mut MockBuiltinPublicationsWriter,
-    //         &mut MockBuiltinPublicationsReader,
-    //     );
-    // }
+        task_discovery(
+            &rtps_shared_new(mock_spdp_data_reader),
+            1,
+            "",
+            &mut mock_builtin_publications_writer,
+            &mut mock_builtin_publications_reader,
+            &mut mock_builtin_subscriptions_writer,
+            &mut mock_builtin_subscriptions_reader,
+            &mut mock_builtin_topics_writer,
+            &mut mock_builtin_topics_reader,
+        );
+    }
 }
