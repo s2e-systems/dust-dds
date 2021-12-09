@@ -10,11 +10,12 @@ use std::{
 };
 
 use rust_dds_api::{
-    dcps_psm::{DomainId, StatusMask},
+    dcps_psm::{DomainId, StatusMask, Time},
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{
         DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
     },
+    publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
 };
 use rust_dds_rtps_implementation::{
@@ -386,7 +387,8 @@ impl DomainParticipantFactory {
                         domain_tag_arc.as_ref(),
                     ) {
                         participant_discovery.discovered_participant_add_publications_writer(
-                            rtps_shared_write_lock(&sedp_builtin_publications_dds_data_writer).as_mut(),
+                            rtps_shared_write_lock(&sedp_builtin_publications_dds_data_writer)
+                                .as_mut(),
                         );
                     }
                 }
@@ -409,6 +411,17 @@ impl DomainParticipantFactory {
             user_defined_publisher_list,
             enabled,
         );
+
+        let spdp_discovered_participant_data =
+            domain_participant.as_spdp_discovered_participant_data();
+
+        rtps_shared_write_lock(&spdp_builtin_participant_dds_data_writer)
+            .write_w_timestamp(
+                &spdp_discovered_participant_data,
+                None,
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
 
         executor.run();
 

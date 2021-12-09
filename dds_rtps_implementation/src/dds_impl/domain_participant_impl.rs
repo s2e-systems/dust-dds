@@ -59,7 +59,7 @@ pub struct DomainParticipantImpl<S, P> {
     domain_tag: Arc<String>,
     qos: DomainParticipantQos,
     _builtin_subscriber: RtpsShared<S>,
-    builtin_publisher: RtpsShared<P>,
+    _builtin_publisher: RtpsShared<P>,
     _user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<S>>>,
     _user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
@@ -110,7 +110,7 @@ impl<S, P> DomainParticipantImpl<S, P> {
             domain_tag,
             qos: domain_participant_qos,
             _builtin_subscriber: builtin_subscriber,
-            builtin_publisher,
+            _builtin_publisher: builtin_publisher,
             _user_defined_subscriber_list: user_defined_subscriber_list,
             _user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
@@ -464,22 +464,6 @@ impl<S> Entity for DomainParticipantImpl<S, PublisherImpl> {
 
     fn enable(&self) -> DDSResult<()> {
         self.enabled.store(true, atomic::Ordering::SeqCst);
-
-        let builtin_publisher_lock = self.builtin_publisher.write().unwrap();
-        if let Some(spdp_builtin_participant_writer) =
-            builtin_publisher_lock.lookup_datawriter::<SpdpDiscoveredParticipantData>(&())
-        {
-            let spdp_discovered_participant_data = self.as_spdp_discovered_participant_data();
-            spdp_builtin_participant_writer
-                .write()
-                .unwrap()
-                .write_w_timestamp(
-                    &spdp_discovered_participant_data,
-                    None,
-                    Time { sec: 0, nanosec: 0 },
-                )
-                .unwrap();
-        }
 
         Ok(())
     }
