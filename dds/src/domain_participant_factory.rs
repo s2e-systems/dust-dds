@@ -499,6 +499,7 @@ mod tests {
             sedp::builtin_endpoints::{
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             },
             spdp::participant_proxy::ParticipantProxy,
             types::{BuiltinEndpointQos, BuiltinEndpointSet},
@@ -708,7 +709,7 @@ mod tests {
 
     #[test]
     fn discovery_task_all_sedp_endpoints() {
-        static RETURN_SPDP_DATA : SpdpDiscoveredParticipantData = SpdpDiscoveredParticipantData {
+        static RETURN_SPDP_DATA: SpdpDiscoveredParticipantData = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey { value: [5; 16] },
                 user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
@@ -763,7 +764,7 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
             }))
-            .times(1)
+            .once()
             .return_const(());
 
         let mut mock_builtin_publications_reader = MockStatefulReader::new();
@@ -785,24 +786,64 @@ mod tests {
         let mut mock_builtin_subscriptions_writer = MockStatefulWriter::new();
         mock_builtin_subscriptions_writer
             .expect_matched_reader_add()
+            .with(predicate::eq(RtpsReaderProxy {
+                remote_reader_guid: Guid::new(
+                    GuidPrefix([5; 12]),
+                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+                ),
+                remote_group_entity_id: ENTITYID_UNKNOWN,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            }))
             .once()
             .return_const(());
 
         let mut mock_builtin_subscriptions_reader = MockStatefulReader::new();
         mock_builtin_subscriptions_reader
             .expect_matched_writer_add()
+            .with(predicate::eq(RtpsWriterProxy {
+                remote_writer_guid: Guid::new(
+                    GuidPrefix([5; 12]),
+                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+                ),
+                remote_group_entity_id: ENTITYID_UNKNOWN,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: None,
+            }))
             .once()
             .return_const(());
 
         let mut mock_builtin_topics_writer = MockStatefulWriter::new();
         mock_builtin_topics_writer
             .expect_matched_reader_add()
+            .with(predicate::eq(RtpsReaderProxy {
+                remote_reader_guid: Guid::new(
+                    GuidPrefix([5; 12]),
+                    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+                ),
+                remote_group_entity_id: ENTITYID_UNKNOWN,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            }))
             .once()
             .return_const(());
 
         let mut mock_builtin_topics_reader = MockStatefulReader::new();
         mock_builtin_topics_reader
             .expect_matched_writer_add()
+            .with(predicate::eq(RtpsWriterProxy {
+                remote_writer_guid: Guid::new(
+                    GuidPrefix([5; 12]),
+                    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+                ),
+                remote_group_entity_id: ENTITYID_UNKNOWN,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: None,
+            }))
             .once()
             .return_const(());
 
