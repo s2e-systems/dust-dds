@@ -175,6 +175,7 @@ fn send_and_receive_discovery_data_happy_path() {
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),
         vec![shared_data_reader.clone()],
+        vec![],
     );
 
     let (source_locator, message) = transport.read().unwrap();
@@ -313,6 +314,7 @@ fn process_discovery_data_happy_path() {
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),
         vec![shared_data_reader.clone()],
+        vec![],
     );
 
     let (source_locator, message) = transport.read().unwrap();

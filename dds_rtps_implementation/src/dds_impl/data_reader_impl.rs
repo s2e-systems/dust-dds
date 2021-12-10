@@ -1,24 +1,22 @@
 use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
     infrastructure::{entity::Entity, qos::DataReaderQos},
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::{
-        reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
-        stateless_reader_behavior::StatelessReaderBehavior,
-    },
-    structure::{
-        history_cache::RtpsHistoryCacheGetChange,
-        types::{GuidPrefix, Locator},
-    },
+    behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
+    structure::types::{GuidPrefix, Locator},
 };
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
-    dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
+    dds_type::DdsDeserialize,
+    rtps_impl::{
+        rtps_reader_history_cache_impl::ReaderHistoryCache,
+        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    },
     utils::message_receiver::ProcessDataSubmessage,
 };
 
@@ -42,7 +40,7 @@ impl<T, R> AsMut<R> for DataReaderImpl<T, R> {
     }
 }
 
-impl<T, R> ProcessDataSubmessage for DataReaderImpl<T, R>
+impl<T> ProcessDataSubmessage for DataReaderImpl<T, RtpsStatelessReaderImpl<T>>
 where
     T: for<'a> DdsDeserialize<'a>,
 {
@@ -51,12 +49,7 @@ where
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        todo!("Processing of data submessages by DataReadingImpl")
-        // let mut stateless_reader = RtpsStatelessReader {
-        //     reader: &mut self.rtps_reader,
-        // };
-
-        // stateless_reader.receive_data(source_guid_prefix, data)
+        self.rtps_reader.0.receive_data(source_guid_prefix, data)
     }
 }
 

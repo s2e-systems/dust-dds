@@ -32,7 +32,10 @@ use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
-    rtps_impl::rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    rtps_impl::{
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    },
     utils::{
         message_receiver::ProcessDataSubmessage,
         shared_object::{rtps_shared_new, RtpsShared},
@@ -41,17 +44,18 @@ use crate::{
 
 use super::data_reader_impl::DataReaderImpl;
 
-pub trait DataReaderObject {
-    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+pub trait AnyStatelessDataReader {
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
     fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>>;
 }
 
-impl<T> DataReaderObject for RwLock<T>
+impl<T> AnyStatelessDataReader for RwLock<DataReaderImpl<T, RtpsStatelessReaderImpl<T>>>
 where
-    T: Any + Send + Sync + ProcessDataSubmessage,
+    for<'a> T: DdsDeserialize<'a>,
+    T: Send + Sync + 'static,
 {
-    fn into_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
 
@@ -60,10 +64,31 @@ where
     }
 }
 
+pub trait AnyStatefulDataReader {
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+
+    fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>>;
+}
+
+impl<T> AnyStatefulDataReader for RwLock<DataReaderImpl<T, RtpsStatefulReaderImpl<T>>>
+where
+    for<'a> T: DdsDeserialize<'a>,
+    T: Send + Sync + 'static,
+{
+    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
+    }
+
+    fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>> {
+        todo!()
+    }
+}
+
 pub struct SubscriberImpl {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    data_reader_list: Mutex<Vec<Arc<dyn DataReaderObject + Send + Sync>>>,
+    stateless_data_reader_list: Mutex<Vec<Arc<dyn AnyStatelessDataReader + Send + Sync>>>,
+    stateful_data_reader_list: Mutex<Vec<Arc<dyn AnyStatefulDataReader + Send + Sync>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -72,12 +97,14 @@ impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
-        data_reader_list: Vec<Arc<dyn DataReaderObject + Send + Sync>>,
+        stateless_data_reader_list: Vec<Arc<dyn AnyStatelessDataReader + Send + Sync>>,
+        stateful_data_reader_list: Vec<Arc<dyn AnyStatefulDataReader + Send + Sync>>,
     ) -> Self {
         Self {
             qos,
             rtps_group,
-            data_reader_list: Mutex::new(data_reader_list),
+            stateless_data_reader_list: Mutex::new(stateless_data_reader_list),
+            stateful_data_reader_list: Mutex::new(stateful_data_reader_list),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
         }
@@ -136,7 +163,7 @@ where
         ));
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
-        self.data_reader_list
+        self.stateful_data_reader_list
             .lock()
             .unwrap()
             .push(reader_storage_shared.clone());
@@ -269,7 +296,7 @@ impl ProcessDataSubmessage for SubscriberImpl {
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        let data_reader_list = self.data_reader_list.lock().unwrap();
+        let data_reader_list = self.stateless_data_reader_list.lock().unwrap();
         for reader in data_reader_list.iter() {
             reader
                 .clone()
@@ -277,7 +304,6 @@ impl ProcessDataSubmessage for SubscriberImpl {
                 .write()
                 .unwrap()
                 .process_data_submessage(source_guid_prefix, data);
-            //  rtps_reader_mut() {
         }
     }
 }
@@ -331,7 +357,7 @@ mod tests {
                 entity_kind: 1,
             },
         });
-        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
+        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![], vec![]);
         subscriber
             .create_datareader::<MockDdsType>(&(), None, None, 0)
             .unwrap();
@@ -349,7 +375,7 @@ mod tests {
                 entity_kind: 1,
             },
         });
-        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
+        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![], vec![]);
         let data_reader = subscriber.lookup_datareader::<MockDdsType>(&());
 
         assert!(data_reader.is_none())
@@ -364,7 +390,7 @@ mod tests {
                 entity_kind: 1,
             },
         });
-        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
+        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![], vec![]);
         subscriber
             .create_datareader::<MockDdsType>(&(), None, None, 0)
             .unwrap();
