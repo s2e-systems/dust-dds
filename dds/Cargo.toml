@@ -22,4 +22,4 @@ version = "1.7.0"
 features = ["unstable"]
 
 [dev-dependencies]
-mockall = {version = "0.10.2", features = ["nightly"]}
+mockall = {version = "0.10.2"}

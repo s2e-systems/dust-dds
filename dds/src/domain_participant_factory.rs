@@ -507,252 +507,180 @@ mod tests {
         structure::types::ENTITYID_UNKNOWN,
     };
 
-    struct MockSpdpDataReader(Vec<SpdpDiscoveredParticipantData>);
+    mock! {
+        DdsDataReader<T: 'static>{}
 
-    impl<'a> DataReader<'a, SpdpDiscoveredParticipantData> for MockSpdpDataReader {
-        type Samples = Vec<&'a SpdpDiscoveredParticipantData>;
+        impl<'a, T>  DataReader<'a, T> for DdsDataReader<T>{
+            type Samples = Vec<&'a T>;
 
-        fn read(
-            &'a self,
-            _max_samples: i32,
-            _sample_states: &[SampleStateKind],
-            _view_states: &[ViewStateKind],
-            _instance_states: &[InstanceStateKind],
-        ) -> DDSResult<Self::Samples> {
-            Ok(self.0.iter().collect())
-        }
+            fn read(
+                &'a self,
+                max_samples: i32,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<Vec<&'static T>>;
 
-        fn take(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-            _max_samples: i32,
-            _sample_states: &[SampleStateKind],
-            _view_states: &[ViewStateKind],
-            _instance_states: &[InstanceStateKind],
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn take(
+                &self,
+                data_values: &mut [T],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
 
-        fn read_w_condition(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-            _max_samples: i32,
-            _a_condition: ReadCondition,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn read_w_condition(
+                &self,
+                data_values: &mut [T],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                a_condition: ReadCondition,
+            ) -> DDSResult<()>;
 
-        fn take_w_condition(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-            _max_samples: i32,
-            _a_condition: ReadCondition,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn take_w_condition(
+                &self,
+                data_values: &mut [T],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                a_condition: ReadCondition,
+            ) -> DDSResult<()>;
 
-        fn read_next_sample(
-            &self,
-            _data_value: &mut [SpdpDiscoveredParticipantData],
-            _sample_info: &mut [SampleInfo],
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn read_next_sample(
+                &self,
+                data_value: &mut [T],
+                sample_info: &mut [SampleInfo],
+            ) -> DDSResult<()>;
 
-        fn take_next_sample(
-            &self,
-            _data_value: &mut [SpdpDiscoveredParticipantData],
-            _sample_info: &mut [SampleInfo],
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn take_next_sample(
+                &self,
+                data_value: &mut [T],
+                sample_info: &mut [SampleInfo],
+            ) -> DDSResult<()>;
 
-        fn read_instance(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-            _max_samples: i32,
-            _a_handle: InstanceHandle,
-            _sample_states: &[SampleStateKind],
-            _view_states: &[ViewStateKind],
-            _instance_states: &[InstanceStateKind],
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn read_instance(
+                &self,
+                data_values: &mut [T],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                a_handle: InstanceHandle,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
 
-        fn take_instance(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-            _max_samples: i32,
-            _a_handle: InstanceHandle,
-            _sample_states: &[SampleStateKind],
-            _view_states: &[ViewStateKind],
-            _instance_states: &[InstanceStateKind],
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn take_instance(
+                &self,
+                data_values: &mut [T],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                a_handle: InstanceHandle,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
 
-        fn read_next_instance(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-            _max_samples: i32,
-            _previous_handle: InstanceHandle,
-            _sample_states: &[SampleStateKind],
-            _view_states: &[ViewStateKind],
-            _instance_states: &[InstanceStateKind],
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn read_next_instance(
+                &self,
+                data_values: &mut [T],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                previous_handle: InstanceHandle,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
 
-        fn take_next_instance(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-            _max_samples: i32,
-            _previous_handle: InstanceHandle,
-            _sample_states: &[SampleStateKind],
-            _view_states: &[ViewStateKind],
-            _instance_states: &[InstanceStateKind],
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn take_next_instance(
+                &self,
+                data_values: &mut [T],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                previous_handle: InstanceHandle,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
 
-        fn read_next_instance_w_condition(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-            _max_samples: i32,
-            _previous_handle: InstanceHandle,
-            _a_condition: ReadCondition,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn read_next_instance_w_condition(
+                &self,
+                data_values: &mut [T],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                previous_handle: InstanceHandle,
+                a_condition: ReadCondition,
+            ) -> DDSResult<()>;
 
-        fn take_next_instance_w_condition(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-            _max_samples: i32,
-            _previous_handle: InstanceHandle,
-            _a_condition: ReadCondition,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn take_next_instance_w_condition(
+                &self,
+                data_values: &mut [T],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                previous_handle: InstanceHandle,
+                a_condition: ReadCondition,
+            ) -> DDSResult<()>;
 
-        fn return_loan(
-            &self,
-            _data_values: &mut [SpdpDiscoveredParticipantData],
-            _sample_infos: &mut [SampleInfo],
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn return_loan(&self, data_values: &mut [T], sample_infos: &mut [SampleInfo]) -> DDSResult<()>;
 
-        fn get_key_value(
-            &self,
-            _key_holder: &mut SpdpDiscoveredParticipantData,
-            _handle: InstanceHandle,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> DDSResult<()>;
 
-        fn lookup_instance(&self, _instance: &SpdpDiscoveredParticipantData) -> InstanceHandle {
-            todo!()
-        }
+            fn lookup_instance(&self, instance: &T) -> InstanceHandle;
 
-        fn create_readcondition(
-            &self,
-            _sample_states: &[SampleStateKind],
-            _view_states: &[ViewStateKind],
-            _instance_states: &[InstanceStateKind],
-        ) -> ReadCondition {
-            todo!()
-        }
+            fn create_readcondition(
+                &self,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> ReadCondition;
 
-        fn create_querycondition(
-            &self,
-            _sample_states: &[SampleStateKind],
-            _view_statessss: &[ViewStateKind],
-            _instance_states: &[InstanceStateKind],
-            _query_expression: &'static str,
-            _query_parameters: &[&'static str],
-        ) -> QueryCondition {
-            todo!()
-        }
+            fn create_querycondition(
+                &self,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+                query_expression: &'static str,
+                query_parameters: &[&'static str],
+            ) -> QueryCondition;
 
-        fn delete_readcondition(&self, _a_condition: ReadCondition) -> DDSResult<()> {
-            todo!()
-        }
+            fn delete_readcondition(&self, a_condition: ReadCondition) -> DDSResult<()>;
 
-        fn get_liveliness_changed_status(
-            &self,
-            _status: &mut LivelinessChangedStatus,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn get_liveliness_changed_status(&self, status: &mut LivelinessChangedStatus) -> DDSResult<()>;
 
-        fn get_requested_deadline_missed_status(
-            &self,
-            _status: &mut RequestedDeadlineMissedStatus,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn get_requested_deadline_missed_status(
+                &self,
+                status: &mut RequestedDeadlineMissedStatus,
+            ) -> DDSResult<()>;
 
-        fn get_requested_incompatible_qos_status(
-            &self,
-            _status: &mut RequestedIncompatibleQosStatus,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn get_requested_incompatible_qos_status(
+                &self,
+                status: &mut RequestedIncompatibleQosStatus,
+            ) -> DDSResult<()>;
 
-        fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {
-            todo!()
-        }
+            fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;
 
-        fn get_sample_rejected_status(&self, _status: &mut SampleRejectedStatus) -> DDSResult<()> {
-            todo!()
-        }
+            fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> DDSResult<()>;
 
-        fn get_subscription_matched_status(
-            &self,
-            _status: &mut SubscriptionMatchedStatus,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn get_subscription_matched_status(
+                &self,
+                status: &mut SubscriptionMatchedStatus,
+            ) -> DDSResult<()>;
 
-        fn get_topicdescription(&self) -> &dyn TopicDescription<SpdpDiscoveredParticipantData> {
-            todo!()
-        }
+            fn get_topicdescription(&self) -> &'static dyn TopicDescription<T>;
 
-        fn get_subscriber(&self) -> &dyn Subscriber {
-            todo!()
-        }
+            fn get_subscriber(&self) -> &'static dyn Subscriber;
 
-        fn delete_contained_entities(&self) -> DDSResult<()> {
-            todo!()
-        }
+            fn delete_contained_entities(&self) -> DDSResult<()>;
 
-        fn wait_for_historical_data(&self) -> DDSResult<()> {
-            todo!()
-        }
+            fn wait_for_historical_data(&self) -> DDSResult<()>;
 
-        fn get_matched_publication_data(
-            &self,
-            _publication_data: &mut PublicationBuiltinTopicData,
-            _publication_handle: InstanceHandle,
-        ) -> DDSResult<()> {
-            todo!()
-        }
+            fn get_matched_publication_data(
+                &self,
+                publication_data: &mut PublicationBuiltinTopicData,
+                publication_handle: InstanceHandle,
+            ) -> DDSResult<()>;
 
-        fn get_match_publication(
-            &self,
-            _publication_handles: &mut [InstanceHandle],
-        ) -> DDSResult<()> {
-            todo!()
+            fn get_match_publication(&self, publication_handles: &mut [InstanceHandle]) -> DDSResult<()>;
         }
     }
 
@@ -780,7 +708,7 @@ mod tests {
 
     #[test]
     fn discovery_task_all_sedp_endpoints() {
-        let mock_spdp_data_reader = MockSpdpDataReader(vec![SpdpDiscoveredParticipantData {
+        static RETURN_SPDP_DATA : SpdpDiscoveredParticipantData = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey { value: [5; 16] },
                 user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
@@ -815,7 +743,12 @@ mod tests {
                 seconds: 100,
                 fraction: 0,
             },
-        }]);
+        };
+
+        let mut mock_spdp_data_reader = MockDdsDataReader::new();
+        mock_spdp_data_reader
+            .expect_read()
+            .returning(|_, _, _, _| Ok(vec![&RETURN_SPDP_DATA]));
 
         let mut mock_builtin_publications_writer = MockStatefulWriter::new();
         mock_builtin_publications_writer
