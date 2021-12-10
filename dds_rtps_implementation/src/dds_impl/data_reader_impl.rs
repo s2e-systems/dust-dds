@@ -1,7 +1,7 @@
 use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
     infrastructure::{entity::Entity, qos::DataReaderQos},
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
     topic::topic_description::TopicDescription,
 };
@@ -14,7 +14,7 @@ use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 use crate::{
     dds_type::DdsDeserialize,
     rtps_impl::{
-        rtps_reader_history_cache_impl::ReaderHistoryCache,
+        rtps_reader_history_cache_impl::{ReaderHistoryCache, ReaderHistoryCacheGetChange},
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     },
     utils::message_receiver::ProcessDataSubmessage,
@@ -93,6 +93,7 @@ impl<T, R> DataReaderImpl<T, R> {
 impl<'a, T, R> DataReader<'a, T> for DataReaderImpl<T, R>
 where
     T: for<'de> DdsDeserialize<'de> + 'static,
+    R: ReaderHistoryCacheGetChange<'a, T>,
 {
     type Samples = Vec<&'a T>;
 
@@ -103,12 +104,15 @@ where
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
         _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        todo!("Data reader read method")
-        // if let Some(cc) = self.rtps_reader.reader_cache.get_change(&1) {
-        //     Ok(vec![cc.data_value])
-        // } else {
-        //     Err(DDSError::NoData)
-        // }
+        if let Some(cc) = self
+            .rtps_reader
+            .get_reader_history_cache_get_change()
+            .get_change(&1)
+        {
+            Ok(vec![cc.data_value])
+        } else {
+            Err(DDSError::NoData)
+        }
     }
 
     fn take(

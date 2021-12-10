@@ -3,11 +3,16 @@ use rust_rtps_pim::{
         stateful_reader::{RtpsStatefulReader, RtpsStatefulReaderOperations},
         writer_proxy::RtpsWriterProxy,
     },
-    structure::types::{Guid, Locator},
+    messages::submessage_elements::Parameter,
+    structure::{
+        history_cache::RtpsHistoryCacheGetChange,
+        types::{Guid, Locator},
+    },
 };
 
 use super::{
-    rtps_reader_history_cache_impl::ReaderHistoryCache, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    rtps_reader_history_cache_impl::{ReaderHistoryCache, ReaderHistoryCacheGetChange},
+    rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 
 pub struct RtpsStatefulReaderImpl<T>(
@@ -47,5 +52,13 @@ impl<T> RtpsStatefulReaderOperations<Vec<Locator>> for RtpsStatefulReaderImpl<T>
             .iter()
             .find(|&x| &x.as_ref().remote_writer_guid == a_writer_guid)
             .map(|x| x.as_ref())
+    }
+}
+
+impl<'a, T> ReaderHistoryCacheGetChange<'a, T> for RtpsStatefulReaderImpl<T> {
+    fn get_reader_history_cache_get_change(
+        &'a self,
+    ) -> &dyn RtpsHistoryCacheGetChange<&'a [Parameter<&'a [u8]>], &'a T> {
+        &self.0.reader.reader_cache
     }
 }

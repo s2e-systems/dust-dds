@@ -131,6 +131,12 @@ impl<T> RtpsHistoryCacheOperations for ReaderHistoryCache<T> {
     }
 }
 
+pub trait ReaderHistoryCacheGetChange<'a, T> {
+    fn get_reader_history_cache_get_change(
+        &'a self,
+    ) -> &dyn RtpsHistoryCacheGetChange<&'a [Parameter<&'a [u8]>], &'a T>;
+}
+
 #[cfg(test)]
 mod tests {
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
