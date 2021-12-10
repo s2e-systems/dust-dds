@@ -1,6 +1,6 @@
 use crate::{
     behavior::{
-        reader::reader::RtpsReader, types::DURATION_ZERO,
+        reader::stateless_reader::RtpsStatelessReader, types::DURATION_ZERO,
         writer::stateless_writer::RtpsStatelessWriter,
     },
     structure::{
@@ -55,14 +55,14 @@ impl SpdpBuiltinParticipantReader {
         guid_prefix: GuidPrefix,
         unicast_locator_list: L,
         multicast_locator_list: L,
-    ) -> RtpsReader<L, C>
+    ) -> RtpsStatelessReader<L, C>
     where
         C: RtpsHistoryCacheConstructor,
     {
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
 
-        RtpsReader::new(
+        RtpsStatelessReader::new(
             spdp_builtin_participant_reader_guid,
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,

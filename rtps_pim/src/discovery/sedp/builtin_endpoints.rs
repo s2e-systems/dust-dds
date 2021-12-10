@@ -1,6 +1,6 @@
 use crate::{
     behavior::{
-        reader::reader::RtpsReader,
+        reader::stateful_reader::RtpsStatefulReader,
         types::{Duration, DURATION_ZERO},
         writer::stateful_writer::RtpsStatefulWriter,
     },
@@ -88,13 +88,14 @@ impl SedpBuiltinPublicationsWriter {
 pub struct SedpBuiltinPublicationsReader;
 
 impl SedpBuiltinPublicationsReader {
-    pub fn create<L, C>(
+    pub fn create<L, C, W>(
         guid_prefix: GuidPrefix,
         unicast_locator_list: L,
         multicast_locator_list: L,
-    ) -> RtpsReader<L, C>
+    ) -> RtpsStatefulReader<L, C, W>
     where
         C: RtpsHistoryCacheConstructor,
+        W: Default,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let topic_kind = TopicKind::WithKey;
@@ -102,7 +103,7 @@ impl SedpBuiltinPublicationsReader {
         let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
         let heartbeat_supression_duration = DEFAULT_HEARTBEAT_SUPRESSION_DURATION;
         let expects_inline_qos = false;
-        RtpsReader::new(
+        RtpsStatefulReader::new(
             guid,
             topic_kind,
             reliability_level,
@@ -153,13 +154,14 @@ impl SedpBuiltinSubscriptionsWriter {
 pub struct SedpBuiltinSubscriptionsReader;
 
 impl SedpBuiltinSubscriptionsReader {
-    pub fn create<L, C>(
+    pub fn create<L, C, W>(
         guid_prefix: GuidPrefix,
         unicast_locator_list: L,
         multicast_locator_list: L,
-    ) -> RtpsReader<L, C>
+    ) -> RtpsStatefulReader<L, C, W>
     where
         C: RtpsHistoryCacheConstructor,
+        W: Default,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let topic_kind = TopicKind::WithKey;
@@ -167,7 +169,7 @@ impl SedpBuiltinSubscriptionsReader {
         let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
         let heartbeat_supression_duration = DEFAULT_HEARTBEAT_SUPRESSION_DURATION;
         let expects_inline_qos = false;
-        RtpsReader::new(
+        RtpsStatefulReader::new(
             guid,
             topic_kind,
             reliability_level,
@@ -218,13 +220,14 @@ impl SedpBuiltinTopicsWriter {
 pub struct SedpBuiltinTopicsReader;
 
 impl SedpBuiltinTopicsReader {
-    pub fn create<L, C>(
+    pub fn create<L, C, W>(
         guid_prefix: GuidPrefix,
         unicast_locator_list: L,
         multicast_locator_list: L,
-    ) -> RtpsReader<L, C>
+    ) -> RtpsStatefulReader<L, C, W>
     where
         C: RtpsHistoryCacheConstructor,
+        W: Default,
     {
         let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let topic_kind = TopicKind::WithKey;
@@ -232,7 +235,7 @@ impl SedpBuiltinTopicsReader {
         let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
         let heartbeat_supression_duration = DEFAULT_HEARTBEAT_SUPRESSION_DURATION;
         let expects_inline_qos = false;
-        RtpsReader::new(
+        RtpsStatefulReader::new(
             guid,
             topic_kind,
             reliability_level,

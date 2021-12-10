@@ -13,14 +13,16 @@ pub trait StatelessReaderBehavior<P> {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>);
 }
 
-impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsStatelessReader<'a, L, C>
+impl<'a, 'b, L, C, P> StatelessReaderBehavior<P> for RtpsStatelessReader<L, C>
 where
     C: for<'c> RtpsHistoryCacheAddChange<&'c [Parameter<&'c [u8]>], &'c [u8]>,
     P: AsRef<[Parameter<&'a [u8]>]>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, &[u8]>) {
         let reader_id = data.reader_id.value;
-        if &reader_id == self.reader.endpoint.entity.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
+        if &reader_id == self.reader.endpoint.entity.guid.entity_id()
+            || reader_id == ENTITYID_UNKNOWN
+        {
             let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
@@ -48,7 +50,7 @@ where
 mod tests {
 
     use crate::{
-        behavior::{reader::reader::RtpsReader, types::DURATION_ZERO},
+        behavior::types::DURATION_ZERO,
         messages::submessage_elements::{
             EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
@@ -96,22 +98,20 @@ mod tests {
 
     #[test]
     fn receive_data_one_cache_change() {
-        let mut reader: RtpsReader<(), MockHistoryCache> = RtpsReader::new(
-            Guid {
-                prefix: GuidPrefix([1; 12]),
-                entity_id: EntityId::new([0; 3], 1),
-            },
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            (),
-            (),
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-        );
-        let mut stateless_reader = RtpsStatelessReader {
-            reader: &mut reader,
-        };
+        let mut stateless_reader: RtpsStatelessReader<(), MockHistoryCache> =
+            RtpsStatelessReader::new(
+                Guid {
+                    prefix: GuidPrefix([1; 12]),
+                    entity_id: EntityId::new([0; 3], 1),
+                },
+                TopicKind::WithKey,
+                ReliabilityKind::BestEffort,
+                (),
+                (),
+                DURATION_ZERO,
+                DURATION_ZERO,
+                false,
+            );
 
         let source_guid_prefix = GUIDPREFIX_UNKNOWN;
         let writer_entity_id = EntityId::new([1, 2, 3], BUILT_IN_WRITER_WITH_KEY);
@@ -136,7 +136,7 @@ mod tests {
         };
         stateless_reader.receive_data(source_guid_prefix, &data);
 
-        if let Some(cache_change) = &reader.reader_cache.0 {
+        if let Some(cache_change) = &stateless_reader.reader.reader_cache.0 {
             assert_eq!(cache_change.kind, ChangeKind::Alive);
             assert_eq!(
                 cache_change.writer_guid,

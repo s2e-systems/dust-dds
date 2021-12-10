@@ -12,18 +12,19 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
     subscription::{
+        data_reader::DataReader,
         data_reader_listener::DataReaderListener,
-        subscriber::{SubscriberDataReaderFactory, Subscriber},
+        subscriber::{Subscriber, SubscriberDataReaderFactory},
         subscriber_listener::SubscriberListener,
     },
 };
 use rust_rtps_pim::{
-    behavior::reader::reader::RtpsReader,
+    behavior::reader::stateful_reader::RtpsStatefulReader,
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-            USER_DEFINED_WRITER_WITH_KEY,
+            EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
+            USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
         },
     },
 };
@@ -31,6 +32,7 @@ use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
+    rtps_impl::rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
     utils::{
         message_receiver::ProcessDataSubmessage,
         shared_object::{rtps_shared_new, RtpsShared},
@@ -82,12 +84,12 @@ impl SubscriberImpl {
     }
 }
 
-impl<T> SubscriberDataReaderFactory<'_, '_, T> for SubscriberImpl
+impl<'dr, T> SubscriberDataReaderFactory<'dr, '_, T> for SubscriberImpl
 where
     T: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
     type TopicType = ();
-    type DataReaderType = RtpsShared<DataReaderImpl<T>>;
+    type DataReaderType = RtpsShared<dyn DataReader<'dr, T, Samples = Vec<&'dr T>> + Send + Sync>;
 
     fn datareader_factory_create_datareader(
         &'_ self,
@@ -117,12 +119,12 @@ where
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
         };
 
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
+        let unicast_locator_list: Vec<Locator> = vec![];
+        let multicast_locator_list: Vec<Locator> = vec![];
         let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
-        let rtps_reader = RtpsReader::new(
+        let rtps_reader = RtpsStatefulReaderImpl::<T>::new(RtpsStatefulReader::new(
             guid,
             topic_kind,
             reliability_level,
@@ -131,7 +133,7 @@ where
             heartbeat_response_delay,
             heartbeat_supression_duration,
             expects_inline_qos,
-        );
+        ));
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
         self.data_reader_list
@@ -141,7 +143,10 @@ where
         Some(reader_storage_shared)
     }
 
-    fn datareader_factory_delete_datareader(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
+    fn datareader_factory_delete_datareader(
+        &self,
+        _a_datareader: &Self::DataReaderType,
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -149,10 +154,11 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {
-        let data_reader_list_lock = self.data_reader_list.lock().unwrap();
-        data_reader_list_lock
-            .iter()
-            .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
+        todo!("data reader lookup")
+        // let data_reader_list_lock = self.data_reader_list.lock().unwrap();
+        // data_reader_list_lock
+        //     .iter()
+        //     .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
     }
 }
 

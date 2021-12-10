@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
     infrastructure::{entity::Entity, qos::DataReaderQos},
@@ -9,38 +7,42 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::{
-            reader::RtpsReader, stateful_reader::RtpsStatefulReaderOperations,
-            stateless_reader::RtpsStatelessReader, writer_proxy::RtpsWriterProxy,
-        },
+        reader::{reader::RtpsReader, stateless_reader::RtpsStatelessReader},
         stateless_reader_behavior::StatelessReaderBehavior,
     },
     structure::{
         history_cache::RtpsHistoryCacheGetChange,
-        types::{Guid, GuidPrefix, Locator},
+        types::{GuidPrefix, Locator},
     },
 };
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
-    dds_type::DdsDeserialize,
-    rtps_impl::{
-        rtps_reader_history_cache_impl::ReaderHistoryCache,
-        rtps_writer_proxy_impl::RtpsWriterProxyImpl,
-    },
+    dds_type::DdsDeserialize, rtps_impl::rtps_reader_history_cache_impl::ReaderHistoryCache,
     utils::message_receiver::ProcessDataSubmessage,
 };
 
 pub type RtpsReaderType<T> = RtpsReader<Vec<Locator>, ReaderHistoryCache<T>>;
 
-pub struct DataReaderImpl<T> {
-    pub rtps_reader: RtpsReaderType<T>,
-    pub matched_writers: Vec<RtpsWriterProxyImpl>,
+pub struct DataReaderImpl<T, R> {
+    rtps_reader: R,
     _qos: DataReaderQos,
     _listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
 }
 
-impl<T> ProcessDataSubmessage for DataReaderImpl<T>
+impl<T, R> AsRef<R> for DataReaderImpl<T, R> {
+    fn as_ref(&self) -> &R {
+        &self.rtps_reader
+    }
+}
+
+impl<T, R> AsMut<R> for DataReaderImpl<T, R> {
+    fn as_mut(&mut self) -> &mut R {
+        &mut self.rtps_reader
+    }
+}
+
+impl<T, R> ProcessDataSubmessage for DataReaderImpl<T, R>
 where
     T: for<'a> DdsDeserialize<'a>,
 {
@@ -49,19 +51,19 @@ where
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        let mut stateless_reader = RtpsStatelessReader {
-            reader: &mut self.rtps_reader,
-        };
+        todo!("Processing of data submessages by DataReadingImpl")
+        // let mut stateless_reader = RtpsStatelessReader {
+        //     reader: &mut self.rtps_reader,
+        // };
 
-        stateless_reader.receive_data(source_guid_prefix, data)
+        // stateless_reader.receive_data(source_guid_prefix, data)
     }
 }
 
-impl<T> DataReaderImpl<T> {
-    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReaderType<T>) -> Self {
+impl<T, R> DataReaderImpl<T, R> {
+    pub fn new(qos: DataReaderQos, rtps_reader: R) -> Self {
         Self {
             rtps_reader,
-            matched_writers: Vec::new(),
             _qos: qos,
             _listener: None,
         }
@@ -95,7 +97,7 @@ impl<T> DataReaderImpl<T> {
 //     })
 //     .collect())
 
-impl<'a, T> DataReader<'a, T> for DataReaderImpl<T>
+impl<'a, T, R> DataReader<'a, T> for DataReaderImpl<T, R>
 where
     T: for<'de> DdsDeserialize<'de> + 'static,
 {
@@ -108,11 +110,12 @@ where
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
         _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        if let Some(cc) = self.rtps_reader.reader_cache.get_change(&1) {
-            Ok(vec![cc.data_value])
-        } else {
-            Err(DDSError::NoData)
-        }
+        todo!("Data reader read method")
+        // if let Some(cc) = self.rtps_reader.reader_cache.get_change(&1) {
+        //     Ok(vec![cc.data_value])
+        // } else {
+        //     Err(DDSError::NoData)
+        // }
     }
 
     fn take(
@@ -352,7 +355,7 @@ where
     }
 }
 
-impl<T> Entity for DataReaderImpl<T> {
+impl<T, R> Entity for DataReaderImpl<T, R> {
     type Qos = DataReaderQos;
 
     type Listener = Box<dyn DataReaderListener<DataType = T>>;
@@ -393,27 +396,5 @@ impl<T> Entity for DataReaderImpl<T> {
 
     fn get_instance_handle(&self) -> DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
         todo!()
-    }
-}
-
-impl<T> RtpsStatefulReaderOperations<Vec<Locator>> for DataReaderImpl<T> {
-    fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<Vec<Locator>>) {
-        let writer_proxy = RtpsWriterProxyImpl::new(a_writer_proxy);
-        self.matched_writers.push(writer_proxy);
-    }
-
-    fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid) {
-        self.matched_writers
-            .retain(|x| &x.remote_writer_guid != writer_proxy_guid)
-    }
-
-    fn matched_writer_lookup(
-        &self,
-        a_writer_guid: &Guid,
-    ) -> Option<&RtpsWriterProxy<Vec<Locator>>> {
-        self.matched_writers
-            .iter()
-            .find(|&x| &x.remote_writer_guid == a_writer_guid)
-            .map(|x| x.deref())
     }
 }

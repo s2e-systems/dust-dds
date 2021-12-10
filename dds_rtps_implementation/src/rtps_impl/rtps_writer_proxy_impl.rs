@@ -1,29 +1,14 @@
-use std::ops::{Deref, DerefMut};
-
 use rust_rtps_pim::{
     behavior::reader::writer_proxy::{RtpsWriterProxy, RtpsWriterProxyOperations},
     structure::types::{Locator, SequenceNumber},
 };
 
+#[derive(derive_more::AsRef, derive_more::AsMut)]
 pub struct RtpsWriterProxyImpl(RtpsWriterProxy<Vec<Locator>>);
 
 impl RtpsWriterProxyImpl {
     pub fn new(writer_proxy: RtpsWriterProxy<Vec<Locator>>) -> Self {
         Self(writer_proxy)
-    }
-}
-
-impl Deref for RtpsWriterProxyImpl {
-    type Target = RtpsWriterProxy<Vec<Locator>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for RtpsWriterProxyImpl {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
