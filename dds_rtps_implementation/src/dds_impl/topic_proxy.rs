@@ -17,7 +17,7 @@ pub struct TopicProxy<'t, T, I> {
 }
 
 impl<'t, T, I> TopicProxy<'t, T, I> {
-    pub(crate) fn _new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<I>) -> Self {
+    pub(crate) fn new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<I>) -> Self {
         Self {
             participant,
             topic_impl,

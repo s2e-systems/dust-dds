@@ -1,9 +1,19 @@
 use rust_dds::{
+    domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
 };
+use rust_dds_rtps_implementation::dds_type::DdsType;
 
-// struct TestType;
-// impl DDSType for TestType {
+struct TestType;
+impl DdsType for TestType {
+    fn type_name() -> &'static str {
+        "TestType"
+    }
+
+    fn has_key() -> bool {
+        false
+    }
+}
 //     fn type_name() -> &'static str {
 //         "TestType"
 //     }
@@ -52,7 +62,9 @@ use rust_dds::{
 fn create_delete_publisher() {
     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
     participant.enable().unwrap();
-
+    participant
+        .create_topic::<TestType>("my_topic", None, None, 0)
+        .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(5));
     // let publisher = participant.create_publisher(None, None, 0).unwrap();
 
@@ -63,7 +75,6 @@ fn create_delete_publisher() {
     //     Err(DDSError::AlreadyDeleted)
     // );
 }
-
 
 // #[test]
 // fn create_delete_subscriber() {

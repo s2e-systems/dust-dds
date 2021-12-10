@@ -7,11 +7,17 @@ use rust_dds_api::{
 
 pub struct TopicImpl {
     qos: TopicQos,
+    type_name: &'static str,
+    topic_name: String,
 }
 
 impl TopicImpl {
-    pub fn new(qos: TopicQos) -> Self {
-        Self { qos }
+    pub fn new(qos: TopicQos, type_name: &'static str, topic_name: &str) -> Self {
+        Self {
+            qos,
+            type_name,
+            topic_name: topic_name.to_string(),
+        }
     }
 
     pub fn set_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()> {
@@ -38,7 +44,7 @@ impl<T> TopicDescription<T> for TopicImpl {
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
-        todo!()
+        Ok(&self.type_name)
     }
 
     fn get_name(&self) -> DDSResult<&'static str> {

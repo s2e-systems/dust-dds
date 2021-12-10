@@ -17,7 +17,9 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    publication::{
+        data_writer::DataWriter, publisher::Publisher, publisher_listener::PublisherListener,
+    },
     return_type::{DDSError, DDSResult},
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
@@ -40,10 +42,14 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    data_representation_builtin_endpoints::{
+        sedp_discovered_topic_data::SedpDiscoveredTopicData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    },
+    dds_type::DdsType,
     utils::shared_object::{
-        rtps_shared_downgrade, rtps_shared_new, rtps_shared_write_lock, rtps_weak_upgrade,
-        RtpsShared,
+        rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
+        rtps_weak_upgrade, RtpsShared,
     },
 };
 
@@ -59,14 +65,14 @@ pub struct DomainParticipantImpl<S, P> {
     domain_tag: Arc<String>,
     qos: DomainParticipantQos,
     _builtin_subscriber: RtpsShared<S>,
-    _builtin_publisher: RtpsShared<P>,
+    builtin_publisher: RtpsShared<P>,
     _user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<S>>>,
     _user_defined_subscriber_counter: u8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: RtpsShared<Vec<RtpsShared<P>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    _topic_list: Vec<RtpsShared<TopicImpl>>,
+    topic_list: RtpsShared<Vec<RtpsShared<TopicImpl>>>,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
     lease_duration: rust_rtps_pim::behavior::types::Duration,
@@ -110,14 +116,14 @@ impl<S, P> DomainParticipantImpl<S, P> {
             domain_tag,
             qos: domain_participant_qos,
             _builtin_subscriber: builtin_subscriber,
-            _builtin_publisher: builtin_publisher,
+            builtin_publisher,
             _user_defined_subscriber_list: user_defined_subscriber_list,
             _user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list,
             user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: PublisherQos::default(),
-            _topic_list: Vec::new(),
+            topic_list: rtps_shared_new(Vec::new()),
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: Count(0),
             lease_duration,
@@ -278,30 +284,63 @@ impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<Sub
     }
 }
 
-impl<'t, T: 'static, S, P> DomainParticipantTopicFactory<'t, T> for DomainParticipantImpl<S, P> {
+impl<'t, T: 'static, S> DomainParticipantTopicFactory<'t, T>
+    for DomainParticipantImpl<S, PublisherImpl>
+where
+    T: DdsType,
+{
     type TopicType = TopicProxy<'t, T, TopicImpl>;
 
     fn topic_factory_create_topic(
         &'t self,
-        _topic_name: &str,
-        _qos: Option<TopicQos>,
+        topic_name: &str,
+        qos: Option<TopicQos>,
         _a_listener: Option<&'static dyn TopicListener<DataType = T>>,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
-        // let topic_qos = qos.unwrap_or(self.default_topic_qos.clone());
-        // let topic_storage = TopicImpl::new(topic_qos);
-        // let topic_storage_shared = RtpsShared::new(topic_storage);
-        // let topic_storage_weak = topic_storage_shared.downgrade();
-        // self.topic_storage.push(topic_storage_shared);
-        // Some(topic_storage_weak)
+        let topic_qos = qos.unwrap_or(self.default_topic_qos.clone());
 
-        // let topic_storage_weak = self
-        //     .domain_participant_storage
-        //     .lock()
-        //     .create_topic(topic_name, qos, a_listener, mask)?;
-        // let topic = TopicProxy::new(self, topic_storage_weak);
-        // Some(topic)
-        todo!()
+        let builtin_publisher_lock = rtps_shared_read_lock(&self.builtin_publisher);
+        if let Some(sedp_builtin_topics_writer) =
+            builtin_publisher_lock.lookup_datawriter::<SedpDiscoveredTopicData>(&())
+        {
+            let mut sedp_builtin_topics_writer_lock =
+                rtps_shared_write_lock(&sedp_builtin_topics_writer);
+            let sedp_discovered_topic_data = SedpDiscoveredTopicData {
+                topic_builtin_topic_data: TopicBuiltinTopicData {
+                    key: BuiltInTopicKey { value: [1; 16] },
+                    name: topic_name.to_string(),
+                    type_name: T::type_name().to_string(),
+                    durability: topic_qos.durability.clone(),
+                    durability_service: topic_qos.durability_service.clone(),
+                    deadline: topic_qos.deadline.clone(),
+                    latency_budget: topic_qos.latency_budget.clone(),
+                    liveliness: topic_qos.liveliness.clone(),
+                    reliability: topic_qos.reliability.clone(),
+                    transport_priority: topic_qos.transport_priority.clone(),
+                    lifespan: topic_qos.lifespan.clone(),
+                    destination_order: topic_qos.destination_order.clone(),
+                    history: topic_qos.history.clone(),
+                    resource_limits: topic_qos.resource_limits.clone(),
+                    ownership: topic_qos.ownership.clone(),
+                    topic_data: topic_qos.topic_data.clone(),
+                },
+            };
+            sedp_builtin_topics_writer_lock
+                .write_w_timestamp(
+                    &sedp_discovered_topic_data,
+                    None,
+                    Time { sec: 0, nanosec: 0 },
+                )
+                .ok()?;
+        }
+
+        let topic_impl = TopicImpl::new(topic_qos, T::type_name(), topic_name);
+        let topic_impl_shared = rtps_shared_new(topic_impl);
+        let topic_proxy = TopicProxy::new(self, rtps_shared_downgrade(&topic_impl_shared));
+        rtps_shared_write_lock(&self.topic_list).push(topic_impl_shared);
+
+        Some(topic_proxy)
     }
 
     fn topic_factory_delete_topic(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {

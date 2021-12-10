@@ -435,7 +435,7 @@ mod tests {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
         let publisher_impl =
             PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
-        let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default()));
+        let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
         let _a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
 
         let data_writer_counter_before = publisher_impl
