@@ -181,11 +181,33 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {
-        todo!("data reader lookup")
-        // let data_reader_list_lock = self.data_reader_list.lock().unwrap();
-        // data_reader_list_lock
-        //     .iter()
-        //     .find_map(|x| Arc::downcast(x.clone().into_any_arc()).ok())
+        let stateful_data_reader_list_lock = self.stateful_data_reader_list.lock().unwrap();
+        let found_data_reader = stateful_data_reader_list_lock
+            .iter()
+            .cloned()
+            .find_map(|x| {
+                Arc::downcast::<RwLock<DataReaderImpl<T, RtpsStatefulReaderImpl<T>>>>(x.into_any())
+                    .ok()
+            });
+
+        if let Some(found_data_reader) = found_data_reader {
+            return Some(found_data_reader);
+        };
+
+        let stateless_data_reader_list_lock = self.stateless_data_reader_list.lock().unwrap();
+        let found_data_reader = stateless_data_reader_list_lock
+            .iter()
+            .cloned()
+            .find_map(|x| {
+                Arc::downcast::<RwLock<DataReaderImpl<T, RtpsStatelessReaderImpl<T>>>>(x.into_any())
+                    .ok()
+            });
+
+        if let Some(found_data_reader) = found_data_reader {
+            return Some(found_data_reader);
+        };
+
+        None
     }
 }
 
