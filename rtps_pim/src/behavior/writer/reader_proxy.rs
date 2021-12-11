@@ -45,6 +45,10 @@ impl<L> RtpsReaderProxy<L> {
     }
 }
 
+pub trait RtpsReaderProxyTrait {
+    fn guid(&self) -> &Guid;
+}
+
 pub trait RtpsReaderProxyOperations {
     type SequenceNumberVector;
 

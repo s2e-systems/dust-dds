@@ -17,14 +17,17 @@ use crate::{
     },
 };
 
-use super::writer::{reader_proxy::RtpsReaderProxyOperations, writer::RtpsWriter};
+use super::writer::{
+    reader_proxy::{RtpsReaderProxyOperations, RtpsReaderProxyTrait},
+    writer::RtpsWriter,
+};
 
 pub struct BestEffortStatefulWriterBehavior;
 
 impl BestEffortStatefulWriterBehavior {
     /// Implement 8.4.9.1.4 Transition T4
     pub fn send_unsent_changes<'a, L, C, P, D, S>(
-        reader_proxy: &mut impl RtpsReaderProxyOperations,
+        reader_proxy: &mut (impl RtpsReaderProxyOperations + RtpsReaderProxyTrait),
         writer: &'a RtpsWriter<L, C>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
@@ -47,7 +50,7 @@ impl BestEffortStatefulWriterBehavior {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
+                    value: *reader_proxy.guid().entity_id(),
                 };
                 let writer_id = EntityIdSubmessageElement {
                     value: *change.writer_guid.entity_id(),
@@ -104,7 +107,7 @@ pub struct ReliableStatefulWriterBehavior;
 impl ReliableStatefulWriterBehavior {
     /// Implement 8.4.9.2.4 Transition T4
     pub fn send_unsent_changes<'a, L, C, P, D, S>(
-        reader_proxy: &mut impl RtpsReaderProxyOperations,
+        reader_proxy: &mut (impl RtpsReaderProxyOperations + RtpsReaderProxyTrait),
         writer: &'a RtpsWriter<L, C>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
@@ -127,7 +130,7 @@ impl ReliableStatefulWriterBehavior {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
+                    value: *reader_proxy.guid().entity_id(),
                 };
                 let writer_id = EntityIdSubmessageElement {
                     value: *change.writer_guid.entity_id(),
