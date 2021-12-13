@@ -20,6 +20,7 @@ use rust_dds_api::{
         publisher_listener::PublisherListener,
     },
     return_type::DDSResult,
+    topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
     behavior::writer::{
@@ -185,8 +186,8 @@ impl<T> PublisherDataWriterFactory<'_, '_, T> for PublisherImpl
 where
     T: DdsType + DdsSerialize + Send + 'static,
 {
-    type TopicType = ();
-    type DataWriterType = Arc<RwLock<dyn DataWriter<T> + Send + Sync>>;
+    type TopicType = RtpsShared<dyn TopicDescription<T> + Send + Sync>;
+    type DataWriterType = RtpsShared<dyn DataWriter<T> + Send + Sync>;
 
     fn datawriter_factory_create_datawriter(
         &'_ self,
@@ -380,10 +381,9 @@ impl Entity for PublisherImpl {
 
 #[cfg(test)]
 mod tests {
-    use crate::{dds_impl::topic_impl::TopicImpl, utils::shared_object::rtps_shared_downgrade};
-
     use super::*;
-    use rust_dds_api::infrastructure::qos::TopicQos;
+    use mockall::mock;
+    use rust_dds_api::domain::domain_participant::DomainParticipant;
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
     struct MockDDSType;
@@ -404,6 +404,16 @@ mod tests {
             _writer: W,
         ) -> DDSResult<()> {
             todo!()
+        }
+    }
+
+    mock! {
+        Topic<Foo>{}
+
+        impl<Foo> TopicDescription<Foo> for Topic<Foo> {
+            fn get_participant(&self) -> &'static dyn DomainParticipant;
+            fn get_type_name(&self) -> DDSResult<&'static str>;
+            fn get_name(&self) -> DDSResult<&'static str>;
         }
     }
 
@@ -461,13 +471,14 @@ mod tests {
             vec![],
             None,
         );
-        let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
-        let _a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
+        let a_topic_shared: Arc<RwLock<dyn TopicDescription<MockDDSType> + Send + Sync>> =
+            rtps_shared_new(MockTopic::new());
 
         let data_writer_counter_before = publisher_impl
             .user_defined_data_writer_counter
             .load(atomic::Ordering::Relaxed);
-        let datawriter = publisher_impl.create_datawriter::<MockDDSType>(&(), None, None, 0);
+        let datawriter =
+            publisher_impl.create_datawriter::<MockDDSType>(&a_topic_shared, None, None, 0);
         let data_writer_counter_after = publisher_impl
             .user_defined_data_writer_counter
             .load(atomic::Ordering::Relaxed);

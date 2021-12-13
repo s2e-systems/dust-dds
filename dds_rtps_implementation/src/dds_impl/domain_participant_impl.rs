@@ -290,39 +290,39 @@ where
         let topic_qos = qos.unwrap_or(self.default_topic_qos.clone());
 
         let builtin_publisher_lock = rtps_shared_read_lock(&self.builtin_publisher);
-        if let Some(sedp_builtin_topics_writer) =
-            builtin_publisher_lock.lookup_datawriter::<SedpDiscoveredTopicData>(&())
-        {
-            let mut sedp_builtin_topics_writer_lock =
-                rtps_shared_write_lock(&sedp_builtin_topics_writer);
-            let sedp_discovered_topic_data = SedpDiscoveredTopicData {
-                topic_builtin_topic_data: TopicBuiltinTopicData {
-                    key: BuiltInTopicKey { value: [1; 16] },
-                    name: topic_name.to_string(),
-                    type_name: Foo::type_name().to_string(),
-                    durability: topic_qos.durability.clone(),
-                    durability_service: topic_qos.durability_service.clone(),
-                    deadline: topic_qos.deadline.clone(),
-                    latency_budget: topic_qos.latency_budget.clone(),
-                    liveliness: topic_qos.liveliness.clone(),
-                    reliability: topic_qos.reliability.clone(),
-                    transport_priority: topic_qos.transport_priority.clone(),
-                    lifespan: topic_qos.lifespan.clone(),
-                    destination_order: topic_qos.destination_order.clone(),
-                    history: topic_qos.history.clone(),
-                    resource_limits: topic_qos.resource_limits.clone(),
-                    ownership: topic_qos.ownership.clone(),
-                    topic_data: topic_qos.topic_data.clone(),
-                },
-            };
-            sedp_builtin_topics_writer_lock
-                .write_w_timestamp(
-                    &sedp_discovered_topic_data,
-                    None,
-                    Time { sec: 0, nanosec: 0 },
-                )
-                .ok()?;
-        }
+        // if let Some(sedp_builtin_topics_writer) =
+        //     builtin_publisher_lock.lookup_datawriter::<SedpDiscoveredTopicData>(&())
+        // {
+        //     let mut sedp_builtin_topics_writer_lock =
+        //         rtps_shared_write_lock(&sedp_builtin_topics_writer);
+        //     let sedp_discovered_topic_data = SedpDiscoveredTopicData {
+        //         topic_builtin_topic_data: TopicBuiltinTopicData {
+        //             key: BuiltInTopicKey { value: [1; 16] },
+        //             name: topic_name.to_string(),
+        //             type_name: Foo::type_name().to_string(),
+        //             durability: topic_qos.durability.clone(),
+        //             durability_service: topic_qos.durability_service.clone(),
+        //             deadline: topic_qos.deadline.clone(),
+        //             latency_budget: topic_qos.latency_budget.clone(),
+        //             liveliness: topic_qos.liveliness.clone(),
+        //             reliability: topic_qos.reliability.clone(),
+        //             transport_priority: topic_qos.transport_priority.clone(),
+        //             lifespan: topic_qos.lifespan.clone(),
+        //             destination_order: topic_qos.destination_order.clone(),
+        //             history: topic_qos.history.clone(),
+        //             resource_limits: topic_qos.resource_limits.clone(),
+        //             ownership: topic_qos.ownership.clone(),
+        //             topic_data: topic_qos.topic_data.clone(),
+        //         },
+        //     };
+        //     sedp_builtin_topics_writer_lock
+        //         .write_w_timestamp(
+        //             &sedp_discovered_topic_data,
+        //             None,
+        //             Time { sec: 0, nanosec: 0 },
+        //         )
+        //         .ok()?;
+        // }
 
         let topic_impl = TopicImpl::new(topic_qos, Foo::type_name(), topic_name);
         let topic_impl_shared = rtps_shared_new(topic_impl);

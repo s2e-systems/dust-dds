@@ -16,3 +16,6 @@ erased-serde = "0.3"
 cdr = "0.2.4"
 byteorder = "1.4.3"
 derive_more = "0.99.16"
+
+[dev-dependencies]
+mockall = {version = "0.10.2"}
