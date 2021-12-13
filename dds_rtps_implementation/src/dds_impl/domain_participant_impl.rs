@@ -187,8 +187,13 @@ impl<'p, S> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl<S, P
         let guid = Guid::new(self.rtps_participant.entity.guid.prefix, entity_id);
         let rtps_group = RtpsGroup::new(guid);
         let data_writer_impl_list = Vec::new();
-        let publisher_impl =
-            PublisherImpl::new(publisher_qos, rtps_group, data_writer_impl_list, vec![]);
+        let publisher_impl = PublisherImpl::new(
+            publisher_qos,
+            rtps_group,
+            data_writer_impl_list,
+            vec![],
+            None,
+        );
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
         let publisher_impl_weak = rtps_shared_downgrade(&publisher_impl_shared);
         rtps_shared_write_lock(&self.user_defined_publisher_list).push(publisher_impl_shared);
@@ -711,6 +716,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             vec![],
+            None,
         );
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
@@ -753,6 +759,7 @@ mod tests {
             RtpsGroup::new(GUID_UNKNOWN),
             vec![],
             vec![],
+            None,
         );
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),

@@ -38,13 +38,18 @@ use rust_rtps_pim::{
 use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
 
 use crate::{
+    data_representation_builtin_endpoints::sedp_discovered_writer_data::SedpDiscoveredWriterData,
     dds_impl::data_writer_impl::DataWriterImpl,
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::{clock::StdTimer, shared_object::rtps_shared_new, transport::TransportWrite},
+    utils::{
+        clock::StdTimer,
+        shared_object::{rtps_shared_new, RtpsShared},
+        transport::TransportWrite,
+    },
 };
 
 pub trait StatelessWriterSubmessageProducer {
@@ -115,6 +120,8 @@ pub struct PublisherImpl {
     stateful_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyStatefulDataWriter + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
+    sedp_builtin_publications_announcer:
+        Option<RtpsShared<dyn DataWriter<SedpDiscoveredWriterData> + Send + Sync>>,
 }
 
 impl PublisherImpl {
@@ -123,6 +130,9 @@ impl PublisherImpl {
         rtps_group: RtpsGroup,
         stateless_data_writer_impl_list: Vec<Arc<dyn AnyStatelessDataWriter + Send + Sync>>,
         stateful_data_writer_impl_list: Vec<Arc<dyn AnyStatefulDataWriter + Send + Sync>>,
+        sedp_builtin_publications_announcer: Option<
+            RtpsShared<dyn DataWriter<SedpDiscoveredWriterData> + Send + Sync>,
+        >,
     ) -> Self {
         Self {
             _qos: qos,
@@ -131,6 +141,7 @@ impl PublisherImpl {
             stateful_data_writer_impl_list: Mutex::new(stateful_data_writer_impl_list),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
+            sedp_builtin_publications_announcer,
         }
     }
 
@@ -399,8 +410,13 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_some_value() {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let mut publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
+        let mut publisher_impl = PublisherImpl::new(
+            PublisherQos::default(),
+            rtps_group_impl,
+            vec![],
+            vec![],
+            None,
+        );
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -414,8 +430,13 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_none() {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let mut publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
+        let mut publisher_impl = PublisherImpl::new(
+            PublisherQos::default(),
+            rtps_group_impl,
+            vec![],
+            vec![],
+            None,
+        );
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -433,8 +454,13 @@ mod tests {
     #[test]
     fn create_datawriter() {
         let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
-        let publisher_impl =
-            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], vec![]);
+        let publisher_impl = PublisherImpl::new(
+            PublisherQos::default(),
+            rtps_group_impl,
+            vec![],
+            vec![],
+            None,
+        );
         let a_topic_shared = rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
         let _a_topic_weak = rtps_shared_downgrade(&a_topic_shared);
 
