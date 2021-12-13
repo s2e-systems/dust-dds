@@ -27,7 +27,8 @@ use rust_dds_rtps_implementation::{
     },
     dds_impl::{
         data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
-        domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
+        domain_participant_impl::DomainParticipantImpl,
+        domain_participant_proxy::DomainParticipantProxy, publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
@@ -225,7 +226,7 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<DomainParticipantImpl<SubscriberImpl, PublisherImpl>> {
+    ) -> Option<DomainParticipantProxy> {
         let domain_participant_qos = qos.unwrap_or_default();
 
         // /////// Define guid prefix
@@ -482,7 +483,7 @@ impl DomainParticipantFactory {
 
         executor.run();
 
-        Some(domain_participant)
+        Some(DomainParticipantProxy::new(domain_participant))
     }
 }
 

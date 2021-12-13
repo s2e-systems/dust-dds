@@ -300,7 +300,7 @@ where
         &'t self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        _a_listener: Option<&'static dyn TopicListener<DataType = T>>,
+        _a_listener: Option<Box<dyn TopicListener<DataType = T>>>,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         let topic_qos = qos.unwrap_or(self.default_topic_qos.clone());

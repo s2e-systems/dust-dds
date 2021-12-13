@@ -25,14 +25,14 @@ pub trait DomainParticipantSubscriberFactory<'s> {
 
     fn subscriber_factory_get_builtin_subscriber(&'s self) -> Self::SubscriberType;
 }
-pub trait DomainParticipantTopicFactory<'t, T: 'static> {
+pub trait DomainParticipantTopicFactory<'t, T> {
     type TopicType;
 
     fn topic_factory_create_topic(
         &'t self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<&'static dyn TopicListener<DataType = T>>,
+        a_listener: Option<Box<dyn TopicListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>;
 
@@ -143,7 +143,7 @@ pub trait DomainParticipant {
         &'t self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<&'static dyn TopicListener<DataType = T>>,
+        a_listener: Option<Box<dyn TopicListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>
     where
