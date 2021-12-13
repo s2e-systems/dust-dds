@@ -5,6 +5,7 @@ use rust_dds_api::{
     topic::{topic::Topic, topic_description::TopicDescription},
 };
 
+// It is not made generic over the type so that it can be stored in the domain participant
 pub struct TopicImpl {
     qos: TopicQos,
     type_name: &'static str,
@@ -32,13 +33,13 @@ impl TopicImpl {
     }
 }
 
-impl<T> Topic<T> for TopicImpl {
+impl<Foo> Topic<Foo> for TopicImpl {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         todo!()
     }
 }
 
-impl<T> TopicDescription<T> for TopicImpl {
+impl<Foo> TopicDescription<Foo> for TopicImpl {
     fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
         todo!()
     }

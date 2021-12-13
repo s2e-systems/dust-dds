@@ -10,38 +10,40 @@ use rust_dds_api::{
 };
 use std::marker::PhantomData;
 
-pub struct TopicProxy<'t, T, I> {
+pub struct TopicProxy<'t, Foo, T> {
     participant: &'t dyn DomainParticipant,
-    topic_impl: RtpsWeak<I>,
-    phantom: PhantomData<&'t T>,
+    topic_impl: RtpsWeak<T>,
+    phantom: PhantomData<&'t Foo>,
 }
 
-impl<'t, T, I> TopicProxy<'t, T, I> {
-    pub(crate) fn new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<I>) -> Self {
+impl<'t, Foo, T> TopicProxy<'t, Foo, T> {
+    pub fn new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<T>) -> Self {
         Self {
             participant,
             topic_impl,
             phantom: PhantomData,
         }
     }
+}
 
-    pub(crate) fn topic_impl(&self) -> &RtpsWeak<I> {
+impl<Foo, T> AsRef<RtpsWeak<T>> for TopicProxy<'_, Foo, T> {
+    fn as_ref(&self) -> &RtpsWeak<T> {
         &self.topic_impl
     }
 }
 
-impl<'t, T, I> Topic<T> for TopicProxy<'t, T, I>
+impl<'t, Foo, T> Topic<Foo> for TopicProxy<'t, Foo, T>
 where
-    I: Topic<T>,
+    T: Topic<Foo>,
 {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
     }
 }
 
-impl<'t, T, TT> TopicDescription<T> for TopicProxy<'t, T, TT>
+impl<'t, Foo, T> TopicDescription<Foo> for TopicProxy<'t, Foo, T>
 where
-    TT: TopicDescription<T> + 't,
+    T: TopicDescription<Foo> + 't,
 {
     fn get_participant(&self) -> &dyn DomainParticipant {
         self.participant
@@ -56,12 +58,12 @@ where
     }
 }
 
-impl<'t, T, TT> Entity for TopicProxy<'t, T, TT>
+impl<'t, Foo, T> Entity for TopicProxy<'t, Foo, T>
 where
-    TT: Entity,
+    T: Entity,
 {
-    type Qos = TT::Qos;
-    type Listener = TT::Listener;
+    type Qos = T::Qos;
+    type Listener = T::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_qos(qos)

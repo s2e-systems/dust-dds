@@ -12,7 +12,7 @@ use rust_dds_api::{
     subscription::{
         data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
-        subscriber::{SubscriberDataReaderFactory, Subscriber},
+        subscriber::{Subscriber, SubscriberDataReaderFactory},
     },
     topic::topic_description::TopicDescription,
 };
@@ -29,18 +29,16 @@ pub struct SubscriberProxy<'s, S> {
 }
 
 impl<'s, S> SubscriberProxy<'s, S> {
-    pub(crate) fn _new(
-        participant: &'s dyn DomainParticipant,
-        subscriber_impl: RtpsWeak<S>,
-    ) -> Self {
+    pub fn new(participant: &'s dyn DomainParticipant, subscriber_impl: RtpsWeak<S>) -> Self {
         Self {
             participant,
             subscriber_impl,
         }
     }
+}
 
-    /// Get a reference to the subscriber impl's subscriber storage.
-    pub(crate) fn _subscriber_impl(&self) -> &RtpsWeak<S> {
+impl<S> AsRef<RtpsWeak<S>> for SubscriberProxy<'_, S> {
+    fn as_ref(&self) -> &RtpsWeak<S> {
         &self.subscriber_impl
     }
 }
@@ -50,7 +48,13 @@ where
     T: 't + 'dr,
     I: TopicDescription<T> + 't,
     DR: DataReader<'dr, T>,
-    S: for<'a, 'b> SubscriberDataReaderFactory<'a, 'b, T, TopicType = RtpsWeak<I>, DataReaderType = RtpsWeak<DR>>,
+    S: for<'a, 'b> SubscriberDataReaderFactory<
+        'a,
+        'b,
+        T,
+        TopicType = RtpsWeak<I>,
+        DataReaderType = RtpsWeak<DR>,
+    >,
 {
     type TopicType = TopicProxy<'t, T, I>;
     type DataReaderType = DataReaderProxy<'dr, T, DR>;
@@ -62,14 +66,23 @@ where
         a_listener: Option<&'static dyn DataReaderListener<DataType = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
-        let reader_storage_weak =
-            rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl).ok()?)
-                .datareader_factory_create_datareader(a_topic.topic_impl(), qos, a_listener, mask)?;
-        let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
-        Some(data_reader)
+        todo!()
+        // let reader_storage_weak =
+        //     rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl).ok()?)
+        //         .datareader_factory_create_datareader(
+        //             a_topic.topic_impl(),
+        //             qos,
+        //             a_listener,
+        //             mask,
+        //         )?;
+        // let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
+        // Some(data_reader)
     }
 
-    fn datareader_factory_delete_datareader(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()> {
+    fn datareader_factory_delete_datareader(
+        &self,
+        a_datareader: &Self::DataReaderType,
+    ) -> DDSResult<()> {
         if std::ptr::eq(a_datareader.get_subscriber(), self) {
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?)
                 .datareader_factory_delete_datareader(a_datareader.data_reader_impl())

@@ -62,18 +62,19 @@ where
         a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let data_writer_weak =
-            rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl).ok()?)
-                .datawriter_factory_create_datawriter(
-                    a_topic.topic_impl(),
-                    qos,
-                    a_listener,
-                    mask,
-                )?;
+        todo!()
+        // let data_writer_weak =
+        //     rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl).ok()?)
+        //         .datawriter_factory_create_datawriter(
+        //             a_topic.topic_impl(),
+        //             qos,
+        //             a_listener,
+        //             mask,
+        //         )?;
 
-        let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
+        // let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
 
-        Some(datawriter)
+        // Some(datawriter)
     }
 
     fn datawriter_factory_delete_datawriter(

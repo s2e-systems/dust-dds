@@ -46,14 +46,12 @@ use crate::{
     },
     dds_type::DdsType,
     utils::shared_object::{
-        rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
-        RtpsShared,
+        rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock, RtpsShared,
     },
 };
 
 use super::{
-    publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
-    subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl, topic_proxy::TopicProxy,
+    publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
 
 pub struct DomainParticipantImpl<S, P> {
@@ -209,7 +207,7 @@ impl<S> DomainParticipantPublisherFactory<'_> for DomainParticipantImpl<S, Publi
 }
 
 impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<SubscriberImpl, P> {
-    type SubscriberType = SubscriberProxy<'s, SubscriberImpl>;
+    type SubscriberType = RtpsShared<SubscriberImpl>;
 
     fn subscriber_factory_create_subscriber(
         &'s self,
@@ -276,18 +274,17 @@ impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<Sub
     }
 }
 
-impl<'t, T: 'static, S> DomainParticipantTopicFactory<'t, T>
-    for DomainParticipantImpl<S, PublisherImpl>
+impl<Foo, S> DomainParticipantTopicFactory<'_, Foo> for DomainParticipantImpl<S, PublisherImpl>
 where
-    T: DdsType,
+    Foo: DdsType,
 {
-    type TopicType = TopicProxy<'t, T, TopicImpl>;
+    type TopicType = RtpsShared<TopicImpl>;
 
     fn topic_factory_create_topic(
-        &'t self,
+        &'_ self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener<DataType = T>>>,
+        _a_listener: Option<Box<dyn TopicListener<DataType = Foo>>>,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         let topic_qos = qos.unwrap_or(self.default_topic_qos.clone());
@@ -302,7 +299,7 @@ where
                 topic_builtin_topic_data: TopicBuiltinTopicData {
                     key: BuiltInTopicKey { value: [1; 16] },
                     name: topic_name.to_string(),
-                    type_name: T::type_name().to_string(),
+                    type_name: Foo::type_name().to_string(),
                     durability: topic_qos.durability.clone(),
                     durability_service: topic_qos.durability_service.clone(),
                     deadline: topic_qos.deadline.clone(),
@@ -327,12 +324,11 @@ where
                 .ok()?;
         }
 
-        let topic_impl = TopicImpl::new(topic_qos, T::type_name(), topic_name);
+        let topic_impl = TopicImpl::new(topic_qos, Foo::type_name(), topic_name);
         let topic_impl_shared = rtps_shared_new(topic_impl);
-        let topic_proxy = TopicProxy::new(self, rtps_shared_downgrade(&topic_impl_shared));
-        rtps_shared_write_lock(&self.topic_list).push(topic_impl_shared);
+        rtps_shared_write_lock(&self.topic_list).push(topic_impl_shared.clone());
 
-        Some(topic_proxy)
+        Some(topic_impl_shared)
     }
 
     fn topic_factory_delete_topic(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {
