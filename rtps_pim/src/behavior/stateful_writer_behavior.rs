@@ -50,7 +50,7 @@ impl BestEffortStatefulWriterBehavior {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdSubmessageElement {
-                    value: *reader_proxy.guid().entity_id(),
+                    value: *reader_proxy.remote_reader_guid().entity_id(),
                 };
                 let writer_id = EntityIdSubmessageElement {
                     value: *change.writer_guid.entity_id(),
@@ -130,7 +130,7 @@ impl ReliableStatefulWriterBehavior {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdSubmessageElement {
-                    value: *reader_proxy.guid().entity_id(),
+                    value: *reader_proxy.remote_reader_guid().entity_id(),
                 };
                 let writer_id = EntityIdSubmessageElement {
                     value: *change.writer_guid.entity_id(),

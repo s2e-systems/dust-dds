@@ -38,7 +38,7 @@ impl DerefMut for RtpsReaderProxyImpl {
 }
 
 impl RtpsReaderProxyTrait for RtpsReaderProxyImpl {
-    fn guid(&self) -> &Guid {
+    fn remote_reader_guid(&self) -> &Guid {
         &self.reader_proxy.remote_reader_guid
     }
 }

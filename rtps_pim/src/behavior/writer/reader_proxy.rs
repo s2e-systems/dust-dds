@@ -46,7 +46,7 @@ impl<L> RtpsReaderProxy<L> {
 }
 
 pub trait RtpsReaderProxyTrait {
-    fn guid(&self) -> &Guid;
+    fn remote_reader_guid(&self) -> &Guid;
 }
 
 pub trait RtpsReaderProxyOperations {
