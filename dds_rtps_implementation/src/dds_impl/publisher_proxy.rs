@@ -24,6 +24,11 @@ pub struct PublisherProxy<'p, P> {
     participant: &'p dyn DomainParticipant,
     publisher_impl: RtpsWeak<P>,
 }
+impl<P> AsRef<RtpsWeak<P>> for PublisherProxy<'_, P> {
+    fn as_ref(&self) -> &RtpsWeak<P> {
+        &self.publisher_impl
+    }
+}
 
 impl<'p, P> PublisherProxy<'p, P> {
     pub(crate) fn new(participant: &'p dyn DomainParticipant, publisher_impl: RtpsWeak<P>) -> Self {
@@ -31,11 +36,6 @@ impl<'p, P> PublisherProxy<'p, P> {
             participant,
             publisher_impl,
         }
-    }
-
-    /// Get a reference to the publisher impl's publisher storage.
-    pub(crate) fn publisher_impl(&self) -> &RtpsWeak<P> {
-        &self.publisher_impl
     }
 }
 

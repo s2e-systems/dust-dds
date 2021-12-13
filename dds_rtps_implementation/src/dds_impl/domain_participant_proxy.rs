@@ -1,5 +1,6 @@
 use rust_dds_api::{
-    dcps_psm::StatusMask,
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dcps_psm::{InstanceHandle, StatusMask, Time},
     domain::{
         domain_participant::{
             DomainParticipant, DomainParticipantPublisherFactory,
@@ -8,14 +9,16 @@ use rust_dds_api::{
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{
-        entity::Entity,
+        entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::publisher_listener::PublisherListener,
-    return_type::DDSResult,
+    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    return_type::{DDSError, DDSResult},
     subscription::subscriber_listener::SubscriberListener,
     topic::topic_listener::TopicListener,
 };
+
+use crate::utils::shared_object::{rtps_shared_downgrade, rtps_weak_upgrade};
 
 use super::{
     domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
@@ -42,16 +45,27 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantProxy {
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        self.domain_participant
-            .publisher_factory_create_publisher(qos, a_listener, mask)
+        let publisher_shared = self
+            .domain_participant
+            .publisher_factory_create_publisher(qos, a_listener, mask)?;
+        let publisher_weak = rtps_shared_downgrade(&publisher_shared);
+
+        Some(PublisherProxy::new(self, publisher_weak))
     }
 
     fn publisher_factory_delete_publisher(
         &self,
         a_publisher: &Self::PublisherType,
     ) -> DDSResult<()> {
-        self.domain_participant
-            .publisher_factory_delete_publisher(a_publisher)
+        let publisher_shared = rtps_weak_upgrade(a_publisher.as_ref())?;
+        if std::ptr::eq(a_publisher.get_participant(), self) {
+            self.domain_participant
+                .publisher_factory_delete_publisher(&publisher_shared)
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ))
+        }
     }
 }
 
@@ -119,19 +133,19 @@ impl DomainParticipant for DomainParticipantProxy {
         todo!()
     }
 
-    fn ignore_participant(&self, handle: rust_dds_api::dcps_psm::InstanceHandle) -> DDSResult<()> {
+    fn ignore_participant(&self, handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn ignore_topic(&self, handle: rust_dds_api::dcps_psm::InstanceHandle) -> DDSResult<()> {
+    fn ignore_topic(&self, handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn ignore_publication(&self, handle: rust_dds_api::dcps_psm::InstanceHandle) -> DDSResult<()> {
+    fn ignore_publication(&self, handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn ignore_subscription(&self, handle: rust_dds_api::dcps_psm::InstanceHandle) -> DDSResult<()> {
+    fn ignore_subscription(&self, handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
@@ -173,39 +187,36 @@ impl DomainParticipant for DomainParticipantProxy {
 
     fn get_discovered_participants(
         &self,
-        participant_handles: &mut [rust_dds_api::dcps_psm::InstanceHandle],
+        participant_handles: &mut [InstanceHandle],
     ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_discovered_participant_data(
         &self,
-        participant_data: rust_dds_api::builtin_topics::ParticipantBuiltinTopicData,
-        participant_handle: rust_dds_api::dcps_psm::InstanceHandle,
+        participant_data: ParticipantBuiltinTopicData,
+        participant_handle: InstanceHandle,
     ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_discovered_topics(
-        &self,
-        topic_handles: &mut [rust_dds_api::dcps_psm::InstanceHandle],
-    ) -> DDSResult<()> {
+    fn get_discovered_topics(&self, topic_handles: &mut [InstanceHandle]) -> DDSResult<()> {
         todo!()
     }
 
     fn get_discovered_topic_data(
         &self,
-        topic_data: rust_dds_api::builtin_topics::TopicBuiltinTopicData,
-        topic_handle: rust_dds_api::dcps_psm::InstanceHandle,
+        topic_data: TopicBuiltinTopicData,
+        topic_handle: InstanceHandle,
     ) -> DDSResult<()> {
         todo!()
     }
 
-    fn contains_entity(&self, a_handle: rust_dds_api::dcps_psm::InstanceHandle) -> bool {
+    fn contains_entity(&self, a_handle: InstanceHandle) -> bool {
         todo!()
     }
 
-    fn get_current_time(&self) -> DDSResult<rust_dds_api::dcps_psm::Time> {
+    fn get_current_time(&self) -> DDSResult<Time> {
         todo!()
     }
 }
@@ -231,9 +242,7 @@ impl Entity for DomainParticipantProxy {
         todo!()
     }
 
-    fn get_statuscondition(
-        &self,
-    ) -> DDSResult<rust_dds_api::infrastructure::entity::StatusCondition> {
+    fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
         todo!()
     }
 
@@ -245,7 +254,7 @@ impl Entity for DomainParticipantProxy {
         todo!()
     }
 
-    fn get_instance_handle(&self) -> DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
     }
 }

@@ -17,10 +17,8 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::{
-        data_writer::DataWriter, publisher::Publisher, publisher_listener::PublisherListener,
-    },
-    return_type::{DDSError, DDSResult},
+    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    return_type::DDSResult,
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
@@ -49,14 +47,13 @@ use crate::{
     dds_type::DdsType,
     utils::shared_object::{
         rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
-        rtps_weak_upgrade, RtpsShared,
+        RtpsShared,
     },
 };
 
 use super::{
-    publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy,
-    subscriber_impl::SubscriberImpl, subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl,
-    topic_proxy::TopicProxy,
+    publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
+    subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl, topic_proxy::TopicProxy,
 };
 
 pub struct DomainParticipantImpl<S, P> {
@@ -167,11 +164,11 @@ impl<S, P> DomainParticipantImpl<S, P> {
     }
 }
 
-impl<'p, S> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl<S, PublisherImpl> {
-    type PublisherType = PublisherProxy<'p, PublisherImpl>;
+impl<S> DomainParticipantPublisherFactory<'_> for DomainParticipantImpl<S, PublisherImpl> {
+    type PublisherType = RtpsShared<PublisherImpl>;
 
     fn publisher_factory_create_publisher(
-        &'p self,
+        &'_ self,
         qos: Option<PublisherQos>,
         _a_listener: Option<&'static dyn PublisherListener>,
         _mask: StatusMask,
@@ -195,29 +192,19 @@ impl<'p, S> DomainParticipantPublisherFactory<'p> for DomainParticipantImpl<S, P
             None,
         );
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
-        let publisher_impl_weak = rtps_shared_downgrade(&publisher_impl_shared);
-        rtps_shared_write_lock(&self.user_defined_publisher_list).push(publisher_impl_shared);
-        let publisher = PublisherProxy::new(self, publisher_impl_weak);
+        rtps_shared_write_lock(&self.user_defined_publisher_list)
+            .push(publisher_impl_shared.clone());
 
-        Some(publisher)
+        Some(publisher_impl_shared)
     }
 
     fn publisher_factory_delete_publisher(
         &self,
         a_publisher: &Self::PublisherType,
     ) -> DDSResult<()> {
-        // let publisher = a_publisher.upgrade()?;
-
-        if std::ptr::eq(a_publisher.get_participant(), self) {
-            let publisher_impl_shared = rtps_weak_upgrade(&a_publisher.publisher_impl())?;
-            rtps_shared_write_lock(&self.user_defined_publisher_list)
-                .retain(|x| !Arc::ptr_eq(&x, &publisher_impl_shared));
-            Ok(())
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            ))
-        }
+        rtps_shared_write_lock(&self.user_defined_publisher_list)
+            .retain(|x| !Arc::ptr_eq(&x, &a_publisher));
+        Ok(())
     }
 }
 
