@@ -14,11 +14,13 @@ use rust_dds_api::{
         data_reader_listener::DataReaderListener,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
     },
-    topic::topic_description::TopicDescription,
 };
 
-use crate::utils::shared_object::{
-    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+use crate::{
+    dds_type::{DdsDeserialize, DdsType},
+    utils::shared_object::{
+        rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+    },
 };
 
 use super::{
@@ -50,7 +52,7 @@ impl AsRef<RtpsWeak<SubscriberImpl>> for SubscriberProxy<'_> {
 
 impl<'dr, 's, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy<'s>
 where
-    Foo: 'dr,
+    Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
     type TopicType = TopicProxy<'dr, Foo>;
     type DataReaderType = DataReaderProxy<'dr, Foo>;
@@ -80,8 +82,9 @@ where
         a_datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
         if std::ptr::eq(a_datareader.get_subscriber(), self) {
+            let datareader_shared = rtps_weak_upgrade(a_datareader.as_ref())?;
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?)
-                .datareader_factory_delete_datareader(a_datareader.as_ref())
+                .datareader_factory_delete_datareader(&datareader_shared)
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),

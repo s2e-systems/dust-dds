@@ -54,6 +54,10 @@ use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
 
+pub trait AnyTopic {}
+
+impl<Foo> AnyTopic for TopicImpl<Foo> {}
+
 pub struct DomainParticipantImpl<S, P> {
     rtps_participant: RtpsParticipant<Vec<Locator>>,
     domain_id: DomainId,
@@ -67,7 +71,7 @@ pub struct DomainParticipantImpl<S, P> {
     user_defined_publisher_list: RtpsShared<Vec<RtpsShared<P>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    topic_list: RtpsShared<Vec<RtpsShared<TopicImpl>>>,
+    topic_list: RtpsShared<Vec<RtpsShared<dyn AnyTopic>>>,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
     lease_duration: rust_rtps_pim::behavior::types::Duration,
@@ -276,9 +280,9 @@ impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<Sub
 
 impl<Foo, S> DomainParticipantTopicFactory<'_, Foo> for DomainParticipantImpl<S, PublisherImpl>
 where
-    Foo: DdsType,
+    Foo: DdsType + 'static,
 {
-    type TopicType = RtpsShared<TopicImpl>;
+    type TopicType = RtpsShared<TopicImpl<Foo>>;
 
     fn topic_factory_create_topic(
         &'_ self,

@@ -8,28 +8,28 @@ use rust_dds_api::{
     return_type::DDSResult,
     topic::{topic::Topic, topic_description::TopicDescription},
 };
-use std::marker::PhantomData;
 
 use super::topic_impl::TopicImpl;
 
 pub struct TopicProxy<'t, Foo> {
     participant: &'t dyn DomainParticipant,
-    topic_impl: RtpsWeak<TopicImpl>,
-    phantom: PhantomData<&'t Foo>,
+    topic_impl: RtpsWeak<TopicImpl<Foo>>,
 }
 
 impl<'t, Foo> TopicProxy<'t, Foo> {
-    pub fn new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<TopicImpl>) -> Self {
+    pub fn new(
+        participant: &'t dyn DomainParticipant,
+        topic_impl: RtpsWeak<TopicImpl<Foo>>,
+    ) -> Self {
         Self {
             participant,
             topic_impl,
-            phantom: PhantomData,
         }
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<TopicImpl>> for TopicProxy<'_, Foo> {
-    fn as_ref(&self) -> &RtpsWeak<TopicImpl> {
+impl<Foo> AsRef<RtpsWeak<TopicImpl<Foo>>> for TopicProxy<'_, Foo> {
+    fn as_ref(&self) -> &RtpsWeak<TopicImpl<Foo>> {
         &self.topic_impl
     }
 }
@@ -55,8 +55,8 @@ impl<'t, Foo> TopicDescription<Foo> for TopicProxy<'t, Foo> {
 }
 
 impl<'t, Foo> Entity for TopicProxy<'t, Foo> {
-    type Qos = <TopicImpl as Entity>::Qos;
-    type Listener = <TopicImpl as Entity>::Listener;
+    type Qos = <TopicImpl<Foo> as Entity>::Qos;
+    type Listener = <TopicImpl<Foo> as Entity>::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_qos(qos)

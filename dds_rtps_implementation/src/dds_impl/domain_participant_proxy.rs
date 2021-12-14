@@ -114,7 +114,7 @@ impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantProxy {
 
 impl<'t, Foo> DomainParticipantTopicFactory<'t, Foo> for DomainParticipantProxy
 where
-    Foo: DdsType + 't,
+    Foo: DdsType + 'static,
 {
     type TopicType = TopicProxy<'t, Foo>;
 

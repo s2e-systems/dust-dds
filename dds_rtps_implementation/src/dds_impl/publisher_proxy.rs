@@ -11,11 +11,13 @@ use rust_dds_api::{
         publisher::{Publisher, PublisherDataWriterFactory},
     },
     return_type::{DDSError, DDSResult},
-    topic::{topic::Topic, topic_description::TopicDescription},
 };
 
-use crate::utils::shared_object::{
-    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsShared, RtpsWeak,
+use crate::{
+    dds_type::{DdsSerialize, DdsType},
+    utils::shared_object::{
+        rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+    },
 };
 
 use super::{
@@ -47,7 +49,7 @@ impl AsRef<RtpsWeak<PublisherImpl>> for PublisherProxy<'_> {
 
 impl<'dw, Foo> PublisherDataWriterFactory<'dw, Foo> for PublisherProxy<'_>
 where
-    Foo: 'dw,
+    Foo: DdsType + DdsSerialize + Send + 'static,
 {
     type TopicType = TopicProxy<'dw, Foo>;
     type DataWriterType = DataWriterProxy<'dw, Foo>;

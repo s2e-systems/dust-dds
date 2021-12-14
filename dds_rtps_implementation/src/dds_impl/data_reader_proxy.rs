@@ -303,36 +303,44 @@ impl<Foo> Entity for DataReaderProxy<'_, Foo> {
     type Listener = Box<dyn DataReaderListener<DataType = Foo>>;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)
+        // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)
+        todo!()
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_qos()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_qos()
+        todo!()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?)
-            .set_listener(a_listener, mask)
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?)
+        // .set_listener(a_listener, mask)
+        todo!()
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_listener()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_listener()
+        todo!()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_statuscondition()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_statuscondition()
+        todo!()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_status_changes()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_status_changes()
+        todo!()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).enable()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).enable()
+        todo!()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_instance_handle()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_instance_handle()
+        todo!()
     }
 }
 
