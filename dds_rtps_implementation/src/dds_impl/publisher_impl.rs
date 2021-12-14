@@ -58,7 +58,9 @@ use crate::{
     },
     utils::{
         clock::StdTimer,
-        shared_object::{rtps_shared_new, rtps_shared_write_lock, RtpsShared},
+        shared_object::{
+            rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock, RtpsShared,
+        },
         transport::TransportWrite,
     },
 };
@@ -201,7 +203,7 @@ where
 
     fn datawriter_factory_create_datawriter(
         &'_ self,
-        _a_topic: &'_ Self::TopicType,
+        a_topic: &'_ Self::TopicType,
         qos: Option<DataWriterQos>,
         _a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
         _mask: StatusMask,
@@ -249,6 +251,7 @@ where
 
         if let Some(sedp_builtin_publications_announcer) = &self.sedp_builtin_publications_announcer
         {
+            let topic_shared = rtps_shared_read_lock(a_topic);
             let mut sedp_builtin_publications_announcer_lock =
                 rtps_shared_write_lock(sedp_builtin_publications_announcer);
             let sedp_discovered_writer_data = SedpDiscoveredWriterData {
@@ -262,8 +265,8 @@ where
                 publication_builtin_topic_data: PublicationBuiltinTopicData {
                     key: BuiltInTopicKey { value: guid.into() },
                     participant_key: BuiltInTopicKey { value: [1; 16] },
-                    topic_name: "MyTopic".to_string(),
-                    type_name: "MyType".to_string(),
+                    topic_name: topic_shared.get_name().unwrap().to_string(),
+                    type_name: Foo::type_name().to_string(),
                     durability: DurabilityQosPolicy::default(),
                     durability_service: DurabilityServiceQosPolicy::default(),
                     deadline: DeadlineQosPolicy::default(),
@@ -469,7 +472,7 @@ mod tests {
         impl<Foo> TopicDescription<Foo> for Topic<Foo> {
             fn get_participant(&self) -> &'static dyn DomainParticipant;
             fn get_type_name(&self) -> DDSResult<&'static str>;
-            fn get_name(&self) -> DDSResult<&'static str>;
+            fn get_name(&self) -> DDSResult<String>;
         }
     }
 

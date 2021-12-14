@@ -52,8 +52,8 @@ impl<Foo> TopicDescription<Foo> for TopicImpl<Foo> {
         Ok(&self.type_name)
     }
 
-    fn get_name(&self) -> DDSResult<&'static str> {
-        todo!()
+    fn get_name(&self) -> DDSResult<String> {
+        Ok(self.topic_name.clone())
     }
 }
 

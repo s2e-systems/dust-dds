@@ -207,9 +207,9 @@ const PB: u16 = 7400;
 const DG: u16 = 250;
 const PG: u16 = 2;
 #[allow(non_upper_case_globals)]
-const _d0: u16 = 0;
+const d0: u16 = 0;
 #[allow(non_upper_case_globals)]
-const d1: u16 = 10;
+const _d1: u16 = 10;
 #[allow(non_upper_case_globals)]
 const _d2: u16 = 1;
 #[allow(non_upper_case_globals)]
@@ -219,7 +219,7 @@ fn get_builtin_udp_socket(domain_id: u16) -> Option<UdpSocket> {
     for participant_id in 0..120 {
         let socket_addr = SocketAddr::from((
             [127, 0, 0, 1],
-            PB + DG * domain_id + d1 + PG * participant_id,
+            PB + DG * domain_id + d0,
         ));
         if let Ok(socket) = UdpSocket::bind(socket_addr) {
             return Some(socket);

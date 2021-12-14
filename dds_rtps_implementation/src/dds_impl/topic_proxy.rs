@@ -49,7 +49,7 @@ impl<'t, Foo> TopicDescription<Foo> for TopicProxy<'t, Foo> {
         rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_type_name()
     }
 
-    fn get_name(&self) -> DDSResult<&'static str> {
+    fn get_name(&self) -> DDSResult<String> {
         rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_name()
     }
 }

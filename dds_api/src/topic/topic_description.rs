@@ -12,7 +12,7 @@ pub trait TopicDescription<T> {
     fn get_type_name(&self) -> DDSResult<&'static str>;
 
     /// The name used to create the TopicDescription
-    fn get_name(&self) -> DDSResult<&'static str>;
+    fn get_name(&self) -> DDSResult<String>;
 }
 
 pub trait AnyTopicDescription {}

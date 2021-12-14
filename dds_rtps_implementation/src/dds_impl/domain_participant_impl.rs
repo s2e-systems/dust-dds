@@ -42,6 +42,7 @@ use rust_rtps_pim::{
 use crate::{
     data_representation_builtin_endpoints::{
         sedp_discovered_topic_data::SedpDiscoveredTopicData,
+        sedp_discovered_writer_data::SedpDiscoveredWriterData,
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_type::DdsType,
@@ -185,8 +186,18 @@ impl<S> DomainParticipantPublisherFactory<'_> for DomainParticipantImpl<S, Publi
         );
         let guid = Guid::new(self.rtps_participant.entity.guid.prefix, entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let publisher_impl =
-            PublisherImpl::new(publisher_qos, rtps_group, Vec::new(), Vec::new(), None);
+        let sedp_builtin_publications_topic: RtpsShared<
+            dyn TopicDescription<SedpDiscoveredWriterData> + Send + Sync,
+        > = rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
+        let sedp_builtin_publications_announcer = rtps_shared_read_lock(&self.builtin_publisher)
+            .lookup_datawriter(&sedp_builtin_publications_topic);
+        let publisher_impl = PublisherImpl::new(
+            publisher_qos,
+            rtps_group,
+            Vec::new(),
+            Vec::new(),
+            sedp_builtin_publications_announcer,
+        );
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
         rtps_shared_write_lock(&self.user_defined_publisher_list)
             .push(publisher_impl_shared.clone());

@@ -386,7 +386,7 @@ mod tests {
         impl<Foo> TopicDescription<Foo> for Topic<Foo> {
             fn get_participant(&self) -> &'static dyn DomainParticipant;
             fn get_type_name(&self) -> DDSResult<&'static str>;
-            fn get_name(&self) -> DDSResult<&'static str>;
+            fn get_name(&self) -> DDSResult<String>;
         }
     }
 
