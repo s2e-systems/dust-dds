@@ -217,10 +217,7 @@ const d3: u16 = 11;
 
 fn get_builtin_udp_socket(domain_id: u16) -> Option<UdpSocket> {
     for participant_id in 0..120 {
-        let socket_addr = SocketAddr::from((
-            [127, 0, 0, 1],
-            PB + DG * domain_id + d0,
-        ));
+        let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + d0));
         if let Ok(socket) = UdpSocket::bind(socket_addr) {
             return Some(socket);
         }
@@ -473,7 +470,7 @@ impl DomainParticipantFactory {
         let domain_tag_arc = domain_tag.clone();
 
         spawner.spawn_enabled_periodic_task(
-            "discovery",
+            "spdp discovery",
             move || {
                 task_discovery(
                     &spdp_builtin_participant_data_reader_arc,
@@ -486,6 +483,22 @@ impl DomainParticipantFactory {
                     rtps_shared_write_lock(&sedp_builtin_topics_dds_data_writer).as_mut(),
                     rtps_shared_write_lock(&sedp_builtin_topics_dds_data_reader).as_mut(),
                 )
+            },
+            std::time::Duration::from_millis(500),
+        );
+
+        let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
+        let _user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
+        spawner.spawn_enabled_periodic_task(
+            "sedp discovery",
+            move || {
+                let user_defined_publisher_list_lock =
+                    rtps_shared_write_lock(&user_defined_publisher_list_arc);
+                for user_defined_publisher in user_defined_publisher_list_lock.iter() {
+                    let user_defined_publisher_lock =
+                        rtps_shared_write_lock(&user_defined_publisher);
+                    user_defined_publisher_lock.process_discovery();
+                }
             },
             std::time::Duration::from_millis(500),
         );

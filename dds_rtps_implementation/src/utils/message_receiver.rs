@@ -71,7 +71,7 @@ impl MessageReceiver {
                 }
                 RtpsSubmessageTypeRead::DataFrag(_) => todo!(),
                 RtpsSubmessageTypeRead::Gap(_) => todo!(),
-                RtpsSubmessageTypeRead::Heartbeat(_) => todo!(),
+                RtpsSubmessageTypeRead::Heartbeat(_) => (),
                 RtpsSubmessageTypeRead::HeartbeatFrag(_) => todo!(),
                 RtpsSubmessageTypeRead::InfoDestination(_) => todo!(),
                 RtpsSubmessageTypeRead::InfoReply(_) => todo!(),

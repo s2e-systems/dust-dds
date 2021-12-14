@@ -27,6 +27,7 @@ use rust_dds_api::{
         publisher_listener::PublisherListener,
     },
     return_type::DDSResult,
+    subscription::data_reader::DataReader,
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
@@ -209,6 +210,18 @@ impl PublisherImpl {
             for (reader_proxy, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);
                 transport.write(&message, &reader_proxy.unicast_locator_list[0]);
+            }
+        }
+    }
+
+    pub fn process_discovery(&self) {
+        if let Some(sedp_builtin_publications_detector) = &self.sedp_builtin_publications_detector {
+            let sedp_builtin_publications_detector_lock =
+                rtps_shared_write_lock(sedp_builtin_publications_detector);
+            if let Ok(samples) = sedp_builtin_publications_detector_lock.read(1, &[], &[], &[]) {
+                for sample in samples {
+                    println!("Received discovered sample: {:?}", sample);
+                }
             }
         }
     }
