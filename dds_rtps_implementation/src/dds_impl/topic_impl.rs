@@ -1,8 +1,8 @@
 use rust_dds_api::{
     dcps_psm::InconsistentTopicStatus,
-    infrastructure::qos::TopicQos,
+    infrastructure::{entity::Entity, qos::TopicQos},
     return_type::DDSResult,
-    topic::{topic::Topic, topic_description::TopicDescription},
+    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
 // It is not made generic over the type so that it can be stored in the domain participant
@@ -49,6 +49,49 @@ impl<Foo> TopicDescription<Foo> for TopicImpl {
     }
 
     fn get_name(&self) -> DDSResult<&'static str> {
+        todo!()
+    }
+}
+
+impl Entity for TopicImpl {
+    type Qos = TopicQos;
+    type Listener = ();
+
+    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> DDSResult<Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(
+        &self,
+        a_listener: Option<Self::Listener>,
+        mask: rust_dds_api::dcps_psm::StatusMask,
+    ) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+        todo!()
+    }
+
+    fn get_statuscondition(
+        &self,
+    ) -> DDSResult<rust_dds_api::infrastructure::entity::StatusCondition> {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> DDSResult<rust_dds_api::dcps_psm::StatusMask> {
+        todo!()
+    }
+
+    fn enable(&self) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
         todo!()
     }
 }

@@ -7,7 +7,7 @@ use crate::{
 
 use super::data_writer_listener::DataWriterListener;
 
-pub trait PublisherDataWriterFactory<'dw, 't, T> {
+pub trait PublisherDataWriterFactory<'dw, T> {
     type TopicType;
     type DataWriterType;
 
@@ -58,7 +58,7 @@ pub trait Publisher {
     /// corresponding policy on the default QoS. The resulting QoS is then applied to the creation of the DataWriter.
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
-    fn create_datawriter<'dw, 't, T>(
+    fn create_datawriter<'dw, T>(
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
@@ -66,7 +66,7 @@ pub trait Publisher {
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>
     where
-        Self: PublisherDataWriterFactory<'dw, 't, T> + Sized,
+        Self: PublisherDataWriterFactory<'dw, T> + Sized,
     {
         self.datawriter_factory_create_datawriter(a_topic, qos, a_listener, mask)
     }
@@ -79,12 +79,12 @@ pub trait Publisher {
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datawriter<'dw, 't, T>(
+    fn delete_datawriter<'dw, T>(
         &'dw self,
         a_datawriter: &'dw Self::DataWriterType,
     ) -> DDSResult<()>
     where
-        Self: PublisherDataWriterFactory<'dw, 't, T> + Sized,
+        Self: PublisherDataWriterFactory<'dw, T> + Sized,
     {
         self.datawriter_factory_delete_datawriter(a_datawriter)
     }
@@ -93,12 +93,12 @@ pub trait Publisher {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    fn lookup_datawriter<'dw, 't, T>(
+    fn lookup_datawriter<'dw, T>(
         &'dw self,
         topic: &'dw Self::TopicType,
     ) -> Option<Self::DataWriterType>
     where
-        Self: PublisherDataWriterFactory<'dw, 't, T> + Sized,
+        Self: PublisherDataWriterFactory<'dw, T> + Sized,
     {
         self.datawriter_factory_lookup_datawriter(topic)
     }

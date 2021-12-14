@@ -40,7 +40,7 @@ impl DomainParticipantProxy {
 }
 
 impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantProxy {
-    type PublisherType = PublisherProxy<'p, PublisherImpl>;
+    type PublisherType = PublisherProxy<'p>;
 
     fn publisher_factory_create_publisher(
         &'p self,
@@ -73,7 +73,7 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantProxy {
 }
 
 impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantProxy {
-    type SubscriberType = SubscriberProxy<'s, SubscriberImpl>;
+    type SubscriberType = SubscriberProxy<'s>;
 
     fn subscriber_factory_create_subscriber(
         &'s self,
@@ -116,7 +116,7 @@ impl<'t, Foo> DomainParticipantTopicFactory<'t, Foo> for DomainParticipantProxy
 where
     Foo: DdsType + 't,
 {
-    type TopicType = TopicProxy<'t, Foo, TopicImpl>;
+    type TopicType = TopicProxy<'t, Foo>;
 
     fn topic_factory_create_topic(
         &'t self,

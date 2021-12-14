@@ -10,29 +10,31 @@ use rust_dds_api::{
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
+        qos::DataReaderQos,
         read_condition::ReadCondition,
         sample_info::SampleInfo,
     },
     return_type::DDSResult,
     subscription::{
         data_reader::{AnyDataReader, DataReader},
+        data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
         subscriber::Subscriber,
     },
     topic::topic_description::TopicDescription,
 };
 
-pub struct DataReaderProxy<'dr, T, DR> {
+pub struct DataReaderProxy<'dr, Foo> {
     subscriber: &'dr dyn Subscriber,
-    topic: &'dr dyn TopicDescription<T>,
-    data_reader_impl: RtpsWeak<DR>,
+    topic: &'dr dyn TopicDescription<Foo>,
+    data_reader_impl: RtpsWeak<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync>,
 }
 
-impl<'dr, T, DR> DataReaderProxy<'dr, T, DR> {
-    pub(crate) fn new(
+impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
+    pub fn new(
         subscriber: &'dr dyn Subscriber,
-        topic: &'dr dyn TopicDescription<T>,
-        data_reader_impl: RtpsWeak<DR>,
+        topic: &'dr dyn TopicDescription<Foo>,
+        data_reader_impl: RtpsWeak<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync>,
     ) -> Self {
         Self {
             subscriber,
@@ -40,17 +42,18 @@ impl<'dr, T, DR> DataReaderProxy<'dr, T, DR> {
             data_reader_impl,
         }
     }
+}
 
-    pub(crate) fn data_reader_impl(&self) -> &RtpsWeak<DR> {
+impl<'dr, Foo> AsRef<RtpsWeak<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync>>
+    for DataReaderProxy<'dr, Foo>
+{
+    fn as_ref(&self) -> &RtpsWeak<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync> {
         &self.data_reader_impl
     }
 }
 
-impl<'dr, T, DR> DataReader<'dr, T> for DataReaderProxy<'dr, T, DR>
-where
-    DR: DataReader<'dr, T>,
-{
-    type Samples = DR::Samples;
+impl<'dr, Foo> DataReader<'dr, Foo> for DataReaderProxy<'dr, Foo> {
+    type Samples = Vec<&'dr Foo>;
 
     fn read(
         &'dr self,
@@ -70,7 +73,7 @@ where
 
     fn take(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
@@ -82,7 +85,7 @@ where
 
     fn read_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
@@ -92,7 +95,7 @@ where
 
     fn take_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
@@ -102,7 +105,7 @@ where
 
     fn read_next_sample(
         &self,
-        _data_value: &mut [T],
+        _data_value: &mut [Foo],
         _sample_info: &mut [SampleInfo],
     ) -> DDSResult<()> {
         todo!()
@@ -110,7 +113,7 @@ where
 
     fn take_next_sample(
         &self,
-        _data_value: &mut [T],
+        _data_value: &mut [Foo],
         _sample_info: &mut [SampleInfo],
     ) -> DDSResult<()> {
         todo!()
@@ -118,7 +121,7 @@ where
 
     fn read_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
@@ -131,7 +134,7 @@ where
 
     fn take_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
@@ -144,7 +147,7 @@ where
 
     fn read_next_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -157,7 +160,7 @@ where
 
     fn take_next_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -170,7 +173,7 @@ where
 
     fn read_next_instance_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -181,7 +184,7 @@ where
 
     fn take_next_instance_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -192,17 +195,17 @@ where
 
     fn return_loan(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
     ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> DDSResult<()> {
+    fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_instance(&self, _instance: &T) -> InstanceHandle {
+    fn lookup_instance(&self, _instance: &Foo) -> InstanceHandle {
         todo!()
     }
 
@@ -286,7 +289,7 @@ where
         todo!()
     }
 
-    fn get_topicdescription(&self) -> &dyn TopicDescription<T> {
+    fn get_topicdescription(&self) -> &dyn TopicDescription<Foo> {
         self.topic
     }
 
@@ -295,12 +298,9 @@ where
     }
 }
 
-impl<'dr, T, DR> Entity for DataReaderProxy<'dr, T, DR>
-where
-    DR: Entity,
-{
-    type Qos = DR::Qos;
-    type Listener = DR::Listener;
+impl<Foo> Entity for DataReaderProxy<'_, Foo> {
+    type Qos = DataReaderQos;
+    type Listener = Box<dyn DataReaderListener<DataType = Foo>>;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)
@@ -336,7 +336,7 @@ where
     }
 }
 
-impl<'dr, T, DR> AnyDataReader for DataReaderProxy<'dr, T, DR> {}
+impl<'dr, Foo> AnyDataReader for DataReaderProxy<'dr, Foo> {}
 
 #[cfg(test)]
 mod tests {

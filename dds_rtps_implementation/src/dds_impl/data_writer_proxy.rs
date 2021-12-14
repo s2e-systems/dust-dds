@@ -7,26 +7,30 @@ use rust_dds_api::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
-    infrastructure::entity::{Entity, StatusCondition},
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        qos::DataWriterQos,
+    },
     publication::{
         data_writer::{AnyDataWriter, DataWriter},
+        data_writer_listener::DataWriterListener,
         publisher::Publisher,
     },
     return_type::DDSResult,
     topic::topic::Topic,
 };
 
-pub struct DataWriterProxy<'dw, T, DW> {
+pub struct DataWriterProxy<'dw, Foo> {
     publisher: &'dw dyn Publisher,
-    topic: &'dw dyn Topic<T>,
-    data_writer_impl: RtpsWeak<DW>,
+    topic: &'dw dyn Topic<Foo>,
+    data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
 }
 
-impl<'dw, T, DW> DataWriterProxy<'dw, T, DW> {
+impl<'dw, Foo> DataWriterProxy<'dw, Foo> {
     pub fn new(
         publisher: &'dw dyn Publisher,
-        topic: &'dw dyn Topic<T>,
-        data_writer_impl: RtpsWeak<DW>,
+        topic: &'dw dyn Topic<Foo>,
+        data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
     ) -> Self {
         Self {
             publisher,
@@ -34,24 +38,23 @@ impl<'dw, T, DW> DataWriterProxy<'dw, T, DW> {
             data_writer_impl,
         }
     }
+}
 
-    pub(crate) fn data_writer_impl(&self) -> &RtpsWeak<DW> {
+impl<Foo> AsRef<RtpsWeak<dyn DataWriter<Foo> + Send + Sync>> for DataWriterProxy<'_, Foo> {
+    fn as_ref(&self) -> &RtpsWeak<dyn DataWriter<Foo> + Send + Sync> {
         &self.data_writer_impl
     }
 }
 
-impl<'dw, T, DW> DataWriter<T> for DataWriterProxy<'dw, T, DW>
-where
-    DW: DataWriter<T>,
-{
-    fn register_instance(&mut self, instance: T) -> DDSResult<Option<InstanceHandle>> {
+impl<'dw, Foo> DataWriter<Foo> for DataWriterProxy<'dw, Foo> {
+    fn register_instance(&mut self, instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.register_instance_w_timestamp(instance, timestamp)
     }
 
     fn register_instance_w_timestamp(
         &mut self,
-        instance: T,
+        instance: Foo,
         timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
         rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
@@ -60,7 +63,7 @@ where
 
     fn unregister_instance(
         &mut self,
-        instance: T,
+        instance: Foo,
         handle: Option<InstanceHandle>,
     ) -> DDSResult<()> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
@@ -69,7 +72,7 @@ where
 
     fn unregister_instance_w_timestamp(
         &mut self,
-        instance: T,
+        instance: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
@@ -77,22 +80,22 @@ where
             .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
-    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> DDSResult<()> {
+    fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_instance(&self, _instance: &T) -> DDSResult<Option<InstanceHandle>> {
+    fn lookup_instance(&self, _instance: &Foo) -> DDSResult<Option<InstanceHandle>> {
         todo!()
     }
 
-    fn write(&mut self, data: &T, handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, data: &Foo, handle: Option<InstanceHandle>) -> DDSResult<()> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.write_w_timestamp(data, handle, timestamp)
     }
 
     fn write_w_timestamp(
         &mut self,
-        data: &T,
+        data: &Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
@@ -100,13 +103,13 @@ where
             .write_w_timestamp(data, handle, timestamp)
     }
 
-    fn dispose(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn dispose(&mut self, _data: Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         todo!()
     }
 
     fn dispose_w_timestamp(
         &mut self,
-        _data: T,
+        _data: Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
@@ -161,7 +164,7 @@ where
         todo!()
     }
 
-    fn get_topic(&self) -> &dyn Topic<T> {
+    fn get_topic(&self) -> &dyn Topic<Foo> {
         self.topic
     }
 
@@ -170,12 +173,9 @@ where
     }
 }
 
-impl<'dw, T, DW> Entity for DataWriterProxy<'dw, T, DW>
-where
-    DW: Entity,
-{
-    type Qos = DW::Qos;
-    type Listener = DW::Listener;
+impl<'dw, Foo> Entity for DataWriterProxy<'dw, Foo> {
+    type Qos = DataWriterQos;
+    type Listener = Box<dyn DataWriterListener<DataType = Foo>>;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).set_qos(qos)
@@ -211,4 +211,4 @@ where
     }
 }
 
-impl<'dw, T, DW> AnyDataWriter for DataWriterProxy<'dw, T, DW> {}
+impl<'dw, Foo> AnyDataWriter for DataWriterProxy<'dw, Foo> {}

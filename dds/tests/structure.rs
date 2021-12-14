@@ -1,8 +1,11 @@
+use std::io::Write;
+
 use rust_dds::{
     domain::domain_participant::DomainParticipant,
-    domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity, DDSError, subscription::subscriber::Subscriber, publication::publisher::Publisher,
+    domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
+    publication::publisher::Publisher, subscription::subscriber::Subscriber, DDSError,
 };
-use rust_dds_rtps_implementation::dds_type::DdsType;
+use rust_dds_rtps_implementation::dds_type::{DdsSerialize, DdsType, Endianness};
 
 struct TestType;
 impl DdsType for TestType {
@@ -12,6 +15,12 @@ impl DdsType for TestType {
 
     fn has_key() -> bool {
         false
+    }
+}
+
+impl DdsSerialize for TestType {
+    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> rust_dds::DDSResult<()> {
+        todo!()
     }
 }
 

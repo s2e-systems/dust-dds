@@ -10,14 +10,16 @@ use rust_dds_api::{
 };
 use std::marker::PhantomData;
 
-pub struct TopicProxy<'t, Foo, T> {
+use super::topic_impl::TopicImpl;
+
+pub struct TopicProxy<'t, Foo> {
     participant: &'t dyn DomainParticipant,
-    topic_impl: RtpsWeak<T>,
+    topic_impl: RtpsWeak<TopicImpl>,
     phantom: PhantomData<&'t Foo>,
 }
 
-impl<'t, Foo, T> TopicProxy<'t, Foo, T> {
-    pub fn new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<T>) -> Self {
+impl<'t, Foo> TopicProxy<'t, Foo> {
+    pub fn new(participant: &'t dyn DomainParticipant, topic_impl: RtpsWeak<TopicImpl>) -> Self {
         Self {
             participant,
             topic_impl,
@@ -26,25 +28,19 @@ impl<'t, Foo, T> TopicProxy<'t, Foo, T> {
     }
 }
 
-impl<Foo, T> AsRef<RtpsWeak<T>> for TopicProxy<'_, Foo, T> {
-    fn as_ref(&self) -> &RtpsWeak<T> {
+impl<Foo> AsRef<RtpsWeak<TopicImpl>> for TopicProxy<'_, Foo> {
+    fn as_ref(&self) -> &RtpsWeak<TopicImpl> {
         &self.topic_impl
     }
 }
 
-impl<'t, Foo, T> Topic<Foo> for TopicProxy<'t, Foo, T>
-where
-    T: Topic<Foo>,
-{
+impl<'t, Foo> Topic<Foo> for TopicProxy<'t, Foo> {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
     }
 }
 
-impl<'t, Foo, T> TopicDescription<Foo> for TopicProxy<'t, Foo, T>
-where
-    T: TopicDescription<Foo> + 't,
-{
+impl<'t, Foo> TopicDescription<Foo> for TopicProxy<'t, Foo> {
     fn get_participant(&self) -> &dyn DomainParticipant {
         self.participant
     }
@@ -58,12 +54,9 @@ where
     }
 }
 
-impl<'t, Foo, T> Entity for TopicProxy<'t, Foo, T>
-where
-    T: Entity,
-{
-    type Qos = T::Qos;
-    type Listener = T::Listener;
+impl<'t, Foo> Entity for TopicProxy<'t, Foo> {
+    type Qos = <TopicImpl as Entity>::Qos;
+    type Listener = <TopicImpl as Entity>::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_qos(qos)

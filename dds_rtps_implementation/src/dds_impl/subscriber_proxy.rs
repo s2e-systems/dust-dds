@@ -21,15 +21,20 @@ use crate::utils::shared_object::{
     rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
 };
 
-use super::{data_reader_proxy::DataReaderProxy, topic_proxy::TopicProxy};
+use super::{
+    data_reader_proxy::DataReaderProxy, subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy,
+};
 
-pub struct SubscriberProxy<'s, S> {
+pub struct SubscriberProxy<'s> {
     participant: &'s dyn DomainParticipant,
-    subscriber_impl: RtpsWeak<S>,
+    subscriber_impl: RtpsWeak<SubscriberImpl>,
 }
 
-impl<'s, S> SubscriberProxy<'s, S> {
-    pub fn new(participant: &'s dyn DomainParticipant, subscriber_impl: RtpsWeak<S>) -> Self {
+impl<'s> SubscriberProxy<'s> {
+    pub fn new(
+        participant: &'s dyn DomainParticipant,
+        subscriber_impl: RtpsWeak<SubscriberImpl>,
+    ) -> Self {
         Self {
             participant,
             subscriber_impl,
@@ -37,33 +42,24 @@ impl<'s, S> SubscriberProxy<'s, S> {
     }
 }
 
-impl<S> AsRef<RtpsWeak<S>> for SubscriberProxy<'_, S> {
-    fn as_ref(&self) -> &RtpsWeak<S> {
+impl AsRef<RtpsWeak<SubscriberImpl>> for SubscriberProxy<'_> {
+    fn as_ref(&self) -> &RtpsWeak<SubscriberImpl> {
         &self.subscriber_impl
     }
 }
 
-impl<'dr, 's, 't, T, S, DR, I> SubscriberDataReaderFactory<'dr, 't, T> for SubscriberProxy<'s, S>
+impl<'dr, 's, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy<'s>
 where
-    T: 't + 'dr,
-    I: TopicDescription<T> + 't,
-    DR: DataReader<'dr, T>,
-    S: for<'a, 'b> SubscriberDataReaderFactory<
-        'a,
-        'b,
-        T,
-        TopicType = RtpsWeak<I>,
-        DataReaderType = RtpsWeak<DR>,
-    >,
+    Foo: 'dr,
 {
-    type TopicType = TopicProxy<'t, T, I>;
-    type DataReaderType = DataReaderProxy<'dr, T, DR>;
+    type TopicType = TopicProxy<'dr, Foo>;
+    type DataReaderType = DataReaderProxy<'dr, Foo>;
 
     fn datareader_factory_create_datareader(
         &'dr self,
         a_topic: &'dr Self::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<&'static dyn DataReaderListener<DataType = T>>,
+        a_listener: Option<&'static dyn DataReaderListener<DataType = Foo>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         todo!()
@@ -85,7 +81,7 @@ where
     ) -> DDSResult<()> {
         if std::ptr::eq(a_datareader.get_subscriber(), self) {
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?)
-                .datareader_factory_delete_datareader(a_datareader.data_reader_impl())
+                .datareader_factory_delete_datareader(a_datareader.as_ref())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
@@ -101,7 +97,7 @@ where
     }
 }
 
-impl<'s, S> Subscriber for SubscriberProxy<'s, S> {
+impl Subscriber for SubscriberProxy<'_> {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
     }
@@ -154,12 +150,9 @@ impl<'s, S> Subscriber for SubscriberProxy<'s, S> {
     }
 }
 
-impl<'s, S> Entity for SubscriberProxy<'s, S>
-where
-    S: Entity,
-{
-    type Qos = S::Qos;
-    type Listener = S::Listener;
+impl Entity for SubscriberProxy<'_> {
+    type Qos = <SubscriberImpl as Entity>::Qos;
+    type Listener = <SubscriberImpl as Entity>::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         rtps_shared_write_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).set_qos(qos)

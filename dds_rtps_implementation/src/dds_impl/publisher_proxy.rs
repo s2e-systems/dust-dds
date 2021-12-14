@@ -11,27 +11,27 @@ use rust_dds_api::{
         publisher::{Publisher, PublisherDataWriterFactory},
     },
     return_type::{DDSError, DDSResult},
-    topic::topic::Topic,
+    topic::{topic::Topic, topic_description::TopicDescription},
 };
 
 use crate::utils::shared_object::{
-    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsShared, RtpsWeak,
 };
 
-use super::{data_writer_proxy::DataWriterProxy, topic_proxy::TopicProxy};
+use super::{
+    data_writer_proxy::DataWriterProxy, publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
+};
 
-pub struct PublisherProxy<'p, P> {
+pub struct PublisherProxy<'p> {
     participant: &'p dyn DomainParticipant,
-    publisher_impl: RtpsWeak<P>,
-}
-impl<P> AsRef<RtpsWeak<P>> for PublisherProxy<'_, P> {
-    fn as_ref(&self) -> &RtpsWeak<P> {
-        &self.publisher_impl
-    }
+    publisher_impl: RtpsWeak<PublisherImpl>,
 }
 
-impl<'p, P> PublisherProxy<'p, P> {
-    pub(crate) fn new(participant: &'p dyn DomainParticipant, publisher_impl: RtpsWeak<P>) -> Self {
+impl<'p> PublisherProxy<'p> {
+    pub fn new(
+        participant: &'p dyn DomainParticipant,
+        publisher_impl: RtpsWeak<PublisherImpl>,
+    ) -> Self {
         Self {
             participant,
             publisher_impl,
@@ -39,27 +39,24 @@ impl<'p, P> PublisherProxy<'p, P> {
     }
 }
 
-impl<'dw, 'p, 't, T, P, DW, I> PublisherDataWriterFactory<'dw, 't, T> for PublisherProxy<'p, P>
+impl AsRef<RtpsWeak<PublisherImpl>> for PublisherProxy<'_> {
+    fn as_ref(&self) -> &RtpsWeak<PublisherImpl> {
+        &self.publisher_impl
+    }
+}
+
+impl<'dw, Foo> PublisherDataWriterFactory<'dw, Foo> for PublisherProxy<'_>
 where
-    DW: DataWriter<T>,
-    I: Topic<T>,
-    P: for<'a, 'b> PublisherDataWriterFactory<
-        'a,
-        'b,
-        T,
-        TopicType = RtpsWeak<I>,
-        DataWriterType = RtpsWeak<DW>,
-    >,
-    T: 't + 'dw,
+    Foo: 'dw,
 {
-    type TopicType = TopicProxy<'t, T, I>;
-    type DataWriterType = DataWriterProxy<'dw, T, DW>;
+    type TopicType = TopicProxy<'dw, Foo>;
+    type DataWriterType = DataWriterProxy<'dw, Foo>;
 
     fn datawriter_factory_create_datawriter(
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
+        a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         todo!()
@@ -81,9 +78,10 @@ where
         &self,
         a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
+        let a_datawriter_shared = rtps_weak_upgrade(a_datawriter.as_ref())?;
         if std::ptr::eq(a_datawriter.get_publisher(), self) {
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
-                .datawriter_factory_delete_datawriter(a_datawriter.data_writer_impl())
+                .datawriter_factory_delete_datawriter(&a_datawriter_shared)
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
@@ -99,7 +97,7 @@ where
     }
 }
 
-impl<'p, P> Publisher for PublisherProxy<'p, P> {
+impl Publisher for PublisherProxy<'_> {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
@@ -156,12 +154,9 @@ impl<'p, P> Publisher for PublisherProxy<'p, P> {
     }
 }
 
-impl<'p, P> Entity for PublisherProxy<'p, P>
-where
-    P: Entity,
-{
-    type Qos = P::Qos;
-    type Listener = P::Listener;
+impl Entity for PublisherProxy<'_> {
+    type Qos = <PublisherImpl as Entity>::Qos;
+    type Listener = <PublisherImpl as Entity>::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         rtps_shared_write_lock(&rtps_weak_upgrade(&self.publisher_impl)?).set_qos(qos)

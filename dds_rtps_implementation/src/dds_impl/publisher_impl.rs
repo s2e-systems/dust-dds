@@ -182,25 +182,25 @@ impl PublisherImpl {
     }
 }
 
-impl<T> PublisherDataWriterFactory<'_, '_, T> for PublisherImpl
+impl<Foo> PublisherDataWriterFactory<'_, Foo> for PublisherImpl
 where
-    T: DdsType + DdsSerialize + Send + 'static,
+    Foo: DdsType + DdsSerialize + Send + 'static,
 {
-    type TopicType = RtpsShared<dyn TopicDescription<T> + Send + Sync>;
-    type DataWriterType = RtpsShared<dyn DataWriter<T> + Send + Sync>;
+    type TopicType = RtpsShared<dyn TopicDescription<Foo> + Send + Sync>;
+    type DataWriterType = RtpsShared<dyn DataWriter<Foo> + Send + Sync>;
 
     fn datawriter_factory_create_datawriter(
         &'_ self,
         _a_topic: &'_ Self::TopicType,
         qos: Option<DataWriterQos>,
-        _a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
+        _a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         let user_defined_data_writer_counter = self
             .user_defined_data_writer_counter
             .fetch_add(1, atomic::Ordering::SeqCst);
-        let (entity_kind, topic_kind) = match T::has_key() {
+        let (entity_kind, topic_kind) = match Foo::has_key() {
             true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
             false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
         };
@@ -258,7 +258,7 @@ where
     ) -> Option<Self::DataWriterType> {
         let data_writer_impl_list_lock = self.stateful_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl, StdTimer>>>(
+            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatefulWriterImpl, StdTimer>>>(
                 x.into_any(),
             )
             .ok()
@@ -270,7 +270,7 @@ where
 
         let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl, StdTimer>>>(
+            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatelessWriterImpl, StdTimer>>>(
                 x.into_any(),
             )
             .ok()
