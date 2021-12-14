@@ -5,9 +5,10 @@ use rust_dds::{
     domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
     publication::publisher::Publisher, subscription::subscriber::Subscriber, DDSError,
 };
-use rust_dds_rtps_implementation::dds_type::{DdsSerialize, DdsType, Endianness};
+use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
 struct TestType;
+
 impl DdsType for TestType {
     fn type_name() -> &'static str {
         "TestType"
@@ -20,6 +21,12 @@ impl DdsType for TestType {
 
 impl DdsSerialize for TestType {
     fn serialize<W: Write, E: Endianness>(&self, writer: W) -> rust_dds::DDSResult<()> {
+        todo!()
+    }
+}
+
+impl<'de> DdsDeserialize<'de> for TestType {
+    fn deserialize(buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
         todo!()
     }
 }

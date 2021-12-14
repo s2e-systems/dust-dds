@@ -20,7 +20,7 @@ pub fn rtps_shared_write_lock<T: ?Sized>(this: &RtpsShared<T>) -> RwLockWriteGua
     this.write().unwrap()
 }
 
-pub type RtpsWeak<T: ?Sized> = Weak<RwLock<T>>;
+pub type RtpsWeak<T> = Weak<RwLock<T>>;
 
 pub fn rtps_weak_upgrade<T: ?Sized>(this: &RtpsWeak<T>) -> DDSResult<RtpsShared<T>> {
     this.upgrade().ok_or(DDSError::AlreadyDeleted)
