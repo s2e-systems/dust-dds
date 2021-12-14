@@ -247,14 +247,9 @@ where
 
     fn datawriter_factory_delete_datawriter(
         &self,
-        a_datawriter: &Self::DataWriterType,
+        _a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
-        println!("DELETION UNIMPLEMENTED");
-        // self.stateful_data_writer_impl_list
-        //     .lock()
-        //     .unwrap()
-        //     .retain(|x| Arc::ptr_eq(x, a_datawriter));
-        Ok(())
+        todo!()
     }
 
     fn datawriter_factory_lookup_datawriter(

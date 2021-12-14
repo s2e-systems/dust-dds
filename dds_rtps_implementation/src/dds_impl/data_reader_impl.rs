@@ -2,7 +2,10 @@ use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
     infrastructure::{entity::Entity, qos::DataReaderQos},
     return_type::{DDSError, DDSResult},
-    subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
+    subscription::{
+        data_reader::{DataReader, DataReaderBorrowedSamples},
+        data_reader_listener::DataReaderListener,
+    },
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
@@ -90,19 +93,19 @@ impl<Foo, R> DataReaderImpl<Foo, R> {
 //     })
 //     .collect())
 
-impl<'a, Foo, R> DataReader<'a, Foo> for DataReaderImpl<Foo, R>
+impl<'a, Foo, R> DataReaderBorrowedSamples<'a> for DataReaderImpl<Foo, R>
 where
-    Foo: for<'de> DdsDeserialize<'de> + 'static,
+    Foo: 'static,
     R: ReaderHistoryCacheGetChange<'a, Foo>,
 {
     type Samples = Vec<&'a Foo>;
 
-    fn read(
+    fn read_borrowed_samples(
         &'a self,
-        _max_samples: i32,
-        _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-        _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-        _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
+        max_samples: i32,
+        sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
+        view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
+        instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         if let Some(cc) = self
             .rtps_reader
@@ -114,7 +117,13 @@ where
             Err(DDSError::NoData)
         }
     }
+}
 
+impl<Foo, R> DataReader<Foo> for DataReaderImpl<Foo, R>
+where
+    Foo: for<'de> DdsDeserialize<'de> + 'static,
+    R: for<'a> ReaderHistoryCacheGetChange<'a, Foo>,
+{
     fn take(
         &self,
         _data_values: &mut [Foo],

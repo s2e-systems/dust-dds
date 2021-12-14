@@ -16,7 +16,7 @@ use rust_dds_api::{
         DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
     },
     publication::data_writer::DataWriter,
-    subscription::data_reader::DataReader,
+    subscription::data_reader::DataReaderBorrowedSamples,
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
@@ -140,11 +140,7 @@ pub struct EnabledPeriodicTask {
 
 fn task_discovery(
     spdp_builtin_participant_data_reader_arc: &RtpsShared<
-        impl for<'a> DataReader<
-            'a,
-            SpdpDiscoveredParticipantData,
-            Samples = Vec<&'a SpdpDiscoveredParticipantData>,
-        >,
+        impl for<'a> DataReaderBorrowedSamples<'a, Samples = Vec<&'a SpdpDiscoveredParticipantData>>,
     >,
     domain_id: u32,
     domain_tag: &str,
@@ -158,7 +154,7 @@ fn task_discovery(
     let spdp_builtin_participant_data_reader_lock =
         rtps_shared_write_lock(&spdp_builtin_participant_data_reader_arc);
     let samples = spdp_builtin_participant_data_reader_lock
-        .read(1, &[], &[], &[])
+        .read_borrowed_samples(1, &[], &[], &[])
         .unwrap_or(vec![]);
     for discovered_participant in samples {
         if let Ok(participant_discovery) = ParticipantDiscovery::new(
@@ -210,9 +206,13 @@ fn task_discovery(
 const PB: u16 = 7400;
 const DG: u16 = 250;
 const PG: u16 = 2;
-const d0: u16 = 0;
+#[allow(non_upper_case_globals)]
+const _d0: u16 = 0;
+#[allow(non_upper_case_globals)]
 const d1: u16 = 10;
-const d2: u16 = 1;
+#[allow(non_upper_case_globals)]
+const _d2: u16 = 1;
+#[allow(non_upper_case_globals)]
 const d3: u16 = 11;
 
 fn get_builtin_udp_socket(domain_id: u16) -> Option<UdpSocket> {
@@ -526,16 +526,9 @@ impl DomainParticipantFactory {
 mod tests {
     use mockall::{mock, predicate};
     use rust_dds_api::{
-        builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
-        dcps_psm::{
-            BuiltInTopicKey, InstanceHandle, InstanceStateKind, LivelinessChangedStatus,
-            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-            SampleRejectedStatus, SampleStateKind, SubscriptionMatchedStatus, ViewStateKind,
-        },
-        infrastructure::{read_condition::ReadCondition, sample_info::SampleInfo},
+        builtin_topics::ParticipantBuiltinTopicData,
+        dcps_psm::{BuiltInTopicKey, InstanceStateKind, SampleStateKind, ViewStateKind},
         return_type::DDSResult,
-        subscription::{query_condition::QueryCondition, subscriber::Subscriber},
-        topic::topic_description::TopicDescription,
     };
     use rust_rtps_pim::{
         behavior::{reader::writer_proxy::RtpsWriterProxy, writer::reader_proxy::RtpsReaderProxy},
@@ -557,178 +550,18 @@ mod tests {
     mock! {
         DdsDataReader<T: 'static>{}
 
-        impl<'a, T>  DataReader<'a, T> for DdsDataReader<T>{
+        impl<'a, T>  DataReaderBorrowedSamples<'a> for DdsDataReader<T>{
             type Samples = Vec<&'a T>;
 
-            fn read(
+            fn read_borrowed_samples(
                 &'a self,
                 max_samples: i32,
                 sample_states: &[SampleStateKind],
                 view_states: &[ViewStateKind],
                 instance_states: &[InstanceStateKind],
             ) -> DDSResult<Vec<&'static T>>;
-
-            fn take(
-                &self,
-                data_values: &mut [T],
-                sample_infos: &mut [SampleInfo],
-                max_samples: i32,
-                sample_states: &[SampleStateKind],
-                view_states: &[ViewStateKind],
-                instance_states: &[InstanceStateKind],
-            ) -> DDSResult<()>;
-
-            fn read_w_condition(
-                &self,
-                data_values: &mut [T],
-                sample_infos: &mut [SampleInfo],
-                max_samples: i32,
-                a_condition: ReadCondition,
-            ) -> DDSResult<()>;
-
-            fn take_w_condition(
-                &self,
-                data_values: &mut [T],
-                sample_infos: &mut [SampleInfo],
-                max_samples: i32,
-                a_condition: ReadCondition,
-            ) -> DDSResult<()>;
-
-            fn read_next_sample(
-                &self,
-                data_value: &mut [T],
-                sample_info: &mut [SampleInfo],
-            ) -> DDSResult<()>;
-
-            fn take_next_sample(
-                &self,
-                data_value: &mut [T],
-                sample_info: &mut [SampleInfo],
-            ) -> DDSResult<()>;
-
-            fn read_instance(
-                &self,
-                data_values: &mut [T],
-                sample_infos: &mut [SampleInfo],
-                max_samples: i32,
-                a_handle: InstanceHandle,
-                sample_states: &[SampleStateKind],
-                view_states: &[ViewStateKind],
-                instance_states: &[InstanceStateKind],
-            ) -> DDSResult<()>;
-
-            fn take_instance(
-                &self,
-                data_values: &mut [T],
-                sample_infos: &mut [SampleInfo],
-                max_samples: i32,
-                a_handle: InstanceHandle,
-                sample_states: &[SampleStateKind],
-                view_states: &[ViewStateKind],
-                instance_states: &[InstanceStateKind],
-            ) -> DDSResult<()>;
-
-            fn read_next_instance(
-                &self,
-                data_values: &mut [T],
-                sample_infos: &mut [SampleInfo],
-                max_samples: i32,
-                previous_handle: InstanceHandle,
-                sample_states: &[SampleStateKind],
-                view_states: &[ViewStateKind],
-                instance_states: &[InstanceStateKind],
-            ) -> DDSResult<()>;
-
-            fn take_next_instance(
-                &self,
-                data_values: &mut [T],
-                sample_infos: &mut [SampleInfo],
-                max_samples: i32,
-                previous_handle: InstanceHandle,
-                sample_states: &[SampleStateKind],
-                view_states: &[ViewStateKind],
-                instance_states: &[InstanceStateKind],
-            ) -> DDSResult<()>;
-
-            fn read_next_instance_w_condition(
-                &self,
-                data_values: &mut [T],
-                sample_infos: &mut [SampleInfo],
-                max_samples: i32,
-                previous_handle: InstanceHandle,
-                a_condition: ReadCondition,
-            ) -> DDSResult<()>;
-
-            fn take_next_instance_w_condition(
-                &self,
-                data_values: &mut [T],
-                sample_infos: &mut [SampleInfo],
-                max_samples: i32,
-                previous_handle: InstanceHandle,
-                a_condition: ReadCondition,
-            ) -> DDSResult<()>;
-
-            fn return_loan(&self, data_values: &mut [T], sample_infos: &mut [SampleInfo]) -> DDSResult<()>;
-
-            fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> DDSResult<()>;
-
-            fn lookup_instance(&self, instance: &T) -> InstanceHandle;
-
-            fn create_readcondition(
-                &self,
-                sample_states: &[SampleStateKind],
-                view_states: &[ViewStateKind],
-                instance_states: &[InstanceStateKind],
-            ) -> ReadCondition;
-
-            fn create_querycondition(
-                &self,
-                sample_states: &[SampleStateKind],
-                view_states: &[ViewStateKind],
-                instance_states: &[InstanceStateKind],
-                query_expression: &'static str,
-                query_parameters: &[&'static str],
-            ) -> QueryCondition;
-
-            fn delete_readcondition(&self, a_condition: ReadCondition) -> DDSResult<()>;
-
-            fn get_liveliness_changed_status(&self, status: &mut LivelinessChangedStatus) -> DDSResult<()>;
-
-            fn get_requested_deadline_missed_status(
-                &self,
-                status: &mut RequestedDeadlineMissedStatus,
-            ) -> DDSResult<()>;
-
-            fn get_requested_incompatible_qos_status(
-                &self,
-                status: &mut RequestedIncompatibleQosStatus,
-            ) -> DDSResult<()>;
-
-            fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;
-
-            fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> DDSResult<()>;
-
-            fn get_subscription_matched_status(
-                &self,
-                status: &mut SubscriptionMatchedStatus,
-            ) -> DDSResult<()>;
-
-            fn get_topicdescription(&self) -> &'static dyn TopicDescription<T>;
-
-            fn get_subscriber(&self) -> &'static dyn Subscriber;
-
-            fn delete_contained_entities(&self) -> DDSResult<()>;
-
-            fn wait_for_historical_data(&self) -> DDSResult<()>;
-
-            fn get_matched_publication_data(
-                &self,
-                publication_data: &mut PublicationBuiltinTopicData,
-                publication_handle: InstanceHandle,
-            ) -> DDSResult<()>;
-
-            fn get_match_publication(&self, publication_handles: &mut [InstanceHandle]) -> DDSResult<()>;
         }
+
     }
 
     use super::*;
@@ -794,7 +627,7 @@ mod tests {
 
         let mut mock_spdp_data_reader = MockDdsDataReader::new();
         mock_spdp_data_reader
-            .expect_read()
+            .expect_read_borrowed_samples()
             .returning(|_, _, _, _| Ok(vec![&RETURN_SPDP_DATA]));
 
         let mut mock_builtin_publications_writer = MockStatefulWriter::new();

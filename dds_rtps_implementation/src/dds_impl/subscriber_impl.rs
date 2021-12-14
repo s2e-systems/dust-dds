@@ -117,8 +117,7 @@ where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
     type TopicType = RtpsShared<dyn TopicDescription<Foo> + Send + Sync>;
-    type DataReaderType =
-        RtpsShared<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync>;
+    type DataReaderType = RtpsShared<dyn DataReader<Foo> + Send + Sync>;
 
     fn datareader_factory_create_datareader(
         &'_ self,

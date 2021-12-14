@@ -16,7 +16,7 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
     subscription::{
-        data_reader::{AnyDataReader, DataReader},
+        data_reader::{AnyDataReader, DataReader, DataReaderBorrowedSamples},
         data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
         subscriber::Subscriber,
@@ -27,14 +27,14 @@ use rust_dds_api::{
 pub struct DataReaderProxy<'dr, Foo> {
     subscriber: &'dr dyn Subscriber,
     topic: &'dr dyn TopicDescription<Foo>,
-    data_reader_impl: RtpsWeak<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync>,
+    data_reader_impl: RtpsWeak<dyn DataReader<Foo> + Send + Sync>,
 }
 
 impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
     pub fn new(
         subscriber: &'dr dyn Subscriber,
         topic: &'dr dyn TopicDescription<Foo>,
-        data_reader_impl: RtpsWeak<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync>,
+        data_reader_impl: RtpsWeak<dyn DataReader<Foo> + Send + Sync>,
     ) -> Self {
         Self {
             subscriber,
@@ -44,33 +44,30 @@ impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
     }
 }
 
-impl<'dr, Foo> AsRef<RtpsWeak<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync>>
-    for DataReaderProxy<'dr, Foo>
-{
-    fn as_ref(&self) -> &RtpsWeak<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync> {
+impl<'dr, Foo> AsRef<RtpsWeak<dyn DataReader<Foo> + Send + Sync>> for DataReaderProxy<'dr, Foo> {
+    fn as_ref(&self) -> &RtpsWeak<dyn DataReader<Foo> + Send + Sync> {
         &self.data_reader_impl
     }
 }
 
-impl<'dr, Foo> DataReader<'dr, Foo> for DataReaderProxy<'dr, Foo> {
-    type Samples = Vec<&'dr Foo>;
+impl<'a, Foo> DataReaderBorrowedSamples<'a> for DataReaderProxy<'_, Foo>
+where
+    Foo: 'static,
+{
+    type Samples = Vec<&'a Foo>;
 
-    fn read(
-        &'dr self,
-        _max_samples: i32,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+    fn read_borrowed_samples(
+        &'a self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         todo!("Return Loaned Samples with the lock")
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).read(
-        //     max_samples,
-        //     sample_states,
-        //     view_states,
-        //     instance_states,
-        // )
     }
+}
 
+impl<Foo> DataReader<Foo> for DataReaderProxy<'_, Foo> {
     fn take(
         &self,
         _data_values: &mut [Foo],

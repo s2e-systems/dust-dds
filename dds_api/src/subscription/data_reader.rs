@@ -12,6 +12,17 @@ use crate::{
 
 use super::{query_condition::QueryCondition, subscriber::Subscriber};
 
+pub trait DataReaderBorrowedSamples<'a> {
+    type Samples;
+
+    fn read_borrowed_samples(
+        &'a self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DDSResult<Self::Samples>;
+}
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
 ///
@@ -23,9 +34,7 @@ use super::{query_condition::QueryCondition, subscriber::Subscriber};
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub trait DataReader<'a, T> {
-    type Samples;
-
+pub trait DataReader<T> {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
     /// (see 2.2.3.6) may impose further limits on the size of the returned ‘list.’
@@ -102,13 +111,17 @@ pub trait DataReader<'a, T> {
     /// This operation must be provided on the specialized class that is generated for the particular application data-type that is being
     /// read.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
-    fn read(
+    fn read<'a>(
         &'a self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Self::Samples>;
+    ) -> DDSResult<Self::Samples>
+    where
+        Self: DataReaderBorrowedSamples<'a> + Sized {
+            self.read_borrowed_samples(max_samples, sample_states, view_states, instance_states)
+        }
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
     /// structures. The operation will return either a ‘list’ of samples or else a single sample. This is controlled by the
