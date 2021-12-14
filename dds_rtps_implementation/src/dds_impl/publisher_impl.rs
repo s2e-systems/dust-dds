@@ -53,6 +53,7 @@ use crate::{
     dds_impl::data_writer_impl::DataWriterImpl,
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::{
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
@@ -64,6 +65,8 @@ use crate::{
         transport::TransportWrite,
     },
 };
+
+use super::data_reader_impl::DataReaderImpl;
 
 pub trait StatelessWriterSubmessageProducer {
     fn produce_submessages(
@@ -135,6 +138,14 @@ pub struct PublisherImpl {
     default_datawriter_qos: DataWriterQos,
     sedp_builtin_publications_announcer:
         Option<RtpsShared<dyn DataWriter<SedpDiscoveredWriterData> + Send + Sync>>,
+    sedp_builtin_publications_detector: Option<
+        RtpsShared<
+            DataReaderImpl<
+                SedpDiscoveredWriterData,
+                RtpsStatefulReaderImpl<SedpDiscoveredWriterData>,
+            >,
+        >,
+    >,
 }
 
 impl PublisherImpl {
@@ -146,6 +157,14 @@ impl PublisherImpl {
         sedp_builtin_publications_announcer: Option<
             RtpsShared<dyn DataWriter<SedpDiscoveredWriterData> + Send + Sync>,
         >,
+        sedp_builtin_publications_detector: Option<
+            RtpsShared<
+                DataReaderImpl<
+                    SedpDiscoveredWriterData,
+                    RtpsStatefulReaderImpl<SedpDiscoveredWriterData>,
+                >,
+            >,
+        >,
     ) -> Self {
         Self {
             _qos: qos,
@@ -155,6 +174,7 @@ impl PublisherImpl {
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             sedp_builtin_publications_announcer,
+            sedp_builtin_publications_detector,
         }
     }
 
@@ -485,6 +505,7 @@ mod tests {
             vec![],
             vec![],
             None,
+            None,
         );
 
         let mut qos = DataWriterQos::default();
@@ -504,6 +525,7 @@ mod tests {
             rtps_group_impl,
             vec![],
             vec![],
+            None,
             None,
         );
 
@@ -528,6 +550,7 @@ mod tests {
             rtps_group_impl,
             vec![],
             vec![],
+            None,
             None,
         );
         let a_topic_shared: Arc<RwLock<dyn TopicDescription<MockDDSType> + Send + Sync>> =

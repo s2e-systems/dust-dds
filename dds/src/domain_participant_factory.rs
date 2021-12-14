@@ -424,6 +424,7 @@ impl DomainParticipantFactory {
                 sedp_builtin_topics_dds_data_writer.clone(),
             ],
             None,
+            None,
         ));
 
         let user_defined_subscriber_list = rtps_shared_new(Vec::new());
