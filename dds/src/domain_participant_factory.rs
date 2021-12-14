@@ -1,6 +1,6 @@
 use async_std::stream::StreamExt;
 use std::{
-    net::{Ipv4Addr, UdpSocket},
+    net::{Ipv4Addr, SocketAddr, UdpSocket},
     str::FromStr,
     sync::{
         atomic::{self, AtomicBool},
@@ -206,6 +206,41 @@ fn task_discovery(
 /// - Factory methods: create_topic, create_publisher, create_subscriber, delete_topic, delete_publisher,
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
+
+const PB: u16 = 7400;
+const DG: u16 = 250;
+const PG: u16 = 2;
+const d0: u16 = 0;
+const d1: u16 = 10;
+const d2: u16 = 1;
+const d3: u16 = 11;
+
+fn get_builtin_udp_socket(domain_id: u16) -> Option<UdpSocket> {
+    for participant_id in 0..120 {
+        let socket_addr = SocketAddr::from((
+            [127, 0, 0, 1],
+            PB + DG * domain_id + d1 + PG * participant_id,
+        ));
+        if let Ok(socket) = UdpSocket::bind(socket_addr) {
+            return Some(socket);
+        }
+    }
+    None
+}
+
+fn get_user_defined_udp_socket(domain_id: u16) -> Option<UdpSocket> {
+    for participant_id in 0..120 {
+        let socket_addr = SocketAddr::from((
+            [127, 0, 0, 1],
+            PB + DG * domain_id + d3 + PG * participant_id,
+        ));
+        if let Ok(socket) = UdpSocket::bind(socket_addr) {
+            return Some(socket);
+        }
+    }
+    None
+}
+
 pub struct DomainParticipantFactory;
 
 impl DomainParticipantFactory {
@@ -252,7 +287,7 @@ impl DomainParticipantFactory {
         let default_multicast_locator_list = vec![];
 
         // /////// Create transports
-        let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+        let socket = get_builtin_udp_socket(domain_id as u16).unwrap();
         socket.set_nonblocking(true).unwrap();
         socket
             .join_multicast_v4(
@@ -263,7 +298,7 @@ impl DomainParticipantFactory {
         socket.set_multicast_loop_v4(true).unwrap();
         let metatraffic_transport = UdpTransport::new(socket);
 
-        let socket = UdpSocket::bind("127.0.0.1:7410").unwrap();
+        let socket = get_user_defined_udp_socket(domain_id as u16).unwrap();
         socket.set_nonblocking(true).unwrap();
         let default_transport = UdpTransport::new(socket);
 

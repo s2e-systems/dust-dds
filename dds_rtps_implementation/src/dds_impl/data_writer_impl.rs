@@ -35,29 +35,17 @@ use crate::{
 
 use super::publisher_impl::{StatefulWriterSubmessageProducer, StatelessWriterSubmessageProducer};
 
-impl<T, W, C> AsRef<W> for DataWriterImpl<T, W, C> {
-    fn as_ref(&self) -> &W {
-        &self.rtps_writer_impl
-    }
-}
-
-impl<T, W, C> AsMut<W> for DataWriterImpl<T, W, C> {
-    fn as_mut(&mut self) -> &mut W {
-        &mut self.rtps_writer_impl
-    }
-}
-
-pub struct DataWriterImpl<T, W, C> {
+pub struct DataWriterImpl<Foo, W, C> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
-    _listener: Option<Box<dyn DataWriterListener<DataType = T> + Send + Sync>>,
+    _listener: Option<Box<dyn DataWriterListener<DataType = Foo> + Send + Sync>>,
     heartbeat_timer: C,
     heartbeat_count: Count,
 }
 
-impl<T, W, C> DataWriterImpl<T, W, C>
+impl<Foo, W, C> DataWriterImpl<Foo, W, C>
 where
-    T: Send + 'static,
+    Foo: Send + 'static,
 {
     pub fn new(qos: DataWriterQos, rtps_writer_impl: W, heartbeat_timer: C) -> Self {
         Self {
@@ -70,18 +58,30 @@ where
     }
 }
 
-impl<T, W, C> DataWriter<T> for DataWriterImpl<T, W, C>
+impl<Foo, W, C> AsRef<W> for DataWriterImpl<Foo, W, C> {
+    fn as_ref(&self) -> &W {
+        &self.rtps_writer_impl
+    }
+}
+
+impl<Foo, W, C> AsMut<W> for DataWriterImpl<Foo, W, C> {
+    fn as_mut(&mut self) -> &mut W {
+        &mut self.rtps_writer_impl
+    }
+}
+
+impl<Foo, W, C> DataWriter<Foo> for DataWriterImpl<Foo, W, C>
 where
-    T: DdsSerialize,
-    W: RtpsWriterOperations + for<'a> WriterHistoryCacheAddChangeMut<'a, T>,
+    Foo: DdsSerialize,
+    W: RtpsWriterOperations + for<'a> WriterHistoryCacheAddChangeMut<'a, Foo>,
 {
-    fn register_instance(&mut self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
+    fn register_instance(&mut self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
     }
 
     fn register_instance_w_timestamp(
         &mut self,
-        _instance: T,
+        _instance: Foo,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -89,7 +89,7 @@ where
 
     fn unregister_instance(
         &mut self,
-        _instance: T,
+        _instance: Foo,
         _handle: Option<InstanceHandle>,
     ) -> DDSResult<()> {
         unimplemented!()
@@ -97,28 +97,28 @@ where
 
     fn unregister_instance_w_timestamp(
         &mut self,
-        _instance: T,
+        _instance: Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> DDSResult<()> {
+    fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_instance(&self, _instance: &T) -> DDSResult<Option<InstanceHandle>> {
+    fn lookup_instance(&self, _instance: &Foo) -> DDSResult<Option<InstanceHandle>> {
         todo!()
     }
 
-    fn write(&mut self, _data: &T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, _data: &Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn write_w_timestamp(
         &mut self,
-        data: &T,
+        data: &Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
@@ -131,13 +131,13 @@ where
         Ok(())
     }
 
-    fn dispose(&mut self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn dispose(&mut self, _data: Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         unimplemented!()
     }
 
     fn dispose_w_timestamp(
         &mut self,
-        _data: T,
+        _data: Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
@@ -179,7 +179,7 @@ where
         todo!()
     }
 
-    fn get_topic(&self) -> &dyn Topic<T> {
+    fn get_topic(&self) -> &dyn Topic<Foo> {
         unimplemented!()
     }
 
@@ -207,9 +207,9 @@ where
     }
 }
 
-impl<T, W, C> Entity for DataWriterImpl<T, W, C> {
+impl<Foo, W, C> Entity for DataWriterImpl<Foo, W, C> {
     type Qos = DataWriterQos;
-    type Listener = Box<dyn DataWriterListener<DataType = T>>;
+    type Listener = Box<dyn DataWriterListener<DataType = Foo>>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // let qos = qos.unwrap_or_default();
@@ -255,7 +255,7 @@ impl<T, W, C> Entity for DataWriterImpl<T, W, C> {
     }
 }
 
-impl<T, C> StatelessWriterSubmessageProducer for DataWriterImpl<T, RtpsStatelessWriterImpl, C> {
+impl<Foo, C> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, RtpsStatelessWriterImpl, C> {
     fn produce_submessages(
         &mut self,
     ) -> Vec<(&'_ RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
@@ -286,7 +286,7 @@ impl<T, C> StatelessWriterSubmessageProducer for DataWriterImpl<T, RtpsStateless
     }
 }
 
-impl<T, C> StatefulWriterSubmessageProducer for DataWriterImpl<T, RtpsStatefulWriterImpl, C>
+impl<Foo, C> StatefulWriterSubmessageProducer for DataWriterImpl<Foo, RtpsStatefulWriterImpl, C>
 where
     C: Timer,
 {

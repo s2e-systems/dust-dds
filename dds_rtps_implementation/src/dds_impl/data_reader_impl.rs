@@ -20,29 +20,29 @@ use crate::{
     utils::message_receiver::ProcessDataSubmessage,
 };
 
-pub type RtpsReaderType<T> = RtpsReader<Vec<Locator>, ReaderHistoryCache<T>>;
+pub type RtpsReaderType<Foo> = RtpsReader<Vec<Locator>, ReaderHistoryCache<Foo>>;
 
-pub struct DataReaderImpl<T, R> {
+pub struct DataReaderImpl<Foo, R> {
     rtps_reader: R,
     _qos: DataReaderQos,
-    _listener: Option<Box<dyn DataReaderListener<DataType = T> + Send + Sync>>,
+    _listener: Option<Box<dyn DataReaderListener<DataType = Foo> + Send + Sync>>,
 }
 
-impl<T, R> AsRef<R> for DataReaderImpl<T, R> {
+impl<Foo, R> AsRef<R> for DataReaderImpl<Foo, R> {
     fn as_ref(&self) -> &R {
         &self.rtps_reader
     }
 }
 
-impl<T, R> AsMut<R> for DataReaderImpl<T, R> {
+impl<Foo, R> AsMut<R> for DataReaderImpl<Foo, R> {
     fn as_mut(&mut self) -> &mut R {
         &mut self.rtps_reader
     }
 }
 
-impl<T> ProcessDataSubmessage for DataReaderImpl<T, RtpsStatelessReaderImpl<T>>
+impl<Foo> ProcessDataSubmessage for DataReaderImpl<Foo, RtpsStatelessReaderImpl<Foo>>
 where
-    T: for<'a> DdsDeserialize<'a>,
+    Foo: for<'a> DdsDeserialize<'a>,
 {
     fn process_data_submessage(
         &mut self,
@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<T, R> DataReaderImpl<T, R> {
+impl<Foo, R> DataReaderImpl<Foo, R> {
     pub fn new(qos: DataReaderQos, rtps_reader: R) -> Self {
         Self {
             rtps_reader,
@@ -90,12 +90,12 @@ impl<T, R> DataReaderImpl<T, R> {
 //     })
 //     .collect())
 
-impl<'a, T, R> DataReader<'a, T> for DataReaderImpl<T, R>
+impl<'a, Foo, R> DataReader<'a, Foo> for DataReaderImpl<Foo, R>
 where
-    T: for<'de> DdsDeserialize<'de> + 'static,
-    R: ReaderHistoryCacheGetChange<'a, T>,
+    Foo: for<'de> DdsDeserialize<'de> + 'static,
+    R: ReaderHistoryCacheGetChange<'a, Foo>,
 {
-    type Samples = Vec<&'a T>;
+    type Samples = Vec<&'a Foo>;
 
     fn read(
         &'a self,
@@ -117,7 +117,7 @@ where
 
     fn take(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
         _max_samples: i32,
         _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
@@ -129,7 +129,7 @@ where
 
     fn read_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
         _max_samples: i32,
         _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
@@ -139,7 +139,7 @@ where
 
     fn take_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
         _max_samples: i32,
         _a_condition: rust_dds_api::infrastructure::read_condition::ReadCondition,
@@ -149,7 +149,7 @@ where
 
     fn read_next_sample(
         &self,
-        _data_value: &mut [T],
+        _data_value: &mut [Foo],
         _sample_info: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
     ) -> DDSResult<()> {
         todo!()
@@ -157,7 +157,7 @@ where
 
     fn take_next_sample(
         &self,
-        _data_value: &mut [T],
+        _data_value: &mut [Foo],
         _sample_info: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
     ) -> DDSResult<()> {
         todo!()
@@ -165,7 +165,7 @@ where
 
     fn read_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
         _max_samples: i32,
         _a_handle: rust_dds_api::dcps_psm::InstanceHandle,
@@ -178,7 +178,7 @@ where
 
     fn take_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
         _max_samples: i32,
         _a_handle: rust_dds_api::dcps_psm::InstanceHandle,
@@ -191,7 +191,7 @@ where
 
     fn read_next_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
         _max_samples: i32,
         _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
@@ -204,7 +204,7 @@ where
 
     fn take_next_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
         _max_samples: i32,
         _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
@@ -217,7 +217,7 @@ where
 
     fn read_next_instance_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
         _max_samples: i32,
         _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
@@ -228,7 +228,7 @@ where
 
     fn take_next_instance_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
         _max_samples: i32,
         _previous_handle: rust_dds_api::dcps_psm::InstanceHandle,
@@ -239,7 +239,7 @@ where
 
     fn return_loan(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Foo],
         _sample_infos: &mut [rust_dds_api::infrastructure::sample_info::SampleInfo],
     ) -> DDSResult<()> {
         todo!()
@@ -247,13 +247,13 @@ where
 
     fn get_key_value(
         &self,
-        _key_holder: &mut T,
+        _key_holder: &mut Foo,
         _handle: rust_dds_api::dcps_psm::InstanceHandle,
     ) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_instance(&self, _instance: &T) -> rust_dds_api::dcps_psm::InstanceHandle {
+    fn lookup_instance(&self, _instance: &Foo) -> rust_dds_api::dcps_psm::InstanceHandle {
         todo!()
     }
 
@@ -320,7 +320,7 @@ where
         todo!()
     }
 
-    fn get_topicdescription(&self) -> &dyn TopicDescription<T> {
+    fn get_topicdescription(&self) -> &dyn TopicDescription<Foo> {
         todo!()
     }
 
@@ -352,10 +352,10 @@ where
     }
 }
 
-impl<T, R> Entity for DataReaderImpl<T, R> {
+impl<Foo, R> Entity for DataReaderImpl<Foo, R> {
     type Qos = DataReaderQos;
 
-    type Listener = Box<dyn DataReaderListener<DataType = T>>;
+    type Listener = Box<dyn DataReaderListener<DataType = Foo>>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
