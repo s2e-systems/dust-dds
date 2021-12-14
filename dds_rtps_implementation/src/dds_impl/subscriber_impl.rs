@@ -17,6 +17,7 @@ use rust_dds_api::{
         subscriber::{Subscriber, SubscriberDataReaderFactory},
         subscriber_listener::SubscriberListener,
     },
+    topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
     behavior::reader::stateful_reader::RtpsStatefulReader,
@@ -111,24 +112,25 @@ impl SubscriberImpl {
     }
 }
 
-impl<'dr, T> SubscriberDataReaderFactory<'dr, T> for SubscriberImpl
+impl<'dr, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberImpl
 where
-    T: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
+    Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
-    type TopicType = ();
-    type DataReaderType = RtpsShared<dyn DataReader<'dr, T, Samples = Vec<&'dr T>> + Send + Sync>;
+    type TopicType = RtpsShared<dyn TopicDescription<Foo> + Send + Sync>;
+    type DataReaderType =
+        RtpsShared<dyn DataReader<'dr, Foo, Samples = Vec<&'dr Foo>> + Send + Sync>;
 
     fn datareader_factory_create_datareader(
         &'_ self,
         _a_topic: &'_ Self::TopicType,
         qos: Option<DataReaderQos>,
-        _a_listener: Option<&'static dyn DataReaderListener<DataType = T>>,
+        _a_listener: Option<&'static dyn DataReaderListener<DataType = Foo>>,
         _mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         let qos = qos.unwrap_or(self.default_data_reader_qos.clone());
         qos.is_consistent().ok()?;
 
-        let (entity_kind, topic_kind) = match T::has_key() {
+        let (entity_kind, topic_kind) = match Foo::has_key() {
             true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
             false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
         };
@@ -151,7 +153,7 @@ where
         let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
-        let rtps_reader = RtpsStatefulReaderImpl::<T>::new(RtpsStatefulReader::new(
+        let rtps_reader = RtpsStatefulReaderImpl::<Foo>::new(RtpsStatefulReader::new(
             guid,
             topic_kind,
             reliability_level,
@@ -186,8 +188,10 @@ where
             .iter()
             .cloned()
             .find_map(|x| {
-                Arc::downcast::<RwLock<DataReaderImpl<T, RtpsStatefulReaderImpl<T>>>>(x.into_any())
-                    .ok()
+                Arc::downcast::<RwLock<DataReaderImpl<Foo, RtpsStatefulReaderImpl<Foo>>>>(
+                    x.into_any(),
+                )
+                .ok()
             });
 
         if let Some(found_data_reader) = found_data_reader {
@@ -199,8 +203,10 @@ where
             .iter()
             .cloned()
             .find_map(|x| {
-                Arc::downcast::<RwLock<DataReaderImpl<T, RtpsStatelessReaderImpl<T>>>>(x.into_any())
-                    .ok()
+                Arc::downcast::<RwLock<DataReaderImpl<Foo, RtpsStatelessReaderImpl<Foo>>>>(
+                    x.into_any(),
+                )
+                .ok()
             });
 
         if let Some(found_data_reader) = found_data_reader {
@@ -333,6 +339,11 @@ impl ProcessDataSubmessage for SubscriberImpl {
 #[cfg(test)]
 mod tests {
 
+    use mockall::mock;
+    use rust_dds_api::{
+        domain::domain_participant::DomainParticipant, topic::topic_description::TopicDescription,
+    };
+
     use super::*;
     struct MockDdsType;
 
@@ -370,6 +381,16 @@ mod tests {
         }
     }
 
+    mock! {
+        Topic<Foo>{}
+
+        impl<Foo> TopicDescription<Foo> for Topic<Foo> {
+            fn get_participant(&self) -> &'static dyn DomainParticipant;
+            fn get_type_name(&self) -> DDSResult<&'static str>;
+            fn get_name(&self) -> DDSResult<&'static str>;
+        }
+    }
+
     #[test]
     fn lookup_existing_datareader() {
         let rtps_group = RtpsGroup::new(Guid {
@@ -380,10 +401,12 @@ mod tests {
             },
         });
         let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![], vec![]);
+        let topic: RtpsShared<dyn TopicDescription<MockDdsType> + Send + Sync> =
+            rtps_shared_new(MockTopic::new());
         subscriber
-            .create_datareader::<MockDdsType>(&(), None, None, 0)
+            .create_datareader::<MockDdsType>(&topic, None, None, 0)
             .unwrap();
-        let data_reader = subscriber.lookup_datareader::<MockDdsType>(&());
+        let data_reader = subscriber.lookup_datareader::<MockDdsType>(&topic);
 
         assert!(data_reader.is_some())
     }
@@ -397,8 +420,10 @@ mod tests {
                 entity_kind: 1,
             },
         });
+        let topic: RtpsShared<dyn TopicDescription<MockDdsType> + Send + Sync> =
+            rtps_shared_new(MockTopic::new());
         let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![], vec![]);
-        let data_reader = subscriber.lookup_datareader::<MockDdsType>(&());
+        let data_reader = subscriber.lookup_datareader::<MockDdsType>(&topic);
 
         assert!(data_reader.is_none())
     }
@@ -413,10 +438,14 @@ mod tests {
             },
         });
         let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![], vec![]);
+        let topic: RtpsShared<dyn TopicDescription<MockDdsType> + Send + Sync> =
+            rtps_shared_new(MockTopic::new());
+        let other_topic: RtpsShared<dyn TopicDescription<OtherMockDdsType> + Send + Sync> =
+            rtps_shared_new(MockTopic::new());
         subscriber
-            .create_datareader::<MockDdsType>(&(), None, None, 0)
+            .create_datareader::<MockDdsType>(&topic, None, None, 0)
             .unwrap();
-        let data_reader = subscriber.lookup_datareader::<OtherMockDdsType>(&());
+        let data_reader = subscriber.lookup_datareader::<OtherMockDdsType>(&other_topic);
 
         assert!(data_reader.is_none())
     }

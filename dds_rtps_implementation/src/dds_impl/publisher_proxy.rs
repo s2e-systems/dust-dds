@@ -11,12 +11,14 @@ use rust_dds_api::{
         publisher::{Publisher, PublisherDataWriterFactory},
     },
     return_type::{DDSError, DDSResult},
+    topic::topic_description::TopicDescription,
 };
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
     utils::shared_object::{
-        rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+        rtps_shared_downgrade, rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade,
+        RtpsShared, RtpsWeak,
     },
 };
 
@@ -49,7 +51,7 @@ impl AsRef<RtpsWeak<PublisherImpl>> for PublisherProxy<'_> {
 
 impl<'dw, Foo> PublisherDataWriterFactory<'dw, Foo> for PublisherProxy<'_>
 where
-    Foo: DdsType + DdsSerialize + Send + 'static,
+    Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
     type TopicType = TopicProxy<'dw, Foo>;
     type DataWriterType = DataWriterProxy<'dw, Foo>;
@@ -61,19 +63,14 @@ where
         a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        todo!()
-        // let data_writer_weak =
-        //     rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl).ok()?)
-        //         .datawriter_factory_create_datawriter(
-        //             a_topic.topic_impl(),
-        //             qos,
-        //             a_listener,
-        //             mask,
-        //         )?;
-
-        // let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
-
-        // Some(datawriter)
+        let publisher_shared = rtps_weak_upgrade(&self.publisher_impl).ok()?;
+        let topic_shared: RtpsShared<dyn TopicDescription<Foo> + Send + Sync> =
+            rtps_weak_upgrade(a_topic.as_ref()).ok()?;
+        let data_writer_shared = rtps_shared_write_lock(&publisher_shared)
+            .datawriter_factory_create_datawriter(&topic_shared, qos, a_listener, mask)?;
+        let data_writer_weak = rtps_shared_downgrade(&data_writer_shared);
+        let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
+        Some(datawriter)
     }
 
     fn datawriter_factory_delete_datawriter(

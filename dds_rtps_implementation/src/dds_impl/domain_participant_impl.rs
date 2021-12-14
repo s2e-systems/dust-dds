@@ -34,7 +34,7 @@ use rust_rtps_pim::{
         participant::RtpsParticipant,
         types::{
             EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
-            USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
+            USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
         },
     },
 };
@@ -63,10 +63,10 @@ pub struct DomainParticipantImpl<S, P> {
     domain_id: DomainId,
     domain_tag: Arc<String>,
     qos: DomainParticipantQos,
-    _builtin_subscriber: RtpsShared<S>,
+    builtin_subscriber: RtpsShared<S>,
     builtin_publisher: RtpsShared<P>,
-    _user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<S>>>,
-    _user_defined_subscriber_counter: u8,
+    user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<S>>>,
+    user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: RtpsShared<Vec<RtpsShared<P>>>,
     user_defined_publisher_counter: AtomicU8,
@@ -114,10 +114,10 @@ impl<S, P> DomainParticipantImpl<S, P> {
             domain_id,
             domain_tag,
             qos: domain_participant_qos,
-            _builtin_subscriber: builtin_subscriber,
+            builtin_subscriber,
             builtin_publisher,
-            _user_defined_subscriber_list: user_defined_subscriber_list,
-            _user_defined_subscriber_counter: 0,
+            user_defined_subscriber_list,
+            user_defined_subscriber_counter: AtomicU8::new(0),
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list,
             user_defined_publisher_counter: AtomicU8::new(0),
@@ -185,14 +185,8 @@ impl<S> DomainParticipantPublisherFactory<'_> for DomainParticipantImpl<S, Publi
         );
         let guid = Guid::new(self.rtps_participant.entity.guid.prefix, entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let data_writer_impl_list = Vec::new();
-        let publisher_impl = PublisherImpl::new(
-            publisher_qos,
-            rtps_group,
-            data_writer_impl_list,
-            vec![],
-            None,
-        );
+        let publisher_impl =
+            PublisherImpl::new(publisher_qos, rtps_group, Vec::new(), Vec::new(), None);
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
         rtps_shared_write_lock(&self.user_defined_publisher_list)
             .push(publisher_impl_shared.clone());
@@ -215,66 +209,37 @@ impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<Sub
 
     fn subscriber_factory_create_subscriber(
         &'s self,
-        _qos: Option<SubscriberQos>,
+        qos: Option<SubscriberQos>,
         _a_listener: Option<&'static dyn SubscriberListener>,
         _mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
-        // let subscriber_qos = qos.unwrap_or(self.default_subscriber_qos.clone());
-        // self.user_defined_subscriber_counter += 1;
-        // let entity_id = EntityId::new(
-        //     [self.user_defined_subscriber_counter, 0, 0],
-        //     USER_DEFINED_WRITER_GROUP,
-        // );
-        // let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
-        // let rtps_group = RtpsGroupImpl::new(guid);
-        // let data_reader_storage_list = Vec::new();
-        // let subscriber_storage =
-        //     SubscriberImpl::new(subscriber_qos, rtps_group, data_reader_storage_list);
-        // let subscriber_storage_shared = RtpsShared::new(subscriber_storage);
-        // let subscriber_storage_weak = subscriber_storage_shared.downgrade();
-        // self.user_defined_subscriber_storage
-        //     .push(subscriber_storage_shared);
-        // Some(subscriber_storage_weak)
-
-        // let subscriber_storage_weak = self
-        //     .domain_participant_storage
-        //     .lock()
-        //     .create_subscriber(qos, a_listener, mask)?;
-        // let subscriber = SubscriberProxy::new(self, subscriber_storage_weak);
-        // Some(subscriber)
-        todo!()
+        let subscriber_qos = qos.unwrap_or(self.default_subscriber_qos.clone());
+        let user_defined_subscriber_counter = self
+            .user_defined_subscriber_counter
+            .fetch_add(1, atomic::Ordering::SeqCst);
+        let entity_id = EntityId::new(
+            [user_defined_subscriber_counter, 0, 0],
+            USER_DEFINED_READER_GROUP,
+        );
+        let guid = Guid::new(self.rtps_participant.entity.guid.prefix, entity_id);
+        let rtps_group = RtpsGroup::new(guid);
+        let subscriber = SubscriberImpl::new(subscriber_qos, rtps_group, Vec::new(), Vec::new());
+        let subscriber_shared = rtps_shared_new(subscriber);
+        rtps_shared_write_lock(&self.user_defined_subscriber_list).push(subscriber_shared.clone());
+        Some(subscriber_shared)
     }
 
     fn subscriber_factory_delete_subscriber(
         &self,
-        _a_subscriber: &Self::SubscriberType,
+        a_subscriber: &Self::SubscriberType,
     ) -> DDSResult<()> {
-        // let subscriber_storage = a_subscriber.upgrade()?;
-        // self.user_defined_subscriber_storage
-        //     .retain(|x| x != &subscriber_storage);
-        // Ok(())
-
-        // if std::ptr::eq(a_subscriber.get_participant(), self) {
-        //     self.domain_participant_storage
-        //         .lock()
-        //         .delete_subscriber(a_subscriber.subscriber_storage())
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Subscriber can only be deleted from its parent participant",
-        //     ))
-        // }
-        todo!()
+        rtps_shared_write_lock(&self.user_defined_subscriber_list)
+            .retain(|x| !Arc::ptr_eq(&x, &a_subscriber));
+        Ok(())
     }
 
     fn subscriber_factory_get_builtin_subscriber(&'s self) -> Self::SubscriberType {
-        // self.builtin_subscriber_storage[0].clone().downgrade()
-
-        // let subscriber_storage_weak = self
-        //     .domain_participant_storage
-        //     .lock()
-        //     .get_builtin_subscriber();
-        // SubscriberProxy::new(self, subscriber_storage_weak)
-        todo!()
+        self.builtin_subscriber.clone()
     }
 }
 
@@ -335,8 +300,10 @@ where
         Some(topic_impl_shared)
     }
 
-    fn topic_factory_delete_topic(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {
-        todo!()
+    fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()> {
+        let any_topic: RtpsShared<dyn AnyTopic> = a_topic.clone();
+        rtps_shared_write_lock(&self.topic_list).retain(|x| !Arc::ptr_eq(x, &any_topic));
+        Ok(())
     }
 
     fn topic_factory_find_topic(

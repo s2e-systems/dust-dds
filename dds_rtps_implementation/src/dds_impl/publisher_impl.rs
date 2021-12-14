@@ -48,7 +48,7 @@ use crate::{
     },
     utils::{
         clock::StdTimer,
-        shared_object::{rtps_shared_new, RtpsShared},
+        shared_object::{rtps_shared_new, rtps_shared_write_lock, RtpsShared},
         transport::TransportWrite,
     },
 };
@@ -247,9 +247,14 @@ where
 
     fn datawriter_factory_delete_datawriter(
         &self,
-        _a_datawriter: &Self::DataWriterType,
+        a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
-        todo!()
+        println!("DELETION UNIMPLEMENTED");
+        // self.stateful_data_writer_impl_list
+        //     .lock()
+        //     .unwrap()
+        //     .retain(|x| Arc::ptr_eq(x, a_datawriter));
+        Ok(())
     }
 
     fn datawriter_factory_lookup_datawriter(

@@ -14,12 +14,14 @@ use rust_dds_api::{
         data_reader_listener::DataReaderListener,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
     },
+    topic::topic_description::TopicDescription,
 };
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
     utils::shared_object::{
-        rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
+        rtps_shared_downgrade, rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade,
+        RtpsShared, RtpsWeak,
     },
 };
 
@@ -50,7 +52,7 @@ impl AsRef<RtpsWeak<SubscriberImpl>> for SubscriberProxy<'_> {
     }
 }
 
-impl<'dr, 's, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy<'s>
+impl<'dr, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy<'dr>
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
@@ -64,17 +66,14 @@ where
         a_listener: Option<&'static dyn DataReaderListener<DataType = Foo>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
-        todo!()
-        // let reader_storage_weak =
-        //     rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl).ok()?)
-        //         .datareader_factory_create_datareader(
-        //             a_topic.topic_impl(),
-        //             qos,
-        //             a_listener,
-        //             mask,
-        //         )?;
-        // let data_reader = DataReaderProxy::new(self, a_topic, reader_storage_weak);
-        // Some(data_reader)
+        let subscriber_shared = rtps_weak_upgrade(&self.subscriber_impl).ok()?;
+        let topic_shared: RtpsShared<dyn TopicDescription<Foo> + Send + Sync> =
+            rtps_weak_upgrade(a_topic.as_ref()).ok()?;
+        let data_reader_shared = rtps_shared_write_lock(&subscriber_shared)
+            .datareader_factory_create_datareader(&topic_shared, qos, a_listener, mask)?;
+        let data_reader_weak = rtps_shared_downgrade(&data_reader_shared);
+        let data_reader = DataReaderProxy::new(self, a_topic, data_reader_weak);
+        Some(data_reader)
     }
 
     fn datareader_factory_delete_datareader(
