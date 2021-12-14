@@ -3,6 +3,7 @@ use std::io::Write;
 use rust_dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
+    publication::publisher::Publisher,
 };
 use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
@@ -34,11 +35,14 @@ impl<'de> DdsDeserialize<'de> for TestType {
 fn create_delete_publisher() {
     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
     participant.enable().unwrap();
-    participant
+    let my_topic = participant
         .create_topic::<TestType>("my_topic", None, None, 0)
         .unwrap();
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    publisher
+        .create_datawriter(&my_topic, None, None, 0)
+        .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(5));
-    // let publisher = participant.create_publisher(None, None, 0).unwrap();
 
     // assert_eq!(participant.delete_publisher(&publisher), Ok(()));
     // assert_eq!(publisher.get_qos(), Err(DDSError::AlreadyDeleted));

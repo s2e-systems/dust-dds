@@ -7,11 +7,18 @@ use std::{
 };
 
 use rust_dds_api::{
-    dcps_psm::StatusMask,
+    builtin_topics::PublicationBuiltinTopicData,
+    dcps_psm::{BuiltInTopicKey, Duration, StatusMask, Time},
     infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos},
-        qos_policy::ReliabilityQosPolicyKind,
+        qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+            DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            ReliabilityQosPolicyKind, TopicDataQosPolicy, UserDataQosPolicy,
+        },
     },
     publication::{
         data_writer::DataWriter,
@@ -23,15 +30,18 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::writer::{
-        reader_locator::RtpsReaderLocator, reader_proxy::RtpsReaderProxy,
-        stateful_writer::RtpsStatefulWriter,
+    behavior::{
+        reader::writer_proxy::RtpsWriterProxy,
+        writer::{
+            reader_locator::RtpsReaderLocator, reader_proxy::RtpsReaderProxy,
+            stateful_writer::RtpsStatefulWriter,
+        },
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
+            EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
     },
@@ -236,6 +246,52 @@ where
             nack_suppression_duration,
             data_max_size_serialized,
         ));
+
+        if let Some(sedp_builtin_publications_announcer) = &self.sedp_builtin_publications_announcer
+        {
+            let mut sedp_builtin_publications_announcer_lock =
+                rtps_shared_write_lock(sedp_builtin_publications_announcer);
+            let sedp_discovered_writer_data = SedpDiscoveredWriterData {
+                writer_proxy: RtpsWriterProxy {
+                    remote_writer_guid: guid,
+                    unicast_locator_list: vec![],
+                    multicast_locator_list: vec![],
+                    data_max_size_serialized: None,
+                    remote_group_entity_id: EntityId::new([0; 3], 0),
+                },
+                publication_builtin_topic_data: PublicationBuiltinTopicData {
+                    key: BuiltInTopicKey { value: guid.into() },
+                    participant_key: BuiltInTopicKey { value: [1; 16] },
+                    topic_name: "MyTopic".to_string(),
+                    type_name: "MyType".to_string(),
+                    durability: DurabilityQosPolicy::default(),
+                    durability_service: DurabilityServiceQosPolicy::default(),
+                    deadline: DeadlineQosPolicy::default(),
+                    latency_budget: LatencyBudgetQosPolicy::default(),
+                    liveliness: LivelinessQosPolicy::default(),
+                    reliability: ReliabilityQosPolicy {
+                        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                        max_blocking_time: Duration::new(3, 0),
+                    },
+                    lifespan: LifespanQosPolicy::default(),
+                    user_data: UserDataQosPolicy::default(),
+                    ownership: OwnershipQosPolicy::default(),
+                    ownership_strength: OwnershipStrengthQosPolicy::default(),
+                    destination_order: DestinationOrderQosPolicy::default(),
+                    presentation: PresentationQosPolicy::default(),
+                    partition: PartitionQosPolicy::default(),
+                    topic_data: TopicDataQosPolicy::default(),
+                    group_data: GroupDataQosPolicy::default(),
+                },
+            };
+            sedp_builtin_publications_announcer_lock
+                .write_w_timestamp(
+                    &sedp_discovered_writer_data,
+                    None,
+                    Time { sec: 0, nanosec: 0 },
+                )
+                .unwrap();
+        }
         let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl, StdTimer::new());
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         self.stateful_data_writer_impl_list
