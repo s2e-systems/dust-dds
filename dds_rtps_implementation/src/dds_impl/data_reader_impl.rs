@@ -10,7 +10,8 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::reader::RtpsReader, stateless_reader_behavior::BestEffortStatelessReaderBehavior,
+        reader::reader::RtpsReader, stateful_reader_behavior::ReliableStatefulReaderBehavior,
+        stateless_reader_behavior::BestEffortStatelessReaderBehavior,
     },
     structure::types::{GuidPrefix, Locator},
 };
@@ -72,8 +73,7 @@ where
         _source_guid_prefix: GuidPrefix,
         _data: &DataSubmessageRead,
     ) {
-        todo!("Stateful reader process data submessage")
-        // self.rtps_reader.0.receive_data(source_guid_prefix, data)
+        ReliableStatefulReaderBehavior::receive_data();
     }
 }
 

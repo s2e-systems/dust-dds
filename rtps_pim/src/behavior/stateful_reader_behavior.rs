@@ -1,16 +1,35 @@
-// use crate::{
-//     behavior::cache_change_from_data,
-//     messages::{
-//         submessages::{Data, Gap},
-//         RtpsSubmessage,
-//     },
-//     structure::HistoryCache,
-//     types::{GuidPrefix, GUID},
-// };
+use crate::{
+    messages::submessages::DataSubmessage,
+    structure::types::{Guid, GuidPrefix},
+};
 
-// use super::WriterProxy;
+use super::reader::stateful_reader::RtpsStatefulReaderOperations;
 
-// pub struct BestEffortWriterProxyBehavior;
+pub struct BestEffortStatefulReaderBehavior;
+
+impl BestEffortStatefulReaderBehavior {
+    pub fn receive_data<L, P>(
+        stateful_reader: &impl RtpsStatefulReaderOperations<L>,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessage<P, &[u8]>,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
+        if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
+            //writer_proxy.avail // expected_seq_num := writer_proxy.available_changes_max() + 1;
+        }
+
+
+
+    }
+}
+
+pub struct ReliableStatefulReaderBehavior;
+
+impl ReliableStatefulReaderBehavior {
+    pub fn receive_data() {
+        todo!("ReliableStatefulReaderBehavior receive data");
+    }
+}
 
 // impl BestEffortWriterProxyBehavior {
 //     pub fn try_process_message(
