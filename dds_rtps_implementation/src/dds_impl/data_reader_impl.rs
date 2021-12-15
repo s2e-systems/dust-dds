@@ -18,7 +18,7 @@ use crate::{
     dds_type::DdsDeserialize,
     rtps_impl::{
         rtps_reader_history_cache_impl::{ReaderHistoryCache, ReaderHistoryCacheGetChange},
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+        rtps_stateless_reader_impl::RtpsStatelessReaderImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
     },
     utils::message_receiver::ProcessDataSubmessage,
 };
@@ -53,6 +53,20 @@ where
         data: &DataSubmessageRead,
     ) {
         self.rtps_reader.0.receive_data(source_guid_prefix, data)
+    }
+}
+
+impl<Foo> ProcessDataSubmessage for DataReaderImpl<Foo, RtpsStatefulReaderImpl<Foo>>
+where
+    Foo: for<'a> DdsDeserialize<'a>,
+{
+    fn process_data_submessage(
+        &mut self,
+        _source_guid_prefix: GuidPrefix,
+        _data: &DataSubmessageRead,
+    ) {
+        todo!("Stateful reader process data submessage")
+        // self.rtps_reader.0.receive_data(source_guid_prefix, data)
     }
 }
 

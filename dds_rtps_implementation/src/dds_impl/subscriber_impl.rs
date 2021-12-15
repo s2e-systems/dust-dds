@@ -39,7 +39,7 @@ use crate::{
     },
     utils::{
         message_receiver::ProcessDataSubmessage,
-        shared_object::{rtps_shared_new, RtpsShared},
+        shared_object::{rtps_shared_new, rtps_shared_write_lock, RtpsShared},
     },
 };
 
@@ -81,7 +81,7 @@ where
     }
 
     fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>> {
-        todo!()
+        self
     }
 }
 
@@ -323,14 +323,19 @@ impl ProcessDataSubmessage for SubscriberImpl {
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        let data_reader_list = self.stateless_data_reader_list.lock().unwrap();
-        for reader in data_reader_list.iter() {
-            reader
-                .clone()
-                .into_process_data_submessage()
-                .write()
-                .unwrap()
-                .process_data_submessage(source_guid_prefix, data);
+        {
+            let stateless_data_reader_list = self.stateless_data_reader_list.lock().unwrap();
+            for stateless_reader in stateless_data_reader_list.iter() {
+                rtps_shared_write_lock(&stateless_reader.clone().into_process_data_submessage())
+                    .process_data_submessage(source_guid_prefix, data);
+            }
+        }
+        {
+            let stateful_data_reader_list = self.stateful_data_reader_list.lock().unwrap();
+            for stateful_reader in stateful_data_reader_list.iter() {
+                rtps_shared_write_lock(&stateful_reader.clone().into_process_data_submessage())
+                    .process_data_submessage(source_guid_prefix, data)
+            }
         }
     }
 }
