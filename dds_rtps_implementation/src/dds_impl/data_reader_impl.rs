@@ -9,7 +9,9 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::{reader::reader::RtpsReader, stateless_reader_behavior::StatelessReaderBehavior},
+    behavior::{
+        reader::reader::RtpsReader, stateless_reader_behavior::BestEffortStatelessReaderBehavior,
+    },
     structure::types::{GuidPrefix, Locator},
 };
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
@@ -18,7 +20,8 @@ use crate::{
     dds_type::DdsDeserialize,
     rtps_impl::{
         rtps_reader_history_cache_impl::{ReaderHistoryCache, ReaderHistoryCacheGetChange},
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     },
     utils::message_receiver::ProcessDataSubmessage,
 };
@@ -52,7 +55,11 @@ where
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        self.rtps_reader.0.receive_data(source_guid_prefix, data)
+        BestEffortStatelessReaderBehavior::receive_data(
+            &mut self.rtps_reader.0.reader,
+            source_guid_prefix,
+            data,
+        )
     }
 }
 
@@ -116,10 +123,10 @@ where
 
     fn read_borrowed_samples(
         &'a self,
-        max_samples: i32,
-        sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
-        view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
-        instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
+        _max_samples: i32,
+        _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
+        _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
+        _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         if let Some(cc) = self
             .rtps_reader
