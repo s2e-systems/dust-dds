@@ -1,5 +1,3 @@
-use std::ops::{Deref, DerefMut};
-
 use rust_rtps_pim::{
     behavior::writer::reader_locator::{
         RtpsReaderLocator, RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations,
@@ -7,39 +5,27 @@ use rust_rtps_pim::{
     structure::types::{Locator, SequenceNumber},
 };
 pub struct RtpsReaderLocatorImpl {
-    pub reader_locator: RtpsReaderLocator,
+    locator: Locator,
+    expects_inline_qos: bool,
     last_sent_sequence_number: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
 }
 
 impl RtpsReaderLocatorAttributes for RtpsReaderLocatorImpl {
     fn locator(&self) -> &Locator {
-        &self.reader_locator.locator
+        &self.locator
     }
 
     fn expects_inline_qos(&self) -> &bool {
-        &self.reader_locator.expects_inline_qos
-    }
-}
-
-impl Deref for RtpsReaderLocatorImpl {
-    type Target = RtpsReaderLocator;
-
-    fn deref(&self) -> &Self::Target {
-        &self.reader_locator
-    }
-}
-
-impl DerefMut for RtpsReaderLocatorImpl {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.reader_locator
+        &self.expects_inline_qos
     }
 }
 
 impl RtpsReaderLocatorImpl {
     pub fn new(reader_locator: RtpsReaderLocator) -> Self {
         Self {
-            reader_locator,
+            locator: reader_locator.locator,
+            expects_inline_qos: reader_locator.expects_inline_qos,
             last_sent_sequence_number: 0,
             requested_changes: Vec::new(),
         }

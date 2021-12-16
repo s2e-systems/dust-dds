@@ -3,7 +3,7 @@ use rust_rtps_pim::{
         stateless_writer_behavior::BestEffortStatelessWriterBehavior,
         types::Duration,
         writer::{
-            reader_locator::RtpsReaderLocator,
+            reader_locator::{RtpsReaderLocator, RtpsReaderLocatorAttributes},
             stateless_writer::{RtpsStatelessWriterConstructor, RtpsStatelessWriterOperations},
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
@@ -170,7 +170,7 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
     }
 
     fn reader_locator_remove(&mut self, a_locator: &Locator) {
-        self.reader_locators.retain(|x| &x.locator != a_locator)
+        self.reader_locators.retain(|x| x.locator() != a_locator)
     }
 
     fn unsent_changes_reset(&mut self) {
