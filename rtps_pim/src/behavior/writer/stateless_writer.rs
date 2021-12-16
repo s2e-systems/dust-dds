@@ -1,13 +1,9 @@
 use crate::{
     behavior::types::Duration,
-    messages::submessages::{DataSubmessage, GapSubmessage},
-    structure::{
-        history_cache::RtpsHistoryCacheConstructor,
-        types::{Guid, Locator, ReliabilityKind, TopicKind},
-    },
+    structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
-use super::{reader_locator::RtpsReaderLocator, writer::RtpsWriter};
+use super::reader_locator::RtpsReaderLocator;
 
 pub trait StatelessWriterAttributes {
     fn reader_locators(&self);
@@ -34,13 +30,4 @@ pub trait RtpsStatelessWriterOperations {
     fn reader_locator_remove(&mut self, a_locator: &Locator);
 
     fn unsent_changes_reset(&mut self);
-}
-
-pub trait StatelessWriterBehavior<'a, S, P, D, L, C> {
-    fn send_unsent_data(
-        &mut self,
-        writer: &'a RtpsWriter<L, C>,
-        send_data: &mut dyn FnMut(DataSubmessage<P, D>),
-        send_gap: &mut dyn FnMut(GapSubmessage<S>),
-    );
 }
