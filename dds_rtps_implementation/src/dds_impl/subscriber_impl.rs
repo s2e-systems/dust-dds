@@ -20,12 +20,12 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::reader::stateful_reader::RtpsStatefulReader,
+    behavior::reader::stateful_reader::RtpsStatefulReaderConstructor,
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
-            USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
         },
     },
 };
@@ -147,21 +147,19 @@ where
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
         };
 
-        let unicast_locator_list: Vec<Locator> = vec![];
-        let multicast_locator_list: Vec<Locator> = vec![];
         let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
-        let rtps_reader = RtpsStatefulReaderImpl::<Foo>::new(RtpsStatefulReader::new(
+        let rtps_reader = RtpsStatefulReaderImpl::<Foo>::new(
             guid,
             topic_kind,
             reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
+            &[],
+            &[],
             heartbeat_response_delay,
             heartbeat_supression_duration,
             expects_inline_qos,
-        ));
+        );
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
         self.stateful_data_reader_list

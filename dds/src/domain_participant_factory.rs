@@ -305,24 +305,21 @@ impl DomainParticipantFactory {
         >(guid_prefix, &[], &[]);
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_rtps_reader =
-            RtpsStatefulReaderImpl::<SedpDiscoveredWriterData>::new(
-                SedpBuiltinPublicationsReader::create(guid_prefix, vec![], vec![]),
-            );
+        let sedp_builtin_publications_rtps_reader = SedpBuiltinPublicationsReader::create::<
+            RtpsStatefulReaderImpl<SedpDiscoveredWriterData>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_publications_rtps_writer = RtpsStatefulWriterImpl::new(
             SedpBuiltinPublicationsWriter::create(guid_prefix, vec![], vec![]),
         );
-        let sedp_builtin_subscriptions_rtps_reader =
-            RtpsStatefulReaderImpl::<SedpDiscoveredReaderData>::new(
-                SedpBuiltinSubscriptionsReader::create(guid_prefix, vec![], vec![]),
-            );
+        let sedp_builtin_subscriptions_rtps_reader = SedpBuiltinSubscriptionsReader::create::<
+            RtpsStatefulReaderImpl<SedpDiscoveredReaderData>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_rtps_writer = RtpsStatefulWriterImpl::new(
             SedpBuiltinSubscriptionsWriter::create(guid_prefix, vec![], vec![]),
         );
-        let sedp_builtin_topics_rtps_reader =
-            RtpsStatefulReaderImpl::<SedpDiscoveredTopicData>::new(
-                SedpBuiltinTopicsReader::create(guid_prefix, vec![], vec![]),
-            );
+        let sedp_builtin_topics_rtps_reader = SedpBuiltinTopicsReader::create::<
+            RtpsStatefulReaderImpl<SedpDiscoveredTopicData>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_topics_rtps_writer = RtpsStatefulWriterImpl::new(
             SedpBuiltinTopicsWriter::create(guid_prefix, vec![], vec![]),
         );

@@ -331,10 +331,9 @@ fn process_discovery_data_happy_path() {
 
     let discovered_participant = shared_data_reader.read(1, &[], &[], &[]).unwrap();
 
-    let sedp_builtin_publications_rtps_reader =
-        RtpsStatefulReaderImpl::<SedpDiscoveredWriterData>::new(
-            SedpBuiltinPublicationsReader::create(guid_prefix, vec![], vec![]),
-        );
+    let sedp_builtin_publications_rtps_reader = SedpBuiltinPublicationsReader::create::<
+        RtpsStatefulReaderImpl<SedpDiscoveredWriterData>,
+    >(guid_prefix, &[], &[]);
     let mut sedp_built_publications_reader: DataReaderImpl<SedpDiscoveredWriterData, _> =
         DataReaderImpl::new(
             DataReaderQos::default(),
