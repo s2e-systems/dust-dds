@@ -160,10 +160,9 @@ fn send_and_receive_discovery_data_happy_path() {
 
     // Reception
 
-    let spdp_builtin_participant_rtps_reader_impl =
-        RtpsStatelessReaderImpl::<SpdpDiscoveredParticipantData>::new(
-            SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]), vec![], vec![]),
-        );
+    let spdp_builtin_participant_rtps_reader_impl = SpdpBuiltinParticipantReader::create::<
+        RtpsStatelessReaderImpl<SpdpDiscoveredParticipantData>,
+    >(GuidPrefix([5; 12]), &[], &[]);
 
     let data_reader: DataReaderImpl<SpdpDiscoveredParticipantData, _> = DataReaderImpl::new(
         DataReaderQos::default(),
@@ -300,10 +299,9 @@ fn process_discovery_data_happy_path() {
 
     // Reception
 
-    let spdp_builtin_participant_rtps_reader_impl =
-        RtpsStatelessReaderImpl::<SpdpDiscoveredParticipantData>::new(
-            SpdpBuiltinParticipantReader::create(GuidPrefix([5; 12]), vec![], vec![]),
-        );
+    let spdp_builtin_participant_rtps_reader_impl = SpdpBuiltinParticipantReader::create::<
+        RtpsStatelessReaderImpl<SpdpDiscoveredParticipantData>,
+    >(GuidPrefix([5; 12]), &[], &[]);
 
     let spdp_builtin_participant_data_reader: DataReaderImpl<SpdpDiscoveredParticipantData, _> =
         DataReaderImpl::new(

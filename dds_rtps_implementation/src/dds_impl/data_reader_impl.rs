@@ -57,7 +57,8 @@ where
         data: &DataSubmessageRead,
     ) {
         BestEffortStatelessReaderBehavior::receive_data(
-            &mut self.rtps_reader.0.reader,
+            &mut self.rtps_reader.guid,
+            &mut self.rtps_reader.reader_cache,
             source_guid_prefix,
             data,
         )

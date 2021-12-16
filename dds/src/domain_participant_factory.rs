@@ -300,10 +300,9 @@ impl DomainParticipantFactory {
         let default_transport = UdpTransport::new(socket);
 
         // /////// Create SPDP and SEDP endpoints
-        let spdp_builtin_participant_rtps_reader =
-            RtpsStatelessReaderImpl::<SpdpDiscoveredParticipantData>::new(
-                SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]),
-            );
+        let spdp_builtin_participant_rtps_reader = SpdpBuiltinParticipantReader::create::<
+            RtpsStatelessReaderImpl<SpdpDiscoveredParticipantData>,
+        >(guid_prefix, &[], &[]);
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_publications_rtps_reader =

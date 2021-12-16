@@ -7,13 +7,12 @@ use crate::{
     },
 };
 
-use super::reader::reader::RtpsReader;
-
 pub struct BestEffortStatelessReaderBehavior;
 
 impl BestEffortStatelessReaderBehavior {
-    pub fn receive_data<'a, L, C, P>(
-        reader: &mut RtpsReader<L, C>,
+    pub fn receive_data<'a, C, P>(
+        reader_guid: &Guid,
+        reader_cache: &mut C,
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessage<P, &[u8]>,
     ) where
@@ -21,7 +20,7 @@ impl BestEffortStatelessReaderBehavior {
         P: AsRef<[Parameter<&'a [u8]>]>,
     {
         let reader_id = data.reader_id.value;
-        if &reader_id == reader.endpoint.entity.guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
+        if &reader_id == reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
             let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
@@ -40,7 +39,7 @@ impl BestEffortStatelessReaderBehavior {
                 data_value,
                 inline_qos,
             };
-            reader.reader_cache.add_change(a_change);
+            reader_cache.add_change(a_change);
         }
     }
 }
