@@ -9,3 +9,7 @@ impl RtpsEntity {
         Self { guid }
     }
 }
+
+pub trait RtpsEntityAttributes {
+    fn guid(&self) -> &Guid;
+}

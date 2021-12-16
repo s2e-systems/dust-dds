@@ -9,6 +9,25 @@ use crate::{
 
 use super::{reader_locator::RtpsReaderLocator, writer::RtpsWriter};
 
+pub trait StatelessWriterAttributes {
+    fn reader_locators(&self);
+}
+
+pub trait StatelessWriterConstructor<L> {
+    fn new(
+        guid: Guid,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: L,
+        multicast_locator_list: L,
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_size_serialized: Option<i32>,
+    ) -> Self;
+}
+
 pub struct RtpsStatelessWriter<L, C, R> {
     pub writer: RtpsWriter<L, C>,
     pub reader_locators: R,
