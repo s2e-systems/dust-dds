@@ -1,13 +1,25 @@
 use std::ops::{Deref, DerefMut};
 
 use rust_rtps_pim::{
-    behavior::writer::reader_locator::{RtpsReaderLocator, RtpsReaderLocatorOperations},
-    structure::types::SequenceNumber,
+    behavior::writer::reader_locator::{
+        RtpsReaderLocator, RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations,
+    },
+    structure::types::{Locator, SequenceNumber},
 };
 pub struct RtpsReaderLocatorImpl {
     pub reader_locator: RtpsReaderLocator,
     last_sent_sequence_number: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
+}
+
+impl RtpsReaderLocatorAttributes for RtpsReaderLocatorImpl {
+    fn locator(&self) -> &Locator {
+        &self.reader_locator.locator
+    }
+
+    fn expects_inline_qos(&self) -> &bool {
+        &self.reader_locator.expects_inline_qos
+    }
 }
 
 impl Deref for RtpsReaderLocatorImpl {

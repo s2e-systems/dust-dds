@@ -1,5 +1,6 @@
 use rust_rtps_pim::{
     behavior::{
+        stateless_writer_behavior::BestEffortStatelessWriterBehavior,
         types::Duration,
         writer::{
             reader_locator::RtpsReaderLocator,
@@ -40,6 +41,39 @@ pub struct RtpsStatelessWriterImpl {
     pub data_max_size_serialized: Option<i32>,
     pub writer_cache: WriterHistoryCache,
     pub reader_locators: Vec<RtpsReaderLocatorImpl>,
+}
+
+pub struct RtpsReaderLocatorIterator<'a> {
+    reader_locator_iterator: std::slice::IterMut<'a, RtpsReaderLocatorImpl>,
+    writer_cache: &'a WriterHistoryCache,
+    last_change_sequence_number: &'a SequenceNumber,
+}
+
+impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
+    type Item = BestEffortStatelessWriterBehavior<'a, RtpsReaderLocatorImpl, WriterHistoryCache>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let reader_locator = self.reader_locator_iterator.next()?;
+        Some(BestEffortStatelessWriterBehavior {
+            reader_locator,
+            writer_cache: self.writer_cache,
+            last_change_sequence_number: self.last_change_sequence_number,
+        })
+    }
+}
+
+impl<'a> IntoIterator for &'a mut RtpsStatelessWriterImpl {
+    type Item = BestEffortStatelessWriterBehavior<'a, RtpsReaderLocatorImpl, WriterHistoryCache>;
+
+    type IntoIter = RtpsReaderLocatorIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        RtpsReaderLocatorIterator {
+            reader_locator_iterator: self.reader_locators.iter_mut(),
+            writer_cache: &self.writer_cache,
+            last_change_sequence_number: &self.last_change_sequence_number,
+        }
+    }
 }
 
 impl RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl {

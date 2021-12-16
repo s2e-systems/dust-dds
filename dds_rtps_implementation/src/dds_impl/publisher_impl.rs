@@ -70,9 +70,7 @@ use crate::{
 use super::data_reader_impl::DataReaderImpl;
 
 pub trait StatelessWriterSubmessageProducer {
-    fn produce_submessages(
-        &mut self,
-    ) -> Vec<(&'_ RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)>;
+    fn produce_submessages(&mut self) -> Vec<(&'_ Locator, Vec<RtpsSubmessageTypeWrite<'_>>)>;
 }
 
 pub trait StatefulWriterSubmessageProducer {
@@ -193,9 +191,9 @@ impl PublisherImpl {
             let mut rtps_stateless_writer_lock = rtps_stateless_writer_arc_lock.write().unwrap();
             let destined_submessages = rtps_stateless_writer_lock.produce_submessages();
 
-            for (reader_locator, submessage) in destined_submessages {
+            for (locator, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);
-                transport.write(&message, &reader_locator.locator);
+                transport.write(&message, locator);
             }
         }
 

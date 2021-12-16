@@ -32,6 +32,11 @@ impl RtpsReaderLocator {
     }
 }
 
+pub trait RtpsReaderLocatorAttributes {
+    fn locator(&self) -> &Locator;
+    fn expects_inline_qos(&self) -> &bool;
+}
+
 pub trait RtpsReaderLocatorOperations {
     type SequenceNumberVector;
 

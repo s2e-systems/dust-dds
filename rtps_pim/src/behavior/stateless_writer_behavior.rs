@@ -19,6 +19,7 @@ use crate::{
 
 use super::writer::{reader_locator::RtpsReaderLocatorOperations, writer::RtpsWriter};
 
+
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.1 Best-Effort StatelessWriter Behavior
 pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
     pub reader_locator: &'a mut R,
@@ -39,7 +40,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
     {
         while let Some(seq_num) = self
             .reader_locator
-            .next_unsent_change(&self.last_change_sequence_number)
+            .next_unsent_change(self.last_change_sequence_number)
         {
             if let Some(change) = self.writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;

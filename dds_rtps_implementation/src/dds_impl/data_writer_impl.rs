@@ -14,12 +14,18 @@ use rust_rtps_pim::{
         stateful_writer_behavior::ReliableStatefulWriterBehavior,
         stateless_writer_behavior::BestEffortStatelessWriterBehavior,
         writer::{
-            reader_locator::RtpsReaderLocator, reader_proxy::RtpsReaderProxy,
+            reader_locator::{
+                RtpsReaderLocator, RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations,
+            },
+            reader_proxy::RtpsReaderProxy,
             writer::RtpsWriterOperations,
         },
     },
-    messages::types::Count,
-    structure::types::{ChangeKind, Locator},
+    messages::{submessage_elements::Parameter, types::Count},
+    structure::{
+        history_cache::RtpsHistoryCacheGetChange,
+        types::{ChangeKind, Locator},
+    },
 };
 use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
 
@@ -255,19 +261,17 @@ impl<Foo, W, C> Entity for DataWriterImpl<Foo, W, C> {
     }
 }
 
-impl<Foo, C> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, RtpsStatelessWriterImpl, C> {
-    fn produce_submessages(
-        &mut self,
-    ) -> Vec<(&'_ RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
+impl<Foo, C, W, R, H> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, W, C>
+where
+    for<'a> &'a mut W: IntoIterator<Item = BestEffortStatelessWriterBehavior<'a, R, H>>,
+    R: RtpsReaderLocatorOperations + RtpsReaderLocatorAttributes + 'static,
+    H: for<'a> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> + 'static,
+{
+    fn produce_submessages(&mut self) -> Vec<(&'_ Locator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
         let mut destined_submessages = Vec::new();
 
-        for reader_locator_impl in &mut self.rtps_writer_impl.reader_locators {
+        for mut best_effort_behavior in &mut self.rtps_writer_impl {
             let submessages = RefCell::new(Vec::new());
-            let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
-                reader_locator: reader_locator_impl,
-                writer_cache: &self.rtps_writer_impl.writer_cache,
-                last_change_sequence_number: &self.rtps_writer_impl.last_change_sequence_number,
-            };
             best_effort_behavior.send_unsent_changes(
                 |data| {
                     submessages
@@ -282,10 +286,8 @@ impl<Foo, C> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, RtpsState
             );
             let submessages = submessages.take();
             if !submessages.is_empty() {
-                destined_submessages.push((
-                    &best_effort_behavior.reader_locator.reader_locator,
-                    submessages,
-                ));
+                destined_submessages
+                    .push((best_effort_behavior.reader_locator.locator(), submessages));
             }
         }
         destined_submessages
