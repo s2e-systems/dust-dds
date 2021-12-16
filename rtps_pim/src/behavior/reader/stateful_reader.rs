@@ -1,4 +1,10 @@
-use crate::{structure::{types::{Guid, TopicKind, ReliabilityKind}, history_cache::RtpsHistoryCacheConstructor}, behavior::types::Duration};
+use crate::{
+    behavior::types::Duration,
+    structure::{
+        history_cache::RtpsHistoryCacheConstructor,
+        types::{Guid, ReliabilityKind, TopicKind},
+    },
+};
 
 use super::{reader::RtpsReader, writer_proxy::RtpsWriterProxy};
 
@@ -39,7 +45,9 @@ where
 }
 
 pub trait RtpsStatefulReaderOperations<L> {
+    type WriterProxyType;
+
     fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<L>);
     fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid);
-    fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&RtpsWriterProxy<L>>;
+    fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&Self::WriterProxyType>;
 }

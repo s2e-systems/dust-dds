@@ -27,6 +27,10 @@ impl<L> RtpsWriterProxy<L> {
     }
 }
 
+pub trait RtpsWriterProxyAttributes {
+    fn remote_writer_guid(&self) -> &Guid;
+}
+
 pub trait RtpsWriterProxyOperations {
     type SequenceNumberVector;
 

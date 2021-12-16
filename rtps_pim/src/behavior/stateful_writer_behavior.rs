@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::writer::{
-    reader_proxy::{RtpsReaderProxyOperations, RtpsReaderProxyTrait},
+    reader_proxy::{RtpsReaderProxyOperations, RtpsReaderProxyAttributes},
     writer::RtpsWriter,
 };
 
@@ -27,7 +27,7 @@ pub struct BestEffortStatefulWriterBehavior;
 impl BestEffortStatefulWriterBehavior {
     /// Implement 8.4.9.1.4 Transition T4
     pub fn send_unsent_changes<'a, L, C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations + RtpsReaderProxyTrait),
+        reader_proxy: &mut (impl RtpsReaderProxyOperations + RtpsReaderProxyAttributes),
         writer: &'a RtpsWriter<L, C>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
@@ -107,7 +107,7 @@ pub struct ReliableStatefulWriterBehavior;
 impl ReliableStatefulWriterBehavior {
     /// Implement 8.4.9.2.4 Transition T4
     pub fn send_unsent_changes<'a, L, C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations + RtpsReaderProxyTrait),
+        reader_proxy: &mut (impl RtpsReaderProxyOperations + RtpsReaderProxyAttributes),
         writer: &'a RtpsWriter<L, C>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),

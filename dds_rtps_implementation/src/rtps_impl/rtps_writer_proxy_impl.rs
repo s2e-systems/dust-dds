@@ -1,14 +1,19 @@
 use rust_rtps_pim::{
-    behavior::reader::writer_proxy::{RtpsWriterProxy, RtpsWriterProxyOperations},
+    behavior::reader::writer_proxy::{RtpsWriterProxy, RtpsWriterProxyOperations, RtpsWriterProxyAttributes},
     structure::types::{Locator, SequenceNumber},
 };
 
-#[derive(derive_more::AsRef, derive_more::AsMut)]
 pub struct RtpsWriterProxyImpl(RtpsWriterProxy<Vec<Locator>>);
 
 impl RtpsWriterProxyImpl {
     pub fn new(writer_proxy: RtpsWriterProxy<Vec<Locator>>) -> Self {
         Self(writer_proxy)
+    }
+}
+
+impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
+    fn remote_writer_guid(&self) -> &rust_rtps_pim::structure::types::Guid {
+        &self.0.remote_writer_guid
     }
 }
 

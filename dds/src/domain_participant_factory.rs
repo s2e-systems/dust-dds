@@ -583,9 +583,10 @@ mod tests {
         StatefulReader {}
 
         impl RtpsStatefulReaderOperations<Vec<Locator>> for StatefulReader {
+            type WriterProxyType = ();
             fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<Vec<Locator>>);
             fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid);
-            fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&'static RtpsWriterProxy<Vec<Locator>>>;
+            fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&'static ()>;
         }
     }
 

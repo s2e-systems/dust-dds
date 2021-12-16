@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use rust_rtps_pim::{
-    behavior::writer::reader_proxy::{RtpsReaderProxy, RtpsReaderProxyOperations, RtpsReaderProxyTrait},
+    behavior::writer::reader_proxy::{RtpsReaderProxy, RtpsReaderProxyOperations, RtpsReaderProxyAttributes},
     structure::types::{Locator, SequenceNumber, Guid},
 };
 
@@ -37,7 +37,7 @@ impl DerefMut for RtpsReaderProxyImpl {
     }
 }
 
-impl RtpsReaderProxyTrait for RtpsReaderProxyImpl {
+impl RtpsReaderProxyAttributes for RtpsReaderProxyImpl {
     fn remote_reader_guid(&self) -> &Guid {
         &self.reader_proxy.remote_reader_guid
     }

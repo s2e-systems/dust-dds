@@ -3,23 +3,24 @@ use crate::{
     structure::types::{Guid, GuidPrefix},
 };
 
-use super::reader::stateful_reader::RtpsStatefulReaderOperations;
+use super::reader::{
+    stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxyOperations,
+};
 
 pub struct BestEffortStatefulReaderBehavior;
 
 impl BestEffortStatefulReaderBehavior {
     pub fn receive_data<L, P>(
-        stateful_reader: &impl RtpsStatefulReaderOperations<L>,
+        stateful_reader: &impl RtpsStatefulReaderOperations<L,
+            WriterProxyType = impl RtpsWriterProxyOperations,
+        >,
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessage<P, &[u8]>,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
         if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
-            //writer_proxy.avail // expected_seq_num := writer_proxy.available_changes_max() + 1;
+            let expected_seq_nem = writer_proxy.available_changes_max(); // expected_seq_num := writer_proxy.available_changes_max() + 1;
         }
-
-
-
     }
 }
 
