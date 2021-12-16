@@ -263,10 +263,12 @@ impl<Foo, C> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, RtpsState
 
         for reader_locator_impl in &mut self.rtps_writer_impl.reader_locators {
             let submessages = RefCell::new(Vec::new());
-            BestEffortStatelessWriterBehavior::send_unsent_changes(
-                reader_locator_impl,
-                &self.rtps_writer_impl.writer_cache,
-                &self.rtps_writer_impl.last_change_sequence_number,
+            let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
+                reader_locator: reader_locator_impl,
+                writer_cache: &self.rtps_writer_impl.writer_cache,
+                last_change_sequence_number: &self.rtps_writer_impl.last_change_sequence_number,
+            };
+            best_effort_behavior.send_unsent_changes(
                 |data| {
                     submessages
                         .borrow_mut()
@@ -280,7 +282,10 @@ impl<Foo, C> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, RtpsState
             );
             let submessages = submessages.take();
             if !submessages.is_empty() {
-                destined_submessages.push((&reader_locator_impl.reader_locator, submessages));
+                destined_submessages.push((
+                    &best_effort_behavior.reader_locator.reader_locator,
+                    submessages,
+                ));
             }
         }
         destined_submessages

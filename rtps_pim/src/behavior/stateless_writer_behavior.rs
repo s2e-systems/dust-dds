@@ -20,21 +20,28 @@ use crate::{
 use super::writer::{reader_locator::RtpsReaderLocatorOperations, writer::RtpsWriter};
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.1 Best-Effort StatelessWriter Behavior
-pub struct BestEffortStatelessWriterBehavior;
+pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
+    pub reader_locator: &'a mut R,
+    pub writer_cache: &'a C,
+    pub last_change_sequence_number: &'a SequenceNumber,
+}
 
-impl BestEffortStatelessWriterBehavior {
+impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<'a, P, D, S>(
-        reader_locator: &mut impl RtpsReaderLocatorOperations,
-        writer_cache: &'a impl RtpsHistoryCacheGetChange<'a, P, D>,
-        last_change_sequence_number: &SequenceNumber,
+    pub fn send_unsent_changes<P, D, S>(
+        &mut self,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
+        R: RtpsReaderLocatorOperations,
+        C: RtpsHistoryCacheGetChange<'a, P, D>,
         S: FromIterator<SequenceNumber>,
     {
-        while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
-            if let Some(change) = writer_cache.get_change(&seq_num) {
+        while let Some(seq_num) = self
+            .reader_locator
+            .next_unsent_change(&self.last_change_sequence_number)
+        {
+            if let Some(change) = self.writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind {
