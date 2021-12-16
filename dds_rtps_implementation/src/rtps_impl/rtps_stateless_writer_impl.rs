@@ -75,7 +75,7 @@ impl RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl {
 
 impl RtpsEntityAttributes for RtpsStatelessWriterImpl {
     fn guid(&self) -> &Guid {
-        todo!()
+        &self.guid
     }
 }
 
