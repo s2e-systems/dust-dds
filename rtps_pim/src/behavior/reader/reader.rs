@@ -15,6 +15,15 @@ pub struct RtpsReader<L, C> {
     pub expects_inline_qos: bool,
 }
 
+pub trait RtpsReaderAttributes {
+    type ReaderHistoryCacheType;
+
+    fn heartbeat_response_delay(&self) -> &Duration;
+    fn heartbeat_supression_duration(&self) -> &Duration;
+    fn reader_cache(&self) -> &Self::ReaderHistoryCacheType;
+    fn expects_inline_qos(&self) -> &bool;
+}
+
 impl<L, C> RtpsReader<L, C> {
     pub fn new(
         guid: Guid,

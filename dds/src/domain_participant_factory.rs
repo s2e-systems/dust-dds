@@ -216,7 +216,7 @@ const _d2: u16 = 1;
 const d3: u16 = 11;
 
 fn get_builtin_udp_socket(domain_id: u16) -> Option<UdpSocket> {
-    for participant_id in 0..120 {
+    for _participant_id in 0..120 {
         let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + d0));
         if let Ok(socket) = UdpSocket::bind(socket_addr) {
             return Some(socket);
