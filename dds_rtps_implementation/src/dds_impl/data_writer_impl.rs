@@ -261,11 +261,12 @@ impl<Foo, C> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, RtpsState
     ) -> Vec<(&'_ RtpsReaderLocator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
         let mut destined_submessages = Vec::new();
 
-        for reader_locator_impl in &mut self.rtps_writer_impl.0.reader_locators {
+        for reader_locator_impl in &mut self.rtps_writer_impl.reader_locators {
             let submessages = RefCell::new(Vec::new());
             BestEffortStatelessWriterBehavior::send_unsent_changes(
                 reader_locator_impl,
-                &self.rtps_writer_impl.0.writer,
+                &self.rtps_writer_impl.writer_cache,
+                &self.rtps_writer_impl.last_change_sequence_number,
                 |data| {
                     submessages
                         .borrow_mut()

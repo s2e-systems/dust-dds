@@ -304,9 +304,8 @@ impl DomainParticipantFactory {
             RtpsStatelessReaderImpl::<SpdpDiscoveredParticipantData>::new(
                 SpdpBuiltinParticipantReader::create(guid_prefix, vec![], vec![]),
             );
-        let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
-            SpdpBuiltinParticipantWriter::create(guid_prefix, vec![], vec![]),
-        );
+        let mut spdp_builtin_participant_rtps_writer =
+            SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_publications_rtps_reader =
             RtpsStatefulReaderImpl::<SedpDiscoveredWriterData>::new(
                 SedpBuiltinPublicationsReader::create(guid_prefix, vec![], vec![]),

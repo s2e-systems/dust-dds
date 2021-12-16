@@ -1,5 +1,4 @@
 /// This file implements the behaviors described in 8.4.8 RTPS StatelessWriter Behavior
-
 use core::iter::FromIterator;
 
 use crate::{
@@ -25,19 +24,17 @@ pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
     /// Implement 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<'a, L, C, P, D, S>(
+    pub fn send_unsent_changes<'a, P, D, S>(
         reader_locator: &mut impl RtpsReaderLocatorOperations,
-        writer: &'a RtpsWriter<L, C>,
+        writer_cache: &'a impl RtpsHistoryCacheGetChange<'a, P, D>,
+        last_change_sequence_number: &SequenceNumber,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        C: RtpsHistoryCacheGetChange<'a, P, D>,
         S: FromIterator<SequenceNumber>,
     {
-        while let Some(seq_num) =
-            reader_locator.next_unsent_change(&writer.last_change_sequence_number)
-        {
-            if let Some(change) = writer.writer_cache.get_change(&seq_num) {
+        while let Some(seq_num) = reader_locator.next_unsent_change(&last_change_sequence_number) {
+            if let Some(change) = writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind {

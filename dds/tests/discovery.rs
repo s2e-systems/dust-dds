@@ -116,9 +116,9 @@ fn send_and_receive_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
-        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]),
-    );
+    let mut spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
+        RtpsStatelessWriterImpl,
+    >(GuidPrefix([3; 12]), &[], &[]);
 
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(
@@ -241,9 +241,9 @@ fn process_discovery_data_happy_path() {
         lease_duration,
     };
 
-    let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriterImpl::new(
-        SpdpBuiltinParticipantWriter::create(GuidPrefix([3; 12]), vec![], vec![]),
-    );
+    let mut spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
+        RtpsStatelessWriterImpl,
+    >(GuidPrefix([3; 12]), &[], &[]);
 
     let spdp_discovery_locator = RtpsReaderLocator::new(
         Locator::new(

@@ -1,13 +1,13 @@
 use crate::{
     behavior::{
         reader::stateless_reader::RtpsStatelessReader, types::DURATION_ZERO,
-        writer::stateless_writer::RtpsStatelessWriter,
+        writer::stateless_writer::RtpsStatelessWriterConstructor,
     },
     structure::{
         history_cache::RtpsHistoryCacheConstructor,
         types::{
-            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, BUILT_IN_READER_WITH_KEY,
-            BUILT_IN_WRITER_WITH_KEY,
+            EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind,
+            BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY,
         },
     },
 };
@@ -21,19 +21,18 @@ pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
 pub struct SpdpBuiltinParticipantWriter;
 
 impl SpdpBuiltinParticipantWriter {
-    pub fn create<L, C, R>(
+    pub fn create<W>(
         guid_prefix: GuidPrefix,
-        unicast_locator_list: L,
-        multicast_locator_list: L,
-    ) -> RtpsStatelessWriter<L, C, R>
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+    ) -> W
     where
-        C: RtpsHistoryCacheConstructor,
-        R: Default,
+        W: RtpsStatelessWriterConstructor,
     {
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
 
-        RtpsStatelessWriter::new(
+        RtpsStatelessWriterConstructor::new(
             spdp_builtin_participant_writer_guid,
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
