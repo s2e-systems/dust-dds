@@ -41,7 +41,6 @@ use rust_rtps_pim::{
 
 use crate::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_topic_data::SedpDiscoveredTopicData,
         sedp_discovered_writer_data::SedpDiscoveredWriterData,
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
@@ -270,7 +269,7 @@ where
     ) -> Option<Self::TopicType> {
         let topic_qos = qos.unwrap_or(self.default_topic_qos.clone());
 
-        let builtin_publisher_lock = rtps_shared_read_lock(&self.builtin_publisher);
+        let _builtin_publisher_lock = rtps_shared_read_lock(&self.builtin_publisher);
         // if let Some(sedp_builtin_topics_writer) =
         //     builtin_publisher_lock.lookup_datawriter::<SedpDiscoveredTopicData>(&())
         // {

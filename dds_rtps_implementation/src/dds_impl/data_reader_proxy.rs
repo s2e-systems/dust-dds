@@ -1,6 +1,4 @@
-use crate::utils::shared_object::{
-    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
-};
+use crate::utils::shared_object::RtpsWeak;
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
@@ -58,10 +56,10 @@ where
 
     fn read_borrowed_samples(
         &'a self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         todo!("Return Loaned Samples with the lock")
     }
@@ -299,7 +297,7 @@ impl<Foo> Entity for DataReaderProxy<'_, Foo> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<DataType = Foo>>;
 
-    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)
         todo!()
     }
@@ -309,7 +307,11 @@ impl<Foo> Entity for DataReaderProxy<'_, Foo> {
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?)
         // .set_listener(a_listener, mask)
         todo!()

@@ -34,15 +34,14 @@ use rust_rtps_pim::{
     behavior::{
         reader::writer_proxy::RtpsWriterProxy,
         writer::{
-            reader_locator::RtpsReaderLocator, reader_proxy::RtpsReaderProxy,
-            stateful_writer::RtpsStatefulWriter,
+            reader_proxy::RtpsReaderProxyAttributes, stateful_writer::RtpsStatefulWriterConstructor,
         },
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         group::RtpsGroup,
         types::{
-            EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
+            EntityId, Guid, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
     },
@@ -77,7 +76,7 @@ pub trait StatefulWriterSubmessageProducer {
     fn produce_submessages(
         &mut self,
     ) -> Vec<(
-        &'_ RtpsReaderProxy<Vec<Locator>>,
+        &'_ dyn RtpsReaderProxyAttributes,
         Vec<RtpsSubmessageTypeWrite<'_>>,
     )>;
 }
@@ -207,7 +206,7 @@ impl PublisherImpl {
 
             for (reader_proxy, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);
-                transport.write(&message, &reader_proxy.unicast_locator_list[0]);
+                transport.write(&message, &reader_proxy.unicast_locator_list()[0]);
             }
         }
     }
@@ -260,14 +259,14 @@ where
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
         };
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
+        let unicast_locator_list = &[];
+        let multicast_locator_list = &[];
         let push_mode = true;
         let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsStatefulWriterImpl::new(RtpsStatefulWriter::new(
+        let rtps_writer_impl = RtpsStatefulWriterImpl::new(
             guid,
             topic_kind,
             reliability_level,
@@ -278,7 +277,7 @@ where
             nack_response_delay,
             nack_suppression_duration,
             data_max_size_serialized,
-        ));
+        );
 
         if let Some(sedp_builtin_publications_announcer) = &self.sedp_builtin_publications_announcer
         {

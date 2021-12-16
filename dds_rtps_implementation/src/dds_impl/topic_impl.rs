@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use rust_dds_api::{
-    dcps_psm::InconsistentTopicStatus,
+    dcps_psm::{InconsistentTopicStatus, StatusMask},
     domain::domain_participant::DomainParticipant,
     infrastructure::{entity::Entity, qos::TopicQos},
     return_type::DDSResult,
@@ -9,7 +9,7 @@ use rust_dds_api::{
 };
 
 pub struct TopicImpl<Foo> {
-    qos: TopicQos,
+    _qos: TopicQos,
     type_name: &'static str,
     topic_name: String,
     phantom: PhantomData<Foo>,
@@ -18,7 +18,7 @@ pub struct TopicImpl<Foo> {
 impl<Foo> TopicImpl<Foo> {
     pub fn new(qos: TopicQos, type_name: &'static str, topic_name: &str) -> Self {
         Self {
-            qos,
+            _qos: qos,
             type_name,
             topic_name: topic_name.to_string(),
             phantom: PhantomData,
@@ -61,7 +61,7 @@ impl<Foo> Entity for TopicImpl<Foo> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<DataType = Foo>>;
 
-    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 
@@ -71,8 +71,8 @@ impl<Foo> Entity for TopicImpl<Foo> {
 
     fn set_listener(
         &self,
-        a_listener: Option<Self::Listener>,
-        mask: rust_dds_api::dcps_psm::StatusMask,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
     ) -> DDSResult<()> {
         todo!()
     }
@@ -87,7 +87,7 @@ impl<Foo> Entity for TopicImpl<Foo> {
         todo!()
     }
 
-    fn get_status_changes(&self) -> DDSResult<rust_dds_api::dcps_psm::StatusMask> {
+    fn get_status_changes(&self) -> DDSResult<StatusMask> {
         todo!()
     }
 

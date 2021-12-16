@@ -14,10 +14,8 @@ use rust_rtps_pim::{
         stateful_writer_behavior::ReliableStatefulWriterBehavior,
         stateless_writer_behavior::BestEffortStatelessWriterBehavior,
         writer::{
-            reader_locator::{
-                RtpsReaderLocator, RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations,
-            },
-            reader_proxy::RtpsReaderProxy,
+            reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations},
+            reader_proxy::RtpsReaderProxyAttributes,
             writer::RtpsWriterOperations,
         },
     },
@@ -33,7 +31,6 @@ use crate::{
     dds_type::DdsSerialize,
     rtps_impl::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
         rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut,
     },
     utils::clock::Timer,
@@ -301,7 +298,7 @@ where
     fn produce_submessages(
         &mut self,
     ) -> Vec<(
-        &'_ RtpsReaderProxy<Vec<Locator>>,
+        &'_ dyn RtpsReaderProxyAttributes,
         Vec<RtpsSubmessageTypeWrite<'_>>,
     )> {
         let mut destined_submessages = Vec::new();
@@ -309,21 +306,14 @@ where
         let mut heartbeat_submessage = None;
         if self.heartbeat_timer.elapsed()
             > std::time::Duration::new(
-                self.rtps_writer_impl
-                    .stateful_writer
-                    .writer
-                    .heartbeat_period
-                    .seconds as u64,
-                self.rtps_writer_impl
-                    .stateful_writer
-                    .writer
-                    .heartbeat_period
-                    .fraction,
+                self.rtps_writer_impl.heartbeat_period.seconds as u64,
+                self.rtps_writer_impl.heartbeat_period.fraction,
             )
         {
             {
                 ReliableStatefulWriterBehavior::send_heartbeat(
-                    &self.rtps_writer_impl.stateful_writer.writer,
+                    &self.rtps_writer_impl.guid,
+                    &self.rtps_writer_impl.writer_cache,
                     self.heartbeat_count,
                     &mut |heartbeat| {
                         heartbeat_submessage = Some(heartbeat);
@@ -334,11 +324,12 @@ where
             }
         }
 
-        for reader_proxy in &mut self.rtps_writer_impl.stateful_writer.matched_readers {
+        for reader_proxy in &mut self.rtps_writer_impl.matched_readers {
             let submessages = RefCell::new(Vec::new());
             ReliableStatefulWriterBehavior::send_unsent_changes(
                 reader_proxy,
-                &self.rtps_writer_impl.stateful_writer.writer,
+                &self.rtps_writer_impl.last_change_sequence_number,
+                &self.rtps_writer_impl.writer_cache,
                 |data| {
                     submessages
                         .borrow_mut()
@@ -358,7 +349,8 @@ where
             }
 
             if !submessages.is_empty() {
-                destined_submessages.push((&reader_proxy.reader_proxy, submessages));
+                let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes = reader_proxy;
+                destined_submessages.push((reader_proxy_attributes, submessages));
             }
         }
         destined_submessages
@@ -371,7 +363,10 @@ mod tests {
     use rust_rtps_pim::{
         behavior::{
             types::{Duration, DURATION_ZERO},
-            writer::stateful_writer::{RtpsStatefulWriter, RtpsStatefulWriterOperations},
+            writer::{
+                reader_proxy::RtpsReaderProxy,
+                stateful_writer::{RtpsStatefulWriterConstructor, RtpsStatefulWriterOperations},
+            },
         },
         messages::submessage_elements::Parameter,
         structure::{
@@ -380,6 +375,8 @@ mod tests {
             types::{InstanceHandle, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
         },
     };
+
+    use crate::dds_impl::publisher_impl;
 
     use super::*;
     struct EmptyTimer;
@@ -477,15 +474,15 @@ mod tests {
         let guid = GUID_UNKNOWN;
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::Reliable;
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
+        let unicast_locator_list = &[];
+        let multicast_locator_list = &[];
         let push_mode = true;
         let heartbeat_period = Duration::new(2, 0);
         let nack_response_delay = DURATION_ZERO;
         let nack_suppression_duration = DURATION_ZERO;
         let data_max_size_serialized = None;
 
-        let mut rtps_writer_impl = RtpsStatefulWriterImpl::new(RtpsStatefulWriter::new(
+        let mut rtps_writer_impl = RtpsStatefulWriterImpl::new(
             guid,
             topic_kind,
             reliability_level,
@@ -496,7 +493,7 @@ mod tests {
             nack_response_delay,
             nack_suppression_duration,
             data_max_size_serialized,
-        ));
+        );
         let reader_proxy =
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, vec![], vec![], false);
 
@@ -505,7 +502,10 @@ mod tests {
         let mut data_writer_impl: DataWriterImpl<MockData, _, _> =
             DataWriterImpl::new(DataWriterQos::default(), rtps_writer_impl, MockTimer);
 
-        let destined_submessages1 = data_writer_impl.produce_submessages();
+        let destined_submessages1 =
+            publisher_impl::StatefulWriterSubmessageProducer::produce_submessages(
+                &mut data_writer_impl,
+            );
         let produced_submessages1 = &destined_submessages1[0].1;
         assert_eq!(produced_submessages1.len(), 1);
         if let RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage) = &produced_submessages1[0]

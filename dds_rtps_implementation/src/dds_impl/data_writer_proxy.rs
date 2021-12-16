@@ -1,6 +1,4 @@
-use crate::utils::shared_object::{
-    rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
-};
+use crate::utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak};
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -177,7 +175,7 @@ impl<'dw, Foo> Entity for DataWriterProxy<'dw, Foo> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<DataType = Foo>>;
 
-    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).set_qos(qos)
         todo!()
     }
@@ -187,7 +185,11 @@ impl<'dw, Foo> Entity for DataWriterProxy<'dw, Foo> {
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
         //     .set_listener(a_listener, mask)
         todo!()

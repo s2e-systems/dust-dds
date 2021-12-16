@@ -10,24 +10,22 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::reader::RtpsReader, stateful_reader_behavior::ReliableStatefulReaderBehavior,
+        stateful_reader_behavior::ReliableStatefulReaderBehavior,
         stateless_reader_behavior::BestEffortStatelessReaderBehavior,
     },
-    structure::types::{GuidPrefix, Locator},
+    structure::types::GuidPrefix,
 };
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
     dds_type::DdsDeserialize,
     rtps_impl::{
-        rtps_reader_history_cache_impl::{ReaderHistoryCache, ReaderHistoryCacheGetChange},
+        rtps_reader_history_cache_impl::ReaderHistoryCacheGetChange,
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     },
     utils::message_receiver::ProcessDataSubmessage,
 };
-
-pub type RtpsReaderType<Foo> = RtpsReader<Vec<Locator>, ReaderHistoryCache<Foo>>;
 
 pub struct DataReaderImpl<Foo, R> {
     rtps_reader: R,

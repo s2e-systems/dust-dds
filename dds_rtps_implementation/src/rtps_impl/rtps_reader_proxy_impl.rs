@@ -1,8 +1,10 @@
 use std::ops::{Deref, DerefMut};
 
 use rust_rtps_pim::{
-    behavior::writer::reader_proxy::{RtpsReaderProxy, RtpsReaderProxyOperations, RtpsReaderProxyAttributes},
-    structure::types::{Locator, SequenceNumber, Guid},
+    behavior::writer::reader_proxy::{
+        RtpsReaderProxy, RtpsReaderProxyAttributes, RtpsReaderProxyOperations,
+    },
+    structure::types::{Guid, Locator, SequenceNumber, EntityId},
 };
 
 pub struct RtpsReaderProxyImpl {
@@ -40,6 +42,22 @@ impl DerefMut for RtpsReaderProxyImpl {
 impl RtpsReaderProxyAttributes for RtpsReaderProxyImpl {
     fn remote_reader_guid(&self) -> &Guid {
         &self.reader_proxy.remote_reader_guid
+    }
+
+    fn remote_group_entity_id(&self) -> &EntityId {
+        &self.remote_group_entity_id
+    }
+
+    fn unicast_locator_list(&self) -> &[Locator] {
+        self.unicast_locator_list.as_slice()
+    }
+
+    fn multicast_locator_list(&self) -> &[Locator] {
+        self.multicast_locator_list.as_slice()
+    }
+
+    fn expects_inline_qos(&self) -> &bool {
+        &self.expects_inline_qos
     }
 }
 

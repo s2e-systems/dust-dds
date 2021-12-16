@@ -26,7 +26,7 @@ use crate::{
 use super::{
     domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
     publisher_proxy::PublisherProxy, subscriber_impl::SubscriberImpl,
-    subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl, topic_proxy::TopicProxy,
+    subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy,
 };
 
 pub struct DomainParticipantProxy {

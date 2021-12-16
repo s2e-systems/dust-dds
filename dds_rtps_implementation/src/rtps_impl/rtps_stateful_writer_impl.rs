@@ -39,7 +39,7 @@ pub struct RtpsStatefulWriterImpl {
     pub last_change_sequence_number: SequenceNumber,
     pub data_max_size_serialized: Option<i32>,
     pub writer_cache: WriterHistoryCache,
-    matched_readers: Vec<RtpsReaderProxyImpl>,
+    pub matched_readers: Vec<RtpsReaderProxyImpl>,
 }
 
 impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
