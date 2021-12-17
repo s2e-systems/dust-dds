@@ -308,7 +308,7 @@ where
     )> {
         let mut destined_submessages = Vec::new();
 
-        let mut heartbeat_submessage = None;
+        // let mut heartbeat_submessage = None;
         if self.heartbeat_timer.elapsed()
             > std::time::Duration::new(
                 self.rtps_writer_impl.heartbeat_period.seconds as u64,
@@ -316,47 +316,49 @@ where
             )
         {
             {
-                ReliableStatefulWriterBehavior::send_heartbeat(
-                    &self.rtps_writer_impl.guid,
-                    &self.rtps_writer_impl.writer_cache,
-                    self.heartbeat_count,
-                    &mut |heartbeat| {
-                        heartbeat_submessage = Some(heartbeat);
-                    },
-                );
-                self.heartbeat_count += Count(1);
-                self.heartbeat_timer.reset();
+                todo!()
+                // ReliableStatefulWriterBehavior::send_heartbeat(
+                //     &self.rtps_writer_impl.guid,
+                //     &self.rtps_writer_impl.writer_cache,
+                //     self.heartbeat_count,
+                //     &mut |heartbeat| {
+                //         heartbeat_submessage = Some(heartbeat);
+                //     },
+                // );
+                // self.heartbeat_count += Count(1);
+                // self.heartbeat_timer.reset();
             }
         }
 
         for reader_proxy in &mut self.rtps_writer_impl.matched_readers {
-            let submessages = RefCell::new(Vec::new());
-            ReliableStatefulWriterBehavior::send_unsent_changes(
-                reader_proxy,
-                &self.rtps_writer_impl.last_change_sequence_number,
-                &self.rtps_writer_impl.writer_cache,
-                |data| {
-                    submessages
-                        .borrow_mut()
-                        .push(RtpsSubmessageTypeWrite::from(data))
-                },
-                |gap| {
-                    submessages
-                        .borrow_mut()
-                        .push(RtpsSubmessageTypeWrite::from(gap))
-                },
-            );
-            let mut submessages = submessages.take();
+            // let submessages = RefCell::new(Vec::new());
+            todo!()
+            // // ReliableStatefulWriterBehavior::send_unsent_changes(
+            // //     reader_proxy,
+            // //     &self.rtps_writer_impl.last_change_sequence_number,
+            // //     &self.rtps_writer_impl.writer_cache,
+            // //     |data| {
+            // //         submessages
+            // //             .borrow_mut()
+            // //             .push(RtpsSubmessageTypeWrite::from(data))
+            // //     },
+            // //     |gap| {
+            // //         submessages
+            // //             .borrow_mut()
+            // //             .push(RtpsSubmessageTypeWrite::from(gap))
+            // //     },
+            // // );
+            // let mut submessages = submessages.take();
 
-            // Add heartbeat to the submessages to be sent to every proxy
-            if let Some(heartbeat_submessage) = heartbeat_submessage.clone() {
-                submessages.push(RtpsSubmessageTypeWrite::from(heartbeat_submessage));
-            }
+            // // Add heartbeat to the submessages to be sent to every proxy
+            // if let Some(heartbeat_submessage) = heartbeat_submessage.clone() {
+            //     submessages.push(RtpsSubmessageTypeWrite::from(heartbeat_submessage));
+            // }
 
-            if !submessages.is_empty() {
-                let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes = reader_proxy;
-                destined_submessages.push((reader_proxy_attributes, submessages));
-            }
+            // if !submessages.is_empty() {
+            //     let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes = reader_proxy;
+            //     destined_submessages.push((reader_proxy_attributes, submessages));
+            // }
         }
         destined_submessages
     }

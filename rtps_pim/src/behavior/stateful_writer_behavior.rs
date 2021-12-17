@@ -19,22 +19,33 @@ use crate::{
 
 use super::writer::reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyOperations};
 
-pub struct BestEffortStatefulWriterBehavior;
+pub enum StatefulWriterBehavior<'a, R, C> {
+    BestEffort(BestEffortStatefulWriterBehavior<'a, R, C>),
+    Reliable(ReliableStatefulWriterBehavior<'a, R, C>),
+}
 
-impl BestEffortStatefulWriterBehavior {
+pub struct BestEffortStatefulWriterBehavior<'a, R, C> {
+    pub reader_proxy: &'a mut R,
+    pub writer_cache: &'a C,
+    pub last_change_sequence_number: &'a SequenceNumber,
+}
+
+impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
     /// Implement 8.4.9.1.4 Transition T4
-    pub fn send_unsent_changes<'a, L, C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations + RtpsReaderProxyAttributes),
-        last_change_sequence_number: &SequenceNumber,
-        writer_cache: &'a C,
+    pub fn send_unsent_changes<P, D, S>(
+        &mut self,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
+        R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
         C: RtpsHistoryCacheGetChange<'a, P, D>,
         S: FromIterator<SequenceNumber>,
     {
-        while let Some(seq_num) = reader_proxy.next_unsent_change(last_change_sequence_number) {
-            if let Some(change) = writer_cache.get_change(&seq_num) {
+        while let Some(seq_num) = self
+            .reader_proxy
+            .next_unsent_change(self.last_change_sequence_number)
+        {
+            if let Some(change) = self.writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind {
@@ -46,7 +57,7 @@ impl BestEffortStatefulWriterBehavior {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdSubmessageElement {
-                    value: *reader_proxy.remote_reader_guid().entity_id(),
+                    value: *self.reader_proxy.remote_reader_guid().entity_id(),
                 };
                 let writer_id = EntityIdSubmessageElement {
                     value: *change.writer_guid.entity_id(),
@@ -98,22 +109,29 @@ impl BestEffortStatefulWriterBehavior {
 }
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.9.2 Reliable StatefulWriter Behavior
-pub struct ReliableStatefulWriterBehavior;
+pub struct ReliableStatefulWriterBehavior<'a, R, C> {
+    pub reader_proxy: &'a mut R,
+    pub writer_cache: &'a C,
+    pub last_change_sequence_number: &'a SequenceNumber,
+    pub writer_guid: &'a Guid,
+}
 
-impl ReliableStatefulWriterBehavior {
+impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     /// Implement 8.4.9.2.4 Transition T4
-    pub fn send_unsent_changes<'a, C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations + RtpsReaderProxyAttributes),
-        last_change_sequence_number: &SequenceNumber,
-        writer_cache: &'a C,
+    pub fn send_unsent_changes<P, D, S>(
+        &mut self,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
+        R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
         C: RtpsHistoryCacheGetChange<'a, P, D>,
         S: FromIterator<SequenceNumber>,
     {
-        while let Some(seq_num) = reader_proxy.next_unsent_change(last_change_sequence_number) {
-            if let Some(change) = writer_cache.get_change(&seq_num) {
+        while let Some(seq_num) = self
+            .reader_proxy
+            .next_unsent_change(self.last_change_sequence_number)
+        {
+            if let Some(change) = self.writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind {
@@ -125,7 +143,7 @@ impl ReliableStatefulWriterBehavior {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdSubmessageElement {
-                    value: *reader_proxy.remote_reader_guid().entity_id(),
+                    value: *self.reader_proxy.remote_reader_guid().entity_id(),
                 };
                 let writer_id = EntityIdSubmessageElement {
                     value: *change.writer_guid.entity_id(),
@@ -176,9 +194,8 @@ impl ReliableStatefulWriterBehavior {
     }
 
     /// Implement 8.4.9.2.7 Transition T7
-    pub fn send_heartbeat<C>(
-        writer_guid: &Guid,
-        writer_cache: &C,
+    pub fn send_heartbeat(
+        &mut self,
         heartbeat_count: Count,
         send_heartbeat: &mut dyn FnMut(HeartbeatSubmessage),
     ) where
@@ -191,13 +208,13 @@ impl ReliableStatefulWriterBehavior {
             value: ENTITYID_UNKNOWN,
         };
         let writer_id = EntityIdSubmessageElement {
-            value: writer_guid.entity_id,
+            value: self.writer_guid.entity_id,
         };
         let first_sn = SequenceNumberSubmessageElement {
-            value: writer_cache.get_seq_num_min().unwrap_or(0),
+            value: self.writer_cache.get_seq_num_min().unwrap_or(0),
         };
         let last_sn = SequenceNumberSubmessageElement {
-            value: writer_cache.get_seq_num_min().unwrap_or(0),
+            value: self.writer_cache.get_seq_num_min().unwrap_or(0),
         };
         let count = CountSubmessageElement {
             value: heartbeat_count,
@@ -216,32 +233,31 @@ impl ReliableStatefulWriterBehavior {
     }
 
     /// Implement 8.4.9.2.8 Transition T8
-    pub fn process_acknack<L, C, S>(
-        reader_proxy: &mut impl RtpsReaderProxyOperations,
-        last_change_sequence_number: &SequenceNumber,
-        acknack: &AckNackSubmessage<S>,
-    ) where
+    pub fn process_acknack<S>(&mut self, acknack: &AckNackSubmessage<S>)
+    where
+        R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
         S: AsRef<[SequenceNumber]>,
     {
-        reader_proxy.acked_changes_set(acknack.reader_sn_state.base - 1);
-        reader_proxy.requested_changes_set(
+        self.reader_proxy
+            .acked_changes_set(acknack.reader_sn_state.base - 1);
+        self.reader_proxy.requested_changes_set(
             acknack.reader_sn_state.set.as_ref(),
-            last_change_sequence_number,
+            self.last_change_sequence_number,
         );
     }
 
     /// Implement 8.4.8.2.10 Transition T10
-    pub fn send_requested_changes<'a, L, C, P, D, S>(
-        reader_proxy: &mut impl RtpsReaderProxyOperations,
-        writer_cache: &'a C,
+    pub fn send_requested_changes<P, D, S>(
+        &mut self,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
+        R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
         C: RtpsHistoryCacheGetChange<'a, P, D>,
         S: FromIterator<SequenceNumber>,
     {
-        while let Some(seq_num) = reader_proxy.next_requested_change() {
-            if let Some(change) = writer_cache.get_change(&seq_num) {
+        while let Some(seq_num) = self.reader_proxy.next_requested_change() {
+            if let Some(change) = self.writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind {
