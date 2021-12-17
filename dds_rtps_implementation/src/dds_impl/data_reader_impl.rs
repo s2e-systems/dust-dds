@@ -11,10 +11,7 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::{
-        stateful_reader_behavior::ReliableStatefulReaderBehavior,
-        stateless_reader_behavior::BestEffortStatelessReaderBehavior,
-    },
+    behavior::stateful_reader_behavior::ReliableStatefulReaderBehavior,
     structure::types::GuidPrefix,
 };
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
@@ -56,11 +53,9 @@ where
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        let mut stateless_reader_behavior = BestEffortStatelessReaderBehavior {
-            reader_guid: &self.rtps_reader.guid,
-            reader_cache: &mut self.rtps_reader.reader_cache,
-        };
-        stateless_reader_behavior.receive_data(source_guid_prefix, data.deref())
+        for mut behavior in (&mut self.rtps_reader).into_iter() {
+            behavior.receive_data(source_guid_prefix, data.deref())
+        }
     }
 }
 

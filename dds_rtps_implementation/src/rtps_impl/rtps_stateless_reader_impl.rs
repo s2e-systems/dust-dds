@@ -4,6 +4,7 @@ use rust_rtps_pim::{
             reader::RtpsReaderAttributes,
             stateless_reader::{RtpsStatelessReaderAttributes, RtpsStatelessReaderConstructor},
         },
+        stateless_reader_behavior::BestEffortStatelessReaderBehavior,
         types::Duration,
     },
     messages::submessage_elements::Parameter,
@@ -97,6 +98,20 @@ impl<T> RtpsEndpointAttributes for RtpsStatelessReaderImpl<T> {
 impl<T> RtpsEntityAttributes for RtpsStatelessReaderImpl<T> {
     fn guid(&self) -> &Guid {
         &self.guid
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut RtpsStatelessReaderImpl<T> {
+    type Item = BestEffortStatelessReaderBehavior<'a, ReaderHistoryCache<T>>;
+    type IntoIter =
+        std::option::IntoIter<BestEffortStatelessReaderBehavior<'a, ReaderHistoryCache<T>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Some(BestEffortStatelessReaderBehavior {
+            reader_guid: &self.guid,
+            reader_cache: &mut self.reader_cache,
+        })
+        .into_iter()
     }
 }
 
