@@ -19,6 +19,11 @@ use crate::{
 
 use super::writer::reader_locator::RtpsReaderLocatorOperations;
 
+pub enum StatelessWriterBehavior<'a, R, C> {
+    BestEffort(BestEffortStatelessWriterBehavior<'a, R, C>),
+    Reliable(ReliableStatelessWriterBehavior),
+}
+
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.1 Best-Effort StatelessWriter Behavior
 pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
     pub reader_locator: &'a mut R,
