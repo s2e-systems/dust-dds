@@ -47,11 +47,11 @@ impl<T> RtpsHistoryCacheConstructor for ReaderHistoryCache<T> {
     }
 }
 
-impl<T> RtpsHistoryCacheAddChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]> for ReaderHistoryCache<T>
+impl<T> RtpsHistoryCacheAddChange<&'_ Vec<Parameter<&'_ [u8]>>, &&'_ [u8]> for ReaderHistoryCache<T>
 where
     T: for<'a> DdsDeserialize<'a>,
 {
-    fn add_change(&mut self, mut change: RtpsCacheChange<&[Parameter<&[u8]>], &[u8]>) {
+    fn add_change(&mut self, change: RtpsCacheChange<&Vec<Parameter<&[u8]>>, &&[u8]>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -67,7 +67,7 @@ where
                 .as_secs(),
         );
 
-        let data = DdsDeserialize::deserialize(&mut change.data_value).unwrap();
+        let data = DdsDeserialize::deserialize(&mut change.data_value.as_ref()).unwrap();
 
         let local_change = ReaderCacheChange {
             kind: change.kind,
@@ -158,8 +158,8 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
-            inline_qos: &[][..],
+            data_value: &&[][..],
+            inline_qos: &vec![],
         };
         hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
@@ -173,8 +173,8 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
-            inline_qos: &[][..],
+            data_value: &&[][..],
+            inline_qos: &vec![],
         };
         hc.add_change(change);
         hc.remove_change(&1);
@@ -189,8 +189,8 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
-            inline_qos: &[][..],
+            data_value: &&[][..],
+            inline_qos: &vec![],
         };
         hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
@@ -205,16 +205,16 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
-            inline_qos: &[][..],
+            data_value: &&[][..],
+            inline_qos: &vec![],
         };
         let change2 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 2,
-            data_value: &[][..],
-            inline_qos: &[][..],
+            data_value: &&[][..],
+            inline_qos: &vec![],
         };
         hc.add_change(change1);
         hc.add_change(change2);
@@ -229,16 +229,16 @@ mod tests {
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 1,
-            data_value: &[][..],
-            inline_qos: &[][..],
+            data_value: &&[][..],
+            inline_qos: &vec![],
         };
         let change2 = RtpsCacheChange {
             kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
             writer_guid: GUID_UNKNOWN,
             instance_handle: 0,
             sequence_number: 2,
-            data_value: &[][..],
-            inline_qos: &[][..],
+            data_value: &&[][..],
+            inline_qos: &vec![],
         };
         hc.add_change(change1);
         hc.add_change(change2);

@@ -1,5 +1,5 @@
 use crate::{
-    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
+    messages::submessages::DataSubmessage,
     structure::{
         cache_change::RtpsCacheChange,
         history_cache::RtpsHistoryCacheAddChange,
@@ -7,20 +7,21 @@ use crate::{
     },
 };
 
-pub struct BestEffortStatelessReaderBehavior;
+pub struct BestEffortStatelessReaderBehavior<'a, C> {
+    pub reader_guid: &'a Guid,
+    pub reader_cache: &'a mut C,
+}
 
-impl BestEffortStatelessReaderBehavior {
-    pub fn receive_data<'a, C, P>(
-        reader_guid: &Guid,
-        reader_cache: &mut C,
+impl<C> BestEffortStatelessReaderBehavior<'_, C> {
+    pub fn receive_data<P, D>(
+        &mut self,
         source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<P, &[u8]>,
+        data: &DataSubmessage<P, D>,
     ) where
-        C: for<'c> RtpsHistoryCacheAddChange<&'c [Parameter<&'c [u8]>], &'c [u8]>,
-        P: AsRef<[Parameter<&'a [u8]>]>,
+        C: for<'a> RtpsHistoryCacheAddChange<&'a P, &'a D>,
     {
         let reader_id = data.reader_id.value;
-        if &reader_id == reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
+        if &reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
             let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
@@ -29,8 +30,8 @@ impl BestEffortStatelessReaderBehavior {
             let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
             let instance_handle = 0;
             let sequence_number = data.writer_sn.value;
-            let data_value = data.serialized_payload.value;
-            let inline_qos = data.inline_qos.parameter.as_ref();
+            let data_value = &data.serialized_payload.value;
+            let inline_qos = &data.inline_qos.parameter;
             let a_change = RtpsCacheChange {
                 kind,
                 writer_guid,
@@ -39,7 +40,7 @@ impl BestEffortStatelessReaderBehavior {
                 data_value,
                 inline_qos,
             };
-            reader_cache.add_change(a_change);
+            self.reader_cache.add_change(a_change);
         }
     }
 }

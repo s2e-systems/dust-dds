@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
     infrastructure::{entity::Entity, qos::DataReaderQos},
@@ -54,12 +56,11 @@ where
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        BestEffortStatelessReaderBehavior::receive_data(
-            &mut self.rtps_reader.guid,
-            &mut self.rtps_reader.reader_cache,
-            source_guid_prefix,
-            data,
-        )
+        let mut stateless_reader_behavior = BestEffortStatelessReaderBehavior {
+            reader_guid: &self.rtps_reader.guid,
+            reader_cache: &mut self.rtps_reader.reader_cache,
+        };
+        stateless_reader_behavior.receive_data(source_guid_prefix, data.deref())
     }
 }
 
