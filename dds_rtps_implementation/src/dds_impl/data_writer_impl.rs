@@ -11,7 +11,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer_behavior::{ReliableStatefulWriterBehavior, StatefulWriterBehavior},
+        stateful_writer_behavior::StatefulWriterBehavior,
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::{
             reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations},
@@ -29,11 +29,7 @@ use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
 
 use crate::{
     dds_type::DdsSerialize,
-    rtps_impl::{
-        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut,
-    },
-    utils::clock::Timer,
+    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut, utils::clock::Timer,
 };
 
 use super::publisher_impl::{StatefulWriterSubmessageProducer, StatelessWriterSubmessageProducer};
@@ -56,7 +52,7 @@ where
             rtps_writer_impl,
             _listener: None,
             heartbeat_timer,
-            heartbeat_count: Count(1),
+            heartbeat_count: Count(0),
         }
     }
 }
@@ -303,7 +299,7 @@ where
     H: RtpsHistoryCacheOperations
         + for<'a> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]>
         + 'static,
-    R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
+    R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes + 'static,
     C: Timer,
 {
     fn produce_submessages(
@@ -351,12 +347,13 @@ where
                                 .push(RtpsSubmessageTypeWrite::from(gap))
                         },
                     );
-                    let mut submessages = submessages.take();
+                    let submessages = submessages.take();
 
-                    // if !submessages.is_empty() {
-                    //     let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes = reader_proxy;
-                    //     destined_submessages.push((reader_proxy_attributes, submessages));
-                    // }
+                    if !submessages.is_empty() {
+                        let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes =
+                            reliable_behavior.reader_proxy;
+                        destined_submessages.push((reader_proxy_attributes, submessages));
+                    }
                 }
             }
         }
@@ -384,7 +381,9 @@ mod tests {
         },
     };
 
-    use crate::dds_impl::publisher_impl;
+    use crate::{
+        dds_impl::publisher_impl, rtps_impl::rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+    };
 
     use super::*;
     struct EmptyTimer;

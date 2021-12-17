@@ -1,6 +1,9 @@
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer_behavior::StatefulWriterBehavior,
+        stateful_writer_behavior::{
+            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
+            StatefulWriterBehavior,
+        },
         types::Duration,
         writer::{
             reader_proxy::RtpsReaderProxy,
@@ -174,7 +177,7 @@ impl RtpsWriterOperations for RtpsStatefulWriterImpl {
 }
 
 pub struct RtpsReaderProxyIterator<'a> {
-    reader_locator_iterator: std::slice::IterMut<'a, RtpsReaderProxyImpl>,
+    reader_proxy_iterator: std::slice::IterMut<'a, RtpsReaderProxyImpl>,
     writer_cache: &'a WriterHistoryCache,
     last_change_sequence_number: &'a SequenceNumber,
     reliability_level: &'a ReliabilityKind,
@@ -185,7 +188,24 @@ impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
     type Item = StatefulWriterBehavior<'a, RtpsReaderProxyImpl, WriterHistoryCache>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        let reader_proxy = self.reader_proxy_iterator.next()?;
+        match self.reliability_level {
+            ReliabilityKind::BestEffort => Some(StatefulWriterBehavior::BestEffort(
+                BestEffortStatefulWriterBehavior {
+                    reader_proxy,
+                    writer_cache: self.writer_cache,
+                    last_change_sequence_number: self.last_change_sequence_number,
+                },
+            )),
+            ReliabilityKind::Reliable => Some(StatefulWriterBehavior::Reliable(
+                ReliableStatefulWriterBehavior {
+                    reader_proxy,
+                    writer_cache: self.writer_cache,
+                    last_change_sequence_number: self.last_change_sequence_number,
+                    writer_guid: self.writer_guid,
+                },
+            )),
+        }
     }
 }
 
@@ -194,7 +214,13 @@ impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
     type IntoIter = RtpsReaderProxyIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        todo!()
+        RtpsReaderProxyIterator {
+            reader_proxy_iterator: self.matched_readers.iter_mut(),
+            writer_cache: &self.writer_cache,
+            last_change_sequence_number: &self.last_change_sequence_number,
+            reliability_level: &self.reliability_level,
+            writer_guid: &self.guid,
+        }
     }
 }
 
