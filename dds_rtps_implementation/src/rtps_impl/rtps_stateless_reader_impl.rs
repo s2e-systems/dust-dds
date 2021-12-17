@@ -18,15 +18,15 @@ use rust_rtps_pim::{
 use super::rtps_reader_history_cache_impl::{ReaderHistoryCache, ReaderHistoryCacheGetChange};
 
 pub struct RtpsStatelessReaderImpl<T> {
-    pub guid: Guid,
-    pub topic_kind: TopicKind,
-    pub reliability_level: ReliabilityKind,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-    pub heartbeat_response_delay: Duration,
-    pub heartbeat_supression_duration: Duration,
-    pub reader_cache: ReaderHistoryCache<T>,
-    pub expects_inline_qos: bool,
+    guid: Guid,
+    topic_kind: TopicKind,
+    reliability_level: ReliabilityKind,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    heartbeat_response_delay: Duration,
+    heartbeat_supression_duration: Duration,
+    reader_cache: ReaderHistoryCache<T>,
+    expects_inline_qos: bool,
 }
 
 impl<T> RtpsStatelessReaderConstructor for RtpsStatelessReaderImpl<T> {

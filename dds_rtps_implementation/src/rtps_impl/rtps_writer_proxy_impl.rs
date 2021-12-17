@@ -1,5 +1,7 @@
 use rust_rtps_pim::{
-    behavior::reader::writer_proxy::{RtpsWriterProxy, RtpsWriterProxyOperations, RtpsWriterProxyAttributes},
+    behavior::reader::writer_proxy::{
+        RtpsWriterProxy, RtpsWriterProxyAttributes, RtpsWriterProxyOperations,
+    },
     structure::types::{Locator, SequenceNumber},
 };
 

@@ -31,19 +31,19 @@ use super::{
 };
 
 pub struct RtpsStatelessWriterImpl {
-    pub guid: Guid,
-    pub topic_kind: TopicKind,
-    pub reliability_level: ReliabilityKind,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-    pub push_mode: bool,
-    pub heartbeat_period: Duration,
-    pub nack_response_delay: Duration,
-    pub nack_suppression_duration: Duration,
-    pub last_change_sequence_number: SequenceNumber,
-    pub data_max_size_serialized: Option<i32>,
-    pub writer_cache: WriterHistoryCache,
-    pub reader_locators: Vec<RtpsReaderLocatorImpl>,
+    guid: Guid,
+    topic_kind: TopicKind,
+    reliability_level: ReliabilityKind,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    push_mode: bool,
+    heartbeat_period: Duration,
+    nack_response_delay: Duration,
+    nack_suppression_duration: Duration,
+    last_change_sequence_number: SequenceNumber,
+    data_max_size_serialized: Option<i32>,
+    writer_cache: WriterHistoryCache,
+    reader_locators: Vec<RtpsReaderLocatorImpl>,
 }
 
 pub struct RtpsReaderLocatorIterator<'a> {
