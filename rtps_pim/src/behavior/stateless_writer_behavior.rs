@@ -323,7 +323,6 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
 
 #[cfg(test)]
 mod tests {
-
     use crate::structure::{cache_change::RtpsCacheChange, types::GUID_UNKNOWN};
 
     use super::*;
