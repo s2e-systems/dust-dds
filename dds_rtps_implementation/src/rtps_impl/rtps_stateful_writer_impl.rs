@@ -1,5 +1,6 @@
 use rust_rtps_pim::{
     behavior::{
+        stateful_writer_behavior::StatefulWriterBehavior,
         types::Duration,
         writer::{
             reader_proxy::RtpsReaderProxy,
@@ -27,19 +28,19 @@ use super::{
 };
 
 pub struct RtpsStatefulWriterImpl {
-    pub guid: Guid,
-    pub topic_kind: TopicKind,
-    pub reliability_level: ReliabilityKind,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-    pub push_mode: bool,
-    pub heartbeat_period: Duration,
-    pub nack_response_delay: Duration,
-    pub nack_suppression_duration: Duration,
-    pub last_change_sequence_number: SequenceNumber,
-    pub data_max_size_serialized: Option<i32>,
-    pub writer_cache: WriterHistoryCache,
-    pub matched_readers: Vec<RtpsReaderProxyImpl>,
+    guid: Guid,
+    topic_kind: TopicKind,
+    reliability_level: ReliabilityKind,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    push_mode: bool,
+    heartbeat_period: Duration,
+    nack_response_delay: Duration,
+    nack_suppression_duration: Duration,
+    last_change_sequence_number: SequenceNumber,
+    data_max_size_serialized: Option<i32>,
+    writer_cache: WriterHistoryCache,
+    matched_readers: Vec<RtpsReaderProxyImpl>,
 }
 
 impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
@@ -169,6 +170,31 @@ impl RtpsWriterOperations for RtpsStatefulWriterImpl {
             data_value: data,
             inline_qos,
         }
+    }
+}
+
+pub struct RtpsReaderProxyIterator<'a> {
+    reader_locator_iterator: std::slice::IterMut<'a, RtpsReaderProxyImpl>,
+    writer_cache: &'a WriterHistoryCache,
+    last_change_sequence_number: &'a SequenceNumber,
+    reliability_level: &'a ReliabilityKind,
+    writer_guid: &'a Guid,
+}
+
+impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyImpl, WriterHistoryCache>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyImpl, WriterHistoryCache>;
+    type IntoIter = RtpsReaderProxyIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        todo!()
     }
 }
 

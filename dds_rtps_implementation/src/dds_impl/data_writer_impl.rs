@@ -11,17 +11,17 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer_behavior::ReliableStatefulWriterBehavior,
+        stateful_writer_behavior::{ReliableStatefulWriterBehavior, StatefulWriterBehavior},
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::{
             reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations},
-            reader_proxy::RtpsReaderProxyAttributes,
-            writer::RtpsWriterOperations,
+            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyOperations},
+            writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
     messages::{submessage_elements::Parameter, types::Count},
     structure::{
-        history_cache::RtpsHistoryCacheGetChange,
+        history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
         types::{ChangeKind, Locator},
     },
 };
@@ -296,8 +296,14 @@ where
     }
 }
 
-impl<Foo, C> StatefulWriterSubmessageProducer for DataWriterImpl<Foo, RtpsStatefulWriterImpl, C>
+impl<Foo, C, W, R, H> StatefulWriterSubmessageProducer for DataWriterImpl<Foo, W, C>
 where
+    W: RtpsWriterAttributes,
+    for<'a> &'a mut W: IntoIterator<Item = StatefulWriterBehavior<'a, R, H>>,
+    H: RtpsHistoryCacheOperations
+        + for<'a> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]>
+        + 'static,
+    R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
     C: Timer,
 {
     fn produce_submessages(
@@ -307,59 +313,54 @@ where
         Vec<RtpsSubmessageTypeWrite<'_>>,
     )> {
         let mut destined_submessages = Vec::new();
+        let heartbeat_period_duration = std::time::Duration::new(
+            self.rtps_writer_impl.heartbeat_period().seconds as u64,
+            self.rtps_writer_impl.heartbeat_period().fraction,
+        );
 
-        // let mut heartbeat_submessage = None;
-        if self.heartbeat_timer.elapsed()
-            > std::time::Duration::new(
-                self.rtps_writer_impl.heartbeat_period.seconds as u64,
-                self.rtps_writer_impl.heartbeat_period.fraction,
-            )
-        {
-            {
-                todo!()
-                // ReliableStatefulWriterBehavior::send_heartbeat(
-                //     &self.rtps_writer_impl.guid,
-                //     &self.rtps_writer_impl.writer_cache,
-                //     self.heartbeat_count,
-                //     &mut |heartbeat| {
-                //         heartbeat_submessage = Some(heartbeat);
-                //     },
-                // );
-                // self.heartbeat_count += Count(1);
-                // self.heartbeat_timer.reset();
+        let send_heartbeat = if self.heartbeat_timer.elapsed() > heartbeat_period_duration {
+            self.heartbeat_count += Count(1);
+            self.heartbeat_timer.reset();
+            true
+        } else {
+            false
+        };
+
+        for behavior in &mut self.rtps_writer_impl {
+            match behavior {
+                StatefulWriterBehavior::BestEffort(_) => todo!(),
+                StatefulWriterBehavior::Reliable(mut reliable_behavior) => {
+                    let submessages = RefCell::new(Vec::new());
+                    if send_heartbeat {
+                        reliable_behavior.send_heartbeat(self.heartbeat_count, &mut |heartbeat| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsSubmessageTypeWrite::from(heartbeat));
+                        });
+                    }
+
+                    reliable_behavior.send_unsent_changes(
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsSubmessageTypeWrite::from(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsSubmessageTypeWrite::from(gap))
+                        },
+                    );
+                    let mut submessages = submessages.take();
+
+                    // if !submessages.is_empty() {
+                    //     let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes = reader_proxy;
+                    //     destined_submessages.push((reader_proxy_attributes, submessages));
+                    // }
+                }
             }
         }
 
-        for reader_proxy in &mut self.rtps_writer_impl.matched_readers {
-            // let submessages = RefCell::new(Vec::new());
-            todo!()
-            // // ReliableStatefulWriterBehavior::send_unsent_changes(
-            // //     reader_proxy,
-            // //     &self.rtps_writer_impl.last_change_sequence_number,
-            // //     &self.rtps_writer_impl.writer_cache,
-            // //     |data| {
-            // //         submessages
-            // //             .borrow_mut()
-            // //             .push(RtpsSubmessageTypeWrite::from(data))
-            // //     },
-            // //     |gap| {
-            // //         submessages
-            // //             .borrow_mut()
-            // //             .push(RtpsSubmessageTypeWrite::from(gap))
-            // //     },
-            // // );
-            // let mut submessages = submessages.take();
-
-            // // Add heartbeat to the submessages to be sent to every proxy
-            // if let Some(heartbeat_submessage) = heartbeat_submessage.clone() {
-            //     submessages.push(RtpsSubmessageTypeWrite::from(heartbeat_submessage));
-            // }
-
-            // if !submessages.is_empty() {
-            //     let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes = reader_proxy;
-            //     destined_submessages.push((reader_proxy_attributes, submessages));
-            // }
-        }
         destined_submessages
     }
 }

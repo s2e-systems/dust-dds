@@ -1,6 +1,7 @@
 use rust_rtps_pim::{
     behavior::{
         reader::{
+            reader::RtpsReaderAttributes,
             stateful_reader::{RtpsStatefulReaderConstructor, RtpsStatefulReaderOperations},
             writer_proxy::{RtpsWriterProxy, RtpsWriterProxyAttributes},
         },
@@ -8,6 +9,8 @@ use rust_rtps_pim::{
     },
     messages::submessage_elements::Parameter,
     structure::{
+        endpoint::RtpsEndpointAttributes,
+        entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange},
         types::{Guid, Locator, ReliabilityKind, TopicKind},
     },
@@ -19,16 +22,16 @@ use super::{
 };
 
 pub struct RtpsStatefulReaderImpl<T> {
-    pub guid: Guid,
-    pub topic_kind: TopicKind,
-    pub reliability_level: ReliabilityKind,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-    pub heartbeat_response_delay: Duration,
-    pub heartbeat_supression_duration: Duration,
-    pub reader_cache: ReaderHistoryCache<T>,
-    pub expects_inline_qos: bool,
-    pub matched_writers: Vec<RtpsWriterProxyImpl>,
+    guid: Guid,
+    topic_kind: TopicKind,
+    reliability_level: ReliabilityKind,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    heartbeat_response_delay: Duration,
+    heartbeat_supression_duration: Duration,
+    reader_cache: ReaderHistoryCache<T>,
+    expects_inline_qos: bool,
+    matched_writers: Vec<RtpsWriterProxyImpl>,
 }
 
 impl<T> RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl<T> {
@@ -74,6 +77,50 @@ impl<T> RtpsStatefulReaderOperations<Vec<Locator>> for RtpsStatefulReaderImpl<T>
         self.matched_writers
             .iter()
             .find(|&x| x.remote_writer_guid() == a_writer_guid)
+    }
+}
+
+impl<T> RtpsReaderAttributes for RtpsStatefulReaderImpl<T> {
+    type ReaderHistoryCacheType = ReaderHistoryCache<T>;
+
+    fn heartbeat_response_delay(&self) -> &Duration {
+        &self.heartbeat_response_delay
+    }
+
+    fn heartbeat_supression_duration(&self) -> &Duration {
+        &self.heartbeat_supression_duration
+    }
+
+    fn reader_cache(&self) -> &Self::ReaderHistoryCacheType {
+        &self.reader_cache
+    }
+
+    fn expects_inline_qos(&self) -> &bool {
+        &self.expects_inline_qos
+    }
+}
+
+impl<T> RtpsEndpointAttributes for RtpsStatefulReaderImpl<T> {
+    fn topic_kind(&self) -> &TopicKind {
+        &self.topic_kind
+    }
+
+    fn reliability_level(&self) -> &ReliabilityKind {
+        &self.reliability_level
+    }
+
+    fn unicast_locator_list(&self) -> &[Locator] {
+        &self.unicast_locator_list
+    }
+
+    fn multicast_locator_list(&self) -> &[Locator] {
+        &self.multicast_locator_list
+    }
+}
+
+impl<T> RtpsEntityAttributes for RtpsStatefulReaderImpl<T> {
+    fn guid(&self) -> &Guid {
+        &self.guid
     }
 }
 
