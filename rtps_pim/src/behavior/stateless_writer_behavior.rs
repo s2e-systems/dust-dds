@@ -320,3 +320,131 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::structure::{cache_change::RtpsCacheChange, types::GUID_UNKNOWN};
+
+    use super::*;
+
+    struct MockVecSeqNum;
+
+    impl FromIterator<SequenceNumber> for MockVecSeqNum {
+        fn from_iter<T: IntoIterator<Item = SequenceNumber>>(_iter: T) -> Self {
+            Self
+        }
+    }
+
+    struct MockReaderLocatorOperations(Option<i64>);
+
+    impl RtpsReaderLocatorOperations for MockReaderLocatorOperations {
+        type SequenceNumberVector = ();
+
+        fn next_requested_change(&mut self) -> Option<SequenceNumber> {
+            todo!()
+        }
+
+        fn next_unsent_change(
+            &mut self,
+            _last_change_sequence_number: &SequenceNumber,
+        ) -> Option<SequenceNumber> {
+            self.0.take()
+        }
+
+        fn requested_changes(&self) -> Self::SequenceNumberVector {
+            todo!()
+        }
+
+        fn requested_changes_set(
+            &mut self,
+            _req_seq_num_set: &[SequenceNumber],
+            _last_change_sequence_number: &SequenceNumber,
+        ) {
+            todo!()
+        }
+
+        fn unsent_changes(
+            &self,
+            _last_change_sequence_number: &SequenceNumber,
+        ) -> Self::SequenceNumberVector {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn best_effort_stateless_writer_send_data() {
+        struct MockWriterCache;
+
+        impl<'a> RtpsHistoryCacheGetChange<'a, (), ()> for MockWriterCache {
+            fn get_change(&'a self, _seq_num: &SequenceNumber) -> Option<RtpsCacheChange<(), ()>> {
+                Some(RtpsCacheChange {
+                    kind: ChangeKind::Alive,
+                    writer_guid: GUID_UNKNOWN,
+                    instance_handle: 10,
+                    sequence_number: 1,
+                    data_value: (),
+                    inline_qos: (),
+                })
+            }
+        }
+
+        let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
+            reader_locator: &mut MockReaderLocatorOperations(Some(1)),
+            writer_cache: &MockWriterCache,
+            last_change_sequence_number: &1,
+        };
+        let mut data_messages = None;
+        best_effort_behavior.send_unsent_changes(
+            |data: DataSubmessage<(), ()>| data_messages = Some(data),
+            |_: GapSubmessage<MockVecSeqNum>| assert!(false),
+        );
+
+        assert!(data_messages.is_some());
+    }
+
+    #[test]
+    fn best_effort_stateless_writer_send_gap() {
+        struct MockWriterCache;
+
+        impl<'a> RtpsHistoryCacheGetChange<'a, (), ()> for MockWriterCache {
+            fn get_change(&'a self, _seq_num: &SequenceNumber) -> Option<RtpsCacheChange<(), ()>> {
+                None
+            }
+        }
+
+        let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
+            reader_locator: &mut MockReaderLocatorOperations(Some(1)),
+            writer_cache: &MockWriterCache,
+            last_change_sequence_number: &1,
+        };
+        let mut gap_message = None;
+        best_effort_behavior.send_unsent_changes(
+            |_: DataSubmessage<(), ()>| assert!(false),
+            |gap: GapSubmessage<MockVecSeqNum>| gap_message = Some(gap),
+        );
+
+        assert!(gap_message.is_some());
+    }
+
+    #[test]
+    fn best_effort_stateless_writer_do_nothing() {
+        struct MockWriterCache;
+
+        impl<'a> RtpsHistoryCacheGetChange<'a, (), ()> for MockWriterCache {
+            fn get_change(&'a self, _seq_num: &SequenceNumber) -> Option<RtpsCacheChange<(), ()>> {
+                None
+            }
+        }
+
+        let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
+            reader_locator: &mut MockReaderLocatorOperations(None),
+            writer_cache: &MockWriterCache,
+            last_change_sequence_number: &1,
+        };
+        best_effort_behavior.send_unsent_changes(
+            |_: DataSubmessage<(), ()>| assert!(false),
+            |_: GapSubmessage<MockVecSeqNum>| assert!(false),
+        );
+    }
+}
