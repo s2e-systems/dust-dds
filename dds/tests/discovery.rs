@@ -37,7 +37,7 @@ use rust_dds_rtps_implementation::{
         publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
@@ -69,12 +69,9 @@ use rust_rtps_pim::{
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     messages::types::Count,
-    structure::{
-        group::RtpsGroup,
-        types::{
-            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
-            BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN,
-        },
+    structure::types::{
+        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
+        BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN,
     },
 };
 
@@ -146,7 +143,7 @@ fn send_and_receive_discovery_data_happy_path() {
         .unwrap();
     let publisher = PublisherImpl::new(
         PublisherQos::default(),
-        RtpsGroup::new(GUID_UNKNOWN),
+        RtpsGroupImpl::new(GUID_UNKNOWN),
         vec![Arc::new(RwLock::new(data_writer))],
         vec![],
         None,
@@ -171,7 +168,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let shared_data_reader = rtps_shared_new(data_reader);
     let subscriber = SubscriberImpl::new(
         SubscriberQos::default(),
-        RtpsGroup::new(Guid::new(
+        RtpsGroupImpl::new(Guid::new(
             GuidPrefix([6; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),
@@ -281,7 +278,7 @@ fn process_discovery_data_happy_path() {
 
     let publisher = PublisherImpl::new(
         PublisherQos::default(),
-        RtpsGroup::new(Guid::new(
+        RtpsGroupImpl::new(Guid::new(
             GuidPrefix([4; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
@@ -310,7 +307,7 @@ fn process_discovery_data_happy_path() {
     let shared_data_reader = rtps_shared_new(spdp_builtin_participant_data_reader);
     let subscriber = SubscriberImpl::new(
         SubscriberQos::default(),
-        RtpsGroup::new(Guid::new(
+        RtpsGroupImpl::new(Guid::new(
             GuidPrefix([6; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),

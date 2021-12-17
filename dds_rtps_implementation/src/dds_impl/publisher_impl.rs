@@ -39,7 +39,7 @@ use rust_rtps_pim::{
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
-        group::RtpsGroup,
+        entity::RtpsEntityAttributes,
         types::{
             EntityId, Guid, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
@@ -53,7 +53,7 @@ use crate::{
     dds_impl::data_writer_impl::DataWriterImpl,
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::{
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
@@ -129,7 +129,7 @@ where
 
 pub struct PublisherImpl {
     _qos: PublisherQos,
-    rtps_group: RtpsGroup,
+    rtps_group: RtpsGroupImpl,
     stateless_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyStatelessDataWriter + Send + Sync>>>,
     stateful_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyStatefulDataWriter + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
@@ -149,7 +149,7 @@ pub struct PublisherImpl {
 impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
-        rtps_group: RtpsGroup,
+        rtps_group: RtpsGroupImpl,
         stateless_data_writer_impl_list: Vec<Arc<dyn AnyStatelessDataWriter + Send + Sync>>,
         stateful_data_writer_impl_list: Vec<Arc<dyn AnyStatefulDataWriter + Send + Sync>>,
         sedp_builtin_publications_announcer: Option<
@@ -182,7 +182,7 @@ impl PublisherImpl {
             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
             version: PROTOCOLVERSION,
             vendor_id: VENDOR_ID_S2E,
-            guid_prefix: self.rtps_group.entity.guid.prefix,
+            guid_prefix: *self.rtps_group.guid().prefix(),
         };
 
         for stateless_writer in stateless_data_writer_list_lock.iter().cloned() {
@@ -248,13 +248,13 @@ where
         };
         let entity_id = EntityId::new(
             [
-                self.rtps_group.entity.guid.entity_id().entity_key()[0],
+                self.rtps_group.guid().entity_id().entity_key()[0],
                 user_defined_data_writer_counter,
                 0,
             ],
             entity_kind,
         );
-        let guid = Guid::new(*self.rtps_group.entity.guid.prefix(), entity_id);
+        let guid = Guid::new(*self.rtps_group.guid().prefix(), entity_id);
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -508,7 +508,7 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_some_value() {
-        let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
+        let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
         let mut publisher_impl = PublisherImpl::new(
             PublisherQos::default(),
             rtps_group_impl,
@@ -529,7 +529,7 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_none() {
-        let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
+        let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
         let mut publisher_impl = PublisherImpl::new(
             PublisherQos::default(),
             rtps_group_impl,
@@ -554,7 +554,7 @@ mod tests {
 
     #[test]
     fn create_datawriter() {
-        let rtps_group_impl = RtpsGroup::new(GUID_UNKNOWN);
+        let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
         let publisher_impl = PublisherImpl::new(
             PublisherQos::default(),
             rtps_group_impl,

@@ -29,9 +29,8 @@ use rust_rtps_pim::{
     },
     messages::types::Count,
     structure::{
-        entity::RtpsEntity,
-        group::RtpsGroup,
-        participant::RtpsParticipant,
+        entity::RtpsEntityAttributes,
+        participant::RtpsParticipantAttributes,
         types::{
             EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
             USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
@@ -45,6 +44,7 @@ use crate::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_type::DdsType,
+    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
     utils::shared_object::{
         rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock, RtpsShared,
     },
@@ -59,7 +59,7 @@ pub trait AnyTopic {}
 impl<Foo> AnyTopic for TopicImpl<Foo> {}
 
 pub struct DomainParticipantImpl<S, P> {
-    rtps_participant: RtpsParticipant<Vec<Locator>>,
+    rtps_participant: RtpsParticipantImpl,
     domain_id: DomainId,
     domain_tag: Arc<String>,
     qos: DomainParticipantQos,
@@ -99,15 +99,13 @@ impl<S, P> DomainParticipantImpl<S, P> {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
-        let rtps_participant = RtpsParticipant {
-            entity: RtpsEntity {
-                guid: Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
-            },
+        let rtps_participant = RtpsParticipantImpl::new(
+            Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
             protocol_version,
             vendor_id,
             default_unicast_locator_list,
             default_multicast_locator_list,
-        };
+        );
 
         Self {
             rtps_participant,
@@ -136,27 +134,27 @@ impl<S, P> DomainParticipantImpl<S, P> {
         SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: self.rtps_participant.entity.guid.into(),
+                    value: (*self.rtps_participant.guid()).into(),
                 },
                 user_data: self.qos.user_data.clone(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: self.domain_id as u32,
                 domain_tag: self.domain_tag.as_ref().clone(),
-                protocol_version: self.rtps_participant.protocol_version,
-                guid_prefix: self.rtps_participant.entity.guid.prefix,
-                vendor_id: self.rtps_participant.vendor_id,
+                protocol_version: *self.rtps_participant.protocol_version(),
+                guid_prefix: *self.rtps_participant.guid().prefix(),
+                vendor_id: *self.rtps_participant.vendor_id(),
                 expects_inline_qos: false,
                 metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
                 metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
                 default_unicast_locator_list: self
                     .rtps_participant
-                    .default_unicast_locator_list
-                    .clone(),
+                    .default_unicast_locator_list()
+                    .to_vec(),
                 default_multicast_locator_list: self
                     .rtps_participant
-                    .default_multicast_locator_list
-                    .clone(),
+                    .default_multicast_locator_list()
+                    .to_vec(),
                 available_builtin_endpoints: BuiltinEndpointSet::default(),
                 manual_liveliness_count: self.manual_liveliness_count,
                 builtin_endpoint_qos: BuiltinEndpointQos::default(),
@@ -183,8 +181,8 @@ impl<S> DomainParticipantPublisherFactory<'_> for DomainParticipantImpl<S, Publi
             [user_defined_publisher_counter, 0, 0],
             USER_DEFINED_WRITER_GROUP,
         );
-        let guid = Guid::new(self.rtps_participant.entity.guid.prefix, entity_id);
-        let rtps_group = RtpsGroup::new(guid);
+        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroupImpl::new(guid);
         let sedp_builtin_publications_topic: RtpsShared<
             dyn TopicDescription<SedpDiscoveredWriterData> + Send + Sync,
         > = rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
@@ -232,8 +230,8 @@ impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<Sub
             [user_defined_subscriber_counter, 0, 0],
             USER_DEFINED_READER_GROUP,
         );
-        let guid = Guid::new(self.rtps_participant.entity.guid.prefix, entity_id);
-        let rtps_group = RtpsGroup::new(guid);
+        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroupImpl::new(guid);
         let subscriber = SubscriberImpl::new(subscriber_qos, rtps_group, Vec::new(), Vec::new());
         let subscriber_shared = rtps_shared_new(subscriber);
         rtps_shared_write_lock(&self.user_defined_subscriber_list).push(subscriber_shared.clone());
@@ -678,7 +676,7 @@ mod tests {
     fn create_publisher() {
         let builtin_publisher = PublisherImpl::new(
             PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
             vec![],
             None,
@@ -722,7 +720,7 @@ mod tests {
     fn delete_publisher() {
         let builtin_publisher = PublisherImpl::new(
             PublisherQos::default(),
-            RtpsGroup::new(GUID_UNKNOWN),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
             vec![],
             None,

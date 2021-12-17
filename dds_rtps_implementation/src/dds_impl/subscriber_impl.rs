@@ -22,7 +22,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::reader::stateful_reader::RtpsStatefulReaderConstructor,
     structure::{
-        group::RtpsGroup,
+        entity::RtpsEntityAttributes,
         types::{
             EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
@@ -34,7 +34,7 @@ use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
     rtps_impl::{
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     },
     utils::{
@@ -87,7 +87,7 @@ where
 
 pub struct SubscriberImpl {
     qos: SubscriberQos,
-    rtps_group: RtpsGroup,
+    rtps_group: RtpsGroupImpl,
     stateless_data_reader_list: Mutex<Vec<Arc<dyn AnyStatelessDataReader + Send + Sync>>>,
     stateful_data_reader_list: Mutex<Vec<Arc<dyn AnyStatefulDataReader + Send + Sync>>>,
     user_defined_data_reader_counter: u8,
@@ -97,7 +97,7 @@ pub struct SubscriberImpl {
 impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
-        rtps_group: RtpsGroup,
+        rtps_group: RtpsGroupImpl,
         stateless_data_reader_list: Vec<Arc<dyn AnyStatelessDataReader + Send + Sync>>,
         stateful_data_reader_list: Vec<Arc<dyn AnyStatefulDataReader + Send + Sync>>,
     ) -> Self {
@@ -135,13 +135,13 @@ where
         };
         let entity_id = EntityId::new(
             [
-                self.rtps_group.entity.guid.entity_id().entity_key()[0],
+                self.rtps_group.guid().entity_id().entity_key()[0],
                 self.user_defined_data_reader_counter,
                 0,
             ],
             entity_kind,
         );
-        let guid = Guid::new(*self.rtps_group.entity.guid.prefix(), entity_id);
+        let guid = Guid::new(*self.rtps_group.guid().prefix(), entity_id);
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -395,7 +395,7 @@ mod tests {
 
     #[test]
     fn lookup_existing_datareader() {
-        let rtps_group = RtpsGroup::new(Guid {
+        let rtps_group = RtpsGroupImpl::new(Guid {
             prefix: GuidPrefix([1; 12]),
             entity_id: EntityId {
                 entity_key: [1; 3],
@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn lookup_datareader_empty_list() {
-        let rtps_group = RtpsGroup::new(Guid {
+        let rtps_group = RtpsGroupImpl::new(Guid {
             prefix: GuidPrefix([1; 12]),
             entity_id: EntityId {
                 entity_key: [1; 3],
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn lookup_inexistent_datareader() {
-        let rtps_group = RtpsGroup::new(Guid {
+        let rtps_group = RtpsGroupImpl::new(Guid {
             prefix: GuidPrefix([1; 12]),
             entity_id: EntityId {
                 entity_key: [1; 3],

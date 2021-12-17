@@ -35,7 +35,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl, rtps_group_impl::RtpsGroupImpl,
     },
     utils::{
         clock::StdTimer,
@@ -59,12 +59,9 @@ use rust_rtps_pim::{
         },
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
     },
-    structure::{
-        group::RtpsGroup,
-        types::{
-            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
-            BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_S2E,
-        },
+    structure::types::{
+        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
+        BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
 
@@ -388,7 +385,7 @@ impl DomainParticipantFactory {
 
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
-            RtpsGroup::new(Guid::new(
+            RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
@@ -402,7 +399,7 @@ impl DomainParticipantFactory {
 
         let builtin_publisher = rtps_shared_new(PublisherImpl::new(
             PublisherQos::default(),
-            RtpsGroup::new(Guid::new(
+            RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
