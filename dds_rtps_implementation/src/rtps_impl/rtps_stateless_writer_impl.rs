@@ -51,6 +51,7 @@ pub struct RtpsReaderLocatorIterator<'a> {
     writer_cache: &'a WriterHistoryCache,
     last_change_sequence_number: &'a SequenceNumber,
     reliability_level: &'a ReliabilityKind,
+    writer_guid: &'a Guid,
 }
 
 impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
@@ -67,7 +68,12 @@ impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
                 },
             )),
             ReliabilityKind::Reliable => Some(StatelessWriterBehavior::Reliable(
-                ReliableStatelessWriterBehavior,
+                ReliableStatelessWriterBehavior {
+                    reader_locator,
+                    writer_cache: self.writer_cache,
+                    last_change_sequence_number: self.last_change_sequence_number,
+                    writer_guid: self.writer_guid,
+                },
             )),
         }
     }
@@ -84,6 +90,7 @@ impl<'a> IntoIterator for &'a mut RtpsStatelessWriterImpl {
             writer_cache: &self.writer_cache,
             last_change_sequence_number: &self.last_change_sequence_number,
             reliability_level: &self.reliability_level,
+            writer_guid: &self.guid,
         }
     }
 }
