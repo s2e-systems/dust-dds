@@ -7,11 +7,17 @@ use super::reader::{
     stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxyOperations,
 };
 
+pub enum StatefulReaderBehavior {
+    BestEffort(BestEffortStatefulReaderBehavior),
+    Reliable(ReliableStatefulReaderBehavior),
+}
+
 pub struct BestEffortStatefulReaderBehavior;
 
 impl BestEffortStatefulReaderBehavior {
     pub fn receive_data<L, P>(
-        stateful_reader: &impl RtpsStatefulReaderOperations<L,
+        stateful_reader: &impl RtpsStatefulReaderOperations<
+            L,
             WriterProxyType = impl RtpsWriterProxyOperations,
         >,
         source_guid_prefix: GuidPrefix,
