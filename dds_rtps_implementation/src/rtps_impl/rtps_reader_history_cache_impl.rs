@@ -47,10 +47,13 @@ impl<T> RtpsHistoryCacheConstructor for ReaderHistoryCache<T> {
     }
 }
 
-impl<T> RtpsHistoryCacheAddChange<&'_ Vec<Parameter<&'_ [u8]>>, &&'_ [u8]> for ReaderHistoryCache<T>
+impl<'a, T> RtpsHistoryCacheAddChange<'a> for ReaderHistoryCache<T>
 where
-    T: for<'a> DdsDeserialize<'a>,
+    T: for<'b> DdsDeserialize<'b>,
 {
+    type ParameterListType = &'a Vec<Parameter<&'a [u8]>>;
+    type DataType = &'a &'a [u8];
+
     fn add_change(&mut self, change: RtpsCacheChange<&Vec<Parameter<&[u8]>>, &&[u8]>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,

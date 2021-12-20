@@ -13,7 +13,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::{
         reader::writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
-        stateful_reader_behavior::{ReliableStatefulReaderBehavior, StatefulReaderBehavior},
+        stateful_reader_behavior::StatefulReaderBehavior,
     },
     messages::submessage_elements::Parameter,
     structure::{history_cache::RtpsHistoryCacheAddChange, types::GuidPrefix},
@@ -24,7 +24,6 @@ use crate::{
     dds_type::DdsDeserialize,
     rtps_impl::{
         rtps_reader_history_cache_impl::ReaderHistoryCacheGetChange,
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     },
     utils::message_receiver::ProcessDataSubmessage,
@@ -67,7 +66,11 @@ impl<Foo, R, W, H> ProcessDataSubmessage for DataReaderImpl<Foo, R>
 where
     Foo: for<'a> DdsDeserialize<'a>,
     W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
-    H: for<'b> RtpsHistoryCacheAddChange<&'b Vec<Parameter<&'b [u8]>>, &'b &'b [u8]>,
+    H: for<'b> RtpsHistoryCacheAddChange<
+        'b,
+        ParameterListType = &'b Vec<Parameter<&'b [u8]>>,
+        DataType = &'b &'b [u8],
+    >,
     for<'a> &'a mut R: IntoIterator<Item = StatefulReaderBehavior<'a, W, H>>,
 {
     fn process_data_submessage(
@@ -81,7 +84,7 @@ where
                 StatefulReaderBehavior::Reliable(reliable_writer_proxy_behavior) => {
                     todo!()
                     // reliable_writer_proxy_behavior.receive_data(source_guid_prefix, data.deref());
-                },
+                }
             }
         }
     }

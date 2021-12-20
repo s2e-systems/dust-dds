@@ -89,9 +89,9 @@ pub trait AnyStatelessDataWriter {
     ) -> Arc<RwLock<dyn StatelessWriterSubmessageProducer>>;
 }
 
-impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl, StdTimer>>
+impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl<T>, StdTimer>>
 where
-    T: 'static,
+    T: Send + Sync + 'static,
 {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
@@ -112,9 +112,9 @@ pub trait AnyStatefulDataWriter {
     ) -> Arc<RwLock<dyn StatefulWriterSubmessageProducer>>;
 }
 
-impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl, StdTimer>>
+impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl<T>, StdTimer>>
 where
-    T: 'static,
+    T: Send + Sync + 'static,
 {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
@@ -226,7 +226,7 @@ impl PublisherImpl {
 
 impl<Foo> PublisherDataWriterFactory<'_, Foo> for PublisherImpl
 where
-    Foo: DdsType + DdsSerialize + Send + 'static,
+    Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
     type TopicType = RtpsShared<dyn TopicDescription<Foo> + Send + Sync>;
     type DataWriterType = RtpsShared<dyn DataWriter<Foo> + Send + Sync>;
@@ -347,7 +347,7 @@ where
     ) -> Option<Self::DataWriterType> {
         let data_writer_impl_list_lock = self.stateful_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatefulWriterImpl, StdTimer>>>(
+            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatefulWriterImpl<Foo>, StdTimer>>>(
                 x.into_any(),
             )
             .ok()
@@ -359,7 +359,7 @@ where
 
         let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatelessWriterImpl, StdTimer>>>(
+            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatelessWriterImpl<Foo>, StdTimer>>>(
                 x.into_any(),
             )
             .ok()

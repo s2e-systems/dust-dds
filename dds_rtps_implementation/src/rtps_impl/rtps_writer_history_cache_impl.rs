@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
@@ -24,23 +26,25 @@ struct WriterCacheChange {
     _instance_state_kind: InstanceStateKind,
 }
 
-pub struct WriterHistoryCache {
+pub struct WriterHistoryCache<T> {
     changes: Vec<WriterCacheChange>,
     source_timestamp: Option<Time>,
+    phantom: PhantomData<T>,
 }
 
-impl WriterHistoryCache {
+impl<T> WriterHistoryCache<T> {
     /// Set the Rtps history cache impl's info.
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
     }
 }
 
-impl RtpsHistoryCacheConstructor for WriterHistoryCache {
+impl<T> RtpsHistoryCacheConstructor for WriterHistoryCache<T> {
     fn new() -> Self {
         Self {
             changes: Vec::new(),
             source_timestamp: None,
+            phantom: PhantomData,
         }
     }
 }
@@ -48,13 +52,20 @@ impl RtpsHistoryCacheConstructor for WriterHistoryCache {
 pub trait WriterHistoryCacheAddChangeMut<'a, T> {
     fn get_writer_history_cache_add_change_mut(
         &'a mut self,
-    ) -> &mut dyn RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T>;
+    ) -> &mut dyn RtpsHistoryCacheAddChange<
+        '_,
+        ParameterListType = Vec<Parameter<Vec<u8>>>,
+        DataType = &'_ T,
+    >;
 }
 
-impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> for WriterHistoryCache
+impl<'a, T> RtpsHistoryCacheAddChange<'a> for WriterHistoryCache<T>
 where
-    T: DdsSerialize,
+    T: DdsSerialize + 'a,
 {
+    type ParameterListType = Vec<Parameter<Vec<u8>>>;
+    type DataType = &'a T;
+
     fn add_change(&mut self, change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'_ T>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
@@ -85,7 +96,7 @@ where
     }
 }
 
-impl<'a> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> for WriterHistoryCache {
+impl<'a, T> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> for WriterHistoryCache<T> {
     fn get_change(
         &'a self,
         seq_num: &SequenceNumber,
@@ -106,7 +117,7 @@ impl<'a> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> for Wr
     }
 }
 
-impl RtpsHistoryCacheOperations for WriterHistoryCache {
+impl<T> RtpsHistoryCacheOperations for WriterHistoryCache<T> {
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }

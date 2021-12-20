@@ -365,6 +365,8 @@ where
 #[cfg(test)]
 mod tests {
 
+    use std::marker::PhantomData;
+
     use rust_rtps_pim::{
         behavior::{
             types::{Duration, DURATION_ZERO},
@@ -412,17 +414,23 @@ mod tests {
 
     #[test]
     fn write_w_timestamp() {
-        struct MockWriterCache;
+        struct MockWriterCache<T>(PhantomData<T>);
 
-        impl<T> RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> for MockWriterCache {
+        impl<'a, T> RtpsHistoryCacheAddChange<'a> for MockWriterCache<T>
+        where
+            T: 'a,
+        {
+            type ParameterListType = Vec<Parameter<Vec<u8>>>;
+            type DataType = &'a T;
+
             fn add_change(&mut self, _change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'_ T>) {}
         }
 
-        struct MockWriter {
-            cache: MockWriterCache,
+        struct MockWriter<T> {
+            cache: MockWriterCache<T>,
         }
 
-        impl RtpsWriterOperations for MockWriter {
+        impl<T> RtpsWriterOperations for MockWriter<T> {
             fn new_change<'a, P, D>(
                 &mut self,
                 kind: ChangeKind,
@@ -441,10 +449,14 @@ mod tests {
             }
         }
 
-        impl<T> WriterHistoryCacheAddChangeMut<'_, T> for MockWriter {
+        impl<T> WriterHistoryCacheAddChangeMut<'_, T> for MockWriter<T> {
             fn get_writer_history_cache_add_change_mut(
                 &'_ mut self,
-            ) -> &mut dyn RtpsHistoryCacheAddChange<Vec<Parameter<Vec<u8>>>, &'_ T> {
+            ) -> &mut dyn RtpsHistoryCacheAddChange<
+                '_,
+                ParameterListType = Vec<Parameter<Vec<u8>>>,
+                DataType = &'_ T,
+            > {
                 &mut self.cache
             }
         }
@@ -452,7 +464,7 @@ mod tests {
         let mut dds_data_writer = DataWriterImpl::new(
             DataWriterQos::default(),
             MockWriter {
-                cache: MockWriterCache,
+                cache: MockWriterCache(PhantomData),
             },
             Box::new(EmptyTimer),
         );
@@ -489,7 +501,7 @@ mod tests {
         let nack_suppression_duration = DURATION_ZERO;
         let data_max_size_serialized = None;
 
-        let mut rtps_writer_impl = RtpsStatefulWriterImpl::new(
+        let mut rtps_writer_impl = RtpsStatefulWriterImpl::<()>::new(
             guid,
             topic_kind,
             reliability_level,

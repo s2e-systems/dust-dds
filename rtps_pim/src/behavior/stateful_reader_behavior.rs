@@ -59,7 +59,11 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
         >,
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
-        H: for<'b> RtpsHistoryCacheAddChange<&'b [Parameter<&'b [u8]>], &'b [u8]>,
+        H: for<'b> RtpsHistoryCacheAddChange<
+            'b,
+            ParameterListType = &'b [Parameter<&'b [u8]>],
+            DataType = &'b [u8],
+        >,
     {
         let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
         if &writer_guid == self.writer_proxy.remote_writer_guid() {
@@ -150,10 +154,13 @@ mod tests {
             add_change_called: bool,
         }
 
-        impl RtpsHistoryCacheAddChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]> for MockReaderCache {
+        impl<'a> RtpsHistoryCacheAddChange<'a> for MockReaderCache {
+            type ParameterListType = &'a [Parameter<&'a [u8]>];
+            type DataType = &'a [u8];
+
             fn add_change(
                 &mut self,
-                _change: RtpsCacheChange<&'_ [Parameter<&'_ [u8]>], &'_ [u8]>,
+                _change: RtpsCacheChange<Self::ParameterListType, Self::DataType>,
             ) {
                 self.add_change_called = true;
             }

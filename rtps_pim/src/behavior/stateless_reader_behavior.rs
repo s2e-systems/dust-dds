@@ -1,5 +1,11 @@
 use crate::{
-    messages::submessages::DataSubmessage,
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElementAttributes, ParameterListSubmessageElementAttributes,
+            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
+        },
+        submessages::{DataSubmessage, DataSubmessageAttributes},
+    },
     structure::{
         cache_change::RtpsCacheChange,
         history_cache::RtpsHistoryCacheAddChange,
@@ -16,22 +22,27 @@ impl<C> BestEffortStatelessReaderBehavior<'_, C> {
     pub fn receive_data<P, D>(
         &mut self,
         source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<P, D>,
+        data: &impl DataSubmessageAttributes<
+            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
+            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
+            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
+            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
+        >,
     ) where
-        C: for<'a> RtpsHistoryCacheAddChange<&'a P, &'a D>,
+        C: for<'a> RtpsHistoryCacheAddChange<'a, ParameterListType = &'a P, DataType = &'a D>,
     {
-        let reader_id = data.reader_id.value;
-        if &reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
-            let kind = match (data.data_flag, data.key_flag) {
+        let reader_id = data.reader_id().value();
+        if reader_id == self.reader_guid.entity_id() || reader_id == &ENTITYID_UNKNOWN {
+            let kind = match (data.data_flag(), data.key_flag()) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
                 _ => todo!(),
             };
-            let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+            let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
             let instance_handle = 0;
-            let sequence_number = data.writer_sn.value;
-            let data_value = &data.serialized_payload.value;
-            let inline_qos = &data.inline_qos.parameter;
+            let sequence_number = *data.writer_sn().value();
+            let data_value = &data.serialized_payload().value();
+            let inline_qos = &data.inline_qos().parameter();
             let a_change = RtpsCacheChange {
                 kind,
                 writer_guid,
@@ -66,7 +77,10 @@ mod tests {
     fn best_effort_stateless_reader_receive_data_reader_id_unknown() {
         struct MockHistoryCache(bool);
 
-        impl<'a> RtpsHistoryCacheAddChange<&'a (), &'a ()> for MockHistoryCache {
+        impl<'a> RtpsHistoryCacheAddChange<'a> for MockHistoryCache {
+            type ParameterListType = &'a ();
+            type DataType = &'a ();
+
             fn add_change(&mut self, _change: RtpsCacheChange<&(), &()>) {
                 self.0 = true;
             }
@@ -104,7 +118,10 @@ mod tests {
     fn best_effort_stateless_reader_receive_data_reader_id_same_as_receiver() {
         struct MockHistoryCache(bool);
 
-        impl<'a> RtpsHistoryCacheAddChange<&'a (), &'a ()> for MockHistoryCache {
+        impl<'a> RtpsHistoryCacheAddChange<'a> for MockHistoryCache {
+            type ParameterListType = &'a ();
+            type DataType = &'a ();
+
             fn add_change(&mut self, _change: RtpsCacheChange<&(), &()>) {
                 self.0 = true;
             }
@@ -142,7 +159,10 @@ mod tests {
     fn best_effort_stateless_reader_receive_data_reader_id_other_than_receiver() {
         struct MockHistoryCache(bool);
 
-        impl<'a> RtpsHistoryCacheAddChange<&'a (), &'a ()> for MockHistoryCache {
+        impl<'a> RtpsHistoryCacheAddChange<'a> for MockHistoryCache {
+            type ParameterListType = &'a ();
+            type DataType = &'a ();
+
             fn add_change(&mut self, _change: RtpsCacheChange<&(), &()>) {
                 self.0 = true;
             }
