@@ -35,6 +35,8 @@ pub struct DataSubmessage<P, D> {
     pub serialized_payload: SerializedDataSubmessageElement<D>,
 }
 
+pub trait DataTrait<P,D>{}
+
 #[derive(Debug, PartialEq)]
 pub struct DataFragSubmessage<P, D> {
     pub endianness_flag: SubmessageFlag,

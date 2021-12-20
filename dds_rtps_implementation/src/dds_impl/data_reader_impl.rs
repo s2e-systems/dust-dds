@@ -11,8 +11,12 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::stateful_reader_behavior::ReliableStatefulReaderBehavior,
-    structure::types::GuidPrefix,
+    behavior::{
+        reader::writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
+        stateful_reader_behavior::{ReliableStatefulReaderBehavior, StatefulReaderBehavior},
+    },
+    messages::submessage_elements::Parameter,
+    structure::{history_cache::RtpsHistoryCacheAddChange, types::GuidPrefix},
 };
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
@@ -59,16 +63,27 @@ where
     }
 }
 
-impl<Foo> ProcessDataSubmessage for DataReaderImpl<Foo, RtpsStatefulReaderImpl<Foo>>
+impl<Foo, R, W, H> ProcessDataSubmessage for DataReaderImpl<Foo, R>
 where
     Foo: for<'a> DdsDeserialize<'a>,
+    W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
+    H: for<'b> RtpsHistoryCacheAddChange<&'b Vec<Parameter<&'b [u8]>>, &'b &'b [u8]>,
+    for<'a> &'a mut R: IntoIterator<Item = StatefulReaderBehavior<'a, W, H>>,
 {
     fn process_data_submessage(
         &mut self,
-        _source_guid_prefix: GuidPrefix,
-        _data: &DataSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessageRead,
     ) {
-        ReliableStatefulReaderBehavior::receive_data();
+        for mut writer_proxy_behavior in (&mut self.rtps_reader).into_iter() {
+            match writer_proxy_behavior {
+                StatefulReaderBehavior::BestEffort(_) => todo!(),
+                StatefulReaderBehavior::Reliable(reliable_writer_proxy_behavior) => {
+                    todo!()
+                    // reliable_writer_proxy_behavior.receive_data(source_guid_prefix, data.deref());
+                },
+            }
+        }
     }
 }
 

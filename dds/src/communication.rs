@@ -23,20 +23,6 @@ where
         for publisher in list {
             publisher.write().unwrap().send_message(&mut self.transport);
         }
-        // if let Ok((dst_locator, submessages)) =
-        //     self.locator_message_channel_receiver.try_recv()
-        // {
-        //     let message = RtpsMessageWrite::new(
-        //         RtpsMessageHeader {
-        //             protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-        //             version: self.version,
-        //             vendor_id: self.vendor_id,
-        //             guid_prefix: self.guid_prefix,
-        //         },
-        //         submessages,
-        //     );
-        //     self.transport.write(&message, &dst_locator);
-        // };
     }
 }
 impl<T> Communication<T>
