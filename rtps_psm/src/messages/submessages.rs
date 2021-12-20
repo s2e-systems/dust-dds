@@ -9,8 +9,8 @@ use rust_rtps_pim::{
             TimestampSubmessageElement,
         },
         submessages::{
-            AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
-            HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+            AckNackSubmessage, DataFragSubmessage, DataSubmessage, DataSubmessageAttributes,
+            GapSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
             InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
             PadSubmessage,
         },
@@ -145,6 +145,56 @@ impl<'a> DataSubmessageRead<'a> {
             inline_qos,
             serialized_payload,
         })
+    }
+}
+
+impl DataSubmessageAttributes for DataSubmessageRead<'_> {
+    type EntityIdSubmessageElementType = super::submessage_elements::EntityIdSubmessageElement;
+    type SequenceNumberSubmessageElementType =
+        super::submessage_elements::SequenceNumberSubmessageElement;
+    type ParameterListSubmessageElementType =
+        super::submessage_elements::ParameterListSubmessageElement;
+    type SerializedDataSubmessageElementType =
+        super::submessage_elements::SerializedDataSubmessageElement;
+
+    fn endianness_flag(&self) -> &SubmessageFlag {
+        todo!()
+    }
+
+    fn inline_qos_flag(&self) -> &SubmessageFlag {
+        todo!()
+    }
+
+    fn data_flag(&self) -> &SubmessageFlag {
+        todo!()
+    }
+
+    fn key_flag(&self) -> &SubmessageFlag {
+        todo!()
+    }
+
+    fn non_standard_payload_flag(&self) -> &SubmessageFlag {
+        todo!()
+    }
+
+    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
+        todo!()
+    }
+
+    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
+        todo!()
+    }
+
+    fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
+        todo!()
+    }
+
+    fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
+        todo!()
+    }
+
+    fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
+        todo!()
     }
 }
 

@@ -1,8 +1,9 @@
 use crate::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementAttributes, ParameterListSubmessageElementAttributes,
-            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
+            EntityIdSubmessageElementAttributes, Parameter,
+            ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
+            SerializedDataSubmessageElementAttributes,
         },
         submessages::{DataSubmessage, DataSubmessageAttributes},
     },
@@ -19,7 +20,7 @@ pub struct BestEffortStatelessReaderBehavior<'a, C> {
 }
 
 impl<C> BestEffortStatelessReaderBehavior<'_, C> {
-    pub fn receive_data<P, D>(
+    pub fn receive_data(
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
@@ -29,7 +30,11 @@ impl<C> BestEffortStatelessReaderBehavior<'_, C> {
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
         >,
     ) where
-        C: for<'a> RtpsHistoryCacheAddChange<'a, ParameterListType = &'a P, DataType = &'a D>,
+        C: for<'a> RtpsHistoryCacheAddChange<
+            'a,
+            ParameterListType = &'a [Parameter<&'a [u8]>],
+            DataType = &'a [u8],
+        >,
     {
         let reader_id = data.reader_id().value();
         if reader_id == self.reader_guid.entity_id() || reader_id == &ENTITYID_UNKNOWN {
@@ -41,8 +46,8 @@ impl<C> BestEffortStatelessReaderBehavior<'_, C> {
             let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
             let instance_handle = 0;
             let sequence_number = *data.writer_sn().value();
-            let data_value = &data.serialized_payload().value();
-            let inline_qos = &data.inline_qos().parameter();
+            let data_value = data.serialized_payload().value();
+            let inline_qos = data.inline_qos().parameter();
             let a_change = RtpsCacheChange {
                 kind,
                 writer_guid,
@@ -69,19 +74,104 @@ mod tests {
             EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
         },
+        structure::types::{EntityId, SequenceNumber},
     };
 
     use super::*;
+
+    struct MockEntityId;
+
+    impl EntityIdSubmessageElementAttributes for MockEntityId {
+        fn value(&self) -> &EntityId {
+            todo!()
+        }
+    }
+
+    struct MockSequenceNumber;
+
+    impl SequenceNumberSubmessageElementAttributes for MockSequenceNumber {
+        fn value(&self) -> &SequenceNumber {
+            todo!()
+        }
+    }
+
+    struct MockParameterList;
+
+    impl ParameterListSubmessageElementAttributes for MockParameterList {
+        fn parameter(&self) -> &[Parameter<&[u8]>] {
+            todo!()
+        }
+    }
+
+    struct MockSerializedData;
+
+    impl SerializedDataSubmessageElementAttributes for MockSerializedData {
+        fn value(&self) -> &[u8] {
+            todo!()
+        }
+    }
+
+    struct MockDataSubmessage;
+
+    impl DataSubmessageAttributes for MockDataSubmessage {
+        type EntityIdSubmessageElementType = MockEntityId;
+        type SequenceNumberSubmessageElementType = MockSequenceNumber;
+        type ParameterListSubmessageElementType = MockParameterList;
+        type SerializedDataSubmessageElementType = MockSerializedData;
+
+        fn endianness_flag(&self) -> &crate::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn inline_qos_flag(&self) -> &crate::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn data_flag(&self) -> &crate::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn key_flag(&self) -> &crate::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn non_standard_payload_flag(&self) -> &crate::messages::types::SubmessageFlag {
+            todo!()
+        }
+
+        fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
+            todo!()
+        }
+
+        fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
+            todo!()
+        }
+
+        fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
+            todo!()
+        }
+
+        fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
+            todo!()
+        }
+
+        fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
+            todo!()
+        }
+    }
 
     #[test]
     fn best_effort_stateless_reader_receive_data_reader_id_unknown() {
         struct MockHistoryCache(bool);
 
         impl<'a> RtpsHistoryCacheAddChange<'a> for MockHistoryCache {
-            type ParameterListType = &'a ();
-            type DataType = &'a ();
+            type ParameterListType = &'a [Parameter<&'a [u8]>];
+            type DataType = &'a [u8];
 
-            fn add_change(&mut self, _change: RtpsCacheChange<&(), &()>) {
+            fn add_change(
+                &mut self,
+                _change: RtpsCacheChange<Self::ParameterListType, Self::DataType>,
+            ) {
                 self.0 = true;
             }
         }
@@ -109,7 +199,7 @@ mod tests {
             inline_qos: ParameterListSubmessageElement { parameter: () },
             serialized_payload: SerializedDataSubmessageElement { value: () },
         };
-        stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &data_submessage);
+        stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &MockDataSubmessage);
 
         assert_eq!(history_cache.0, true);
     }
@@ -119,10 +209,13 @@ mod tests {
         struct MockHistoryCache(bool);
 
         impl<'a> RtpsHistoryCacheAddChange<'a> for MockHistoryCache {
-            type ParameterListType = &'a ();
-            type DataType = &'a ();
+            type ParameterListType = &'a [Parameter<&'a [u8]>];
+            type DataType = &'a [u8];
 
-            fn add_change(&mut self, _change: RtpsCacheChange<&(), &()>) {
+            fn add_change(
+                &mut self,
+                _change: RtpsCacheChange<Self::ParameterListType, Self::DataType>,
+            ) {
                 self.0 = true;
             }
         }
@@ -150,7 +243,7 @@ mod tests {
             inline_qos: ParameterListSubmessageElement { parameter: () },
             serialized_payload: SerializedDataSubmessageElement { value: () },
         };
-        stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &data_submessage);
+        stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &MockDataSubmessage);
 
         assert_eq!(history_cache.0, true);
     }
@@ -160,10 +253,13 @@ mod tests {
         struct MockHistoryCache(bool);
 
         impl<'a> RtpsHistoryCacheAddChange<'a> for MockHistoryCache {
-            type ParameterListType = &'a ();
-            type DataType = &'a ();
+            type ParameterListType = &'a [Parameter<&'a [u8]>];
+            type DataType = &'a [u8];
 
-            fn add_change(&mut self, _change: RtpsCacheChange<&(), &()>) {
+            fn add_change(
+                &mut self,
+                _change: RtpsCacheChange<Self::ParameterListType, Self::DataType>,
+            ) {
                 self.0 = true;
             }
         }
@@ -191,7 +287,7 @@ mod tests {
             inline_qos: ParameterListSubmessageElement { parameter: () },
             serialized_payload: SerializedDataSubmessageElement { value: () },
         };
-        stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &data_submessage);
+        stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &MockDataSubmessage);
 
         assert_eq!(history_cache.0, false);
     }

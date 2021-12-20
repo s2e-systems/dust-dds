@@ -32,10 +32,10 @@ use rust_dds_rtps_implementation::{
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl, rtps_group_impl::RtpsGroupImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::{
         clock::StdTimer,
@@ -300,23 +300,27 @@ impl DomainParticipantFactory {
         let spdp_builtin_participant_rtps_reader = SpdpBuiltinParticipantReader::create::<
             RtpsStatelessReaderImpl<SpdpDiscoveredParticipantData>,
         >(guid_prefix, &[], &[]);
-        let mut spdp_builtin_participant_rtps_writer =
-            SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
+        let mut spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
+            RtpsStatelessWriterImpl<SpdpDiscoveredParticipantData>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_publications_rtps_reader = SedpBuiltinPublicationsReader::create::<
             RtpsStatefulReaderImpl<SedpDiscoveredWriterData>,
         >(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_rtps_writer =
-            SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+        let sedp_builtin_publications_rtps_writer = SedpBuiltinPublicationsWriter::create::<
+            RtpsStatefulWriterImpl<SedpDiscoveredWriterData>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_rtps_reader = SedpBuiltinSubscriptionsReader::create::<
             RtpsStatefulReaderImpl<SedpDiscoveredReaderData>,
         >(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_rtps_writer =
-            SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+        let sedp_builtin_subscriptions_rtps_writer = SedpBuiltinSubscriptionsWriter::create::<
+            RtpsStatefulWriterImpl<SedpDiscoveredReaderData>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_topics_rtps_reader = SedpBuiltinTopicsReader::create::<
             RtpsStatefulReaderImpl<SedpDiscoveredTopicData>,
         >(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_rtps_writer =
-            SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+        let sedp_builtin_topics_rtps_writer = SedpBuiltinTopicsWriter::create::<
+            RtpsStatefulWriterImpl<SedpDiscoveredTopicData>,
+        >(guid_prefix, &[], &[]);
 
         // ////////// Configure SPDP reader locator
         let spdp_discovery_locator = RtpsReaderLocator::new(
