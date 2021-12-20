@@ -36,6 +36,10 @@ pub struct EntityIdSubmessageElement {
     pub value: EntityId,
 }
 
+pub trait EntityIdSubmessageElementAttributes {
+    fn value(&self) -> &EntityId;
+}
+
 #[derive(Debug, PartialEq)]
 pub struct VendorIdSubmessageElement {
     pub value: VendorId,
@@ -49,6 +53,10 @@ pub struct ProtocolVersionSubmessageElement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct SequenceNumberSubmessageElement {
     pub value: SequenceNumber,
+}
+
+pub trait SequenceNumberSubmessageElementAttributes {
+    fn value(&self) -> &SequenceNumber;
 }
 
 #[derive(Debug, PartialEq)]
@@ -99,6 +107,10 @@ pub struct ParameterListSubmessageElement<T> {
     pub parameter: T,
 }
 
+pub trait ParameterListSubmessageElementAttributes {
+    fn parameter(&self) -> &[Parameter<&[u8]>];
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct CountSubmessageElement {
     pub value: Count,
@@ -112,6 +124,10 @@ pub struct LocatorListSubmessageElement<T> {
 #[derive(Debug, PartialEq)]
 pub struct SerializedDataSubmessageElement<D> {
     pub value: D,
+}
+
+pub trait SerializedDataSubmessageElementAttributes {
+    fn value(&self) -> &[u8];
 }
 
 #[derive(Debug, PartialEq)]

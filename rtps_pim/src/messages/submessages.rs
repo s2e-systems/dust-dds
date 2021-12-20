@@ -35,7 +35,43 @@ pub struct DataSubmessage<P, D> {
     pub serialized_payload: SerializedDataSubmessageElement<D>,
 }
 
-pub trait DataTrait<P,D>{}
+pub trait DataSubmessageConstructor {
+    type EntityIdSubmessageElementType;
+    type SequenceNumberSubmessageElementType;
+    type ParameterListSubmessageElementType;
+    type SerializedDataSubmessageElementType;
+
+    fn new(
+        endianness_flag: SubmessageFlag,
+        inline_qos_flag: SubmessageFlag,
+        data_flag: SubmessageFlag,
+        key_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        writer_sn: Self::SequenceNumberSubmessageElementType,
+        inline_qos: Self::ParameterListSubmessageElementType,
+        serialized_payload: Self::SerializedDataSubmessageElementType,
+    ) -> Self;
+}
+
+pub trait DataSubmessageAttributes {
+    type EntityIdSubmessageElementType;
+    type SequenceNumberSubmessageElementType;
+    type ParameterListSubmessageElementType;
+    type SerializedDataSubmessageElementType;
+
+    fn endianness_flag(&self) -> &SubmessageFlag;
+    fn inline_qos_flag(&self) -> &SubmessageFlag;
+    fn data_flag(&self) -> &SubmessageFlag;
+    fn key_flag(&self) -> &SubmessageFlag;
+    fn non_standard_payload_flag(&self) -> &SubmessageFlag;
+    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
+    fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType;
+    fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
+}
 
 #[derive(Debug, PartialEq)]
 pub struct DataFragSubmessage<P, D> {
