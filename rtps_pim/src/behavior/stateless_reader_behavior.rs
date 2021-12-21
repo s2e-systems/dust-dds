@@ -5,12 +5,12 @@ use crate::{
             ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementAttributes,
         },
-        submessages::{DataSubmessage, DataSubmessageAttributes},
+        submessages::DataSubmessageAttributes,
     },
     structure::{
         cache_change::RtpsCacheChange,
         history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
+        types::{ChangeKind, EntityId, Guid, GuidPrefix, ENTITYID_UNKNOWN},
     },
 };
 
@@ -24,7 +24,9 @@ impl<C> BestEffortStatelessReaderBehavior<'_, C> {
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
-            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
+            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes<
+                EntityIdType = EntityId,
+            >,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
@@ -82,7 +84,8 @@ mod tests {
     struct MockEntityId;
 
     impl EntityIdSubmessageElementAttributes for MockEntityId {
-        fn value(&self) -> &EntityId {
+        type EntityIdType = EntityId;
+        fn value(&self) -> &Self::EntityIdType {
             todo!()
         }
     }
@@ -183,22 +186,22 @@ mod tests {
             ),
             reader_cache: &mut history_cache,
         };
-        let data_submessage = DataSubmessage {
-            endianness_flag: true,
-            inline_qos_flag: true,
-            data_flag: true,
-            key_flag: false,
-            non_standard_payload_flag: false,
-            reader_id: EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN,
-            },
-            writer_id: EntityIdSubmessageElement {
-                value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            },
-            writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement { parameter: () },
-            serialized_payload: SerializedDataSubmessageElement { value: () },
-        };
+        // let data_submessage = DataSubmessage {
+        //     endianness_flag: true,
+        //     inline_qos_flag: true,
+        //     data_flag: true,
+        //     key_flag: false,
+        //     non_standard_payload_flag: false,
+        //     reader_id: EntityIdSubmessageElement {
+        //         value: ENTITYID_UNKNOWN,
+        //     },
+        //     writer_id: EntityIdSubmessageElement {
+        //         value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        //     },
+        //     writer_sn: SequenceNumberSubmessageElement { value: 1 },
+        //     inline_qos: ParameterListSubmessageElement { parameter: () },
+        //     serialized_payload: SerializedDataSubmessageElement { value: () },
+        // };
         stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &MockDataSubmessage);
 
         assert_eq!(history_cache.0, true);
@@ -227,22 +230,22 @@ mod tests {
             ),
             reader_cache: &mut history_cache,
         };
-        let data_submessage = DataSubmessage {
-            endianness_flag: true,
-            inline_qos_flag: true,
-            data_flag: true,
-            key_flag: false,
-            non_standard_payload_flag: false,
-            reader_id: EntityIdSubmessageElement {
-                value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-            },
-            writer_id: EntityIdSubmessageElement {
-                value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            },
-            writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement { parameter: () },
-            serialized_payload: SerializedDataSubmessageElement { value: () },
-        };
+        // let data_submessage = DataSubmessage {
+        //     endianness_flag: true,
+        //     inline_qos_flag: true,
+        //     data_flag: true,
+        //     key_flag: false,
+        //     non_standard_payload_flag: false,
+        //     reader_id: EntityIdSubmessageElement {
+        //         value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+        //     },
+        //     writer_id: EntityIdSubmessageElement {
+        //         value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        //     },
+        //     writer_sn: SequenceNumberSubmessageElement { value: 1 },
+        //     inline_qos: ParameterListSubmessageElement { parameter: () },
+        //     serialized_payload: SerializedDataSubmessageElement { value: () },
+        // };
         stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &MockDataSubmessage);
 
         assert_eq!(history_cache.0, true);
@@ -271,22 +274,22 @@ mod tests {
             ),
             reader_cache: &mut history_cache,
         };
-        let data_submessage = DataSubmessage {
-            endianness_flag: true,
-            inline_qos_flag: true,
-            data_flag: true,
-            key_flag: false,
-            non_standard_payload_flag: false,
-            reader_id: EntityIdSubmessageElement {
-                value: ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            },
-            writer_id: EntityIdSubmessageElement {
-                value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            },
-            writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement { parameter: () },
-            serialized_payload: SerializedDataSubmessageElement { value: () },
-        };
+        // let data_submessage = DataSubmessage {
+        //     endianness_flag: true,
+        //     inline_qos_flag: true,
+        //     data_flag: true,
+        //     key_flag: false,
+        //     non_standard_payload_flag: false,
+        //     reader_id: EntityIdSubmessageElement {
+        //         value: ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        //     },
+        //     writer_id: EntityIdSubmessageElement {
+        //         value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+        //     },
+        //     writer_sn: SequenceNumberSubmessageElement { value: 1 },
+        //     inline_qos: ParameterListSubmessageElement { parameter: () },
+        //     serialized_payload: SerializedDataSubmessageElement { value: () },
+        // };
         stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &MockDataSubmessage);
 
         assert_eq!(history_cache.0, false);

@@ -10,7 +10,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChange,
         history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, Guid, GuidPrefix},
+        types::{ChangeKind, EntityId, Guid, GuidPrefix},
     },
 };
 
@@ -52,7 +52,9 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
-            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
+            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes<
+                EntityIdType = EntityId,
+            >,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
@@ -169,7 +171,8 @@ mod tests {
         struct MockEntityId;
 
         impl EntityIdSubmessageElementAttributes for MockEntityId {
-            fn value(&self) -> &EntityId {
+            type EntityIdType = EntityId;
+            fn value(&self) -> &Self::EntityIdType {
                 todo!()
             }
         }

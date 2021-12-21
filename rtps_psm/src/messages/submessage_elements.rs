@@ -21,7 +21,9 @@ impl EntityIdSubmessageElementConstructor for EntityIdSubmessageElementPsm {
 }
 
 impl EntityIdSubmessageElementAttributes for EntityIdSubmessageElementPsm {
-    fn value(&self) -> &EntityId {
+    type EntityIdType = EntityId;
+
+    fn value(&self) -> &Self::EntityIdType {
         &self.value
     }
 }

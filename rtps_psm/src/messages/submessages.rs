@@ -4,26 +4,26 @@ use rust_rtps_pim::{
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, Parameter,
-            ParameterListSubmessageElement, SequenceNumberSetSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
             TimestampSubmessageElement,
         },
         submessages::{
-            AckNackSubmessage, DataFragSubmessage, DataSubmessage, DataSubmessageAttributes,
+            AckNackSubmessage, DataFragSubmessage, DataSubmessageAttributes,
             DataSubmessageConstructor, GapSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
             InfoDestinationSubmessage, InfoReplySubmessage, InfoSourceSubmessage,
             InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage,
         },
         types::SubmessageFlag,
     },
-    structure::types::{EntityId, SequenceNumber},
+    structure::types::SequenceNumber,
 };
 
 use super::{
     overall_structure::RtpsSubmessageTypeWrite,
     submessage_elements::{
         EntityIdSubmessageElementPsm, ParameterListSubmessageElementPsm,
-        SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm, ParameterListSubmessageElementWritePsm,
+        ParameterListSubmessageElementWritePsm, SequenceNumberSubmessageElementPsm,
+        SerializedDataSubmessageElementPsm,
     },
 };
 
@@ -108,7 +108,9 @@ impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
             reader_id,
             writer_id,
             writer_sn: SequenceNumberSubmessageElementPsm { value: writer_sn },
-            inline_qos: ParameterListSubmessageElementWritePsm { parameter: inline_qos },
+            inline_qos: ParameterListSubmessageElementWritePsm {
+                parameter: inline_qos,
+            },
             serialized_payload: SerializedDataSubmessageElementPsm {
                 value: serialized_payload,
             },
