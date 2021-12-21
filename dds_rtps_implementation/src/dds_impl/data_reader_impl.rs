@@ -12,23 +12,22 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
+        reader::{
+            reader::RtpsReaderAttributes,
+            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
+        },
         stateful_reader_behavior::StatefulReaderBehavior,
     },
     messages::submessage_elements::Parameter,
     structure::{
-        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheAddChange,
+        cache_change::RtpsCacheChangeAttributes, history_cache::{RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange},
         types::GuidPrefix,
     },
 };
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
-    dds_type::DdsDeserialize,
-    rtps_impl::{
-        rtps_reader_history_cache_impl::ReaderHistoryCacheGetChange,
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    },
+    dds_type::DdsDeserialize, rtps_impl::rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     utils::message_receiver::ProcessDataSubmessage,
 };
 
@@ -130,10 +129,12 @@ impl<Foo, R> DataReaderImpl<Foo, R> {
 //     })
 //     .collect())
 
-impl<'a, Foo, R> DataReaderBorrowedSamples<'a> for DataReaderImpl<Foo, R>
+impl<'a, Foo, R, H, CC> DataReaderBorrowedSamples<'a> for DataReaderImpl<Foo, R>
 where
     Foo: 'static,
-    R: ReaderHistoryCacheGetChange<'a, Foo>,
+    R: RtpsReaderAttributes<ReaderHistoryCacheType = H>,
+    H: RtpsHistoryCacheGetChange<CacheChangeType = CC>+ 'a,
+    CC: RtpsCacheChangeAttributes<DataType = Foo> + 'a
 {
     type Samples = Vec<&'a Foo>;
 
@@ -144,11 +145,7 @@ where
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
         _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        if let Some(cc) = self
-            .rtps_reader
-            .get_reader_history_cache_get_change()
-            .get_change(&1)
-        {
+        if let Some(cc) = self.rtps_reader.reader_cache().get_change(&1) {
             Ok(vec![cc.data_value()])
         } else {
             Err(DDSError::NoData)
@@ -159,7 +156,7 @@ where
 impl<Foo, R> DataReader<Foo> for DataReaderImpl<Foo, R>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
-    R: for<'a> ReaderHistoryCacheGetChange<'a, Foo>,
+    R: RtpsReaderAttributes,
 {
     fn take(
         &self,

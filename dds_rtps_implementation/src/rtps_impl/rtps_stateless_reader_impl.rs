@@ -16,9 +16,7 @@ use rust_rtps_pim::{
     },
 };
 
-use super::rtps_reader_history_cache_impl::{
-    ReaderCacheChange, ReaderHistoryCache, ReaderHistoryCacheGetChange,
-};
+use super::rtps_reader_history_cache_impl::{ReaderCacheChange, ReaderHistoryCache};
 
 pub struct RtpsStatelessReaderImpl<T> {
     guid: Guid,
@@ -114,13 +112,5 @@ impl<'a, T> IntoIterator for &'a mut RtpsStatelessReaderImpl<T> {
             reader_cache: &mut self.reader_cache,
         })
         .into_iter()
-    }
-}
-
-impl<'a, T> ReaderHistoryCacheGetChange<'a, T> for RtpsStatelessReaderImpl<T> {
-    fn get_reader_history_cache_get_change(
-        &'a self,
-    ) -> &dyn RtpsHistoryCacheGetChange<CacheChangeType = ReaderCacheChange<T>> {
-        &self.reader_cache
     }
 }

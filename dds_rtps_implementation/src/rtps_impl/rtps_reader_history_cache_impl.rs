@@ -150,11 +150,11 @@ impl<T> RtpsHistoryCacheOperations for ReaderHistoryCache<T> {
     }
 }
 
-pub trait ReaderHistoryCacheGetChange<'a, T> {
-    fn get_reader_history_cache_get_change(
-        &'a self,
-    ) -> &dyn RtpsHistoryCacheGetChange<CacheChangeType = ReaderCacheChange<T>>;
-}
+// pub trait ReaderHistoryCacheGetChange<'a, T> {
+//     fn get_reader_history_cache_get_change(
+//         &'a self,
+//     ) -> &dyn RtpsHistoryCacheGetChange<CacheChangeType = ReaderCacheChange<T>>;
+// }
 
 #[cfg(test)]
 mod tests {
