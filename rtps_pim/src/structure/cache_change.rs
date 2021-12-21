@@ -1,4 +1,4 @@
-use super::types::{ChangeKind, InstanceHandle, SequenceNumber, Guid};
+use super::types::{ChangeKind, Guid, InstanceHandle, SequenceNumber};
 
 pub struct RtpsCacheChange<P, D> {
     pub kind: ChangeKind,
@@ -7,4 +7,30 @@ pub struct RtpsCacheChange<P, D> {
     pub sequence_number: SequenceNumber,
     pub data_value: D,
     pub inline_qos: P,
+}
+
+pub trait RtpsCacheChangeConstructor {
+    type DataType;
+    type ParameterListType;
+
+    fn new(
+        kind: ChangeKind,
+        writer_guid: Guid,
+        instance_handle: InstanceHandle,
+        sequence_number: SequenceNumber,
+        data_value: Self::DataType,
+        inline_qos: Self::ParameterListType,
+    ) -> Self;
+}
+
+pub trait RtpsCacheChangeAttributes {
+    type DataType;
+    type ParameterListType;
+
+    fn kind(&self) -> &ChangeKind;
+    fn writer_guid(&self) -> &Guid;
+    fn instance_handle(&self) -> &InstanceHandle;
+    fn sequence_number(&self) -> &SequenceNumber;
+    fn data_value(&self) -> &Self::DataType;
+    fn inline_qos(&self) -> &Self::ParameterListType;
 }
