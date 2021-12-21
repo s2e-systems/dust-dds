@@ -6,6 +6,7 @@ use rust_rtps_pim::{
     structure::types::{EntityId, SequenceNumber},
 };
 
+#[derive(Debug, PartialEq)]
 pub struct EntityIdSubmessageElement;
 
 impl EntityIdSubmessageElementAttributes for EntityIdSubmessageElement {
@@ -14,6 +15,7 @@ impl EntityIdSubmessageElementAttributes for EntityIdSubmessageElement {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct SequenceNumberSubmessageElement;
 
 impl SequenceNumberSubmessageElementAttributes for SequenceNumberSubmessageElement {
@@ -22,14 +24,16 @@ impl SequenceNumberSubmessageElementAttributes for SequenceNumberSubmessageEleme
     }
 }
 
-pub struct SerializedDataSubmessageElement;
+#[derive(Debug, PartialEq)]
+pub struct SerializedDataSubmessageElement<'a>(pub &'a [u8]);
 
-impl SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElement {
+impl SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElement<'_> {
     fn value(&self) -> &[u8] {
-        todo!()
+        &self.0
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElement;
 
 impl ParameterListSubmessageElementAttributes for ParameterListSubmessageElement {

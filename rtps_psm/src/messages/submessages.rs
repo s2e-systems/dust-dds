@@ -118,7 +118,18 @@ impl<'a> From<<DataSubmessageWrite<'a> as Deref>::Target> for RtpsSubmessageType
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataSubmessageRead<'a>(<Self as Deref>::Target);
+pub struct DataSubmessageRead<'a> {
+    pub endianness_flag: SubmessageFlag,
+    pub inline_qos_flag: SubmessageFlag,
+    pub data_flag: SubmessageFlag,
+    pub key_flag: SubmessageFlag,
+    pub non_standard_payload_flag: SubmessageFlag,
+    pub reader_id: super::submessage_elements::EntityIdSubmessageElement,
+    pub writer_id: super::submessage_elements::EntityIdSubmessageElement,
+    pub writer_sn: super::submessage_elements::SequenceNumberSubmessageElement,
+    pub inline_qos: super::submessage_elements::ParameterListSubmessageElement,
+    pub serialized_payload: super::submessage_elements::SerializedDataSubmessageElement<'a>,
+}
 
 impl<'a> DataSubmessageRead<'a> {
     pub fn new(
@@ -127,13 +138,13 @@ impl<'a> DataSubmessageRead<'a> {
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElement,
-        writer_id: EntityIdSubmessageElement,
-        writer_sn: SequenceNumberSubmessageElement,
-        inline_qos: ParameterListSubmessageElement<Vec<Parameter<&'a [u8]>>>,
-        serialized_payload: SerializedDataSubmessageElement<&'a [u8]>,
+        reader_id: super::submessage_elements::EntityIdSubmessageElement,
+        writer_id: super::submessage_elements::EntityIdSubmessageElement,
+        writer_sn: super::submessage_elements::SequenceNumberSubmessageElement,
+        inline_qos: super::submessage_elements::ParameterListSubmessageElement,
+        serialized_payload: super::submessage_elements::SerializedDataSubmessageElement<'a>,
     ) -> Self {
-        Self(DataSubmessage {
+        Self {
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -144,65 +155,57 @@ impl<'a> DataSubmessageRead<'a> {
             writer_sn,
             inline_qos,
             serialized_payload,
-        })
+        }
     }
 }
 
-impl DataSubmessageAttributes for DataSubmessageRead<'_> {
+impl<'a> DataSubmessageAttributes for DataSubmessageRead<'a> {
     type EntityIdSubmessageElementType = super::submessage_elements::EntityIdSubmessageElement;
     type SequenceNumberSubmessageElementType =
         super::submessage_elements::SequenceNumberSubmessageElement;
     type ParameterListSubmessageElementType =
         super::submessage_elements::ParameterListSubmessageElement;
     type SerializedDataSubmessageElementType =
-        super::submessage_elements::SerializedDataSubmessageElement;
+        super::submessage_elements::SerializedDataSubmessageElement<'a>;
 
     fn endianness_flag(&self) -> &SubmessageFlag {
-        todo!()
+        &self.endianness_flag
     }
 
     fn inline_qos_flag(&self) -> &SubmessageFlag {
-        todo!()
+        &self.inline_qos_flag
     }
 
     fn data_flag(&self) -> &SubmessageFlag {
-        todo!()
+        &self.data_flag
     }
 
     fn key_flag(&self) -> &SubmessageFlag {
-        todo!()
+        &self.key_flag
     }
 
     fn non_standard_payload_flag(&self) -> &SubmessageFlag {
-        todo!()
+        &self.non_standard_payload_flag
     }
 
     fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
-        todo!()
+        &self.reader_id
     }
 
     fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
-        todo!()
+        &self.writer_id
     }
 
     fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
-        todo!()
+        &self.writer_sn
     }
 
     fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
-        todo!()
+        &self.inline_qos
     }
 
     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
-        todo!()
-    }
-}
-
-impl<'a> Deref for DataSubmessageRead<'a> {
-    type Target = DataSubmessage<Vec<Parameter<&'a [u8]>>, &'a [u8]>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.serialized_payload
     }
 }
 
