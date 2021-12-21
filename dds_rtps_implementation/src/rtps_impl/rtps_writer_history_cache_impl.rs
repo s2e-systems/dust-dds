@@ -26,20 +26,20 @@ struct WriterCacheChange {
     _instance_state_kind: InstanceStateKind,
 }
 
-pub struct WriterHistoryCache<T> {
+pub struct WriterHistoryCache<Foo> {
     changes: Vec<WriterCacheChange>,
     source_timestamp: Option<Time>,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<Foo>,
 }
 
-impl<T> WriterHistoryCache<T> {
+impl<Foo> WriterHistoryCache<Foo> {
     /// Set the Rtps history cache impl's info.
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
     }
 }
 
-impl<T> RtpsHistoryCacheConstructor for WriterHistoryCache<T> {
+impl<Foo> RtpsHistoryCacheConstructor for WriterHistoryCache<Foo> {
     fn new() -> Self {
         Self {
             changes: Vec::new(),
@@ -49,24 +49,24 @@ impl<T> RtpsHistoryCacheConstructor for WriterHistoryCache<T> {
     }
 }
 
-pub trait WriterHistoryCacheAddChangeMut<'a, T> {
+pub trait WriterHistoryCacheAddChangeMut<'a, Foo> {
     fn get_writer_history_cache_add_change_mut(
         &'a mut self,
     ) -> &mut dyn RtpsHistoryCacheAddChange<
         '_,
         ParameterListType = Vec<Parameter<Vec<u8>>>,
-        DataType = &'_ T,
+        DataType = &'_ Foo,
     >;
 }
 
-impl<'a, T> RtpsHistoryCacheAddChange<'a> for WriterHistoryCache<T>
+impl<'a, Foo> RtpsHistoryCacheAddChange<'a> for WriterHistoryCache<Foo>
 where
-    T: DdsSerialize + 'a,
+    Foo: DdsSerialize + 'a,
 {
     type ParameterListType = Vec<Parameter<Vec<u8>>>;
-    type DataType = &'a T;
+    type DataType = &'a Foo;
 
-    fn add_change(&mut self, change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'_ T>) {
+    fn add_change(&mut self, change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'_ Foo>) {
         let instance_state_kind = match change.kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
             ChangeKind::AliveFiltered => InstanceStateKind::Alive,
@@ -96,7 +96,7 @@ where
     }
 }
 
-impl<'a, T> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> for WriterHistoryCache<T> {
+impl<'a, Foo> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> for WriterHistoryCache<Foo> {
     fn get_change(
         &'a self,
         seq_num: &SequenceNumber,
@@ -117,7 +117,7 @@ impl<'a, T> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> for
     }
 }
 
-impl<T> RtpsHistoryCacheOperations for WriterHistoryCache<T> {
+impl<Foo> RtpsHistoryCacheOperations for WriterHistoryCache<Foo> {
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
