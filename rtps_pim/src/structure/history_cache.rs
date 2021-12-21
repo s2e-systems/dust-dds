@@ -5,15 +5,14 @@ pub trait RtpsHistoryCacheConstructor {
     fn new() -> Self;
 }
 
-pub trait RtpsHistoryCacheAddChange<'a> {
-    type ParameterListType;
-    type DataType;
+pub trait RtpsHistoryCacheAddChange {
+    type CacheChangeType;
 
     /// This operation inserts the CacheChange a_change into the HistoryCache.
     /// This operation will only fail if there are not enough resources to add the change to the HistoryCache. It is the responsibility
     /// of the DDS service implementation to configure the HistoryCache in a manner consistent with the DDS Entity RESOURCE_LIMITS QoS
     /// and to propagate any errors to the DDS-user in the manner specified by the DDS specification.
-    fn add_change(&mut self, change: RtpsCacheChange<Self::ParameterListType, Self::DataType>);
+    fn add_change(&mut self, change: Self::CacheChangeType);
 }
 
 pub trait RtpsHistoryCacheGetChange {

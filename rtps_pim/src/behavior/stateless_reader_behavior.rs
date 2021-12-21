@@ -8,7 +8,7 @@ use crate::{
         submessages::DataSubmessageAttributes,
     },
     structure::{
-        cache_change::RtpsCacheChange,
+        cache_change::{RtpsCacheChange, RtpsCacheChangeConstructor},
         history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, EntityId, Guid, GuidPrefix, ENTITYID_UNKNOWN},
     },
@@ -32,11 +32,8 @@ impl<C> BestEffortStatelessReaderBehavior<'_, C> {
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
         >,
     ) where
-        C: for<'a> RtpsHistoryCacheAddChange<
-            'a,
-            ParameterListType = &'a [Parameter<&'a [u8]>],
-            DataType = &'a [u8],
-        >,
+        C: RtpsHistoryCacheAddChange,
+        C::CacheChangeType: RtpsCacheChangeConstructor,
     {
         let reader_id = data.reader_id().value();
         if reader_id == self.reader_guid.entity_id() || reader_id == &ENTITYID_UNKNOWN {
@@ -50,14 +47,14 @@ impl<C> BestEffortStatelessReaderBehavior<'_, C> {
             let sequence_number = *data.writer_sn().value();
             let data_value = data.serialized_payload().value();
             let inline_qos = data.inline_qos().parameter();
-            let a_change = RtpsCacheChange {
+            let a_change = C::CacheChangeType::new(
                 kind,
                 writer_guid,
                 instance_handle,
                 sequence_number,
                 data_value,
                 inline_qos,
-            };
+            );
             self.reader_cache.add_change(a_change);
         }
     }

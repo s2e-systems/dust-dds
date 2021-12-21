@@ -20,7 +20,8 @@ use rust_rtps_pim::{
     },
     messages::submessage_elements::Parameter,
     structure::{
-        cache_change::RtpsCacheChangeAttributes, history_cache::{RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange},
+        cache_change::RtpsCacheChangeAttributes,
+        history_cache::{RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange},
         types::GuidPrefix,
     },
 };
@@ -133,8 +134,8 @@ impl<'a, Foo, R, H, CC> DataReaderBorrowedSamples<'a> for DataReaderImpl<Foo, R>
 where
     Foo: 'static,
     R: RtpsReaderAttributes<ReaderHistoryCacheType = H>,
-    H: RtpsHistoryCacheGetChange<CacheChangeType = CC>+ 'a,
-    CC: RtpsCacheChangeAttributes<DataType = Foo> + 'a
+    H: RtpsHistoryCacheGetChange<CacheChangeType = CC> + 'a,
+    CC: RtpsCacheChangeAttributes<DataType = Foo> + 'a,
 {
     type Samples = Vec<&'a Foo>;
 

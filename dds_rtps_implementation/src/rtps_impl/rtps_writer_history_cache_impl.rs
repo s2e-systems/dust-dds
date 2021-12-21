@@ -2,7 +2,7 @@ use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
     structure::{
-        cache_change::{RtpsCacheChange, RtpsCacheChangeAttributes},
+        cache_change::{RtpsCacheChange, RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
             RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
             RtpsHistoryCacheOperations,
@@ -20,6 +20,22 @@ pub struct WriterCacheChange {
     _source_timestamp: Option<Time>,
     _view_state_kind: ViewStateKind,
     _instance_state_kind: InstanceStateKind,
+}
+
+impl RtpsCacheChangeConstructor for WriterCacheChange {
+    type DataType = Vec<u8>;
+    type ParameterListType = Vec<Parameter<Vec<u8>>>;
+
+    fn new(
+        kind: ChangeKind,
+        writer_guid: Guid,
+        instance_handle: InstanceHandle,
+        sequence_number: SequenceNumber,
+        data_value: Self::DataType,
+        inline_qos: Self::ParameterListType,
+    ) -> Self {
+        todo!()
+    }
 }
 
 impl RtpsCacheChangeAttributes for WriterCacheChange {

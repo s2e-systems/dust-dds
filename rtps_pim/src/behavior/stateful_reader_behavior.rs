@@ -8,7 +8,7 @@ use crate::{
         submessages::{DataSubmessage, DataSubmessageAttributes},
     },
     structure::{
-        cache_change::RtpsCacheChange,
+        cache_change::{RtpsCacheChange, RtpsCacheChangeConstructor},
         history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, EntityId, Guid, GuidPrefix},
     },
@@ -61,11 +61,8 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
         >,
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
-        H: for<'b> RtpsHistoryCacheAddChange<
-            'b,
-            ParameterListType = &'b [Parameter<&'b [u8]>],
-            DataType = &'b [u8],
-        >,
+        H: RtpsHistoryCacheAddChange,
+        H::CacheChangeType: RtpsCacheChangeConstructor
     {
         let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
         if &writer_guid == self.writer_proxy.remote_writer_guid() {
@@ -78,14 +75,14 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
             let sequence_number = *data.writer_sn().value();
             let data_value = data.serialized_payload().value();
             let inline_qos = data.inline_qos().parameter();
-            let a_change = RtpsCacheChange {
+            let a_change = H::CacheChangeType::new(
                 kind,
                 writer_guid,
                 instance_handle,
                 sequence_number,
                 data_value,
                 inline_qos,
-            };
+            );
             self.writer_proxy
                 .received_change_set(a_change.sequence_number);
             self.reader_cache.add_change(a_change);
@@ -156,14 +153,10 @@ mod tests {
             add_change_called: bool,
         }
 
-        impl<'a> RtpsHistoryCacheAddChange<'a> for MockReaderCache {
-            type ParameterListType = &'a [Parameter<&'a [u8]>];
-            type DataType = &'a [u8];
+        impl RtpsHistoryCacheAddChange for MockReaderCache {
+            type CacheChangeType = ();
 
-            fn add_change(
-                &mut self,
-                _change: RtpsCacheChange<Self::ParameterListType, Self::DataType>,
-            ) {
+            fn add_change(&mut self, _change: Self::CacheChangeType) {
                 self.add_change_called = true;
             }
         }

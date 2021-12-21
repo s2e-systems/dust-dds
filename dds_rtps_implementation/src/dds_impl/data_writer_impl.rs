@@ -21,7 +21,10 @@ use rust_rtps_pim::{
     },
     messages::{submessage_elements::Parameter, types::Count},
     structure::{
-        history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
+        cache_change::RtpsCacheChangeConstructor,
+        history_cache::{
+            RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations,
+        },
         types::{ChangeKind, Locator},
     },
 };
@@ -74,10 +77,13 @@ impl<Foo, W, C> AsMut<W> for DataWriterImpl<Foo, W, C> {
     }
 }
 
-impl<Foo, W, C> DataWriter<Foo> for DataWriterImpl<Foo, W, C>
+impl<Foo, W, C, CC, H> DataWriter<Foo> for DataWriterImpl<Foo, W, C>
 where
     Foo: DdsSerialize,
-    W: RtpsWriterOperations + for<'a> WriterHistoryCacheAddChangeMut<'a>,
+    W: RtpsWriterOperations<CacheChangeType = CC>
+        + RtpsWriterAttributes<WriterHistoryCacheType = H>,
+    CC: RtpsCacheChangeConstructor<DataType = Vec<u8>, ParameterListType = Vec<Parameter<Vec<u8>>>>,
+    H: RtpsHistoryCacheAddChange<CacheChangeType = CC>,
 {
     fn register_instance(&mut self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
@@ -132,9 +138,7 @@ where
         let change =
             self.rtps_writer_impl
                 .new_change(ChangeKind::Alive, serialized_data, vec![], 0);
-        self.rtps_writer_impl
-            .get_writer_history_cache_add_change_mut()
-            .add_change(change);
+        self.rtps_writer_impl.writer_cache().add_change(change);
         Ok(())
     }
 

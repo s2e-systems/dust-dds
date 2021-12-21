@@ -13,7 +13,7 @@ use rust_rtps_pim::{
     },
     messages::submessage_elements::Parameter,
     structure::{
-        cache_change::RtpsCacheChange,
+        cache_change::{RtpsCacheChange, RtpsCacheChangeConstructor},
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor},
@@ -25,7 +25,9 @@ use rust_rtps_pim::{
 
 use super::{
     rtps_reader_locator_impl::RtpsReaderLocatorImpl,
-    rtps_writer_history_cache_impl::{WriterHistoryCache, WriterHistoryCacheAddChangeMut},
+    rtps_writer_history_cache_impl::{
+        WriterCacheChange, WriterHistoryCache, WriterHistoryCacheAddChangeMut,
+    },
 };
 
 pub struct RtpsStatelessWriterImpl {
@@ -198,22 +200,23 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
 }
 
 impl RtpsWriterOperations for RtpsStatelessWriterImpl {
-    fn new_change<'a, P, D>(
+    type CacheChangeType = WriterCacheChange;
+    fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: D,
-        inline_qos: P,
+        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
         handle: InstanceHandle,
-    ) -> RtpsCacheChange<P, D> {
+    ) -> Self::CacheChangeType {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
-        RtpsCacheChange {
+        WriterCacheChange::new(
             kind,
-            writer_guid: self.guid,
-            instance_handle: handle,
-            sequence_number: self.last_change_sequence_number,
-            data_value: data,
+            self.guid,
+            handle,
+            self.last_change_sequence_number,
+            data,
             inline_qos,
-        }
+        )
     }
 }
 
