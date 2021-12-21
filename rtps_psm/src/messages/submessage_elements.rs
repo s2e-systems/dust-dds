@@ -1,7 +1,8 @@
 use rust_rtps_pim::{
     messages::submessage_elements::{
-        EntityIdSubmessageElementAttributes, Parameter, ParameterListSubmessageElementAttributes,
-        SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
+        EntityIdSubmessageElementAttributes, EntityIdSubmessageElementConstructor, Parameter,
+        ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
+        SerializedDataSubmessageElementAttributes,
     },
     structure::types::{EntityId, SequenceNumber},
 };
@@ -9,6 +10,12 @@ use rust_rtps_pim::{
 #[derive(Debug, PartialEq)]
 pub struct EntityIdSubmessageElementPsm {
     pub value: EntityId,
+}
+
+impl EntityIdSubmessageElementConstructor for EntityIdSubmessageElementPsm {
+    fn new(value: EntityId) -> Self {
+        Self { value }
+    }
 }
 
 impl EntityIdSubmessageElementAttributes for EntityIdSubmessageElementPsm {

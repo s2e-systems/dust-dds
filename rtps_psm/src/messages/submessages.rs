@@ -82,10 +82,10 @@ pub struct DataSubmessageWrite<'a> {
 }
 
 impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
-    type EntityIdType = EntityId;
-    type SequenceNumberType = SequenceNumber;
-    type ParameterListType = Vec<Parameter<Vec<u8>>>;
-    type SerializedDataType = &'a [u8];
+    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
+    type SequenceNumberSubmessageElementType = SequenceNumber;
+    type ParameterListSubmessageElementType = Vec<Parameter<Vec<u8>>>;
+    type SerializedDataSubmessageElementType = &'a [u8];
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -93,11 +93,11 @@ impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: Self::EntityIdType,
-        writer_id: Self::EntityIdType,
-        writer_sn: Self::SequenceNumberType,
-        inline_qos: Self::ParameterListType,
-        serialized_payload: Self::SerializedDataType,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        writer_sn: Self::SequenceNumberSubmessageElementType,
+        inline_qos: Self::ParameterListSubmessageElementType,
+        serialized_payload: Self::SerializedDataSubmessageElementType,
     ) -> Self {
         Self {
             endianness_flag,
@@ -105,8 +105,8 @@ impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
             data_flag,
             key_flag,
             non_standard_payload_flag,
-            reader_id: EntityIdSubmessageElementPsm { value: reader_id },
-            writer_id: EntityIdSubmessageElementPsm { value: writer_id },
+            reader_id,
+            writer_id,
             writer_sn: SequenceNumberSubmessageElementPsm { value: writer_sn },
             inline_qos: ParameterListSubmessageElementWritePsm { parameter: inline_qos },
             serialized_payload: SerializedDataSubmessageElementPsm {

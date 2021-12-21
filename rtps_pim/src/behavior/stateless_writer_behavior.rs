@@ -4,7 +4,8 @@ use core::iter::FromIterator;
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement,
+            EntityIdSubmessageElementConstructor, ParameterListSubmessageElement,
             SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
             SerializedDataSubmessageElement,
         },
@@ -36,20 +37,21 @@ pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<D, S>(
+    pub fn send_unsent_changes<Data, EntityIdElement, S>(
         &mut self,
-        mut send_data: impl FnMut(D),
+        mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderLocatorOperations,
-        D: DataSubmessageConstructor<
-            EntityIdType = EntityId,
-            SequenceNumberType = SequenceNumber,
-            ParameterListType = C::ParameterListType,
-            SerializedDataType = C::DataType,
+        Data: DataSubmessageConstructor<
+            EntityIdSubmessageElementType = EntityIdElement,
+            SequenceNumberSubmessageElementType = SequenceNumber,
+            ParameterListSubmessageElementType = C::ParameterListType,
+            SerializedDataSubmessageElementType = C::DataType,
         >,
         C: RtpsHistoryCacheGetChange<'a>,
         S: FromIterator<SequenceNumber>,
+        EntityIdElement: EntityIdSubmessageElementConstructor,
     {
         while let Some(seq_num) = self
             .reader_locator
@@ -66,12 +68,12 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = ENTITYID_UNKNOWN;
-                let writer_id = *change.writer_guid.entity_id();
+                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+                let writer_id = EntityIdElement::new(*change.writer_guid.entity_id());
                 let writer_sn = change.sequence_number;
                 let inline_qos = change.inline_qos;
                 let serialized_payload = change.data_value;
-                let data_submessage = D::new(
+                let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,
                     data_flag,
@@ -118,19 +120,20 @@ pub struct ReliableStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.2.4 Transition T4
-    pub fn send_unsent_changes<D, S>(
+    pub fn send_unsent_changes<Data, EntityIdElement, S>(
         &mut self,
-        mut send_data: impl FnMut(D),
+        mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderLocatorOperations,
         C: RtpsHistoryCacheGetChange<'a>,
-        D: DataSubmessageConstructor<
-            EntityIdType = EntityId,
-            SequenceNumberType = SequenceNumber,
-            ParameterListType = C::ParameterListType,
-            SerializedDataType = C::DataType,
+        Data: DataSubmessageConstructor<
+            EntityIdSubmessageElementType = EntityIdElement,
+            SequenceNumberSubmessageElementType = SequenceNumber,
+            ParameterListSubmessageElementType = C::ParameterListType,
+            SerializedDataSubmessageElementType = C::DataType,
         >,
+        EntityIdElement: EntityIdSubmessageElementConstructor,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -148,12 +151,13 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = ENTITYID_UNKNOWN;
-                let writer_id = *change.writer_guid.entity_id();
+                let reader_id = EntityIdSubmessageElementConstructor::new(ENTITYID_UNKNOWN);
+                let writer_id =
+                    EntityIdSubmessageElementConstructor::new(*change.writer_guid.entity_id());
                 let writer_sn = change.sequence_number;
                 let inline_qos = change.inline_qos;
                 let serialized_payload = change.data_value;
-                let data_submessage = D::new(
+                let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,
                     data_flag,
@@ -366,13 +370,21 @@ mod tests {
         }
     }
 
+    struct MockEntityIdSubmessageElement;
+
+    impl EntityIdSubmessageElementConstructor for MockEntityIdSubmessageElement {
+        fn new(_value: EntityId) -> Self {
+            Self
+        }
+    }
+
     struct MockDataSubmessage;
 
     impl DataSubmessageConstructor for MockDataSubmessage {
-        type EntityIdType = EntityId;
-        type SequenceNumberType = SequenceNumber;
-        type ParameterListType = ();
-        type SerializedDataType = ();
+        type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
+        type SequenceNumberSubmessageElementType = SequenceNumber;
+        type ParameterListSubmessageElementType = ();
+        type SerializedDataSubmessageElementType = ();
 
         fn new(
             _endianness_flag: crate::messages::types::SubmessageFlag,
@@ -380,11 +392,11 @@ mod tests {
             _data_flag: crate::messages::types::SubmessageFlag,
             _key_flag: crate::messages::types::SubmessageFlag,
             _non_standard_payload_flag: crate::messages::types::SubmessageFlag,
-            _reader_id: Self::EntityIdType,
-            _writer_id: Self::EntityIdType,
-            _writer_sn: Self::SequenceNumberType,
-            _inline_qos: Self::ParameterListType,
-            _serialized_payload: Self::SerializedDataType,
+            _reader_id: Self::EntityIdSubmessageElementType,
+            _writer_id: Self::EntityIdSubmessageElementType,
+            _writer_sn: Self::SequenceNumberSubmessageElementType,
+            _inline_qos: Self::ParameterListSubmessageElementType,
+            _serialized_payload: Self::SerializedDataSubmessageElementType,
         ) -> Self {
             Self
         }

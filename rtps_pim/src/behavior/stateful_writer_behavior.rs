@@ -4,7 +4,8 @@ use core::iter::FromIterator;
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement,
+            EntityIdSubmessageElementConstructor, ParameterListSubmessageElement,
             SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
             SerializedDataSubmessageElement,
         },
@@ -16,7 +17,7 @@ use crate::{
     },
     structure::{
         history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
-        types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -121,7 +122,7 @@ pub struct ReliableStatefulWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     /// Implement 8.4.9.2.4 Transition T4
-    pub fn send_unsent_changes<D, S>(
+    pub fn send_unsent_changes<D, EntityIdElement, S>(
         &mut self,
         mut send_data: impl FnMut(D),
         mut send_gap: impl FnMut(GapSubmessage<S>),
@@ -129,11 +130,12 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
         C: RtpsHistoryCacheGetChange<'a>,
         D: DataSubmessageConstructor<
-            EntityIdType = EntityId,
-            SequenceNumberType = SequenceNumber,
-            ParameterListType = C::ParameterListType,
-            SerializedDataType = C::DataType,
+            EntityIdSubmessageElementType = EntityIdElement,
+            SequenceNumberSubmessageElementType = SequenceNumber,
+            ParameterListSubmessageElementType = C::ParameterListType,
+            SerializedDataSubmessageElementType = C::DataType,
         >,
+        EntityIdElement: EntityIdSubmessageElementConstructor,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -151,8 +153,9 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = *self.reader_proxy.remote_reader_guid().entity_id();
-                let writer_id = *change.writer_guid.entity_id();
+                let reader_id =
+                    EntityIdElement::new(*self.reader_proxy.remote_reader_guid().entity_id());
+                let writer_id = EntityIdElement::new(*change.writer_guid.entity_id());
                 let writer_sn = change.sequence_number;
                 let inline_qos = change.inline_qos;
                 let serialized_payload = change.data_value;

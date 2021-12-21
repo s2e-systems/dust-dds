@@ -88,6 +88,7 @@ mod tests {
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
+    use rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementConstructor;
     use rust_rtps_pim::messages::submessage_elements::Parameter;
 
     use rust_rtps_pim::messages::submessages::DataSubmessageConstructor;
@@ -135,8 +136,10 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
-        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let reader_id =
+            EntityIdSubmessageElementPsm::new(EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY));
+        let writer_id =
+            EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = 5;
         let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);

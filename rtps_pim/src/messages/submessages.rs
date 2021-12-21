@@ -36,10 +36,10 @@ pub struct DataSubmessage<P, D> {
 }
 
 pub trait DataSubmessageConstructor {
-    type EntityIdType;
-    type SequenceNumberType;
-    type ParameterListType;
-    type SerializedDataType;
+    type EntityIdSubmessageElementType;
+    type SequenceNumberSubmessageElementType;
+    type ParameterListSubmessageElementType;
+    type SerializedDataSubmessageElementType;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -47,11 +47,11 @@ pub trait DataSubmessageConstructor {
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: Self::EntityIdType,
-        writer_id: Self::EntityIdType,
-        writer_sn: Self::SequenceNumberType,
-        inline_qos: Self::ParameterListType,
-        serialized_payload: Self::SerializedDataType,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        writer_sn: Self::SequenceNumberSubmessageElementType,
+        inline_qos: Self::ParameterListSubmessageElementType,
+        serialized_payload: Self::SerializedDataSubmessageElementType,
     ) -> Self;
 }
 
@@ -88,6 +88,21 @@ pub struct DataFragSubmessage<P, D> {
     pub fragment_size: UShortSubmessageElement,
     pub inline_qos: ParameterListSubmessageElement<P>,
     pub serialized_payload: SerializedDataFragmentSubmessageElement<D>,
+}
+
+pub trait GapSubmessageConstructor {
+    type EntityIdType;
+    type SequenceNumberType;
+    type SequenceNumberSetType;
+
+    fn new(
+        endianness_flag: SubmessageFlag,
+        reader_id: Self::EntityIdType,
+        writer_id: Self::EntityIdType,
+        gap_start: Self::SequenceNumberType,
+        gap_list_base: Self::SequenceNumberType,
+        gap_list_set: Self::SequenceNumberSetType,
+    ) -> Self;
 }
 
 #[derive(Debug, PartialEq)]
