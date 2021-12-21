@@ -24,8 +24,8 @@ pub trait RtpsCacheChangeConstructor {
 }
 
 pub trait RtpsCacheChangeAttributes {
-    type DataType;
-    type ParameterListType;
+    type DataType: ?Sized;
+    type ParameterListType: ?Sized;
 
     fn kind(&self) -> &ChangeKind;
     fn writer_guid(&self) -> &Guid;

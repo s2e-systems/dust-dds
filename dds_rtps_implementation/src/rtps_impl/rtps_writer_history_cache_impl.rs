@@ -2,7 +2,7 @@ use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
     structure::{
-        cache_change::RtpsCacheChange,
+        cache_change::{RtpsCacheChange, RtpsCacheChangeAttributes},
         history_cache::{
             RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
             RtpsHistoryCacheOperations,
@@ -11,7 +11,7 @@ use rust_rtps_pim::{
     },
 };
 
-struct WriterCacheChange {
+pub struct WriterCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
@@ -20,6 +20,35 @@ struct WriterCacheChange {
     _source_timestamp: Option<Time>,
     _view_state_kind: ViewStateKind,
     _instance_state_kind: InstanceStateKind,
+}
+
+impl RtpsCacheChangeAttributes for WriterCacheChange {
+    type DataType = [u8];
+    type ParameterListType = [Parameter<Vec<u8>>];
+
+    fn kind(&self) -> &ChangeKind {
+        &self.kind
+    }
+
+    fn writer_guid(&self) -> &Guid {
+        &self.writer_guid
+    }
+
+    fn instance_handle(&self) -> &InstanceHandle {
+        &self.instance_handle
+    }
+
+    fn sequence_number(&self) -> &SequenceNumber {
+        &self.sequence_number
+    }
+
+    fn data_value(&self) -> &Self::DataType {
+        self.data.as_ref()
+    }
+
+    fn inline_qos(&self) -> &Self::ParameterListType {
+        &[]
+    }
 }
 
 pub struct WriterHistoryCache {
@@ -80,27 +109,13 @@ impl<'a> RtpsHistoryCacheAddChange<'a> for WriterHistoryCache {
     }
 }
 
-impl<'a> RtpsHistoryCacheGetChange<'a> for WriterHistoryCache {
-    type ParameterListType = Vec<Parameter<Vec<u8>>>;
-    type DataType = &'a [u8];
+impl RtpsHistoryCacheGetChange for WriterHistoryCache {
+    type CacheChangeType = WriterCacheChange;
 
-    fn get_change(
-        &'a self,
-        seq_num: &SequenceNumber,
-    ) -> Option<RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'a [u8]>> {
-        let local_change = self
-            .changes
+    fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
+        self.changes
             .iter()
-            .find(|&cc| &cc.sequence_number == seq_num)?;
-
-        Some(RtpsCacheChange {
-            kind: local_change.kind,
-            writer_guid: local_change.writer_guid,
-            instance_handle: local_change.instance_handle,
-            sequence_number: local_change.sequence_number,
-            data_value: local_change.data.as_ref(),
-            inline_qos: vec![],
-        })
+            .find(|&cc| &cc.sequence_number == seq_num)
     }
 }
 

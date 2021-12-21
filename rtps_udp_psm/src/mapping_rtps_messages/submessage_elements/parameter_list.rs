@@ -106,19 +106,19 @@ impl<'a, T: NumberOfBytes> NumberOfBytes for ParameterListSubmessageElement<T> {
     }
 }
 
-impl MappingWriteByteOrdered for ParameterListSubmessageElementWritePsm {
+impl MappingWriteByteOrdered for ParameterListSubmessageElementWritePsm<'_> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        for parameter in &self.parameter {
+        for parameter in self.parameter {
             parameter.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         SENTINEL.mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
-impl<'a> NumberOfBytes for ParameterListSubmessageElementWritePsm {
+impl<'a> NumberOfBytes for ParameterListSubmessageElementWritePsm<'_> {
     fn number_of_bytes(&self) -> usize {
         self.parameter.number_of_bytes() + 4 /* Sentinel */
     }

@@ -5,17 +5,16 @@ use crate::{
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement,
-            EntityIdSubmessageElementConstructor, ParameterListSubmessageElement,
-            SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-            SerializedDataSubmessageElement,
+            EntityIdSubmessageElementConstructor, SequenceNumberSetSubmessageElement,
+            SequenceNumberSubmessageElement,
         },
         submessages::{
-            AckNackSubmessage, DataSubmessage, DataSubmessageConstructor, GapSubmessage,
-            HeartbeatSubmessage,
+            AckNackSubmessage, DataSubmessageConstructor, GapSubmessage, HeartbeatSubmessage,
         },
         types::Count,
     },
     structure::{
+        cache_change::RtpsCacheChangeAttributes,
         history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
         types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
@@ -37,7 +36,7 @@ pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<Data, EntityIdElement, S>(
+    pub fn send_unsent_changes<Data, EntityIdElement, CacheChange, S>(
         &mut self,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(GapSubmessage<S>),
@@ -46,10 +45,11 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumber,
-            ParameterListSubmessageElementType = C::ParameterListType,
-            SerializedDataSubmessageElementType = C::DataType,
+            ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
+            SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
-        C: RtpsHistoryCacheGetChange<'a>,
+        C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
         S: FromIterator<SequenceNumber>,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
     {
@@ -60,7 +60,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
             if let Some(change) = self.writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
-                let (data_flag, key_flag) = match change.kind {
+                let (data_flag, key_flag) = match change.kind() {
                     ChangeKind::Alive => (true, false),
                     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
                         (false, true)
@@ -69,10 +69,10 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(*change.writer_guid.entity_id());
-                let writer_sn = change.sequence_number;
-                let inline_qos = change.inline_qos;
-                let serialized_payload = change.data_value;
+                let writer_id = EntityIdElement::new(*change.writer_guid().entity_id());
+                let writer_sn = *change.sequence_number();
+                let inline_qos = change.inline_qos();
+                let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,
@@ -120,20 +120,21 @@ pub struct ReliableStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.2.4 Transition T4
-    pub fn send_unsent_changes<Data, EntityIdElement, S>(
+    pub fn send_unsent_changes<Data, EntityIdElement, CacheChange, S>(
         &mut self,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderLocatorOperations,
-        C: RtpsHistoryCacheGetChange<'a>,
+        C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumber,
-            ParameterListSubmessageElementType = C::ParameterListType,
-            SerializedDataSubmessageElementType = C::DataType,
+            ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
+            SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -143,7 +144,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             if let Some(change) = self.writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
-                let (data_flag, key_flag) = match change.kind {
+                let (data_flag, key_flag) = match change.kind() {
                     ChangeKind::Alive => (true, false),
                     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
                         (false, true)
@@ -153,10 +154,10 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdSubmessageElementConstructor::new(ENTITYID_UNKNOWN);
                 let writer_id =
-                    EntityIdSubmessageElementConstructor::new(*change.writer_guid.entity_id());
-                let writer_sn = change.sequence_number;
-                let inline_qos = change.inline_qos;
-                let serialized_payload = change.data_value;
+                    EntityIdSubmessageElementConstructor::new(*change.writer_guid().entity_id());
+                let writer_sn = *change.sequence_number();
+                let inline_qos = change.inline_qos();
+                let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,
@@ -247,20 +248,28 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     }
 
     /// Implement 8.4.9.2.12 Transition T10
-    pub fn send_requested_changes<P, D, S>(
+    pub fn send_requested_changes<P, Data, EntityIdElement, CacheChange, S>(
         &mut self,
-        mut send_data: impl FnMut(DataSubmessage<P, D>),
+        mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderLocatorOperations,
-        C: RtpsHistoryCacheGetChange<'a, ParameterListType = P, DataType = D>,
+        C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
+        Data: DataSubmessageConstructor<
+            EntityIdSubmessageElementType = EntityIdElement,
+            SequenceNumberSubmessageElementType = SequenceNumber,
+            ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
+            SerializedDataSubmessageElementType = &'a CacheChange::DataType,
+        >,
+        EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self.reader_locator.next_requested_change() {
             if let Some(change) = self.writer_cache.get_change(&seq_num) {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
-                let (data_flag, key_flag) = match change.kind {
+                let (data_flag, key_flag) = match change.kind() {
                     ChangeKind::Alive => (true, false),
                     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
                         (false, true)
@@ -268,22 +277,12 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let writer_id = EntityIdSubmessageElement {
-                    value: *change.writer_guid.entity_id(),
-                };
-                let writer_sn = SequenceNumberSubmessageElement {
-                    value: change.sequence_number,
-                };
-                let inline_qos = ParameterListSubmessageElement {
-                    parameter: change.inline_qos,
-                };
-                let serialized_payload = SerializedDataSubmessageElement {
-                    value: change.data_value,
-                };
-                let data_submessage = DataSubmessage {
+                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+                let writer_id = EntityIdElement::new(*change.writer_guid().entity_id());
+                let writer_sn = *change.sequence_number();
+                let inline_qos = change.inline_qos();
+                let serialized_payload = change.data_value();
+                let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,
                     data_flag,
@@ -294,7 +293,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                     writer_sn,
                     inline_qos,
                     serialized_payload,
-                };
+                );
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
@@ -322,7 +321,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
 
 #[cfg(test)]
 mod tests {
-    use crate::structure::{cache_change::RtpsCacheChange, types::GUID_UNKNOWN};
+    use crate::structure::types::InstanceHandle;
 
     use super::*;
 
@@ -380,13 +379,13 @@ mod tests {
         }
     }
 
-    struct MockDataSubmessage;
+    struct MockDataSubmessage<'a>(&'a ());
 
-    impl DataSubmessageConstructor for MockDataSubmessage {
+    impl<'a> DataSubmessageConstructor for MockDataSubmessage<'a> {
         type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
         type SequenceNumberSubmessageElementType = SequenceNumber;
-        type ParameterListSubmessageElementType = ();
-        type SerializedDataSubmessageElementType = ();
+        type ParameterListSubmessageElementType = &'a ();
+        type SerializedDataSubmessageElementType = &'a ();
 
         fn new(
             _endianness_flag: crate::messages::types::SubmessageFlag,
@@ -400,7 +399,37 @@ mod tests {
             _inline_qos: Self::ParameterListSubmessageElementType,
             _serialized_payload: Self::SerializedDataSubmessageElementType,
         ) -> Self {
-            Self
+            Self(&())
+        }
+    }
+    struct MockCacheChange;
+
+    impl RtpsCacheChangeAttributes for MockCacheChange {
+        type DataType = ();
+        type ParameterListType = ();
+
+        fn kind(&self) -> &ChangeKind {
+            todo!()
+        }
+
+        fn writer_guid(&self) -> &Guid {
+            todo!()
+        }
+
+        fn instance_handle(&self) -> &InstanceHandle {
+            todo!()
+        }
+
+        fn sequence_number(&self) -> &SequenceNumber {
+            todo!()
+        }
+
+        fn data_value(&self) -> &Self::DataType {
+            todo!()
+        }
+
+        fn inline_qos(&self) -> &Self::ParameterListType {
+            todo!()
         }
     }
 
@@ -408,18 +437,10 @@ mod tests {
     fn best_effort_stateless_writer_send_data() {
         struct MockWriterCache;
 
-        impl<'a> RtpsHistoryCacheGetChange<'a> for MockWriterCache {
-            type ParameterListType = ();
-            type DataType = ();
-            fn get_change(&'a self, _seq_num: &SequenceNumber) -> Option<RtpsCacheChange<(), ()>> {
-                Some(RtpsCacheChange {
-                    kind: ChangeKind::Alive,
-                    writer_guid: GUID_UNKNOWN,
-                    instance_handle: 10,
-                    sequence_number: 1,
-                    data_value: (),
-                    inline_qos: (),
-                })
+        impl RtpsHistoryCacheGetChange for MockWriterCache {
+            type CacheChangeType = MockCacheChange;
+            fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
+                Some(&MockCacheChange)
             }
         }
 
@@ -441,10 +462,9 @@ mod tests {
     fn best_effort_stateless_writer_send_gap() {
         struct MockWriterCache;
 
-        impl<'a> RtpsHistoryCacheGetChange<'a> for MockWriterCache {
-            type ParameterListType = ();
-            type DataType = ();
-            fn get_change(&'a self, _seq_num: &SequenceNumber) -> Option<RtpsCacheChange<(), ()>> {
+        impl RtpsHistoryCacheGetChange for MockWriterCache {
+            type CacheChangeType = MockCacheChange;
+            fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
                 None
             }
         }
@@ -467,11 +487,10 @@ mod tests {
     fn best_effort_stateless_writer_do_nothing() {
         struct MockWriterCache;
 
-        impl<'a> RtpsHistoryCacheGetChange<'a> for MockWriterCache {
-            type ParameterListType = ();
-            type DataType = ();
+        impl RtpsHistoryCacheGetChange for MockWriterCache {
+            type CacheChangeType = MockCacheChange;
 
-            fn get_change(&'a self, _seq_num: &SequenceNumber) -> Option<RtpsCacheChange<(), ()>> {
+            fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
                 None
             }
         }

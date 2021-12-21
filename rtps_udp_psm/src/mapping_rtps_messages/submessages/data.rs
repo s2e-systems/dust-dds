@@ -154,7 +154,7 @@ mod tests {
         let writer_id =
             EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = 5;
-        let inline_qos = vec![];
+        let inline_qos = &vec![];
         let serialized_payload = &[][..];
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
@@ -194,7 +194,7 @@ mod tests {
         let writer_sn = 5;
         let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
-        let parameter_list = vec![parameter_1, parameter_2];
+        let parameter_list = &vec![parameter_1, parameter_2];
         let inline_qos = parameter_list;
         let serialized_payload = &[][..];
 
@@ -239,7 +239,7 @@ mod tests {
         let writer_id =
             EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = 5;
-        let inline_qos = vec![];
+        let inline_qos = &vec![];
         let serialized_payload = &[1_u8, 2, 3, 4][..];
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
@@ -278,7 +278,7 @@ mod tests {
         let writer_id =
             EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = 5;
-        let inline_qos = vec![];
+        let inline_qos = &vec![];
         let serialized_payload = &[1_u8, 2, 3][..];
         let submessage = DataSubmessageWrite::new(
             endianness_flag,

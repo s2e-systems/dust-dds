@@ -16,14 +16,10 @@ pub trait RtpsHistoryCacheAddChange<'a> {
     fn add_change(&mut self, change: RtpsCacheChange<Self::ParameterListType, Self::DataType>);
 }
 
-pub trait RtpsHistoryCacheGetChange<'a> {
-    type ParameterListType;
-    type DataType;
+pub trait RtpsHistoryCacheGetChange {
+    type CacheChangeType;
 
-    fn get_change(
-        &'a self,
-        seq_num: &SequenceNumber,
-    ) -> Option<RtpsCacheChange<Self::ParameterListType, Self::DataType>>;
+    fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType>;
 }
 
 pub trait RtpsHistoryCacheOperations {

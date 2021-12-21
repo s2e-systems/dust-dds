@@ -17,7 +17,9 @@ use rust_rtps_pim::{
 };
 
 use super::{
-    rtps_reader_history_cache_impl::{ReaderHistoryCache, ReaderHistoryCacheGetChange},
+    rtps_reader_history_cache_impl::{
+        ReaderCacheChange, ReaderHistoryCache, ReaderHistoryCacheGetChange,
+    },
     rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 
@@ -127,10 +129,7 @@ impl<T> RtpsEntityAttributes for RtpsStatefulReaderImpl<T> {
 impl<'a, T> ReaderHistoryCacheGetChange<'a, T> for RtpsStatefulReaderImpl<T> {
     fn get_reader_history_cache_get_change(
         &'a self,
-    ) -> &dyn RtpsHistoryCacheGetChange<
-        ParameterListType = &'a [Parameter<&'a [u8]>],
-        DataType = &'a T,
-    > {
+    ) -> &dyn RtpsHistoryCacheGetChange<CacheChangeType = ReaderCacheChange<T>> {
         &self.reader_cache
     }
 }

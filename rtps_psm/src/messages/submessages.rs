@@ -77,14 +77,14 @@ pub struct DataSubmessageWrite<'a> {
     pub reader_id: EntityIdSubmessageElementPsm,
     pub writer_id: EntityIdSubmessageElementPsm,
     pub writer_sn: SequenceNumberSubmessageElementPsm,
-    pub inline_qos: ParameterListSubmessageElementWritePsm,
+    pub inline_qos: ParameterListSubmessageElementWritePsm<'a>,
     pub serialized_payload: SerializedDataSubmessageElementPsm<'a>,
 }
 
 impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
     type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumber;
-    type ParameterListSubmessageElementType = Vec<Parameter<Vec<u8>>>;
+    type ParameterListSubmessageElementType = &'a [Parameter<Vec<u8>>];
     type SerializedDataSubmessageElementType = &'a [u8];
 
     fn new(

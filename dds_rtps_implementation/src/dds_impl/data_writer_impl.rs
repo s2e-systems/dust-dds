@@ -25,11 +25,15 @@ use rust_rtps_pim::{
         types::{ChangeKind, Locator},
     },
 };
-use rust_rtps_psm::messages::{overall_structure::RtpsSubmessageTypeWrite, submessages::DataSubmessageWrite};
+use rust_rtps_psm::messages::{
+    overall_structure::RtpsSubmessageTypeWrite, submessages::DataSubmessageWrite,
+};
 
 use crate::{
     dds_type::{DdsSerialize, LittleEndian},
-    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut,
+    rtps_impl::rtps_writer_history_cache_impl::{
+        WriterCacheChange, WriterHistoryCacheAddChangeMut,
+    },
     utils::clock::Timer,
 };
 
@@ -262,11 +266,7 @@ impl<Foo, C, W, R, H> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, 
 where
     for<'a> &'a mut W: IntoIterator<Item = StatelessWriterBehavior<'a, R, H>>,
     R: RtpsReaderLocatorOperations + RtpsReaderLocatorAttributes + 'static,
-    H: for<'a> RtpsHistoryCacheGetChange<
-            'a,
-            ParameterListType = Vec<Parameter<Vec<u8>>>,
-            DataType = &'a [u8],
-        > + 'static,
+    H: for<'a> RtpsHistoryCacheGetChange<CacheChangeType = WriterCacheChange> + 'static,
 {
     fn produce_submessages(&mut self) -> Vec<(&'_ Locator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
         let mut destined_submessages = Vec::new();
@@ -305,11 +305,8 @@ where
     W: RtpsWriterAttributes,
     for<'a> &'a mut W: IntoIterator<Item = StatefulWriterBehavior<'a, R, H>>,
     H: RtpsHistoryCacheOperations
-        + for<'a> RtpsHistoryCacheGetChange<
-            'a,
-            ParameterListType = Vec<Parameter<Vec<u8>>>,
-            DataType = &'a [u8],
-        > + 'static,
+        + for<'a> RtpsHistoryCacheGetChange<CacheChangeType = WriterCacheChange>
+        + 'static,
     R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes + 'static,
     C: Timer,
 {

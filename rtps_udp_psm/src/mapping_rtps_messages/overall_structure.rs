@@ -143,7 +143,7 @@ mod tests {
         let writer_sn = 5;
         let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
-        let parameter_list = vec![parameter_1, parameter_2];
+        let parameter_list = &vec![parameter_1, parameter_2];
         let inline_qos = parameter_list;
         let serialized_payload = &[][..];
 

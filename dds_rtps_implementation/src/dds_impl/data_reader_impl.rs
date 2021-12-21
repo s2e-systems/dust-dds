@@ -16,7 +16,10 @@ use rust_rtps_pim::{
         stateful_reader_behavior::StatefulReaderBehavior,
     },
     messages::submessage_elements::Parameter,
-    structure::{history_cache::RtpsHistoryCacheAddChange, types::GuidPrefix},
+    structure::{
+        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheAddChange,
+        types::GuidPrefix,
+    },
 };
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
@@ -146,7 +149,7 @@ where
             .get_reader_history_cache_get_change()
             .get_change(&1)
         {
-            Ok(vec![cc.data_value])
+            Ok(vec![cc.data_value()])
         } else {
             Err(DDSError::NoData)
         }

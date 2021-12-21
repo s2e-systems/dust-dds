@@ -2,7 +2,7 @@ use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
 use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
     structure::{
-        cache_change::RtpsCacheChange,
+        cache_change::{RtpsCacheChange, RtpsCacheChangeAttributes},
         history_cache::{
             RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
             RtpsHistoryCacheOperations,
@@ -13,7 +13,7 @@ use rust_rtps_pim::{
 
 use crate::dds_type::DdsDeserialize;
 
-struct ReaderCacheChange<T> {
+pub struct ReaderCacheChange<T> {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
@@ -24,6 +24,35 @@ struct ReaderCacheChange<T> {
     _sample_state_kind: SampleStateKind,
     _view_state_kind: ViewStateKind,
     _instance_state_kind: InstanceStateKind,
+}
+
+impl<T> RtpsCacheChangeAttributes for ReaderCacheChange<T> {
+    type DataType = T;
+    type ParameterListType = ();
+
+    fn kind(&self) -> &ChangeKind {
+        todo!()
+    }
+
+    fn writer_guid(&self) -> &Guid {
+        todo!()
+    }
+
+    fn instance_handle(&self) -> &InstanceHandle {
+        todo!()
+    }
+
+    fn sequence_number(&self) -> &SequenceNumber {
+        todo!()
+    }
+
+    fn data_value(&self) -> &Self::DataType {
+        &self.data
+    }
+
+    fn inline_qos(&self) -> &Self::ParameterListType {
+        todo!()
+    }
 }
 
 pub struct ReaderHistoryCache<T> {
@@ -89,30 +118,13 @@ where
     }
 }
 
-impl<'a, T> RtpsHistoryCacheGetChange<'a> for ReaderHistoryCache<T>
-where
-    T: 'a,
-{
-    type ParameterListType = &'a [Parameter<&'a [u8]>];
-    type DataType = &'a T;
+impl<T> RtpsHistoryCacheGetChange for ReaderHistoryCache<T> {
+    type CacheChangeType = ReaderCacheChange<T>;
 
-    fn get_change(
-        &'a self,
-        seq_num: &SequenceNumber,
-    ) -> Option<RtpsCacheChange<&'a [Parameter<&'a [u8]>], &'a T>> {
-        let local_change = self
-            .changes
+    fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
+        self.changes
             .iter()
-            .find(|&cc| &cc.sequence_number == seq_num)?;
-
-        Some(RtpsCacheChange {
-            kind: local_change.kind,
-            writer_guid: local_change.writer_guid,
-            instance_handle: local_change.instance_handle,
-            sequence_number: local_change.sequence_number,
-            data_value: &local_change.data,
-            inline_qos: &[],
-        })
+            .find(|&cc| &cc.sequence_number == seq_num)
     }
 }
 
@@ -141,11 +153,7 @@ impl<T> RtpsHistoryCacheOperations for ReaderHistoryCache<T> {
 pub trait ReaderHistoryCacheGetChange<'a, T> {
     fn get_reader_history_cache_get_change(
         &'a self,
-    ) -> &dyn RtpsHistoryCacheGetChange<
-        'a,
-        ParameterListType = &'a [Parameter<&'a [u8]>],
-        DataType = &'a T,
-    >;
+    ) -> &dyn RtpsHistoryCacheGetChange<CacheChangeType = ReaderCacheChange<T>>;
 }
 
 #[cfg(test)]

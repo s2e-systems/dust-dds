@@ -62,6 +62,6 @@ impl ParameterListSubmessageElementAttributes for ParameterListSubmessageElement
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ParameterListSubmessageElementWritePsm {
-    pub parameter: Vec<Parameter<Vec<u8>>>,
+pub struct ParameterListSubmessageElementWritePsm<'a> {
+    pub parameter: &'a [Parameter<Vec<u8>>],
 }
