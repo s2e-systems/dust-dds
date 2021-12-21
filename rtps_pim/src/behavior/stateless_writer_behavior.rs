@@ -51,7 +51,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         >,
         C: RtpsHistoryCacheGetChange<'a>,
         S: FromIterator<SequenceNumber>,
-        EntityIdElement: EntityIdSubmessageElementConstructor,
+        EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
     {
         while let Some(seq_num) = self
             .reader_locator
@@ -133,7 +133,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             ParameterListSubmessageElementType = C::ParameterListType,
             SerializedDataSubmessageElementType = C::DataType,
         >,
-        EntityIdElement: EntityIdSubmessageElementConstructor,
+        EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -373,7 +373,9 @@ mod tests {
     struct MockEntityIdSubmessageElement;
 
     impl EntityIdSubmessageElementConstructor for MockEntityIdSubmessageElement {
-        fn new(_value: EntityId) -> Self {
+        type EntityIdType = EntityId;
+
+        fn new(_value: Self::EntityIdType) -> Self {
             Self
         }
     }

@@ -17,7 +17,7 @@ use crate::{
     },
     structure::{
         history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
-        types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -135,7 +135,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             ParameterListSubmessageElementType = C::ParameterListType,
             SerializedDataSubmessageElementType = C::DataType,
         >,
-        EntityIdElement: EntityIdSubmessageElementConstructor,
+        EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self

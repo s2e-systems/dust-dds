@@ -37,7 +37,9 @@ pub struct EntityIdSubmessageElement {
 }
 
 pub trait EntityIdSubmessageElementConstructor {
-    fn new(value: EntityId) -> Self;
+    type EntityIdType;
+
+    fn new(value: Self::EntityIdType) -> Self;
 }
 
 pub trait EntityIdSubmessageElementAttributes {
