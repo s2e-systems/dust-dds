@@ -262,7 +262,11 @@ impl<Foo, C, W, R, H> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, 
 where
     for<'a> &'a mut W: IntoIterator<Item = StatelessWriterBehavior<'a, R, H>>,
     R: RtpsReaderLocatorOperations + RtpsReaderLocatorAttributes + 'static,
-    H: for<'a> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> + 'static,
+    H: for<'a> RtpsHistoryCacheGetChange<
+            'a,
+            ParameterListType = Vec<Parameter<Vec<u8>>>,
+            DataType = &'a [u8],
+        > + 'static,
 {
     fn produce_submessages(&mut self) -> Vec<(&'_ Locator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
         let mut destined_submessages = Vec::new();
@@ -301,8 +305,11 @@ where
     W: RtpsWriterAttributes,
     for<'a> &'a mut W: IntoIterator<Item = StatefulWriterBehavior<'a, R, H>>,
     H: RtpsHistoryCacheOperations
-        + for<'a> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]>
-        + 'static,
+        + for<'a> RtpsHistoryCacheGetChange<
+            'a,
+            ParameterListType = Vec<Parameter<Vec<u8>>>,
+            DataType = &'a [u8],
+        > + 'static,
     R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes + 'static,
     C: Timer,
 {

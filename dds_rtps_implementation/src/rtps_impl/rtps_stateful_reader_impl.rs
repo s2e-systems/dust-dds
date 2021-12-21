@@ -127,7 +127,10 @@ impl<T> RtpsEntityAttributes for RtpsStatefulReaderImpl<T> {
 impl<'a, T> ReaderHistoryCacheGetChange<'a, T> for RtpsStatefulReaderImpl<T> {
     fn get_reader_history_cache_get_change(
         &'a self,
-    ) -> &dyn RtpsHistoryCacheGetChange<&'a [Parameter<&'a [u8]>], &'a T> {
+    ) -> &dyn RtpsHistoryCacheGetChange<
+        ParameterListType = &'a [Parameter<&'a [u8]>],
+        DataType = &'a T,
+    > {
         &self.reader_cache
     }
 }

@@ -38,7 +38,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
-        C: RtpsHistoryCacheGetChange<'a, P, D>,
+        C: RtpsHistoryCacheGetChange<'a, ParameterListType = P, DataType = D>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -124,7 +124,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
-        C: RtpsHistoryCacheGetChange<'a, P, D>,
+        C: RtpsHistoryCacheGetChange<'a, ParameterListType = P, DataType = D>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -253,7 +253,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
-        C: RtpsHistoryCacheGetChange<'a, P, D>,
+        C: RtpsHistoryCacheGetChange<'a, ParameterListType = P, DataType = D>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self.reader_proxy.next_requested_change() {

@@ -118,7 +118,11 @@ impl<'a, T> IntoIterator for &'a mut RtpsStatelessReaderImpl<T> {
 impl<'a, T> ReaderHistoryCacheGetChange<'a, T> for RtpsStatelessReaderImpl<T> {
     fn get_reader_history_cache_get_change(
         &'a self,
-    ) -> &dyn RtpsHistoryCacheGetChange<&'a [Parameter<&'a [u8]>], &'a T> {
+    ) -> &dyn RtpsHistoryCacheGetChange<
+        'a,
+        ParameterListType = &'a [Parameter<&'a [u8]>],
+        DataType = &'a T,
+    > {
         &self.reader_cache
     }
 }

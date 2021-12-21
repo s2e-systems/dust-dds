@@ -39,7 +39,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderLocatorOperations,
-        C: RtpsHistoryCacheGetChange<'a, P, D>,
+        C: RtpsHistoryCacheGetChange<'a, ParameterListType = P, DataType = D>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -125,7 +125,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderLocatorOperations,
-        C: RtpsHistoryCacheGetChange<'a, P, D>,
+        C: RtpsHistoryCacheGetChange<'a, ParameterListType = P, DataType = D>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -254,7 +254,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderLocatorOperations,
-        C: RtpsHistoryCacheGetChange<'a, P, D>,
+        C: RtpsHistoryCacheGetChange<'a, ParameterListType = P, DataType = D>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self.reader_locator.next_requested_change() {
@@ -375,7 +375,9 @@ mod tests {
     fn best_effort_stateless_writer_send_data() {
         struct MockWriterCache;
 
-        impl<'a> RtpsHistoryCacheGetChange<'a, (), ()> for MockWriterCache {
+        impl<'a> RtpsHistoryCacheGetChange<'a> for MockWriterCache {
+            type ParameterListType = ();
+            type DataType = ();
             fn get_change(&'a self, _seq_num: &SequenceNumber) -> Option<RtpsCacheChange<(), ()>> {
                 Some(RtpsCacheChange {
                     kind: ChangeKind::Alive,
@@ -406,7 +408,9 @@ mod tests {
     fn best_effort_stateless_writer_send_gap() {
         struct MockWriterCache;
 
-        impl<'a> RtpsHistoryCacheGetChange<'a, (), ()> for MockWriterCache {
+        impl<'a> RtpsHistoryCacheGetChange<'a> for MockWriterCache {
+            type ParameterListType = ();
+            type DataType = ();
             fn get_change(&'a self, _seq_num: &SequenceNumber) -> Option<RtpsCacheChange<(), ()>> {
                 None
             }
@@ -430,7 +434,10 @@ mod tests {
     fn best_effort_stateless_writer_do_nothing() {
         struct MockWriterCache;
 
-        impl<'a> RtpsHistoryCacheGetChange<'a, (), ()> for MockWriterCache {
+        impl<'a> RtpsHistoryCacheGetChange<'a> for MockWriterCache {
+            type ParameterListType = ();
+            type DataType = ();
+
             fn get_change(&'a self, _seq_num: &SequenceNumber) -> Option<RtpsCacheChange<(), ()>> {
                 None
             }

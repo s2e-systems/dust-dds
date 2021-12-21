@@ -89,9 +89,13 @@ where
     }
 }
 
-impl<'a, T> RtpsHistoryCacheGetChange<'a, &'a [Parameter<&'a [u8]>], &'a T>
-    for ReaderHistoryCache<T>
+impl<'a, T> RtpsHistoryCacheGetChange<'a> for ReaderHistoryCache<T>
+where
+    T: 'a,
 {
+    type ParameterListType = &'a [Parameter<&'a [u8]>];
+    type DataType = &'a T;
+
     fn get_change(
         &'a self,
         seq_num: &SequenceNumber,
@@ -137,7 +141,11 @@ impl<T> RtpsHistoryCacheOperations for ReaderHistoryCache<T> {
 pub trait ReaderHistoryCacheGetChange<'a, T> {
     fn get_reader_history_cache_get_change(
         &'a self,
-    ) -> &dyn RtpsHistoryCacheGetChange<&'a [Parameter<&'a [u8]>], &'a T>;
+    ) -> &dyn RtpsHistoryCacheGetChange<
+        'a,
+        ParameterListType = &'a [Parameter<&'a [u8]>],
+        DataType = &'a T,
+    >;
 }
 
 #[cfg(test)]

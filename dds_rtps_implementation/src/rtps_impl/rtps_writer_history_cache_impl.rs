@@ -80,7 +80,10 @@ impl<'a> RtpsHistoryCacheAddChange<'a> for WriterHistoryCache {
     }
 }
 
-impl<'a> RtpsHistoryCacheGetChange<'a, Vec<Parameter<Vec<u8>>>, &'a [u8]> for WriterHistoryCache {
+impl<'a> RtpsHistoryCacheGetChange<'a> for WriterHistoryCache {
+    type ParameterListType = Vec<Parameter<Vec<u8>>>;
+    type DataType = &'a [u8];
+
     fn get_change(
         &'a self,
         seq_num: &SequenceNumber,
