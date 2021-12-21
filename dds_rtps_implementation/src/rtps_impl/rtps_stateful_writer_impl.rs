@@ -23,14 +23,12 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::dds_type::DdsSerialize;
-
 use super::{
     rtps_reader_proxy_impl::RtpsReaderProxyImpl,
     rtps_writer_history_cache_impl::{WriterHistoryCache, WriterHistoryCacheAddChangeMut},
 };
 
-pub struct RtpsStatefulWriterImpl<Foo> {
+pub struct RtpsStatefulWriterImpl {
     guid: Guid,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
@@ -42,11 +40,11 @@ pub struct RtpsStatefulWriterImpl<Foo> {
     nack_suppression_duration: Duration,
     last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: Option<i32>,
-    writer_cache: WriterHistoryCache<Foo>,
+    writer_cache: WriterHistoryCache,
     matched_readers: Vec<RtpsReaderProxyImpl>,
 }
 
-impl<Foo> RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl<Foo> {
+impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
     type ReaderProxyType = RtpsReaderProxyImpl;
 
     fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
@@ -69,7 +67,7 @@ impl<Foo> RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl<
         todo!()
     }
 }
-impl<Foo> RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl<Foo> {
+impl RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl {
     fn new(
         guid: Guid,
         topic_kind: TopicKind,
@@ -100,13 +98,13 @@ impl<Foo> RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl<Foo> {
     }
 }
 
-impl<Foo> RtpsEntityAttributes for RtpsStatefulWriterImpl<Foo> {
+impl RtpsEntityAttributes for RtpsStatefulWriterImpl {
     fn guid(&self) -> &Guid {
         &self.guid
     }
 }
 
-impl<Foo> RtpsEndpointAttributes for RtpsStatefulWriterImpl<Foo> {
+impl RtpsEndpointAttributes for RtpsStatefulWriterImpl {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
     }
@@ -124,8 +122,8 @@ impl<Foo> RtpsEndpointAttributes for RtpsStatefulWriterImpl<Foo> {
     }
 }
 
-impl<Foo> RtpsWriterAttributes for RtpsStatefulWriterImpl<Foo> {
-    type WriterHistoryCacheType = WriterHistoryCache<Foo>;
+impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
+    type WriterHistoryCacheType = WriterHistoryCache;
 
     fn push_mode(&self) -> &bool {
         &self.push_mode
@@ -156,7 +154,7 @@ impl<Foo> RtpsWriterAttributes for RtpsStatefulWriterImpl<Foo> {
     }
 }
 
-impl<Foo> RtpsWriterOperations for RtpsStatefulWriterImpl<Foo> {
+impl RtpsWriterOperations for RtpsStatefulWriterImpl {
     fn new_change<'a, P, D>(
         &mut self,
         kind: ChangeKind,
@@ -176,16 +174,16 @@ impl<Foo> RtpsWriterOperations for RtpsStatefulWriterImpl<Foo> {
     }
 }
 
-pub struct RtpsReaderProxyIterator<'a, Foo> {
+pub struct RtpsReaderProxyIterator<'a> {
     reader_proxy_iterator: std::slice::IterMut<'a, RtpsReaderProxyImpl>,
-    writer_cache: &'a WriterHistoryCache<Foo>,
+    writer_cache: &'a WriterHistoryCache,
     last_change_sequence_number: &'a SequenceNumber,
     reliability_level: &'a ReliabilityKind,
     writer_guid: &'a Guid,
 }
 
-impl<'a, Foo> Iterator for RtpsReaderProxyIterator<'a, Foo> {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyImpl, WriterHistoryCache<Foo>>;
+impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyImpl, WriterHistoryCache>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let reader_proxy = self.reader_proxy_iterator.next()?;
@@ -209,9 +207,9 @@ impl<'a, Foo> Iterator for RtpsReaderProxyIterator<'a, Foo> {
     }
 }
 
-impl<'a, Foo> IntoIterator for &'a mut RtpsStatefulWriterImpl<Foo> {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyImpl, WriterHistoryCache<Foo>>;
-    type IntoIter = RtpsReaderProxyIterator<'a, Foo>;
+impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyImpl, WriterHistoryCache>;
+    type IntoIter = RtpsReaderProxyIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         RtpsReaderProxyIterator {
@@ -224,16 +222,13 @@ impl<'a, Foo> IntoIterator for &'a mut RtpsStatefulWriterImpl<Foo> {
     }
 }
 
-impl<Foo> WriterHistoryCacheAddChangeMut<'_, Foo> for RtpsStatefulWriterImpl<Foo>
-where
-    Foo: DdsSerialize,
-{
+impl WriterHistoryCacheAddChangeMut<'_> for RtpsStatefulWriterImpl {
     fn get_writer_history_cache_add_change_mut(
         &'_ mut self,
     ) -> &mut dyn RtpsHistoryCacheAddChange<
         '_,
         ParameterListType = Vec<Parameter<Vec<u8>>>,
-        DataType = &'_ Foo,
+        DataType = Vec<u8>,
     > {
         &mut self.writer_cache
     }

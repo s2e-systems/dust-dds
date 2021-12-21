@@ -28,8 +28,9 @@ use rust_rtps_pim::{
 use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
 
 use crate::{
-    dds_type::DdsSerialize,
-    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut, utils::clock::Timer,
+    dds_type::{DdsSerialize, LittleEndian},
+    rtps_impl::rtps_writer_history_cache_impl::WriterHistoryCacheAddChangeMut,
+    utils::clock::Timer,
 };
 
 use super::publisher_impl::{StatefulWriterSubmessageProducer, StatelessWriterSubmessageProducer};
@@ -72,7 +73,7 @@ impl<Foo, W, C> AsMut<W> for DataWriterImpl<Foo, W, C> {
 impl<Foo, W, C> DataWriter<Foo> for DataWriterImpl<Foo, W, C>
 where
     Foo: DdsSerialize,
-    W: RtpsWriterOperations + for<'a> WriterHistoryCacheAddChangeMut<'a, Foo>,
+    W: RtpsWriterOperations + for<'a> WriterHistoryCacheAddChangeMut<'a>,
 {
     fn register_instance(&mut self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
@@ -121,9 +122,12 @@ where
         _handle: Option<InstanceHandle>,
         _timestamp: rust_dds_api::dcps_psm::Time,
     ) -> DDSResult<()> {
-        let change = self
-            .rtps_writer_impl
-            .new_change(ChangeKind::Alive, data, vec![], 0);
+        let mut serialized_data = Vec::new();
+        data.serialize::<_, LittleEndian>(&mut serialized_data)
+            .unwrap();
+        let change =
+            self.rtps_writer_impl
+                .new_change(ChangeKind::Alive, serialized_data, vec![], 0);
         self.rtps_writer_impl
             .get_writer_history_cache_add_change_mut()
             .add_change(change);
@@ -365,8 +369,6 @@ where
 #[cfg(test)]
 mod tests {
 
-    use std::marker::PhantomData;
-
     use rust_rtps_pim::{
         behavior::{
             types::{Duration, DURATION_ZERO},
@@ -414,23 +416,24 @@ mod tests {
 
     #[test]
     fn write_w_timestamp() {
-        struct MockWriterCache<T>(PhantomData<T>);
+        struct MockWriterCache;
 
-        impl<'a, T> RtpsHistoryCacheAddChange<'a> for MockWriterCache<T>
-        where
-            T: 'a,
-        {
+        impl<'a> RtpsHistoryCacheAddChange<'a> for MockWriterCache {
             type ParameterListType = Vec<Parameter<Vec<u8>>>;
-            type DataType = &'a T;
+            type DataType = Vec<u8>;
 
-            fn add_change(&mut self, _change: RtpsCacheChange<Vec<Parameter<Vec<u8>>>, &'_ T>) {}
+            fn add_change(
+                &mut self,
+                _change: RtpsCacheChange<Self::ParameterListType, Self::DataType>,
+            ) {
+            }
         }
 
-        struct MockWriter<T> {
-            cache: MockWriterCache<T>,
+        struct MockWriter {
+            cache: MockWriterCache,
         }
 
-        impl<T> RtpsWriterOperations for MockWriter<T> {
+        impl RtpsWriterOperations for MockWriter {
             fn new_change<'a, P, D>(
                 &mut self,
                 kind: ChangeKind,
@@ -449,13 +452,13 @@ mod tests {
             }
         }
 
-        impl<T> WriterHistoryCacheAddChangeMut<'_, T> for MockWriter<T> {
+        impl WriterHistoryCacheAddChangeMut<'_> for MockWriter {
             fn get_writer_history_cache_add_change_mut(
                 &'_ mut self,
             ) -> &mut dyn RtpsHistoryCacheAddChange<
                 '_,
                 ParameterListType = Vec<Parameter<Vec<u8>>>,
-                DataType = &'_ T,
+                DataType = Vec<u8>,
             > {
                 &mut self.cache
             }
@@ -464,7 +467,7 @@ mod tests {
         let mut dds_data_writer = DataWriterImpl::new(
             DataWriterQos::default(),
             MockWriter {
-                cache: MockWriterCache(PhantomData),
+                cache: MockWriterCache,
             },
             Box::new(EmptyTimer),
         );
@@ -501,7 +504,7 @@ mod tests {
         let nack_suppression_duration = DURATION_ZERO;
         let data_max_size_serialized = None;
 
-        let mut rtps_writer_impl = RtpsStatefulWriterImpl::<()>::new(
+        let mut rtps_writer_impl = RtpsStatefulWriterImpl::new(
             guid,
             topic_kind,
             reliability_level,

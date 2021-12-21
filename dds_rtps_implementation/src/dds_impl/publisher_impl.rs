@@ -89,7 +89,7 @@ pub trait AnyStatelessDataWriter {
     ) -> Arc<RwLock<dyn StatelessWriterSubmessageProducer>>;
 }
 
-impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl<T>, StdTimer>>
+impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl, StdTimer>>
 where
     T: Send + Sync + 'static,
 {
@@ -112,7 +112,7 @@ pub trait AnyStatefulDataWriter {
     ) -> Arc<RwLock<dyn StatefulWriterSubmessageProducer>>;
 }
 
-impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl<T>, StdTimer>>
+impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl, StdTimer>>
 where
     T: Send + Sync + 'static,
 {
@@ -347,7 +347,7 @@ where
     ) -> Option<Self::DataWriterType> {
         let data_writer_impl_list_lock = self.stateful_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatefulWriterImpl<Foo>, StdTimer>>>(
+            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatefulWriterImpl, StdTimer>>>(
                 x.into_any(),
             )
             .ok()
@@ -359,7 +359,7 @@ where
 
         let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatelessWriterImpl<Foo>, StdTimer>>>(
+            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatelessWriterImpl, StdTimer>>>(
                 x.into_any(),
             )
             .ok()
