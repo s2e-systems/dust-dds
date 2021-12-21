@@ -36,10 +36,10 @@ pub struct DataSubmessage<P, D> {
 }
 
 pub trait DataSubmessageConstructor {
-    type EntityIdSubmessageElementType;
-    type SequenceNumberSubmessageElementType;
-    type ParameterListSubmessageElementType;
-    type SerializedDataSubmessageElementType;
+    type EntityIdType;
+    type SequenceNumberType;
+    type ParameterListType;
+    type SerializedDataType;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -47,11 +47,11 @@ pub trait DataSubmessageConstructor {
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        writer_sn: Self::SequenceNumberSubmessageElementType,
-        inline_qos: Self::ParameterListSubmessageElementType,
-        serialized_payload: Self::SerializedDataSubmessageElementType,
+        reader_id: Self::EntityIdType,
+        writer_id: Self::EntityIdType,
+        writer_sn: Self::SequenceNumberType,
+        inline_qos: Self::ParameterListType,
+        serialized_payload: Self::SerializedDataType,
     ) -> Self;
 }
 

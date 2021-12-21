@@ -49,3 +49,8 @@ impl ParameterListSubmessageElementAttributes for ParameterListSubmessageElement
         self.parameter.as_ref()
     }
 }
+
+#[derive(Debug, PartialEq)]
+pub struct ParameterListSubmessageElementWritePsm {
+    pub parameter: Vec<Parameter<Vec<u8>>>,
+}

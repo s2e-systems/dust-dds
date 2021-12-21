@@ -1,11 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{
-    overall_structure::RtpsSubmessageHeader,
-    submessage_elements::{ParameterListSubmessageElement, SerializedDataSubmessageElement},
-    types::SubmessageKind,
-};
+use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
 use rust_rtps_psm::messages::{
     submessage_elements::{ParameterListSubmessageElementPsm, SerializedDataSubmessageElementPsm},
     submessages::{DataSubmessageRead, DataSubmessageWrite},
@@ -136,15 +132,14 @@ mod tests {
     use super::*;
     use rust_rtps_pim::{
         messages::{
-            submessage_elements::{
-                EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-            },
+            submessage_elements::Parameter, submessages::DataSubmessageConstructor,
             types::ParameterId,
         },
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
-    use rust_rtps_psm::messages::submessage_elements::{EntityIdSubmessageElementPsm, SequenceNumberSubmessageElementPsm};
+    use rust_rtps_psm::messages::submessage_elements::{
+        EntityIdSubmessageElementPsm, SequenceNumberSubmessageElementPsm,
+    };
 
     #[test]
     fn serialize_no_inline_qos_no_serialized_payload() {
@@ -153,15 +148,11 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-        };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = 5;
+        let inline_qos = vec![];
+        let serialized_payload = &[][..];
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
@@ -193,20 +184,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-        };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = 5;
         let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
         let parameter_list = vec![parameter_1, parameter_2];
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: parameter_list,
-        };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let inline_qos = parameter_list;
+        let serialized_payload = &[][..];
 
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
@@ -244,17 +229,11 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-        };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
-        let serialized_payload = SerializedDataSubmessageElement {
-            value: &[1_u8, 2, 3, 4][..],
-        };
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = 5;
+        let inline_qos = vec![];
+        let serialized_payload = &[1_u8, 2, 3, 4][..];
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
@@ -287,17 +266,11 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-        };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
-        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
-        let serialized_payload = SerializedDataSubmessageElement {
-            value: &[1_u8, 2, 3][..],
-        };
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = 5;
+        let inline_qos = vec![];
+        let serialized_payload = &[1_u8, 2, 3][..];
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,

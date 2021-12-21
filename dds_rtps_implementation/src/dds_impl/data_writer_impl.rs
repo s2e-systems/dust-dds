@@ -25,7 +25,7 @@ use rust_rtps_pim::{
         types::{ChangeKind, Locator},
     },
 };
-use rust_rtps_psm::messages::overall_structure::RtpsSubmessageTypeWrite;
+use rust_rtps_psm::messages::{overall_structure::RtpsSubmessageTypeWrite, submessages::DataSubmessageWrite};
 
 use crate::{
     dds_type::{DdsSerialize, LittleEndian},
@@ -276,10 +276,10 @@ where
                 StatelessWriterBehavior::BestEffort(mut best_effort_behavior) => {
                     let submessages = RefCell::new(Vec::new());
                     best_effort_behavior.send_unsent_changes(
-                        |data| {
+                        |data: DataSubmessageWrite| {
                             submessages
                                 .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::from(data))
+                                .push(RtpsSubmessageTypeWrite::Data(data))
                         },
                         |gap| {
                             submessages
@@ -350,7 +350,7 @@ where
                         |data| {
                             submessages
                                 .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::from(data))
+                                .push(RtpsSubmessageTypeWrite::Data(data))
                         },
                         |gap| {
                             submessages

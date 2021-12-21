@@ -88,11 +88,9 @@ mod tests {
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
-    use rust_rtps_pim::messages::submessage_elements::{
-        EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-    };
+    use rust_rtps_pim::messages::submessage_elements::Parameter;
 
+    use rust_rtps_pim::messages::submessages::DataSubmessageConstructor;
     use rust_rtps_pim::messages::types::ParameterId;
     use rust_rtps_pim::messages::types::ProtocolId;
     use rust_rtps_pim::structure::types::{
@@ -137,20 +135,14 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
-        };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let reader_id = EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP);
+        let writer_sn = 5;
         let parameter_1 = Parameter::new(ParameterId(6), vec![10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), vec![20, 21, 22, 23]);
         let parameter_list = vec![parameter_1, parameter_2];
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: parameter_list,
-        };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let inline_qos = parameter_list;
+        let serialized_payload = &[][..];
 
         let submessage = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
             endianness_flag,

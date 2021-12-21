@@ -8,12 +8,15 @@ use crate::{
             SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
             SerializedDataSubmessageElement,
         },
-        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        submessages::{
+            AckNackSubmessage, DataSubmessage, DataSubmessageConstructor, GapSubmessage,
+            HeartbeatSubmessage,
+        },
         types::Count,
     },
     structure::{
         history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
-        types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -33,13 +36,19 @@ pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<P, D, S>(
+    pub fn send_unsent_changes<D, S>(
         &mut self,
-        mut send_data: impl FnMut(DataSubmessage<P, D>),
+        mut send_data: impl FnMut(D),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderLocatorOperations,
-        C: RtpsHistoryCacheGetChange<'a, ParameterListType = P, DataType = D>,
+        D: DataSubmessageConstructor<
+            EntityIdType = EntityId,
+            SequenceNumberType = SequenceNumber,
+            ParameterListType = C::ParameterListType,
+            SerializedDataType = C::DataType,
+        >,
+        C: RtpsHistoryCacheGetChange<'a>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -57,22 +66,12 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let writer_id = EntityIdSubmessageElement {
-                    value: *change.writer_guid.entity_id(),
-                };
-                let writer_sn = SequenceNumberSubmessageElement {
-                    value: change.sequence_number,
-                };
-                let inline_qos = ParameterListSubmessageElement {
-                    parameter: change.inline_qos,
-                };
-                let serialized_payload = SerializedDataSubmessageElement {
-                    value: change.data_value,
-                };
-                let data_submessage = DataSubmessage {
+                let reader_id = ENTITYID_UNKNOWN;
+                let writer_id = *change.writer_guid.entity_id();
+                let writer_sn = change.sequence_number;
+                let inline_qos = change.inline_qos;
+                let serialized_payload = change.data_value;
+                let data_submessage = D::new(
                     endianness_flag,
                     inline_qos_flag,
                     data_flag,
@@ -83,7 +82,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                     writer_sn,
                     inline_qos,
                     serialized_payload,
-                };
+                );
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
@@ -119,13 +118,19 @@ pub struct ReliableStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.2.4 Transition T4
-    pub fn send_unsent_changes<P, D, S>(
+    pub fn send_unsent_changes<D, S>(
         &mut self,
-        mut send_data: impl FnMut(DataSubmessage<P, D>),
+        mut send_data: impl FnMut(D),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderLocatorOperations,
-        C: RtpsHistoryCacheGetChange<'a, ParameterListType = P, DataType = D>,
+        C: RtpsHistoryCacheGetChange<'a>,
+        D: DataSubmessageConstructor<
+            EntityIdType = EntityId,
+            SequenceNumberType = SequenceNumber,
+            ParameterListType = C::ParameterListType,
+            SerializedDataType = C::DataType,
+        >,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = self
@@ -143,22 +148,12 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let writer_id = EntityIdSubmessageElement {
-                    value: *change.writer_guid.entity_id(),
-                };
-                let writer_sn = SequenceNumberSubmessageElement {
-                    value: change.sequence_number,
-                };
-                let inline_qos = ParameterListSubmessageElement {
-                    parameter: change.inline_qos,
-                };
-                let serialized_payload = SerializedDataSubmessageElement {
-                    value: change.data_value,
-                };
-                let data_submessage = DataSubmessage {
+                let reader_id = ENTITYID_UNKNOWN;
+                let writer_id = *change.writer_guid.entity_id();
+                let writer_sn = change.sequence_number;
+                let inline_qos = change.inline_qos;
+                let serialized_payload = change.data_value;
+                let data_submessage = D::new(
                     endianness_flag,
                     inline_qos_flag,
                     data_flag,
@@ -169,7 +164,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                     writer_sn,
                     inline_qos,
                     serialized_payload,
-                };
+                );
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
@@ -371,6 +366,30 @@ mod tests {
         }
     }
 
+    struct MockDataSubmessage;
+
+    impl DataSubmessageConstructor for MockDataSubmessage {
+        type EntityIdType = EntityId;
+        type SequenceNumberType = SequenceNumber;
+        type ParameterListType = ();
+        type SerializedDataType = ();
+
+        fn new(
+            _endianness_flag: crate::messages::types::SubmessageFlag,
+            _inline_qos_flag: crate::messages::types::SubmessageFlag,
+            _data_flag: crate::messages::types::SubmessageFlag,
+            _key_flag: crate::messages::types::SubmessageFlag,
+            _non_standard_payload_flag: crate::messages::types::SubmessageFlag,
+            _reader_id: Self::EntityIdType,
+            _writer_id: Self::EntityIdType,
+            _writer_sn: Self::SequenceNumberType,
+            _inline_qos: Self::ParameterListType,
+            _serialized_payload: Self::SerializedDataType,
+        ) -> Self {
+            Self
+        }
+    }
+
     #[test]
     fn best_effort_stateless_writer_send_data() {
         struct MockWriterCache;
@@ -397,7 +416,7 @@ mod tests {
         };
         let mut data_messages = None;
         best_effort_behavior.send_unsent_changes(
-            |data: DataSubmessage<(), ()>| data_messages = Some(data),
+            |data: MockDataSubmessage| data_messages = Some(data),
             |_: GapSubmessage<MockVecSeqNum>| assert!(false),
         );
 
@@ -423,7 +442,7 @@ mod tests {
         };
         let mut gap_message = None;
         best_effort_behavior.send_unsent_changes(
-            |_: DataSubmessage<(), ()>| assert!(false),
+            |_: MockDataSubmessage| assert!(false),
             |gap: GapSubmessage<MockVecSeqNum>| gap_message = Some(gap),
         );
 
@@ -449,7 +468,7 @@ mod tests {
             last_change_sequence_number: &1,
         };
         best_effort_behavior.send_unsent_changes(
-            |_: DataSubmessage<(), ()>| assert!(false),
+            |_: MockDataSubmessage| assert!(false),
             |_: GapSubmessage<MockVecSeqNum>| assert!(false),
         );
     }
