@@ -114,7 +114,7 @@ fn send_and_receive_discovery_data_happy_path() {
     };
 
     let mut spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
-        RtpsStatelessWriterImpl<SpdpDiscoveredParticipantData>,
+        RtpsStatelessWriterImpl,
     >(GuidPrefix([3; 12]), &[], &[]);
 
     let spdp_discovery_locator = RtpsReaderLocator::new(
@@ -238,7 +238,7 @@ fn process_discovery_data_happy_path() {
     };
 
     let mut spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
-        RtpsStatelessWriterImpl<SpdpDiscoveredParticipantData>,
+        RtpsStatelessWriterImpl,
     >(GuidPrefix([3; 12]), &[], &[]);
 
     let spdp_discovery_locator = RtpsReaderLocator::new(
@@ -266,9 +266,8 @@ fn process_discovery_data_happy_path() {
         )
         .unwrap();
 
-    let sedp_builtin_publications_rtps_writer = SedpBuiltinPublicationsWriter::create::<
-        RtpsStatefulWriterImpl<SedpDiscoveredWriterData>,
-    >(guid_prefix, &[], &[]);
+    let sedp_builtin_publications_rtps_writer =
+        SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
     let sedp_builtin_publications_data_writer =
         rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _, _>::new(

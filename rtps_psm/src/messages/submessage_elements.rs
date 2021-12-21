@@ -7,37 +7,45 @@ use rust_rtps_pim::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct EntityIdSubmessageElement;
+pub struct EntityIdSubmessageElementPsm {
+    pub value: EntityId,
+}
 
-impl EntityIdSubmessageElementAttributes for EntityIdSubmessageElement {
+impl EntityIdSubmessageElementAttributes for EntityIdSubmessageElementPsm {
     fn value(&self) -> &EntityId {
-        todo!()
+        &self.value
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct SequenceNumberSubmessageElement;
+pub struct SequenceNumberSubmessageElementPsm {
+    pub value: SequenceNumber,
+}
 
-impl SequenceNumberSubmessageElementAttributes for SequenceNumberSubmessageElement {
+impl SequenceNumberSubmessageElementAttributes for SequenceNumberSubmessageElementPsm {
     fn value(&self) -> &SequenceNumber {
-        todo!()
+        &self.value
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct SerializedDataSubmessageElement<'a>(pub &'a [u8]);
+pub struct SerializedDataSubmessageElementPsm<'a> {
+    pub value: &'a [u8],
+}
 
-impl SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElement<'_> {
+impl SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElementPsm<'_> {
     fn value(&self) -> &[u8] {
-        &self.0
+        &self.value
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ParameterListSubmessageElement;
+pub struct ParameterListSubmessageElementPsm<'a> {
+    pub parameter: Vec<Parameter<&'a [u8]>>,
+}
 
-impl ParameterListSubmessageElementAttributes for ParameterListSubmessageElement {
+impl ParameterListSubmessageElementAttributes for ParameterListSubmessageElementPsm<'_> {
     fn parameter(&self) -> &[Parameter<&[u8]>] {
-        todo!()
+        self.parameter.as_ref()
     }
 }

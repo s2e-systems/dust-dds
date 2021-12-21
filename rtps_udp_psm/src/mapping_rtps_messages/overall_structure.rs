@@ -5,7 +5,7 @@ use rust_rtps_psm::messages::overall_structure::{
     RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageTypeRead, RtpsSubmessageTypeWrite,
 };
 
-use crate::{mapping_traits::{MappingRead, MappingWrite}};
+use crate::mapping_traits::{MappingRead, MappingWrite};
 
 use super::submessages::submessage_header::{
     ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
@@ -98,6 +98,10 @@ mod tests {
     use rust_rtps_pim::structure::types::{
         EntityId, GuidPrefix, ProtocolVersion, USER_DEFINED_READER_GROUP,
         USER_DEFINED_READER_NO_KEY,
+    };
+    use rust_rtps_psm::messages::submessage_elements::{
+        EntityIdSubmessageElementPsm, ParameterListSubmessageElementPsm,
+        SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
     };
     use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
 
@@ -216,19 +220,19 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
+        let reader_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElement {
+        let writer_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElementPsm { value: 5 };
         let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13][..]);
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23][..]);
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterListSubmessageElementPsm {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedDataSubmessageElementPsm { value: &[][..] };
 
         let submessage = RtpsSubmessageTypeRead::Data(DataSubmessageRead::new(
             endianness_flag,
@@ -278,19 +282,19 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
+        let reader_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElement {
+        let writer_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElementPsm { value: 5 };
         let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13][..]);
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23][..]);
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterListSubmessageElementPsm {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedDataSubmessageElementPsm { value: &[][..] };
 
         let submessage = RtpsSubmessageTypeRead::Data(DataSubmessageRead::new(
             endianness_flag,

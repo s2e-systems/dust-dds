@@ -8,6 +8,7 @@ use rust_rtps_pim::messages::{
     submessage_elements::{Parameter, ParameterListSubmessageElement},
     types::ParameterId,
 };
+use rust_rtps_psm::messages::submessage_elements::ParameterListSubmessageElementPsm;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
@@ -98,6 +99,34 @@ where
 }
 
 impl<'a, T: NumberOfBytes> NumberOfBytes for ParameterListSubmessageElement<T> {
+    fn number_of_bytes(&self) -> usize {
+        self.parameter.number_of_bytes() + 4 /* Sentinel */
+    }
+}
+
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElementPsm<'a> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        const MAX_PARAMETERS: usize = 2_usize.pow(16);
+
+        let mut parameter = vec![];
+
+        for _ in 0..MAX_PARAMETERS {
+            let parameter_i: Parameter<&[u8]> =
+                MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+
+            if parameter_i == SENTINEL {
+                break;
+            } else {
+                parameter.push(Parameter::from(parameter_i));
+            }
+        }
+        Ok(Self {
+            parameter: Vec::from_iter(parameter.into_iter()),
+        })
+    }
+}
+
+impl<'a> NumberOfBytes for ParameterListSubmessageElementPsm<'a> {
     fn number_of_bytes(&self) -> usize {
         self.parameter.number_of_bytes() + 4 /* Sentinel */
     }

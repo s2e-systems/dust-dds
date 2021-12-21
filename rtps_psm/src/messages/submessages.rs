@@ -124,11 +124,11 @@ pub struct DataSubmessageRead<'a> {
     pub data_flag: SubmessageFlag,
     pub key_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: super::submessage_elements::EntityIdSubmessageElement,
-    pub writer_id: super::submessage_elements::EntityIdSubmessageElement,
-    pub writer_sn: super::submessage_elements::SequenceNumberSubmessageElement,
-    pub inline_qos: super::submessage_elements::ParameterListSubmessageElement,
-    pub serialized_payload: super::submessage_elements::SerializedDataSubmessageElement<'a>,
+    pub reader_id: super::submessage_elements::EntityIdSubmessageElementPsm,
+    pub writer_id: super::submessage_elements::EntityIdSubmessageElementPsm,
+    pub writer_sn: super::submessage_elements::SequenceNumberSubmessageElementPsm,
+    pub inline_qos: super::submessage_elements::ParameterListSubmessageElementPsm<'a>,
+    pub serialized_payload: super::submessage_elements::SerializedDataSubmessageElementPsm<'a>,
 }
 
 impl<'a> DataSubmessageRead<'a> {
@@ -138,11 +138,11 @@ impl<'a> DataSubmessageRead<'a> {
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: super::submessage_elements::EntityIdSubmessageElement,
-        writer_id: super::submessage_elements::EntityIdSubmessageElement,
-        writer_sn: super::submessage_elements::SequenceNumberSubmessageElement,
-        inline_qos: super::submessage_elements::ParameterListSubmessageElement,
-        serialized_payload: super::submessage_elements::SerializedDataSubmessageElement<'a>,
+        reader_id: super::submessage_elements::EntityIdSubmessageElementPsm,
+        writer_id: super::submessage_elements::EntityIdSubmessageElementPsm,
+        writer_sn: super::submessage_elements::SequenceNumberSubmessageElementPsm,
+        inline_qos: super::submessage_elements::ParameterListSubmessageElementPsm<'a>,
+        serialized_payload: super::submessage_elements::SerializedDataSubmessageElementPsm<'a>,
     ) -> Self {
         Self {
             endianness_flag,
@@ -160,13 +160,13 @@ impl<'a> DataSubmessageRead<'a> {
 }
 
 impl<'a> DataSubmessageAttributes for DataSubmessageRead<'a> {
-    type EntityIdSubmessageElementType = super::submessage_elements::EntityIdSubmessageElement;
+    type EntityIdSubmessageElementType = super::submessage_elements::EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType =
-        super::submessage_elements::SequenceNumberSubmessageElement;
+        super::submessage_elements::SequenceNumberSubmessageElementPsm;
     type ParameterListSubmessageElementType =
-        super::submessage_elements::ParameterListSubmessageElement;
+        super::submessage_elements::ParameterListSubmessageElementPsm<'a>;
     type SerializedDataSubmessageElementType =
-        super::submessage_elements::SerializedDataSubmessageElement<'a>;
+        super::submessage_elements::SerializedDataSubmessageElementPsm<'a>;
 
     fn endianness_flag(&self) -> &SubmessageFlag {
         &self.endianness_flag
