@@ -82,17 +82,6 @@ pub trait GapSubmessageAttributes {
     fn gap_list(&self) -> &Self::SequenceNumberSetSubmessageElementType;
 }
 
-// #[derive(Debug, PartialEq)]
-// pub struct GapSubmessage<S> {
-//     pub endianness_flag: SubmessageFlag,
-//     pub reader_id: EntityIdSubmessageElement,
-//     pub writer_id: EntityIdSubmessageElement,
-//     pub gap_start: SequenceNumberSubmessageElement,
-//     pub gap_list: SequenceNumberSetSubmessageElement<S>,
-//     // gap_start_gsn: submessage_elements::SequenceNumber,
-//     // gap_end_gsn: submessage_elements::SequenceNumber,
-// }
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct HeartbeatSubmessage {
     pub endianness_flag: SubmessageFlag,

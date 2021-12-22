@@ -1,12 +1,10 @@
 /// This file implements the behaviors described in 8.4.9 RTPS StatefulWriter Behavior
-use core::iter::FromIterator;
-
 use crate::{
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement,
-            EntityIdSubmessageElementConstructor, SequenceNumberSetSubmessageElement,
-            SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
+            EntityIdSubmessageElementConstructor, SequenceNumberSetSubmessageElementConstructor,
+            SequenceNumberSubmessageElement,
         },
         submessages::{
             AckNackSubmessage, DataSubmessageConstructor, GapSubmessageConstructor,

@@ -288,7 +288,7 @@ where
                         |gap| {
                             submessages
                                 .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::from(gap))
+                                .push(RtpsSubmessageTypeWrite::Gap(gap))
                         },
                     );
                     let submessages = submessages.take();
@@ -356,7 +356,7 @@ where
                         |gap| {
                             submessages
                                 .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::from(gap))
+                                .push(RtpsSubmessageTypeWrite::Gap(gap))
                         },
                     );
                     let submessages = submessages.take();

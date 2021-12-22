@@ -2,8 +2,9 @@ use rust_rtps_pim::{
     messages::{
         submessage_elements::{
             EntityIdSubmessageElementAttributes, EntityIdSubmessageElementConstructor,
-            ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementAttributes,
+            ParameterListSubmessageElementAttributes,
+            SequenceNumberSetSubmessageElementConstructor,
+            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
         },
         types::ParameterId,
     },
@@ -95,4 +96,19 @@ impl ParameterListSubmessageElementAttributes for ParameterListSubmessageElement
 #[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElementWritePsm<'a> {
     pub parameter: &'a [Parameter<Vec<u8>>],
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SequenceNumberSetSubmessageElementPsm {
+    pub base: SequenceNumber,
+    pub set: Vec<SequenceNumber>,
+}
+
+impl SequenceNumberSetSubmessageElementConstructor for SequenceNumberSetSubmessageElementPsm {
+    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
+        Self {
+            base,
+            set: set.to_vec(),
+        }
+    }
 }

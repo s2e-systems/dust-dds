@@ -3,14 +3,14 @@ use std::ops::Deref;
 use rust_rtps_pim::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-            SequenceNumberSubmessageElement, TimestampSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+            TimestampSubmessageElement,
         },
         submessages::{
-            AckNackSubmessage, DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessage,
-            HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
-            InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
-            PadSubmessage,
+            AckNackSubmessage, DataSubmessageAttributes, DataSubmessageConstructor,
+            GapSubmessageConstructor, HeartbeatFragSubmessage, HeartbeatSubmessage,
+            InfoDestinationSubmessage, InfoReplySubmessage, InfoSourceSubmessage,
+            InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage,
         },
         types::SubmessageFlag,
     },
@@ -21,8 +21,8 @@ use super::{
     overall_structure::RtpsSubmessageTypeWrite,
     submessage_elements::{
         EntityIdSubmessageElementPsm, Parameter, ParameterListSubmessageElementPsm,
-        ParameterListSubmessageElementWritePsm, SequenceNumberSubmessageElementPsm,
-        SerializedDataSubmessageElementPsm,
+        ParameterListSubmessageElementWritePsm, SequenceNumberSetSubmessageElementPsm,
+        SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
     },
 };
 
@@ -218,48 +218,54 @@ impl DataFragSubmessageWrite {
 #[derive(Debug, PartialEq)]
 pub struct DataFragSubmessageRead();
 
-#[derive(Debug, PartialEq)]
-pub struct GapSubmessageWrite(<Self as Deref>::Target);
+// #[derive(Debug, PartialEq)]
+// pub struct GapSubmessage<S> {
+//     pub endianness_flag: SubmessageFlag,
+//     pub reader_id: EntityIdSubmessageElement,
+//     pub writer_id: EntityIdSubmessageElement,
+//     pub gap_start: SequenceNumberSubmessageElement,
+//     pub gap_list: SequenceNumberSetSubmessageElement<S>,
+//     // gap_start_gsn: submessage_elements::SequenceNumber,
+//     // gap_end_gsn: submessage_elements::SequenceNumber,
+// }
 
-impl GapSubmessageWrite {
-    pub fn new(
-        endianness_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElement,
-        writer_id: EntityIdSubmessageElement,
-        gap_start: SequenceNumberSubmessageElement,
-        gap_list: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
+#[derive(Debug, PartialEq)]
+pub struct GapSubmessageWrite {
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub gap_start: SequenceNumberSubmessageElement,
+    pub gap_list: SequenceNumberSetSubmessageElementPsm,
+    // gap_start_gsn: submessage_elements::SequenceNumber,
+    // gap_end_gsn: submessage_elements::SequenceNumber,
+}
+
+impl GapSubmessageConstructor for GapSubmessageWrite {
+    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
+    type SequenceNumberSubmessageElementType = SequenceNumber;
+    type SequenceNumberSetSubmessageElementType = SequenceNumberSetSubmessageElementPsm;
+
+    fn new(
+        _endianness_flag: SubmessageFlag,
+        _reader_id: Self::EntityIdSubmessageElementType,
+        _writer_id: Self::EntityIdSubmessageElementType,
+        _gap_start: Self::SequenceNumberSubmessageElementType,
+        _gap_list: Self::SequenceNumberSetSubmessageElementType,
     ) -> Self {
-        Self(GapSubmessage {
-            endianness_flag,
-            reader_id,
-            writer_id,
-            gap_start,
-            gap_list,
-        })
-    }
-}
-
-impl Deref for GapSubmessageWrite {
-    type Target = GapSubmessage<Vec<SequenceNumber>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<'a> From<<GapSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
-    fn from(s: <GapSubmessageWrite as Deref>::Target) -> Self {
-        Self::Gap(GapSubmessageWrite::new(
-            s.endianness_flag,
-            s.reader_id,
-            s.writer_id,
-            s.gap_start,
-            s.gap_list,
-        ))
+        todo!()
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct GapSubmessageRead(<Self as Deref>::Target);
+pub struct GapSubmessageRead {
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub gap_start: SequenceNumberSubmessageElement,
+    pub gap_list: SequenceNumberSetSubmessageElementPsm,
+    // gap_start_gsn: submessage_elements::SequenceNumber,
+    // gap_end_gsn: submessage_elements::SequenceNumber,
+}
 
 impl GapSubmessageRead {
     pub fn new(
@@ -267,23 +273,15 @@ impl GapSubmessageRead {
         reader_id: EntityIdSubmessageElement,
         writer_id: EntityIdSubmessageElement,
         gap_start: SequenceNumberSubmessageElement,
-        gap_list: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
+        gap_list: SequenceNumberSetSubmessageElementPsm,
     ) -> Self {
-        Self(GapSubmessage {
+        Self {
             endianness_flag,
             reader_id,
             writer_id,
             gap_start,
             gap_list,
-        })
-    }
-}
-
-impl Deref for GapSubmessageRead {
-    type Target = GapSubmessage<Vec<SequenceNumber>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        }
     }
 }
 

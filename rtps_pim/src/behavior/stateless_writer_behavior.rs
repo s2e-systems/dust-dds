@@ -365,7 +365,7 @@ mod tests {
     struct MockSequenceNumberSetSubmessageElement;
 
     impl SequenceNumberSetSubmessageElementConstructor for MockSequenceNumberSetSubmessageElement {
-        fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
+        fn new(_base: SequenceNumber, _set: &[SequenceNumber]) -> Self {
             todo!()
         }
     }
@@ -434,11 +434,11 @@ mod tests {
         type SequenceNumberSetSubmessageElementType = MockSequenceNumberSetSubmessageElement;
 
         fn new(
-            endianness_flag: crate::messages::types::SubmessageFlag,
-            reader_id: Self::EntityIdSubmessageElementType,
-            writer_id: Self::EntityIdSubmessageElementType,
-            gap_start: Self::SequenceNumberSubmessageElementType,
-            gap_list: Self::SequenceNumberSetSubmessageElementType,
+            _endianness_flag: crate::messages::types::SubmessageFlag,
+            _reader_id: Self::EntityIdSubmessageElementType,
+            _writer_id: Self::EntityIdSubmessageElementType,
+            _gap_start: Self::SequenceNumberSubmessageElementType,
+            _gap_list: Self::SequenceNumberSetSubmessageElementType,
         ) -> Self {
             todo!()
         }
