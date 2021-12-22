@@ -3,11 +3,11 @@ use crate::{
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement,
-            EntityIdSubmessageElementConstructor, SequenceNumberSetSubmessageElementConstructor,
-            SequenceNumberSubmessageElement,
+            EntityIdSubmessageElementConstructor, SequenceNumberSetSubmessageElementAttributes,
+            SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
         },
         submessages::{
-            AckNackSubmessage, DataSubmessageConstructor, GapSubmessageConstructor,
+            AckNackSubmessageTrait, DataSubmessageConstructor, GapSubmessageConstructor,
             HeartbeatSubmessage,
         },
         types::Count,
@@ -225,13 +225,17 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.2.5 Transition T6
     /// Implementation does not include the part correponding to searching the reader locator
     /// on the stateless writer
-    pub fn process_acknack<S>(&mut self, acknack: &AckNackSubmessage<S>)
-    where
+    pub fn process_acknack<S>(
+        &mut self,
+        acknack: &impl AckNackSubmessageTrait<
+            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes,
+        >,
+    ) where
         R: RtpsReaderLocatorOperations,
         S: AsRef<[SequenceNumber]>,
     {
         self.reader_locator.requested_changes_set(
-            acknack.reader_sn_state.set.as_ref(),
+            acknack.reader_sn_state().set(),
             self.last_change_sequence_number,
         );
     }

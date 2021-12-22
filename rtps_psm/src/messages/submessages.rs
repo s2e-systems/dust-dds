@@ -7,10 +7,9 @@ use rust_rtps_pim::{
             TimestampSubmessageElement,
         },
         submessages::{
-            AckNackSubmessage, DataSubmessageAttributes, DataSubmessageConstructor,
-            GapSubmessageConstructor, HeartbeatFragSubmessage, HeartbeatSubmessage,
-            InfoDestinationSubmessage, InfoReplySubmessage, InfoSourceSubmessage,
-            InfoTimestampSubmessage, NackFragSubmessage,
+            DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
+            HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+            InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
         },
         types::SubmessageFlag,
     },
@@ -27,7 +26,14 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct AckNackSubmessageWrite(AckNackSubmessage<Vec<SequenceNumber>>);
+pub struct AckNackSubmessageWrite {
+    pub endianness_flag: SubmessageFlag,
+    pub final_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub reader_sn_state: SequenceNumberSetSubmessageElementPsm,
+    pub count: CountSubmessageElement,
+}
 
 impl AckNackSubmessageWrite {
     pub fn new() -> Self {
@@ -35,34 +41,19 @@ impl AckNackSubmessageWrite {
     }
 }
 
-impl Deref for AckNackSubmessageWrite {
-    type Target = AckNackSubmessage<Vec<SequenceNumber>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> From<<AckNackSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
-    fn from(_: <AckNackSubmessageWrite as Deref>::Target) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct AckNackSubmessageRead(AckNackSubmessage<Vec<SequenceNumber>>);
+pub struct AckNackSubmessageRead {
+    pub endianness_flag: SubmessageFlag,
+    pub final_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub reader_sn_state: SequenceNumberSetSubmessageElementPsm,
+    pub count: CountSubmessageElement,
+}
 
 impl AckNackSubmessageRead {
     pub fn new() -> Self {
         todo!()
-    }
-}
-
-impl Deref for AckNackSubmessageRead {
-    type Target = AckNackSubmessage<Vec<SequenceNumber>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 

@@ -3,11 +3,11 @@ use crate::{
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement,
-            EntityIdSubmessageElementConstructor, SequenceNumberSetSubmessageElementConstructor,
-            SequenceNumberSubmessageElement,
+            EntityIdSubmessageElementConstructor, SequenceNumberSetSubmessageElementAttributes,
+            SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
         },
         submessages::{
-            AckNackSubmessage, DataSubmessageConstructor, GapSubmessageConstructor,
+            AckNackSubmessageTrait, DataSubmessageConstructor, GapSubmessageConstructor,
             HeartbeatSubmessage,
         },
         types::Count,
@@ -223,15 +223,19 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     }
 
     /// Implement 8.4.9.2.8 Transition T8
-    pub fn process_acknack<S>(&mut self, acknack: &AckNackSubmessage<S>)
-    where
+    pub fn process_acknack<S>(
+        &mut self,
+        acknack: &impl AckNackSubmessageTrait<
+            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes,
+        >,
+    ) where
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
         S: AsRef<[SequenceNumber]>,
     {
         self.reader_proxy
-            .acked_changes_set(acknack.reader_sn_state.base - 1);
+            .acked_changes_set(acknack.reader_sn_state().base() - 1);
         self.reader_proxy.requested_changes_set(
-            acknack.reader_sn_state.set.as_ref(),
+            acknack.reader_sn_state().set().as_ref(),
             self.last_change_sequence_number,
         );
     }

@@ -2,20 +2,38 @@ use super::{
     submessage_elements::{
         CountSubmessageElement, EntityIdSubmessageElement, FragmentNumberSetSubmessageElement,
         FragmentNumberSubmessageElement, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
-        ProtocolVersionSubmessageElement, SequenceNumberSetSubmessageElement,
-        SequenceNumberSubmessageElement, TimestampSubmessageElement, VendorIdSubmessageElement,
+        ProtocolVersionSubmessageElement, SequenceNumberSubmessageElement,
+        TimestampSubmessageElement, VendorIdSubmessageElement,
     },
     types::SubmessageFlag,
 };
 
-#[derive(Debug, PartialEq)]
-pub struct AckNackSubmessage<S> {
-    pub endianness_flag: SubmessageFlag,
-    pub final_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub reader_sn_state: SequenceNumberSetSubmessageElement<S>,
-    pub count: CountSubmessageElement,
+pub trait AckNackSubmessageConstructor {
+    type EntityIdSubmessageElementType;
+    type SequenceNumberSetSubmessageElementType;
+    type CountSubmessageElementType;
+
+    fn new(
+        endianness_flag: SubmessageFlag,
+        final_flag: SubmessageFlag,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        reader_sn_state: Self::SequenceNumberSetSubmessageElementType,
+        count: Self::CountSubmessageElementType,
+    ) -> Self;
+}
+
+pub trait AckNackSubmessageTrait {
+    type EntityIdSubmessageElementType;
+    type SequenceNumberSetSubmessageElementType;
+    type CountSubmessageElementType;
+
+    fn endianness_flag(&self) -> &SubmessageFlag;
+    fn final_flag(&self) -> &SubmessageFlag;
+    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn reader_sn_state(&self) -> &Self::SequenceNumberSetSubmessageElementType;
+    fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
 pub trait DataSubmessageConstructor {

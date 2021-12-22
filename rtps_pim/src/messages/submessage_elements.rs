@@ -69,6 +69,11 @@ pub trait SequenceNumberSetSubmessageElementConstructor {
     fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self;
 }
 
+pub trait SequenceNumberSetSubmessageElementAttributes {
+    fn base(&self) -> &SequenceNumber;
+    fn set(&self) -> &[SequenceNumber];
+}
+
 #[derive(Debug, PartialEq)]
 pub struct SequenceNumberSetSubmessageElement<T> {
     pub base: SequenceNumber,
