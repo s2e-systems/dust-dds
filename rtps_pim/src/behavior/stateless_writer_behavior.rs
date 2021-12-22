@@ -7,7 +7,7 @@ use crate::{
             SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
         },
         submessages::{
-            AckNackSubmessageTrait, DataSubmessageConstructor, GapSubmessageConstructor,
+            AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
             HeartbeatSubmessage,
         },
         types::Count,
@@ -227,7 +227,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     /// on the stateless writer
     pub fn process_acknack<S>(
         &mut self,
-        acknack: &impl AckNackSubmessageTrait<
+        acknack: &impl AckNackSubmessageAttributes<
             SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes,
         >,
     ) where

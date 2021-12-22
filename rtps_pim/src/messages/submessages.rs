@@ -23,7 +23,7 @@ pub trait AckNackSubmessageConstructor {
     ) -> Self;
 }
 
-pub trait AckNackSubmessageTrait {
+pub trait AckNackSubmessageAttributes {
     type EntityIdSubmessageElementType;
     type SequenceNumberSetSubmessageElementType;
     type CountSubmessageElementType;
