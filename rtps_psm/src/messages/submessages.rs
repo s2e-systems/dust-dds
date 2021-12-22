@@ -10,7 +10,7 @@ use rust_rtps_pim::{
             AckNackSubmessage, DataSubmessageAttributes, DataSubmessageConstructor,
             GapSubmessageConstructor, HeartbeatFragSubmessage, HeartbeatSubmessage,
             InfoDestinationSubmessage, InfoReplySubmessage, InfoSourceSubmessage,
-            InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage,
+            InfoTimestampSubmessage, NackFragSubmessage,
         },
         types::SubmessageFlag,
     },
@@ -619,7 +619,7 @@ impl Deref for NackFragSubmessageRead {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct PadSubmessageWrite(<Self as Deref>::Target);
+pub struct PadSubmessageWrite;
 
 impl PadSubmessageWrite {
     pub fn new() -> Self {
@@ -627,33 +627,11 @@ impl PadSubmessageWrite {
     }
 }
 
-impl Deref for PadSubmessageWrite {
-    type Target = PadSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> From<<PadSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
-    fn from(_: <PadSubmessageWrite as Deref>::Target) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct PadSubmessageRead(<Self as Deref>::Target);
+pub struct PadSubmessageRead;
 
 impl PadSubmessageRead {
     pub fn new() -> Self {
         todo!()
-    }
-}
-
-impl Deref for PadSubmessageRead {
-    type Target = PadSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }

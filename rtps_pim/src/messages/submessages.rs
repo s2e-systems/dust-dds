@@ -148,5 +148,8 @@ pub struct NackFragSubmessage<F> {
     pub count: CountSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct PadSubmessage {}
+pub trait PadSubmessageConstructor {
+    fn new() -> Self;
+}
+
+pub trait PadSubmessageAttributes {}
