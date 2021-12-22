@@ -1,6 +1,6 @@
 use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
 use rust_rtps_pim::{
-    messages::{types::Time, submessage_elements::Parameter},
+    messages::{submessage_elements::Parameter, types::Time},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -12,10 +12,6 @@ use rust_rtps_pim::{
 };
 
 use crate::dds_type::DdsDeserialize;
-
-pub struct ReaderAddChangeCacheChange<'a> {
-    data: &'a [u8],
-}
 
 pub struct ReaderCacheChange<T> {
     kind: ChangeKind,
@@ -35,19 +31,19 @@ impl<T> RtpsCacheChangeAttributes for ReaderCacheChange<T> {
     type ParameterListType = ();
 
     fn kind(&self) -> &ChangeKind {
-        todo!()
+        &self.kind
     }
 
     fn writer_guid(&self) -> &Guid {
-        todo!()
+        &self.writer_guid
     }
 
     fn instance_handle(&self) -> &InstanceHandle {
-        todo!()
+        &self.instance_handle
     }
 
     fn sequence_number(&self) -> &SequenceNumber {
-        todo!()
+        &self.sequence_number
     }
 
     fn data_value(&self) -> &Self::DataType {
@@ -59,7 +55,10 @@ impl<T> RtpsCacheChangeAttributes for ReaderCacheChange<T> {
     }
 }
 
-impl<T> RtpsCacheChangeConstructor for ReaderCacheChange<T> {
+impl<Foo> RtpsCacheChangeConstructor for ReaderCacheChange<Foo>
+where
+    Foo: for<'a> DdsDeserialize<'a>,
+{
     type DataType = [u8];
     type ParameterListType = [Parameter<Vec<u8>>];
 
@@ -68,10 +67,38 @@ impl<T> RtpsCacheChangeConstructor for ReaderCacheChange<T> {
         writer_guid: &Guid,
         instance_handle: &InstanceHandle,
         sequence_number: &SequenceNumber,
-        data_value: &Self::DataType,
-        inline_qos: &Self::ParameterListType,
+        mut data_value: &Self::DataType,
+        _inline_qos: &Self::ParameterListType,
     ) -> Self {
-        todo!()
+        let instance_state_kind = match kind {
+            ChangeKind::Alive => InstanceStateKind::Alive,
+            ChangeKind::AliveFiltered => InstanceStateKind::Alive,
+            ChangeKind::NotAliveDisposed => InstanceStateKind::NotAliveDisposed,
+            ChangeKind::NotAliveUnregistered => todo!(),
+        };
+
+        let current_time = std::time::SystemTime::now();
+        let reception_timestamp = Time(
+            current_time
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        );
+
+        let data = DdsDeserialize::deserialize(&mut data_value).unwrap();
+
+        ReaderCacheChange {
+            kind: *kind,
+            writer_guid: *writer_guid,
+            sequence_number: *sequence_number,
+            instance_handle: *instance_handle,
+            data,
+            _source_timestamp: None,
+            _reception_timestamp: Some(reception_timestamp),
+            _sample_state_kind: SampleStateKind::NotRead,
+            _view_state_kind: ViewStateKind::New,
+            _instance_state_kind: instance_state_kind,
+        }
     }
 }
 
@@ -96,45 +123,11 @@ impl<T> RtpsHistoryCacheConstructor for ReaderHistoryCache<T> {
     }
 }
 
-impl<Foo> RtpsHistoryCacheAddChange for ReaderHistoryCache<Foo>
-where
-    Foo: for<'a> DdsDeserialize<'a>,
-{
+impl<Foo> RtpsHistoryCacheAddChange for ReaderHistoryCache<Foo> {
     type CacheChangeType = ReaderCacheChange<Foo>;
 
     fn add_change(&mut self, change: Self::CacheChangeType) {
-        todo!()
-        // let instance_state_kind = match change.kind() {
-        //     ChangeKind::Alive => InstanceStateKind::Alive,
-        //     ChangeKind::AliveFiltered => InstanceStateKind::Alive,
-        //     ChangeKind::NotAliveDisposed => InstanceStateKind::NotAliveDisposed,
-        //     ChangeKind::NotAliveUnregistered => todo!(),
-        // };
-
-        // let current_time = std::time::SystemTime::now();
-        // let reception_timestamp = Time(
-        //     current_time
-        //         .duration_since(std::time::UNIX_EPOCH)
-        //         .unwrap()
-        //         .as_secs(),
-        // );
-
-        // let data = DdsDeserialize::deserialize(&mut change.data_value().as_ref()).unwrap();
-
-        // let local_change = ReaderCacheChange {
-        //     kind: *change.kind(),
-        //     writer_guid: *change.writer_guid(),
-        //     sequence_number: *change.sequence_number(),
-        //     instance_handle: *change.instance_handle(),
-        //     data,
-        //     _source_timestamp: self.source_timestamp,
-        //     _reception_timestamp: Some(reception_timestamp),
-        //     _sample_state_kind: SampleStateKind::NotRead,
-        //     _view_state_kind: ViewStateKind::New,
-        //     _instance_state_kind: instance_state_kind,
-        // };
-
-        // self.changes.push(local_change)
+        self.changes.push(change)
     }
 }
 

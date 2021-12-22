@@ -52,12 +52,12 @@ impl<'a> SerializedDataSubmessageElementAttributes for SerializedDataSubmessageE
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ParameterListSubmessageElementPsm<'a> {
-    pub parameter: Vec<Parameter<&'a [u8]>>,
+pub struct ParameterListSubmessageElementPsm {
+    pub parameter: Vec<Parameter<Vec<u8>>>,
 }
 
-impl<'a> ParameterListSubmessageElementAttributes for ParameterListSubmessageElementPsm<'a> {
-    type ParameterListType = [Parameter<&'a [u8]>];
+impl ParameterListSubmessageElementAttributes for ParameterListSubmessageElementPsm {
+    type ParameterListType = [Parameter<Vec<u8>>];
     fn parameter(&self) -> &Self::ParameterListType {
         self.parameter.as_ref()
     }

@@ -128,7 +128,7 @@ pub struct DataSubmessageRead<'a> {
     pub reader_id: EntityIdSubmessageElementPsm,
     pub writer_id: EntityIdSubmessageElementPsm,
     pub writer_sn: SequenceNumberSubmessageElementPsm,
-    pub inline_qos: ParameterListSubmessageElementPsm<'a>,
+    pub inline_qos: ParameterListSubmessageElementPsm,
     pub serialized_payload: SerializedDataSubmessageElementPsm<'a>,
 }
 
@@ -142,7 +142,7 @@ impl<'a> DataSubmessageRead<'a> {
         reader_id: EntityIdSubmessageElementPsm,
         writer_id: EntityIdSubmessageElementPsm,
         writer_sn: SequenceNumberSubmessageElementPsm,
-        inline_qos: ParameterListSubmessageElementPsm<'a>,
+        inline_qos: ParameterListSubmessageElementPsm,
         serialized_payload: SerializedDataSubmessageElementPsm<'a>,
     ) -> Self {
         Self {
@@ -163,7 +163,7 @@ impl<'a> DataSubmessageRead<'a> {
 impl<'a> DataSubmessageAttributes for DataSubmessageRead<'a> {
     type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type ParameterListSubmessageElementType = ParameterListSubmessageElementPsm<'a>;
+    type ParameterListSubmessageElementType = ParameterListSubmessageElementPsm;
     type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
 
     fn endianness_flag(&self) -> &SubmessageFlag {

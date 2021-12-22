@@ -57,8 +57,7 @@ where
         data: &DataSubmessageRead,
     ) {
         for mut behavior in (&mut self.rtps_reader).into_iter() {
-            // behavior.receive_data(source_guid_prefix, data)
-            todo!()
+            behavior.receive_data(source_guid_prefix, data)
         }
     }
 }

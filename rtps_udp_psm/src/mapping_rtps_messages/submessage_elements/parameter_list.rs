@@ -15,10 +15,10 @@ use rust_rtps_psm::messages::submessage_elements::{
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 const PID_SENTINEL: ParameterId = ParameterId(1);
-const SENTINEL: Parameter<&[u8]> = Parameter {
+const SENTINEL: Parameter<Vec<u8>> = Parameter {
     parameter_id: PID_SENTINEL,
     length: 0,
-    value: &[],
+    value: vec![],
 };
 
 impl<T> MappingWriteByteOrdered for Parameter<T>
@@ -43,7 +43,7 @@ where
     }
 }
 
-impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<&'a [u8]> {
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<Vec<u8>> {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let parameter_id = ParameterId(buf.read_u16::<B>()?);
         let length = buf.read_i16::<B>()?;
@@ -52,7 +52,7 @@ impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<&'a [u8]> {
         Ok(Self {
             parameter_id,
             length,
-            value,
+            value: value.to_vec(),
         })
     }
 }
@@ -77,7 +77,7 @@ impl MappingWriteByteOrdered for ParameterListSubmessageElement<Vec<Parameter<Ve
 
 impl<'de: 'a, 'a, T> MappingReadByteOrdered<'de> for ParameterListSubmessageElement<T>
 where
-    T: FromIterator<Parameter<&'a [u8]>>,
+    T: FromIterator<Parameter<Vec<u8>>>,
 {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
@@ -85,7 +85,7 @@ where
         let mut parameter = vec![];
 
         for _ in 0..MAX_PARAMETERS {
-            let parameter_i: Parameter<&[u8]> =
+            let parameter_i: Parameter<Vec<u8>> =
                 MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
 
             if parameter_i == SENTINEL {
@@ -124,14 +124,14 @@ impl<'a> NumberOfBytes for ParameterListSubmessageElementWritePsm<'_> {
     }
 }
 
-impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElementPsm<'a> {
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElementPsm {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
         let mut parameter = vec![];
 
         for _ in 0..MAX_PARAMETERS {
-            let parameter_i: Parameter<&[u8]> =
+            let parameter_i: Parameter<Vec<u8>> =
                 MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
 
             if parameter_i == SENTINEL {
@@ -146,7 +146,7 @@ impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElement
     }
 }
 
-impl<'a> NumberOfBytes for ParameterListSubmessageElementPsm<'a> {
+impl NumberOfBytes for ParameterListSubmessageElementPsm {
     fn number_of_bytes(&self) -> usize {
         self.parameter.number_of_bytes() + 4 /* Sentinel */
     }
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
-        let expected = Parameter::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 0][..]);
+        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 0]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = Parameter::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 12][..]);
+        let expected = Parameter::new(ParameterId(2), vec![5, 6, 7, 8, 9, 10, 11, 12]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -250,8 +250,8 @@ mod tests {
     fn deserialize_parameter_list() {
         let expected = ParameterListSubmessageElement {
             parameter: vec![
-                Parameter::new(ParameterId(0x02), &[15, 16, 17, 18][..]),
-                Parameter::new(ParameterId(0x03), &[25, 26, 27, 28][..]),
+                Parameter::new(ParameterId(0x02), vec![15, 16, 17, 18]),
+                Parameter::new(ParameterId(0x03), vec![25, 26, 27, 28]),
             ],
         };
         #[rustfmt::skip]
@@ -268,14 +268,14 @@ mod tests {
     #[test]
     fn deserialize_parameter_list_with_long_parameter_including_sentinel() {
         #[rustfmt::skip]
-        let parameter_value_expected = &[
+        let parameter_value_expected = vec![
             0x01, 0x00, 0x00, 0x00,
             0x01, 0x00, 0x00, 0x00,
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
-        ][..];
+        ];
 
         let expected = ParameterListSubmessageElement {
             parameter: vec![Parameter::new(ParameterId(0x32), parameter_value_expected)],
@@ -297,18 +297,18 @@ mod tests {
     #[test]
     fn deserialize_parameter_list_with_multiple_parameters_with_same_id() {
         #[rustfmt::skip]
-        let parameter_value_expected1 = &[
+        let parameter_value_expected1 = vec![
             0x01, 0x00, 0x00, 0x00,
             0x01, 0x00, 0x00, 0x00,
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
-        ][..];
-        let parameter_value_expected2 = &[
+        ];
+        let parameter_value_expected2 = vec![
             0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
             0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
-        ][..];
+        ];
 
         let expected = ParameterListSubmessageElement {
             parameter: vec![
