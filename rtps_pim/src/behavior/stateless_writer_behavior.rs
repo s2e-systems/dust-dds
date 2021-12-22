@@ -68,8 +68,8 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(*change.writer_guid().entity_id());
+                let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
+                let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = *change.sequence_number();
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
@@ -152,9 +152,9 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdSubmessageElementConstructor::new(ENTITYID_UNKNOWN);
+                let reader_id = EntityIdSubmessageElementConstructor::new(&ENTITYID_UNKNOWN);
                 let writer_id =
-                    EntityIdSubmessageElementConstructor::new(*change.writer_guid().entity_id());
+                    EntityIdSubmessageElementConstructor::new(change.writer_guid().entity_id());
                 let writer_sn = *change.sequence_number();
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
@@ -277,8 +277,8 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(*change.writer_guid().entity_id());
+                let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
+                let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = *change.sequence_number();
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
@@ -374,7 +374,7 @@ mod tests {
     impl EntityIdSubmessageElementConstructor for MockEntityIdSubmessageElement {
         type EntityIdType = EntityId;
 
-        fn new(_value: Self::EntityIdType) -> Self {
+        fn new(_value: &Self::EntityIdType) -> Self {
             Self
         }
     }

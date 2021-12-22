@@ -15,8 +15,8 @@ pub struct EntityIdSubmessageElementPsm {
 impl EntityIdSubmessageElementConstructor for EntityIdSubmessageElementPsm {
     type EntityIdType = EntityId;
 
-    fn new(value: Self::EntityIdType) -> Self {
-        Self { value }
+    fn new(value: &Self::EntityIdType) -> Self {
+        Self { value: *value }
     }
 }
 

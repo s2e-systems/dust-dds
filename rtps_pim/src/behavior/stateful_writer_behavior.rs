@@ -68,8 +68,8 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id =
-                    EntityIdElement::new(*self.reader_proxy.remote_reader_guid().entity_id());
-                let writer_id = EntityIdElement::new(*change.writer_guid().entity_id());
+                    EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
+                let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = *change.sequence_number();
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
@@ -153,8 +153,8 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id =
-                    EntityIdElement::new(*self.reader_proxy.remote_reader_guid().entity_id());
-                let writer_id = EntityIdElement::new(*change.writer_guid().entity_id());
+                    EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
+                let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = *change.sequence_number();
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
@@ -277,8 +277,8 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(*change.writer_guid().entity_id());
+                let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
+                let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = *change.sequence_number();
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();

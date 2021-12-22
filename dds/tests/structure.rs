@@ -42,7 +42,7 @@ fn create_delete_publisher() {
     publisher
         .create_datawriter(&my_topic, None, None, 0)
         .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(15));
+    std::thread::sleep(std::time::Duration::from_secs(2));
 
     // assert_eq!(participant.delete_publisher(&publisher), Ok(()));
     // assert_eq!(publisher.get_qos(), Err(DDSError::AlreadyDeleted));
