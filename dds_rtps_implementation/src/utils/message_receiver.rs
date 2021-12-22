@@ -2,7 +2,10 @@ use crate::utils::shared_object::rtps_shared_write_lock;
 
 use super::shared_object::RtpsShared;
 use rust_rtps_pim::{
-    messages::types::{Time, TIME_INVALID},
+    messages::{
+        submessages::InfoTimestampSubmessageAttributes,
+        types::{Time, TIME_INVALID},
+    },
     structure::types::{
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
@@ -10,7 +13,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::{
     overall_structure::{RtpsMessageRead, RtpsSubmessageTypeRead},
-    submessages::{AckNackSubmessageRead, DataSubmessageRead, InfoTimestampSubmessageRead},
+    submessages::{AckNackSubmessageRead, DataSubmessageRead},
 };
 
 pub struct MessageReceiver {
@@ -85,10 +88,13 @@ impl MessageReceiver {
         }
     }
 
-    fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessageRead) {
-        if info_timestamp.invalidate_flag == false {
+    fn process_info_timestamp_submessage(
+        &mut self,
+        info_timestamp: &impl InfoTimestampSubmessageAttributes<TimestampSubmessageElementType = ()>,
+    ) {
+        if info_timestamp.invalidate_flag() == &false {
             self.have_timestamp = true;
-            self.timestamp = info_timestamp.timestamp.value;
+            self.timestamp = info_timestamp.timestamp().value();
         } else {
             self.have_timestamp = false;
             self.timestamp = TIME_INVALID;
@@ -116,6 +122,7 @@ pub trait ProcessAckNackSubmessage {
 mod tests {
 
     use rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
+    use rust_rtps_psm::messages::submessages::InfoTimestampSubmessageRead;
 
     use super::*;
 

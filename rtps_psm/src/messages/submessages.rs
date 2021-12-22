@@ -8,8 +8,7 @@ use rust_rtps_pim::{
         },
         submessages::{
             DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
-            HeartbeatFragSubmessage, HeartbeatSubmessageConstructor, InfoDestinationSubmessage,
-            InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
+            HeartbeatSubmessageConstructor, InfoTimestampSubmessageAttributes,
         },
         types::SubmessageFlag,
     },
@@ -398,7 +397,7 @@ impl HeartbeatSubmessageRead {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct HeartbeatFragSubmessageWrite(<Self as Deref>::Target);
+pub struct HeartbeatFragSubmessageWrite();
 
 impl HeartbeatFragSubmessageWrite {
     pub fn new() -> Self {
@@ -406,21 +405,8 @@ impl HeartbeatFragSubmessageWrite {
     }
 }
 
-impl Deref for HeartbeatFragSubmessageWrite {
-    type Target = HeartbeatFragSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<'a> From<<HeartbeatFragSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
-    fn from(_: <HeartbeatFragSubmessageWrite as Deref>::Target) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct HeartbeatFragSubmessageRead(<Self as Deref>::Target);
+pub struct HeartbeatFragSubmessageRead();
 
 impl HeartbeatFragSubmessageRead {
     pub fn new() -> Self {
@@ -428,16 +414,8 @@ impl HeartbeatFragSubmessageRead {
     }
 }
 
-impl Deref for HeartbeatFragSubmessageRead {
-    type Target = HeartbeatFragSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct InfoDestinationSubmessageWrite(<Self as Deref>::Target);
+pub struct InfoDestinationSubmessageWrite();
 
 impl InfoDestinationSubmessageWrite {
     pub fn new() -> Self {
@@ -445,22 +423,8 @@ impl InfoDestinationSubmessageWrite {
     }
 }
 
-impl Deref for InfoDestinationSubmessageWrite {
-    type Target = InfoDestinationSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> From<<InfoDestinationSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
-    fn from(_: <InfoDestinationSubmessageWrite as Deref>::Target) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct InfoDestinationSubmessageRead(<Self as Deref>::Target);
+pub struct InfoDestinationSubmessageRead();
 
 impl InfoDestinationSubmessageRead {
     pub fn new() -> Self {
@@ -468,17 +432,9 @@ impl InfoDestinationSubmessageRead {
     }
 }
 
-impl Deref for InfoDestinationSubmessageRead {
-    type Target = InfoDestinationSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 #[derive(Debug, PartialEq)]
 
-pub struct InfoReplySubmessageWrite(<Self as Deref>::Target);
+pub struct InfoReplySubmessageWrite();
 
 impl InfoReplySubmessageWrite {
     pub fn new() -> Self {
@@ -486,22 +442,8 @@ impl InfoReplySubmessageWrite {
     }
 }
 
-impl Deref for InfoReplySubmessageWrite {
-    type Target = InfoReplySubmessage<()>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> From<<InfoReplySubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
-    fn from(_: <InfoReplySubmessageWrite as Deref>::Target) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct InfoReplySubmessageRead(<Self as Deref>::Target);
+pub struct InfoReplySubmessageRead();
 
 impl InfoReplySubmessageRead {
     pub fn new() -> Self {
@@ -509,16 +451,8 @@ impl InfoReplySubmessageRead {
     }
 }
 
-impl Deref for InfoReplySubmessageRead {
-    type Target = InfoReplySubmessage<()>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct InfoSourceSubmessageWrite(<Self as Deref>::Target);
+pub struct InfoSourceSubmessageWrite();
 
 impl InfoSourceSubmessageWrite {
     pub fn new() -> Self {
@@ -526,22 +460,8 @@ impl InfoSourceSubmessageWrite {
     }
 }
 
-impl Deref for InfoSourceSubmessageWrite {
-    type Target = InfoSourceSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> From<<InfoSourceSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
-    fn from(_: <InfoSourceSubmessageWrite as Deref>::Target) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct InfoSourceSubmessageRead(<Self as Deref>::Target);
+pub struct InfoSourceSubmessageRead();
 
 impl InfoSourceSubmessageRead {
     pub fn new() -> Self {
@@ -549,16 +469,8 @@ impl InfoSourceSubmessageRead {
     }
 }
 
-impl Deref for InfoSourceSubmessageRead {
-    type Target = InfoSourceSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct InfoTimestampSubmessageWrite(<Self as Deref>::Target);
+pub struct InfoTimestampSubmessageWrite();
 
 impl InfoTimestampSubmessageWrite {
     pub fn new() -> Self {
@@ -566,22 +478,28 @@ impl InfoTimestampSubmessageWrite {
     }
 }
 
-impl Deref for InfoTimestampSubmessageWrite {
-    type Target = InfoTimestampSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> From<<InfoTimestampSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
-    fn from(_: <InfoTimestampSubmessageWrite as Deref>::Target) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct InfoTimestampSubmessageRead(<Self as Deref>::Target);
+pub struct InfoTimestampSubmessageRead {
+    endianness_flag: SubmessageFlag,
+    invalidate_flag: SubmessageFlag,
+    timestamp: TimestampSubmessageElement,
+}
+
+impl InfoTimestampSubmessageAttributes for InfoTimestampSubmessageRead {
+    type TimestampSubmessageElementType = TimestampSubmessageElement;
+
+    fn endianness_flag(&self) -> &SubmessageFlag {
+        &self.endianness_flag
+    }
+
+    fn invalidate_flag(&self) -> &SubmessageFlag {
+        &self.invalidate_flag
+    }
+
+    fn timestamp(&self) -> &Self::TimestampSubmessageElementType {
+        &self.timestamp
+    }
+}
 
 impl InfoTimestampSubmessageRead {
     pub fn new(
@@ -589,19 +507,11 @@ impl InfoTimestampSubmessageRead {
         invalidate_flag: SubmessageFlag,
         timestamp: TimestampSubmessageElement,
     ) -> Self {
-        Self(InfoTimestampSubmessage {
+        Self {
             endianness_flag,
             invalidate_flag,
             timestamp,
-        })
-    }
-}
-
-impl Deref for InfoTimestampSubmessageRead {
-    type Target = InfoTimestampSubmessage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        }
     }
 }
 
