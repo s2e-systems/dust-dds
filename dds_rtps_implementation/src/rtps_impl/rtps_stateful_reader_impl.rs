@@ -7,18 +7,16 @@ use rust_rtps_pim::{
         },
         types::Duration,
     },
-    messages::submessage_elements::Parameter,
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
-        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange},
+        history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, Locator, ReliabilityKind, TopicKind},
     },
 };
 
 use super::{
-    rtps_reader_history_cache_impl::{ReaderCacheChange, ReaderHistoryCache},
-    rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    rtps_reader_history_cache_impl::ReaderHistoryCache, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 
 pub struct RtpsStatefulReaderImpl<T> {

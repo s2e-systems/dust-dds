@@ -13,12 +13,12 @@ use crate::{
     },
 };
 
-pub struct BestEffortStatelessReaderBehavior<'a, C> {
+pub struct BestEffortStatelessReaderBehavior<'a, H> {
     pub reader_guid: &'a Guid,
-    pub reader_cache: &'a mut C,
+    pub reader_cache: &'a mut H,
 }
 
-impl<'a, C> BestEffortStatelessReaderBehavior<'a, C> {
+impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
     pub fn receive_data(
         &mut self,
         source_guid_prefix: GuidPrefix,
@@ -27,12 +27,16 @@ impl<'a, C> BestEffortStatelessReaderBehavior<'a, C> {
                 EntityIdType = EntityId,
             >,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
-            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
-            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
+            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
+                SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+            >,
+            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
+                ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType
+            >,
         >,
     ) where
-        C: RtpsHistoryCacheAddChange,
-        C::CacheChangeType: RtpsCacheChangeConstructor<DataType = &'a [u8]>,
+        H: RtpsHistoryCacheAddChange,
+        H::CacheChangeType: RtpsCacheChangeConstructor,
     {
         let reader_id = data.reader_id().value();
         if reader_id == self.reader_guid.entity_id() || reader_id == &ENTITYID_UNKNOWN {
@@ -43,13 +47,13 @@ impl<'a, C> BestEffortStatelessReaderBehavior<'a, C> {
             };
             let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
             let instance_handle = 0;
-            let sequence_number = *data.writer_sn().value();
+            let sequence_number = data.writer_sn().value();
             let data_value = data.serialized_payload().value();
             let inline_qos = data.inline_qos().parameter();
-            let a_change = C::CacheChangeType::new(
-                kind,
-                writer_guid,
-                instance_handle,
+            let a_change = H::CacheChangeType::new(
+                &kind,
+                &writer_guid,
+                &instance_handle,
                 sequence_number,
                 data_value,
                 inline_qos,
@@ -168,12 +172,12 @@ mod tests {
         type ParameterListType = ();
 
         fn new(
-            kind: ChangeKind,
-            writer_guid: Guid,
-            instance_handle: crate::structure::types::InstanceHandle,
-            sequence_number: SequenceNumber,
-            data_value: Self::DataType,
-            inline_qos: Self::ParameterListType,
+            kind: &ChangeKind,
+            writer_guid: &Guid,
+            instance_handle: &crate::structure::types::InstanceHandle,
+            sequence_number: &SequenceNumber,
+            data_value: &Self::DataType,
+            inline_qos: &Self::ParameterListType,
         ) -> Self {
             Self
         }

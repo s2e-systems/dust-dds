@@ -22,20 +22,20 @@ impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
 impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
     type SequenceNumberVector = Vec<SequenceNumber>;
 
-    fn available_changes_max(&self) -> &rust_rtps_pim::structure::types::SequenceNumber {
+    fn available_changes_max(&self) -> &SequenceNumber {
         todo!()
     }
 
     fn irrelevant_change_set(
         &mut self,
-        _a_seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
+        _a_seq_num: &SequenceNumber,
     ) {
         todo!()
     }
 
     fn lost_changes_update(
         &mut self,
-        _first_available_seq_num: &rust_rtps_pim::structure::types::SequenceNumber,
+        _first_available_seq_num: &SequenceNumber,
     ) {
         todo!()
     }
@@ -46,12 +46,12 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
 
     fn missing_changes_update(
         &mut self,
-        _last_available_seq_num: rust_rtps_pim::structure::types::SequenceNumber,
+        _last_available_seq_num: &SequenceNumber,
     ) {
         todo!()
     }
 
-    fn received_change_set(&mut self, _a_seq_num: rust_rtps_pim::structure::types::SequenceNumber) {
+    fn received_change_set(&mut self, _a_seq_num: &SequenceNumber) {
         todo!()
     }
 }

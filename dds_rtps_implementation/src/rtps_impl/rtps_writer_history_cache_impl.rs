@@ -2,7 +2,7 @@ use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::Time},
     structure::{
-        cache_change::{RtpsCacheChange, RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
+        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
             RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
             RtpsHistoryCacheOperations,
@@ -12,27 +12,27 @@ use rust_rtps_pim::{
 };
 
 pub struct WriterCacheChange {
-    kind: ChangeKind,
-    writer_guid: Guid,
-    sequence_number: SequenceNumber,
-    instance_handle: InstanceHandle,
-    data: Vec<u8>,
-    _source_timestamp: Option<Time>,
-    _view_state_kind: ViewStateKind,
-    _instance_state_kind: InstanceStateKind,
+    pub kind: ChangeKind,
+    pub writer_guid: Guid,
+    pub sequence_number: SequenceNumber,
+    pub instance_handle: InstanceHandle,
+    pub data: Vec<u8>,
+    pub _source_timestamp: Option<Time>,
+    pub _view_state_kind: ViewStateKind,
+    pub _instance_state_kind: InstanceStateKind,
 }
 
 impl RtpsCacheChangeConstructor for WriterCacheChange {
-    type DataType = Vec<u8>;
-    type ParameterListType = Vec<Parameter<Vec<u8>>>;
+    type DataType = [u8];
+    type ParameterListType = [Parameter<Vec<u8>>];
 
     fn new(
-        kind: ChangeKind,
-        writer_guid: Guid,
-        instance_handle: InstanceHandle,
-        sequence_number: SequenceNumber,
-        data_value: Self::DataType,
-        inline_qos: Self::ParameterListType,
+        kind: &ChangeKind,
+        writer_guid: &Guid,
+        instance_handle: &InstanceHandle,
+        sequence_number: &SequenceNumber,
+        data_value: &Self::DataType,
+        inline_qos: &Self::ParameterListType,
     ) -> Self {
         todo!()
     }
@@ -88,40 +88,11 @@ impl RtpsHistoryCacheConstructor for WriterHistoryCache {
     }
 }
 
-pub trait WriterHistoryCacheAddChangeMut<'a> {
-    fn get_writer_history_cache_add_change_mut(
-        &'a mut self,
-    ) -> &mut dyn RtpsHistoryCacheAddChange<
-        '_,
-        ParameterListType = Vec<Parameter<Vec<u8>>>,
-        DataType = Vec<u8>,
-    >;
-}
+impl RtpsHistoryCacheAddChange for WriterHistoryCache {
+    type CacheChangeType = WriterCacheChange;
 
-impl<'a> RtpsHistoryCacheAddChange<'a> for WriterHistoryCache {
-    type ParameterListType = Vec<Parameter<Vec<u8>>>;
-    type DataType = Vec<u8>;
-
-    fn add_change(&mut self, change: RtpsCacheChange<Self::ParameterListType, Self::DataType>) {
-        let instance_state_kind = match change.kind {
-            ChangeKind::Alive => InstanceStateKind::Alive,
-            ChangeKind::AliveFiltered => InstanceStateKind::Alive,
-            ChangeKind::NotAliveDisposed => InstanceStateKind::NotAliveDisposed,
-            ChangeKind::NotAliveUnregistered => todo!(),
-        };
-
-        let local_change = WriterCacheChange {
-            kind: change.kind,
-            writer_guid: change.writer_guid,
-            sequence_number: change.sequence_number,
-            instance_handle: change.instance_handle,
-            data: change.data_value,
-            _source_timestamp: self.source_timestamp,
-            _view_state_kind: ViewStateKind::New,
-            _instance_state_kind: instance_state_kind,
-        };
-
-        self.changes.push(local_change)
+    fn add_change(&mut self, change: Self::CacheChangeType) {
+        self.changes.push(change)
     }
 }
 
@@ -166,14 +137,14 @@ mod tests {
     #[test]
     fn add_change() {
         let mut hc = WriterHistoryCache::new();
-        let change = RtpsCacheChange {
-            kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
-            writer_guid: GUID_UNKNOWN,
-            instance_handle: 0,
-            sequence_number: 1,
-            data_value: vec![],
-            inline_qos: vec![],
-        };
+        let change = WriterCacheChange::new(
+            &rust_rtps_pim::structure::types::ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &1,
+            &vec![],
+            &vec![],
+        );
         hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
     }
@@ -181,14 +152,14 @@ mod tests {
     #[test]
     fn remove_change() {
         let mut hc = WriterHistoryCache::new();
-        let change = RtpsCacheChange {
-            kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
-            writer_guid: GUID_UNKNOWN,
-            instance_handle: 0,
-            sequence_number: 1,
-            data_value: vec![],
-            inline_qos: vec![],
-        };
+        let change = WriterCacheChange::new(
+            &rust_rtps_pim::structure::types::ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &1,
+            &vec![],
+            &vec![],
+        );
         hc.add_change(change);
         hc.remove_change(&1);
         assert!(hc.get_change(&1).is_none());
@@ -197,14 +168,14 @@ mod tests {
     #[test]
     fn get_change() {
         let mut hc = WriterHistoryCache::new();
-        let change = RtpsCacheChange {
-            kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
-            writer_guid: GUID_UNKNOWN,
-            instance_handle: 0,
-            sequence_number: 1,
-            data_value: vec![],
-            inline_qos: vec![],
-        };
+        let change = WriterCacheChange::new(
+            &rust_rtps_pim::structure::types::ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &1,
+            &vec![],
+            &vec![],
+        );
         hc.add_change(change);
         assert!(hc.get_change(&1).is_some());
         assert!(hc.get_change(&2).is_none());
@@ -213,22 +184,22 @@ mod tests {
     #[test]
     fn get_seq_num_min() {
         let mut hc = WriterHistoryCache::new();
-        let change1 = RtpsCacheChange {
-            kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
-            writer_guid: GUID_UNKNOWN,
-            instance_handle: 0,
-            sequence_number: 1,
-            data_value: vec![],
-            inline_qos: vec![],
-        };
-        let change2 = RtpsCacheChange {
-            kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
-            writer_guid: GUID_UNKNOWN,
-            instance_handle: 0,
-            sequence_number: 2,
-            data_value: vec![],
-            inline_qos: vec![],
-        };
+        let change1 = WriterCacheChange::new(
+            &rust_rtps_pim::structure::types::ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &1,
+            &vec![],
+            &vec![],
+        );
+        let change2 = WriterCacheChange::new(
+            &rust_rtps_pim::structure::types::ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &2,
+            &vec![],
+            &vec![],
+        );
         hc.add_change(change1);
         hc.add_change(change2);
         assert_eq!(hc.get_seq_num_min(), Some(1));
@@ -237,22 +208,22 @@ mod tests {
     #[test]
     fn get_seq_num_max() {
         let mut hc = WriterHistoryCache::new();
-        let change1 = RtpsCacheChange {
-            kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
-            writer_guid: GUID_UNKNOWN,
-            instance_handle: 0,
-            sequence_number: 1,
-            data_value: vec![],
-            inline_qos: vec![],
-        };
-        let change2 = RtpsCacheChange {
-            kind: rust_rtps_pim::structure::types::ChangeKind::Alive,
-            writer_guid: GUID_UNKNOWN,
-            instance_handle: 0,
-            sequence_number: 2,
-            data_value: vec![],
-            inline_qos: vec![],
-        };
+        let change1 = WriterCacheChange::new(
+            &rust_rtps_pim::structure::types::ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &1,
+            &vec![],
+            &vec![],
+        );
+        let change2 = WriterCacheChange::new(
+            &rust_rtps_pim::structure::types::ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &2,
+            &vec![],
+            &vec![],
+        );
         hc.add_change(change1);
         hc.add_change(change2);
         assert_eq!(hc.get_seq_num_max(), Some(2));

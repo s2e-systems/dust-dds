@@ -10,16 +10,16 @@ pub struct RtpsCacheChange<P, D> {
 }
 
 pub trait RtpsCacheChangeConstructor {
-    type DataType;
-    type ParameterListType;
+    type DataType: ?Sized;
+    type ParameterListType: ?Sized;
 
     fn new(
-        kind: ChangeKind,
-        writer_guid: Guid,
-        instance_handle: InstanceHandle,
-        sequence_number: SequenceNumber,
-        data_value: Self::DataType,
-        inline_qos: Self::ParameterListType,
+        kind: &ChangeKind,
+        writer_guid: &Guid,
+        instance_handle: &InstanceHandle,
+        sequence_number: &SequenceNumber,
+        data_value: &Self::DataType,
+        inline_qos: &Self::ParameterListType,
     ) -> Self;
 }
 

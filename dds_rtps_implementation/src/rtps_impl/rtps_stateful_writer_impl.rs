@@ -1,3 +1,4 @@
+use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
     behavior::{
         stateful_writer_behavior::{
@@ -13,10 +14,9 @@ use rust_rtps_pim::{
     },
     messages::submessage_elements::Parameter,
     structure::{
-        cache_change::{RtpsCacheChange, RtpsCacheChangeConstructor},
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
-        history_cache::{RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor},
+        history_cache::RtpsHistoryCacheConstructor,
         types::{
             ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
         },
@@ -25,9 +25,7 @@ use rust_rtps_pim::{
 
 use super::{
     rtps_reader_proxy_impl::RtpsReaderProxyImpl,
-    rtps_writer_history_cache_impl::{
-        WriterCacheChange, WriterHistoryCache, WriterHistoryCacheAddChangeMut,
-    },
+    rtps_writer_history_cache_impl::{WriterCacheChange, WriterHistoryCache},
 };
 
 pub struct RtpsStatefulWriterImpl {
@@ -151,29 +149,33 @@ impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
         &self.data_max_size_serialized
     }
 
-    fn writer_cache(&self) -> &Self::WriterHistoryCacheType {
-        &self.writer_cache
+    fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType {
+        &mut self.writer_cache
     }
 }
 
 impl RtpsWriterOperations for RtpsStatefulWriterImpl {
+    type DataType = Vec<u8>;
+    type ParameterListType = Vec<Parameter<Vec<u8>>>;
     type CacheChangeType = WriterCacheChange;
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
-        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
+        data: Self::DataType,
+        inline_qos: Self::ParameterListType,
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
-        WriterCacheChange::new(
+        WriterCacheChange {
             kind,
-            self.guid,
-            handle,
-            self.last_change_sequence_number,
+            writer_guid: self.guid,
+            sequence_number: self.last_change_sequence_number,
+            instance_handle: handle,
             data,
-            inline_qos,
-        )
+            _source_timestamp: None,
+            _view_state_kind: ViewStateKind::New,
+            _instance_state_kind: InstanceStateKind::Alive,
+        }
     }
 }
 
@@ -222,17 +224,5 @@ impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
             reliability_level: &self.reliability_level,
             writer_guid: &self.guid,
         }
-    }
-}
-
-impl WriterHistoryCacheAddChangeMut<'_> for RtpsStatefulWriterImpl {
-    fn get_writer_history_cache_add_change_mut(
-        &'_ mut self,
-    ) -> &mut dyn RtpsHistoryCacheAddChange<
-        '_,
-        ParameterListType = Vec<Parameter<Vec<u8>>>,
-        DataType = Vec<u8>,
-    > {
-        &mut self.writer_cache
     }
 }

@@ -7,16 +7,15 @@ use rust_rtps_pim::{
         stateless_reader_behavior::BestEffortStatelessReaderBehavior,
         types::Duration,
     },
-    messages::submessage_elements::Parameter,
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
-        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange},
+        history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, Locator, ReliabilityKind, TopicKind},
     },
 };
 
-use super::rtps_reader_history_cache_impl::{ReaderCacheChange, ReaderHistoryCache};
+use super::rtps_reader_history_cache_impl::ReaderHistoryCache;
 
 pub struct RtpsStatelessReaderImpl<T> {
     guid: Guid,

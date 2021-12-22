@@ -44,8 +44,9 @@ pub struct SerializedDataSubmessageElementPsm<'a> {
     pub value: &'a [u8],
 }
 
-impl SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElementPsm<'_> {
-    fn value(&self) -> &[u8] {
+impl<'a> SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElementPsm<'a> {
+    type SerializedDataType = [u8];
+    fn value(&self) -> &Self::SerializedDataType {
         &self.value
     }
 }
@@ -55,8 +56,9 @@ pub struct ParameterListSubmessageElementPsm<'a> {
     pub parameter: Vec<Parameter<&'a [u8]>>,
 }
 
-impl ParameterListSubmessageElementAttributes for ParameterListSubmessageElementPsm<'_> {
-    fn parameter(&self) -> &[Parameter<&[u8]>] {
+impl<'a> ParameterListSubmessageElementAttributes for ParameterListSubmessageElementPsm<'a> {
+    type ParameterListType = [Parameter<&'a [u8]>];
+    fn parameter(&self) -> &Self::ParameterListType {
         self.parameter.as_ref()
     }
 }

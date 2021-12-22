@@ -58,7 +58,9 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
                 SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
             >,
-            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
+            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
+                ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType
+            >,
         >,
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
@@ -73,13 +75,13 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
                 _ => todo!(),
             };
             let instance_handle = 0;
-            let sequence_number = *data.writer_sn().value();
+            let sequence_number = data.writer_sn().value();
             let data_value = data.serialized_payload().value();
             let inline_qos = data.inline_qos().parameter();
             let a_change = H::CacheChangeType::new(
-                kind,
-                writer_guid,
-                instance_handle,
+                &kind,
+                &writer_guid,
+                &instance_handle,
                 sequence_number,
                 data_value,
                 inline_qos,
@@ -107,7 +109,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
 mod tests {
     use crate::{
         messages::types::SubmessageFlag,
-        structure::types::{EntityId, SequenceNumber},
+        structure::types::{EntityId, SequenceNumber, InstanceHandle},
     };
 
     use super::*;
@@ -157,12 +159,12 @@ mod tests {
             type ParameterListType = ();
 
             fn new(
-                kind: ChangeKind,
-                writer_guid: Guid,
-                instance_handle: crate::structure::types::InstanceHandle,
-                sequence_number: SequenceNumber,
-                data_value: Self::DataType,
-                inline_qos: Self::ParameterListType,
+                kind: &ChangeKind,
+                writer_guid: &Guid,
+                instance_handle: &InstanceHandle,
+                sequence_number: &SequenceNumber,
+                data_value: &Self::DataType,
+                inline_qos: &Self::ParameterListType,
             ) -> Self {
                 Self
             }
@@ -180,7 +182,7 @@ mod tests {
                 todo!()
             }
 
-            fn instance_handle(&self) -> &crate::structure::types::InstanceHandle {
+            fn instance_handle(&self) -> &InstanceHandle {
                 todo!()
             }
 
