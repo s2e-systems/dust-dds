@@ -120,6 +120,12 @@ pub struct CountSubmessageElement {
     pub value: Count,
 }
 
+pub trait CountSubmessageElementConstructor {
+    type CountType;
+
+    fn new(value: &Self::CountType) -> Self;
+}
+
 #[derive(Debug, PartialEq)]
 pub struct LocatorListSubmessageElement<T> {
     pub value: T,

@@ -2,13 +2,13 @@
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement,
-            EntityIdSubmessageElementConstructor, SequenceNumberSetSubmessageElementAttributes,
-            SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
+            CountSubmessageElementConstructor, EntityIdSubmessageElementConstructor,
+            SequenceNumberSetSubmessageElementAttributes,
+            SequenceNumberSetSubmessageElementConstructor,
         },
         submessages::{
             AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
-            HeartbeatSubmessage,
+            HeartbeatSubmessageConstructor,
         },
         types::Count,
     },
@@ -184,32 +184,29 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     }
 
     /// Implement 8.4.8.2.5 Transition T5
-    pub fn send_heartbeat(
+    pub fn send_heartbeat<Heartbeat, EntityIdElement, CountElement>(
         &mut self,
         heartbeat_count: Count,
-        send_heartbeat: &mut dyn FnMut(HeartbeatSubmessage),
+        mut send_heartbeat: impl FnMut(Heartbeat),
     ) where
         C: RtpsHistoryCacheOperations,
+        Heartbeat: HeartbeatSubmessageConstructor<
+            EntityIdSubmessageElementType = EntityIdElement,
+            SequenceNumberSubmessageElementType = SequenceNumber,
+            CountSubmessageElementType = CountElement,
+        >,
+        EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
+        CountElement: CountSubmessageElementConstructor<CountType = Count>,
     {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: self.writer_guid.entity_id,
-        };
-        let first_sn = SequenceNumberSubmessageElement {
-            value: self.writer_cache.get_seq_num_min().unwrap_or(0),
-        };
-        let last_sn = SequenceNumberSubmessageElement {
-            value: self.writer_cache.get_seq_num_min().unwrap_or(0),
-        };
-        let count = CountSubmessageElement {
-            value: heartbeat_count,
-        };
-        let heartbeat_submessage = HeartbeatSubmessage {
+        let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
+        let writer_id = EntityIdElement::new(&self.writer_guid.entity_id);
+        let first_sn = self.writer_cache.get_seq_num_min().unwrap_or(0);
+        let last_sn = self.writer_cache.get_seq_num_min().unwrap_or(0);
+        let count = CountElement::new(&heartbeat_count);
+        let heartbeat_submessage = Heartbeat::new(
             endianness_flag,
             final_flag,
             liveliness_flag,
@@ -218,7 +215,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             first_sn,
             last_sn,
             count,
-        };
+        );
         send_heartbeat(heartbeat_submessage)
     }
 

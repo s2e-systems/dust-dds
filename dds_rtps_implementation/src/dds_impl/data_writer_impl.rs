@@ -343,7 +343,7 @@ where
                         reliable_behavior.send_heartbeat(self.heartbeat_count, &mut |heartbeat| {
                             submessages
                                 .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::from(heartbeat));
+                                .push(RtpsSubmessageTypeWrite::Heartbeat(heartbeat));
                         });
                     }
 

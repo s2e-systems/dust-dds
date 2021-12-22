@@ -100,22 +100,39 @@ pub trait GapSubmessageAttributes {
     fn gap_list(&self) -> &Self::SequenceNumberSetSubmessageElementType;
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct HeartbeatSubmessage {
-    pub endianness_flag: SubmessageFlag,
-    pub final_flag: SubmessageFlag,
-    pub liveliness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub first_sn: SequenceNumberSubmessageElement,
-    pub last_sn: SequenceNumberSubmessageElement,
-    pub count: CountSubmessageElement,
-    // current_gsn: submessage_elements::SequenceNumber,
-    // first_gsn: submessage_elements::SequenceNumber,
-    // last_gsn: submessage_elements::SequenceNumber,
-    // writer_set: submessage_elements::GroupDigest,
-    // secure_writer_set: submessage_elements::GroupDigest,
+pub trait HeartbeatSubmessageConstructor {
+    type EntityIdSubmessageElementType;
+    type SequenceNumberSubmessageElementType;
+    type CountSubmessageElementType;
+
+    fn new(
+        endianness_flag: SubmessageFlag,
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        first_sn: Self::SequenceNumberSubmessageElementType,
+        last_sn: Self::SequenceNumberSubmessageElementType,
+        count: Self::CountSubmessageElementType,
+    ) -> Self;
 }
+
+pub trait HeartbeatSubmessageAttributes {
+    type EntityIdSubmessageElementType;
+    type SequenceNumberSubmessageElementType;
+    type CountSubmessageElementType;
+
+    fn endianness_flag(&self) -> &SubmessageFlag;
+    fn final_flag(&self) -> &SubmessageFlag;
+    fn liveliness_flag(&self) -> &SubmessageFlag;
+    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn first_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
+    fn last_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
+    fn count(&self) -> &Self::CountSubmessageElementType;
+}
+
+
 
 #[derive(Debug, PartialEq)]
 pub struct HeartbeatFragSubmessage {

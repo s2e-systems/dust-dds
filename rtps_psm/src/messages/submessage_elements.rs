@@ -1,12 +1,12 @@
 use rust_rtps_pim::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementAttributes, EntityIdSubmessageElementConstructor,
-            ParameterListSubmessageElementAttributes,
+            CountSubmessageElementConstructor, EntityIdSubmessageElementAttributes,
+            EntityIdSubmessageElementConstructor, ParameterListSubmessageElementAttributes,
             SequenceNumberSetSubmessageElementConstructor,
             SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
         },
-        types::ParameterId,
+        types::{Count, ParameterId},
     },
     structure::types::{EntityId, SequenceNumber},
 };
@@ -110,5 +110,18 @@ impl SequenceNumberSetSubmessageElementConstructor for SequenceNumberSetSubmessa
             base,
             set: set.to_vec(),
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct CountSubmessageElementPsm {
+    pub value: Count,
+}
+
+impl CountSubmessageElementConstructor for CountSubmessageElementPsm {
+    type CountType = Count;
+
+    fn new(_value: &Self::CountType) -> Self {
+        todo!()
     }
 }
