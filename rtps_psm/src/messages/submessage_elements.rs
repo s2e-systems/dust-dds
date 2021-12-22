@@ -32,6 +32,11 @@ where
 }
 
 #[derive(Debug, PartialEq)]
+pub struct ParameterListSubmessageElement<T> {
+    pub parameter: T,
+}
+
+#[derive(Debug, PartialEq)]
 pub struct EntityIdSubmessageElementPsm {
     pub value: EntityId,
 }

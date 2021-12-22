@@ -101,10 +101,7 @@ pub trait ParameterAttributes {
     fn value(&self) -> &Self::ParameterValueType;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ParameterListSubmessageElement<T> {
-    pub parameter: T,
-}
+
 
 pub trait ParameterListSubmessageElementAttributes {
     type ParameterListType: ?Sized;

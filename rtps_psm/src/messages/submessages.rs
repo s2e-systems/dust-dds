@@ -7,10 +7,10 @@ use rust_rtps_pim::{
             SequenceNumberSubmessageElement, TimestampSubmessageElement,
         },
         submessages::{
-            AckNackSubmessage, DataFragSubmessage, DataSubmessageAttributes,
-            DataSubmessageConstructor, GapSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
-            InfoDestinationSubmessage, InfoReplySubmessage, InfoSourceSubmessage,
-            InfoTimestampSubmessage, NackFragSubmessage, PadSubmessage,
+            AckNackSubmessage, DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessage,
+            HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+            InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
+            PadSubmessage,
         },
         types::SubmessageFlag,
     },
@@ -207,7 +207,7 @@ impl<'a> DataSubmessageAttributes for DataSubmessageRead<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataFragSubmessageWrite(<Self as Deref>::Target);
+pub struct DataFragSubmessageWrite();
 
 impl DataFragSubmessageWrite {
     pub fn new() -> Self {
@@ -215,36 +215,8 @@ impl DataFragSubmessageWrite {
     }
 }
 
-impl Deref for DataFragSubmessageWrite {
-    type Target = DataFragSubmessage<(), ()>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> From<<DataFragSubmessageWrite as Deref>::Target> for RtpsSubmessageTypeWrite<'a> {
-    fn from(_: <DataFragSubmessageWrite as Deref>::Target) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Debug, PartialEq)]
-pub struct DataFragSubmessageRead(<Self as Deref>::Target);
-
-impl DataFragSubmessageRead {
-    pub fn new() -> Self {
-        todo!()
-    }
-}
-
-impl Deref for DataFragSubmessageRead {
-    type Target = DataFragSubmessage<(), ()>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+pub struct DataFragSubmessageRead();
 
 #[derive(Debug, PartialEq)]
 pub struct GapSubmessageWrite(<Self as Deref>::Target);

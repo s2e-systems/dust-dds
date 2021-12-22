@@ -2,11 +2,8 @@ use super::{
     submessage_elements::{
         CountSubmessageElement, EntityIdSubmessageElement, FragmentNumberSetSubmessageElement,
         FragmentNumberSubmessageElement, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
-        ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
-        SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-        SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
-        TimestampSubmessageElement, ULongSubmessageElement, UShortSubmessageElement,
-        VendorIdSubmessageElement,
+        ProtocolVersionSubmessageElement, SequenceNumberSetSubmessageElement,
+        SequenceNumberSubmessageElement, TimestampSubmessageElement, VendorIdSubmessageElement,
     },
     types::SubmessageFlag,
 };
@@ -19,20 +16,6 @@ pub struct AckNackSubmessage<S> {
     pub writer_id: EntityIdSubmessageElement,
     pub reader_sn_state: SequenceNumberSetSubmessageElement<S>,
     pub count: CountSubmessageElement,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct DataSubmessage<P, D> {
-    pub endianness_flag: SubmessageFlag,
-    pub inline_qos_flag: SubmessageFlag,
-    pub data_flag: SubmessageFlag,
-    pub key_flag: SubmessageFlag,
-    pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
-    pub inline_qos: ParameterListSubmessageElement<P>,
-    pub serialized_payload: SerializedDataSubmessageElement<D>,
 }
 
 pub trait DataSubmessageConstructor {
@@ -71,23 +54,6 @@ pub trait DataSubmessageAttributes {
     fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
     fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType;
     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
-}
-
-#[derive(Debug, PartialEq)]
-pub struct DataFragSubmessage<P, D> {
-    pub endianness_flag: SubmessageFlag,
-    pub inline_qos_flag: SubmessageFlag,
-    pub non_standard_payload_flag: SubmessageFlag,
-    pub key_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
-    pub fragment_starting_num: FragmentNumberSubmessageElement,
-    pub fragments_in_submessage: UShortSubmessageElement,
-    pub data_size: ULongSubmessageElement,
-    pub fragment_size: UShortSubmessageElement,
-    pub inline_qos: ParameterListSubmessageElement<P>,
-    pub serialized_payload: SerializedDataFragmentSubmessageElement<D>,
 }
 
 pub trait GapSubmessageConstructor {

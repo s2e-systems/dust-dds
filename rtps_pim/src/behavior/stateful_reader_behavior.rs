@@ -4,7 +4,7 @@ use crate::{
             EntityIdSubmessageElementAttributes, ParameterListSubmessageElementAttributes,
             SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
         },
-        submessages::{DataSubmessage, DataSubmessageAttributes},
+        submessages::DataSubmessageAttributes,
     },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
@@ -32,9 +32,16 @@ impl BestEffortStatefulReaderBehavior {
             WriterProxyType = impl RtpsWriterProxyOperations,
         >,
         source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<P, &[u8]>,
+        data: &impl DataSubmessageAttributes<
+            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes<
+                EntityIdType = EntityId,
+            >,
+            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
+            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
+            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
+        >,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
+        let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value()); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
         if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
             let _expected_seq_nem = writer_proxy.available_changes_max(); // expected_seq_num := writer_proxy.available_changes_max() + 1;
         }
@@ -109,7 +116,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
 mod tests {
     use crate::{
         messages::types::SubmessageFlag,
-        structure::types::{EntityId, SequenceNumber, InstanceHandle},
+        structure::types::{EntityId, InstanceHandle, SequenceNumber},
     };
 
     use super::*;
