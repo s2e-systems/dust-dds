@@ -1,14 +1,13 @@
 use crate::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementAttributes, Parameter,
-            ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementAttributes,
+            EntityIdSubmessageElementAttributes, ParameterListSubmessageElementAttributes,
+            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
         },
         submessages::DataSubmessageAttributes,
     },
     structure::{
-        cache_change::{RtpsCacheChange, RtpsCacheChangeConstructor},
+        cache_change::RtpsCacheChangeConstructor,
         history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, EntityId, Guid, GuidPrefix, ENTITYID_UNKNOWN},
     },
@@ -19,7 +18,7 @@ pub struct BestEffortStatelessReaderBehavior<'a, C> {
     pub reader_cache: &'a mut C,
 }
 
-impl<C> BestEffortStatelessReaderBehavior<'_, C> {
+impl<'a, C> BestEffortStatelessReaderBehavior<'a, C> {
     pub fn receive_data(
         &mut self,
         source_guid_prefix: GuidPrefix,
@@ -33,7 +32,7 @@ impl<C> BestEffortStatelessReaderBehavior<'_, C> {
         >,
     ) where
         C: RtpsHistoryCacheAddChange,
-        C::CacheChangeType: RtpsCacheChangeConstructor,
+        C::CacheChangeType: RtpsCacheChangeConstructor<DataType = &'a [u8]>,
     {
         let reader_id = data.reader_id().value();
         if reader_id == self.reader_guid.entity_id() || reader_id == &ENTITYID_UNKNOWN {
@@ -98,7 +97,8 @@ mod tests {
     struct MockParameterList;
 
     impl ParameterListSubmessageElementAttributes for MockParameterList {
-        fn parameter(&self) -> &[Parameter<&[u8]>] {
+        type ParameterListType = ();
+        fn parameter(&self) -> &Self::ParameterListType {
             todo!()
         }
     }
@@ -106,7 +106,8 @@ mod tests {
     struct MockSerializedData;
 
     impl SerializedDataSubmessageElementAttributes for MockSerializedData {
-        fn value(&self) -> &[u8] {
+        type SerializedDataType = ();
+        fn value(&self) -> &Self::SerializedDataType {
             todo!()
         }
     }
@@ -160,18 +161,31 @@ mod tests {
         }
     }
 
+    struct MockCacheChange;
+
+    impl RtpsCacheChangeConstructor for MockCacheChange {
+        type DataType = ();
+        type ParameterListType = ();
+
+        fn new(
+            kind: ChangeKind,
+            writer_guid: Guid,
+            instance_handle: crate::structure::types::InstanceHandle,
+            sequence_number: SequenceNumber,
+            data_value: Self::DataType,
+            inline_qos: Self::ParameterListType,
+        ) -> Self {
+            Self
+        }
+    }
+
     #[test]
     fn best_effort_stateless_reader_receive_data_reader_id_unknown() {
         struct MockHistoryCache(bool);
 
-        impl<'a> RtpsHistoryCacheAddChange<'a> for MockHistoryCache {
-            type ParameterListType = &'a [Parameter<&'a [u8]>];
-            type DataType = &'a [u8];
-
-            fn add_change(
-                &mut self,
-                _change: RtpsCacheChange<Self::ParameterListType, Self::DataType>,
-            ) {
+        impl RtpsHistoryCacheAddChange for MockHistoryCache {
+            type CacheChangeType = MockCacheChange;
+            fn add_change(&mut self, _change: Self::CacheChangeType) {
                 self.0 = true;
             }
         }
@@ -208,14 +222,9 @@ mod tests {
     fn best_effort_stateless_reader_receive_data_reader_id_same_as_receiver() {
         struct MockHistoryCache(bool);
 
-        impl<'a> RtpsHistoryCacheAddChange<'a> for MockHistoryCache {
-            type ParameterListType = &'a [Parameter<&'a [u8]>];
-            type DataType = &'a [u8];
-
-            fn add_change(
-                &mut self,
-                _change: RtpsCacheChange<Self::ParameterListType, Self::DataType>,
-            ) {
+        impl RtpsHistoryCacheAddChange for MockHistoryCache {
+            type CacheChangeType = MockCacheChange;
+            fn add_change(&mut self, _change: Self::CacheChangeType) {
                 self.0 = true;
             }
         }
@@ -252,14 +261,9 @@ mod tests {
     fn best_effort_stateless_reader_receive_data_reader_id_other_than_receiver() {
         struct MockHistoryCache(bool);
 
-        impl<'a> RtpsHistoryCacheAddChange<'a> for MockHistoryCache {
-            type ParameterListType = &'a [Parameter<&'a [u8]>];
-            type DataType = &'a [u8];
-
-            fn add_change(
-                &mut self,
-                _change: RtpsCacheChange<Self::ParameterListType, Self::DataType>,
-            ) {
+        impl RtpsHistoryCacheAddChange for MockHistoryCache {
+            type CacheChangeType = MockCacheChange;
+            fn add_change(&mut self, _change: Self::CacheChangeType) {
                 self.0 = true;
             }
         }

@@ -1,14 +1,13 @@
 use crate::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementAttributes, Parameter,
-            ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementAttributes,
+            EntityIdSubmessageElementAttributes, ParameterListSubmessageElementAttributes,
+            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
         },
         submessages::{DataSubmessage, DataSubmessageAttributes},
     },
     structure::{
-        cache_change::{RtpsCacheChange, RtpsCacheChangeConstructor},
+        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::RtpsHistoryCacheAddChange,
         types::{ChangeKind, EntityId, Guid, GuidPrefix},
     },
@@ -56,13 +55,15 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
                 EntityIdType = EntityId,
             >,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
+            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
+                SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+            >,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
         >,
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheAddChange,
-        H::CacheChangeType: RtpsCacheChangeConstructor
+        H::CacheChangeType: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes,
     {
         let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
         if &writer_guid == self.writer_proxy.remote_writer_guid() {
@@ -84,7 +85,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
                 inline_qos,
             );
             self.writer_proxy
-                .received_change_set(a_change.sequence_number);
+                .received_change_set(a_change.sequence_number());
             self.reader_cache.add_change(a_change);
         }
     }
@@ -140,12 +141,59 @@ mod tests {
                 todo!()
             }
 
-            fn missing_changes_update(&mut self, _last_available_seq_num: SequenceNumber) {
+            fn missing_changes_update(&mut self, _last_available_seq_num: &SequenceNumber) {
                 todo!()
             }
 
-            fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
-                assert_eq!(a_seq_num, 1)
+            fn received_change_set(&mut self, a_seq_num: &SequenceNumber) {
+                assert_eq!(a_seq_num, &1)
+            }
+        }
+
+        struct MockCacheChange;
+
+        impl RtpsCacheChangeConstructor for MockCacheChange {
+            type DataType = ();
+            type ParameterListType = ();
+
+            fn new(
+                kind: ChangeKind,
+                writer_guid: Guid,
+                instance_handle: crate::structure::types::InstanceHandle,
+                sequence_number: SequenceNumber,
+                data_value: Self::DataType,
+                inline_qos: Self::ParameterListType,
+            ) -> Self {
+                Self
+            }
+        }
+
+        impl RtpsCacheChangeAttributes for MockCacheChange {
+            type DataType = ();
+            type ParameterListType = ();
+
+            fn kind(&self) -> &ChangeKind {
+                todo!()
+            }
+
+            fn writer_guid(&self) -> &Guid {
+                todo!()
+            }
+
+            fn instance_handle(&self) -> &crate::structure::types::InstanceHandle {
+                todo!()
+            }
+
+            fn sequence_number(&self) -> &SequenceNumber {
+                todo!()
+            }
+
+            fn data_value(&self) -> &Self::DataType {
+                todo!()
+            }
+
+            fn inline_qos(&self) -> &Self::ParameterListType {
+                todo!()
             }
         }
 
@@ -154,7 +202,7 @@ mod tests {
         }
 
         impl RtpsHistoryCacheAddChange for MockReaderCache {
-            type CacheChangeType = ();
+            type CacheChangeType = MockCacheChange;
 
             fn add_change(&mut self, _change: Self::CacheChangeType) {
                 self.add_change_called = true;
@@ -181,7 +229,8 @@ mod tests {
         struct MockParameterList;
 
         impl ParameterListSubmessageElementAttributes for MockParameterList {
-            fn parameter(&self) -> &[Parameter<&[u8]>] {
+            type ParameterListType = ();
+            fn parameter(&self) -> &() {
                 todo!()
             }
         }
@@ -189,7 +238,8 @@ mod tests {
         struct MockSerializedData;
 
         impl SerializedDataSubmessageElementAttributes for MockSerializedData {
-            fn value(&self) -> &[u8] {
+            type SerializedDataType = ();
+            fn value(&self) -> &Self::SerializedDataType {
                 todo!()
             }
         }

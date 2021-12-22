@@ -114,7 +114,8 @@ pub struct ParameterListSubmessageElement<T> {
 }
 
 pub trait ParameterListSubmessageElementAttributes {
-    fn parameter(&self) -> &[Parameter<&[u8]>];
+    type ParameterListType: ?Sized;
+    fn parameter(&self) -> &Self::ParameterListType;
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -133,7 +134,8 @@ pub struct SerializedDataSubmessageElement<D> {
 }
 
 pub trait SerializedDataSubmessageElementAttributes {
-    fn value(&self) -> &[u8];
+    type SerializedDataType: ?Sized;
+    fn value(&self) -> &Self::SerializedDataType;
 }
 
 #[derive(Debug, PartialEq)]
