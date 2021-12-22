@@ -1,6 +1,6 @@
 use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
 use rust_rtps_pim::{
-    messages::{submessage_elements::Parameter, types::Time},
+    messages::types::Time,
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -10,6 +10,7 @@ use rust_rtps_pim::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
+use rust_rtps_psm::messages::submessage_elements::Parameter;
 
 use crate::dds_type::DdsDeserialize;
 

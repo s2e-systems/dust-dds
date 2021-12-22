@@ -87,25 +87,18 @@ pub struct TimestampSubmessageElement {
     pub value: Time,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Parameter<V> {
-    pub parameter_id: ParameterId,
-    pub length: i16,
-    pub value: V,
+pub trait ParameterConstructor {
+    type ParameterValueType: ?Sized;
+
+    fn new(parameter_id: ParameterId, length: i16, value: &Self::ParameterValueType) -> Self;
 }
 
-impl<V> Parameter<V>
-where
-    V: AsRef<[u8]>,
-{
-    pub fn new(parameter_id: ParameterId, value: V) -> Self {
-        let length = ((value.as_ref().len() + 3) & !0b11) as i16; //ceil to multiple of 4;
-        Self {
-            parameter_id,
-            length,
-            value,
-        }
-    }
+pub trait ParameterAttributes {
+    type ParameterValueType: ?Sized;
+
+    fn parameter_id(&self) -> &ParameterId;
+    fn length(&self) -> &i16;
+    fn value(&self) -> &Self::ParameterValueType;
 }
 
 #[derive(Debug, PartialEq)]

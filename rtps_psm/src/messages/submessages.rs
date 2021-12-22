@@ -3,9 +3,8 @@ use std::ops::Deref;
 use rust_rtps_pim::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
-            SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-            TimestampSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
+            SequenceNumberSubmessageElement, TimestampSubmessageElement,
         },
         submessages::{
             AckNackSubmessage, DataFragSubmessage, DataSubmessageAttributes,
@@ -21,7 +20,7 @@ use rust_rtps_pim::{
 use super::{
     overall_structure::RtpsSubmessageTypeWrite,
     submessage_elements::{
-        EntityIdSubmessageElementPsm, ParameterListSubmessageElementPsm,
+        EntityIdSubmessageElementPsm, Parameter, ParameterListSubmessageElementPsm,
         ParameterListSubmessageElementWritePsm, SequenceNumberSubmessageElementPsm,
         SerializedDataSubmessageElementPsm,
     },

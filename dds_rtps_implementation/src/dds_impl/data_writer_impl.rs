@@ -19,7 +19,7 @@ use rust_rtps_pim::{
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
-    messages::{submessage_elements::Parameter, types::Count},
+    messages::types::Count,
     structure::{
         history_cache::{
             RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations,
@@ -28,7 +28,8 @@ use rust_rtps_pim::{
     },
 };
 use rust_rtps_psm::messages::{
-    overall_structure::RtpsSubmessageTypeWrite, submessages::DataSubmessageWrite,
+    overall_structure::RtpsSubmessageTypeWrite, submessage_elements::Parameter,
+    submessages::DataSubmessageWrite,
 };
 
 use crate::{

@@ -132,14 +132,13 @@ mod tests {
     use super::*;
     use rust_rtps_pim::{
         messages::{
-            submessage_elements::{EntityIdSubmessageElementConstructor, Parameter},
-            submessages::DataSubmessageConstructor,
-            types::ParameterId,
+            submessage_elements::EntityIdSubmessageElementConstructor,
+            submessages::DataSubmessageConstructor, types::ParameterId,
         },
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
     use rust_rtps_psm::messages::submessage_elements::{
-        EntityIdSubmessageElementPsm, SequenceNumberSubmessageElementPsm,
+        EntityIdSubmessageElementPsm, SequenceNumberSubmessageElementPsm, Parameter,
     };
 
     #[test]
@@ -149,8 +148,10 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id =
-            EntityIdSubmessageElementPsm::new(&EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY));
+        let reader_id = EntityIdSubmessageElementPsm::new(&EntityId::new(
+            [1, 2, 3],
+            USER_DEFINED_READER_NO_KEY,
+        ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = 5;
@@ -187,8 +188,10 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id =
-            EntityIdSubmessageElementPsm::new(&EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY));
+        let reader_id = EntityIdSubmessageElementPsm::new(&EntityId::new(
+            [1, 2, 3],
+            USER_DEFINED_READER_NO_KEY,
+        ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = 5;
@@ -234,8 +237,10 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id =
-            EntityIdSubmessageElementPsm::new(&EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY));
+        let reader_id = EntityIdSubmessageElementPsm::new(&EntityId::new(
+            [1, 2, 3],
+            USER_DEFINED_READER_NO_KEY,
+        ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = 5;
@@ -273,8 +278,10 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id =
-            EntityIdSubmessageElementPsm::new(&EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY));
+        let reader_id = EntityIdSubmessageElementPsm::new(&EntityId::new(
+            [1, 2, 3],
+            USER_DEFINED_READER_NO_KEY,
+        ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = 5;

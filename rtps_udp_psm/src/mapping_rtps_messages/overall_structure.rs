@@ -89,7 +89,6 @@ mod tests {
     use crate::mapping_traits::{from_bytes, to_bytes};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementConstructor;
-    use rust_rtps_pim::messages::submessage_elements::Parameter;
 
     use rust_rtps_pim::messages::submessages::DataSubmessageConstructor;
     use rust_rtps_pim::messages::types::ParameterId;
@@ -98,6 +97,7 @@ mod tests {
         EntityId, GuidPrefix, ProtocolVersion, USER_DEFINED_READER_GROUP,
         USER_DEFINED_READER_NO_KEY,
     };
+    use rust_rtps_psm::messages::submessage_elements::Parameter;
     use rust_rtps_psm::messages::submessage_elements::{
         EntityIdSubmessageElementPsm, ParameterListSubmessageElementPsm,
         SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,

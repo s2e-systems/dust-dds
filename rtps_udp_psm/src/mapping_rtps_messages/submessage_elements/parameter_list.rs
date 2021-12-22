@@ -5,11 +5,10 @@ use std::{
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::{
-    submessage_elements::{Parameter, ParameterListSubmessageElement},
-    types::ParameterId,
+    submessage_elements::ParameterListSubmessageElement, types::ParameterId,
 };
 use rust_rtps_psm::messages::submessage_elements::{
-    ParameterListSubmessageElementPsm, ParameterListSubmessageElementWritePsm,
+    Parameter, ParameterListSubmessageElementPsm, ParameterListSubmessageElementWritePsm,
 };
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};

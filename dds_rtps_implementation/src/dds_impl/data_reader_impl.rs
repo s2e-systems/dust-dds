@@ -16,14 +16,13 @@ use rust_rtps_pim::{
         },
         stateful_reader_behavior::StatefulReaderBehavior,
     },
-    messages::submessage_elements::Parameter,
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange},
         types::GuidPrefix,
     },
 };
-use rust_rtps_psm::messages::submessages::DataSubmessageRead;
+use rust_rtps_psm::messages::{submessages::DataSubmessageRead, submessage_elements::Parameter};
 
 use crate::{
     dds_type::DdsDeserialize, rtps_impl::rtps_stateless_reader_impl::RtpsStatelessReaderImpl,

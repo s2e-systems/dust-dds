@@ -12,7 +12,6 @@ use rust_rtps_pim::{
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
-    messages::submessage_elements::Parameter,
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
@@ -22,6 +21,7 @@ use rust_rtps_pim::{
         },
     },
 };
+use rust_rtps_psm::messages::submessage_elements::Parameter;
 
 use super::{
     rtps_reader_proxy_impl::RtpsReaderProxyImpl,

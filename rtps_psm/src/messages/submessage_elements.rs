@@ -1,11 +1,35 @@
 use rust_rtps_pim::{
-    messages::submessage_elements::{
-        EntityIdSubmessageElementAttributes, EntityIdSubmessageElementConstructor, Parameter,
-        ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
-        SerializedDataSubmessageElementAttributes,
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElementAttributes, EntityIdSubmessageElementConstructor,
+            ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
+            SerializedDataSubmessageElementAttributes,
+        },
+        types::ParameterId,
     },
     structure::types::{EntityId, SequenceNumber},
 };
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Parameter<V> {
+    pub parameter_id: ParameterId,
+    pub length: i16,
+    pub value: V,
+}
+
+impl<V> Parameter<V>
+where
+    V: AsRef<[u8]>,
+{
+    pub fn new(parameter_id: ParameterId, value: V) -> Self {
+        let length = ((value.as_ref().len() + 3) & !0b11) as i16; //ceil to multiple of 4;
+        Self {
+            parameter_id,
+            length,
+            value,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct EntityIdSubmessageElementPsm {
