@@ -205,7 +205,7 @@ impl RtpsWriterOperations for RtpsStatelessWriterImpl {
         &mut self,
         kind: ChangeKind,
         data: Self::DataType,
-        inline_qos: Self::ParameterListType,
+        _inline_qos: Self::ParameterListType,
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;

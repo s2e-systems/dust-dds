@@ -416,7 +416,7 @@ mod tests {
         }
     }
 
-    struct MockCacheChange;
+    // struct MockCacheChange;
 
     // #[test]
     // fn write_w_timestamp() {

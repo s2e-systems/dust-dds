@@ -97,7 +97,11 @@ impl MessageReceiver {
 }
 
 pub trait ProcessDataSubmessage {
-    fn process_data_submessage(&mut self, source_guid_prefix: GuidPrefix, _data: &DataSubmessageRead);
+    fn process_data_submessage(
+        &mut self,
+        source_guid_prefix: GuidPrefix,
+        _data: &DataSubmessageRead,
+    );
 }
 
 pub trait ProcessAckNackSubmessage {
@@ -110,24 +114,8 @@ pub trait ProcessAckNackSubmessage {
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
 
-    use rust_rtps_pim::{
-        messages::{
-            overall_structure::RtpsMessageHeader,
-            submessage_elements::{
-                EntityIdSubmessageElement, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-                TimestampSubmessageElement,
-            },
-            types::ProtocolId,
-        },
-        structure::types::{
-            EntityId, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_WITH_KEY, PROTOCOLVERSION_2_4,
-        },
-    };
-
-    use crate::utils::shared_object::{rtps_shared_new, rtps_shared_read_lock};
+    use rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
 
     use super::*;
 

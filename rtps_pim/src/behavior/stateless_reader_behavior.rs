@@ -66,16 +66,7 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        discovery::{
-            sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            spdp::builtin_endpoints::{
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-            },
-        },
-        messages::submessage_elements::{
-            EntityIdSubmessageElement, ParameterListSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-        },
+        discovery::spdp::builtin_endpoints::ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
         structure::types::{EntityId, SequenceNumber},
     };
 
@@ -172,12 +163,12 @@ mod tests {
         type ParameterListType = ();
 
         fn new(
-            kind: &ChangeKind,
-            writer_guid: &Guid,
-            instance_handle: &crate::structure::types::InstanceHandle,
-            sequence_number: &SequenceNumber,
-            data_value: &Self::DataType,
-            inline_qos: &Self::ParameterListType,
+            _kind: &ChangeKind,
+            _writer_guid: &Guid,
+            _instance_handle: &crate::structure::types::InstanceHandle,
+            _sequence_number: &SequenceNumber,
+            _data_value: &Self::DataType,
+            _inline_qos: &Self::ParameterListType,
         ) -> Self {
             Self
         }

@@ -27,12 +27,12 @@ impl RtpsCacheChangeConstructor for WriterCacheChange {
     type ParameterListType = [Parameter<Vec<u8>>];
 
     fn new(
-        kind: &ChangeKind,
-        writer_guid: &Guid,
-        instance_handle: &InstanceHandle,
-        sequence_number: &SequenceNumber,
-        data_value: &Self::DataType,
-        inline_qos: &Self::ParameterListType,
+        _kind: &ChangeKind,
+        _writer_guid: &Guid,
+        _instance_handle: &InstanceHandle,
+        _sequence_number: &SequenceNumber,
+        _data_value: &Self::DataType,
+        _inline_qos: &Self::ParameterListType,
     ) -> Self {
         todo!()
     }

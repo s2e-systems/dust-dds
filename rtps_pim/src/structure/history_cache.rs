@@ -1,4 +1,4 @@
-use super::{cache_change::RtpsCacheChange, types::SequenceNumber};
+use super::types::SequenceNumber;
 
 pub trait RtpsHistoryCacheConstructor {
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
