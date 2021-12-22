@@ -57,30 +57,41 @@ pub trait DataSubmessageAttributes {
 }
 
 pub trait GapSubmessageConstructor {
-    type EntityIdType;
-    type SequenceNumberType;
-    type SequenceNumberSetType;
+    type EntityIdSubmessageElementType;
+    type SequenceNumberSubmessageElementType;
+    type SequenceNumberSetSubmessageElementType;
 
     fn new(
         endianness_flag: SubmessageFlag,
-        reader_id: Self::EntityIdType,
-        writer_id: Self::EntityIdType,
-        gap_start: Self::SequenceNumberType,
-        gap_list_base: Self::SequenceNumberType,
-        gap_list_set: Self::SequenceNumberSetType,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        gap_start: Self::SequenceNumberSubmessageElementType,
+        gap_list: Self::SequenceNumberSetSubmessageElementType,
     ) -> Self;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct GapSubmessage<S> {
-    pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub gap_start: SequenceNumberSubmessageElement,
-    pub gap_list: SequenceNumberSetSubmessageElement<S>,
-    // gap_start_gsn: submessage_elements::SequenceNumber,
-    // gap_end_gsn: submessage_elements::SequenceNumber,
+pub trait GapSubmessageAttributes {
+    type EntityIdSubmessageElementType;
+    type SequenceNumberSubmessageElementType;
+    type SequenceNumberSetSubmessageElementType;
+
+    fn endianness_flag(&self) -> &SubmessageFlag;
+    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn gap_start(&self) -> &Self::SequenceNumberSubmessageElementType;
+    fn gap_list(&self) -> &Self::SequenceNumberSetSubmessageElementType;
 }
+
+// #[derive(Debug, PartialEq)]
+// pub struct GapSubmessage<S> {
+//     pub endianness_flag: SubmessageFlag,
+//     pub reader_id: EntityIdSubmessageElement,
+//     pub writer_id: EntityIdSubmessageElement,
+//     pub gap_start: SequenceNumberSubmessageElement,
+//     pub gap_list: SequenceNumberSetSubmessageElement<S>,
+//     // gap_start_gsn: submessage_elements::SequenceNumber,
+//     // gap_end_gsn: submessage_elements::SequenceNumber,
+// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct HeartbeatSubmessage {

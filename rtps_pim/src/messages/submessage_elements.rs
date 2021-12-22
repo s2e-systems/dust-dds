@@ -65,6 +65,10 @@ pub trait SequenceNumberSubmessageElementAttributes {
     fn value(&self) -> &SequenceNumber;
 }
 
+pub trait SequenceNumberSetSubmessageElementConstructor {
+    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self;
+}
+
 #[derive(Debug, PartialEq)]
 pub struct SequenceNumberSetSubmessageElement<T> {
     pub base: SequenceNumber,
@@ -100,8 +104,6 @@ pub trait ParameterAttributes {
     fn length(&self) -> &i16;
     fn value(&self) -> &Self::ParameterValueType;
 }
-
-
 
 pub trait ParameterListSubmessageElementAttributes {
     type ParameterListType: ?Sized;
