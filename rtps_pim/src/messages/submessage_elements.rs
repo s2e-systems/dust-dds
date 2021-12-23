@@ -2,38 +2,48 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-use crate::structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId};
-
 use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
 
-#[derive(Debug, PartialEq)]
-pub struct UShortSubmessageElement {
-    pub value: u16,
+pub trait UShortSubmessageElementConstructor {
+    fn new(value: &u16) -> Self;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ShortSubmessageElement {
-    pub value: u16,
+pub trait UShortSubmessageElementAttributes {
+    fn value(&self) -> &u16;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ULongSubmessageElement {
-    pub value: u32,
+pub trait ShortSubmessageElementConstructor {
+    fn new(value: &i16) -> Self;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct LongSubmessageElement {
-    pub value: i32,
+pub trait ShortSubmessageElementAttributes {
+    fn value(&self) -> &i16;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct GuidPrefixSubmessageElement {
-    pub value: GuidPrefix,
+pub trait ULongSubmessageElementConstructor {
+    fn new(value: &u32) -> Self;
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct EntityIdSubmessageElement {
-    pub value: EntityId,
+pub trait ULongSubmessageElementAttributes {
+    fn value(&self) -> &u32;
+}
+
+pub trait LongSubmessageElementConstructor {
+    fn new(value: &i32) -> Self;
+}
+
+pub trait LongSubmessageElementAttributes {
+    fn value(&self) -> &i32;
+}
+
+pub trait GuidPrefixSubmessageElementConstructor {
+    type GuidPrefixType: ?Sized;
+    fn new(value: &Self::GuidPrefixType) -> Self;
+}
+
+pub trait GuidPrefixSubmessageElementAttributes {
+    type GuidPrefixType: ?Sized;
+    fn value(&self) -> &Self::GuidPrefixType;
 }
 
 pub trait EntityIdSubmessageElementConstructor {
@@ -46,38 +56,47 @@ pub trait EntityIdSubmessageElementAttributes {
     fn value(&self) -> &Self::EntityIdType;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct VendorIdSubmessageElement {
-    pub value: VendorId,
+pub trait VendorIdSubmessageElementConstructor {
+    type VendorIdType: ?Sized;
+    fn new(value: &Self::VendorIdType) -> Self;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ProtocolVersionSubmessageElement {
-    pub value: ProtocolVersion,
+pub trait VendorIdSubmessageElementAttributes {
+    type VendorIdType: ?Sized;
+    fn value(&self) -> &Self::VendorIdType;
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct SequenceNumberSubmessageElement {
-    pub value: SequenceNumber,
+pub trait ProtocolVersionSubmessageElementConstructor {
+    type ProtocolVersionType: ?Sized;
+    fn new(value: &Self::ProtocolVersionType) -> Self;
+}
+
+pub trait ProtocolVersionSubmessageElementAttributes {
+    type ProtocolVersionType: ?Sized;
+    fn value(&self) -> &Self::ProtocolVersionType;
+}
+
+pub trait SequenceNumberSubmessageElementConstructor {
+    type SequenceNumberType: ?Sized;
+    fn new(value: &Self::SequenceNumberType) -> Self;
 }
 
 pub trait SequenceNumberSubmessageElementAttributes {
-    fn value(&self) -> &SequenceNumber;
+    type SequenceNumberType: ?Sized;
+    fn value(&self) -> &Self::SequenceNumberType;
 }
 
 pub trait SequenceNumberSetSubmessageElementConstructor {
-    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self;
+    type SequenceNumberType: ?Sized;
+    type SequenceNumberSetType: ?Sized;
+    fn new(base: &Self::SequenceNumberType, set: &Self::SequenceNumberSetType) -> Self;
 }
 
 pub trait SequenceNumberSetSubmessageElementAttributes {
-    fn base(&self) -> &SequenceNumber;
-    fn set(&self) -> &[SequenceNumber];
-}
-
-#[derive(Debug, PartialEq)]
-pub struct SequenceNumberSetSubmessageElement<T> {
-    pub base: SequenceNumber,
-    pub set: T,
+    type SequenceNumberType: ?Sized;
+    type SequenceNumberSetType: ?Sized;
+    fn base(&self) -> &Self::SequenceNumberType;
+    fn set(&self) -> &Self::SequenceNumberSetType;
 }
 
 #[derive(Debug, PartialEq)]

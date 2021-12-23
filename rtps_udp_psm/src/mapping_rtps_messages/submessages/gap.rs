@@ -69,8 +69,7 @@ mod tests {
     use rust_rtps_pim::{
         messages::{
             submessage_elements::{
-                EntityIdSubmessageElement, EntityIdSubmessageElementConstructor,
-                SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
+                EntityIdSubmessageElementConstructor, SequenceNumberSetSubmessageElementConstructor,
             },
             submessages::GapSubmessageConstructor,
         },
@@ -78,6 +77,7 @@ mod tests {
     };
     use rust_rtps_psm::messages::submessage_elements::{
         EntityIdSubmessageElementPsm, SequenceNumberSetSubmessageElementPsm,
+        SequenceNumberSubmessageElementPsm,
     };
     #[test]
     fn serialize_gap() {
@@ -89,7 +89,7 @@ mod tests {
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let gap_start = 5;
-        let gap_list = SequenceNumberSetSubmessageElementPsm::new(10, &[]);
+        let gap_list = SequenceNumberSetSubmessageElementPsm::new(&10, &[]);
         let submessage =
             GapSubmessageWrite::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
@@ -109,14 +109,14 @@ mod tests {
     #[test]
     fn deserialize_gap() {
         let endianness_flag = true;
-        let reader_id = EntityIdSubmessageElement {
+        let reader_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElement {
+        let writer_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let gap_start = SequenceNumberSubmessageElement { value: 5 };
-        let gap_list = SequenceNumberSetSubmessageElementPsm::new(10, &[]);
+        let gap_start = SequenceNumberSubmessageElementPsm { value: 5 };
+        let gap_list = SequenceNumberSetSubmessageElementPsm::new(&10, &[]);
         let expected =
             GapSubmessageRead::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]

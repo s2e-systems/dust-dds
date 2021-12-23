@@ -9,7 +9,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, EntityId, Guid, GuidPrefix, ENTITYID_UNKNOWN},
+        types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -26,7 +26,7 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
             EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes<
                 EntityIdType = EntityId,
             >,
-            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
+            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes<SequenceNumberType = SequenceNumber>,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
                 SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
             >,
@@ -84,7 +84,8 @@ mod tests {
     struct MockSequenceNumber;
 
     impl SequenceNumberSubmessageElementAttributes for MockSequenceNumber {
-        fn value(&self) -> &SequenceNumber {
+        type SequenceNumberType = SequenceNumber;
+        fn value(&self) -> &Self::SequenceNumberType {
             todo!()
         }
     }

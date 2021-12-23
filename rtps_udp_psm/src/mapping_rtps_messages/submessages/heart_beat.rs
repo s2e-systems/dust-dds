@@ -72,27 +72,23 @@ mod tests {
 
     use super::*;
     use rust_rtps_pim::{
-        messages::{
-            submessage_elements::{
-                CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
-            },
-            types::Count,
-        },
+        messages::{submessage_elements::CountSubmessageElement, types::Count},
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
+    use rust_rtps_psm::messages::submessage_elements::{EntityIdSubmessageElementPsm, SequenceNumberSubmessageElementPsm};
     #[test]
     fn serialize_heart_beat() {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = true;
-        let reader_id = EntityIdSubmessageElement {
+        let reader_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElement {
+        let writer_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let first_sn = SequenceNumberSubmessageElement { value: 5 };
-        let last_sn = SequenceNumberSubmessageElement { value: 7 };
+        let first_sn = SequenceNumberSubmessageElementPsm { value: 5 };
+        let last_sn = SequenceNumberSubmessageElementPsm { value: 7 };
         let count = CountSubmessageElement { value: Count(2) };
         let submessage = HeartbeatSubmessageWrite::new(
             endianness_flag,
@@ -123,14 +119,14 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = true;
-        let reader_id = EntityIdSubmessageElement {
+        let reader_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElement {
+        let writer_id = EntityIdSubmessageElementPsm {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let first_sn = SequenceNumberSubmessageElement { value: 5 };
-        let last_sn = SequenceNumberSubmessageElement { value: 7 };
+        let first_sn = SequenceNumberSubmessageElementPsm { value: 5 };
+        let last_sn = SequenceNumberSubmessageElementPsm { value: 7 };
         let count = CountSubmessageElement { value: Count(2) };
         let expected = HeartbeatSubmessageRead::new(
             endianness_flag,
