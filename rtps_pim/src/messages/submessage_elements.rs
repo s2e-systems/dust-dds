@@ -172,9 +172,14 @@ pub trait CountSubmessageElementAttributes {
     fn value(&self) -> &Self::CountType;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct LocatorListSubmessageElement<T> {
-    pub value: T,
+pub trait LocatorListSubmessageElementConstructor {
+    type LocatorListType: ?Sized;
+    fn new(value: &Self::LocatorListType) -> Self;
+}
+
+pub trait LocatorListSubmessageElementAttributes {
+    type LocatorListType: ?Sized;
+    fn value(&self) -> &Self::LocatorListType;
 }
 
 pub trait SerializedDataSubmessageElementConstructor {

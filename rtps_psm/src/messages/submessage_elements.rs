@@ -166,6 +166,12 @@ impl SequenceNumberSetSubmessageElementConstructor for SequenceNumberSetSubmessa
     }
 }
 
+
+#[derive(Debug, PartialEq)]
+pub struct LocatorListSubmessageElementPsm<T> {
+    pub value: T,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct CountSubmessageElementPsm {
     pub value: Count,
