@@ -72,10 +72,12 @@ mod tests {
 
     use super::*;
     use rust_rtps_pim::{
-        messages::{submessage_elements::CountSubmessageElement, types::Count},
+        messages::types::Count,
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
-    use rust_rtps_psm::messages::submessage_elements::{EntityIdSubmessageElementPsm, SequenceNumberSubmessageElementPsm};
+    use rust_rtps_psm::messages::submessage_elements::{
+        EntityIdSubmessageElementPsm, SequenceNumberSubmessageElementPsm, CountSubmessageElementPsm,
+    };
     #[test]
     fn serialize_heart_beat() {
         let endianness_flag = true;
@@ -89,7 +91,7 @@ mod tests {
         };
         let first_sn = SequenceNumberSubmessageElementPsm { value: 5 };
         let last_sn = SequenceNumberSubmessageElementPsm { value: 7 };
-        let count = CountSubmessageElement { value: Count(2) };
+        let count = CountSubmessageElementPsm { value: Count(2) };
         let submessage = HeartbeatSubmessageWrite::new(
             endianness_flag,
             final_flag,
@@ -127,7 +129,7 @@ mod tests {
         };
         let first_sn = SequenceNumberSubmessageElementPsm { value: 5 };
         let last_sn = SequenceNumberSubmessageElementPsm { value: 7 };
-        let count = CountSubmessageElement { value: Count(2) };
+        let count = CountSubmessageElementPsm { value: Count(2) };
         let expected = HeartbeatSubmessageRead::new(
             endianness_flag,
             final_flag,

@@ -5,9 +5,9 @@ use rust_rtps_pim::{
             EntityIdSubmessageElementConstructor, ParameterListSubmessageElementAttributes,
             SequenceNumberSetSubmessageElementConstructor,
             SequenceNumberSubmessageElementAttributes, SequenceNumberSubmessageElementConstructor,
-            SerializedDataSubmessageElementAttributes,
+            SerializedDataSubmessageElementAttributes, TimestampSubmessageElementAttributes,
         },
-        types::{Count, ParameterId},
+        types::{Count, FragmentNumber, GroupDigest, ParameterId, Time},
     },
     structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
 };
@@ -96,6 +96,30 @@ impl SequenceNumberSubmessageElementAttributes for SequenceNumberSubmessageEleme
 }
 
 #[derive(Debug, PartialEq)]
+pub struct FragmentNumberSubmessageElementPsm {
+    pub value: FragmentNumber,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FragmentNumberSetSubmessageElementPsm<T> {
+    pub base: FragmentNumber,
+    pub set: T,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct TimestampSubmessageElementPsm {
+    pub value: Time,
+}
+
+impl TimestampSubmessageElementAttributes for TimestampSubmessageElementPsm {
+    type TimeType = Time;
+
+    fn value(&self) -> &Self::TimeType {
+        &self.value
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct SerializedDataSubmessageElementPsm<'a> {
     pub value: &'a [u8],
 }
@@ -153,4 +177,9 @@ impl CountSubmessageElementConstructor for CountSubmessageElementPsm {
     fn new(_value: &Self::CountType) -> Self {
         todo!()
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct GroupDigestSubmessageElementPsm {
+    pub value: GroupDigest,
 }

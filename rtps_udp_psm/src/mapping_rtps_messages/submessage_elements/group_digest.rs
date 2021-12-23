@@ -1,11 +1,11 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::submessage_elements::GroupDigestSubmessageElement;
+use rust_rtps_psm::messages::submessage_elements::GroupDigestSubmessageElementPsm;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
-impl MappingWriteByteOrdered for GroupDigestSubmessageElement {
+impl MappingWriteByteOrdered for GroupDigestSubmessageElementPsm {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -14,7 +14,7 @@ impl MappingWriteByteOrdered for GroupDigestSubmessageElement {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for GroupDigestSubmessageElement {
+impl<'de> MappingReadByteOrdered<'de> for GroupDigestSubmessageElementPsm {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
             value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,

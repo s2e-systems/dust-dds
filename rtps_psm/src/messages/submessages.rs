@@ -1,6 +1,5 @@
 use rust_rtps_pim::{
     messages::{
-        submessage_elements::{CountSubmessageElement, TimestampSubmessageElement},
         submessages::{
             DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
             HeartbeatSubmessageConstructor, InfoTimestampSubmessageAttributes,
@@ -14,7 +13,7 @@ use super::submessage_elements::{
     CountSubmessageElementPsm, EntityIdSubmessageElementPsm, Parameter,
     ParameterListSubmessageElementPsm, ParameterListSubmessageElementWritePsm,
     SequenceNumberSetSubmessageElementPsm, SequenceNumberSubmessageElementPsm,
-    SerializedDataSubmessageElementPsm,
+    SerializedDataSubmessageElementPsm, TimestampSubmessageElementPsm,
 };
 
 #[derive(Debug, PartialEq)]
@@ -24,7 +23,7 @@ pub struct AckNackSubmessageWrite {
     pub reader_id: EntityIdSubmessageElementPsm,
     pub writer_id: EntityIdSubmessageElementPsm,
     pub reader_sn_state: SequenceNumberSetSubmessageElementPsm,
-    pub count: CountSubmessageElement,
+    pub count: CountSubmessageElementPsm,
 }
 
 impl AckNackSubmessageWrite {
@@ -40,7 +39,7 @@ pub struct AckNackSubmessageRead {
     pub reader_id: EntityIdSubmessageElementPsm,
     pub writer_id: EntityIdSubmessageElementPsm,
     pub reader_sn_state: SequenceNumberSetSubmessageElementPsm,
-    pub count: CountSubmessageElement,
+    pub count: CountSubmessageElementPsm,
 }
 
 impl AckNackSubmessageRead {
@@ -225,7 +224,7 @@ pub struct GapSubmessageWrite {
 
 impl GapSubmessageConstructor for GapSubmessageWrite {
     type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
-    type SequenceNumberSubmessageElementType = SequenceNumber;
+    type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
     type SequenceNumberSetSubmessageElementType = SequenceNumberSetSubmessageElementPsm;
 
     fn new(
@@ -277,7 +276,7 @@ pub struct HeartbeatSubmessage {
     pub writer_id: EntityIdSubmessageElementPsm,
     pub first_sn: SequenceNumberSubmessageElementPsm,
     pub last_sn: SequenceNumberSubmessageElementPsm,
-    pub count: CountSubmessageElement,
+    pub count: CountSubmessageElementPsm,
     // current_gsn: submessage_elements::SequenceNumber,
     // first_gsn: submessage_elements::SequenceNumber,
     // last_gsn: submessage_elements::SequenceNumber,
@@ -294,7 +293,7 @@ pub struct HeartbeatSubmessageWrite {
     pub writer_id: EntityIdSubmessageElementPsm,
     pub first_sn: SequenceNumberSubmessageElementPsm,
     pub last_sn: SequenceNumberSubmessageElementPsm,
-    pub count: CountSubmessageElement,
+    pub count: CountSubmessageElementPsm,
     // current_gsn: submessage_elements::SequenceNumber,
     // first_gsn: submessage_elements::SequenceNumber,
     // last_gsn: submessage_elements::SequenceNumber,
@@ -311,7 +310,7 @@ impl HeartbeatSubmessageWrite {
         writer_id: EntityIdSubmessageElementPsm,
         first_sn: SequenceNumberSubmessageElementPsm,
         last_sn: SequenceNumberSubmessageElementPsm,
-        count: CountSubmessageElement,
+        count: CountSubmessageElementPsm,
     ) -> Self {
         Self {
             endianness_flag,
@@ -356,7 +355,7 @@ pub struct HeartbeatSubmessageRead {
     pub writer_id: EntityIdSubmessageElementPsm,
     pub first_sn: SequenceNumberSubmessageElementPsm,
     pub last_sn: SequenceNumberSubmessageElementPsm,
-    pub count: CountSubmessageElement,
+    pub count: CountSubmessageElementPsm,
     // current_gsn: submessage_elements::SequenceNumber,
     // first_gsn: submessage_elements::SequenceNumber,
     // last_gsn: submessage_elements::SequenceNumber,
@@ -373,7 +372,7 @@ impl HeartbeatSubmessageRead {
         writer_id: EntityIdSubmessageElementPsm,
         first_sn: SequenceNumberSubmessageElementPsm,
         last_sn: SequenceNumberSubmessageElementPsm,
-        count: CountSubmessageElement,
+        count: CountSubmessageElementPsm,
     ) -> Self {
         Self {
             endianness_flag,
@@ -474,11 +473,11 @@ impl InfoTimestampSubmessageWrite {
 pub struct InfoTimestampSubmessageRead {
     endianness_flag: SubmessageFlag,
     invalidate_flag: SubmessageFlag,
-    timestamp: TimestampSubmessageElement,
+    timestamp: TimestampSubmessageElementPsm,
 }
 
 impl InfoTimestampSubmessageAttributes for InfoTimestampSubmessageRead {
-    type TimestampSubmessageElementType = TimestampSubmessageElement;
+    type TimestampSubmessageElementType = TimestampSubmessageElementPsm;
 
     fn endianness_flag(&self) -> &SubmessageFlag {
         &self.endianness_flag
@@ -497,7 +496,7 @@ impl InfoTimestampSubmessageRead {
     pub fn new(
         endianness_flag: SubmessageFlag,
         invalidate_flag: SubmessageFlag,
-        timestamp: TimestampSubmessageElement,
+        timestamp: TimestampSubmessageElementPsm,
     ) -> Self {
         Self {
             endianness_flag,

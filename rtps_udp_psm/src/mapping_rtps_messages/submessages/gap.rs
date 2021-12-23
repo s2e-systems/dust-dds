@@ -88,7 +88,7 @@ mod tests {
         ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
-        let gap_start = 5;
+        let gap_start = SequenceNumberSubmessageElementPsm { value: 5 };
         let gap_list = SequenceNumberSetSubmessageElementPsm::new(&10, &[]);
         let submessage =
             GapSubmessageWrite::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);

@@ -2,7 +2,7 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
+use super::types::ParameterId;
 
 pub trait UShortSubmessageElementConstructor {
     fn new(value: &u16) -> Self;
@@ -99,26 +99,45 @@ pub trait SequenceNumberSetSubmessageElementAttributes {
     fn set(&self) -> &Self::SequenceNumberSetType;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct FragmentNumberSubmessageElement {
-    pub value: FragmentNumber,
+pub trait FragmentNumberSubmessageElementConstructor {
+    type FragmentNumberType: ?Sized;
+    fn new(value: &Self::FragmentNumberType) -> Self;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct FragmentNumberSetSubmessageElement<T> {
-    pub base: FragmentNumber,
-    pub set: T,
+pub trait FragmentNumberSubmessageElementAttributes {
+    type FragmentNumberType: ?Sized;
+    fn new(&self) -> &Self::FragmentNumberType;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct TimestampSubmessageElement {
-    pub value: Time,
+pub trait FragmentNumberSetSubmessageElementConstructor {
+    type FragmentNumberType: ?Sized;
+    type FragmentNumberSetType: ?Sized;
+
+    fn new(base: &Self::FragmentNumberType, set: &Self::FragmentNumberSetType) -> Self;
+}
+
+pub trait FragmentNumberSetSubmessageElementAttributes {
+    type FragmentNumberType: ?Sized;
+    type FragmentNumberSetType: ?Sized;
+
+    fn base(&self) -> &Self::FragmentNumberType;
+    fn set(&self) -> &Self::FragmentNumberSetType;
+}
+
+pub trait TimestampSubmessageElementConstructor {
+    type TimeType: ?Sized;
+    fn new(value: &Self::TimeType) -> Self;
+}
+
+pub trait TimestampSubmessageElementAttributes {
+    type TimeType: ?Sized;
+    fn value(&self) -> &Self::TimeType;
 }
 
 pub trait ParameterConstructor {
     type ParameterValueType: ?Sized;
 
-    fn new(parameter_id: ParameterId, length: i16, value: &Self::ParameterValueType) -> Self;
+    fn new(parameter_id: &ParameterId, length: &i16, value: &Self::ParameterValueType) -> Self;
 }
 
 pub trait ParameterAttributes {
@@ -129,20 +148,24 @@ pub trait ParameterAttributes {
     fn value(&self) -> &Self::ParameterValueType;
 }
 
+pub trait ParameterListSubmessageElementConstructor {
+    type ParameterListType: ?Sized;
+    fn new(parameter: &Self::ParameterListType) -> Self;
+}
+
 pub trait ParameterListSubmessageElementAttributes {
     type ParameterListType: ?Sized;
     fn parameter(&self) -> &Self::ParameterListType;
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct CountSubmessageElement {
-    pub value: Count,
+pub trait CountSubmessageElementConstructor {
+    type CountType: ?Sized;
+    fn new(value: &Self::CountType) -> Self;
 }
 
-pub trait CountSubmessageElementConstructor {
-    type CountType;
-
-    fn new(value: &Self::CountType) -> Self;
+pub trait CountSubmessageElementAttributes {
+    type CountType: ?Sized;
+    fn value(&self) -> &Self::CountType;
 }
 
 #[derive(Debug, PartialEq)]
@@ -150,9 +173,9 @@ pub struct LocatorListSubmessageElement<T> {
     pub value: T,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct SerializedDataSubmessageElement<D> {
-    pub value: D,
+pub trait SerializedDataSubmessageElementConstructor {
+    type SerializedDataType: ?Sized;
+    fn new(value: &Self::SerializedDataType) -> Self;
 }
 
 pub trait SerializedDataSubmessageElementAttributes {
@@ -160,12 +183,22 @@ pub trait SerializedDataSubmessageElementAttributes {
     fn value(&self) -> &Self::SerializedDataType;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct SerializedDataFragmentSubmessageElement<D> {
-    pub value: D,
+pub trait SerializedDataFragmentSubmessageElementConstructor {
+    type SerializedDataFragmentType: ?Sized;
+    fn new(value: &Self::SerializedDataFragmentType) -> Self;
 }
 
-#[derive(Debug, PartialEq)]
-pub struct GroupDigestSubmessageElement {
-    pub value: GroupDigest,
+pub trait SerializedDataFragmentSubmessageElementAttributes {
+    type SerializedDataFragmentType: ?Sized;
+    fn value(&self) -> &Self::SerializedDataFragmentType;
+}
+
+pub trait GroupDigestSubmessageElementConstructor {
+    type GroupDigestType: ?Sized;
+    fn new(value: &Self::GroupDigestType) -> Self;
+}
+
+pub trait GroupDigestSubmessageElementAttributes {
+    type GroupDigestType: ?Sized;
+    fn value(&self) -> &Self::GroupDigestType;
 }
