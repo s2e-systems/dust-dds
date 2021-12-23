@@ -2,8 +2,6 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-use super::types::ParameterId;
-
 pub trait UShortSubmessageElementConstructor {
     fn new(value: &u16) -> Self;
 }
@@ -135,15 +133,21 @@ pub trait TimestampSubmessageElementAttributes {
 }
 
 pub trait ParameterConstructor {
+    type ParameterIdType: ?Sized;
     type ParameterValueType: ?Sized;
 
-    fn new(parameter_id: &ParameterId, length: &i16, value: &Self::ParameterValueType) -> Self;
+    fn new(
+        parameter_id: &Self::ParameterIdType,
+        length: &i16,
+        value: &Self::ParameterValueType,
+    ) -> Self;
 }
 
 pub trait ParameterAttributes {
+    type ParameterIdType: ?Sized;
     type ParameterValueType: ?Sized;
 
-    fn parameter_id(&self) -> &ParameterId;
+    fn parameter_id(&self) -> &Self::ParameterIdType;
     fn length(&self) -> &i16;
     fn value(&self) -> &Self::ParameterValueType;
 }
