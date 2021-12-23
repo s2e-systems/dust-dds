@@ -115,6 +115,11 @@ pub trait ParameterListSubmessageElementAttributes {
     fn parameter(&self) -> &Self::ParameterListType;
 }
 
+pub trait ParameterListSubmessageElementConstructor<'a> {
+    type ParameterListType: ?Sized;
+    fn new(parameter: &'a Self::ParameterListType) -> Self;
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct CountSubmessageElement {
     pub value: Count,

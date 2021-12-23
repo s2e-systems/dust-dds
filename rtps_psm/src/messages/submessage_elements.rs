@@ -4,7 +4,7 @@ use rust_rtps_pim::{
             CountSubmessageElementConstructor, EntityIdSubmessageElementAttributes,
             EntityIdSubmessageElementConstructor, ParameterListSubmessageElementAttributes,
             SequenceNumberSetSubmessageElementConstructor,
-            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
+            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes, ParameterListSubmessageElementConstructor,
         },
         types::{Count, ParameterId},
     },
@@ -32,9 +32,35 @@ where
     }
 }
 
+// #[derive(Debug, PartialEq)]
+// pub struct ParameterListSubmessageElement<T> {
+//     pub parameter: T,
+// }
+
+
+pub struct ParameterListSubmessageElementWrite<'a> {
+    pub parameter: &'a [Parameter<&'a [u8]>],
+}
+impl<'a> ParameterListSubmessageElementConstructor<'a> for ParameterListSubmessageElementWrite<'a> {
+    type ParameterListType = [Parameter<&'a [u8]>];
+
+    fn new(parameter: &'a Self::ParameterListType) -> Self where Self: 'a{
+        Self {
+            parameter,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
-pub struct ParameterListSubmessageElement<T> {
-    pub parameter: T,
+pub struct ParameterListSubmessageElementRead<'a> {
+    pub parameter: Vec<Parameter<&'a [u8]>>,
+}
+impl<'a> ParameterListSubmessageElementAttributes for ParameterListSubmessageElementRead<'a> {
+    type ParameterListType = [Parameter<&'a [u8]>];
+
+    fn parameter(&self) -> &Self::ParameterListType {
+        &self.parameter
+    }
 }
 
 #[derive(Debug, PartialEq)]
