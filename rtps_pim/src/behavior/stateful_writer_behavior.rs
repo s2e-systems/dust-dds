@@ -209,7 +209,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     }
 
     /// Implement 8.4.9.2.7 Transition T7
-    pub fn send_heartbeat<Heartbeat, EntityIdElement, CountElement>(
+    pub fn send_heartbeat<Heartbeat, EntityIdElement, CountElement, SequenceNumberElement>(
         &mut self,
         heartbeat_count: Count,
         mut send_heartbeat: impl FnMut(Heartbeat),
@@ -217,19 +217,22 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         C: RtpsHistoryCacheOperations,
         Heartbeat: HeartbeatSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumber,
+            SequenceNumberSubmessageElementType = SequenceNumberElement,
             CountSubmessageElementType = CountElement,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         CountElement: CountSubmessageElementConstructor<CountType = Count>,
+        SequenceNumberElement:
+            SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
     {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
         let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
         let writer_id = EntityIdElement::new(&self.writer_guid.entity_id);
-        let first_sn = self.writer_cache.get_seq_num_min().unwrap_or(0);
-        let last_sn = self.writer_cache.get_seq_num_min().unwrap_or(0);
+        let first_sn =
+            SequenceNumberElement::new(&self.writer_cache.get_seq_num_min().unwrap_or(0));
+        let last_sn = SequenceNumberElement::new(&self.writer_cache.get_seq_num_min().unwrap_or(0));
         let count = CountElement::new(&heartbeat_count);
         let heartbeat_submessage = Heartbeat::new(
             endianness_flag,

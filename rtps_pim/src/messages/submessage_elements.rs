@@ -2,6 +2,7 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
+
 pub trait UShortSubmessageElementConstructor {
     fn new(value: &u16) -> Self;
 }

@@ -166,7 +166,6 @@ impl SequenceNumberSetSubmessageElementConstructor for SequenceNumberSetSubmessa
     }
 }
 
-
 #[derive(Debug, PartialEq)]
 pub struct LocatorListSubmessageElementPsm<T> {
     pub value: T,
@@ -180,8 +179,8 @@ pub struct CountSubmessageElementPsm {
 impl CountSubmessageElementConstructor for CountSubmessageElementPsm {
     type CountType = Count;
 
-    fn new(_value: &Self::CountType) -> Self {
-        todo!()
+    fn new(value: &Self::CountType) -> Self {
+        Self { value: *value }
     }
 }
 

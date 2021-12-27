@@ -1,12 +1,9 @@
-use rust_rtps_pim::{
-    messages::{
-        submessages::{
-            DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
-            HeartbeatSubmessageConstructor, InfoTimestampSubmessageAttributes,
-        },
-        types::SubmessageFlag,
+use rust_rtps_pim::messages::{
+    submessages::{
+        DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
+        HeartbeatSubmessageConstructor, InfoTimestampSubmessageAttributes,
     },
-    structure::types::SequenceNumber,
+    types::SubmessageFlag,
 };
 
 use super::submessage_elements::{
@@ -327,22 +324,29 @@ impl HeartbeatSubmessageWrite {
 
 impl HeartbeatSubmessageConstructor for HeartbeatSubmessageWrite {
     type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
-
-    type SequenceNumberSubmessageElementType = SequenceNumber;
-
+    type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
     type CountSubmessageElementType = CountSubmessageElementPsm;
 
     fn new(
-        _endianness_flag: SubmessageFlag,
-        _final_flag: SubmessageFlag,
-        _liveliness_flag: SubmessageFlag,
-        _reader_id: Self::EntityIdSubmessageElementType,
-        _writer_id: Self::EntityIdSubmessageElementType,
-        _first_sn: Self::SequenceNumberSubmessageElementType,
-        _last_sn: Self::SequenceNumberSubmessageElementType,
-        _count: Self::CountSubmessageElementType,
+        endianness_flag: SubmessageFlag,
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        first_sn: Self::SequenceNumberSubmessageElementType,
+        last_sn: Self::SequenceNumberSubmessageElementType,
+        count: Self::CountSubmessageElementType,
     ) -> Self {
-        todo!()
+        Self {
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        }
     }
 }
 
