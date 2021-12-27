@@ -66,27 +66,32 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        discovery::spdp::builtin_endpoints::ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+        discovery::{spdp::builtin_endpoints::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER}, sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR},
+        messages::types::SubmessageFlag,
         structure::types::{EntityId, SequenceNumber},
     };
 
     use super::*;
 
-    struct MockEntityId;
+    struct MockEntityId {
+        value: EntityId,
+    }
 
     impl EntityIdSubmessageElementAttributes for MockEntityId {
         type EntityIdType = EntityId;
         fn value(&self) -> &Self::EntityIdType {
-            todo!()
+            &self.value
         }
     }
 
-    struct MockSequenceNumber;
+    struct MockSequenceNumber {
+        value: SequenceNumber,
+    }
 
     impl SequenceNumberSubmessageElementAttributes for MockSequenceNumber {
         type SequenceNumberType = SequenceNumber;
         fn value(&self) -> &Self::SequenceNumberType {
-            todo!()
+            &self.value
         }
     }
 
@@ -95,7 +100,7 @@ mod tests {
     impl ParameterListSubmessageElementAttributes for MockParameterList {
         type ParameterListType = ();
         fn parameter(&self) -> &Self::ParameterListType {
-            todo!()
+            &()
         }
     }
 
@@ -104,11 +109,19 @@ mod tests {
     impl SerializedDataSubmessageElementAttributes for MockSerializedData {
         type SerializedDataType = ();
         fn value(&self) -> &Self::SerializedDataType {
-            todo!()
+            &()
         }
     }
 
-    struct MockDataSubmessage;
+    struct MockDataSubmessage {
+        data_flag: SubmessageFlag,
+        key_flag: SubmessageFlag,
+        reader_id: MockEntityId,
+        writer_id: MockEntityId,
+        writer_sn: MockSequenceNumber,
+        serialized_payload: MockSerializedData,
+        inline_qos: MockParameterList,
+    }
 
     impl DataSubmessageAttributes for MockDataSubmessage {
         type EntityIdSubmessageElementType = MockEntityId;
@@ -116,44 +129,44 @@ mod tests {
         type ParameterListSubmessageElementType = MockParameterList;
         type SerializedDataSubmessageElementType = MockSerializedData;
 
-        fn endianness_flag(&self) -> &crate::messages::types::SubmessageFlag {
+        fn endianness_flag(&self) -> &SubmessageFlag {
             todo!()
         }
 
-        fn inline_qos_flag(&self) -> &crate::messages::types::SubmessageFlag {
+        fn inline_qos_flag(&self) -> &SubmessageFlag {
             todo!()
         }
 
-        fn data_flag(&self) -> &crate::messages::types::SubmessageFlag {
-            todo!()
+        fn data_flag(&self) -> &SubmessageFlag {
+            &self.data_flag
         }
 
-        fn key_flag(&self) -> &crate::messages::types::SubmessageFlag {
-            todo!()
+        fn key_flag(&self) -> &SubmessageFlag {
+            &self.key_flag
         }
 
-        fn non_standard_payload_flag(&self) -> &crate::messages::types::SubmessageFlag {
+        fn non_standard_payload_flag(&self) -> &SubmessageFlag {
             todo!()
         }
 
         fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
-            todo!()
+            &self.reader_id
         }
 
         fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
-            todo!()
+            &self.writer_id
         }
 
         fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
-            todo!()
+            &self.writer_sn
         }
 
         fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
-            todo!()
+            &self.inline_qos
         }
 
         fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
-            todo!()
+            &self.serialized_payload
         }
     }
 
@@ -209,7 +222,22 @@ mod tests {
         //     inline_qos: ParameterListSubmessageElement { parameter: () },
         //     serialized_payload: SerializedDataSubmessageElement { value: () },
         // };
-        stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &MockDataSubmessage);
+        stateless_reader_behavior.receive_data(
+            GuidPrefix([2; 12]),
+            &MockDataSubmessage {
+                data_flag: true,
+                key_flag: false,
+                reader_id: MockEntityId {
+                    value: ENTITYID_UNKNOWN,
+                },
+                writer_id: MockEntityId {
+                    value: ENTITYID_UNKNOWN,
+                },
+                writer_sn: MockSequenceNumber { value: 1 },
+                inline_qos: MockParameterList,
+                serialized_payload: MockSerializedData,
+            },
+        );
 
         assert_eq!(history_cache.0, true);
     }
@@ -248,7 +276,22 @@ mod tests {
         //     inline_qos: ParameterListSubmessageElement { parameter: () },
         //     serialized_payload: SerializedDataSubmessageElement { value: () },
         // };
-        stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &MockDataSubmessage);
+        stateless_reader_behavior.receive_data(
+            GuidPrefix([2; 12]),
+            &MockDataSubmessage {
+                data_flag: true,
+                key_flag: false,
+                reader_id: MockEntityId {
+                    value: ENTITYID_UNKNOWN,
+                },
+                writer_id: MockEntityId {
+                    value: ENTITYID_UNKNOWN,
+                },
+                writer_sn: MockSequenceNumber { value: 1 },
+                inline_qos: MockParameterList,
+                serialized_payload: MockSerializedData,
+            },
+        );
 
         assert_eq!(history_cache.0, true);
     }
@@ -287,7 +330,22 @@ mod tests {
         //     inline_qos: ParameterListSubmessageElement { parameter: () },
         //     serialized_payload: SerializedDataSubmessageElement { value: () },
         // };
-        stateless_reader_behavior.receive_data(GuidPrefix([2; 12]), &MockDataSubmessage);
+        stateless_reader_behavior.receive_data(
+            GuidPrefix([2; 12]),
+            &MockDataSubmessage {
+                data_flag: true,
+                key_flag: false,
+                reader_id: MockEntityId {
+                    value: ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+                },
+                writer_id: MockEntityId {
+                    value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+                },
+                writer_sn: MockSequenceNumber { value: 1 },
+                inline_qos: MockParameterList,
+                serialized_payload: MockSerializedData,
+            },
+        );
 
         assert_eq!(history_cache.0, false);
     }

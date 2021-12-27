@@ -347,7 +347,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
 
 #[cfg(test)]
 mod tests {
-    use crate::structure::types::InstanceHandle;
+    use crate::structure::types::{InstanceHandle, GUID_UNKNOWN};
 
     use super::*;
 
@@ -403,7 +403,7 @@ mod tests {
         type SequenceNumberType = SequenceNumber;
 
         fn new(_value: &Self::SequenceNumberType) -> Self {
-            todo!()
+            Self
         }
     }
 
@@ -413,7 +413,7 @@ mod tests {
         type SequenceNumberType = SequenceNumber;
         type SequenceNumberSetType = [SequenceNumber];
         fn new(_base: &Self::SequenceNumberType, _set: &Self::SequenceNumberSetType) -> Self {
-            todo!()
+            Self
         }
     }
 
@@ -440,18 +440,22 @@ mod tests {
             Self(&())
         }
     }
-    struct MockCacheChange;
+    struct MockCacheChange {
+        kind: ChangeKind,
+        writer_guid: Guid,
+        sequence_number: SequenceNumber,
+    }
 
     impl RtpsCacheChangeAttributes for MockCacheChange {
         type DataType = ();
         type ParameterListType = ();
 
         fn kind(&self) -> &ChangeKind {
-            todo!()
+            &self.kind
         }
 
         fn writer_guid(&self) -> &Guid {
-            todo!()
+            &self.writer_guid
         }
 
         fn instance_handle(&self) -> &InstanceHandle {
@@ -459,15 +463,15 @@ mod tests {
         }
 
         fn sequence_number(&self) -> &SequenceNumber {
-            todo!()
+            &self.sequence_number
         }
 
         fn data_value(&self) -> &Self::DataType {
-            todo!()
+            &()
         }
 
         fn inline_qos(&self) -> &Self::ParameterListType {
-            todo!()
+            &()
         }
     }
 
@@ -487,7 +491,7 @@ mod tests {
             _gap_start: Self::SequenceNumberSubmessageElementType,
             _gap_list: Self::SequenceNumberSetSubmessageElementType,
         ) -> Self {
-            todo!()
+            Self
         }
     }
 
@@ -498,7 +502,11 @@ mod tests {
         impl RtpsHistoryCacheGetChange for MockWriterCache {
             type CacheChangeType = MockCacheChange;
             fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
-                Some(&MockCacheChange)
+                Some(&MockCacheChange {
+                    kind: ChangeKind::Alive,
+                    writer_guid: GUID_UNKNOWN,
+                    sequence_number: 1,
+                })
             }
         }
 

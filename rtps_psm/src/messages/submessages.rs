@@ -225,13 +225,19 @@ impl GapSubmessageConstructor for GapSubmessageWrite {
     type SequenceNumberSetSubmessageElementType = SequenceNumberSetSubmessageElementPsm;
 
     fn new(
-        _endianness_flag: SubmessageFlag,
-        _reader_id: Self::EntityIdSubmessageElementType,
-        _writer_id: Self::EntityIdSubmessageElementType,
-        _gap_start: Self::SequenceNumberSubmessageElementType,
-        _gap_list: Self::SequenceNumberSetSubmessageElementType,
+        endianness_flag: SubmessageFlag,
+        reader_id: Self::EntityIdSubmessageElementType,
+        writer_id: Self::EntityIdSubmessageElementType,
+        gap_start: Self::SequenceNumberSubmessageElementType,
+        gap_list: Self::SequenceNumberSetSubmessageElementType,
     ) -> Self {
-        todo!()
+        Self {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        }
     }
 }
 
