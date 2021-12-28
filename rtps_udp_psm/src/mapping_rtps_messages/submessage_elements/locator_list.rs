@@ -4,13 +4,12 @@ use std::{
 };
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{
-    messages::submessage_elements::LocatorListSubmessageElement, structure::types::Locator,
-};
+use rust_rtps_pim::structure::types::Locator;
+use rust_rtps_psm::messages::submessage_elements::LocatorListSubmessageElementPsm;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
-impl<T> MappingWriteByteOrdered for LocatorListSubmessageElement<T>
+impl<T> MappingWriteByteOrdered for LocatorListSubmessageElementPsm<T>
 where
     for<'a> &'a T: IntoIterator<Item = &'a Locator>,
 {
@@ -28,7 +27,7 @@ where
     }
 }
 
-impl<'de, T> MappingReadByteOrdered<'de> for LocatorListSubmessageElement<T>
+impl<'de, T> MappingReadByteOrdered<'de> for LocatorListSubmessageElementPsm<T>
 where
     T: FromIterator<Locator>,
 {
@@ -53,7 +52,7 @@ mod tests {
     fn serialize_locator_list() {
         let locator_1 = Locator::new(1, 2, [3; 16]);
         let locator_2 = Locator::new(2, 2, [3; 16]);
-        let locator_list = LocatorListSubmessageElement {
+        let locator_list = LocatorListSubmessageElementPsm {
             value: vec![locator_1, locator_2],
         };
         assert_eq!(
@@ -80,7 +79,7 @@ mod tests {
     fn deserialize_locator_list() {
         let locator_1 = Locator::new(1, 2, [3; 16]);
         let locator_2 = Locator::new(2, 2, [3; 16]);
-        let expected = LocatorListSubmessageElement {
+        let expected = LocatorListSubmessageElementPsm {
             value: vec![locator_1, locator_2],
         };
         #[rustfmt::skip]

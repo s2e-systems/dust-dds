@@ -1,10 +1,8 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{
-    messages::submessage_elements::ProtocolVersionSubmessageElement,
-    structure::types::ProtocolVersion,
-};
+use rust_rtps_pim::structure::types::ProtocolVersion;
+use rust_rtps_psm::messages::submessage_elements::ProtocolVersionSubmessageElementPsm;
 
 use crate::mapping_traits::{
     MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered, NumberOfBytes,
@@ -51,7 +49,7 @@ impl NumberOfBytes for ProtocolVersion {
     }
 }
 
-impl MappingWriteByteOrdered for ProtocolVersionSubmessageElement {
+impl MappingWriteByteOrdered for ProtocolVersionSubmessageElementPsm {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -60,7 +58,7 @@ impl MappingWriteByteOrdered for ProtocolVersionSubmessageElement {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for ProtocolVersionSubmessageElement {
+impl<'de> MappingReadByteOrdered<'de> for ProtocolVersionSubmessageElementPsm {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
             value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
@@ -75,7 +73,7 @@ mod tests {
 
     #[test]
     fn serialize_protocol_version() {
-        let data = ProtocolVersionSubmessageElement {
+        let data = ProtocolVersionSubmessageElementPsm {
             value: ProtocolVersion { major: 2, minor: 3 },
         };
         assert_eq!(to_bytes_le(&data).unwrap(), vec![2, 3]);
@@ -83,7 +81,7 @@ mod tests {
 
     #[test]
     fn deserialize_protocol_version() {
-        let expected = ProtocolVersionSubmessageElement {
+        let expected = ProtocolVersionSubmessageElementPsm {
             value: ProtocolVersion { major: 2, minor: 3 },
         };
         assert_eq!(expected, from_bytes_le(&[2, 3]).unwrap());

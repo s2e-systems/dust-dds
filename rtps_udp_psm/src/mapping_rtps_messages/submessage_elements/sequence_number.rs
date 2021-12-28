@@ -1,10 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{
-    messages::submessage_elements::SequenceNumberSubmessageElement,
-    structure::types::SequenceNumber,
-};
+use rust_rtps_pim::structure::types::SequenceNumber;
 use rust_rtps_psm::messages::submessage_elements::SequenceNumberSubmessageElementPsm;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
@@ -29,23 +26,6 @@ impl<'de> MappingReadByteOrdered<'de> for SequenceNumber {
     }
 }
 
-impl MappingWriteByteOrdered for SequenceNumberSubmessageElement {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
-        &self,
-        mut writer: W,
-    ) -> Result<(), Error> {
-        self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSubmessageElement {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        Ok(Self {
-            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
-        })
-    }
-}
-
 impl MappingWriteByteOrdered for SequenceNumberSubmessageElementPsm {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
@@ -63,6 +43,7 @@ impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSubmessageElementPsm {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -70,7 +51,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number() {
-        let data = SequenceNumberSubmessageElement { value: 7 };
+        let data = SequenceNumberSubmessageElementPsm { value: 7 };
         assert_eq!(
             to_bytes_le(&data).unwrap(),
             vec![
@@ -82,7 +63,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number() {
-        let expected = SequenceNumberSubmessageElement { value: 7 };
+        let expected = SequenceNumberSubmessageElementPsm { value: 7 };
         assert_eq!(
             expected,
             from_bytes_le(&[

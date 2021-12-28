@@ -4,13 +4,12 @@ use std::{
 };
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{
-    submessage_elements::FragmentNumberSetSubmessageElement, types::FragmentNumber,
-};
+use rust_rtps_pim::messages::types::FragmentNumber;
+use rust_rtps_psm::messages::submessage_elements::FragmentNumberSetSubmessageElementPsm;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
-impl<T> MappingWriteByteOrdered for FragmentNumberSetSubmessageElement<T>
+impl<T> MappingWriteByteOrdered for FragmentNumberSetSubmessageElementPsm<T>
 where
     for<'a> &'a T: IntoIterator<Item = &'a FragmentNumber>,
 {
@@ -39,7 +38,7 @@ where
     }
 }
 
-impl<'de, T> MappingReadByteOrdered<'de> for FragmentNumberSetSubmessageElement<T>
+impl<'de, T> MappingReadByteOrdered<'de> for FragmentNumberSetSubmessageElementPsm<T>
 where
     T: FromIterator<FragmentNumber>,
 {
@@ -72,7 +71,7 @@ mod tests {
 
     #[test]
     fn serialize_fragment_number_max_gap() {
-        let fragment_number_set = FragmentNumberSetSubmessageElement {
+        let fragment_number_set = FragmentNumberSetSubmessageElementPsm {
             base: FragmentNumber(2),
             set: vec![FragmentNumber(2), FragmentNumber(257)],
         };
@@ -93,7 +92,7 @@ mod tests {
 
     #[test]
     fn deserialize_fragment_number_set_max_gap() {
-        let expected = FragmentNumberSetSubmessageElement {
+        let expected = FragmentNumberSetSubmessageElementPsm {
             base: FragmentNumber(2),
             set: vec![FragmentNumber(2), FragmentNumber(257)],
         };

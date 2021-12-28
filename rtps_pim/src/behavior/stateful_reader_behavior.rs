@@ -9,7 +9,7 @@ use crate::{
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::RtpsHistoryCacheAddChange,
-        types::{ChangeKind, EntityId, Guid, GuidPrefix},
+        types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
     },
 };
 
@@ -61,7 +61,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
             EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes<
                 EntityIdType = EntityId,
             >,
-            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
+            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes<SequenceNumberType = SequenceNumber>,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
                 SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
             >,
@@ -159,7 +159,9 @@ mod tests {
             }
         }
 
-        struct MockCacheChange;
+        struct MockCacheChange {
+            sequence_number: SequenceNumber,
+        }
 
         impl RtpsCacheChangeConstructor for MockCacheChange {
             type DataType = ();
@@ -169,11 +171,13 @@ mod tests {
                 _kind: &ChangeKind,
                 _writer_guid: &Guid,
                 _instance_handle: &InstanceHandle,
-                _sequence_number: &SequenceNumber,
+                sequence_number: &SequenceNumber,
                 _data_value: &Self::DataType,
                 _inline_qos: &Self::ParameterListType,
             ) -> Self {
-                Self
+                Self {
+                    sequence_number: *sequence_number,
+                }
             }
         }
 
@@ -194,7 +198,7 @@ mod tests {
             }
 
             fn sequence_number(&self) -> &SequenceNumber {
-                todo!()
+                &self.sequence_number
             }
 
             fn data_value(&self) -> &Self::DataType {
@@ -218,20 +222,25 @@ mod tests {
             }
         }
 
-        struct MockEntityId;
+        struct MockEntityId {
+            value: EntityId,
+        }
 
         impl EntityIdSubmessageElementAttributes for MockEntityId {
             type EntityIdType = EntityId;
             fn value(&self) -> &Self::EntityIdType {
-                todo!()
+                &self.value
             }
         }
 
-        struct MockSequenceNumber;
+        struct MockSequenceNumber {
+            value: SequenceNumber,
+        }
 
         impl SequenceNumberSubmessageElementAttributes for MockSequenceNumber {
-            fn value(&self) -> &SequenceNumber {
-                todo!()
+            type SequenceNumberType = SequenceNumber;
+            fn value(&self) -> &Self::SequenceNumberType {
+                &self.value
             }
         }
 
@@ -240,7 +249,7 @@ mod tests {
         impl ParameterListSubmessageElementAttributes for MockParameterList {
             type ParameterListType = ();
             fn parameter(&self) -> &() {
-                todo!()
+                &()
             }
         }
 
@@ -249,11 +258,18 @@ mod tests {
         impl SerializedDataSubmessageElementAttributes for MockSerializedData {
             type SerializedDataType = ();
             fn value(&self) -> &Self::SerializedDataType {
-                todo!()
+                &()
             }
         }
 
-        struct MockDataSubmessage;
+        struct MockDataSubmessage {
+            data_flag: SubmessageFlag,
+            key_flag: SubmessageFlag,
+            writer_id: MockEntityId,
+            writer_sn: MockSequenceNumber,
+            inline_qos: MockParameterList,
+            serialized_payload: MockSerializedData,
+        }
 
         impl DataSubmessageAttributes for MockDataSubmessage {
             type EntityIdSubmessageElementType = MockEntityId;
@@ -270,11 +286,11 @@ mod tests {
             }
 
             fn data_flag(&self) -> &SubmessageFlag {
-                todo!()
+                &self.data_flag
             }
 
             fn key_flag(&self) -> &SubmessageFlag {
-                todo!()
+                &self.key_flag
             }
 
             fn non_standard_payload_flag(&self) -> &SubmessageFlag {
@@ -286,19 +302,19 @@ mod tests {
             }
 
             fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
-                todo!()
+                &self.writer_id
             }
 
             fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
-                todo!()
+                &self.writer_sn
             }
 
             fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
-                todo!()
+                &self.inline_qos
             }
 
             fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
-                todo!()
+                &self.serialized_payload
             }
         }
 
@@ -339,7 +355,22 @@ mod tests {
         //     inline_qos: ParameterListSubmessageElement { parameter: () },
         //     serialized_payload: SerializedDataSubmessageElement { value: () },
         // };
-        reliable_stateful_reader.receive_data(source_guid_prefix, &MockDataSubmessage);
+        reliable_stateful_reader.receive_data(
+            source_guid_prefix,
+            &MockDataSubmessage {
+                data_flag: true,
+                key_flag: false,
+                writer_id: MockEntityId {
+                    value: EntityId {
+                        entity_key: [1; 3],
+                        entity_kind: 2,
+                    },
+                },
+                writer_sn: MockSequenceNumber { value: 1 },
+                inline_qos: MockParameterList,
+                serialized_payload: MockSerializedData,
+            },
+        );
 
         assert_eq!(mock_reader_cache.add_change_called, true);
     }

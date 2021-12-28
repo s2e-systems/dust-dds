@@ -4,11 +4,12 @@ use rust_rtps_pim::{
             CountSubmessageElementConstructor, EntityIdSubmessageElementAttributes,
             EntityIdSubmessageElementConstructor, ParameterListSubmessageElementAttributes,
             SequenceNumberSetSubmessageElementConstructor,
-            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
+            SequenceNumberSubmessageElementAttributes, SequenceNumberSubmessageElementConstructor,
+            SerializedDataSubmessageElementAttributes, TimestampSubmessageElementAttributes,
         },
-        types::{Count, ParameterId},
+        types::{Count, FragmentNumber, GroupDigest, ParameterId, Time},
     },
-    structure::types::{EntityId, SequenceNumber},
+    structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -38,6 +39,11 @@ pub struct ParameterListSubmessageElement<T> {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct GuidPrefixSubmessageElementPsm {
+    pub value: GuidPrefix,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct EntityIdSubmessageElementPsm {
     pub value: EntityId,
 }
@@ -59,12 +65,56 @@ impl EntityIdSubmessageElementAttributes for EntityIdSubmessageElementPsm {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct VendorIdSubmessageElementPsm {
+    pub value: VendorId,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ProtocolVersionSubmessageElementPsm {
+    pub value: ProtocolVersion,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct SequenceNumberSubmessageElementPsm {
     pub value: SequenceNumber,
 }
 
+impl SequenceNumberSubmessageElementConstructor for SequenceNumberSubmessageElementPsm {
+    type SequenceNumberType = SequenceNumber;
+
+    fn new(value: &Self::SequenceNumberType) -> Self {
+        Self { value: *value }
+    }
+}
+
 impl SequenceNumberSubmessageElementAttributes for SequenceNumberSubmessageElementPsm {
     fn value(&self) -> &SequenceNumber {
+        &self.value
+    }
+
+    type SequenceNumberType = SequenceNumber;
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FragmentNumberSubmessageElementPsm {
+    pub value: FragmentNumber,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FragmentNumberSetSubmessageElementPsm<T> {
+    pub base: FragmentNumber,
+    pub set: T,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct TimestampSubmessageElementPsm {
+    pub value: Time,
+}
+
+impl TimestampSubmessageElementAttributes for TimestampSubmessageElementPsm {
+    type TimeType = Time;
+
+    fn value(&self) -> &Self::TimeType {
         &self.value
     }
 }
@@ -105,12 +155,20 @@ pub struct SequenceNumberSetSubmessageElementPsm {
 }
 
 impl SequenceNumberSetSubmessageElementConstructor for SequenceNumberSetSubmessageElementPsm {
-    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
+    type SequenceNumberType = SequenceNumber;
+    type SequenceNumberSetType = [SequenceNumber];
+
+    fn new(base: &Self::SequenceNumberType, set: &Self::SequenceNumberSetType) -> Self {
         Self {
-            base,
+            base: *base,
             set: set.to_vec(),
         }
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct LocatorListSubmessageElementPsm<T> {
+    pub value: T,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -121,7 +179,12 @@ pub struct CountSubmessageElementPsm {
 impl CountSubmessageElementConstructor for CountSubmessageElementPsm {
     type CountType = Count;
 
-    fn new(_value: &Self::CountType) -> Self {
-        todo!()
+    fn new(value: &Self::CountType) -> Self {
+        Self { value: *value }
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct GroupDigestSubmessageElementPsm {
+    pub value: GroupDigest,
 }
