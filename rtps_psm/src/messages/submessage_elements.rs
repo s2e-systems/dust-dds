@@ -34,10 +34,10 @@ impl<'a> Parameter<'a> {
 pub struct ParameterListSubmessageElementWrite<'a> {
     pub parameter: &'a [Parameter<'a>],
 }
-impl<'a> ParameterListSubmessageElementConstructor<'a> for ParameterListSubmessageElementWrite<'a> {
-    type ParameterListType = [Parameter<'a>];
+impl<'a> ParameterListSubmessageElementConstructor for ParameterListSubmessageElementWrite<'a> {
+    type ParameterListType = &'a [Parameter<'a>];
 
-    fn new(parameter: &'a Self::ParameterListType) -> Self where Self: 'a{
+    fn new(parameter: &Self::ParameterListType) -> Self where Self: 'a{
         Self {
             parameter,
         }

@@ -153,9 +153,9 @@ pub trait ParameterAttributes {
     fn value(&self) -> &Self::ParameterValueType;
 }
 
-pub trait ParameterListSubmessageElementConstructor<'a> {
+pub trait ParameterListSubmessageElementConstructor {
     type ParameterListType: ?Sized;
-    fn new(parameter: &'a Self::ParameterListType) -> Self;
+    fn new(parameter: &Self::ParameterListType) -> Self;
 }
 
 pub trait ParameterListSubmessageElementAttributes {
