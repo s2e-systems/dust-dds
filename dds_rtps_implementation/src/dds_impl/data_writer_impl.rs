@@ -78,10 +78,10 @@ impl<Foo, W, C> AsMut<W> for DataWriterImpl<Foo, W, C> {
 impl<Foo, W, C, H> DataWriter<Foo> for DataWriterImpl<Foo, W, C>
 where
     Foo: DdsSerialize,
-    W: RtpsWriterOperations<
+    W: for<'a> RtpsWriterOperations<'a,
             CacheChangeType = H::CacheChangeType,
             DataType = Vec<u8>,
-            ParameterListType = Vec<Parameter<Vec<u8>>>,
+            ParameterListType = Vec<Parameter<'a>>,
         > + RtpsWriterAttributes<WriterHistoryCacheType = H>,
     H: RtpsHistoryCacheAddChange,
 {
@@ -279,18 +279,18 @@ where
             match behavior {
                 StatelessWriterBehavior::BestEffort(mut best_effort_behavior) => {
                     let submessages = RefCell::new(Vec::new());
-                    best_effort_behavior.send_unsent_changes(
-                        |data: DataSubmessageWrite| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::Gap(gap))
-                        },
-                    );
+                    // best_effort_behavior.send_unsent_changes(
+                    //     |data: DataSubmessageWrite| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsSubmessageTypeWrite::Data(data))
+                    //     },
+                    //     |gap| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsSubmessageTypeWrite::Gap(gap))
+                    //     },
+                    // );
                     let submessages = submessages.take();
                     if !submessages.is_empty() {
                         destined_submessages
@@ -347,18 +347,19 @@ where
                         });
                     }
 
-                    reliable_behavior.send_unsent_changes(
-                        |data| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::Gap(gap))
-                        },
-                    );
+                    // reliable_behavior.send_unsent_changes(
+                    //     |data| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsSubmessageTypeWrite::Data(data))
+                    //     },
+                    //     |gap| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsSubmessageTypeWrite::Gap(gap))
+                    //     },
+                    // );
+
                     let submessages = submessages.take();
 
                     if !submessages.is_empty() {

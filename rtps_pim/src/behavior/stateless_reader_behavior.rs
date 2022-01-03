@@ -28,15 +28,15 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
             >,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
-                SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+                SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::DataType,
             >,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
-                ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType
+                ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::ParameterListType
             >,
         >,
     ) where
         H: RtpsHistoryCacheAddChange,
-        H::CacheChangeType: RtpsCacheChangeConstructor,
+        H::CacheChangeType: RtpsCacheChangeConstructor<'a>,
     {
         let reader_id = data.reader_id().value();
         if reader_id == self.reader_guid.entity_id() || reader_id == &ENTITYID_UNKNOWN {
@@ -158,7 +158,7 @@ mod tests {
 
     struct MockCacheChange;
 
-    impl RtpsCacheChangeConstructor for MockCacheChange {
+    impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
         type DataType = ();
         type ParameterListType = ();
 

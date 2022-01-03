@@ -12,18 +12,15 @@ use rust_rtps_pim::{
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Parameter<V> {
+pub struct Parameter<'a> {
     pub parameter_id: ParameterId,
     pub length: i16,
-    pub value: V,
+    pub value: &'a [u8],
 }
 
-impl<V> Parameter<V>
-where
-    V: AsRef<[u8]>,
-{
-    pub fn new(parameter_id: ParameterId, value: V) -> Self {
-        let length = ((value.as_ref().len() + 3) & !0b11) as i16; //ceil to multiple of 4;
+impl<'a> Parameter<'a> {
+    pub fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
+        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
         Self {
             parameter_id,
             length,
@@ -32,17 +29,24 @@ where
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ParameterOwning {
+    pub parameter_id: ParameterId,
+    pub length: i16,
+    pub value: Vec<u8>,
+}
+
 // #[derive(Debug, PartialEq)]
 // pub struct ParameterListSubmessageElement<T> {
 //     pub parameter: T,
 // }
 
-
+#[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElementWrite<'a> {
-    pub parameter: &'a [Parameter<&'a [u8]>],
+    pub parameter: &'a [Parameter<'a>],
 }
 impl<'a> ParameterListSubmessageElementConstructor<'a> for ParameterListSubmessageElementWrite<'a> {
-    type ParameterListType = [Parameter<&'a [u8]>];
+    type ParameterListType = [Parameter<'a>];
 
     fn new(parameter: &'a Self::ParameterListType) -> Self where Self: 'a{
         Self {
@@ -53,10 +57,10 @@ impl<'a> ParameterListSubmessageElementConstructor<'a> for ParameterListSubmessa
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElementRead<'a> {
-    pub parameter: Vec<Parameter<&'a [u8]>>,
+    pub parameter: Vec<Parameter<'a>>,
 }
 impl<'a> ParameterListSubmessageElementAttributes for ParameterListSubmessageElementRead<'a> {
-    type ParameterListType = [Parameter<&'a [u8]>];
+    type ParameterListType = [Parameter<'a>];
 
     fn parameter(&self) -> &Self::ParameterListType {
         &self.parameter
@@ -107,22 +111,6 @@ impl<'a> SerializedDataSubmessageElementAttributes for SerializedDataSubmessageE
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ParameterListSubmessageElementPsm {
-    pub parameter: Vec<Parameter<Vec<u8>>>,
-}
-
-impl ParameterListSubmessageElementAttributes for ParameterListSubmessageElementPsm {
-    type ParameterListType = [Parameter<Vec<u8>>];
-    fn parameter(&self) -> &Self::ParameterListType {
-        self.parameter.as_ref()
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct ParameterListSubmessageElementWritePsm<'a> {
-    pub parameter: &'a [Parameter<Vec<u8>>],
-}
 
 #[derive(Debug, PartialEq)]
 pub struct SequenceNumberSetSubmessageElementPsm {

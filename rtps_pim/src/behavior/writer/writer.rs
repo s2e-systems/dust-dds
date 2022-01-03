@@ -15,7 +15,7 @@ pub trait RtpsWriterAttributes {
     fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType;
 }
 
-pub trait RtpsWriterOperations {
+pub trait RtpsWriterOperations<'a> {
     type DataType;
     type ParameterListType;
     type CacheChangeType;

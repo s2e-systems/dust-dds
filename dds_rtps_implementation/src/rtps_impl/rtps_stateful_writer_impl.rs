@@ -154,9 +154,9 @@ impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
     }
 }
 
-impl RtpsWriterOperations for RtpsStatefulWriterImpl {
+impl<'a> RtpsWriterOperations<'a> for RtpsStatefulWriterImpl {
     type DataType = Vec<u8>;
-    type ParameterListType = Vec<Parameter<Vec<u8>>>;
+    type ParameterListType = Vec<Parameter<'a>>;
     type CacheChangeType = WriterCacheChange;
     fn new_change(
         &mut self,
