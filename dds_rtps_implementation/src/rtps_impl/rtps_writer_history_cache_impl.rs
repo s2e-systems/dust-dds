@@ -39,9 +39,9 @@ impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
     }
 }
 
-impl RtpsCacheChangeAttributes for WriterCacheChange {
+impl<'a> RtpsCacheChangeAttributes<'a> for WriterCacheChange {
     type DataType = [u8];
-    type ParameterListType = [ParameterOwning];
+    type ParameterListType = [Parameter<'a>];
 
     fn kind(&self) -> &ChangeKind {
         &self.kind

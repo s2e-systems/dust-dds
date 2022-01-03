@@ -14,7 +14,7 @@ pub trait RtpsCacheChangeConstructor<'a> {
     ) -> Self;
 }
 
-pub trait RtpsCacheChangeAttributes {
+pub trait RtpsCacheChangeAttributes<'a> {
     type DataType: ?Sized;
     type ParameterListType: ?Sized;
 

@@ -24,11 +24,11 @@ use rust_rtps_pim::{
         history_cache::{
             RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations,
         },
-        types::{ChangeKind, Locator},
+        types::{ChangeKind, Locator, EntityId},
     },
 };
 use rust_rtps_psm::messages::{
-    overall_structure::RtpsSubmessageTypeWrite, submessage_elements::Parameter,
+    overall_structure::RtpsSubmessageTypeWrite, submessage_elements::{Parameter, EntityIdSubmessageElementPsm},
     submessages::DataSubmessageWrite,
 };
 
@@ -279,18 +279,18 @@ where
             match behavior {
                 StatelessWriterBehavior::BestEffort(mut best_effort_behavior) => {
                     let submessages = RefCell::new(Vec::new());
-                    // best_effort_behavior.send_unsent_changes(
-                    //     |data: DataSubmessageWrite| {
-                    //         submessages
-                    //             .borrow_mut()
-                    //             .push(RtpsSubmessageTypeWrite::Data(data))
-                    //     },
-                    //     |gap| {
-                    //         submessages
-                    //             .borrow_mut()
-                    //             .push(RtpsSubmessageTypeWrite::Gap(gap))
-                    //     },
-                    // );
+                    best_effort_behavior.send_unsent_changes(
+                        |data: DataSubmessageWrite| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsSubmessageTypeWrite::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsSubmessageTypeWrite::Gap(gap))
+                        },
+                    );
                     let submessages = submessages.take();
                     if !submessages.is_empty() {
                         destined_submessages
@@ -347,18 +347,18 @@ where
                         });
                     }
 
-                    // reliable_behavior.send_unsent_changes(
-                    //     |data| {
-                    //         submessages
-                    //             .borrow_mut()
-                    //             .push(RtpsSubmessageTypeWrite::Data(data))
-                    //     },
-                    //     |gap| {
-                    //         submessages
-                    //             .borrow_mut()
-                    //             .push(RtpsSubmessageTypeWrite::Gap(gap))
-                    //     },
-                    // );
+                    reliable_behavior.send_unsent_changes(
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsSubmessageTypeWrite::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsSubmessageTypeWrite::Gap(gap))
+                        },
+                    );
 
                     let submessages = submessages.take();
 

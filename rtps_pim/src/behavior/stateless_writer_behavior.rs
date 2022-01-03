@@ -48,7 +48,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
-        CacheChange: RtpsCacheChangeAttributes + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
@@ -128,7 +128,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
-        CacheChange: RtpsCacheChangeAttributes + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
@@ -259,7 +259,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
-        CacheChange: RtpsCacheChangeAttributes + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
@@ -396,7 +396,7 @@ mod tests {
     }
     struct MockCacheChange;
 
-    impl RtpsCacheChangeAttributes for MockCacheChange {
+    impl<'a> RtpsCacheChangeAttributes<'a> for MockCacheChange {
         type DataType = ();
         type ParameterListType = ();
 

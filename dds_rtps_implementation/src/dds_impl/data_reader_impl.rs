@@ -67,8 +67,8 @@ where
     Foo: for<'a> DdsDeserialize<'a>,
     W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
     H: RtpsHistoryCacheAddChange,
-    H::CacheChangeType: for<'b> RtpsCacheChangeConstructor<'b, DataType = [u8], ParameterListType = [Parameter<'b>]>
-        + RtpsCacheChangeAttributes,
+    for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = [u8], ParameterListType = [Parameter<'b>]>
+        + RtpsCacheChangeAttributes<'b>,
     for<'a> &'a mut R: IntoIterator<Item = StatefulReaderBehavior<'a, W, H>>,
 {
     fn process_data_submessage(
@@ -129,7 +129,7 @@ where
     Foo: 'static,
     R: RtpsReaderAttributes<ReaderHistoryCacheType = H>,
     H: RtpsHistoryCacheGetChange<CacheChangeType = CC> + 'a,
-    CC: RtpsCacheChangeAttributes<DataType = Foo> + 'a,
+    CC: RtpsCacheChangeAttributes<'a, DataType = Foo> + 'a,
 {
     type Samples = Vec<&'a Foo>;
 

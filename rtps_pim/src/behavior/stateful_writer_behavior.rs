@@ -4,7 +4,7 @@ use crate::{
         submessage_elements::{
             CountSubmessageElementConstructor, EntityIdSubmessageElementConstructor,
             SequenceNumberSetSubmessageElementAttributes,
-            SequenceNumberSetSubmessageElementConstructor,
+            SequenceNumberSetSubmessageElementConstructor, ParameterListSubmessageElementConstructor,
         },
         submessages::{
             AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
@@ -47,7 +47,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
-        CacheChange: RtpsCacheChangeAttributes + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
@@ -128,7 +128,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
-        CacheChange: RtpsCacheChangeAttributes + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
@@ -258,7 +258,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
-        CacheChange: RtpsCacheChangeAttributes + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,

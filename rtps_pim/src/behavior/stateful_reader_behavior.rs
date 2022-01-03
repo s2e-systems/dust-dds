@@ -72,7 +72,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheAddChange,
-        H::CacheChangeType: RtpsCacheChangeConstructor<'a> + RtpsCacheChangeAttributes,
+        H::CacheChangeType: RtpsCacheChangeConstructor<'a> + RtpsCacheChangeAttributes<'a>,
     {
         let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
         if &writer_guid == self.writer_proxy.remote_writer_guid() {
@@ -177,7 +177,7 @@ mod tests {
             }
         }
 
-        impl RtpsCacheChangeAttributes for MockCacheChange {
+        impl<'a> RtpsCacheChangeAttributes<'a> for MockCacheChange {
             type DataType = ();
             type ParameterListType = ();
 
