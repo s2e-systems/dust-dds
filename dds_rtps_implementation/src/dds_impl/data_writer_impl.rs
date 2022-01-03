@@ -24,11 +24,11 @@ use rust_rtps_pim::{
         history_cache::{
             RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations,
         },
-        types::{ChangeKind, Locator, EntityId},
+        types::{ChangeKind, Locator},
     },
 };
 use rust_rtps_psm::messages::{
-    overall_structure::RtpsSubmessageTypeWrite, submessage_elements::{Parameter, EntityIdSubmessageElementPsm},
+    overall_structure::RtpsSubmessageTypeWrite, submessage_elements::Parameter,
     submessages::DataSubmessageWrite,
 };
 
@@ -78,7 +78,8 @@ impl<Foo, W, C> AsMut<W> for DataWriterImpl<Foo, W, C> {
 impl<Foo, W, C, H> DataWriter<Foo> for DataWriterImpl<Foo, W, C>
 where
     Foo: DdsSerialize,
-    W: for<'a> RtpsWriterOperations<'a,
+    W: for<'a> RtpsWriterOperations<
+            'a,
             CacheChangeType = H::CacheChangeType,
             DataType = Vec<u8>,
             ParameterListType = Vec<Parameter<'a>>,

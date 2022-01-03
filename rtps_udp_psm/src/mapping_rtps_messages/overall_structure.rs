@@ -90,6 +90,7 @@ mod tests {
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementConstructor;
 
+    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementConstructor;
     use rust_rtps_pim::messages::submessages::DataSubmessageConstructor;
     use rust_rtps_pim::messages::types::ParameterId;
     use rust_rtps_pim::messages::types::ProtocolId;
@@ -142,7 +143,7 @@ mod tests {
         ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
-        let writer_sn = 5;
+        let writer_sn = SequenceNumberSubmessageElementPsm::new(&5);
         let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let parameter_list = &vec![parameter_1, parameter_2];

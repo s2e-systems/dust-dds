@@ -131,13 +131,16 @@ mod tests {
     use super::*;
     use rust_rtps_pim::{
         messages::{
-            submessage_elements::EntityIdSubmessageElementConstructor,
-            submessages::DataSubmessageConstructor, types::ParameterId,
+            submessage_elements::{
+                EntityIdSubmessageElementConstructor, SequenceNumberSubmessageElementConstructor,
+            },
+            submessages::DataSubmessageConstructor,
+            types::ParameterId,
         },
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
     use rust_rtps_psm::messages::submessage_elements::{
-        EntityIdSubmessageElementPsm, SequenceNumberSubmessageElementPsm, Parameter, SerializedDataSubmessageElementPsm,
+        EntityIdSubmessageElementPsm, Parameter, SequenceNumberSubmessageElementPsm,
     };
 
     #[test]
@@ -153,7 +156,7 @@ mod tests {
         ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
-        let writer_sn = 5;
+        let writer_sn = SequenceNumberSubmessageElementPsm::new(&5);
         let inline_qos = &vec![];
         let serialized_payload = &[][..];
         let submessage = DataSubmessageWrite::new(
@@ -193,7 +196,7 @@ mod tests {
         ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
-        let writer_sn = 5;
+        let writer_sn = SequenceNumberSubmessageElementPsm::new(&5);
         let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
         let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
         let parameter_list = &vec![parameter_1, parameter_2];
@@ -242,7 +245,7 @@ mod tests {
         ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
-        let writer_sn = 5;
+        let writer_sn = SequenceNumberSubmessageElementPsm::new(&5);
         let inline_qos = &vec![];
         let serialized_payload = &[1_u8, 2, 3, 4][..];
         let submessage = DataSubmessageWrite::new(
@@ -283,7 +286,7 @@ mod tests {
         ));
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
-        let writer_sn = 5;
+        let writer_sn = SequenceNumberSubmessageElementPsm::new(&5);
         let inline_qos = &vec![];
         let serialized_payload = &[1_u8, 2, 3][..];
         let submessage = DataSubmessageWrite::new(

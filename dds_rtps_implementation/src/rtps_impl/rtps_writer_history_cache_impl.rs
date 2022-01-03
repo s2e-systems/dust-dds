@@ -10,7 +10,7 @@ use rust_rtps_pim::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
-use rust_rtps_psm::messages::submessage_elements::{Parameter, ParameterOwning};
+use rust_rtps_psm::messages::submessage_elements::Parameter;
 
 pub struct WriterCacheChange {
     pub kind: ChangeKind,
@@ -28,14 +28,23 @@ impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
     type ParameterListType = [Parameter<'a>];
 
     fn new(
-        _kind: &ChangeKind,
-        _writer_guid: &Guid,
-        _instance_handle: &InstanceHandle,
-        _sequence_number: &SequenceNumber,
-        _data_value: &Self::DataType,
+        kind: &ChangeKind,
+        writer_guid: &Guid,
+        instance_handle: &InstanceHandle,
+        sequence_number: &SequenceNumber,
+        data_value: &Self::DataType,
         _inline_qos: &Self::ParameterListType,
     ) -> Self {
-        todo!()
+        Self {
+            kind: *kind,
+            writer_guid: *writer_guid,
+            sequence_number: *sequence_number,
+            instance_handle: *instance_handle,
+            data: data_value.to_vec(),
+            _source_timestamp: None,
+            _view_state_kind: ViewStateKind::New,
+            _instance_state_kind: InstanceStateKind::Alive,
+        }
     }
 }
 

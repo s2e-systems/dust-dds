@@ -1,11 +1,10 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{
-    submessage_elements::FragmentNumberSubmessageElement, types::FragmentNumber,
-};
+use rust_rtps_pim::messages::types::FragmentNumber;
+use rust_rtps_psm::messages::submessage_elements::FragmentNumberSubmessageElementPsm;
 
-use crate::{mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered}};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
 impl MappingWriteByteOrdered for FragmentNumber {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -24,7 +23,7 @@ impl<'de> MappingReadByteOrdered<'de> for FragmentNumber {
     }
 }
 
-impl MappingWriteByteOrdered for FragmentNumberSubmessageElement {
+impl MappingWriteByteOrdered for FragmentNumberSubmessageElementPsm {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -33,7 +32,7 @@ impl MappingWriteByteOrdered for FragmentNumberSubmessageElement {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSubmessageElement {
+impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSubmessageElementPsm {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
             value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
@@ -48,7 +47,7 @@ mod tests {
 
     #[test]
     fn serialize_fragment_number() {
-        let data = FragmentNumberSubmessageElement {
+        let data = FragmentNumberSubmessageElementPsm {
             value: FragmentNumber(7),
         };
         assert_eq!(
@@ -61,7 +60,7 @@ mod tests {
 
     #[test]
     fn deserialize_fragment_number() {
-        let expected = FragmentNumberSubmessageElement {
+        let expected = FragmentNumberSubmessageElementPsm {
             value: FragmentNumber(7),
         };
         assert_eq!(

@@ -1,6 +1,5 @@
 use std::{
     io::{Error, Write},
-    iter::FromIterator,
 };
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};

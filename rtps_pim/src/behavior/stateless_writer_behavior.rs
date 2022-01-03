@@ -5,6 +5,7 @@ use crate::{
             CountSubmessageElementConstructor, EntityIdSubmessageElementConstructor,
             SequenceNumberSetSubmessageElementAttributes,
             SequenceNumberSetSubmessageElementConstructor,
+            SequenceNumberSubmessageElementConstructor,
         },
         submessages::{
             AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
@@ -35,7 +36,14 @@ pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<Data, EntityIdElement, CacheChange, Gap, SequenceNumberSetElement>(
+    pub fn send_unsent_changes<
+        Data,
+        EntityIdElement,
+        SequenceNumberElement,
+        CacheChange,
+        Gap,
+        SequenceNumberSetElement,
+    >(
         &mut self,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
@@ -43,17 +51,22 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         R: RtpsReaderLocatorOperations,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumber,
+            SequenceNumberSubmessageElementType = SequenceNumberElement,
             ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
         CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
+        SequenceNumberElement:
+            SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
+        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
+            SequenceNumberType = SequenceNumber,
+            SequenceNumberSetType = [SequenceNumber],
+        >,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumber,
+            SequenceNumberSubmessageElementType = SequenceNumberElement,
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
@@ -74,7 +87,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = *change.sequence_number();
+                let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
@@ -94,8 +107,8 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 let endianness_flag = true;
                 let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-                let gap_start = seq_num;
-                let gap_list = SequenceNumberSetElement::new(seq_num, &[]);
+                let gap_start = SequenceNumberElement::new(&seq_num);
+                let gap_list = SequenceNumberSetElement::new(&seq_num, &[]);
                 let gap_submessage =
                     Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
                 send_gap(gap_submessage)
@@ -114,7 +127,14 @@ pub struct ReliableStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.2.4 Transition T4
-    pub fn send_unsent_changes<Data, EntityIdElement, CacheChange, Gap, SequenceNumberSetElement>(
+    pub fn send_unsent_changes<
+        Data,
+        EntityIdElement,
+        SequenceNumberElement,
+        CacheChange,
+        Gap,
+        SequenceNumberSetElement,
+    >(
         &mut self,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
@@ -123,16 +143,21 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumber,
+            SequenceNumberSubmessageElementType = SequenceNumberElement,
             ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
+        SequenceNumberElement:
+            SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
+        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
+            SequenceNumberType = SequenceNumber,
+            SequenceNumberSetType = [SequenceNumber],
+        >,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumber,
+            SequenceNumberSubmessageElementType = SequenceNumberElement,
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
@@ -154,7 +179,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let reader_id = EntityIdSubmessageElementConstructor::new(&ENTITYID_UNKNOWN);
                 let writer_id =
                     EntityIdSubmessageElementConstructor::new(change.writer_guid().entity_id());
-                let writer_sn = *change.sequence_number();
+                let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
@@ -174,8 +199,8 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let endianness_flag = true;
                 let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-                let gap_start = seq_num;
-                let gap_list = SequenceNumberSetElement::new(seq_num, &[]);
+                let gap_start = SequenceNumberElement::new(&seq_num);
+                let gap_list = SequenceNumberSetElement::new(&seq_num, &[]);
                 let gap_submessage =
                     Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
                 send_gap(gap_submessage)
@@ -225,7 +250,10 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     pub fn process_acknack<S>(
         &mut self,
         acknack: &impl AckNackSubmessageAttributes<
-            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes,
+            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes<
+                SequenceNumberType = SequenceNumber,
+                SequenceNumberSetType = [SequenceNumber],
+            >,
         >,
     ) where
         R: RtpsReaderLocatorOperations,
@@ -242,6 +270,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         P,
         Data,
         EntityIdElement,
+        SequenceNumberElement,
         CacheChange,
         Gap,
         SequenceNumberSetElement,
@@ -254,16 +283,21 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumber,
+            SequenceNumberSubmessageElementType = SequenceNumberElement,
             ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
+        SequenceNumberElement:
+            SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
+        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
+            SequenceNumberType = SequenceNumber,
+            SequenceNumberSetType = [SequenceNumber],
+        >,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumber,
+            SequenceNumberSubmessageElementType = SequenceNumberElement,
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
@@ -281,7 +315,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = *change.sequence_number();
+                let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
@@ -301,8 +335,8 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let endianness_flag = true;
                 let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-                let gap_start = seq_num;
-                let gap_list = SequenceNumberSetElement::new(seq_num, &[]);
+                let gap_start = SequenceNumberElement::new(&seq_num);
+                let gap_list = SequenceNumberSetElement::new(&seq_num, &[]);
                 let gap_submessage =
                     Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
                 send_gap(gap_submessage)
@@ -313,7 +347,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
 
 #[cfg(test)]
 mod tests {
-    use crate::structure::types::InstanceHandle;
+    use crate::structure::types::{InstanceHandle, GUID_UNKNOWN};
 
     use super::*;
 
@@ -363,11 +397,23 @@ mod tests {
         }
     }
 
+    struct MockSequenceNumberSubmessageElement;
+
+    impl SequenceNumberSubmessageElementConstructor for MockSequenceNumberSubmessageElement {
+        type SequenceNumberType = SequenceNumber;
+
+        fn new(_value: &Self::SequenceNumberType) -> Self {
+            Self
+        }
+    }
+
     struct MockSequenceNumberSetSubmessageElement;
 
     impl SequenceNumberSetSubmessageElementConstructor for MockSequenceNumberSetSubmessageElement {
-        fn new(_base: SequenceNumber, _set: &[SequenceNumber]) -> Self {
-            todo!()
+        type SequenceNumberType = SequenceNumber;
+        type SequenceNumberSetType = [SequenceNumber];
+        fn new(_base: &Self::SequenceNumberType, _set: &Self::SequenceNumberSetType) -> Self {
+            Self
         }
     }
 
@@ -375,7 +421,7 @@ mod tests {
 
     impl<'a> DataSubmessageConstructor for MockDataSubmessage<'a> {
         type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
-        type SequenceNumberSubmessageElementType = SequenceNumber;
+        type SequenceNumberSubmessageElementType = MockSequenceNumberSubmessageElement;
         type ParameterListSubmessageElementType = &'a ();
         type SerializedDataSubmessageElementType = &'a ();
 
@@ -394,18 +440,22 @@ mod tests {
             Self(&())
         }
     }
-    struct MockCacheChange;
+    struct MockCacheChange {
+        kind: ChangeKind,
+        writer_guid: Guid,
+        sequence_number: SequenceNumber,
+    }
 
     impl<'a> RtpsCacheChangeAttributes<'a> for MockCacheChange {
         type DataType = ();
         type ParameterListType = ();
 
         fn kind(&self) -> &ChangeKind {
-            todo!()
+            &self.kind
         }
 
         fn writer_guid(&self) -> &Guid {
-            todo!()
+            &self.writer_guid
         }
 
         fn instance_handle(&self) -> &InstanceHandle {
@@ -413,15 +463,15 @@ mod tests {
         }
 
         fn sequence_number(&self) -> &SequenceNumber {
-            todo!()
+            &self.sequence_number
         }
 
         fn data_value(&self) -> &Self::DataType {
-            todo!()
+            &()
         }
 
         fn inline_qos(&self) -> &Self::ParameterListType {
-            todo!()
+            &()
         }
     }
 
@@ -430,7 +480,7 @@ mod tests {
     impl GapSubmessageConstructor for MockGapSubmessage {
         type EntityIdSubmessageElementType = MockEntityIdSubmessageElement;
 
-        type SequenceNumberSubmessageElementType = SequenceNumber;
+        type SequenceNumberSubmessageElementType = MockSequenceNumberSubmessageElement;
 
         type SequenceNumberSetSubmessageElementType = MockSequenceNumberSetSubmessageElement;
 
@@ -441,7 +491,7 @@ mod tests {
             _gap_start: Self::SequenceNumberSubmessageElementType,
             _gap_list: Self::SequenceNumberSetSubmessageElementType,
         ) -> Self {
-            todo!()
+            Self
         }
     }
 
@@ -452,7 +502,11 @@ mod tests {
         impl RtpsHistoryCacheGetChange for MockWriterCache {
             type CacheChangeType = MockCacheChange;
             fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
-                Some(&MockCacheChange)
+                Some(&MockCacheChange {
+                    kind: ChangeKind::Alive,
+                    writer_guid: GUID_UNKNOWN,
+                    sequence_number: 1,
+                })
             }
         }
 
