@@ -31,18 +31,6 @@ impl<'a> Parameter<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ParameterOwning {
-    pub parameter_id: ParameterId,
-    pub length: i16,
-    pub value: Vec<u8>,
-}
-
-// #[derive(Debug, PartialEq)]
-// pub struct ParameterListSubmessageElement<T> {
-//     pub parameter: T,
-// }
-
-#[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElementWrite<'a> {
     pub parameter: &'a [Parameter<'a>],
 }
