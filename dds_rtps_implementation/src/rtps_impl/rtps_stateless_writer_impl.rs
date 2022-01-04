@@ -21,7 +21,7 @@ use rust_rtps_pim::{
         },
     },
 };
-use rust_rtps_psm::messages::submessage_elements::Parameter;
+use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
 use super::{
     rtps_reader_locator_impl::RtpsReaderLocatorImpl,
@@ -197,9 +197,9 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
     }
 }
 
-impl<'a> RtpsWriterOperations<'a> for RtpsStatelessWriterImpl {
+impl RtpsWriterOperations for RtpsStatelessWriterImpl {
     type DataType = Vec<u8>;
-    type ParameterListType = Vec<Parameter<'a>>;
+    type ParameterListType = Vec<ParameterOwned>;
     type CacheChangeType = WriterCacheChange;
     fn new_change(
         &mut self,
