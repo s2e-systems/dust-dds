@@ -56,12 +56,12 @@ impl<T> RtpsCacheChangeAttributes for ReaderCacheChange<T> {
     }
 }
 
-impl<Foo> RtpsCacheChangeConstructor for ReaderCacheChange<Foo>
+impl<'b, Foo> RtpsCacheChangeConstructor<'b> for ReaderCacheChange<Foo>
 where
     Foo: for<'a> DdsDeserialize<'a>,
 {
     type DataType = [u8];
-    type ParameterListType = [Parameter<Vec<u8>>];
+    type ParameterListType = [Parameter<'b>];
 
     fn new(
         kind: &ChangeKind,

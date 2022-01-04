@@ -63,16 +63,16 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
             >,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes<SequenceNumberType = SequenceNumber>,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
-                SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+                SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::DataType,
             >,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
-                ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType
+                ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::ParameterListType
             >,
         >,
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheAddChange,
-        H::CacheChangeType: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes,
+        H::CacheChangeType: RtpsCacheChangeConstructor<'a> + RtpsCacheChangeAttributes,
     {
         let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
         if &writer_guid == self.writer_proxy.remote_writer_guid() {
@@ -163,7 +163,7 @@ mod tests {
             sequence_number: SequenceNumber,
         }
 
-        impl RtpsCacheChangeConstructor for MockCacheChange {
+        impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
             type DataType = ();
             type ParameterListType = ();
 
@@ -181,7 +181,7 @@ mod tests {
             }
         }
 
-        impl RtpsCacheChangeAttributes for MockCacheChange {
+        impl<'a> RtpsCacheChangeAttributes for MockCacheChange {
             type DataType = ();
             type ParameterListType = ();
 

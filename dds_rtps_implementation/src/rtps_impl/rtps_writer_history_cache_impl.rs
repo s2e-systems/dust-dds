@@ -10,7 +10,7 @@ use rust_rtps_pim::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
-use rust_rtps_psm::messages::submessage_elements::Parameter;
+use rust_rtps_psm::messages::submessage_elements::{Parameter, ParameterOwned};
 
 pub struct WriterCacheChange {
     pub kind: ChangeKind,
@@ -21,11 +21,12 @@ pub struct WriterCacheChange {
     pub _source_timestamp: Option<Time>,
     pub _view_state_kind: ViewStateKind,
     pub _instance_state_kind: InstanceStateKind,
+    pub inline_qos: Vec<ParameterOwned>
 }
 
-impl RtpsCacheChangeConstructor for WriterCacheChange {
+impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
     type DataType = [u8];
-    type ParameterListType = [Parameter<Vec<u8>>];
+    type ParameterListType = [Parameter<'a>];
 
     fn new(
         kind: &ChangeKind,
@@ -44,13 +45,14 @@ impl RtpsCacheChangeConstructor for WriterCacheChange {
             _source_timestamp: None,
             _view_state_kind: ViewStateKind::New,
             _instance_state_kind: InstanceStateKind::Alive,
+            inline_qos: vec![],
         }
     }
 }
 
 impl RtpsCacheChangeAttributes for WriterCacheChange {
     type DataType = [u8];
-    type ParameterListType = [Parameter<Vec<u8>>];
+    type ParameterListType = [ParameterOwned];
 
     fn kind(&self) -> &ChangeKind {
         &self.kind
@@ -73,7 +75,7 @@ impl RtpsCacheChangeAttributes for WriterCacheChange {
     }
 
     fn inline_qos(&self) -> &Self::ParameterListType {
-        &[]
+        self.inline_qos.as_ref()
     }
 }
 

@@ -67,7 +67,7 @@ where
     Foo: for<'a> DdsDeserialize<'a>,
     W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
     H: RtpsHistoryCacheAddChange,
-    H::CacheChangeType: RtpsCacheChangeConstructor<DataType = [u8], ParameterListType = [Parameter<Vec<u8>>]>
+    for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = [u8], ParameterListType = [Parameter<'b>]>
         + RtpsCacheChangeAttributes,
     for<'a> &'a mut R: IntoIterator<Item = StatefulReaderBehavior<'a, W, H>>,
 {

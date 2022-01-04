@@ -1,6 +1,6 @@
 use super::types::{ChangeKind, Guid, InstanceHandle, SequenceNumber};
 
-pub trait RtpsCacheChangeConstructor {
+pub trait RtpsCacheChangeConstructor<'a> {
     type DataType: ?Sized;
     type ParameterListType: ?Sized;
 

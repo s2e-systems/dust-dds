@@ -28,7 +28,7 @@ use rust_rtps_pim::{
     },
 };
 use rust_rtps_psm::messages::{
-    overall_structure::RtpsSubmessageTypeWrite, submessage_elements::Parameter,
+    overall_structure::RtpsSubmessageTypeWrite, submessage_elements::ParameterOwned,
     submessages::DataSubmessageWrite,
 };
 
@@ -81,7 +81,7 @@ where
     W: RtpsWriterOperations<
             CacheChangeType = H::CacheChangeType,
             DataType = Vec<u8>,
-            ParameterListType = Vec<Parameter<Vec<u8>>>,
+            ParameterListType = Vec<ParameterOwned>,
         > + RtpsWriterAttributes<WriterHistoryCacheType = H>,
     H: RtpsHistoryCacheAddChange,
 {
@@ -359,6 +359,7 @@ where
                                 .push(RtpsSubmessageTypeWrite::Gap(gap))
                         },
                     );
+
                     let submessages = submessages.take();
 
                     if !submessages.is_empty() {

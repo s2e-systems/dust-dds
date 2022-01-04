@@ -7,10 +7,10 @@ use rust_rtps_pim::messages::{
 };
 
 use super::submessage_elements::{
-    CountSubmessageElementPsm, EntityIdSubmessageElementPsm, Parameter,
-    ParameterListSubmessageElementPsm, ParameterListSubmessageElementWritePsm,
+    CountSubmessageElementPsm, EntityIdSubmessageElementPsm, 
+    ParameterListSubmessageElementWrite,
     SequenceNumberSetSubmessageElementPsm, SequenceNumberSubmessageElementPsm,
-    SerializedDataSubmessageElementPsm, TimestampSubmessageElementPsm,
+    SerializedDataSubmessageElementPsm, TimestampSubmessageElementPsm, ParameterListSubmessageElementRead, ParameterOwned,
 };
 
 #[derive(Debug, PartialEq)]
@@ -55,14 +55,14 @@ pub struct DataSubmessageWrite<'a> {
     pub reader_id: EntityIdSubmessageElementPsm,
     pub writer_id: EntityIdSubmessageElementPsm,
     pub writer_sn: SequenceNumberSubmessageElementPsm,
-    pub inline_qos: ParameterListSubmessageElementWritePsm<'a>,
+    pub inline_qos: ParameterListSubmessageElementWrite<'a>,
     pub serialized_payload: SerializedDataSubmessageElementPsm<'a>,
 }
 
 impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
     type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type ParameterListSubmessageElementType = &'a [Parameter<Vec<u8>>];
+    type ParameterListSubmessageElementType = &'a [ParameterOwned];
     type SerializedDataSubmessageElementType = &'a [u8];
 
     fn new(
@@ -86,7 +86,7 @@ impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
             reader_id,
             writer_id,
             writer_sn,
-            inline_qos: ParameterListSubmessageElementWritePsm {
+            inline_qos: ParameterListSubmessageElementWrite {
                 parameter: inline_qos,
             },
             serialized_payload: SerializedDataSubmessageElementPsm {
@@ -106,7 +106,7 @@ pub struct DataSubmessageRead<'a> {
     pub reader_id: EntityIdSubmessageElementPsm,
     pub writer_id: EntityIdSubmessageElementPsm,
     pub writer_sn: SequenceNumberSubmessageElementPsm,
-    pub inline_qos: ParameterListSubmessageElementPsm,
+    pub inline_qos: ParameterListSubmessageElementRead<'a>,
     pub serialized_payload: SerializedDataSubmessageElementPsm<'a>,
 }
 
@@ -120,7 +120,7 @@ impl<'a> DataSubmessageRead<'a> {
         reader_id: EntityIdSubmessageElementPsm,
         writer_id: EntityIdSubmessageElementPsm,
         writer_sn: SequenceNumberSubmessageElementPsm,
-        inline_qos: ParameterListSubmessageElementPsm,
+        inline_qos: ParameterListSubmessageElementRead<'a>,
         serialized_payload: SerializedDataSubmessageElementPsm<'a>,
     ) -> Self {
         Self {
@@ -141,7 +141,7 @@ impl<'a> DataSubmessageRead<'a> {
 impl<'a> DataSubmessageAttributes for DataSubmessageRead<'a> {
     type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type ParameterListSubmessageElementType = ParameterListSubmessageElementPsm;
+    type ParameterListSubmessageElementType = ParameterListSubmessageElementRead<'a>;
     type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
 
     fn endianness_flag(&self) -> &SubmessageFlag {
