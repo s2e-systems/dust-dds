@@ -175,6 +175,7 @@ impl<'a> RtpsWriterOperations<'a> for RtpsStatefulWriterImpl {
             _source_timestamp: None,
             _view_state_kind: ViewStateKind::New,
             _instance_state_kind: InstanceStateKind::Alive,
+            inline_qos: vec![],
         }
     }
 }

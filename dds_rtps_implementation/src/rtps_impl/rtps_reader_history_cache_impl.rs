@@ -27,7 +27,7 @@ pub struct ReaderCacheChange<T> {
     _instance_state_kind: InstanceStateKind,
 }
 
-impl<'a, T> RtpsCacheChangeAttributes<'a> for ReaderCacheChange<T> {
+impl<T> RtpsCacheChangeAttributes for ReaderCacheChange<T> {
     type DataType = T;
     type ParameterListType = ();
 

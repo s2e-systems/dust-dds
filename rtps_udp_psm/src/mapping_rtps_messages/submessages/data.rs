@@ -140,7 +140,7 @@ mod tests {
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
     use rust_rtps_psm::messages::submessage_elements::{
-        EntityIdSubmessageElementPsm, Parameter, SequenceNumberSubmessageElementPsm,
+        EntityIdSubmessageElementPsm, Parameter, SequenceNumberSubmessageElementPsm, ParameterOwned,
     };
 
     #[test]
@@ -197,8 +197,8 @@ mod tests {
         let writer_id =
             EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = SequenceNumberSubmessageElementPsm::new(&5);
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_1 = ParameterOwned::new(ParameterId(6), &[10, 11, 12, 13]);
+        let parameter_2 = ParameterOwned::new(ParameterId(7), &[20, 21, 22, 23]);
         let parameter_list = &vec![parameter_1, parameter_2];
         let inline_qos = parameter_list;
         let serialized_payload = &[][..];

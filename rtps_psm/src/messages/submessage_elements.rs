@@ -19,6 +19,23 @@ pub struct Parameter<'a> {
     pub value: &'a [u8],
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ParameterOwned {
+    pub parameter_id: ParameterId,
+    pub length: i16,
+    pub value: Vec<u8>,
+}
+impl ParameterOwned {
+    pub fn new(parameter_id: ParameterId, value: &[u8]) -> Self {
+        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
+        Self {
+            parameter_id,
+            length,
+            value: value.to_vec(),
+        }
+    }
+}
+
 impl<'a> Parameter<'a> {
     pub fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
         let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
@@ -32,10 +49,10 @@ impl<'a> Parameter<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElementWrite<'a> {
-    pub parameter: &'a [Parameter<'a>],
+    pub parameter: &'a [ParameterOwned],
 }
 impl<'a> ParameterListSubmessageElementConstructor for ParameterListSubmessageElementWrite<'a> {
-    type ParameterListType = &'a [Parameter<'a>];
+    type ParameterListType = &'a [ParameterOwned];
 
     fn new(parameter: &Self::ParameterListType) -> Self where Self: 'a{
         Self {

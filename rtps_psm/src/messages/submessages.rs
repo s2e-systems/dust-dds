@@ -7,10 +7,10 @@ use rust_rtps_pim::messages::{
 };
 
 use super::submessage_elements::{
-    CountSubmessageElementPsm, EntityIdSubmessageElementPsm, Parameter,
+    CountSubmessageElementPsm, EntityIdSubmessageElementPsm, 
     ParameterListSubmessageElementWrite,
     SequenceNumberSetSubmessageElementPsm, SequenceNumberSubmessageElementPsm,
-    SerializedDataSubmessageElementPsm, TimestampSubmessageElementPsm, ParameterListSubmessageElementRead,
+    SerializedDataSubmessageElementPsm, TimestampSubmessageElementPsm, ParameterListSubmessageElementRead, ParameterOwned,
 };
 
 #[derive(Debug, PartialEq)]
@@ -62,7 +62,7 @@ pub struct DataSubmessageWrite<'a> {
 impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
     type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type ParameterListSubmessageElementType = &'a [Parameter<'a>];
+    type ParameterListSubmessageElementType = &'a [ParameterOwned];
     type SerializedDataSubmessageElementType = &'a [u8];
 
     fn new(

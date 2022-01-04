@@ -55,7 +55,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         SequenceNumberElement:
             SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
@@ -148,7 +148,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
         SequenceNumberElement:
             SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
@@ -290,7 +290,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
         SequenceNumberElement:
             SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
