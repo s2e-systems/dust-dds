@@ -4,6 +4,7 @@ use std::{
 };
 
 use rust_dds::{
+    communication::Communication,
     infrastructure::{
         qos::{DataReaderQos, SubscriberQos},
         qos_policy::{
@@ -42,11 +43,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::{
-        message_receiver::MessageReceiver,
-        shared_object::{rtps_shared_new, rtps_shared_read_lock},
-        transport::TransportRead,
-    },
+    utils::shared_object::{rtps_shared_new, rtps_shared_read_lock},
 };
 use rust_rtps_pim::{
     behavior::{
@@ -70,7 +67,7 @@ use rust_rtps_pim::{
     messages::types::Count,
     structure::types::{
         EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
-        BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN,
+        BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
 
@@ -139,19 +136,24 @@ fn send_and_receive_discovery_data_happy_path() {
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )
         .unwrap();
-    let publisher = PublisherImpl::new(
+    let publisher = rtps_shared_new(PublisherImpl::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(GUID_UNKNOWN),
         vec![Arc::new(RwLock::new(data_writer))],
         vec![],
         None,
-        None,
-    );
+    ));
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
     socket.set_nonblocking(true).unwrap();
-    let mut transport = UdpTransport::new(socket);
-    publisher.send_message(&mut transport);
+    let transport = UdpTransport::new(socket);
+    let mut communication = Communication {
+        version: PROTOCOLVERSION,
+        vendor_id: VENDOR_ID_S2E,
+        guid_prefix,
+        transport,
+    };
+    communication.send(core::slice::from_ref(&publisher));
 
     // Reception
 
@@ -164,7 +166,7 @@ fn send_and_receive_discovery_data_happy_path() {
         spdp_builtin_participant_rtps_reader_impl,
     );
     let shared_data_reader = rtps_shared_new(data_reader);
-    let subscriber = SubscriberImpl::new(
+    let subscriber = rtps_shared_new(SubscriberImpl::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
             GuidPrefix([6; 12]),
@@ -172,16 +174,10 @@ fn send_and_receive_discovery_data_happy_path() {
         )),
         vec![shared_data_reader.clone()],
         vec![],
-    );
+    ));
 
-    let (source_locator, message) = transport.read().unwrap();
-    let participant_guid_prefix = GuidPrefix([7; 12]);
-    MessageReceiver::new().process_message(
-        participant_guid_prefix,
-        &[rtps_shared_new(subscriber)],
-        source_locator,
-        &message,
-    );
+    communication.receive(core::slice::from_ref(&subscriber));
+
     let shared_data_reader = rtps_shared_read_lock(&shared_data_reader);
 
     let result = shared_data_reader.read(1, &[], &[], &[]).unwrap();
@@ -272,7 +268,7 @@ fn process_discovery_data_happy_path() {
             sedp_builtin_publications_rtps_writer,
         ));
 
-    let publisher = PublisherImpl::new(
+    let publisher = rtps_shared_new(PublisherImpl::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(Guid::new(
             GuidPrefix([4; 12]),
@@ -281,13 +277,18 @@ fn process_discovery_data_happy_path() {
         vec![rtps_shared_new(spdp_builtin_participant_data_writer)],
         vec![sedp_builtin_publications_data_writer.clone()],
         None,
-        None,
-    );
+    ));
 
     let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
     socket.set_nonblocking(true).unwrap();
-    let mut transport = UdpTransport::new(socket);
-    publisher.send_message(&mut transport);
+    let transport = UdpTransport::new(socket);
+    let mut communication = Communication {
+        version: PROTOCOLVERSION,
+        vendor_id: VENDOR_ID_S2E,
+        guid_prefix,
+        transport,
+    };
+    communication.send(core::slice::from_ref(&publisher));
 
     // Reception
 
@@ -301,7 +302,7 @@ fn process_discovery_data_happy_path() {
             spdp_builtin_participant_rtps_reader_impl,
         );
     let shared_data_reader = rtps_shared_new(spdp_builtin_participant_data_reader);
-    let subscriber = SubscriberImpl::new(
+    let subscriber = rtps_shared_new(SubscriberImpl::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
             GuidPrefix([6; 12]),
@@ -309,16 +310,10 @@ fn process_discovery_data_happy_path() {
         )),
         vec![shared_data_reader.clone()],
         vec![],
-    );
+    ));
+    communication.receive(core::slice::from_ref(&subscriber));
 
-    let (source_locator, message) = transport.read().unwrap();
-    let participant_guid_prefix = GuidPrefix([7; 12]);
-    MessageReceiver::new().process_message(
-        participant_guid_prefix,
-        &[rtps_shared_new(subscriber)],
-        source_locator,
-        &message,
-    );
+    communication.receive(core::slice::from_ref(&subscriber));
     let shared_data_reader = rtps_shared_read_lock(&shared_data_reader);
 
     let discovered_participant = shared_data_reader.read(1, &[], &[], &[]).unwrap();
@@ -400,7 +395,7 @@ fn process_discovery_data_happy_path() {
     // );
 
     for _i in 1..14 {
-        publisher.send_message(&mut transport);
+        communication.send(core::slice::from_ref(&publisher));
 
         std::thread::sleep(std::time::Duration::from_millis(50));
     }

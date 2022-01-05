@@ -403,7 +403,6 @@ impl DomainParticipantFactory {
                 sedp_builtin_topics_dds_data_writer.clone(),
             ],
             None,
-            None,
         ));
 
         let user_defined_subscriber_list = rtps_shared_new(Vec::new());
@@ -477,9 +476,9 @@ impl DomainParticipantFactory {
                 let user_defined_publisher_list_lock =
                     rtps_shared_write_lock(&user_defined_publisher_list_arc);
                 for user_defined_publisher in user_defined_publisher_list_lock.iter() {
-                    let user_defined_publisher_lock =
+                    let _user_defined_publisher_lock =
                         rtps_shared_write_lock(&user_defined_publisher);
-                    user_defined_publisher_lock.process_discovery();
+                    // user_defined_publisher_lock.process_discovery();
                 }
             },
             std::time::Duration::from_millis(500),
