@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
     infrastructure::{entity::Entity, qos::DataWriterQos},
@@ -10,72 +8,45 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 use rust_rtps_pim::{
-    behavior::{
-        stateful_writer_behavior::StatefulWriterBehavior,
-        stateless_writer_behavior::StatelessWriterBehavior,
-        writer::{
-            reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations},
-            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyOperations},
-            writer::{RtpsWriterAttributes, RtpsWriterOperations},
-        },
-    },
-    messages::types::Count,
-    structure::{
-        history_cache::{
-            RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations,
-        },
-        types::{ChangeKind, Locator},
-    },
+    behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
+    structure::{history_cache::RtpsHistoryCacheAddChange, types::ChangeKind},
 };
-use rust_rtps_psm::messages::{
-    overall_structure::RtpsSubmessageTypeWrite, submessage_elements::ParameterOwned,
-    submessages::DataSubmessageWrite,
-};
+use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
-use crate::{
-    dds_type::{DdsSerialize, LittleEndian},
-    rtps_impl::rtps_writer_history_cache_impl::WriterCacheChange,
-    utils::clock::Timer,
-};
+use crate::dds_type::{DdsSerialize, LittleEndian};
 
-use super::publisher_impl::{StatefulWriterSubmessageProducer, StatelessWriterSubmessageProducer};
-
-pub struct DataWriterImpl<Foo, W, C> {
+pub struct DataWriterImpl<Foo, W> {
     _qos: DataWriterQos,
     rtps_writer_impl: W,
     _listener: Option<Box<dyn DataWriterListener<DataType = Foo> + Send + Sync>>,
-    heartbeat_timer: C,
-    heartbeat_count: Count,
 }
 
-impl<Foo, W, C> DataWriterImpl<Foo, W, C>
+impl<Foo, W> DataWriterImpl<Foo, W>
 where
     Foo: Send + 'static,
 {
-    pub fn new(qos: DataWriterQos, rtps_writer_impl: W, heartbeat_timer: C) -> Self {
+    pub fn new(qos: DataWriterQos, rtps_writer_impl: W) -> Self {
         Self {
             _qos: qos,
             rtps_writer_impl,
             _listener: None,
-            heartbeat_timer,
-            heartbeat_count: Count(0),
         }
     }
 }
 
-impl<Foo, W, C> AsRef<W> for DataWriterImpl<Foo, W, C> {
+impl<Foo, W> AsRef<W> for DataWriterImpl<Foo, W> {
     fn as_ref(&self) -> &W {
         &self.rtps_writer_impl
     }
 }
 
-impl<Foo, W, C> AsMut<W> for DataWriterImpl<Foo, W, C> {
+impl<Foo, W> AsMut<W> for DataWriterImpl<Foo, W> {
     fn as_mut(&mut self) -> &mut W {
         &mut self.rtps_writer_impl
     }
 }
 
-impl<Foo, W, C, H> DataWriter<Foo> for DataWriterImpl<Foo, W, C>
+impl<Foo, W, H> DataWriter<Foo> for DataWriterImpl<Foo, W>
 where
     Foo: DdsSerialize,
     W: RtpsWriterOperations<
@@ -218,7 +189,7 @@ where
     }
 }
 
-impl<Foo, W, C> Entity for DataWriterImpl<Foo, W, C> {
+impl<Foo, W> Entity for DataWriterImpl<Foo, W> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<DataType = Foo>>;
 
@@ -266,287 +237,178 @@ impl<Foo, W, C> Entity for DataWriterImpl<Foo, W, C> {
     }
 }
 
-impl<Foo, C, W, R, H> StatelessWriterSubmessageProducer for DataWriterImpl<Foo, W, C>
-where
-    for<'a> &'a mut W: IntoIterator<Item = StatelessWriterBehavior<'a, R, H>>,
-    R: RtpsReaderLocatorOperations + RtpsReaderLocatorAttributes + 'static,
-    H: for<'a> RtpsHistoryCacheGetChange<CacheChangeType = WriterCacheChange> + 'static,
-{
-    fn produce_submessages(&mut self) -> Vec<(&'_ Locator, Vec<RtpsSubmessageTypeWrite<'_>>)> {
-        let mut destined_submessages = Vec::new();
+// #[cfg(test)]
+// mod tests {
 
-        for behavior in &mut self.rtps_writer_impl {
-            match behavior {
-                StatelessWriterBehavior::BestEffort(mut best_effort_behavior) => {
-                    let submessages = RefCell::new(Vec::new());
-                    best_effort_behavior.send_unsent_changes(
-                        |data: DataSubmessageWrite| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::Gap(gap))
-                        },
-                    );
-                    let submessages = submessages.take();
-                    if !submessages.is_empty() {
-                        destined_submessages
-                            .push((best_effort_behavior.reader_locator.locator(), submessages));
-                    }
-                }
-                StatelessWriterBehavior::Reliable(_) => todo!(),
-            };
-        }
-        destined_submessages
-    }
-}
+//     use rust_rtps_pim::{
+//         behavior::{
+//             types::{Duration, DURATION_ZERO},
+//             writer::{
+//                 reader_proxy::RtpsReaderProxy,
+//                 stateful_writer::{RtpsStatefulWriterConstructor, RtpsStatefulWriterOperations},
+//             },
+//         },
+//         structure::types::{ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+//     };
 
-impl<Foo, C, W, R, H> StatefulWriterSubmessageProducer for DataWriterImpl<Foo, W, C>
-where
-    W: RtpsWriterAttributes,
-    for<'a> &'a mut W: IntoIterator<Item = StatefulWriterBehavior<'a, R, H>>,
-    H: RtpsHistoryCacheOperations
-        + for<'a> RtpsHistoryCacheGetChange<CacheChangeType = WriterCacheChange>
-        + 'static,
-    R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes + 'static,
-    C: Timer,
-{
-    fn produce_submessages(
-        &mut self,
-    ) -> Vec<(
-        &'_ dyn RtpsReaderProxyAttributes,
-        Vec<RtpsSubmessageTypeWrite<'_>>,
-    )> {
-        let mut destined_submessages = Vec::new();
-        let heartbeat_period_duration = std::time::Duration::new(
-            self.rtps_writer_impl.heartbeat_period().seconds as u64,
-            self.rtps_writer_impl.heartbeat_period().fraction,
-        );
+//     use crate::{
+//         dds_impl::publisher_impl, rtps_impl::rtps_stateful_writer_impl::RtpsStatefulWriterImpl, utils::clock::Timer,
+//     };
 
-        let send_heartbeat = if self.heartbeat_timer.elapsed() > heartbeat_period_duration {
-            self.heartbeat_count += Count(1);
-            self.heartbeat_timer.reset();
-            true
-        } else {
-            false
-        };
+//     use super::*;
+//     struct EmptyTimer;
 
-        for behavior in &mut self.rtps_writer_impl {
-            match behavior {
-                StatefulWriterBehavior::BestEffort(_) => todo!(),
-                StatefulWriterBehavior::Reliable(mut reliable_behavior) => {
-                    let submessages = RefCell::new(Vec::new());
-                    if send_heartbeat {
-                        reliable_behavior.send_heartbeat(self.heartbeat_count, &mut |heartbeat| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::Heartbeat(heartbeat));
-                        });
-                    }
+//     impl Timer for EmptyTimer {
+//         fn reset(&mut self) {
+//             unimplemented!()
+//         }
 
-                    reliable_behavior.send_unsent_changes(
-                        |data| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsSubmessageTypeWrite::Gap(gap))
-                        },
-                    );
+//         fn elapsed(&self) -> std::time::Duration {
+//             unimplemented!()
+//         }
+//     }
 
-                    let submessages = submessages.take();
+//     struct MockData(Vec<u8>);
 
-                    if !submessages.is_empty() {
-                        let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes =
-                            reliable_behavior.reader_proxy;
-                        destined_submessages.push((reader_proxy_attributes, submessages));
-                    }
-                }
-            }
-        }
+//     impl DdsSerialize for MockData {
+//         fn serialize<W: std::io::Write, R: crate::dds_type::Endianness>(
+//             &self,
+//             mut writer: W,
+//         ) -> DDSResult<()> {
+//             writer.write(&self.0).unwrap();
+//             Ok(())
+//         }
+//     }
 
-        destined_submessages
-    }
-}
+// struct MockCacheChange;
 
-#[cfg(test)]
-mod tests {
+// #[test]
+// fn write_w_timestamp() {
+//     struct MockWriterCache;
 
-    use rust_rtps_pim::{
-        behavior::{
-            types::{Duration, DURATION_ZERO},
-            writer::{
-                reader_proxy::RtpsReaderProxy,
-                stateful_writer::{RtpsStatefulWriterConstructor, RtpsStatefulWriterOperations},
-            },
-        },
-        structure::types::{ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
-    };
+//     impl RtpsHistoryCacheAddChange for MockWriterCache {
+//         type CacheChangeType = MockWriterCache;
 
-    use crate::{
-        dds_impl::publisher_impl, rtps_impl::rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-    };
+//         fn add_change(&mut self, _change: Self::CacheChangeType) {}
+//     }
 
-    use super::*;
-    struct EmptyTimer;
+//     struct MockWriter {
+//         cache: MockWriterCache,
+//     }
 
-    impl Timer for EmptyTimer {
-        fn reset(&mut self) {
-            unimplemented!()
-        }
+//     impl RtpsWriterOperations for MockWriter {
+//         type CacheChangeType = MockCacheChange;
 
-        fn elapsed(&self) -> std::time::Duration {
-            unimplemented!()
-        }
-    }
+//         fn new_change(
+//             &mut self,
+//             kind: ChangeKind,
+//             data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+//             inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
+//             handle: InstanceHandle,
+//         ) -> Self::CacheChangeType {
+//             todo!()
+//         }
 
-    struct MockData(Vec<u8>);
+//         // type CacheChangeType;
 
-    impl DdsSerialize for MockData {
-        fn serialize<W: std::io::Write, R: crate::dds_type::Endianness>(
-            &self,
-            mut writer: W,
-        ) -> DDSResult<()> {
-            writer.write(&self.0).unwrap();
-            Ok(())
-        }
-    }
+//         // fn new_change(
+//         //     &mut self,
+//         //     kind: ChangeKind,
+//         //     data: D,
+//         //     inline_qos: P,
+//         //     handle: InstanceHandle,
+//         // ) -> RtpsCacheChange<P, D> {
+//         //     RtpsCacheChange {
+//         //         data_value: data,
+//         //         kind,
+//         //         instance_handle: handle,
+//         //         inline_qos,
+//         //         sequence_number: 1,
+//         //         writer_guid: GUID_UNKNOWN,
+//         //     }
+//         // }
+//     }
 
-    // struct MockCacheChange;
+//     let mut dds_data_writer = DataWriterImpl::new(
+//         DataWriterQos::default(),
+//         MockWriter {
+//             cache: MockWriterCache,
+//         },
+//         Box::new(EmptyTimer),
+//     );
 
-    // #[test]
-    // fn write_w_timestamp() {
-    //     struct MockWriterCache;
+//     let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
+//     dds_data_writer
+//         .write_w_timestamp(
+//             &data_value,
+//             None,
+//             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+//         )
+//         .unwrap();
+// }
 
-    //     impl RtpsHistoryCacheAddChange for MockWriterCache {
-    //         type CacheChangeType = MockWriterCache;
+//     #[test]
+//     fn stateful_writer_heartbeat_send_timer() {
+//         struct MockTimer;
 
-    //         fn add_change(&mut self, _change: Self::CacheChangeType) {}
-    //     }
+//         impl Timer for MockTimer {
+//             fn reset(&mut self) {}
 
-    //     struct MockWriter {
-    //         cache: MockWriterCache,
-    //     }
+//             fn elapsed(&self) -> std::time::Duration {
+//                 std::time::Duration::new(5, 0)
+//             }
+//         }
+//         let guid = GUID_UNKNOWN;
+//         let topic_kind = TopicKind::WithKey;
+//         let reliability_level = ReliabilityKind::Reliable;
+//         let unicast_locator_list = &[];
+//         let multicast_locator_list = &[];
+//         let push_mode = true;
+//         let heartbeat_period = Duration::new(2, 0);
+//         let nack_response_delay = DURATION_ZERO;
+//         let nack_suppression_duration = DURATION_ZERO;
+//         let data_max_size_serialized = None;
 
-    //     impl RtpsWriterOperations for MockWriter {
-    //         type CacheChangeType = MockCacheChange;
+//         let mut rtps_writer_impl = RtpsStatefulWriterImpl::new(
+//             guid,
+//             topic_kind,
+//             reliability_level,
+//             unicast_locator_list,
+//             multicast_locator_list,
+//             push_mode,
+//             heartbeat_period,
+//             nack_response_delay,
+//             nack_suppression_duration,
+//             data_max_size_serialized,
+//         );
+//         let reader_proxy =
+//             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, vec![], vec![], false);
 
-    //         fn new_change(
-    //             &mut self,
-    //             kind: ChangeKind,
-    //             data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
-    //             inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
-    //             handle: InstanceHandle,
-    //         ) -> Self::CacheChangeType {
-    //             todo!()
-    //         }
+//         rtps_writer_impl.matched_reader_add(reader_proxy);
 
-    //         // type CacheChangeType;
+//         let mut data_writer_impl: DataWriterImpl<MockData, _, _> =
+//             DataWriterImpl::new(DataWriterQos::default(), rtps_writer_impl, MockTimer);
 
-    //         // fn new_change(
-    //         //     &mut self,
-    //         //     kind: ChangeKind,
-    //         //     data: D,
-    //         //     inline_qos: P,
-    //         //     handle: InstanceHandle,
-    //         // ) -> RtpsCacheChange<P, D> {
-    //         //     RtpsCacheChange {
-    //         //         data_value: data,
-    //         //         kind,
-    //         //         instance_handle: handle,
-    //         //         inline_qos,
-    //         //         sequence_number: 1,
-    //         //         writer_guid: GUID_UNKNOWN,
-    //         //     }
-    //         // }
-    //     }
+//         let destined_submessages1 =
+//             publisher_impl::StatefulWriterSubmessageProducer::produce_submessages(
+//                 &mut data_writer_impl,
+//             );
+//         let produced_submessages1 = &destined_submessages1[0].1;
+//         assert_eq!(produced_submessages1.len(), 1);
+//         if let RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage) = &produced_submessages1[0]
+//         {
+//             assert_eq!(heartbeat_submessage.count.value, Count(1));
+//         } else {
+//             assert!(false, "Wrong submessage");
+//         }
 
-    //     let mut dds_data_writer = DataWriterImpl::new(
-    //         DataWriterQos::default(),
-    //         MockWriter {
-    //             cache: MockWriterCache,
-    //         },
-    //         Box::new(EmptyTimer),
-    //     );
-
-    //     let data_value = MockData(vec![0, 1, 0, 0, 7, 3]);
-    //     dds_data_writer
-    //         .write_w_timestamp(
-    //             &data_value,
-    //             None,
-    //             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-    //         )
-    //         .unwrap();
-    // }
-
-    #[test]
-    fn stateful_writer_heartbeat_send_timer() {
-        struct MockTimer;
-
-        impl Timer for MockTimer {
-            fn reset(&mut self) {}
-
-            fn elapsed(&self) -> std::time::Duration {
-                std::time::Duration::new(5, 0)
-            }
-        }
-        let guid = GUID_UNKNOWN;
-        let topic_kind = TopicKind::WithKey;
-        let reliability_level = ReliabilityKind::Reliable;
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let push_mode = true;
-        let heartbeat_period = Duration::new(2, 0);
-        let nack_response_delay = DURATION_ZERO;
-        let nack_suppression_duration = DURATION_ZERO;
-        let data_max_size_serialized = None;
-
-        let mut rtps_writer_impl = RtpsStatefulWriterImpl::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_size_serialized,
-        );
-        let reader_proxy =
-            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, vec![], vec![], false);
-
-        rtps_writer_impl.matched_reader_add(reader_proxy);
-
-        let mut data_writer_impl: DataWriterImpl<MockData, _, _> =
-            DataWriterImpl::new(DataWriterQos::default(), rtps_writer_impl, MockTimer);
-
-        let destined_submessages1 =
-            publisher_impl::StatefulWriterSubmessageProducer::produce_submessages(
-                &mut data_writer_impl,
-            );
-        let produced_submessages1 = &destined_submessages1[0].1;
-        assert_eq!(produced_submessages1.len(), 1);
-        if let RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage) = &produced_submessages1[0]
-        {
-            assert_eq!(heartbeat_submessage.count.value, Count(1));
-        } else {
-            assert!(false, "Wrong submessage");
-        }
-
-        let destined_submessages2 = data_writer_impl.produce_submessages();
-        let produced_submessages2 = &destined_submessages2[0].1;
-        if let RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage) = &produced_submessages2[0]
-        {
-            assert_eq!(heartbeat_submessage.count.value, Count(2));
-        } else {
-            assert!(false, "Wrong submessage");
-        }
-    }
-}
+//         let destined_submessages2 = data_writer_impl.produce_submessages();
+//         let produced_submessages2 = &destined_submessages2[0].1;
+//         if let RtpsSubmessageTypeWrite::Heartbeat(heartbeat_submessage) = &produced_submessages2[0]
+//         {
+//             assert_eq!(heartbeat_submessage.count.value, Count(2));
+//         } else {
+//             assert!(false, "Wrong submessage");
+//         }
+//     }
+// }

@@ -123,6 +123,8 @@ pub struct ReliableStatefulWriterBehavior<'a, R, C> {
     pub writer_cache: &'a C,
     pub last_change_sequence_number: &'a SequenceNumber,
     pub writer_guid: &'a Guid,
+    pub heartbeat_count: &'a Count,
+    pub after_heartbeat_period: bool,
 }
 
 impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
@@ -211,7 +213,6 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     /// Implement 8.4.9.2.7 Transition T7
     pub fn send_heartbeat<Heartbeat, EntityIdElement, CountElement, SequenceNumberElement>(
         &mut self,
-        heartbeat_count: Count,
         mut send_heartbeat: impl FnMut(Heartbeat),
     ) where
         C: RtpsHistoryCacheOperations,
@@ -225,26 +226,29 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         SequenceNumberElement:
             SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
     {
-        let endianness_flag = true;
-        let final_flag = false;
-        let liveliness_flag = false;
-        let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-        let writer_id = EntityIdElement::new(&self.writer_guid.entity_id);
-        let first_sn =
-            SequenceNumberElement::new(&self.writer_cache.get_seq_num_min().unwrap_or(0));
-        let last_sn = SequenceNumberElement::new(&self.writer_cache.get_seq_num_min().unwrap_or(0));
-        let count = CountElement::new(&heartbeat_count);
-        let heartbeat_submessage = Heartbeat::new(
-            endianness_flag,
-            final_flag,
-            liveliness_flag,
-            reader_id,
-            writer_id,
-            first_sn,
-            last_sn,
-            count,
-        );
-        send_heartbeat(heartbeat_submessage)
+        if self.after_heartbeat_period {
+            let endianness_flag = true;
+            let final_flag = false;
+            let liveliness_flag = false;
+            let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
+            let writer_id = EntityIdElement::new(&self.writer_guid.entity_id);
+            let first_sn =
+                SequenceNumberElement::new(&self.writer_cache.get_seq_num_min().unwrap_or(0));
+            let last_sn =
+                SequenceNumberElement::new(&self.writer_cache.get_seq_num_min().unwrap_or(0));
+            let count = CountElement::new(self.heartbeat_count);
+            let heartbeat_submessage = Heartbeat::new(
+                endianness_flag,
+                final_flag,
+                liveliness_flag,
+                reader_id,
+                writer_id,
+                first_sn,
+                last_sn,
+                count,
+            );
+            send_heartbeat(heartbeat_submessage)
+        }
     }
 
     /// Implement 8.4.9.2.8 Transition T8

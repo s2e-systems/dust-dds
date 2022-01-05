@@ -12,6 +12,7 @@ use rust_rtps_pim::{
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
+    messages::types::Count,
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
@@ -21,7 +22,9 @@ use rust_rtps_pim::{
         },
     },
 };
-use rust_rtps_psm::messages::submessage_elements::{ParameterOwned};
+use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
+
+use crate::utils::clock::{StdTimer, Timer};
 
 use super::{
     rtps_reader_proxy_impl::RtpsReaderProxyImpl,
@@ -42,6 +45,8 @@ pub struct RtpsStatefulWriterImpl {
     data_max_size_serialized: Option<i32>,
     writer_cache: WriterHistoryCache,
     matched_readers: Vec<RtpsReaderProxyImpl>,
+    heartbeat_timer: StdTimer,
+    heartbeat_count: Count,
 }
 
 impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
@@ -94,6 +99,8 @@ impl RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl {
             data_max_size_serialized,
             writer_cache: WriterHistoryCache::new(),
             matched_readers: Vec::new(),
+            heartbeat_timer: StdTimer::new(),
+            heartbeat_count: Count(0),
         }
     }
 }
@@ -186,6 +193,8 @@ pub struct RtpsReaderProxyIterator<'a> {
     last_change_sequence_number: &'a SequenceNumber,
     reliability_level: &'a ReliabilityKind,
     writer_guid: &'a Guid,
+    heartbeat_count: &'a Count,
+    after_heartbeat_period: bool,
 }
 
 impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
@@ -207,6 +216,8 @@ impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
                     writer_cache: self.writer_cache,
                     last_change_sequence_number: self.last_change_sequence_number,
                     writer_guid: self.writer_guid,
+                    heartbeat_count: self.heartbeat_count,
+                    after_heartbeat_period: self.after_heartbeat_period,
                 },
             )),
         }
@@ -218,12 +229,27 @@ impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
     type IntoIter = RtpsReaderProxyIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
+        let heartbeat_period_duration = std::time::Duration::new(
+            self.heartbeat_period.seconds as u64,
+            self.heartbeat_period.fraction,
+        );
+
+        let after_heartbeat_period = if self.heartbeat_timer.elapsed() > heartbeat_period_duration {
+            self.heartbeat_count += Count(1);
+            self.heartbeat_timer.reset();
+            true
+        } else {
+            false
+        };
+
         RtpsReaderProxyIterator {
             reader_proxy_iterator: self.matched_readers.iter_mut(),
             writer_cache: &self.writer_cache,
             last_change_sequence_number: &self.last_change_sequence_number,
             reliability_level: &self.reliability_level,
             writer_guid: &self.guid,
+            heartbeat_count: &self.heartbeat_count,
+            after_heartbeat_period,
         }
     }
 }

@@ -1,5 +1,6 @@
 use std::{
     any::Any,
+    cell::RefCell,
     sync::{
         atomic::{self, AtomicU8},
         Arc, Mutex, RwLock,
@@ -33,20 +34,26 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::{
         reader::writer_proxy::RtpsWriterProxy,
+        stateful_writer_behavior::StatefulWriterBehavior,
+        stateless_writer_behavior::StatelessWriterBehavior,
         writer::{
-            reader_proxy::RtpsReaderProxyAttributes, stateful_writer::RtpsStatefulWriterConstructor,
+            reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
+            stateful_writer::RtpsStatefulWriterConstructor,
         },
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         entity::RtpsEntityAttributes,
         types::{
-            EntityId, Guid, Locator, ReliabilityKind, TopicKind, PROTOCOLVERSION,
+            EntityId, Guid, ReliabilityKind, TopicKind, PROTOCOLVERSION,
             USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY, VENDOR_ID_S2E,
         },
     },
 };
-use rust_rtps_psm::messages::overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite};
+use rust_rtps_psm::messages::{
+    overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
+    submessages::DataSubmessageWrite,
+};
 
 use crate::{
     data_representation_builtin_endpoints::sedp_discovered_writer_data::SedpDiscoveredWriterData,
@@ -58,7 +65,6 @@ use crate::{
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::{
-        clock::StdTimer,
         shared_object::{
             rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock, RtpsShared,
         },
@@ -68,28 +74,15 @@ use crate::{
 
 use super::data_reader_impl::DataReaderImpl;
 
-pub trait StatelessWriterSubmessageProducer {
-    fn produce_submessages(&mut self) -> Vec<(&'_ Locator, Vec<RtpsSubmessageTypeWrite<'_>>)>;
-}
-
-pub trait StatefulWriterSubmessageProducer {
-    fn produce_submessages(
-        &mut self,
-    ) -> Vec<(
-        &'_ dyn RtpsReaderProxyAttributes,
-        Vec<RtpsSubmessageTypeWrite<'_>>,
-    )>;
-}
-
 pub trait AnyStatelessDataWriter {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
     fn into_as_mut_stateless_writer(
         self: Arc<Self>,
-    ) -> Arc<RwLock<dyn StatelessWriterSubmessageProducer>>;
+    ) -> Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>>;
 }
 
-impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl, StdTimer>>
+impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl>>
 where
     T: Send + Sync + 'static,
 {
@@ -99,7 +92,7 @@ where
 
     fn into_as_mut_stateless_writer(
         self: Arc<Self>,
-    ) -> Arc<RwLock<dyn StatelessWriterSubmessageProducer>> {
+    ) -> Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>> {
         self
     }
 }
@@ -109,10 +102,10 @@ pub trait AnyStatefulDataWriter {
 
     fn into_as_mut_stateful_writer(
         self: Arc<Self>,
-    ) -> Arc<RwLock<dyn StatefulWriterSubmessageProducer>>;
+    ) -> Arc<RwLock<dyn AsMut<RtpsStatefulWriterImpl>>>;
 }
 
-impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl, StdTimer>>
+impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl>>
 where
     T: Send + Sync + 'static,
 {
@@ -122,7 +115,7 @@ where
 
     fn into_as_mut_stateful_writer(
         self: Arc<Self>,
-    ) -> Arc<RwLock<dyn StatefulWriterSubmessageProducer>> {
+    ) -> Arc<RwLock<dyn AsMut<RtpsStatefulWriterImpl>>> {
         self
     }
 }
@@ -188,7 +181,33 @@ impl PublisherImpl {
         for stateless_writer in stateless_data_writer_list_lock.iter().cloned() {
             let rtps_stateless_writer_arc_lock = stateless_writer.into_as_mut_stateless_writer();
             let mut rtps_stateless_writer_lock = rtps_stateless_writer_arc_lock.write().unwrap();
-            let destined_submessages = rtps_stateless_writer_lock.produce_submessages();
+            let mut destined_submessages = Vec::new();
+
+            for behavior in rtps_stateless_writer_lock.as_mut() {
+                match behavior {
+                    StatelessWriterBehavior::BestEffort(mut best_effort_behavior) => {
+                        let submessages = RefCell::new(Vec::new());
+                        best_effort_behavior.send_unsent_changes(
+                            |data: DataSubmessageWrite| {
+                                submessages
+                                    .borrow_mut()
+                                    .push(RtpsSubmessageTypeWrite::Data(data))
+                            },
+                            |gap| {
+                                submessages
+                                    .borrow_mut()
+                                    .push(RtpsSubmessageTypeWrite::Gap(gap))
+                            },
+                        );
+                        let submessages = submessages.take();
+                        if !submessages.is_empty() {
+                            destined_submessages
+                                .push((best_effort_behavior.reader_locator.locator(), submessages));
+                        }
+                    }
+                    StatelessWriterBehavior::Reliable(_) => todo!(),
+                };
+            }
 
             for (locator, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);
@@ -202,7 +221,42 @@ impl PublisherImpl {
             let rtps_stateful_writer_arc_lock = stateful_writer.into_as_mut_stateful_writer();
             let mut rtps_stateful_writer_lock = rtps_stateful_writer_arc_lock.write().unwrap();
 
-            let destined_submessages = rtps_stateful_writer_lock.produce_submessages();
+            let mut destined_submessages = Vec::new();
+
+            for behavior in rtps_stateful_writer_lock.as_mut() {
+                match behavior {
+                    StatefulWriterBehavior::BestEffort(_) => todo!(),
+                    StatefulWriterBehavior::Reliable(mut reliable_behavior) => {
+                        let submessages = RefCell::new(Vec::new());
+                        reliable_behavior.send_heartbeat(&mut |heartbeat| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsSubmessageTypeWrite::Heartbeat(heartbeat));
+                        });
+
+                        reliable_behavior.send_unsent_changes(
+                            |data| {
+                                submessages
+                                    .borrow_mut()
+                                    .push(RtpsSubmessageTypeWrite::Data(data))
+                            },
+                            |gap| {
+                                submessages
+                                    .borrow_mut()
+                                    .push(RtpsSubmessageTypeWrite::Gap(gap))
+                            },
+                        );
+
+                        let submessages = submessages.take();
+
+                        if !submessages.is_empty() {
+                            let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes =
+                                reliable_behavior.reader_proxy;
+                            destined_submessages.push((reader_proxy_attributes, submessages));
+                        }
+                    }
+                }
+            }
 
             for (reader_proxy, submessage) in destined_submessages {
                 let message = RtpsMessageWrite::new(message_header.clone(), submessage);
@@ -325,7 +379,7 @@ where
                 )
                 .unwrap();
         }
-        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl, StdTimer::new());
+        let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
         self.stateful_data_writer_impl_list
             .lock()
@@ -347,10 +401,7 @@ where
     ) -> Option<Self::DataWriterType> {
         let data_writer_impl_list_lock = self.stateful_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatefulWriterImpl, StdTimer>>>(
-                x.into_any(),
-            )
-            .ok()
+            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatefulWriterImpl>>>(x.into_any()).ok()
         });
 
         if let Some(found_data_writer) = found_data_writer {
@@ -359,10 +410,7 @@ where
 
         let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatelessWriterImpl, StdTimer>>>(
-                x.into_any(),
-            )
-            .ok()
+            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatelessWriterImpl>>>(x.into_any()).ok()
         });
 
         if let Some(found_data_writer) = found_data_writer {

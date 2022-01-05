@@ -43,7 +43,6 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::{
-        clock::StdTimer,
         message_receiver::MessageReceiver,
         shared_object::{rtps_shared_new, rtps_shared_read_lock},
         transport::TransportRead,
@@ -131,7 +130,6 @@ fn send_and_receive_discovery_data_happy_path() {
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         spdp_builtin_participant_rtps_writer,
-        StdTimer::new(),
     );
 
     data_writer
@@ -255,7 +253,6 @@ fn process_discovery_data_happy_path() {
     let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
         spdp_builtin_participant_rtps_writer,
-        StdTimer::new(),
     );
 
     spdp_builtin_participant_data_writer
@@ -270,10 +267,9 @@ fn process_discovery_data_happy_path() {
         SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
     let sedp_builtin_publications_data_writer =
-        rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _, _>::new(
+        rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
             DataWriterQos::default(),
             sedp_builtin_publications_rtps_writer,
-            StdTimer::new(),
         ));
 
     let publisher = PublisherImpl::new(

@@ -37,10 +37,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::{
-        clock::StdTimer,
-        shared_object::{rtps_shared_new, rtps_shared_write_lock, RtpsShared},
-    },
+    utils::shared_object::{rtps_shared_new, rtps_shared_write_lock, RtpsShared},
 };
 use rust_rtps_pim::{
     behavior::{
@@ -338,10 +335,9 @@ impl DomainParticipantFactory {
             ));
 
         let spdp_builtin_participant_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SpdpDiscoveredParticipantData, _, _>::new(
+            rtps_shared_new(DataWriterImpl::<SpdpDiscoveredParticipantData, _>::new(
                 DataWriterQos::default(),
                 spdp_builtin_participant_rtps_writer,
-                StdTimer::new(),
             ));
 
         let sedp_builtin_publications_dds_data_reader =
@@ -351,10 +347,9 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_publications_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_publications_rtps_writer,
-                StdTimer::new(),
             ));
 
         let sedp_builtin_subscriptions_dds_data_reader =
@@ -364,10 +359,9 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_subscriptions_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData, _, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_subscriptions_rtps_writer,
-                StdTimer::new(),
             ));
 
         let sedp_builtin_topics_dds_data_reader =
@@ -377,10 +371,9 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_topics_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData, _, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData, _>::new(
                 DataWriterQos::default(),
                 sedp_builtin_topics_rtps_writer,
-                StdTimer::new(),
             ));
 
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
