@@ -22,17 +22,19 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 
+use super::data_reader_impl::DataReaderImpl;
+
 pub struct DataReaderProxy<'dr, Foo> {
     subscriber: &'dr dyn Subscriber,
     topic: &'dr dyn TopicDescription<Foo>,
-    data_reader_impl: RtpsWeak<dyn DataReader<Foo> + Send + Sync>,
+    data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
 }
 
 impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
     pub fn new(
         subscriber: &'dr dyn Subscriber,
         topic: &'dr dyn TopicDescription<Foo>,
-        data_reader_impl: RtpsWeak<dyn DataReader<Foo> + Send + Sync>,
+        data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
     ) -> Self {
         Self {
             subscriber,
@@ -42,8 +44,8 @@ impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
     }
 }
 
-impl<'dr, Foo> AsRef<RtpsWeak<dyn DataReader<Foo> + Send + Sync>> for DataReaderProxy<'dr, Foo> {
-    fn as_ref(&self) -> &RtpsWeak<dyn DataReader<Foo> + Send + Sync> {
+impl<'dr, Foo> AsRef<RtpsWeak<DataReaderImpl<Foo>>> for DataReaderProxy<'dr, Foo> {
+    fn as_ref(&self) -> &RtpsWeak<DataReaderImpl<Foo>> {
         &self.data_reader_impl
     }
 }
