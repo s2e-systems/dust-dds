@@ -26,7 +26,7 @@ The crates are divided as:
 
 This section described some of the detailed design decisions on the different crates in particular on the DDS API and DDS RTPS implementation. The DDS standard describes a hierarchy which is shown in the following figure.
 
-![DDS hierarchy](./dds_hierarchy.png)
+![DDS hierarchy](./dds_hierarchy.drawio.png)
 
 The Domain Participant is the first entity created by the user which registers the intent of participating in a given communication domain identified by an ID. This Domain Participant is a factory for Publishers, Topics and Subscribers. In turn, the Publisher is a factory for Data Writers which allows the user to update information on a given associated topic (the associated topic is shown in a dashed line.) The Subscriber is a factory for Data Readers which allows the user to receive information from a given associated topic. Topics, Data Readers and Data Writers have a generic type T associated to them which is defined at run-time and must be a data structure which can be communicated over DDS. All of the DDS types are also Entities, each with its own associated QoS and listener type.
 
