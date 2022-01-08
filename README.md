@@ -1,23 +1,25 @@
 # S2E Rust DDS and RTPS
 
 ## Introduction
+
 This repository contains the S2E implementation of the OMG [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) protocols using the [Rust programming language](https://www.rust-lang.org/).
 
 The aim of this project was to create a high-quality Rust implementation of the minimum DDS profile. For high-quality it is meant that the implementation should be done using stable Rust and ideally without unsafe code and with large unit test code coverage. Additionally it is desirable to keep the implementation modular to the extent that different protocols and communication channels can be added with a reasonable amount of effort.
 
 ## High-level crate architecture
 
-This section briefly describes the high-level architecture at crate level. The implementation is divided in 6 crates as shown in the figure below.
+This section briefly describes the high-level architecture at crate level. The implementation is divided in 5 crates as shown in the figure below.
 
-![Project architecture](./architecture.png)
+![Project architecture](./architecture.drawio.png)
 
 The crates are divided as:
+
 1. **DDS API**: This crate implements the [OMG DDS standard](https://www.omg.org/spec/DDS/1.4/PDF). It is structured following the standard and is essentially divided in two parts:
     1. Infrastructure: The infrastructure folder defines and implements functional components that are used in the API. Examples of this are Quality of Service (QoS) structures and basic listener and entity traits. Built-in topic types are also defined as part of the infrastructure since their definition is done as part of the standard.
     2. API: The remaining folders contain the API definition using traits.
 2. **RTPS**: This crate implements the Platform-Independent Model (PIM) of the [OMG RTPS standard](https://www.omg.org/spec/DDSI-RTPS/2.3/PDF).
-3. **RTPS transport UDP**: This crate implements the standardized UDP Platform-Specific Model (PSM) of the [OMG RTPS standard](https://www.omg.org/spec/DDSI-RTPS/2.3/PDF). 
-4. **DDS/RTPS implementation**: This crate provides an implementation of the DDS API using RTPS. This implementation is not standardized. 
+3. **RTPS transport UDP**: This crate implements the standardized UDP Platform-Specific Model (PSM) of the [OMG RTPS standard](https://www.omg.org/spec/DDSI-RTPS/2.3/PDF).
+4. **DDS/RTPS implementation**: This crate provides an implementation of the DDS API using RTPS. This implementation is not standardized.
 5. **DDS**: This crate is the entry-point for the user and contains the Domain Participant factory. It also re-exports the DDS API crate to enable the user to, for example, use the functions defined in the API traits and create QoS structs.
 
 ## Detailed design
@@ -117,7 +119,7 @@ pub trait DomainParticipantChild<'a> {
 }
 ```
 
-and make the function 
+and make the function
 
 ``` rust
 fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
@@ -140,5 +142,5 @@ pub struct RtpsTopic<'a, T: DDSType> {
     parent_participant: &'a RtpsDomainParticipant,
     topic_ref: RtpsAnyTopicRef<'a>,
     phantom_data: PhantomData<T>,
-} 
+}
 ```
