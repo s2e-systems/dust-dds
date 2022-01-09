@@ -147,7 +147,7 @@ fn task_discovery(
     sedp_builtin_topics_writer: &mut impl RtpsStatefulWriterOperations<Vec<Locator>>,
     sedp_builtin_topics_reader: &mut impl RtpsStatefulReaderOperations<Vec<Locator>>,
 ) {
-    let spdp_builtin_participant_data_reader_lock =
+    let mut spdp_builtin_participant_data_reader_lock =
         rtps_shared_write_lock(&spdp_builtin_participant_data_reader_arc);
     let samples = spdp_builtin_participant_data_reader_lock
         .read_borrowed_samples(1, &[], &[], &[])
@@ -296,24 +296,20 @@ impl DomainParticipantFactory {
         let default_transport = UdpTransport::new(socket);
 
         // /////// Create SPDP and SEDP endpoints
-        let spdp_builtin_participant_rtps_reader = SpdpBuiltinParticipantReader::create::<
-            RtpsStatelessReaderImpl<SpdpDiscoveredParticipantData>,
-        >(guid_prefix, &[], &[]);
+        let spdp_builtin_participant_rtps_reader =
+            SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_rtps_reader = SedpBuiltinPublicationsReader::create::<
-            RtpsStatefulReaderImpl<SedpDiscoveredWriterData>,
-        >(guid_prefix, &[], &[]);
+        let sedp_builtin_publications_rtps_reader =
+            SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_publications_rtps_writer =
             SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_rtps_reader = SedpBuiltinSubscriptionsReader::create::<
-            RtpsStatefulReaderImpl<SedpDiscoveredReaderData>,
-        >(guid_prefix, &[], &[]);
+        let sedp_builtin_subscriptions_rtps_reader =
+            SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_rtps_writer =
             SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_rtps_reader = SedpBuiltinTopicsReader::create::<
-            RtpsStatefulReaderImpl<SedpDiscoveredTopicData>,
-        >(guid_prefix, &[], &[]);
+        let sedp_builtin_topics_rtps_reader =
+            SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_topics_rtps_writer =
             SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
@@ -551,7 +547,7 @@ mod tests {
             type Samples = Vec<&'a T>;
 
             fn read_borrowed_samples(
-                &'a self,
+                &'a mut self,
                 max_samples: i32,
                 sample_states: &[SampleStateKind],
                 view_states: &[ViewStateKind],

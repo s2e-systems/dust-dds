@@ -16,7 +16,7 @@ pub trait DataReaderBorrowedSamples<'a> {
     type Samples;
 
     fn read_borrowed_samples(
-        &'a self,
+        &'a mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
@@ -112,7 +112,7 @@ pub trait DataReader<T> {
     /// read.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn read<'a>(
-        &'a self,
+        &'a mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],

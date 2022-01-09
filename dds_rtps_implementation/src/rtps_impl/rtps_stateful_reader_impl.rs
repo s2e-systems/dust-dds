@@ -19,7 +19,7 @@ use super::{
     rtps_reader_history_cache_impl::ReaderHistoryCache, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 
-pub struct RtpsStatefulReaderImpl<T> {
+pub struct RtpsStatefulReaderImpl {
     guid: Guid,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
@@ -27,12 +27,12 @@ pub struct RtpsStatefulReaderImpl<T> {
     multicast_locator_list: Vec<Locator>,
     heartbeat_response_delay: Duration,
     heartbeat_supression_duration: Duration,
-    reader_cache: ReaderHistoryCache<T>,
+    reader_cache: ReaderHistoryCache,
     expects_inline_qos: bool,
     matched_writers: Vec<RtpsWriterProxyImpl>,
 }
 
-impl<T> RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl<T> {
+impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
     fn new(
         guid: Guid,
         topic_kind: TopicKind,
@@ -58,7 +58,7 @@ impl<T> RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl<T> {
     }
 }
 
-impl<T> RtpsStatefulReaderOperations<Vec<Locator>> for RtpsStatefulReaderImpl<T> {
+impl RtpsStatefulReaderOperations<Vec<Locator>> for RtpsStatefulReaderImpl {
     type WriterProxyType = RtpsWriterProxyImpl;
 
     fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<Vec<Locator>>) {
@@ -78,8 +78,8 @@ impl<T> RtpsStatefulReaderOperations<Vec<Locator>> for RtpsStatefulReaderImpl<T>
     }
 }
 
-impl<T> RtpsReaderAttributes for RtpsStatefulReaderImpl<T> {
-    type ReaderHistoryCacheType = ReaderHistoryCache<T>;
+impl RtpsReaderAttributes for RtpsStatefulReaderImpl {
+    type ReaderHistoryCacheType = ReaderHistoryCache;
 
     fn heartbeat_response_delay(&self) -> &Duration {
         &self.heartbeat_response_delay
@@ -98,7 +98,7 @@ impl<T> RtpsReaderAttributes for RtpsStatefulReaderImpl<T> {
     }
 }
 
-impl<T> RtpsEndpointAttributes for RtpsStatefulReaderImpl<T> {
+impl RtpsEndpointAttributes for RtpsStatefulReaderImpl {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
     }
@@ -116,7 +116,7 @@ impl<T> RtpsEndpointAttributes for RtpsStatefulReaderImpl<T> {
     }
 }
 
-impl<T> RtpsEntityAttributes for RtpsStatefulReaderImpl<T> {
+impl RtpsEntityAttributes for RtpsStatefulReaderImpl {
     fn guid(&self) -> &Guid {
         &self.guid
     }
