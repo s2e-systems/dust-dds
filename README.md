@@ -133,7 +133,7 @@ in a similar way to the GAT traits. The drawback of this solution is that these 
 
 The RTPS implementation of the DDS API follows in parallel to the API itself. For each of the types of the API, a type with RTPS pre-pended to it was created as shown in the next image.
 
-![DDS RTPS hierarchy](./dds_rtps_hierarchy.png)
+![DDS RTPS hierarchy](./dds_rtps_hierarchy.drawio.png)
 
 The DomainParticipant is design to live on the stack and as such its implemented in a manner which is different than the other types. All other types are effectively two references: a regular reference to its parent node and a "maybe-valid" smart reference to the internals of the type. This "maybe-valid" reference is a custom made type which enables creating the creation, deletion and access behavior described in the DDS API documentation which is common to all types. In addition, the generic types over T have an additional phantom field to allow keeping the type information, which is hidden away on the implementation type. The definition of the `RTPSDataWriter` is:
 
