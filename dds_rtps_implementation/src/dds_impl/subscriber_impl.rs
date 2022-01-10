@@ -152,9 +152,18 @@ where
 
     fn datareader_factory_delete_datareader(
         &self,
-        _a_datareader: &Self::DataReaderType,
+        a_datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
-        todo!()
+        let any_data_reader: Arc<dyn AnyDataReader + Send + Sync> = a_datareader.clone();
+        self.stateless_data_reader_list
+            .lock()
+            .unwrap()
+            .retain(|x| !Arc::ptr_eq(x, &any_data_reader));
+        self.stateful_data_reader_list
+            .lock()
+            .unwrap()
+            .retain(|x| !Arc::ptr_eq(x, &any_data_reader));
+        Ok(())
     }
 
     fn datareader_factory_lookup_datareader(
