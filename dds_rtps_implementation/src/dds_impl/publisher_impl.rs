@@ -57,13 +57,13 @@ use crate::{
 
 use super::data_writer_impl::RtpsWriter;
 
-pub trait AnyStatelessDataWriter {
+pub trait AnyDataWriter {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
-    fn into_as_mut_stateless_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>>;
+    fn into_as_mut_rtps_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>>;
 }
 
-impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T>>
+impl<T> AnyDataWriter for RwLock<DataWriterImpl<T>>
 where
     T: Send + Sync + 'static,
 {
@@ -71,26 +71,7 @@ where
         self
     }
 
-    fn into_as_mut_stateless_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>> {
-        self
-    }
-}
-
-pub trait AnyStatefulDataWriter {
-    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
-
-    fn into_as_mut_stateful_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>>;
-}
-
-impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T>>
-where
-    T: Send + Sync + 'static,
-{
-    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
-        self
-    }
-
-    fn into_as_mut_stateful_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>> {
+    fn into_as_mut_rtps_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>> {
         self
     }
 }
@@ -98,8 +79,8 @@ where
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
-    stateless_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyStatelessDataWriter + Send + Sync>>>,
-    stateful_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyStatefulDataWriter + Send + Sync>>>,
+    stateless_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
+    stateful_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     sedp_builtin_publications_announcer:
@@ -107,13 +88,12 @@ pub struct PublisherImpl {
 }
 
 pub struct StatelessWriterListIterator<'a> {
-    stateless_data_writer_list_lock:
-        MutexGuard<'a, Vec<Arc<dyn AnyStatelessDataWriter + Send + Sync>>>,
+    stateless_data_writer_list_lock: MutexGuard<'a, Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
     index: usize,
 }
 
 impl<'a> Iterator for StatelessWriterListIterator<'a> {
-    type Item = Arc<dyn AnyStatelessDataWriter + Send + Sync>;
+    type Item = Arc<dyn AnyDataWriter + Send + Sync>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let item = self.stateless_data_writer_list_lock.get(self.index)?;
@@ -123,13 +103,12 @@ impl<'a> Iterator for StatelessWriterListIterator<'a> {
 }
 
 pub struct StatefulWriterListIterator<'a> {
-    stateful_data_writer_list_lock:
-        MutexGuard<'a, Vec<Arc<dyn AnyStatefulDataWriter + Send + Sync>>>,
+    stateful_data_writer_list_lock: MutexGuard<'a, Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
     index: usize,
 }
 
 impl<'a> Iterator for StatefulWriterListIterator<'a> {
-    type Item = Arc<dyn AnyStatefulDataWriter + Send + Sync>;
+    type Item = Arc<dyn AnyDataWriter + Send + Sync>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let item = self.stateful_data_writer_list_lock.get(self.index)?;
@@ -142,8 +121,8 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        stateless_data_writer_impl_list: Vec<Arc<dyn AnyStatelessDataWriter + Send + Sync>>,
-        stateful_data_writer_impl_list: Vec<Arc<dyn AnyStatefulDataWriter + Send + Sync>>,
+        stateless_data_writer_impl_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
+        stateful_data_writer_impl_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
         sedp_builtin_publications_announcer: Option<
             RtpsShared<dyn DataWriter<SedpDiscoveredWriterData> + Send + Sync>,
         >,
