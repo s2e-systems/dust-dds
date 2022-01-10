@@ -49,10 +49,10 @@ pub trait AnyDataReader {
     fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>>;
 }
 
-impl<T> AnyDataReader for RwLock<DataReaderImpl<T>>
+impl<Foo> AnyDataReader for RwLock<DataReaderImpl<Foo>>
 where
-    for<'a> T: DdsDeserialize<'a>,
-    T: Send + Sync + 'static,
+    for<'a> Foo: DdsDeserialize<'a>,
+    Foo: Send + Sync + 'static,
 {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
