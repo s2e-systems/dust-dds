@@ -1,30 +1,32 @@
 # S2E Rust DDS and RTPS
 
 ## Introduction
+
 This repository contains the S2E implementation of the OMG [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) protocols using the [Rust programming language](https://www.rust-lang.org/).
 
 The aim of this project was to create a high-quality Rust implementation of the minimum DDS profile. For high-quality it is meant that the implementation should be done using stable Rust and ideally without unsafe code and with large unit test code coverage. Additionally it is desirable to keep the implementation modular to the extent that different protocols and communication channels can be added with a reasonable amount of effort.
 
 ## High-level crate architecture
 
-This section briefly describes the high-level architecture at crate level. The implementation is divided in 6 crates as shown in the figure below.
+This section briefly describes the high-level architecture at crate level. The implementation is divided in 5 crates as shown in the figure below.
 
-![Project architecture](./architecture.png)
+![Project architecture](./high_level_architecture.drawio.png)
 
 The crates are divided as:
+
 1. **DDS API**: This crate implements the [OMG DDS standard](https://www.omg.org/spec/DDS/1.4/PDF). It is structured following the standard and is essentially divided in two parts:
     1. Infrastructure: The infrastructure folder defines and implements functional components that are used in the API. Examples of this are Quality of Service (QoS) structures and basic listener and entity traits. Built-in topic types are also defined as part of the infrastructure since their definition is done as part of the standard.
     2. API: The remaining folders contain the API definition using traits.
 2. **RTPS**: This crate implements the Platform-Independent Model (PIM) of the [OMG RTPS standard](https://www.omg.org/spec/DDSI-RTPS/2.3/PDF).
-3. **RTPS transport UDP**: This crate implements the standardized UDP Platform-Specific Model (PSM) of the [OMG RTPS standard](https://www.omg.org/spec/DDSI-RTPS/2.3/PDF). 
-4. **DDS/RTPS implementation**: This crate provides an implementation of the DDS API using RTPS. This implementation is not standardized. 
+3. **RTPS transport UDP**: This crate implements the standardized UDP Platform-Specific Model (PSM) of the [OMG RTPS standard](https://www.omg.org/spec/DDSI-RTPS/2.3/PDF).
+4. **DDS/RTPS implementation**: This crate provides an implementation of the DDS API using RTPS. This implementation is not standardized.
 5. **DDS**: This crate is the entry-point for the user and contains the Domain Participant factory. It also re-exports the DDS API crate to enable the user to, for example, use the functions defined in the API traits and create QoS structs.
 
 ## Detailed design
 
 This section described some of the detailed design decisions on the different crates in particular on the DDS API and DDS RTPS implementation. The DDS standard describes a hierarchy which is shown in the following figure.
 
-![DDS hierarchy](./dds_hierarchy.png)
+![DDS hierarchy](./dds_hierarchy.drawio.png)
 
 The Domain Participant is the first entity created by the user which registers the intent of participating in a given communication domain identified by an ID. This Domain Participant is a factory for Publishers, Topics and Subscribers. In turn, the Publisher is a factory for Data Writers which allows the user to update information on a given associated topic (the associated topic is shown in a dashed line.) The Subscriber is a factory for Data Readers which allows the user to receive information from a given associated topic. Topics, Data Readers and Data Writers have a generic type T associated to them which is defined at run-time and must be a data structure which can be communicated over DDS. All of the DDS types are also Entities, each with its own associated QoS and listener type.
 
@@ -117,7 +119,7 @@ pub trait DomainParticipantChild<'a> {
 }
 ```
 
-and make the function 
+and make the function
 
 ``` rust
 fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
@@ -131,7 +133,7 @@ in a similar way to the GAT traits. The drawback of this solution is that these 
 
 The RTPS implementation of the DDS API follows in parallel to the API itself. For each of the types of the API, a type with RTPS pre-pended to it was created as shown in the next image.
 
-![DDS RTPS hierarchy](./dds_rtps_hierarchy.png)
+![DDS RTPS hierarchy](./dds_rtps_hierarchy.drawio.png)
 
 The DomainParticipant is design to live on the stack and as such its implemented in a manner which is different than the other types. All other types are effectively two references: a regular reference to its parent node and a "maybe-valid" smart reference to the internals of the type. This "maybe-valid" reference is a custom made type which enables creating the creation, deletion and access behavior described in the DDS API documentation which is common to all types. In addition, the generic types over T have an additional phantom field to allow keeping the type information, which is hidden away on the implementation type. The definition of the `RTPSDataWriter` is:
 
@@ -140,5 +142,5 @@ pub struct RtpsTopic<'a, T: DDSType> {
     parent_participant: &'a RtpsDomainParticipant,
     topic_ref: RtpsAnyTopicRef<'a>,
     phantom_data: PhantomData<T>,
-} 
+}
 ```
