@@ -5,6 +5,7 @@ use rust_rtps_pim::{
             stateful_reader::{RtpsStatefulReaderConstructor, RtpsStatefulReaderOperations},
             writer_proxy::{RtpsWriterProxy, RtpsWriterProxyAttributes},
         },
+        stateful_reader_behavior::StatefulReaderBehavior,
         types::Duration,
     },
     structure::{
@@ -119,5 +120,31 @@ impl RtpsEndpointAttributes for RtpsStatefulReaderImpl {
 impl RtpsEntityAttributes for RtpsStatefulReaderImpl {
     fn guid(&self) -> &Guid {
         &self.guid
+    }
+}
+
+impl<'a> IntoIterator for &'a mut RtpsStatefulReaderImpl {
+    type Item = StatefulReaderBehavior<'a, RtpsWriterProxyImpl, ReaderHistoryCache>;
+    type IntoIter = StatefulReaderIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        todo!()
+    }
+}
+
+pub struct StatefulReaderIterator<'a> {
+    reliability_level: &'a ReliabilityKind,
+}
+
+impl<'a> Iterator for StatefulReaderIterator<'a> {
+    type Item = StatefulReaderBehavior<'a, RtpsWriterProxyImpl, ReaderHistoryCache>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.reliability_level {
+            ReliabilityKind::BestEffort => {
+                todo!()
+            }
+            ReliabilityKind::Reliable => todo!(),
+        }
     }
 }

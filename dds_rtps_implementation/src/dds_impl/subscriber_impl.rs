@@ -19,7 +19,10 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::reader::stateful_reader::RtpsStatefulReaderConstructor,
+    behavior::{
+        reader::stateful_reader::RtpsStatefulReaderConstructor,
+        stateful_reader_behavior::StatefulReaderBehavior,
+    },
     structure::{
         entity::RtpsEntityAttributes,
         types::{
@@ -47,6 +50,8 @@ pub trait AnyDataReader {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
     fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>>;
+
+    fn into_as_mut_rtps_reader(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsReader>>>;
 }
 
 impl<Foo> AnyDataReader for RwLock<DataReaderImpl<Foo>>
@@ -59,6 +64,10 @@ where
     }
 
     fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>> {
+        self
+    }
+
+    fn into_as_mut_rtps_reader(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsReader>>> {
         self
     }
 }
@@ -291,16 +300,29 @@ impl ProcessDataSubmessage for SubscriberImpl {
     ) {
         {
             let stateless_data_reader_list = self.stateless_data_reader_list.lock().unwrap();
-            for stateless_reader in stateless_data_reader_list.iter() {
-                rtps_shared_write_lock(&stateless_reader.clone().into_process_data_submessage())
-                    .process_data_submessage(source_guid_prefix, data);
+            for data_reader in stateless_data_reader_list.iter().cloned() {
+                let as_mut_rtps_reader = data_reader.into_as_mut_rtps_reader();
+                let mut rtps_reader_lock = rtps_shared_write_lock(&as_mut_rtps_reader);
+                let stateless_reader = rtps_reader_lock.as_mut().try_as_stateless_reader().unwrap();
+                for mut stateless_reader_behavior in stateless_reader.into_iter() {
+                    stateless_reader_behavior.receive_data(source_guid_prefix, data)
+                }
             }
         }
         {
             let stateful_data_reader_list = self.stateful_data_reader_list.lock().unwrap();
-            for stateful_reader in stateful_data_reader_list.iter() {
-                rtps_shared_write_lock(&stateful_reader.clone().into_process_data_submessage())
-                    .process_data_submessage(source_guid_prefix, data)
+            for data_reader in stateful_data_reader_list.iter().cloned() {
+                let as_mut_rtps_reader = data_reader.into_as_mut_rtps_reader();
+                let mut rtps_reader_lock = rtps_shared_write_lock(&as_mut_rtps_reader);
+                let stateful_reader = rtps_reader_lock.as_mut().try_as_stateful_reader().unwrap();
+                for stateful_reader_behavior in stateful_reader.into_iter() {
+                    match stateful_reader_behavior {
+                        StatefulReaderBehavior::BestEffort(_) => todo!(),
+                        StatefulReaderBehavior::Reliable(mut reliable_stateful_reader) => {
+                            reliable_stateful_reader.receive_data(source_guid_prefix, data)
+                        }
+                    }
+                }
             }
         }
     }
