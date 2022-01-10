@@ -175,7 +175,6 @@ fn send_and_receive_discovery_data_happy_path() {
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),
         vec![shared_data_reader.clone()],
-        vec![],
     ));
 
     communication.receive(core::slice::from_ref(&subscriber));
@@ -311,7 +310,6 @@ fn process_discovery_data_happy_path() {
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),
         vec![shared_data_reader.clone()],
-        vec![],
     ));
     communication.receive(core::slice::from_ref(&subscriber));
 

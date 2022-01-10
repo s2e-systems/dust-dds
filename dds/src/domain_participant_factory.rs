@@ -388,8 +388,8 @@ impl DomainParticipantFactory {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
-            vec![spdp_builtin_participant_dds_data_reader.clone()],
             vec![
+                spdp_builtin_participant_dds_data_reader.clone(),
                 sedp_builtin_publications_dds_data_reader.clone(),
                 sedp_builtin_subscriptions_dds_data_reader.clone(),
                 sedp_builtin_topics_dds_data_reader.clone(),

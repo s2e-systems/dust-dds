@@ -69,8 +69,7 @@ where
 pub struct SubscriberImpl {
     qos: SubscriberQos,
     rtps_group: RtpsGroupImpl,
-    stateless_data_reader_list: Mutex<Vec<Arc<dyn AnyDataReader + Send + Sync>>>,
-    stateful_data_reader_list: Mutex<Vec<Arc<dyn AnyDataReader + Send + Sync>>>,
+    data_reader_list: Mutex<Vec<Arc<dyn AnyDataReader + Send + Sync>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -79,14 +78,12 @@ impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
-        stateless_data_reader_list: Vec<Arc<dyn AnyDataReader + Send + Sync>>,
-        stateful_data_reader_list: Vec<Arc<dyn AnyDataReader + Send + Sync>>,
+        data_reader_list: Vec<Arc<dyn AnyDataReader + Send + Sync>>,
     ) -> Self {
         Self {
             qos,
             rtps_group,
-            stateless_data_reader_list: Mutex::new(stateless_data_reader_list),
-            stateful_data_reader_list: Mutex::new(stateful_data_reader_list),
+            data_reader_list: Mutex::new(data_reader_list),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
         }
@@ -143,7 +140,7 @@ where
         ));
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
-        self.stateful_data_reader_list
+        self.data_reader_list
             .lock()
             .unwrap()
             .push(reader_storage_shared.clone());
@@ -155,11 +152,7 @@ where
         a_datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
         let any_data_reader: Arc<dyn AnyDataReader + Send + Sync> = a_datareader.clone();
-        self.stateless_data_reader_list
-            .lock()
-            .unwrap()
-            .retain(|x| !Arc::ptr_eq(x, &any_data_reader));
-        self.stateful_data_reader_list
+        self.data_reader_list
             .lock()
             .unwrap()
             .retain(|x| !Arc::ptr_eq(x, &any_data_reader));
@@ -170,18 +163,8 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {
-        let stateful_data_reader_list_lock = self.stateful_data_reader_list.lock().unwrap();
-        let found_data_reader = stateful_data_reader_list_lock
-            .iter()
-            .cloned()
-            .find_map(|x| Arc::downcast::<RwLock<DataReaderImpl<Foo>>>(x.into_any()).ok());
-
-        if let Some(found_data_reader) = found_data_reader {
-            return Some(found_data_reader);
-        };
-
-        let stateless_data_reader_list_lock = self.stateless_data_reader_list.lock().unwrap();
-        let found_data_reader = stateless_data_reader_list_lock
+        let data_reader_list_lock = self.data_reader_list.lock().unwrap();
+        let found_data_reader = data_reader_list_lock
             .iter()
             .cloned()
             .find_map(|x| Arc::downcast::<RwLock<DataReaderImpl<Foo>>>(x.into_any()).ok());
@@ -302,27 +285,25 @@ impl ProcessDataSubmessage for SubscriberImpl {
         data: &DataSubmessageRead,
     ) {
         {
-            let stateless_data_reader_list = self.stateless_data_reader_list.lock().unwrap();
-            for data_reader in stateless_data_reader_list.iter().cloned() {
+            let data_reader_list_lock = self.data_reader_list.lock().unwrap();
+            for data_reader in data_reader_list_lock.iter().cloned() {
                 let as_mut_rtps_reader = data_reader.into_as_mut_rtps_reader();
-                let mut rtps_reader_lock = rtps_shared_write_lock(&as_mut_rtps_reader);
-                let stateless_reader = rtps_reader_lock.as_mut().try_as_stateless_reader().unwrap();
-                for mut stateless_reader_behavior in stateless_reader.into_iter() {
-                    stateless_reader_behavior.receive_data(source_guid_prefix, data)
-                }
-            }
-        }
-        {
-            let stateful_data_reader_list = self.stateful_data_reader_list.lock().unwrap();
-            for data_reader in stateful_data_reader_list.iter().cloned() {
-                let as_mut_rtps_reader = data_reader.into_as_mut_rtps_reader();
-                let mut rtps_reader_lock = rtps_shared_write_lock(&as_mut_rtps_reader);
-                let stateful_reader = rtps_reader_lock.as_mut().try_as_stateful_reader().unwrap();
-                for stateful_reader_behavior in stateful_reader.into_iter() {
-                    match stateful_reader_behavior {
-                        StatefulReaderBehavior::BestEffort(_) => todo!(),
-                        StatefulReaderBehavior::Reliable(mut reliable_stateful_reader) => {
-                            reliable_stateful_reader.receive_data(source_guid_prefix, data)
+                let mut as_mut_rtps_reader_lock = rtps_shared_write_lock(&as_mut_rtps_reader);
+                let rtps_reader = as_mut_rtps_reader_lock.as_mut();
+                match rtps_reader {
+                    RtpsReader::Stateless(stateless_rtps_reader) => {
+                        for mut stateless_reader_behavior in stateless_rtps_reader.into_iter() {
+                            stateless_reader_behavior.receive_data(source_guid_prefix, data)
+                        }
+                    }
+                    RtpsReader::Stateful(stateful_rtps_reader) => {
+                        for stateful_reader_behavior in stateful_rtps_reader.into_iter() {
+                            match stateful_reader_behavior {
+                                StatefulReaderBehavior::BestEffort(_) => todo!(),
+                                StatefulReaderBehavior::Reliable(mut reliable_stateful_reader) => {
+                                    reliable_stateful_reader.receive_data(source_guid_prefix, data)
+                                }
+                            }
                         }
                     }
                 }
@@ -395,7 +376,7 @@ mod tests {
                 entity_kind: 1,
             },
         });
-        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![], vec![]);
+        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
         let topic: RtpsShared<dyn TopicDescription<MockDdsType> + Send + Sync> =
             rtps_shared_new(MockTopic::new());
         subscriber
@@ -417,7 +398,7 @@ mod tests {
         });
         let topic: RtpsShared<dyn TopicDescription<MockDdsType> + Send + Sync> =
             rtps_shared_new(MockTopic::new());
-        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![], vec![]);
+        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
         let data_reader = subscriber.lookup_datareader::<MockDdsType>(&topic);
 
         assert!(data_reader.is_none())
@@ -432,7 +413,7 @@ mod tests {
                 entity_kind: 1,
             },
         });
-        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![], vec![]);
+        let subscriber = SubscriberImpl::new(SubscriberQos::default(), rtps_group, vec![]);
         let topic: RtpsShared<dyn TopicDescription<MockDdsType> + Send + Sync> =
             rtps_shared_new(MockTopic::new());
         let other_topic: RtpsShared<dyn TopicDescription<OtherMockDdsType> + Send + Sync> =

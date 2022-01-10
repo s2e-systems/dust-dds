@@ -231,7 +231,7 @@ impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<Sub
         );
         let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
-        let subscriber = SubscriberImpl::new(subscriber_qos, rtps_group, Vec::new(), Vec::new());
+        let subscriber = SubscriberImpl::new(subscriber_qos, rtps_group, Vec::new());
         let subscriber_shared = rtps_shared_new(subscriber);
         rtps_shared_write_lock(&self.user_defined_subscriber_list).push(subscriber_shared.clone());
         Some(subscriber_shared)
