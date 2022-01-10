@@ -1,6 +1,7 @@
 use async_std::stream::StreamExt;
 use std::{
     net::{Ipv4Addr, SocketAddr, UdpSocket},
+    ops::Deref,
     str::FromStr,
     sync::{
         atomic::{self, AtomicBool},
@@ -134,9 +135,9 @@ pub struct EnabledPeriodicTask {
     pub enabled: Arc<AtomicBool>,
 }
 
-fn task_discovery(
+fn task_discovery<T>(
     spdp_builtin_participant_data_reader_arc: &RtpsShared<
-        impl for<'a> DataReaderBorrowedSamples<'a, Samples = Vec<&'a SpdpDiscoveredParticipantData>>,
+        impl for<'a> DataReaderBorrowedSamples<'a, Samples = T>,
     >,
     domain_id: u32,
     domain_tag: &str,
@@ -146,35 +147,42 @@ fn task_discovery(
     sedp_builtin_subscriptions_reader: &mut impl RtpsStatefulReaderOperations<Vec<Locator>>,
     sedp_builtin_topics_writer: &mut impl RtpsStatefulWriterOperations<Vec<Locator>>,
     sedp_builtin_topics_reader: &mut impl RtpsStatefulReaderOperations<Vec<Locator>>,
-) {
+) where
+    T: Deref<Target = [SpdpDiscoveredParticipantData]>,
+{
     let mut spdp_builtin_participant_data_reader_lock =
         rtps_shared_write_lock(&spdp_builtin_participant_data_reader_arc);
-    let samples = spdp_builtin_participant_data_reader_lock
-        .read_borrowed_samples(1, &[], &[], &[])
-        .unwrap_or(vec![]);
-    for discovered_participant in samples {
-        if let Ok(participant_discovery) = ParticipantDiscovery::new(
-            &discovered_participant.participant_proxy,
-            domain_id as u32,
-            domain_tag,
-        ) {
-            participant_discovery
-                .discovered_participant_add_publications_writer(sedp_builtin_publications_writer);
+    if let Ok(samples) =
+        spdp_builtin_participant_data_reader_lock.read_borrowed_samples(1, &[], &[], &[])
+    {
+        for discovered_participant in samples.into_iter() {
+            if let Ok(participant_discovery) = ParticipantDiscovery::new(
+                &discovered_participant.participant_proxy,
+                domain_id as u32,
+                domain_tag,
+            ) {
+                participant_discovery.discovered_participant_add_publications_writer(
+                    sedp_builtin_publications_writer,
+                );
 
-            participant_discovery
-                .discovered_participant_add_publications_reader(sedp_builtin_publication_reader);
+                participant_discovery.discovered_participant_add_publications_reader(
+                    sedp_builtin_publication_reader,
+                );
 
-            participant_discovery
-                .discovered_participant_add_subscriptions_writer(sedp_builtin_subscriptions_writer);
+                participant_discovery.discovered_participant_add_subscriptions_writer(
+                    sedp_builtin_subscriptions_writer,
+                );
 
-            participant_discovery
-                .discovered_participant_add_subscriptions_reader(sedp_builtin_subscriptions_reader);
+                participant_discovery.discovered_participant_add_subscriptions_reader(
+                    sedp_builtin_subscriptions_reader,
+                );
 
-            participant_discovery
-                .discovered_participant_add_topics_writer(sedp_builtin_topics_writer);
+                participant_discovery
+                    .discovered_participant_add_topics_writer(sedp_builtin_topics_writer);
 
-            participant_discovery
-                .discovered_participant_add_topics_reader(sedp_builtin_topics_reader);
+                participant_discovery
+                    .discovered_participant_add_topics_reader(sedp_builtin_topics_reader);
+            }
         }
     }
 }
@@ -448,23 +456,32 @@ impl DomainParticipantFactory {
             spdp_builtin_participant_dds_data_reader.clone();
         let domain_tag_arc = domain_tag.clone();
 
-        // spawner.spawn_enabled_periodic_task(
-        //     "spdp discovery",
-        //     move || {
-        //         task_discovery(
-        //             &spdp_builtin_participant_data_reader_arc,
-        //             domain_id as u32,
-        //             domain_tag_arc.as_ref(),
-        //             rtps_shared_write_lock(&sedp_builtin_publications_dds_data_writer).as_mut(),
-        //             rtps_shared_write_lock(&sedp_builtin_publications_dds_data_reader).as_mut(),
-        //             rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_writer).as_mut(),
-        //             rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_reader).as_mut(),
-        //             rtps_shared_write_lock(&sedp_builtin_topics_dds_data_writer).as_mut(),
-        //             rtps_shared_write_lock(&sedp_builtin_topics_dds_data_reader).as_mut(),
-        //         )
-        //     },
-        //     std::time::Duration::from_millis(500),
-        // );
+        spawner.spawn_enabled_periodic_task(
+            "spdp discovery",
+            move || {
+                task_discovery(
+                    &spdp_builtin_participant_data_reader_arc,
+                    domain_id as u32,
+                    domain_tag_arc.as_ref(),
+                    rtps_shared_write_lock(&sedp_builtin_publications_dds_data_writer).as_mut(),
+                    rtps_shared_write_lock(&sedp_builtin_publications_dds_data_reader)
+                        .as_mut()
+                        .try_as_stateful_reader()
+                        .unwrap(),
+                    rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_writer).as_mut(),
+                    rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_reader)
+                        .as_mut()
+                        .try_as_stateful_reader()
+                        .unwrap(),
+                    rtps_shared_write_lock(&sedp_builtin_topics_dds_data_writer).as_mut(),
+                    rtps_shared_write_lock(&sedp_builtin_topics_dds_data_reader)
+                        .as_mut()
+                        .try_as_stateful_reader()
+                        .unwrap(),
+                )
+            },
+            std::time::Duration::from_millis(500),
+        );
 
         let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
         let _user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
@@ -544,7 +561,7 @@ mod tests {
         DdsDataReader<T: 'static>{}
 
         impl<'a, T>  DataReaderBorrowedSamples<'a> for DdsDataReader<T>{
-            type Samples = Vec<&'a T>;
+            type Samples = Vec<T>;
 
             fn read_borrowed_samples(
                 &'a mut self,
@@ -552,7 +569,7 @@ mod tests {
                 sample_states: &[SampleStateKind],
                 view_states: &[ViewStateKind],
                 instance_states: &[InstanceStateKind],
-            ) -> DDSResult<Vec<&'static T>>;
+            ) -> DDSResult<Vec<T>>;
         }
 
     }
@@ -583,47 +600,47 @@ mod tests {
 
     #[test]
     fn discovery_task_all_sedp_endpoints() {
-        static RETURN_SPDP_DATA: SpdpDiscoveredParticipantData = SpdpDiscoveredParticipantData {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey { value: [5; 16] },
-                user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
-                    value: vec![],
-                },
-            },
-            participant_proxy: ParticipantProxy {
-                domain_id: 1,
-                domain_tag: String::new(),
-                protocol_version: PROTOCOLVERSION,
-                guid_prefix: GuidPrefix([5; 12]),
-                vendor_id: VENDOR_ID_S2E,
-                expects_inline_qos: false,
-                metatraffic_unicast_locator_list: vec![],
-                metatraffic_multicast_locator_list: vec![],
-                default_unicast_locator_list: vec![],
-                default_multicast_locator_list: vec![],
-                available_builtin_endpoints: BuiltinEndpointSet(
-                    BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR,
-                ),
-                manual_liveliness_count: Count(1),
-                builtin_endpoint_qos: BuiltinEndpointQos(0),
-            },
-            lease_duration: rust_rtps_pim::behavior::types::Duration {
-                seconds: 100,
-                fraction: 0,
-            },
-        };
-
         let mut mock_spdp_data_reader = MockDdsDataReader::new();
         mock_spdp_data_reader
             .expect_read_borrowed_samples()
-            .returning(|_, _, _, _| Ok(vec![&RETURN_SPDP_DATA]));
+            .returning(|_, _, _, _| {
+                Ok(vec![SpdpDiscoveredParticipantData {
+                    dds_participant_data: ParticipantBuiltinTopicData {
+                        key: BuiltInTopicKey { value: [5; 16] },
+                        user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
+                            value: vec![],
+                        },
+                    },
+                    participant_proxy: ParticipantProxy {
+                        domain_id: 1,
+                        domain_tag: String::new(),
+                        protocol_version: PROTOCOLVERSION,
+                        guid_prefix: GuidPrefix([5; 12]),
+                        vendor_id: VENDOR_ID_S2E,
+                        expects_inline_qos: false,
+                        metatraffic_unicast_locator_list: vec![],
+                        metatraffic_multicast_locator_list: vec![],
+                        default_unicast_locator_list: vec![],
+                        default_multicast_locator_list: vec![],
+                        available_builtin_endpoints: BuiltinEndpointSet(
+                            BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR,
+                        ),
+                        manual_liveliness_count: Count(1),
+                        builtin_endpoint_qos: BuiltinEndpointQos(0),
+                    },
+                    lease_duration: rust_rtps_pim::behavior::types::Duration {
+                        seconds: 100,
+                        fraction: 0,
+                    },
+                }])
+            });
 
         let mut mock_builtin_publications_writer = MockStatefulWriter::new();
         mock_builtin_publications_writer

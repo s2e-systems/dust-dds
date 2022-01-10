@@ -38,21 +38,29 @@ impl<Foo> std::ops::Deref for Samples<Foo> {
     }
 }
 
-impl<Foo> IntoIterator for Samples<Foo>
-where
-    Foo: 'static,
-{
-    type Item = Foo;
-    type IntoIter = std::vec::IntoIter<Foo>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.samples.into_iter()
-    }
-}
-
 pub enum RtpsReader {
     Stateless(RtpsStatelessReaderImpl),
     Stateful(RtpsStatefulReaderImpl),
+}
+
+impl RtpsReader {
+    pub fn try_as_stateless_reader(&mut self) -> DDSResult<&mut RtpsStatelessReaderImpl> {
+        match self {
+            RtpsReader::Stateless(x) => Ok(x),
+            RtpsReader::Stateful(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateless reader".to_string(),
+            )),
+        }
+    }
+
+    pub fn try_as_stateful_reader(&mut self) -> DDSResult<&mut RtpsStatefulReaderImpl> {
+        match self {
+            RtpsReader::Stateless(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateful reader".to_string(),
+            )),
+            RtpsReader::Stateful(x) => Ok(x),
+        }
+    }
 }
 
 pub struct DataReaderImpl<Foo> {
