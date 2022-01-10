@@ -192,7 +192,6 @@ impl<S> DomainParticipantPublisherFactory<'_> for DomainParticipantImpl<S, Publi
             publisher_qos,
             rtps_group,
             Vec::new(),
-            Vec::new(),
             sedp_builtin_publications_announcer,
         );
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
@@ -677,7 +676,6 @@ mod tests {
             PublisherQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
             vec![],
-            vec![],
             None,
         );
         let domain_participant = DomainParticipantImpl::new(
@@ -719,7 +717,6 @@ mod tests {
         let builtin_publisher = PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
-            vec![],
             vec![],
             None,
         );

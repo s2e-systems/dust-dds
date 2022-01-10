@@ -79,39 +79,23 @@ where
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
-    stateless_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
-    stateful_data_writer_impl_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
+    data_writer_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     sedp_builtin_publications_announcer:
         Option<RtpsShared<dyn DataWriter<SedpDiscoveredWriterData> + Send + Sync>>,
 }
 
-pub struct StatelessWriterListIterator<'a> {
-    stateless_data_writer_list_lock: MutexGuard<'a, Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
+pub struct DataWriterListIterator<'a> {
+    data_writer_list_lock: MutexGuard<'a, Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
     index: usize,
 }
 
-impl<'a> Iterator for StatelessWriterListIterator<'a> {
+impl<'a> Iterator for DataWriterListIterator<'a> {
     type Item = Arc<dyn AnyDataWriter + Send + Sync>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let item = self.stateless_data_writer_list_lock.get(self.index)?;
-        self.index += 1;
-        Some(item.clone())
-    }
-}
-
-pub struct StatefulWriterListIterator<'a> {
-    stateful_data_writer_list_lock: MutexGuard<'a, Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
-    index: usize,
-}
-
-impl<'a> Iterator for StatefulWriterListIterator<'a> {
-    type Item = Arc<dyn AnyDataWriter + Send + Sync>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let item = self.stateful_data_writer_list_lock.get(self.index)?;
+        let item = self.data_writer_list_lock.get(self.index)?;
         self.index += 1;
         Some(item.clone())
     }
@@ -121,8 +105,7 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        stateless_data_writer_impl_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
-        stateful_data_writer_impl_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
+        data_writer_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
         sedp_builtin_publications_announcer: Option<
             RtpsShared<dyn DataWriter<SedpDiscoveredWriterData> + Send + Sync>,
         >,
@@ -130,24 +113,16 @@ impl PublisherImpl {
         Self {
             _qos: qos,
             rtps_group,
-            stateless_data_writer_impl_list: Mutex::new(stateless_data_writer_impl_list),
-            stateful_data_writer_impl_list: Mutex::new(stateful_data_writer_impl_list),
+            data_writer_list: Mutex::new(data_writer_list),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             sedp_builtin_publications_announcer,
         }
     }
 
-    pub fn iter_stateless_writer_list(&self) -> StatelessWriterListIterator {
-        StatelessWriterListIterator {
-            stateless_data_writer_list_lock: self.stateless_data_writer_impl_list.lock().unwrap(),
-            index: 0,
-        }
-    }
-
-    pub fn iter_stateful_writer_list(&self) -> StatefulWriterListIterator {
-        StatefulWriterListIterator {
-            stateful_data_writer_list_lock: self.stateful_data_writer_impl_list.lock().unwrap(),
+    pub fn iter_data_writer_list(&self) -> DataWriterListIterator {
+        DataWriterListIterator {
+            data_writer_list_lock: self.data_writer_list.lock().unwrap(),
             index: 0,
         }
     }
@@ -256,7 +231,7 @@ where
         }
         let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
-        self.stateful_data_writer_impl_list
+        self.data_writer_list
             .lock()
             .unwrap()
             .push(data_writer_impl_shared.clone());
@@ -274,7 +249,7 @@ where
         &'_ self,
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
-        let data_writer_impl_list_lock = self.stateful_data_writer_impl_list.lock().unwrap();
+        let data_writer_impl_list_lock = self.data_writer_list.lock().unwrap();
         let found_data_writer = data_writer_impl_list_lock
             .iter()
             .cloned()
@@ -283,17 +258,6 @@ where
         if let Some(found_data_writer) = found_data_writer {
             return Some(found_data_writer);
         };
-
-        let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
-        let found_data_writer = data_writer_impl_list_lock
-            .iter()
-            .cloned()
-            .find_map(|x| Arc::downcast::<RwLock<DataWriterImpl<Foo>>>(x.into_any()).ok());
-
-        if let Some(found_data_writer) = found_data_writer {
-            return Some(found_data_writer);
-        };
-
         None
     }
 }
@@ -434,13 +398,8 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_some_value() {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
-        let mut publisher_impl = PublisherImpl::new(
-            PublisherQos::default(),
-            rtps_group_impl,
-            vec![],
-            vec![],
-            None,
-        );
+        let mut publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], None);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -454,13 +413,8 @@ mod tests {
     #[test]
     fn set_default_datawriter_qos_none() {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
-        let mut publisher_impl = PublisherImpl::new(
-            PublisherQos::default(),
-            rtps_group_impl,
-            vec![],
-            vec![],
-            None,
-        );
+        let mut publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], None);
 
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -478,13 +432,8 @@ mod tests {
     #[test]
     fn create_datawriter() {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
-        let publisher_impl = PublisherImpl::new(
-            PublisherQos::default(),
-            rtps_group_impl,
-            vec![],
-            vec![],
-            None,
-        );
+        let publisher_impl =
+            PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], None);
         let a_topic_shared: Arc<RwLock<dyn TopicDescription<MockDDSType> + Send + Sync>> =
             rtps_shared_new(MockTopic::new());
 
@@ -498,14 +447,7 @@ mod tests {
             .load(atomic::Ordering::Relaxed);
 
         assert!(datawriter.is_some());
-        assert_eq!(
-            publisher_impl
-                .stateful_data_writer_impl_list
-                .lock()
-                .unwrap()
-                .len(),
-            1
-        );
+        assert_eq!(publisher_impl.data_writer_list.lock().unwrap().len(), 1);
         assert_ne!(data_writer_counter_before, data_writer_counter_after);
     }
 

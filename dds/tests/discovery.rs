@@ -142,7 +142,6 @@ fn send_and_receive_discovery_data_happy_path() {
         PublisherQos::default(),
         RtpsGroupImpl::new(GUID_UNKNOWN),
         vec![Arc::new(RwLock::new(data_writer))],
-        vec![],
         None,
     ));
 
@@ -275,8 +274,10 @@ fn process_discovery_data_happy_path() {
             GuidPrefix([4; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
-        vec![rtps_shared_new(spdp_builtin_participant_data_writer)],
-        vec![sedp_builtin_publications_data_writer.clone()],
+        vec![
+            rtps_shared_new(spdp_builtin_participant_data_writer),
+            sedp_builtin_publications_data_writer.clone(),
+        ],
         None,
     ));
 
