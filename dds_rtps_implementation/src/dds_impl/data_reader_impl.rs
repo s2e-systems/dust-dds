@@ -9,86 +9,110 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::{
-        reader::{
-            reader::RtpsReaderAttributes,
-            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
-        },
-        stateful_reader_behavior::StatefulReaderBehavior,
-    },
+    behavior::reader::reader::RtpsReaderAttributes,
     structure::{
-        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        history_cache::{RtpsHistoryCacheAddChange, RtpsHistoryCacheGetChange},
+        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheGetChange,
         types::GuidPrefix,
     },
 };
-use rust_rtps_psm::messages::{submessages::DataSubmessageRead, submessage_elements::Parameter};
+use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
-    dds_type::DdsDeserialize, rtps_impl::rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    dds_type::DdsDeserialize,
+    rtps_impl::{
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    },
     utils::message_receiver::ProcessDataSubmessage,
 };
 
-pub struct DataReaderImpl<Foo, R> {
-    rtps_reader: R,
-    _qos: DataReaderQos,
-    _listener: Option<Box<dyn DataReaderListener<DataType = Foo> + Send + Sync>>,
+pub struct Samples<Foo> {
+    samples: Vec<Foo>,
 }
 
-impl<Foo, R> AsRef<R> for DataReaderImpl<Foo, R> {
-    fn as_ref(&self) -> &R {
-        &self.rtps_reader
+impl<Foo> std::ops::Deref for Samples<Foo> {
+    type Target = [Foo];
+
+    fn deref(&self) -> &Self::Target {
+        &self.samples
     }
 }
 
-impl<Foo, R> AsMut<R> for DataReaderImpl<Foo, R> {
-    fn as_mut(&mut self) -> &mut R {
-        &mut self.rtps_reader
-    }
+pub enum RtpsReader {
+    Stateless(RtpsStatelessReaderImpl),
+    Stateful(RtpsStatefulReaderImpl),
 }
 
-impl<Foo> ProcessDataSubmessage for DataReaderImpl<Foo, RtpsStatelessReaderImpl<Foo>>
-where
-    Foo: for<'a> DdsDeserialize<'a>,
-{
-    fn process_data_submessage(
-        &mut self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessageRead,
-    ) {
-        for mut behavior in (&mut self.rtps_reader).into_iter() {
-            behavior.receive_data(source_guid_prefix, data)
+impl RtpsReader {
+    pub fn try_as_stateless_reader(&mut self) -> DDSResult<&mut RtpsStatelessReaderImpl> {
+        match self {
+            RtpsReader::Stateless(x) => Ok(x),
+            RtpsReader::Stateful(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateless reader".to_string(),
+            )),
+        }
+    }
+
+    pub fn try_as_stateful_reader(&mut self) -> DDSResult<&mut RtpsStatefulReaderImpl> {
+        match self {
+            RtpsReader::Stateless(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateful reader".to_string(),
+            )),
+            RtpsReader::Stateful(x) => Ok(x),
         }
     }
 }
 
-impl<Foo, R, W, H> ProcessDataSubmessage for DataReaderImpl<Foo, R>
+pub struct DataReaderImpl<Foo> {
+    rtps_reader: RtpsReader,
+    _qos: DataReaderQos,
+    _listener: Option<Box<dyn DataReaderListener<DataType = Foo> + Send + Sync>>,
+}
+
+impl<Foo> AsRef<RtpsReader> for DataReaderImpl<Foo> {
+    fn as_ref(&self) -> &RtpsReader {
+        &self.rtps_reader
+    }
+}
+
+impl<Foo> AsMut<RtpsReader> for DataReaderImpl<Foo> {
+    fn as_mut(&mut self) -> &mut RtpsReader {
+        &mut self.rtps_reader
+    }
+}
+
+impl<Foo> ProcessDataSubmessage for DataReaderImpl<Foo>
 where
     Foo: for<'a> DdsDeserialize<'a>,
-    W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
-    H: RtpsHistoryCacheAddChange,
-    for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = [u8], ParameterListType = [Parameter<'b>]>
-        + RtpsCacheChangeAttributes,
-    for<'a> &'a mut R: IntoIterator<Item = StatefulReaderBehavior<'a, W, H>>,
 {
     fn process_data_submessage(
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        for writer_proxy_behavior in (&mut self.rtps_reader).into_iter() {
-            match writer_proxy_behavior {
-                StatefulReaderBehavior::BestEffort(_) => todo!(),
-                StatefulReaderBehavior::Reliable(mut reliable_writer_proxy_behavior) => {
-                    reliable_writer_proxy_behavior.receive_data(source_guid_prefix, data);
+        match &mut self.rtps_reader {
+            RtpsReader::Stateless(rtps_reader) => {
+                for mut stateless_writer_behavior in rtps_reader.into_iter() {
+                    stateless_writer_behavior.receive_data(source_guid_prefix, data)
                 }
+            }
+            RtpsReader::Stateful(_rtps_reader) => {
+                todo!();
+                // for writer_proxy_behavior in (rtps_reader).into_iter() {
+                //     match writer_proxy_behavior {
+                //         StatefulReaderBehavior::BestEffort(_) => todo!(),
+                //         StatefulReaderBehavior::Reliable(mut reliable_writer_proxy_behavior) => {
+                //             reliable_writer_proxy_behavior.receive_data(source_guid_prefix, data);
+                //         }
+                //     }
+                // }
             }
         }
     }
 }
 
-impl<Foo, R> DataReaderImpl<Foo, R> {
-    pub fn new(qos: DataReaderQos, rtps_reader: R) -> Self {
+impl<Foo> DataReaderImpl<Foo> {
+    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReader) -> Self {
         Self {
             rtps_reader,
             _qos: qos,
@@ -124,34 +148,45 @@ impl<Foo, R> DataReaderImpl<Foo, R> {
 //     })
 //     .collect())
 
-impl<'a, Foo, R, H, CC> DataReaderBorrowedSamples<'a> for DataReaderImpl<Foo, R>
+impl<'a, Foo> DataReaderBorrowedSamples<'a> for DataReaderImpl<Foo>
 where
-    Foo: 'static,
-    R: RtpsReaderAttributes<ReaderHistoryCacheType = H>,
-    H: RtpsHistoryCacheGetChange<CacheChangeType = CC> + 'a,
-    CC: RtpsCacheChangeAttributes<DataType = Foo> + 'a,
+    Foo: for<'de> DdsDeserialize<'de> + 'static,
 {
-    type Samples = Vec<&'a Foo>;
+    type Samples = Samples<Foo>;
 
     fn read_borrowed_samples(
-        &'a self,
+        &'a mut self,
         _max_samples: i32,
         _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
         _instance_states: &[rust_dds_api::dcps_psm::InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        if let Some(cc) = self.rtps_reader.reader_cache().get_change(&1) {
-            Ok(vec![cc.data_value()])
-        } else {
-            Err(DDSError::NoData)
+        match &self.rtps_reader {
+            RtpsReader::Stateless(rtps_reader) => {
+                if let Some(cc) = rtps_reader.reader_cache().get_change(&1) {
+                    Ok(Samples {
+                        samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
+                    })
+                } else {
+                    Err(DDSError::NoData)
+                }
+            }
+            RtpsReader::Stateful(rtps_reader) => {
+                if let Some(cc) = rtps_reader.reader_cache().get_change(&1) {
+                    Ok(Samples {
+                        samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
+                    })
+                } else {
+                    Err(DDSError::NoData)
+                }
+            }
         }
     }
 }
 
-impl<Foo, R> DataReader<Foo> for DataReaderImpl<Foo, R>
+impl<Foo> DataReader<Foo> for DataReaderImpl<Foo>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
-    R: RtpsReaderAttributes,
 {
     fn take(
         &self,
@@ -390,7 +425,7 @@ where
     }
 }
 
-impl<Foo, R> Entity for DataReaderImpl<Foo, R> {
+impl<Foo> Entity for DataReaderImpl<Foo> {
     type Qos = DataReaderQos;
 
     type Listener = Box<dyn DataReaderListener<DataType = Foo>>;

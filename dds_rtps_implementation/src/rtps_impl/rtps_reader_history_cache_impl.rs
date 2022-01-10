@@ -12,14 +12,12 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::submessage_elements::Parameter;
 
-use crate::dds_type::DdsDeserialize;
-
-pub struct ReaderCacheChange<T> {
+pub struct ReaderCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
-    data: T,
+    data: Vec<u8>,
     _source_timestamp: Option<Time>,
     _reception_timestamp: Option<Time>,
     _sample_state_kind: SampleStateKind,
@@ -27,8 +25,8 @@ pub struct ReaderCacheChange<T> {
     _instance_state_kind: InstanceStateKind,
 }
 
-impl<T> RtpsCacheChangeAttributes for ReaderCacheChange<T> {
-    type DataType = T;
+impl RtpsCacheChangeAttributes for ReaderCacheChange {
+    type DataType = [u8];
     type ParameterListType = ();
 
     fn kind(&self) -> &ChangeKind {
@@ -56,10 +54,7 @@ impl<T> RtpsCacheChangeAttributes for ReaderCacheChange<T> {
     }
 }
 
-impl<'b, Foo> RtpsCacheChangeConstructor<'b> for ReaderCacheChange<Foo>
-where
-    Foo: for<'a> DdsDeserialize<'a>,
-{
+impl<'b> RtpsCacheChangeConstructor<'b> for ReaderCacheChange {
     type DataType = [u8];
     type ParameterListType = [Parameter<'b>];
 
@@ -68,7 +63,7 @@ where
         writer_guid: &Guid,
         instance_handle: &InstanceHandle,
         sequence_number: &SequenceNumber,
-        mut data_value: &Self::DataType,
+        data_value: &Self::DataType,
         _inline_qos: &Self::ParameterListType,
     ) -> Self {
         let instance_state_kind = match kind {
@@ -86,14 +81,12 @@ where
                 .as_secs(),
         );
 
-        let data = DdsDeserialize::deserialize(&mut data_value).unwrap();
-
         ReaderCacheChange {
             kind: *kind,
             writer_guid: *writer_guid,
             sequence_number: *sequence_number,
             instance_handle: *instance_handle,
-            data,
+            data: data_value.to_vec(),
             _source_timestamp: None,
             _reception_timestamp: Some(reception_timestamp),
             _sample_state_kind: SampleStateKind::NotRead,
@@ -103,19 +96,19 @@ where
     }
 }
 
-pub struct ReaderHistoryCache<T> {
-    changes: Vec<ReaderCacheChange<T>>,
+pub struct ReaderHistoryCache {
+    changes: Vec<ReaderCacheChange>,
     source_timestamp: Option<Time>,
 }
 
-impl<T> ReaderHistoryCache<T> {
+impl ReaderHistoryCache {
     /// Set the Rtps history cache impl's info.
     pub fn set_source_timestamp(&mut self, info: Option<Time>) {
         self.source_timestamp = info;
     }
 }
 
-impl<T> RtpsHistoryCacheConstructor for ReaderHistoryCache<T> {
+impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
     fn new() -> Self {
         Self {
             changes: Vec::new(),
@@ -124,16 +117,16 @@ impl<T> RtpsHistoryCacheConstructor for ReaderHistoryCache<T> {
     }
 }
 
-impl<Foo> RtpsHistoryCacheAddChange for ReaderHistoryCache<Foo> {
-    type CacheChangeType = ReaderCacheChange<Foo>;
+impl RtpsHistoryCacheAddChange for ReaderHistoryCache {
+    type CacheChangeType = ReaderCacheChange;
 
     fn add_change(&mut self, change: Self::CacheChangeType) {
         self.changes.push(change)
     }
 }
 
-impl<Foo> RtpsHistoryCacheGetChange for ReaderHistoryCache<Foo> {
-    type CacheChangeType = ReaderCacheChange<Foo>;
+impl RtpsHistoryCacheGetChange for ReaderHistoryCache {
+    type CacheChangeType = ReaderCacheChange;
 
     fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
         self.changes
@@ -142,7 +135,7 @@ impl<Foo> RtpsHistoryCacheGetChange for ReaderHistoryCache<Foo> {
     }
 }
 
-impl<T> RtpsHistoryCacheOperations for ReaderHistoryCache<T> {
+impl RtpsHistoryCacheOperations for ReaderHistoryCache {
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
@@ -169,17 +162,10 @@ mod tests {
     use rust_rtps_pim::structure::{cache_change::RtpsCacheChangeConstructor, types::GUID_UNKNOWN};
 
     use super::*;
-    struct MockDdsDeserialize;
-
-    impl DdsDeserialize<'_> for MockDdsDeserialize {
-        fn deserialize(_buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-            Ok(Self)
-        }
-    }
 
     #[test]
     fn add_change() {
-        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
+        let mut hc = ReaderHistoryCache::new();
         let change = ReaderCacheChange::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,
@@ -194,7 +180,7 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
+        let mut hc = ReaderHistoryCache::new();
         let change = ReaderCacheChange::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,
@@ -210,7 +196,7 @@ mod tests {
 
     #[test]
     fn get_change() {
-        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
+        let mut hc = ReaderHistoryCache::new();
         let change = ReaderCacheChange::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,
@@ -226,7 +212,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
+        let mut hc = ReaderHistoryCache::new();
         let change1 = ReaderCacheChange::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,
@@ -250,7 +236,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc: ReaderHistoryCache<MockDdsDeserialize> = ReaderHistoryCache::new();
+        let mut hc = ReaderHistoryCache::new();
         let change1 = ReaderCacheChange::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,

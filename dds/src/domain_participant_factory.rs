@@ -1,6 +1,7 @@
 use async_std::stream::StreamExt;
 use std::{
     net::{Ipv4Addr, SocketAddr, UdpSocket},
+    ops::Deref,
     str::FromStr,
     sync::{
         atomic::{self, AtomicBool},
@@ -26,9 +27,11 @@ use rust_dds_rtps_implementation::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_impl::{
-        data_reader_impl::DataReaderImpl, data_writer_impl::DataWriterImpl,
+        data_reader_impl::{DataReaderImpl, RtpsReader},
+        data_writer_impl::DataWriterImpl,
         domain_participant_impl::DomainParticipantImpl,
-        domain_participant_proxy::DomainParticipantProxy, publisher_impl::PublisherImpl,
+        domain_participant_proxy::DomainParticipantProxy,
+        publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
     rtps_impl::{
@@ -132,9 +135,9 @@ pub struct EnabledPeriodicTask {
     pub enabled: Arc<AtomicBool>,
 }
 
-fn task_discovery(
+fn task_discovery<T>(
     spdp_builtin_participant_data_reader_arc: &RtpsShared<
-        impl for<'a> DataReaderBorrowedSamples<'a, Samples = Vec<&'a SpdpDiscoveredParticipantData>>,
+        impl for<'a> DataReaderBorrowedSamples<'a, Samples = T>,
     >,
     domain_id: u32,
     domain_tag: &str,
@@ -144,35 +147,42 @@ fn task_discovery(
     sedp_builtin_subscriptions_reader: &mut impl RtpsStatefulReaderOperations<Vec<Locator>>,
     sedp_builtin_topics_writer: &mut impl RtpsStatefulWriterOperations<Vec<Locator>>,
     sedp_builtin_topics_reader: &mut impl RtpsStatefulReaderOperations<Vec<Locator>>,
-) {
-    let spdp_builtin_participant_data_reader_lock =
+) where
+    T: Deref<Target = [SpdpDiscoveredParticipantData]>,
+{
+    let mut spdp_builtin_participant_data_reader_lock =
         rtps_shared_write_lock(&spdp_builtin_participant_data_reader_arc);
-    let samples = spdp_builtin_participant_data_reader_lock
-        .read_borrowed_samples(1, &[], &[], &[])
-        .unwrap_or(vec![]);
-    for discovered_participant in samples {
-        if let Ok(participant_discovery) = ParticipantDiscovery::new(
-            &discovered_participant.participant_proxy,
-            domain_id as u32,
-            domain_tag,
-        ) {
-            participant_discovery
-                .discovered_participant_add_publications_writer(sedp_builtin_publications_writer);
+    if let Ok(samples) =
+        spdp_builtin_participant_data_reader_lock.read_borrowed_samples(1, &[], &[], &[])
+    {
+        for discovered_participant in samples.into_iter() {
+            if let Ok(participant_discovery) = ParticipantDiscovery::new(
+                &discovered_participant.participant_proxy,
+                domain_id as u32,
+                domain_tag,
+            ) {
+                participant_discovery.discovered_participant_add_publications_writer(
+                    sedp_builtin_publications_writer,
+                );
 
-            participant_discovery
-                .discovered_participant_add_publications_reader(sedp_builtin_publication_reader);
+                participant_discovery.discovered_participant_add_publications_reader(
+                    sedp_builtin_publication_reader,
+                );
 
-            participant_discovery
-                .discovered_participant_add_subscriptions_writer(sedp_builtin_subscriptions_writer);
+                participant_discovery.discovered_participant_add_subscriptions_writer(
+                    sedp_builtin_subscriptions_writer,
+                );
 
-            participant_discovery
-                .discovered_participant_add_subscriptions_reader(sedp_builtin_subscriptions_reader);
+                participant_discovery.discovered_participant_add_subscriptions_reader(
+                    sedp_builtin_subscriptions_reader,
+                );
 
-            participant_discovery
-                .discovered_participant_add_topics_writer(sedp_builtin_topics_writer);
+                participant_discovery
+                    .discovered_participant_add_topics_writer(sedp_builtin_topics_writer);
 
-            participant_discovery
-                .discovered_participant_add_topics_reader(sedp_builtin_topics_reader);
+                participant_discovery
+                    .discovered_participant_add_topics_reader(sedp_builtin_topics_reader);
+            }
         }
     }
 }
@@ -294,24 +304,20 @@ impl DomainParticipantFactory {
         let default_transport = UdpTransport::new(socket);
 
         // /////// Create SPDP and SEDP endpoints
-        let spdp_builtin_participant_rtps_reader = SpdpBuiltinParticipantReader::create::<
-            RtpsStatelessReaderImpl<SpdpDiscoveredParticipantData>,
-        >(guid_prefix, &[], &[]);
+        let spdp_builtin_participant_rtps_reader =
+            SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_rtps_reader = SedpBuiltinPublicationsReader::create::<
-            RtpsStatefulReaderImpl<SedpDiscoveredWriterData>,
-        >(guid_prefix, &[], &[]);
+        let sedp_builtin_publications_rtps_reader =
+            SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_publications_rtps_writer =
             SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_rtps_reader = SedpBuiltinSubscriptionsReader::create::<
-            RtpsStatefulReaderImpl<SedpDiscoveredReaderData>,
-        >(guid_prefix, &[], &[]);
+        let sedp_builtin_subscriptions_rtps_reader =
+            SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_rtps_writer =
             SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_rtps_reader = SedpBuiltinTopicsReader::create::<
-            RtpsStatefulReaderImpl<SedpDiscoveredTopicData>,
-        >(guid_prefix, &[], &[]);
+        let sedp_builtin_topics_rtps_reader =
+            SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_topics_rtps_writer =
             SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
@@ -329,9 +335,9 @@ impl DomainParticipantFactory {
 
         // ///////// Create built-in DDS data readers and data writers
         let spdp_builtin_participant_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SpdpDiscoveredParticipantData, _>::new(
+            rtps_shared_new(DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
                 DataReaderQos::default(),
-                spdp_builtin_participant_rtps_reader,
+                RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
             ));
 
         let spdp_builtin_participant_dds_data_writer =
@@ -341,9 +347,9 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_publications_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SedpDiscoveredWriterData, _>::new(
+            rtps_shared_new(DataReaderImpl::<SedpDiscoveredWriterData>::new(
                 DataReaderQos::default(),
-                sedp_builtin_publications_rtps_reader,
+                RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
             ));
 
         let sedp_builtin_publications_dds_data_writer =
@@ -353,9 +359,9 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_subscriptions_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SedpDiscoveredReaderData, _>::new(
+            rtps_shared_new(DataReaderImpl::<SedpDiscoveredReaderData>::new(
                 DataReaderQos::default(),
-                sedp_builtin_subscriptions_rtps_reader,
+                RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
             ));
 
         let sedp_builtin_subscriptions_dds_data_writer =
@@ -365,9 +371,9 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_topics_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SedpDiscoveredTopicData, _>::new(
+            rtps_shared_new(DataReaderImpl::<SedpDiscoveredTopicData>::new(
                 DataReaderQos::default(),
-                sedp_builtin_topics_rtps_reader,
+                RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
             ));
 
         let sedp_builtin_topics_dds_data_writer =
@@ -458,11 +464,20 @@ impl DomainParticipantFactory {
                     domain_id as u32,
                     domain_tag_arc.as_ref(),
                     rtps_shared_write_lock(&sedp_builtin_publications_dds_data_writer).as_mut(),
-                    rtps_shared_write_lock(&sedp_builtin_publications_dds_data_reader).as_mut(),
+                    rtps_shared_write_lock(&sedp_builtin_publications_dds_data_reader)
+                        .as_mut()
+                        .try_as_stateful_reader()
+                        .unwrap(),
                     rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_writer).as_mut(),
-                    rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_reader).as_mut(),
+                    rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_reader)
+                        .as_mut()
+                        .try_as_stateful_reader()
+                        .unwrap(),
                     rtps_shared_write_lock(&sedp_builtin_topics_dds_data_writer).as_mut(),
-                    rtps_shared_write_lock(&sedp_builtin_topics_dds_data_reader).as_mut(),
+                    rtps_shared_write_lock(&sedp_builtin_topics_dds_data_reader)
+                        .as_mut()
+                        .try_as_stateful_reader()
+                        .unwrap(),
                 )
             },
             std::time::Duration::from_millis(500),
@@ -546,15 +561,15 @@ mod tests {
         DdsDataReader<T: 'static>{}
 
         impl<'a, T>  DataReaderBorrowedSamples<'a> for DdsDataReader<T>{
-            type Samples = Vec<&'a T>;
+            type Samples = Vec<T>;
 
             fn read_borrowed_samples(
-                &'a self,
+                &'a mut self,
                 max_samples: i32,
                 sample_states: &[SampleStateKind],
                 view_states: &[ViewStateKind],
                 instance_states: &[InstanceStateKind],
-            ) -> DDSResult<Vec<&'static T>>;
+            ) -> DDSResult<Vec<T>>;
         }
 
     }
@@ -585,47 +600,47 @@ mod tests {
 
     #[test]
     fn discovery_task_all_sedp_endpoints() {
-        static RETURN_SPDP_DATA: SpdpDiscoveredParticipantData = SpdpDiscoveredParticipantData {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey { value: [5; 16] },
-                user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
-                    value: vec![],
-                },
-            },
-            participant_proxy: ParticipantProxy {
-                domain_id: 1,
-                domain_tag: String::new(),
-                protocol_version: PROTOCOLVERSION,
-                guid_prefix: GuidPrefix([5; 12]),
-                vendor_id: VENDOR_ID_S2E,
-                expects_inline_qos: false,
-                metatraffic_unicast_locator_list: vec![],
-                metatraffic_multicast_locator_list: vec![],
-                default_unicast_locator_list: vec![],
-                default_multicast_locator_list: vec![],
-                available_builtin_endpoints: BuiltinEndpointSet(
-                    BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER
-                        | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR,
-                ),
-                manual_liveliness_count: Count(1),
-                builtin_endpoint_qos: BuiltinEndpointQos(0),
-            },
-            lease_duration: rust_rtps_pim::behavior::types::Duration {
-                seconds: 100,
-                fraction: 0,
-            },
-        };
-
         let mut mock_spdp_data_reader = MockDdsDataReader::new();
         mock_spdp_data_reader
             .expect_read_borrowed_samples()
-            .returning(|_, _, _, _| Ok(vec![&RETURN_SPDP_DATA]));
+            .returning(|_, _, _, _| {
+                Ok(vec![SpdpDiscoveredParticipantData {
+                    dds_participant_data: ParticipantBuiltinTopicData {
+                        key: BuiltInTopicKey { value: [5; 16] },
+                        user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
+                            value: vec![],
+                        },
+                    },
+                    participant_proxy: ParticipantProxy {
+                        domain_id: 1,
+                        domain_tag: String::new(),
+                        protocol_version: PROTOCOLVERSION,
+                        guid_prefix: GuidPrefix([5; 12]),
+                        vendor_id: VENDOR_ID_S2E,
+                        expects_inline_qos: false,
+                        metatraffic_unicast_locator_list: vec![],
+                        metatraffic_multicast_locator_list: vec![],
+                        default_unicast_locator_list: vec![],
+                        default_multicast_locator_list: vec![],
+                        available_builtin_endpoints: BuiltinEndpointSet(
+                            BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER
+                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR,
+                        ),
+                        manual_liveliness_count: Count(1),
+                        builtin_endpoint_qos: BuiltinEndpointQos(0),
+                    },
+                    lease_duration: rust_rtps_pim::behavior::types::Duration {
+                        seconds: 100,
+                        fraction: 0,
+                    },
+                }])
+            });
 
         let mut mock_builtin_publications_writer = MockStatefulWriter::new();
         mock_builtin_publications_writer

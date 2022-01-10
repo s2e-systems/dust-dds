@@ -12,7 +12,6 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
     subscription::{
-        data_reader::DataReader,
         data_reader_listener::DataReaderListener,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
         subscriber_listener::SubscriberListener,
@@ -35,7 +34,6 @@ use crate::{
     dds_type::{DdsDeserialize, DdsType},
     rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     },
     utils::{
         message_receiver::ProcessDataSubmessage,
@@ -43,18 +41,18 @@ use crate::{
     },
 };
 
-use super::data_reader_impl::DataReaderImpl;
+use super::data_reader_impl::{DataReaderImpl, RtpsReader};
 
-pub trait AnyStatelessDataReader {
+pub trait AnyDataReader {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
     fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>>;
 }
 
-impl<T> AnyStatelessDataReader for RwLock<DataReaderImpl<T, RtpsStatelessReaderImpl<T>>>
+impl<Foo> AnyDataReader for RwLock<DataReaderImpl<Foo>>
 where
-    for<'a> T: DdsDeserialize<'a>,
-    T: Send + Sync + 'static,
+    for<'a> Foo: DdsDeserialize<'a>,
+    Foo: Send + Sync + 'static,
 {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
@@ -62,35 +60,14 @@ where
 
     fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>> {
         self
-    }
-}
-
-pub trait AnyStatefulDataReader {
-    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
-
-    fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>>;
-}
-
-impl<T> AnyStatefulDataReader for RwLock<DataReaderImpl<T, RtpsStatefulReaderImpl<T>>>
-where
-    for<'a> T: DdsDeserialize<'a>,
-    T: Send + Sync + 'static,
-{
-    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
-        self
-    }
-
-    fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>> {
-        // self
-        todo!()
     }
 }
 
 pub struct SubscriberImpl {
     qos: SubscriberQos,
     rtps_group: RtpsGroupImpl,
-    stateless_data_reader_list: Mutex<Vec<Arc<dyn AnyStatelessDataReader + Send + Sync>>>,
-    stateful_data_reader_list: Mutex<Vec<Arc<dyn AnyStatefulDataReader + Send + Sync>>>,
+    stateless_data_reader_list: Mutex<Vec<Arc<dyn AnyDataReader + Send + Sync>>>,
+    stateful_data_reader_list: Mutex<Vec<Arc<dyn AnyDataReader + Send + Sync>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -99,8 +76,8 @@ impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
-        stateless_data_reader_list: Vec<Arc<dyn AnyStatelessDataReader + Send + Sync>>,
-        stateful_data_reader_list: Vec<Arc<dyn AnyStatefulDataReader + Send + Sync>>,
+        stateless_data_reader_list: Vec<Arc<dyn AnyDataReader + Send + Sync>>,
+        stateful_data_reader_list: Vec<Arc<dyn AnyDataReader + Send + Sync>>,
     ) -> Self {
         Self {
             qos,
@@ -118,7 +95,7 @@ where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
     type TopicType = RtpsShared<dyn TopicDescription<Foo> + Send + Sync>;
-    type DataReaderType = RtpsShared<dyn DataReader<Foo> + Send + Sync>;
+    type DataReaderType = RtpsShared<DataReaderImpl<Foo>>;
 
     fn datareader_factory_create_datareader(
         &'_ self,
@@ -151,7 +128,7 @@ where
         let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let expects_inline_qos = false;
-        let rtps_reader = RtpsStatefulReaderImpl::<Foo>::new(
+        let rtps_reader = RtpsReader::Stateful(RtpsStatefulReaderImpl::new(
             guid,
             topic_kind,
             reliability_level,
@@ -160,7 +137,7 @@ where
             heartbeat_response_delay,
             heartbeat_supression_duration,
             expects_inline_qos,
-        );
+        ));
         let reader_storage = DataReaderImpl::new(qos, rtps_reader);
         let reader_storage_shared = rtps_shared_new(reader_storage);
         self.stateful_data_reader_list
@@ -185,12 +162,7 @@ where
         let found_data_reader = stateful_data_reader_list_lock
             .iter()
             .cloned()
-            .find_map(|x| {
-                Arc::downcast::<RwLock<DataReaderImpl<Foo, RtpsStatefulReaderImpl<Foo>>>>(
-                    x.into_any(),
-                )
-                .ok()
-            });
+            .find_map(|x| Arc::downcast::<RwLock<DataReaderImpl<Foo>>>(x.into_any()).ok());
 
         if let Some(found_data_reader) = found_data_reader {
             return Some(found_data_reader);
@@ -200,12 +172,7 @@ where
         let found_data_reader = stateless_data_reader_list_lock
             .iter()
             .cloned()
-            .find_map(|x| {
-                Arc::downcast::<RwLock<DataReaderImpl<Foo, RtpsStatelessReaderImpl<Foo>>>>(
-                    x.into_any(),
-                )
-                .ok()
-            });
+            .find_map(|x| Arc::downcast::<RwLock<DataReaderImpl<Foo>>>(x.into_any()).ok());
 
         if let Some(found_data_reader) = found_data_reader {
             return Some(found_data_reader);

@@ -1,4 +1,7 @@
-use crate::utils::shared_object::RtpsWeak;
+use crate::{
+    dds_type::DdsDeserialize,
+    utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak},
+};
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
@@ -22,17 +25,19 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 
+use super::data_reader_impl::{DataReaderImpl, Samples};
+
 pub struct DataReaderProxy<'dr, Foo> {
     subscriber: &'dr dyn Subscriber,
     topic: &'dr dyn TopicDescription<Foo>,
-    data_reader_impl: RtpsWeak<dyn DataReader<Foo> + Send + Sync>,
+    data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
 }
 
 impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
     pub fn new(
         subscriber: &'dr dyn Subscriber,
         topic: &'dr dyn TopicDescription<Foo>,
-        data_reader_impl: RtpsWeak<dyn DataReader<Foo> + Send + Sync>,
+        data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
     ) -> Self {
         Self {
             subscriber,
@@ -42,26 +47,33 @@ impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
     }
 }
 
-impl<'dr, Foo> AsRef<RtpsWeak<dyn DataReader<Foo> + Send + Sync>> for DataReaderProxy<'dr, Foo> {
-    fn as_ref(&self) -> &RtpsWeak<dyn DataReader<Foo> + Send + Sync> {
+impl<'dr, Foo> AsRef<RtpsWeak<DataReaderImpl<Foo>>> for DataReaderProxy<'dr, Foo> {
+    fn as_ref(&self) -> &RtpsWeak<DataReaderImpl<Foo>> {
         &self.data_reader_impl
     }
 }
 
-impl<'a, Foo> DataReaderBorrowedSamples<'a> for DataReaderProxy<'_, Foo>
+impl<'a, Foo> DataReaderBorrowedSamples<'a> for DataReaderProxy<'a, Foo>
 where
-    Foo: 'static,
+    Foo: for<'de> DdsDeserialize<'de> + 'static,
 {
-    type Samples = Vec<&'a Foo>;
+    type Samples = Samples<Foo>;
 
     fn read_borrowed_samples(
-        &'a self,
-        _max_samples: i32,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        &'a mut self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        todo!("Return Loaned Samples with the lock")
+        let data_reader_shared = rtps_weak_upgrade(&self.data_reader_impl)?;
+        let mut data_reader_lock = rtps_shared_write_lock(&data_reader_shared);
+        data_reader_lock.read_borrowed_samples(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 }
 

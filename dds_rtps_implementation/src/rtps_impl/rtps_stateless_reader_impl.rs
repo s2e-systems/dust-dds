@@ -17,7 +17,7 @@ use rust_rtps_pim::{
 
 use super::rtps_reader_history_cache_impl::ReaderHistoryCache;
 
-pub struct RtpsStatelessReaderImpl<T> {
+pub struct RtpsStatelessReaderImpl {
     guid: Guid,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
@@ -25,11 +25,11 @@ pub struct RtpsStatelessReaderImpl<T> {
     multicast_locator_list: Vec<Locator>,
     heartbeat_response_delay: Duration,
     heartbeat_supression_duration: Duration,
-    reader_cache: ReaderHistoryCache<T>,
+    reader_cache: ReaderHistoryCache,
     expects_inline_qos: bool,
 }
 
-impl<T> RtpsStatelessReaderConstructor for RtpsStatelessReaderImpl<T> {
+impl RtpsStatelessReaderConstructor for RtpsStatelessReaderImpl {
     fn new(
         guid: Guid,
         topic_kind: TopicKind,
@@ -54,10 +54,10 @@ impl<T> RtpsStatelessReaderConstructor for RtpsStatelessReaderImpl<T> {
     }
 }
 
-impl<T> RtpsStatelessReaderAttributes for RtpsStatelessReaderImpl<T> {}
+impl RtpsStatelessReaderAttributes for RtpsStatelessReaderImpl {}
 
-impl<T> RtpsReaderAttributes for RtpsStatelessReaderImpl<T> {
-    type ReaderHistoryCacheType = ReaderHistoryCache<T>;
+impl RtpsReaderAttributes for RtpsStatelessReaderImpl {
+    type ReaderHistoryCacheType = ReaderHistoryCache;
 
     fn heartbeat_response_delay(&self) -> &Duration {
         &self.heartbeat_response_delay
@@ -76,7 +76,7 @@ impl<T> RtpsReaderAttributes for RtpsStatelessReaderImpl<T> {
     }
 }
 
-impl<T> RtpsEndpointAttributes for RtpsStatelessReaderImpl<T> {
+impl RtpsEndpointAttributes for RtpsStatelessReaderImpl {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
     }
@@ -94,16 +94,16 @@ impl<T> RtpsEndpointAttributes for RtpsStatelessReaderImpl<T> {
     }
 }
 
-impl<T> RtpsEntityAttributes for RtpsStatelessReaderImpl<T> {
+impl RtpsEntityAttributes for RtpsStatelessReaderImpl {
     fn guid(&self) -> &Guid {
         &self.guid
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut RtpsStatelessReaderImpl<T> {
-    type Item = BestEffortStatelessReaderBehavior<'a, ReaderHistoryCache<T>>;
+impl<'a> IntoIterator for &'a mut RtpsStatelessReaderImpl {
+    type Item = BestEffortStatelessReaderBehavior<'a, ReaderHistoryCache>;
     type IntoIter =
-        std::option::IntoIter<BestEffortStatelessReaderBehavior<'a, ReaderHistoryCache<T>>>;
+        std::option::IntoIter<BestEffortStatelessReaderBehavior<'a, ReaderHistoryCache>>;
 
     fn into_iter(self) -> Self::IntoIter {
         Some(BestEffortStatelessReaderBehavior {
