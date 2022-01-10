@@ -55,7 +55,11 @@ where
                     rtps_stateless_writer_arc_lock.write().unwrap();
                 let mut destined_submessages = Vec::new();
 
-                for behavior in rtps_stateless_writer_lock.as_mut() {
+                for behavior in rtps_stateless_writer_lock
+                    .as_mut()
+                    .try_as_stateless_writer()
+                    .unwrap()
+                {
                     match behavior {
                         StatelessWriterBehavior::BestEffort(mut best_effort_behavior) => {
                             let submessages = RefCell::new(Vec::new());
@@ -95,7 +99,11 @@ where
 
                 let mut destined_submessages = Vec::new();
 
-                for behavior in rtps_stateful_writer_lock.as_mut() {
+                for behavior in rtps_stateful_writer_lock
+                    .as_mut()
+                    .try_as_stateful_writer()
+                    .unwrap()
+                {
                     match behavior {
                         StatefulWriterBehavior::BestEffort(_) => todo!(),
                         StatefulWriterBehavior::Reliable(mut reliable_behavior) => {

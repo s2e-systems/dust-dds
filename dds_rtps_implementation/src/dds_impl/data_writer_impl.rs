@@ -4,57 +4,80 @@ use rust_dds_api::{
     publication::{
         data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
     topic::topic::Topic,
 };
 use rust_rtps_pim::{
     behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
     structure::{history_cache::RtpsHistoryCacheAddChange, types::ChangeKind},
 };
-use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
-use crate::dds_type::{DdsSerialize, LittleEndian};
+use crate::{
+    dds_type::{DdsSerialize, LittleEndian},
+    rtps_impl::{
+        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    },
+};
 
-pub struct DataWriterImpl<Foo, W> {
+pub enum RtpsWriter {
+    Stateless(RtpsStatelessWriterImpl),
+    Stateful(RtpsStatefulWriterImpl),
+}
+
+impl RtpsWriter {
+    pub fn try_as_stateless_writer(&mut self) -> DDSResult<&mut RtpsStatelessWriterImpl> {
+        match self {
+            RtpsWriter::Stateless(x) => Ok(x),
+            RtpsWriter::Stateful(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateless writer".to_string(),
+            )),
+        }
+    }
+    pub fn try_as_stateful_writer(&mut self) -> DDSResult<&mut RtpsStatefulWriterImpl> {
+        match self {
+            RtpsWriter::Stateless(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateful writer".to_string(),
+            )),
+            RtpsWriter::Stateful(x) => Ok(x),
+        }
+    }
+}
+
+pub struct DataWriterImpl<Foo> {
     _qos: DataWriterQos,
-    rtps_writer_impl: W,
+    rtps_writer: RtpsWriter,
     _listener: Option<Box<dyn DataWriterListener<DataType = Foo> + Send + Sync>>,
 }
 
-impl<Foo, W> DataWriterImpl<Foo, W>
+impl<Foo> DataWriterImpl<Foo>
 where
     Foo: Send + 'static,
 {
-    pub fn new(qos: DataWriterQos, rtps_writer_impl: W) -> Self {
+    pub fn new(qos: DataWriterQos, rtps_writer: RtpsWriter) -> Self {
         Self {
             _qos: qos,
-            rtps_writer_impl,
+            rtps_writer,
             _listener: None,
         }
     }
 }
 
-impl<Foo, W> AsRef<W> for DataWriterImpl<Foo, W> {
-    fn as_ref(&self) -> &W {
-        &self.rtps_writer_impl
+impl<Foo> AsRef<RtpsWriter> for DataWriterImpl<Foo> {
+    fn as_ref(&self) -> &RtpsWriter {
+        &self.rtps_writer
     }
 }
 
-impl<Foo, W> AsMut<W> for DataWriterImpl<Foo, W> {
-    fn as_mut(&mut self) -> &mut W {
-        &mut self.rtps_writer_impl
+impl<Foo> AsMut<RtpsWriter> for DataWriterImpl<Foo> {
+    fn as_mut(&mut self) -> &mut RtpsWriter {
+        &mut self.rtps_writer
     }
 }
 
-impl<Foo, W, H> DataWriter<Foo> for DataWriterImpl<Foo, W>
+impl<Foo> DataWriter<Foo> for DataWriterImpl<Foo>
 where
     Foo: DdsSerialize,
-    W: RtpsWriterOperations<
-            CacheChangeType = H::CacheChangeType,
-            DataType = Vec<u8>,
-            ParameterListType = Vec<ParameterOwned>,
-        > + RtpsWriterAttributes<WriterHistoryCacheType = H>,
-    H: RtpsHistoryCacheAddChange,
 {
     fn register_instance(&mut self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
@@ -106,10 +129,19 @@ where
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)
             .unwrap();
-        let change =
-            self.rtps_writer_impl
-                .new_change(ChangeKind::Alive, serialized_data, vec![], 0);
-        self.rtps_writer_impl.writer_cache().add_change(change);
+        match &mut self.rtps_writer {
+            RtpsWriter::Stateless(stateless_rtps_writer) => {
+                let change =
+                    stateless_rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+                stateless_rtps_writer.writer_cache().add_change(change);
+            }
+            RtpsWriter::Stateful(stateful_rtps_writer) => {
+                let change =
+                    stateful_rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+                stateful_rtps_writer.writer_cache().add_change(change);
+            }
+        }
+
         Ok(())
     }
 
@@ -189,7 +221,7 @@ where
     }
 }
 
-impl<Foo, W> Entity for DataWriterImpl<Foo, W> {
+impl<Foo> Entity for DataWriterImpl<Foo> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<DataType = Foo>>;
 

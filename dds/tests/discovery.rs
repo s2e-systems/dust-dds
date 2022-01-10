@@ -35,7 +35,7 @@ use rust_dds_rtps_implementation::{
     },
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReader},
-        data_writer_impl::DataWriterImpl,
+        data_writer_impl::{DataWriterImpl, RtpsWriter},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
     },
@@ -128,7 +128,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     let mut data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        spdp_builtin_participant_rtps_writer,
+        RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
     );
 
     data_writer
@@ -249,7 +249,7 @@ fn process_discovery_data_happy_path() {
 
     let mut spdp_builtin_participant_data_writer = DataWriterImpl::new(
         DataWriterQos::default(),
-        spdp_builtin_participant_rtps_writer,
+        RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
     );
 
     spdp_builtin_participant_data_writer
@@ -264,9 +264,9 @@ fn process_discovery_data_happy_path() {
         SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
     let sedp_builtin_publications_data_writer =
-        rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
+        rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData>::new(
             DataWriterQos::default(),
-            sedp_builtin_publications_rtps_writer,
+            RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
         ));
 
     let publisher = rtps_shared_new(PublisherImpl::new(
@@ -342,7 +342,10 @@ fn process_discovery_data_happy_path() {
             sedp_builtin_publications_data_writer.write().unwrap();
 
         participant_discovery.discovered_participant_add_publications_writer(
-            sedp_builtin_publications_data_writer_lock.as_mut(),
+            sedp_builtin_publications_data_writer_lock
+                .as_mut()
+                .try_as_stateful_writer()
+                .unwrap(),
         );
         let sedp_discovered_writer_data = SedpDiscoveredWriterData {
             writer_proxy: RtpsWriterProxy {

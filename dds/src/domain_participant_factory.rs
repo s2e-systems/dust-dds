@@ -28,7 +28,7 @@ use rust_dds_rtps_implementation::{
     },
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReader},
-        data_writer_impl::DataWriterImpl,
+        data_writer_impl::{DataWriterImpl, RtpsWriter},
         domain_participant_impl::DomainParticipantImpl,
         domain_participant_proxy::DomainParticipantProxy,
         publisher_impl::PublisherImpl,
@@ -341,9 +341,9 @@ impl DomainParticipantFactory {
             ));
 
         let spdp_builtin_participant_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SpdpDiscoveredParticipantData, _>::new(
+            rtps_shared_new(DataWriterImpl::<SpdpDiscoveredParticipantData>::new(
                 DataWriterQos::default(),
-                spdp_builtin_participant_rtps_writer,
+                RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
             ));
 
         let sedp_builtin_publications_dds_data_reader =
@@ -353,9 +353,9 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_publications_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData>::new(
                 DataWriterQos::default(),
-                sedp_builtin_publications_rtps_writer,
+                RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
             ));
 
         let sedp_builtin_subscriptions_dds_data_reader =
@@ -365,9 +365,9 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_subscriptions_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData>::new(
                 DataWriterQos::default(),
-                sedp_builtin_subscriptions_rtps_writer,
+                RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
             ));
 
         let sedp_builtin_topics_dds_data_reader =
@@ -377,9 +377,9 @@ impl DomainParticipantFactory {
             ));
 
         let sedp_builtin_topics_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData, _>::new(
+            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData>::new(
                 DataWriterQos::default(),
-                sedp_builtin_topics_rtps_writer,
+                RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
             ));
 
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
@@ -463,17 +463,26 @@ impl DomainParticipantFactory {
                     &spdp_builtin_participant_data_reader_arc,
                     domain_id as u32,
                     domain_tag_arc.as_ref(),
-                    rtps_shared_write_lock(&sedp_builtin_publications_dds_data_writer).as_mut(),
+                    rtps_shared_write_lock(&sedp_builtin_publications_dds_data_writer)
+                        .as_mut()
+                        .try_as_stateful_writer()
+                        .unwrap(),
                     rtps_shared_write_lock(&sedp_builtin_publications_dds_data_reader)
                         .as_mut()
                         .try_as_stateful_reader()
                         .unwrap(),
-                    rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_writer).as_mut(),
+                    rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_writer)
+                        .as_mut()
+                        .try_as_stateful_writer()
+                        .unwrap(),
                     rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_reader)
                         .as_mut()
                         .try_as_stateful_reader()
                         .unwrap(),
-                    rtps_shared_write_lock(&sedp_builtin_topics_dds_data_writer).as_mut(),
+                    rtps_shared_write_lock(&sedp_builtin_topics_dds_data_writer)
+                        .as_mut()
+                        .try_as_stateful_writer()
+                        .unwrap(),
                     rtps_shared_write_lock(&sedp_builtin_topics_dds_data_reader)
                         .as_mut()
                         .try_as_stateful_reader()

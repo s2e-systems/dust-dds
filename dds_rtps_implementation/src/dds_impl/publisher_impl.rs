@@ -49,22 +49,21 @@ use crate::{
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::shared_object::{
         rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock, RtpsShared,
     },
 };
 
+use super::data_writer_impl::RtpsWriter;
+
 pub trait AnyStatelessDataWriter {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
-    fn into_as_mut_stateless_writer(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>>;
+    fn into_as_mut_stateless_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>>;
 }
 
-impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T, RtpsStatelessWriterImpl>>
+impl<T> AnyStatelessDataWriter for RwLock<DataWriterImpl<T>>
 where
     T: Send + Sync + 'static,
 {
@@ -72,9 +71,7 @@ where
         self
     }
 
-    fn into_as_mut_stateless_writer(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn AsMut<RtpsStatelessWriterImpl>>> {
+    fn into_as_mut_stateless_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>> {
         self
     }
 }
@@ -82,12 +79,10 @@ where
 pub trait AnyStatefulDataWriter {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
-    fn into_as_mut_stateful_writer(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn AsMut<RtpsStatefulWriterImpl>>>;
+    fn into_as_mut_stateful_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>>;
 }
 
-impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T, RtpsStatefulWriterImpl>>
+impl<T> AnyStatefulDataWriter for RwLock<DataWriterImpl<T>>
 where
     T: Send + Sync + 'static,
 {
@@ -95,9 +90,7 @@ where
         self
     }
 
-    fn into_as_mut_stateful_writer(
-        self: Arc<Self>,
-    ) -> Arc<RwLock<dyn AsMut<RtpsStatefulWriterImpl>>> {
+    fn into_as_mut_stateful_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>> {
         self
     }
 }
@@ -223,7 +216,7 @@ where
         let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
         let data_max_size_serialized = None;
-        let rtps_writer_impl = RtpsStatefulWriterImpl::new(
+        let rtps_writer_impl = RtpsWriter::Stateful(RtpsStatefulWriterImpl::new(
             guid,
             topic_kind,
             reliability_level,
@@ -234,7 +227,7 @@ where
             nack_response_delay,
             nack_suppression_duration,
             data_max_size_serialized,
-        );
+        ));
 
         if let Some(sedp_builtin_publications_announcer) = &self.sedp_builtin_publications_announcer
         {
@@ -303,18 +296,20 @@ where
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         let data_writer_impl_list_lock = self.stateful_data_writer_impl_list.lock().unwrap();
-        let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatefulWriterImpl>>>(x.into_any()).ok()
-        });
+        let found_data_writer = data_writer_impl_list_lock
+            .iter()
+            .cloned()
+            .find_map(|x| Arc::downcast::<RwLock<DataWriterImpl<Foo>>>(x.into_any()).ok());
 
         if let Some(found_data_writer) = found_data_writer {
             return Some(found_data_writer);
         };
 
         let data_writer_impl_list_lock = self.stateless_data_writer_impl_list.lock().unwrap();
-        let found_data_writer = data_writer_impl_list_lock.iter().cloned().find_map(|x| {
-            Arc::downcast::<RwLock<DataWriterImpl<Foo, RtpsStatelessWriterImpl>>>(x.into_any()).ok()
-        });
+        let found_data_writer = data_writer_impl_list_lock
+            .iter()
+            .cloned()
+            .find_map(|x| Arc::downcast::<RwLock<DataWriterImpl<Foo>>>(x.into_any()).ok());
 
         if let Some(found_data_writer) = found_data_writer {
             return Some(found_data_writer);
