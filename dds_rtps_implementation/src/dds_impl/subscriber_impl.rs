@@ -49,8 +49,6 @@ use super::data_reader_impl::{DataReaderImpl, RtpsReader};
 pub trait AnyDataReader {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 
-    fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>>;
-
     fn into_as_mut_rtps_reader(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsReader>>>;
 }
 
@@ -60,10 +58,6 @@ where
     Foo: Send + Sync + 'static,
 {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
-        self
-    }
-
-    fn into_process_data_submessage(self: Arc<Self>) -> Arc<RwLock<dyn ProcessDataSubmessage>> {
         self
     }
 

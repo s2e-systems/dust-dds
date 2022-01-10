@@ -12,10 +12,8 @@ use rust_rtps_pim::{
     behavior::reader::reader::RtpsReaderAttributes,
     structure::{
         cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheGetChange,
-        types::GuidPrefix,
     },
 };
-use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
     dds_type::DdsDeserialize,
@@ -23,7 +21,6 @@ use crate::{
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     },
-    utils::message_receiver::ProcessDataSubmessage,
 };
 
 pub struct Samples<Foo> {
@@ -78,36 +75,6 @@ impl<Foo> AsRef<RtpsReader> for DataReaderImpl<Foo> {
 impl<Foo> AsMut<RtpsReader> for DataReaderImpl<Foo> {
     fn as_mut(&mut self) -> &mut RtpsReader {
         &mut self.rtps_reader
-    }
-}
-
-impl<Foo> ProcessDataSubmessage for DataReaderImpl<Foo>
-where
-    Foo: for<'a> DdsDeserialize<'a>,
-{
-    fn process_data_submessage(
-        &mut self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessageRead,
-    ) {
-        match &mut self.rtps_reader {
-            RtpsReader::Stateless(rtps_reader) => {
-                for mut stateless_writer_behavior in rtps_reader.into_iter() {
-                    stateless_writer_behavior.receive_data(source_guid_prefix, data)
-                }
-            }
-            RtpsReader::Stateful(_rtps_reader) => {
-                todo!();
-                // for writer_proxy_behavior in (rtps_reader).into_iter() {
-                //     match writer_proxy_behavior {
-                //         StatefulReaderBehavior::BestEffort(_) => todo!(),
-                //         StatefulReaderBehavior::Reliable(mut reliable_writer_proxy_behavior) => {
-                //             reliable_writer_proxy_behavior.receive_data(source_guid_prefix, data);
-                //         }
-                //     }
-                // }
-            }
-        }
     }
 }
 
