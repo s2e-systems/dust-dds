@@ -26,19 +26,19 @@ use crate::{
 };
 
 use super::{
-    data_reader_proxy::DataReaderProxy, domain_participant_impl::DomainParticipantImpl,
+    data_reader_proxy::DataReaderProxy, domain_participant_proxy::DomainParticipantProxy,
     subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy,
 };
 
 #[derive(Clone)]
 pub struct SubscriberProxy {
-    _participant: RtpsWeak<DomainParticipantImpl>,
+    _participant: DomainParticipantProxy,
     subscriber_impl: RtpsWeak<SubscriberImpl>,
 }
 
 impl SubscriberProxy {
     pub fn new(
-        participant: RtpsWeak<DomainParticipantImpl>,
+        participant: DomainParticipantProxy,
         subscriber_impl: RtpsWeak<SubscriberImpl>,
     ) -> Self {
         Self {

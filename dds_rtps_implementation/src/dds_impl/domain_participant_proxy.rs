@@ -31,6 +31,7 @@ use super::{
     subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy,
 };
 
+#[derive(Clone)]
 pub struct DomainParticipantProxy {
     domain_participant: RtpsShared<DomainParticipantImpl>,
 }
@@ -54,10 +55,7 @@ impl DomainParticipantPublisherFactory<'_> for DomainParticipantProxy {
             .publisher_factory_create_publisher(qos, a_listener, mask)?;
         let publisher_weak = rtps_shared_downgrade(&publisher_shared);
 
-        Some(PublisherProxy::new(
-            rtps_shared_downgrade(&self.domain_participant),
-            publisher_weak,
-        ))
+        Some(PublisherProxy::new(self.clone(), publisher_weak))
     }
 
     fn publisher_factory_delete_publisher(
@@ -88,10 +86,7 @@ impl DomainParticipantSubscriberFactory<'_> for DomainParticipantProxy {
         let subscriber_shared = rtps_shared_read_lock(&self.domain_participant)
             .subscriber_factory_create_subscriber(qos, a_listener, mask)?;
         let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
-        Some(SubscriberProxy::new(
-            rtps_shared_downgrade(&self.domain_participant),
-            subscriber_weak,
-        ))
+        Some(SubscriberProxy::new(self.clone(), subscriber_weak))
     }
 
     fn subscriber_factory_delete_subscriber(
@@ -113,10 +108,7 @@ impl DomainParticipantSubscriberFactory<'_> for DomainParticipantProxy {
         let subscriber_shared = rtps_shared_read_lock(&self.domain_participant)
             .subscriber_factory_get_builtin_subscriber();
         let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
-        SubscriberProxy::new(
-            rtps_shared_downgrade(&self.domain_participant),
-            subscriber_weak,
-        )
+        SubscriberProxy::new(self.clone(), subscriber_weak)
     }
 }
 
@@ -136,7 +128,7 @@ where
         let topic_shared = rtps_shared_read_lock(&self.domain_participant)
             .topic_factory_create_topic(topic_name, qos, a_listener, mask)?;
         let topic_weak = rtps_shared_downgrade(&topic_shared);
-        Some(TopicProxy::new(rtps_shared_downgrade(&self.domain_participant), topic_weak))
+        Some(TopicProxy::new(self.clone(), topic_weak))
     }
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()> {
