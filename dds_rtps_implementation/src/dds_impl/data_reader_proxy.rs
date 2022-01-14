@@ -25,18 +25,22 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 
-use super::data_reader_impl::{DataReaderImpl, Samples};
+use super::{
+    data_reader_impl::{DataReaderImpl, Samples},
+    subscriber_proxy::SubscriberProxy,
+    topic_proxy::TopicProxy,
+};
 
 pub struct DataReaderProxy<'dr, Foo> {
-    subscriber: &'dr dyn Subscriber,
-    topic: &'dr dyn TopicDescription<Foo>,
+    subscriber: &'dr SubscriberProxy<'dr>,
+    topic: &'dr TopicProxy<'dr, Foo>,
     data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
 }
 
 impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
     pub fn new(
-        subscriber: &'dr dyn Subscriber,
-        topic: &'dr dyn TopicDescription<Foo>,
+        subscriber: &'dr SubscriberProxy<'dr>,
+        topic: &'dr TopicProxy<'dr, Foo>,
         data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
     ) -> Self {
         Self {

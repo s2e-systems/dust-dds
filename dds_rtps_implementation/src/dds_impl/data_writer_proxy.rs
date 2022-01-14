@@ -18,16 +18,18 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 
+use super::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
+
 pub struct DataWriterProxy<'dw, Foo> {
-    publisher: &'dw dyn Publisher,
-    topic: &'dw dyn Topic<Foo>,
+    publisher: &'dw PublisherProxy<'dw>,
+    topic: &'dw TopicProxy<'dw, Foo>,
     data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
 }
 
 impl<'dw, Foo> DataWriterProxy<'dw, Foo> {
     pub fn new(
-        publisher: &'dw dyn Publisher,
-        topic: &'dw dyn Topic<Foo>,
+        publisher: &'dw PublisherProxy<'dw>,
+        topic: &'dw TopicProxy<'dw, Foo>,
         data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
     ) -> Self {
         Self {

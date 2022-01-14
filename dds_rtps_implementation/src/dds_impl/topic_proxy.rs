@@ -9,16 +9,16 @@ use rust_dds_api::{
     topic::{topic::Topic, topic_description::TopicDescription},
 };
 
-use super::topic_impl::TopicImpl;
+use super::{domain_participant_proxy::DomainParticipantProxy, topic_impl::TopicImpl};
 
 pub struct TopicProxy<'t, Foo> {
-    participant: &'t dyn DomainParticipant,
+    participant: &'t DomainParticipantProxy,
     topic_impl: RtpsWeak<TopicImpl<Foo>>,
 }
 
 impl<'t, Foo> TopicProxy<'t, Foo> {
     pub fn new(
-        participant: &'t dyn DomainParticipant,
+        participant: &'t DomainParticipantProxy,
         topic_impl: RtpsWeak<TopicImpl<Foo>>,
     ) -> Self {
         Self {

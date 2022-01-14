@@ -23,17 +23,18 @@ use crate::{
 };
 
 use super::{
-    data_writer_proxy::DataWriterProxy, publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
+    data_writer_proxy::DataWriterProxy, domain_participant_proxy::DomainParticipantProxy,
+    publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
 };
 
 pub struct PublisherProxy<'p> {
-    participant: &'p dyn DomainParticipant,
+    participant: &'p DomainParticipantProxy,
     publisher_impl: RtpsWeak<PublisherImpl>,
 }
 
 impl<'p> PublisherProxy<'p> {
     pub fn new(
-        participant: &'p dyn DomainParticipant,
+        participant: &'p DomainParticipantProxy,
         publisher_impl: RtpsWeak<PublisherImpl>,
     ) -> Self {
         Self {
