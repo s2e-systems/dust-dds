@@ -537,7 +537,7 @@ impl DomainParticipantFactory {
 
         executor.run();
 
-        Some(DomainParticipantProxy::new(domain_participant))
+        Some(DomainParticipantProxy::new(rtps_shared_new(domain_participant)))
     }
 }
 

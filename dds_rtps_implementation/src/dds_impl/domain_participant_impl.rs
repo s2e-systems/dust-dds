@@ -58,17 +58,17 @@ pub trait AnyTopic {}
 
 impl<Foo> AnyTopic for TopicImpl<Foo> {}
 
-pub struct DomainParticipantImpl<S, P> {
+pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipantImpl,
     domain_id: DomainId,
     domain_tag: Arc<String>,
     qos: DomainParticipantQos,
-    builtin_subscriber: RtpsShared<S>,
-    builtin_publisher: RtpsShared<P>,
-    user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<S>>>,
+    builtin_subscriber: RtpsShared<SubscriberImpl>,
+    builtin_publisher: RtpsShared<PublisherImpl>,
+    user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<SubscriberImpl>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: RtpsShared<Vec<RtpsShared<P>>>,
+    user_defined_publisher_list: RtpsShared<Vec<RtpsShared<PublisherImpl>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
     topic_list: RtpsShared<Vec<RtpsShared<dyn AnyTopic>>>,
@@ -80,7 +80,7 @@ pub struct DomainParticipantImpl<S, P> {
     enabled: Arc<AtomicBool>,
 }
 
-impl<S, P> DomainParticipantImpl<S, P> {
+impl DomainParticipantImpl {
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
@@ -90,10 +90,10 @@ impl<S, P> DomainParticipantImpl<S, P> {
         metatraffic_multicast_locator_list: Vec<Locator>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        builtin_subscriber: RtpsShared<S>,
-        builtin_publisher: RtpsShared<P>,
-        user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<S>>>,
-        user_defined_publisher_list: RtpsShared<Vec<RtpsShared<P>>>,
+        builtin_subscriber: RtpsShared<SubscriberImpl>,
+        builtin_publisher: RtpsShared<PublisherImpl>,
+        user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<SubscriberImpl>>>,
+        user_defined_publisher_list: RtpsShared<Vec<RtpsShared<PublisherImpl>>>,
         enabled: Arc<AtomicBool>,
     ) -> Self {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
@@ -164,7 +164,7 @@ impl<S, P> DomainParticipantImpl<S, P> {
     }
 }
 
-impl<S> DomainParticipantPublisherFactory<'_> for DomainParticipantImpl<S, PublisherImpl> {
+impl DomainParticipantPublisherFactory<'_> for DomainParticipantImpl {
     type PublisherType = RtpsShared<PublisherImpl>;
 
     fn publisher_factory_create_publisher(
@@ -211,7 +211,7 @@ impl<S> DomainParticipantPublisherFactory<'_> for DomainParticipantImpl<S, Publi
     }
 }
 
-impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<SubscriberImpl, P> {
+impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl {
     type SubscriberType = RtpsShared<SubscriberImpl>;
 
     fn subscriber_factory_create_subscriber(
@@ -250,7 +250,7 @@ impl<'s, P> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl<Sub
     }
 }
 
-impl<Foo, S> DomainParticipantTopicFactory<'_, Foo> for DomainParticipantImpl<S, PublisherImpl>
+impl<Foo> DomainParticipantTopicFactory<'_, Foo> for DomainParticipantImpl
 where
     Foo: DdsType + 'static,
 {
@@ -322,7 +322,7 @@ where
     }
 }
 
-impl<S, P> DomainParticipant for DomainParticipantImpl<S, P> {
+impl DomainParticipant for DomainParticipantImpl {
     fn lookup_topicdescription<'t, T>(
         &'t self,
         _name: &'t str,
@@ -424,7 +424,7 @@ impl<S, P> DomainParticipant for DomainParticipantImpl<S, P> {
     }
 }
 
-impl<S> Entity for DomainParticipantImpl<S, PublisherImpl> {
+impl Entity for DomainParticipantImpl {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
@@ -485,6 +485,17 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_some_value() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+            None,
+        );
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([3; 12]),
             1,
@@ -494,8 +505,8 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
+            rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
             Arc::new(AtomicBool::new(false)),
@@ -510,6 +521,17 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_none() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+            None,
+        );
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([0; 12]),
             1,
@@ -519,8 +541,8 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
+            rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
             Arc::new(AtomicBool::new(false)),
@@ -537,6 +559,17 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_some_value() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+            None,
+        );
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -546,8 +579,8 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
+            rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
             Arc::new(AtomicBool::new(false)),
@@ -562,6 +595,17 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_none() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+            None,
+        );
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -571,8 +615,8 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
+            rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
             Arc::new(AtomicBool::new(false)),
@@ -592,6 +636,17 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_some_value() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+            None,
+        );
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -601,8 +656,8 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
+            rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
             Arc::new(AtomicBool::new(false)),
@@ -617,6 +672,17 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_inconsistent() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+            None,
+        );
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -626,8 +692,8 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
+            rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
             Arc::new(AtomicBool::new(false)),
@@ -642,6 +708,17 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_none() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+            None,
+        );
         let mut domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -651,8 +728,8 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
+            rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
             Arc::new(AtomicBool::new(false)),
@@ -672,6 +749,11 @@ mod tests {
 
     #[test]
     fn create_publisher() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
         let builtin_publisher = PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
@@ -687,7 +769,7 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
             rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
@@ -714,6 +796,11 @@ mod tests {
 
     #[test]
     fn delete_publisher() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
         let builtin_publisher = PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
@@ -729,7 +816,7 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
             rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
@@ -746,6 +833,17 @@ mod tests {
 
     #[test]
     fn domain_participant_as_spdp_discovered_participant_data() {
+        let builtin_subcriber = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+        );
+        let builtin_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            vec![],
+            None,
+        );
         let domain_participant = DomainParticipantImpl::new(
             GuidPrefix([1; 12]),
             1,
@@ -755,8 +853,8 @@ mod tests {
             vec![],
             vec![],
             vec![],
-            rtps_shared_new(()),
-            rtps_shared_new(()),
+            rtps_shared_new(builtin_subcriber),
+            rtps_shared_new(builtin_publisher),
             rtps_shared_new(Vec::new()),
             rtps_shared_new(Vec::new()),
             Arc::new(AtomicBool::new(false)),
