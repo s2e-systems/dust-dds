@@ -124,7 +124,7 @@ impl<'t, Foo> DomainParticipantTopicFactory<'t, Foo> for DomainParticipantProxy
 where
     Foo: DdsType + 'static,
 {
-    type TopicType = TopicProxy<'t, Foo>;
+    type TopicType = TopicProxy<Foo>;
 
     fn topic_factory_create_topic(
         &'t self,
@@ -136,7 +136,7 @@ where
         let topic_shared = rtps_shared_read_lock(&self.domain_participant)
             .topic_factory_create_topic(topic_name, qos, a_listener, mask)?;
         let topic_weak = rtps_shared_downgrade(&topic_shared);
-        Some(TopicProxy::new(self, topic_weak))
+        Some(TopicProxy::new(rtps_shared_downgrade(&self.domain_participant), topic_weak))
     }
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()> {

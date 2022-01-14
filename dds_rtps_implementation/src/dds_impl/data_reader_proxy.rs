@@ -33,14 +33,14 @@ use super::{
 
 pub struct DataReaderProxy<'dr, Foo> {
     subscriber: &'dr SubscriberProxy,
-    topic: &'dr TopicProxy<'dr, Foo>,
+    topic: &'dr TopicProxy<Foo>,
     data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
 }
 
 impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
     pub fn new(
         subscriber: &'dr SubscriberProxy,
-        topic: &'dr TopicProxy<'dr, Foo>,
+        topic: &'dr TopicProxy<Foo>,
         data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
     ) -> Self {
         Self {

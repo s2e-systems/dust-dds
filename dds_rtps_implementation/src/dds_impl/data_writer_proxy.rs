@@ -22,14 +22,14 @@ use super::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
 
 pub struct DataWriterProxy<'dw, Foo> {
     publisher: &'dw PublisherProxy,
-    topic: &'dw TopicProxy<'dw, Foo>,
+    topic: &'dw TopicProxy<Foo>,
     data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
 }
 
 impl<'dw, Foo> DataWriterProxy<'dw, Foo> {
     pub fn new(
         publisher: &'dw PublisherProxy,
-        topic: &'dw TopicProxy<'dw, Foo>,
+        topic: &'dw TopicProxy<Foo>,
         data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
     ) -> Self {
         Self {

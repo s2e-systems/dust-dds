@@ -27,6 +27,7 @@ use super::{
     publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
 };
 
+#[derive(Clone)]
 pub struct PublisherProxy {
     _participant: RtpsWeak<DomainParticipantImpl>,
     publisher_impl: RtpsWeak<PublisherImpl>,
@@ -54,7 +55,7 @@ impl<'dw, Foo> PublisherDataWriterFactory<'dw, Foo> for PublisherProxy
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
-    type TopicType = TopicProxy<'dw, Foo>;
+    type TopicType = TopicProxy<Foo>;
     type DataWriterType = DataWriterProxy<'dw, Foo>;
 
     fn datawriter_factory_create_datawriter(

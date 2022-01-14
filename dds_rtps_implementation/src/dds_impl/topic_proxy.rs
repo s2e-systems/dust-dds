@@ -9,16 +9,17 @@ use rust_dds_api::{
     topic::{topic::Topic, topic_description::TopicDescription},
 };
 
-use super::{domain_participant_proxy::DomainParticipantProxy, topic_impl::TopicImpl};
+use super::{domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl};
 
-pub struct TopicProxy<'t, Foo> {
-    participant: &'t DomainParticipantProxy,
+#[derive(Clone)]
+pub struct TopicProxy<Foo> {
+    participant: RtpsWeak<DomainParticipantImpl>,
     topic_impl: RtpsWeak<TopicImpl<Foo>>,
 }
 
-impl<'t, Foo> TopicProxy<'t, Foo> {
+impl<Foo> TopicProxy<Foo> {
     pub fn new(
-        participant: &'t DomainParticipantProxy,
+        participant: RtpsWeak<DomainParticipantImpl>,
         topic_impl: RtpsWeak<TopicImpl<Foo>>,
     ) -> Self {
         Self {
@@ -28,21 +29,22 @@ impl<'t, Foo> TopicProxy<'t, Foo> {
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<TopicImpl<Foo>>> for TopicProxy<'_, Foo> {
+impl<Foo> AsRef<RtpsWeak<TopicImpl<Foo>>> for TopicProxy<Foo> {
     fn as_ref(&self) -> &RtpsWeak<TopicImpl<Foo>> {
         &self.topic_impl
     }
 }
 
-impl<'t, Foo> Topic<Foo> for TopicProxy<'t, Foo> {
+impl<Foo> Topic<Foo> for TopicProxy<Foo> {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
     }
 }
 
-impl<'t, Foo> TopicDescription<Foo> for TopicProxy<'t, Foo> {
+impl<Foo> TopicDescription<Foo> for TopicProxy<Foo> {
     fn get_participant(&self) -> &dyn DomainParticipant {
-        self.participant
+        // self.participant
+        todo!()
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
@@ -54,7 +56,7 @@ impl<'t, Foo> TopicDescription<Foo> for TopicProxy<'t, Foo> {
     }
 }
 
-impl<'t, Foo> Entity for TopicProxy<'t, Foo> {
+impl<Foo> Entity for TopicProxy<Foo> {
     type Qos = <TopicImpl<Foo> as Entity>::Qos;
     type Listener = <TopicImpl<Foo> as Entity>::Listener;
 

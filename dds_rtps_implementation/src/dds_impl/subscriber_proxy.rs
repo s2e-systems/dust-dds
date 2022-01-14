@@ -30,6 +30,7 @@ use super::{
     subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy,
 };
 
+#[derive(Clone)]
 pub struct SubscriberProxy {
     _participant: RtpsWeak<DomainParticipantImpl>,
     subscriber_impl: RtpsWeak<SubscriberImpl>,
@@ -57,7 +58,7 @@ impl<'dr, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
-    type TopicType = TopicProxy<'dr, Foo>;
+    type TopicType = TopicProxy<Foo>;
     type DataReaderType = DataReaderProxy<'dr, Foo>;
 
     fn datareader_factory_create_datareader(
