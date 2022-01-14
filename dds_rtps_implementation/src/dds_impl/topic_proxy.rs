@@ -11,10 +11,19 @@ use rust_dds_api::{
 
 use super::{domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl};
 
-#[derive(Clone)]
 pub struct TopicProxy<Foo> {
     participant: RtpsWeak<DomainParticipantImpl>,
     topic_impl: RtpsWeak<TopicImpl<Foo>>,
+}
+
+// Not automatically derived because in that case it is only available if Foo: Clone
+impl<Foo> Clone for TopicProxy<Foo> {
+    fn clone(&self) -> Self {
+        Self {
+            participant: self.participant.clone(),
+            topic_impl: self.topic_impl.clone(),
+        }
+    }
 }
 
 impl<Foo> TopicProxy<Foo> {

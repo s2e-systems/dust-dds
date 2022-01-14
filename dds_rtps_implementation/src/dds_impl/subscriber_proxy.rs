@@ -59,7 +59,7 @@ where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
     type TopicType = TopicProxy<Foo>;
-    type DataReaderType = DataReaderProxy<'dr, Foo>;
+    type DataReaderType = DataReaderProxy<Foo>;
 
     fn datareader_factory_create_datareader(
         &'dr self,
@@ -74,7 +74,7 @@ where
         let data_reader_shared = rtps_shared_write_lock(&subscriber_shared)
             .datareader_factory_create_datareader(&topic_shared, qos, a_listener, mask)?;
         let data_reader_weak = rtps_shared_downgrade(&data_reader_shared);
-        let data_reader = DataReaderProxy::new(self, a_topic, data_reader_weak);
+        let data_reader = DataReaderProxy::new(self.clone(), a_topic.clone(), data_reader_weak);
         Some(data_reader)
     }
 

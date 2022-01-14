@@ -56,7 +56,7 @@ where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
     type TopicType = TopicProxy<Foo>;
-    type DataWriterType = DataWriterProxy<'dw, Foo>;
+    type DataWriterType = DataWriterProxy<Foo>;
 
     fn datawriter_factory_create_datawriter(
         &'dw self,
@@ -71,7 +71,7 @@ where
         let data_writer_shared = rtps_shared_write_lock(&publisher_shared)
             .datawriter_factory_create_datawriter(&topic_shared, qos, a_listener, mask)?;
         let data_writer_weak = rtps_shared_downgrade(&data_writer_shared);
-        let datawriter = DataWriterProxy::new(self, a_topic, data_writer_weak);
+        let datawriter = DataWriterProxy::new(self.clone(), a_topic.clone(), data_writer_weak);
         Some(datawriter)
     }
 

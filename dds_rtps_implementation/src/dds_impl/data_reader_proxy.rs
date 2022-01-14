@@ -31,33 +31,44 @@ use super::{
     topic_proxy::TopicProxy,
 };
 
-pub struct DataReaderProxy<'dr, Foo> {
-    subscriber: &'dr SubscriberProxy,
-    topic: &'dr TopicProxy<Foo>,
+pub struct DataReaderProxy<Foo> {
+    _subscriber: SubscriberProxy,
+    _topic: TopicProxy<Foo>,
     data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
 }
 
-impl<'dr, Foo> DataReaderProxy<'dr, Foo> {
+// Not automatically derived because in that case it is only available if Foo: Clone
+impl<Foo> Clone for DataReaderProxy<Foo> {
+    fn clone(&self) -> Self {
+        Self {
+            _subscriber: self._subscriber.clone(),
+            _topic: self._topic.clone(),
+            data_reader_impl: self.data_reader_impl.clone(),
+        }
+    }
+}
+
+impl<Foo> DataReaderProxy<Foo> {
     pub fn new(
-        subscriber: &'dr SubscriberProxy,
-        topic: &'dr TopicProxy<Foo>,
+        subscriber: SubscriberProxy,
+        topic: TopicProxy<Foo>,
         data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
     ) -> Self {
         Self {
-            subscriber,
-            topic,
+            _subscriber: subscriber,
+            _topic: topic,
             data_reader_impl,
         }
     }
 }
 
-impl<'dr, Foo> AsRef<RtpsWeak<DataReaderImpl<Foo>>> for DataReaderProxy<'dr, Foo> {
+impl<Foo> AsRef<RtpsWeak<DataReaderImpl<Foo>>> for DataReaderProxy<Foo> {
     fn as_ref(&self) -> &RtpsWeak<DataReaderImpl<Foo>> {
         &self.data_reader_impl
     }
 }
 
-impl<'a, Foo> DataReaderBorrowedSamples<'a> for DataReaderProxy<'a, Foo>
+impl<'a, Foo> DataReaderBorrowedSamples<'a> for DataReaderProxy<Foo>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
 {
@@ -81,7 +92,7 @@ where
     }
 }
 
-impl<Foo> DataReader<Foo> for DataReaderProxy<'_, Foo> {
+impl<Foo> DataReader<Foo> for DataReaderProxy<Foo> {
     fn take(
         &self,
         _data_values: &mut [Foo],
@@ -301,15 +312,17 @@ impl<Foo> DataReader<Foo> for DataReaderProxy<'_, Foo> {
     }
 
     fn get_topicdescription(&self) -> &dyn TopicDescription<Foo> {
-        self.topic
+        // self.topic
+        todo!()
     }
 
     fn get_subscriber(&self) -> &dyn Subscriber {
-        self.subscriber
+        // self.subscriber
+        todo!()
     }
 }
 
-impl<Foo> Entity for DataReaderProxy<'_, Foo> {
+impl<Foo> Entity for DataReaderProxy<Foo> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<DataType = Foo>>;
 
@@ -359,7 +372,7 @@ impl<Foo> Entity for DataReaderProxy<'_, Foo> {
     }
 }
 
-impl<'dr, Foo> AnyDataReader for DataReaderProxy<'dr, Foo> {}
+impl<Foo> AnyDataReader for DataReaderProxy<Foo> {}
 
 #[cfg(test)]
 mod tests {
