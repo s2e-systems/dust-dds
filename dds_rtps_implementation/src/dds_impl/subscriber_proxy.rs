@@ -26,34 +26,34 @@ use crate::{
 };
 
 use super::{
-    data_reader_proxy::DataReaderProxy, domain_participant_proxy::DomainParticipantProxy,
+    data_reader_proxy::DataReaderProxy, domain_participant_impl::DomainParticipantImpl,
     subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy,
 };
 
-pub struct SubscriberProxy<'s> {
-    participant: &'s DomainParticipantProxy,
+pub struct SubscriberProxy {
+    _participant: RtpsWeak<DomainParticipantImpl>,
     subscriber_impl: RtpsWeak<SubscriberImpl>,
 }
 
-impl<'s> SubscriberProxy<'s> {
+impl SubscriberProxy {
     pub fn new(
-        participant: &'s DomainParticipantProxy,
+        participant: RtpsWeak<DomainParticipantImpl>,
         subscriber_impl: RtpsWeak<SubscriberImpl>,
     ) -> Self {
         Self {
-            participant,
+            _participant: participant,
             subscriber_impl,
         }
     }
 }
 
-impl AsRef<RtpsWeak<SubscriberImpl>> for SubscriberProxy<'_> {
+impl AsRef<RtpsWeak<SubscriberImpl>> for SubscriberProxy {
     fn as_ref(&self) -> &RtpsWeak<SubscriberImpl> {
         &self.subscriber_impl
     }
 }
 
-impl<'dr, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy<'dr>
+impl<'dr, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
@@ -100,7 +100,7 @@ where
     }
 }
 
-impl Subscriber for SubscriberProxy<'_> {
+impl Subscriber for SubscriberProxy {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
     }
@@ -149,11 +149,12 @@ impl Subscriber for SubscriberProxy<'_> {
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
     fn get_participant(&self) -> &dyn DomainParticipant {
-        self.participant
+        // self.participant
+        todo!()
     }
 }
 
-impl Entity for SubscriberProxy<'_> {
+impl Entity for SubscriberProxy {
     type Qos = <SubscriberImpl as Entity>::Qos;
     type Listener = <SubscriberImpl as Entity>::Listener;
 

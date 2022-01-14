@@ -41,11 +41,11 @@ impl DomainParticipantProxy {
     }
 }
 
-impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantProxy {
-    type PublisherType = PublisherProxy<'p>;
+impl DomainParticipantPublisherFactory<'_> for DomainParticipantProxy {
+    type PublisherType = PublisherProxy;
 
     fn publisher_factory_create_publisher(
-        &'p self,
+        &'_ self,
         qos: Option<PublisherQos>,
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
@@ -54,7 +54,10 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantProxy {
             .publisher_factory_create_publisher(qos, a_listener, mask)?;
         let publisher_weak = rtps_shared_downgrade(&publisher_shared);
 
-        Some(PublisherProxy::new(self, publisher_weak))
+        Some(PublisherProxy::new(
+            rtps_shared_downgrade(&self.domain_participant),
+            publisher_weak,
+        ))
     }
 
     fn publisher_factory_delete_publisher(
@@ -73,11 +76,11 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantProxy {
     }
 }
 
-impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantProxy {
-    type SubscriberType = SubscriberProxy<'s>;
+impl DomainParticipantSubscriberFactory<'_> for DomainParticipantProxy {
+    type SubscriberType = SubscriberProxy;
 
     fn subscriber_factory_create_subscriber(
-        &'s self,
+        &'_ self,
         qos: Option<SubscriberQos>,
         a_listener: Option<&'static dyn SubscriberListener>,
         mask: StatusMask,
@@ -85,7 +88,10 @@ impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantProxy {
         let subscriber_shared = rtps_shared_read_lock(&self.domain_participant)
             .subscriber_factory_create_subscriber(qos, a_listener, mask)?;
         let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
-        Some(SubscriberProxy::new(self, subscriber_weak))
+        Some(SubscriberProxy::new(
+            rtps_shared_downgrade(&self.domain_participant),
+            subscriber_weak,
+        ))
     }
 
     fn subscriber_factory_delete_subscriber(
@@ -103,11 +109,14 @@ impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantProxy {
         }
     }
 
-    fn subscriber_factory_get_builtin_subscriber(&'s self) -> Self::SubscriberType {
+    fn subscriber_factory_get_builtin_subscriber(&'_ self) -> Self::SubscriberType {
         let subscriber_shared = rtps_shared_read_lock(&self.domain_participant)
             .subscriber_factory_get_builtin_subscriber();
         let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
-        SubscriberProxy::new(self, subscriber_weak)
+        SubscriberProxy::new(
+            rtps_shared_downgrade(&self.domain_participant),
+            subscriber_weak,
+        )
     }
 }
 

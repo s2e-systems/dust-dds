@@ -23,34 +23,34 @@ use crate::{
 };
 
 use super::{
-    data_writer_proxy::DataWriterProxy, domain_participant_proxy::DomainParticipantProxy,
+    data_writer_proxy::DataWriterProxy, domain_participant_impl::DomainParticipantImpl,
     publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
 };
 
-pub struct PublisherProxy<'p> {
-    participant: &'p DomainParticipantProxy,
+pub struct PublisherProxy {
+    _participant: RtpsWeak<DomainParticipantImpl>,
     publisher_impl: RtpsWeak<PublisherImpl>,
 }
 
-impl<'p> PublisherProxy<'p> {
+impl<'p> PublisherProxy {
     pub fn new(
-        participant: &'p DomainParticipantProxy,
+        participant: RtpsWeak<DomainParticipantImpl>,
         publisher_impl: RtpsWeak<PublisherImpl>,
     ) -> Self {
         Self {
-            participant,
+            _participant: participant,
             publisher_impl,
         }
     }
 }
 
-impl AsRef<RtpsWeak<PublisherImpl>> for PublisherProxy<'_> {
+impl AsRef<RtpsWeak<PublisherImpl>> for PublisherProxy {
     fn as_ref(&self) -> &RtpsWeak<PublisherImpl> {
         &self.publisher_impl
     }
 }
 
-impl<'dw, Foo> PublisherDataWriterFactory<'dw, Foo> for PublisherProxy<'_>
+impl<'dw, Foo> PublisherDataWriterFactory<'dw, Foo> for PublisherProxy
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
@@ -97,7 +97,7 @@ where
     }
 }
 
-impl Publisher for PublisherProxy<'_> {
+impl Publisher for PublisherProxy {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
@@ -150,11 +150,12 @@ impl Publisher for PublisherProxy<'_> {
     }
 
     fn get_participant(&self) -> &dyn DomainParticipant {
-        self.participant
+        // self.participant
+        todo!()
     }
 }
 
-impl Entity for PublisherProxy<'_> {
+impl Entity for PublisherProxy {
     type Qos = <PublisherImpl as Entity>::Qos;
     type Listener = <PublisherImpl as Entity>::Listener;
 
