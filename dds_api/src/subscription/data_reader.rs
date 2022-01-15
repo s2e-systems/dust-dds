@@ -7,10 +7,9 @@ use crate::{
     },
     infrastructure::{read_condition::ReadCondition, sample_info::SampleInfo},
     return_type::DDSResult,
-    topic::topic_description::TopicDescription,
 };
 
-use super::{query_condition::QueryCondition, subscriber::Subscriber};
+use super::query_condition::QueryCondition;
 
 pub trait DataReaderBorrowedSamples<'a> {
     type Samples;
@@ -34,7 +33,10 @@ pub trait DataReaderBorrowedSamples<'a> {
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub trait DataReader<T> {
+pub trait DataReader<Foo> {
+    type Subscriber;
+    type TopicDescription;
+
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
     /// (see 2.2.3.6) may impose further limits on the size of the returned ‘list.’
@@ -119,9 +121,10 @@ pub trait DataReader<T> {
         instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples>
     where
-        Self: DataReaderBorrowedSamples<'a> + Sized {
-            self.read_borrowed_samples(max_samples, sample_states, view_states, instance_states)
-        }
+        Self: DataReaderBorrowedSamples<'a> + Sized,
+    {
+        self.read_borrowed_samples(max_samples, sample_states, view_states, instance_states)
+    }
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
     /// structures. The operation will return either a ‘list’ of samples or else a single sample. This is controlled by the
@@ -138,7 +141,7 @@ pub trait DataReader<T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn take(
         &self,
-        data_values: &mut [T],
+        data_values: &mut [Foo],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         sample_states: &[SampleStateKind],
@@ -160,7 +163,7 @@ pub trait DataReader<T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn read_w_condition(
         &self,
-        data_values: &mut [T],
+        data_values: &mut [Foo],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_condition: ReadCondition,
@@ -176,7 +179,7 @@ pub trait DataReader<T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn take_w_condition(
         &self,
-        data_values: &mut [T],
+        data_values: &mut [Foo],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_condition: ReadCondition,
@@ -193,7 +196,7 @@ pub trait DataReader<T> {
     /// If there is no unread data in the DataReader, the operation will return NO_DATA and nothing is copied.
     fn read_next_sample(
         &self,
-        data_value: &mut [T],
+        data_value: &mut [Foo],
         sample_info: &mut [SampleInfo],
     ) -> DDSResult<()>;
 
@@ -207,7 +210,7 @@ pub trait DataReader<T> {
     /// If there is no unread data in the DataReader, the operation will return NO_DATA and nothing is copied.
     fn take_next_sample(
         &self,
-        data_value: &mut [T],
+        data_value: &mut [Foo],
         sample_info: &mut [SampleInfo],
     ) -> DDSResult<()>;
 
@@ -228,7 +231,7 @@ pub trait DataReader<T> {
     /// unspecified.
     fn read_instance(
         &self,
-        data_values: &mut [T],
+        data_values: &mut [Foo],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_handle: InstanceHandle,
@@ -252,7 +255,7 @@ pub trait DataReader<T> {
     /// unspecified.
     fn take_instance(
         &self,
-        data_values: &mut [T],
+        data_values: &mut [Foo],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_handle: InstanceHandle,
@@ -293,7 +296,7 @@ pub trait DataReader<T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn read_next_instance(
         &self,
-        data_values: &mut [T],
+        data_values: &mut [Foo],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
@@ -315,7 +318,7 @@ pub trait DataReader<T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn take_next_instance(
         &self,
-        data_values: &mut [T],
+        data_values: &mut [Foo],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
@@ -339,7 +342,7 @@ pub trait DataReader<T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn read_next_instance_w_condition(
         &self,
-        data_values: &mut [T],
+        data_values: &mut [Foo],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
@@ -360,7 +363,7 @@ pub trait DataReader<T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn take_next_instance_w_condition(
         &self,
-        data_values: &mut [T],
+        data_values: &mut [Foo],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
@@ -385,21 +388,25 @@ pub trait DataReader<T> {
     /// If the collections had a loan, upon return from return_loan the collections will have max_len=0.
     /// Similar to read, this operation must be provided on the specialized class that is generated for the particular application datatype
     /// that is being taken.
-    fn return_loan(&self, data_values: &mut [T], sample_infos: &mut [SampleInfo]) -> DDSResult<()>;
+    fn return_loan(
+        &self,
+        data_values: &mut [Foo],
+        sample_infos: &mut [SampleInfo],
+    ) -> DDSResult<()>;
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
     /// fields that form the key inside the key_holder instance.
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataReader. If the implementation is not able to check invalid handles then the result in this situation is
     /// unspecified.
-    fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> DDSResult<()>;
+    fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DDSResult<()>;
 
     /// This operation takes as a parameter an instance and returns a handle that can be used in subsequent operations that accept an
     /// instance handle as an argument. The instance parameter is only used for the purpose of examining the fields that define the
     /// key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
-    fn lookup_instance(&self, instance: &T) -> InstanceHandle;
+    fn lookup_instance(&self, instance: &Foo) -> InstanceHandle;
 
     /// This operation creates a ReadCondition. The returned ReadCondition will be attached and belong to the DataReader.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
@@ -462,10 +469,10 @@ pub trait DataReader<T> {
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
-    fn get_topicdescription(&self) -> &dyn TopicDescription<T>;
+    fn get_topicdescription(&self) -> DDSResult<Self::TopicDescription>;
 
     /// This operation returns the Subscriber to which the DataReader belongs.
-    fn get_subscriber(&self) -> &dyn Subscriber;
+    fn get_subscriber(&self) -> DDSResult<Self::Subscriber>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DataReader. That is, it
     /// deletes all contained ReadCondition and QueryCondition objects.

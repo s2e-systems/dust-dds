@@ -1,6 +1,5 @@
 use crate::{
     dcps_psm::{Duration, StatusMask},
-    domain::domain_participant::DomainParticipant,
     infrastructure::qos::{DataWriterQos, TopicQos},
     return_type::DDSResult,
 };
@@ -37,6 +36,8 @@ pub trait PublisherDataWriterFactory<'dw, T> {
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub trait Publisher {
+    type DomainParticipant;
+
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class
@@ -151,7 +152,7 @@ pub trait Publisher {
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&self) -> &dyn DomainParticipant;
+    fn get_participant(&self) -> DDSResult<Self::DomainParticipant>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.

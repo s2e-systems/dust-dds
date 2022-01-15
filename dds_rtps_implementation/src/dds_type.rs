@@ -41,8 +41,10 @@ pub trait DdsDeserialize<'de>: Sized {
     fn deserialize(buf: &mut &'de [u8]) -> DDSResult<Self>;
 }
 
-
-impl<T> DdsSerialize for &'_ T where T: DdsSerialize {
+impl<Foo> DdsSerialize for &'_ Foo
+where
+    Foo: DdsSerialize,
+{
     fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DDSResult<()> {
         (*self).serialize::<W, E>(writer)
     }
