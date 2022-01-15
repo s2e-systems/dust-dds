@@ -52,7 +52,7 @@ impl AsRef<RtpsWeak<SubscriberImpl>> for SubscriberProxy {
     }
 }
 
-impl<'dr, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy
+impl<Foo> SubscriberDataReaderFactory<Foo> for SubscriberProxy
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
@@ -60,8 +60,8 @@ where
     type DataReaderType = DataReaderProxy<Foo>;
 
     fn datareader_factory_create_datareader(
-        &'dr self,
-        a_topic: &'dr Self::TopicType,
+        &self,
+        a_topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
         a_listener: Option<&'static dyn DataReaderListener<DataType = Foo>>,
         mask: StatusMask,
@@ -90,9 +90,9 @@ where
         }
     }
 
-    fn datareader_factory_lookup_datareader<'a>(
-        &'a self,
-        _topic: &'a Self::TopicType,
+    fn datareader_factory_lookup_datareader(
+        &self,
+        _topic: &Self::TopicType,
     ) -> Option<Self::DataReaderType> {
         todo!()
     }

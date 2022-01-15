@@ -6,15 +6,15 @@ use crate::{
 
 use super::{data_reader::AnyDataReader, data_reader_listener::DataReaderListener};
 
-pub trait SubscriberDataReaderFactory<'dr, T> {
+pub trait SubscriberDataReaderFactory<Foo> {
     type TopicType;
     type DataReaderType;
 
     fn datareader_factory_create_datareader(
-        &'dr self,
-        a_topic: &'dr Self::TopicType,
+        &self,
+        a_topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<&'static dyn DataReaderListener<DataType = T>>,
+        a_listener: Option<&'static dyn DataReaderListener<DataType = Foo>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>;
 
@@ -24,8 +24,8 @@ pub trait SubscriberDataReaderFactory<'dr, T> {
     ) -> DDSResult<()>;
 
     fn datareader_factory_lookup_datareader(
-        &'dr self,
-        topic: &'dr Self::TopicType,
+        &self,
+        topic: &Self::TopicType,
     ) -> Option<Self::DataReaderType>;
 }
 
@@ -67,15 +67,15 @@ pub trait Subscriber {
     /// The TopicDescription passed to this operation must have been created from the same DomainParticipant that was used to
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
-    fn create_datareader<'dr, T>(
-        &'dr self,
-        a_topic: &'dr Self::TopicType,
+    fn create_datareader<Foo>(
+        &self,
+        a_topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<&'static dyn DataReaderListener<DataType = T>>,
+        a_listener: Option<&'static dyn DataReaderListener<DataType = Foo>>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>
     where
-        Self: SubscriberDataReaderFactory<'dr, T> + Sized,
+        Self: SubscriberDataReaderFactory<Foo> + Sized,
     {
         self.datareader_factory_create_datareader(a_topic, qos, a_listener, mask)
     }
@@ -92,9 +92,9 @@ pub trait Subscriber {
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datareader<'dr, T>(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>
+    fn delete_datareader<Foo>(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>
     where
-        Self: SubscriberDataReaderFactory<'dr, T> + Sized,
+        Self: SubscriberDataReaderFactory<Foo> + Sized,
     {
         self.datareader_factory_delete_datareader(a_datareader)
     }
@@ -104,12 +104,9 @@ pub trait Subscriber {
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    fn lookup_datareader<'dr, 't, T>(
-        &'dr self,
-        topic: &'dr Self::TopicType,
-    ) -> Option<Self::DataReaderType>
+    fn lookup_datareader<Foo>(&self, topic: &Self::TopicType) -> Option<Self::DataReaderType>
     where
-        Self: SubscriberDataReaderFactory<'dr, T> + Sized,
+        Self: SubscriberDataReaderFactory<Foo> + Sized,
     {
         self.datareader_factory_lookup_datareader(topic)
     }

@@ -128,7 +128,7 @@ impl PublisherImpl {
     }
 }
 
-impl<Foo> PublisherDataWriterFactory<'_, Foo> for PublisherImpl
+impl<Foo> PublisherDataWriterFactory<Foo> for PublisherImpl
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
@@ -136,8 +136,8 @@ where
     type DataWriterType = RtpsShared<DataWriterImpl<Foo>>;
 
     fn datawriter_factory_create_datawriter(
-        &'_ self,
-        a_topic: &'_ Self::TopicType,
+        &self,
+        a_topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
         _a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
         _mask: StatusMask,

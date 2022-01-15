@@ -92,7 +92,7 @@ impl SubscriberImpl {
     }
 }
 
-impl<'dr, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberImpl
+impl<Foo> SubscriberDataReaderFactory<Foo> for SubscriberImpl
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {

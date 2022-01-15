@@ -49,7 +49,7 @@ impl AsRef<RtpsWeak<PublisherImpl>> for PublisherProxy {
     }
 }
 
-impl<'dw, Foo> PublisherDataWriterFactory<'dw, Foo> for PublisherProxy
+impl<Foo> PublisherDataWriterFactory<Foo> for PublisherProxy
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
@@ -57,8 +57,8 @@ where
     type DataWriterType = DataWriterProxy<Foo>;
 
     fn datawriter_factory_create_datawriter(
-        &'dw self,
-        a_topic: &'dw Self::TopicType,
+        &self,
+        a_topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
         a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
         mask: StatusMask,
@@ -88,8 +88,8 @@ where
     }
 
     fn datawriter_factory_lookup_datawriter(
-        &'dw self,
-        _topic: &'dw Self::TopicType,
+        &self,
+        _topic: &Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         todo!()
     }
