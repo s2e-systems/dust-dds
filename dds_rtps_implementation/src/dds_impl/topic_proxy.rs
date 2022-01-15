@@ -40,13 +40,13 @@ impl<Foo> AsRef<RtpsWeak<TopicImpl<Foo>>> for TopicProxy<Foo> {
     }
 }
 
-impl<Foo> Topic<Foo> for TopicProxy<Foo> {
+impl<Foo> Topic for TopicProxy<Foo> {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
     }
 }
 
-impl<Foo> TopicDescription<Foo> for TopicProxy<Foo> {
+impl<Foo> TopicDescription for TopicProxy<Foo> {
     type DomainParticipant = DomainParticipantProxy;
 
     fn get_participant(&self) -> Self::DomainParticipant {

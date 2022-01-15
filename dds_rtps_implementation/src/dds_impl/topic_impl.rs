@@ -36,13 +36,13 @@ impl<Foo> TopicImpl<Foo> {
     // }
 }
 
-impl<Foo> Topic<Foo> for TopicImpl<Foo> {
+impl<Foo> Topic for TopicImpl<Foo> {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         todo!()
     }
 }
 
-impl<Foo> TopicDescription<Foo> for TopicImpl<Foo> {
+impl<Foo> TopicDescription for TopicImpl<Foo> {
     type DomainParticipant = ();
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
@@ -60,7 +60,7 @@ impl<Foo> TopicDescription<Foo> for TopicImpl<Foo> {
 
 impl<Foo> Entity for TopicImpl<Foo> {
     type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener<DataType = Foo>>;
+    type Listener = Box<dyn TopicListener>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

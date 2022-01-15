@@ -168,7 +168,7 @@ where
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener<DataType = Foo>>>,
+        _a_listener: Option<Box<dyn TopicListener>>,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         let topic_qos = qos.unwrap_or(self.default_topic_qos.clone());
@@ -301,10 +301,10 @@ impl DomainParticipant for DomainParticipantImpl {
         Ok(())
     }
 
-    fn lookup_topicdescription<T>(
+    fn lookup_topicdescription<Foo>(
         &self,
         _name: &str,
-    ) -> Option<&(dyn TopicDescription<T, DomainParticipant = Self>)> {
+    ) -> Option<&(dyn TopicDescription<DomainParticipant = Self>)> {
         todo!()
     }
 

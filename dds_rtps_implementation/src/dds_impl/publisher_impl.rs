@@ -390,7 +390,7 @@ mod tests {
     mock! {
         Topic<Foo>{}
 
-        impl<Foo> TopicDescription<Foo> for Topic<Foo> {
+        impl<Foo> TopicDescription for Topic<Foo> {
             type DomainParticipant = ();
             fn get_participant(&self) -> ();
             fn get_type_name(&self) -> DDSResult<&'static str>;

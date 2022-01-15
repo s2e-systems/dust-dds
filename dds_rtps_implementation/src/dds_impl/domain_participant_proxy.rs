@@ -49,7 +49,7 @@ where
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<DataType = Foo>>>,
+        a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType> {
         let topic_shared = rtps_shared_read_lock(&self.domain_participant)
@@ -144,10 +144,10 @@ impl DomainParticipant for DomainParticipantProxy {
         }
     }
 
-    fn lookup_topicdescription<T>(
+    fn lookup_topicdescription<Foo>(
         &self,
         _name: &str,
-    ) -> Option<&dyn TopicDescription<T, DomainParticipant = Self>>
+    ) -> Option<&dyn TopicDescription<DomainParticipant = Self>>
     where
         Self: Sized,
     {

@@ -15,7 +15,7 @@ pub trait DomainParticipantTopicFactory<Foo> {
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<DataType = Foo>>>,
+        a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>;
 
@@ -93,7 +93,7 @@ pub trait DomainParticipant {
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<DataType = Foo>>>,
+        a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>
     where
@@ -148,7 +148,7 @@ pub trait DomainParticipant {
     fn lookup_topicdescription<T>(
         &self,
         _name: &str,
-    ) -> Option<&dyn TopicDescription<T, DomainParticipant = Self>>
+    ) -> Option<&dyn TopicDescription<DomainParticipant = Self>>
     where
         Self: Sized;
 
