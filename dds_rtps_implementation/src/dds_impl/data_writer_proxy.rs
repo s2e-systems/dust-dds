@@ -1,10 +1,14 @@
-use crate::utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak};
+use crate::{
+    dds_type::DdsSerialize,
+    utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak},
+};
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
+    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
@@ -15,15 +19,16 @@ use rust_dds_api::{
         publisher::Publisher,
     },
     return_type::DDSResult,
-    topic::topic::Topic,
 };
 
-use super::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
+use super::{
+    data_writer_impl::DataWriterImpl, publisher_proxy::PublisherProxy, topic_proxy::TopicProxy,
+};
 
 pub struct DataWriterProxy<Foo> {
     publisher: PublisherProxy,
-    _topic: TopicProxy<Foo>,
-    data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
+    topic: TopicProxy<Foo>,
+    data_writer_impl: RtpsWeak<DataWriterImpl<Foo>>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
@@ -31,7 +36,7 @@ impl<Foo> Clone for DataWriterProxy<Foo> {
     fn clone(&self) -> Self {
         Self {
             publisher: self.publisher.clone(),
-            _topic: self._topic.clone(),
+            topic: self.topic.clone(),
             data_writer_impl: self.data_writer_impl.clone(),
         }
     }
@@ -41,23 +46,29 @@ impl<Foo> DataWriterProxy<Foo> {
     pub fn new(
         publisher: PublisherProxy,
         topic: TopicProxy<Foo>,
-        data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
+        data_writer_impl: RtpsWeak<DataWriterImpl<Foo>>,
     ) -> Self {
         Self {
             publisher,
-            _topic: topic,
+            topic,
             data_writer_impl,
         }
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<dyn DataWriter<Foo> + Send + Sync>> for DataWriterProxy<Foo> {
-    fn as_ref(&self) -> &RtpsWeak<dyn DataWriter<Foo> + Send + Sync> {
+impl<Foo> AsRef<RtpsWeak<DataWriterImpl<Foo>>> for DataWriterProxy<Foo> {
+    fn as_ref(&self) -> &RtpsWeak<DataWriterImpl<Foo>> {
         &self.data_writer_impl
     }
 }
 
-impl<Foo> DataWriter<Foo> for DataWriterProxy<Foo> {
+impl<Foo> DataWriter<Foo> for DataWriterProxy<Foo>
+where
+    Foo: DdsSerialize,
+{
+    type Publisher = PublisherProxy;
+    type Topic = TopicProxy<Foo>;
+
     fn register_instance(&mut self, instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.register_instance_w_timestamp(instance, timestamp)
@@ -156,6 +167,14 @@ impl<Foo> DataWriter<Foo> for DataWriterProxy<Foo> {
         todo!()
     }
 
+    fn get_topic(&self) -> DDSResult<Self::Topic> {
+        Ok(self.topic.clone())
+    }
+
+    fn get_publisher(&self) -> DDSResult<Self::Publisher> {
+        Ok(self.publisher.clone())
+    }
+
     fn assert_liveliness(&self) -> DDSResult<()> {
         todo!()
     }
@@ -172,16 +191,6 @@ impl<Foo> DataWriter<Foo> for DataWriterProxy<Foo> {
         &self,
         _subscription_handles: &mut [InstanceHandle],
     ) -> DDSResult<()> {
-        todo!()
-    }
-
-    fn get_topic(&self) -> &dyn Topic<Foo> {
-        // self.topic
-        todo!()
-    }
-
-    fn get_publisher(&self) -> &dyn Publisher {
-        // self.publisher
         todo!()
     }
 }

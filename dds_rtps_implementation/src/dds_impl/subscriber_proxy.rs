@@ -3,7 +3,6 @@ use rust_dds_api::{
         InstanceHandle, InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask,
         ViewStateKind,
     },
-    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, TopicQos},
@@ -14,14 +13,13 @@ use rust_dds_api::{
         data_reader_listener::DataReaderListener,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
     },
-    topic::topic_description::TopicDescription,
 };
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
     utils::shared_object::{
         rtps_shared_downgrade, rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade,
-        RtpsShared, RtpsWeak,
+        RtpsWeak,
     },
 };
 
@@ -32,7 +30,7 @@ use super::{
 
 #[derive(Clone)]
 pub struct SubscriberProxy {
-    _participant: DomainParticipantProxy,
+    participant: DomainParticipantProxy,
     subscriber_impl: RtpsWeak<SubscriberImpl>,
 }
 
@@ -42,7 +40,7 @@ impl SubscriberProxy {
         subscriber_impl: RtpsWeak<SubscriberImpl>,
     ) -> Self {
         Self {
-            _participant: participant,
+            participant,
             subscriber_impl,
         }
     }
@@ -69,8 +67,7 @@ where
         mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         let subscriber_shared = rtps_weak_upgrade(&self.subscriber_impl).ok()?;
-        let topic_shared: RtpsShared<dyn TopicDescription<Foo> + Send + Sync> =
-            rtps_weak_upgrade(a_topic.as_ref()).ok()?;
+        let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
         let data_reader_shared = rtps_shared_write_lock(&subscriber_shared)
             .datareader_factory_create_datareader(&topic_shared, qos, a_listener, mask)?;
         let data_reader_weak = rtps_shared_downgrade(&data_reader_shared);
@@ -82,7 +79,7 @@ where
         &self,
         a_datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
-        if std::ptr::eq(a_datareader.get_subscriber(), self) {
+        if std::ptr::eq(&a_datareader.get_subscriber()?, self) {
             let datareader_shared = rtps_weak_upgrade(a_datareader.as_ref())?;
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?)
                 .datareader_factory_delete_datareader(&datareader_shared)
@@ -102,11 +99,23 @@ where
 }
 
 impl Subscriber for SubscriberProxy {
+    type DomainParticipant = DomainParticipantProxy;
+
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
     }
 
     fn end_access(&self) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn get_datareaders(
+        &self,
+        _readers: &mut [&mut dyn AnyDataReader],
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -138,20 +147,8 @@ impl Subscriber for SubscriberProxy {
         todo!()
     }
 
-    fn get_datareaders(
-        &self,
-        _readers: &mut [&mut dyn AnyDataReader],
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()> {
-        todo!()
-    }
-
-    /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    fn get_participant(&self) -> &dyn DomainParticipant {
-        // self.participant
-        todo!()
+    fn get_participant(&self) -> Self::DomainParticipant {
+        self.participant.clone()
     }
 }
 

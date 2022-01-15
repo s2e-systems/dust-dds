@@ -145,10 +145,10 @@ pub trait DomainParticipant {
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription<'t, T>(
-        &'t self,
-        _name: &'t str,
-    ) -> Option<&'t dyn TopicDescription<T, DomainParticipant = Self>>
+    fn lookup_topicdescription<T>(
+        &self,
+        _name: &str,
+    ) -> Option<&dyn TopicDescription<T, DomainParticipant = Self>>
     where
         Self: Sized;
 
@@ -156,7 +156,7 @@ pub trait DomainParticipant {
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
     /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
-    fn get_builtin_subscriber(&self) -> Self::SubscriberType;
+    fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType>;
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
     /// onwards the Service will locally behave as if the remote participant did not exist. This means it will ignore any Topic,

@@ -7,10 +7,7 @@ use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{BuiltInTopicKey, DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
-        domain_participant::{
-            DomainParticipant, DomainParticipantPublisherFactory,
-            DomainParticipantSubscriberFactory, DomainParticipantTopicFactory,
-        },
+        domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{
@@ -39,10 +36,7 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    },
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
     utils::shared_object::{
@@ -164,100 +158,14 @@ impl DomainParticipantImpl {
     }
 }
 
-impl DomainParticipantPublisherFactory<'_> for DomainParticipantImpl {
-    type PublisherType = RtpsShared<PublisherImpl>;
-
-    fn publisher_factory_create_publisher(
-        &'_ self,
-        qos: Option<PublisherQos>,
-        _a_listener: Option<&'static dyn PublisherListener>,
-        _mask: StatusMask,
-    ) -> Option<Self::PublisherType> {
-        let publisher_qos = qos.unwrap_or(self.default_publisher_qos.clone());
-        let user_defined_publisher_counter = self
-            .user_defined_publisher_counter
-            .fetch_add(1, atomic::Ordering::SeqCst);
-        let entity_id = EntityId::new(
-            [user_defined_publisher_counter, 0, 0],
-            USER_DEFINED_WRITER_GROUP,
-        );
-        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
-        let sedp_builtin_publications_topic: RtpsShared<
-            dyn TopicDescription<SedpDiscoveredWriterData> + Send + Sync,
-        > = rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
-        let sedp_builtin_publications_announcer = rtps_shared_read_lock(&self.builtin_publisher)
-            .lookup_datawriter(&sedp_builtin_publications_topic);
-        let publisher_impl = PublisherImpl::new(
-            publisher_qos,
-            rtps_group,
-            Vec::new(),
-            sedp_builtin_publications_announcer,
-        );
-        let publisher_impl_shared = rtps_shared_new(publisher_impl);
-        rtps_shared_write_lock(&self.user_defined_publisher_list)
-            .push(publisher_impl_shared.clone());
-
-        Some(publisher_impl_shared)
-    }
-
-    fn publisher_factory_delete_publisher(
-        &self,
-        a_publisher: &Self::PublisherType,
-    ) -> DDSResult<()> {
-        rtps_shared_write_lock(&self.user_defined_publisher_list)
-            .retain(|x| !Arc::ptr_eq(&x, &a_publisher));
-        Ok(())
-    }
-}
-
-impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantImpl {
-    type SubscriberType = RtpsShared<SubscriberImpl>;
-
-    fn subscriber_factory_create_subscriber(
-        &'s self,
-        qos: Option<SubscriberQos>,
-        _a_listener: Option<&'static dyn SubscriberListener>,
-        _mask: StatusMask,
-    ) -> Option<Self::SubscriberType> {
-        let subscriber_qos = qos.unwrap_or(self.default_subscriber_qos.clone());
-        let user_defined_subscriber_counter = self
-            .user_defined_subscriber_counter
-            .fetch_add(1, atomic::Ordering::SeqCst);
-        let entity_id = EntityId::new(
-            [user_defined_subscriber_counter, 0, 0],
-            USER_DEFINED_READER_GROUP,
-        );
-        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
-        let subscriber = SubscriberImpl::new(subscriber_qos, rtps_group, Vec::new());
-        let subscriber_shared = rtps_shared_new(subscriber);
-        rtps_shared_write_lock(&self.user_defined_subscriber_list).push(subscriber_shared.clone());
-        Some(subscriber_shared)
-    }
-
-    fn subscriber_factory_delete_subscriber(
-        &self,
-        a_subscriber: &Self::SubscriberType,
-    ) -> DDSResult<()> {
-        rtps_shared_write_lock(&self.user_defined_subscriber_list)
-            .retain(|x| !Arc::ptr_eq(&x, &a_subscriber));
-        Ok(())
-    }
-
-    fn subscriber_factory_get_builtin_subscriber(&'s self) -> Self::SubscriberType {
-        self.builtin_subscriber.clone()
-    }
-}
-
-impl<Foo> DomainParticipantTopicFactory<'_, Foo> for DomainParticipantImpl
+impl<Foo> DomainParticipantTopicFactory<Foo> for DomainParticipantImpl
 where
     Foo: DdsType + 'static,
 {
     type TopicType = RtpsShared<TopicImpl<Foo>>;
 
     fn topic_factory_create_topic(
-        &'_ self,
+        &self,
         topic_name: &str,
         qos: Option<TopicQos>,
         _a_listener: Option<Box<dyn TopicListener<DataType = Foo>>>,
@@ -323,11 +231,85 @@ where
 }
 
 impl DomainParticipant for DomainParticipantImpl {
-    fn lookup_topicdescription<'t, T>(
-        &'t self,
-        _name: &'t str,
-    ) -> Option<&'t (dyn TopicDescription<T> + 't)> {
+    type PublisherType = RtpsShared<PublisherImpl>;
+    type SubscriberType = RtpsShared<SubscriberImpl>;
+
+    fn create_publisher(
+        &self,
+        qos: Option<PublisherQos>,
+        _a_listener: Option<&'static dyn PublisherListener>,
+        _mask: StatusMask,
+    ) -> Option<Self::PublisherType> {
+        let publisher_qos = qos.unwrap_or(self.default_publisher_qos.clone());
+        let user_defined_publisher_counter = self
+            .user_defined_publisher_counter
+            .fetch_add(1, atomic::Ordering::SeqCst);
+        let entity_id = EntityId::new(
+            [user_defined_publisher_counter, 0, 0],
+            USER_DEFINED_WRITER_GROUP,
+        );
+        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroupImpl::new(guid);
+        let sedp_builtin_publications_topic =
+            rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
+        let sedp_builtin_publications_announcer = rtps_shared_read_lock(&self.builtin_publisher)
+            .lookup_datawriter(&sedp_builtin_publications_topic);
+        let publisher_impl = PublisherImpl::new(
+            publisher_qos,
+            rtps_group,
+            Vec::new(),
+            sedp_builtin_publications_announcer,
+        );
+        let publisher_impl_shared = rtps_shared_new(publisher_impl);
+        rtps_shared_write_lock(&self.user_defined_publisher_list)
+            .push(publisher_impl_shared.clone());
+
+        Some(publisher_impl_shared)
+    }
+
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+        rtps_shared_write_lock(&self.user_defined_publisher_list)
+            .retain(|x| !Arc::ptr_eq(&x, &a_publisher));
+        Ok(())
+    }
+
+    fn create_subscriber(
+        &self,
+        qos: Option<SubscriberQos>,
+        _a_listener: Option<&'static dyn SubscriberListener>,
+        _mask: StatusMask,
+    ) -> Option<Self::SubscriberType> {
+        let subscriber_qos = qos.unwrap_or(self.default_subscriber_qos.clone());
+        let user_defined_subscriber_counter = self
+            .user_defined_subscriber_counter
+            .fetch_add(1, atomic::Ordering::SeqCst);
+        let entity_id = EntityId::new(
+            [user_defined_subscriber_counter, 0, 0],
+            USER_DEFINED_READER_GROUP,
+        );
+        let guid = Guid::new(*self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroupImpl::new(guid);
+        let subscriber = SubscriberImpl::new(subscriber_qos, rtps_group, Vec::new());
+        let subscriber_shared = rtps_shared_new(subscriber);
+        rtps_shared_write_lock(&self.user_defined_subscriber_list).push(subscriber_shared.clone());
+        Some(subscriber_shared)
+    }
+
+    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+        rtps_shared_write_lock(&self.user_defined_subscriber_list)
+            .retain(|x| !Arc::ptr_eq(&x, &a_subscriber));
+        Ok(())
+    }
+
+    fn lookup_topicdescription<T>(
+        &self,
+        _name: &str,
+    ) -> Option<&(dyn TopicDescription<T, DomainParticipant = Self>)> {
         todo!()
+    }
+
+    fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
+        Ok(self.builtin_subscriber.clone())
     }
 
     fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {

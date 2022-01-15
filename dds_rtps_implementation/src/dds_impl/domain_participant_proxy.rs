@@ -2,10 +2,7 @@ use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
-        domain_participant::{
-            DomainParticipant, DomainParticipantPublisherFactory,
-            DomainParticipantSubscriberFactory, DomainParticipantTopicFactory,
-        },
+        domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{
@@ -42,84 +39,14 @@ impl DomainParticipantProxy {
     }
 }
 
-impl DomainParticipantPublisherFactory<'_> for DomainParticipantProxy {
-    type PublisherType = PublisherProxy;
-
-    fn publisher_factory_create_publisher(
-        &'_ self,
-        qos: Option<PublisherQos>,
-        a_listener: Option<&'static dyn PublisherListener>,
-        mask: StatusMask,
-    ) -> Option<Self::PublisherType> {
-        let publisher_shared = rtps_shared_read_lock(&self.domain_participant)
-            .publisher_factory_create_publisher(qos, a_listener, mask)?;
-        let publisher_weak = rtps_shared_downgrade(&publisher_shared);
-
-        Some(PublisherProxy::new(self.clone(), publisher_weak))
-    }
-
-    fn publisher_factory_delete_publisher(
-        &self,
-        a_publisher: &Self::PublisherType,
-    ) -> DDSResult<()> {
-        let publisher_shared = rtps_weak_upgrade(a_publisher.as_ref())?;
-        if std::ptr::eq(a_publisher.get_participant(), self) {
-            rtps_shared_read_lock(&self.domain_participant)
-                .publisher_factory_delete_publisher(&publisher_shared)
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            ))
-        }
-    }
-}
-
-impl DomainParticipantSubscriberFactory<'_> for DomainParticipantProxy {
-    type SubscriberType = SubscriberProxy;
-
-    fn subscriber_factory_create_subscriber(
-        &'_ self,
-        qos: Option<SubscriberQos>,
-        a_listener: Option<&'static dyn SubscriberListener>,
-        mask: StatusMask,
-    ) -> Option<Self::SubscriberType> {
-        let subscriber_shared = rtps_shared_read_lock(&self.domain_participant)
-            .subscriber_factory_create_subscriber(qos, a_listener, mask)?;
-        let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
-        Some(SubscriberProxy::new(self.clone(), subscriber_weak))
-    }
-
-    fn subscriber_factory_delete_subscriber(
-        &self,
-        a_subscriber: &Self::SubscriberType,
-    ) -> DDSResult<()> {
-        let subscriber_shared = rtps_weak_upgrade(a_subscriber.as_ref())?;
-        if std::ptr::eq(a_subscriber.get_participant(), self) {
-            rtps_shared_read_lock(&self.domain_participant)
-                .subscriber_factory_delete_subscriber(&subscriber_shared)
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant".to_string(),
-            ))
-        }
-    }
-
-    fn subscriber_factory_get_builtin_subscriber(&'_ self) -> Self::SubscriberType {
-        let subscriber_shared = rtps_shared_read_lock(&self.domain_participant)
-            .subscriber_factory_get_builtin_subscriber();
-        let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
-        SubscriberProxy::new(self.clone(), subscriber_weak)
-    }
-}
-
-impl<'t, Foo> DomainParticipantTopicFactory<'t, Foo> for DomainParticipantProxy
+impl<Foo> DomainParticipantTopicFactory<Foo> for DomainParticipantProxy
 where
     Foo: DdsType + 'static,
 {
     type TopicType = TopicProxy<Foo>;
 
     fn topic_factory_create_topic(
-        &'t self,
+        &self,
         topic_name: &str,
         qos: Option<TopicQos>,
         a_listener: Option<Box<dyn TopicListener<DataType = Foo>>>,
@@ -133,10 +60,10 @@ where
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()> {
         let topic_shared = rtps_weak_upgrade(a_topic.as_ref())?;
-        if std::ptr::eq(a_topic.get_participant(), self) {
+        if std::ptr::eq(&a_topic.get_participant(), self) {
             // Explicit call with the complete function path otherwise the generic type can't be infered.
             // This happens because TopicImpl has no generic type information.
-            DomainParticipantTopicFactory::<'t, Foo>::topic_factory_delete_topic(
+            DomainParticipantTopicFactory::<Foo>::topic_factory_delete_topic(
                 &*rtps_shared_read_lock(&self.domain_participant),
                 &topic_shared,
             )
@@ -148,8 +75,8 @@ where
     }
 
     fn topic_factory_find_topic(
-        &'t self,
-        _topic_name: &'t str,
+        &self,
+        _topic_name: &str,
         _timeout: Duration,
     ) -> Option<Self::TopicType> {
         // Explicit call with the complete function path otherwise the generic type can't be infered.
@@ -167,15 +94,72 @@ where
 }
 
 impl DomainParticipant for DomainParticipantProxy {
-    fn lookup_topicdescription<'t, T>(
-        &'t self,
-        _name: &'t str,
-    ) -> Option<&'t dyn TopicDescription<T>>
+    type PublisherType = PublisherProxy;
+    type SubscriberType = SubscriberProxy;
+
+    fn create_publisher(
+        &self,
+        qos: Option<PublisherQos>,
+        a_listener: Option<&'static dyn PublisherListener>,
+        mask: StatusMask,
+    ) -> Option<Self::PublisherType> {
+        let publisher_shared = rtps_shared_read_lock(&self.domain_participant)
+            .create_publisher(qos, a_listener, mask)?;
+        let publisher_weak = rtps_shared_downgrade(&publisher_shared);
+
+        Some(PublisherProxy::new(self.clone(), publisher_weak))
+    }
+
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+        let publisher_shared = rtps_weak_upgrade(a_publisher.as_ref())?;
+        if std::ptr::eq(&a_publisher.get_participant(), self) {
+            rtps_shared_read_lock(&self.domain_participant).delete_publisher(&publisher_shared)
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ))
+        }
+    }
+
+    fn create_subscriber(
+        &self,
+        qos: Option<SubscriberQos>,
+        a_listener: Option<&'static dyn SubscriberListener>,
+        mask: StatusMask,
+    ) -> Option<Self::SubscriberType> {
+        let subscriber_shared = rtps_shared_read_lock(&self.domain_participant)
+            .create_subscriber(qos, a_listener, mask)?;
+        let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
+        Some(SubscriberProxy::new(self.clone(), subscriber_weak))
+    }
+
+    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+        let subscriber_shared = rtps_weak_upgrade(a_subscriber.as_ref())?;
+        if std::ptr::eq(&a_subscriber.get_participant(), self) {
+            rtps_shared_read_lock(&self.domain_participant).delete_subscriber(&subscriber_shared)
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ))
+        }
+    }
+
+    fn lookup_topicdescription<T>(
+        &self,
+        _name: &str,
+    ) -> Option<&dyn TopicDescription<T, DomainParticipant = Self>>
     where
         Self: Sized,
     {
         todo!()
         // rtps_shared_read_lock(&self.domain_participant).lookup_topicdescription(name)
+    }
+
+    fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
+        let subscriber_shared =
+            rtps_shared_read_lock(&self.domain_participant).get_builtin_subscriber()?;
+        let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
+        Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
     }
 
     fn ignore_participant(&self, handle: InstanceHandle) -> DDSResult<()> {

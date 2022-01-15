@@ -3,7 +3,6 @@ use crate::utils::shared_object::{
 };
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
-    domain::domain_participant::DomainParticipant,
     infrastructure::entity::{Entity, StatusCondition},
     return_type::DDSResult,
     topic::{topic::Topic, topic_description::TopicDescription},
@@ -48,9 +47,10 @@ impl<Foo> Topic<Foo> for TopicProxy<Foo> {
 }
 
 impl<Foo> TopicDescription<Foo> for TopicProxy<Foo> {
-    fn get_participant(&self) -> &dyn DomainParticipant {
-        // self.participant
-        todo!()
+    type DomainParticipant = DomainParticipantProxy;
+
+    fn get_participant(&self) -> Self::DomainParticipant {
+        self.participant.clone()
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {

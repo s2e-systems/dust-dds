@@ -8,7 +8,7 @@ pub trait TopicDescription<Foo> {
     type DomainParticipant;
 
     /// This operation returns the DomainParticipant to which the Topic Description belongs.
-    fn get_participant(&self) -> DDSResult<Self::DomainParticipant>;
+    fn get_participant(&self) -> Self::DomainParticipant;
 
     /// The type_name used to create the TopicDescription
     fn get_type_name(&self) -> DDSResult<&'static str>;

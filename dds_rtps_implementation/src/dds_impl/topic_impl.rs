@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, StatusMask},
-    domain::domain_participant::DomainParticipant,
     infrastructure::{entity::Entity, qos::TopicQos},
     return_type::DDSResult,
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
@@ -44,9 +43,7 @@ impl<Foo> Topic<Foo> for TopicImpl<Foo> {
 }
 
 impl<Foo> TopicDescription<Foo> for TopicImpl<Foo> {
-    fn get_participant(&self) -> &dyn DomainParticipant {
-        todo!()
-    }
+    type DomainParticipant = ();
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
         Ok(&self.type_name)
@@ -54,6 +51,10 @@ impl<Foo> TopicDescription<Foo> for TopicImpl<Foo> {
 
     fn get_name(&self) -> DDSResult<String> {
         Ok(self.topic_name.clone())
+    }
+
+    fn get_participant(&self) -> Self::DomainParticipant {
+        todo!()
     }
 }
 
