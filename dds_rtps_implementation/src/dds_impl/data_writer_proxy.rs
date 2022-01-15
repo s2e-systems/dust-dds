@@ -18,33 +18,46 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 
-pub struct DataWriterProxy<'dw, Foo> {
-    publisher: &'dw dyn Publisher,
-    topic: &'dw dyn Topic<Foo>,
+use super::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
+
+pub struct DataWriterProxy<Foo> {
+    publisher: PublisherProxy,
+    _topic: TopicProxy<Foo>,
     data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
 }
 
-impl<'dw, Foo> DataWriterProxy<'dw, Foo> {
+// Not automatically derived because in that case it is only available if Foo: Clone
+impl<Foo> Clone for DataWriterProxy<Foo> {
+    fn clone(&self) -> Self {
+        Self {
+            publisher: self.publisher.clone(),
+            _topic: self._topic.clone(),
+            data_writer_impl: self.data_writer_impl.clone(),
+        }
+    }
+}
+
+impl<Foo> DataWriterProxy<Foo> {
     pub fn new(
-        publisher: &'dw dyn Publisher,
-        topic: &'dw dyn Topic<Foo>,
+        publisher: PublisherProxy,
+        topic: TopicProxy<Foo>,
         data_writer_impl: RtpsWeak<dyn DataWriter<Foo> + Send + Sync>,
     ) -> Self {
         Self {
             publisher,
-            topic,
+            _topic: topic,
             data_writer_impl,
         }
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<dyn DataWriter<Foo> + Send + Sync>> for DataWriterProxy<'_, Foo> {
+impl<Foo> AsRef<RtpsWeak<dyn DataWriter<Foo> + Send + Sync>> for DataWriterProxy<Foo> {
     fn as_ref(&self) -> &RtpsWeak<dyn DataWriter<Foo> + Send + Sync> {
         &self.data_writer_impl
     }
 }
 
-impl<'dw, Foo> DataWriter<Foo> for DataWriterProxy<'dw, Foo> {
+impl<Foo> DataWriter<Foo> for DataWriterProxy<Foo> {
     fn register_instance(&mut self, instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         let timestamp = self.publisher.get_participant().get_current_time()?;
         self.register_instance_w_timestamp(instance, timestamp)
@@ -163,15 +176,17 @@ impl<'dw, Foo> DataWriter<Foo> for DataWriterProxy<'dw, Foo> {
     }
 
     fn get_topic(&self) -> &dyn Topic<Foo> {
-        self.topic
+        // self.topic
+        todo!()
     }
 
     fn get_publisher(&self) -> &dyn Publisher {
-        self.publisher
+        // self.publisher
+        todo!()
     }
 }
 
-impl<'dw, Foo> Entity for DataWriterProxy<'dw, Foo> {
+impl<Foo> Entity for DataWriterProxy<Foo> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<DataType = Foo>>;
 
@@ -221,4 +236,4 @@ impl<'dw, Foo> Entity for DataWriterProxy<'dw, Foo> {
     }
 }
 
-impl<'dw, Foo> AnyDataWriter for DataWriterProxy<'dw, Foo> {}
+impl<Foo> AnyDataWriter for DataWriterProxy<Foo> {}

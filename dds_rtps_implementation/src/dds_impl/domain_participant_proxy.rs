@@ -20,40 +20,42 @@ use rust_dds_api::{
 
 use crate::{
     dds_type::DdsType,
-    utils::shared_object::{rtps_shared_downgrade, rtps_weak_upgrade},
+    utils::shared_object::{
+        rtps_shared_downgrade, rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade,
+        RtpsShared,
+    },
 };
 
 use super::{
-    domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
-    publisher_proxy::PublisherProxy, subscriber_impl::SubscriberImpl,
+    domain_participant_impl::DomainParticipantImpl, publisher_proxy::PublisherProxy,
     subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy,
 };
 
+#[derive(Clone)]
 pub struct DomainParticipantProxy {
-    domain_participant: DomainParticipantImpl<SubscriberImpl, PublisherImpl>,
+    domain_participant: RtpsShared<DomainParticipantImpl>,
 }
 
 impl DomainParticipantProxy {
-    pub fn new(domain_participant: DomainParticipantImpl<SubscriberImpl, PublisherImpl>) -> Self {
+    pub fn new(domain_participant: RtpsShared<DomainParticipantImpl>) -> Self {
         Self { domain_participant }
     }
 }
 
-impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantProxy {
-    type PublisherType = PublisherProxy<'p>;
+impl DomainParticipantPublisherFactory<'_> for DomainParticipantProxy {
+    type PublisherType = PublisherProxy;
 
     fn publisher_factory_create_publisher(
-        &'p self,
+        &'_ self,
         qos: Option<PublisherQos>,
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let publisher_shared = self
-            .domain_participant
+        let publisher_shared = rtps_shared_read_lock(&self.domain_participant)
             .publisher_factory_create_publisher(qos, a_listener, mask)?;
         let publisher_weak = rtps_shared_downgrade(&publisher_shared);
 
-        Some(PublisherProxy::new(self, publisher_weak))
+        Some(PublisherProxy::new(self.clone(), publisher_weak))
     }
 
     fn publisher_factory_delete_publisher(
@@ -62,7 +64,7 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantProxy {
     ) -> DDSResult<()> {
         let publisher_shared = rtps_weak_upgrade(a_publisher.as_ref())?;
         if std::ptr::eq(a_publisher.get_participant(), self) {
-            self.domain_participant
+            rtps_shared_read_lock(&self.domain_participant)
                 .publisher_factory_delete_publisher(&publisher_shared)
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -72,20 +74,19 @@ impl<'p> DomainParticipantPublisherFactory<'p> for DomainParticipantProxy {
     }
 }
 
-impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantProxy {
-    type SubscriberType = SubscriberProxy<'s>;
+impl DomainParticipantSubscriberFactory<'_> for DomainParticipantProxy {
+    type SubscriberType = SubscriberProxy;
 
     fn subscriber_factory_create_subscriber(
-        &'s self,
+        &'_ self,
         qos: Option<SubscriberQos>,
         a_listener: Option<&'static dyn SubscriberListener>,
         mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
-        let subscriber_shared = self
-            .domain_participant
+        let subscriber_shared = rtps_shared_read_lock(&self.domain_participant)
             .subscriber_factory_create_subscriber(qos, a_listener, mask)?;
         let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
-        Some(SubscriberProxy::new(self, subscriber_weak))
+        Some(SubscriberProxy::new(self.clone(), subscriber_weak))
     }
 
     fn subscriber_factory_delete_subscriber(
@@ -94,7 +95,7 @@ impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantProxy {
     ) -> DDSResult<()> {
         let subscriber_shared = rtps_weak_upgrade(a_subscriber.as_ref())?;
         if std::ptr::eq(a_subscriber.get_participant(), self) {
-            self.domain_participant
+            rtps_shared_read_lock(&self.domain_participant)
                 .subscriber_factory_delete_subscriber(&subscriber_shared)
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -103,12 +104,11 @@ impl<'s> DomainParticipantSubscriberFactory<'s> for DomainParticipantProxy {
         }
     }
 
-    fn subscriber_factory_get_builtin_subscriber(&'s self) -> Self::SubscriberType {
-        let subscriber_shared = self
-            .domain_participant
+    fn subscriber_factory_get_builtin_subscriber(&'_ self) -> Self::SubscriberType {
+        let subscriber_shared = rtps_shared_read_lock(&self.domain_participant)
             .subscriber_factory_get_builtin_subscriber();
         let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
-        SubscriberProxy::new(self, subscriber_weak)
+        SubscriberProxy::new(self.clone(), subscriber_weak)
     }
 }
 
@@ -116,7 +116,7 @@ impl<'t, Foo> DomainParticipantTopicFactory<'t, Foo> for DomainParticipantProxy
 where
     Foo: DdsType + 'static,
 {
-    type TopicType = TopicProxy<'t, Foo>;
+    type TopicType = TopicProxy<Foo>;
 
     fn topic_factory_create_topic(
         &'t self,
@@ -125,11 +125,10 @@ where
         a_listener: Option<Box<dyn TopicListener<DataType = Foo>>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType> {
-        let topic_shared = self
-            .domain_participant
+        let topic_shared = rtps_shared_read_lock(&self.domain_participant)
             .topic_factory_create_topic(topic_name, qos, a_listener, mask)?;
         let topic_weak = rtps_shared_downgrade(&topic_shared);
-        Some(TopicProxy::new(self, topic_weak))
+        Some(TopicProxy::new(self.clone(), topic_weak))
     }
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()> {
@@ -138,7 +137,7 @@ where
             // Explicit call with the complete function path otherwise the generic type can't be infered.
             // This happens because TopicImpl has no generic type information.
             DomainParticipantTopicFactory::<'t, Foo>::topic_factory_delete_topic(
-                &self.domain_participant,
+                &*rtps_shared_read_lock(&self.domain_participant),
                 &topic_shared,
             )
         } else {
@@ -150,89 +149,92 @@ where
 
     fn topic_factory_find_topic(
         &'t self,
-        topic_name: &'t str,
-        timeout: Duration,
+        _topic_name: &'t str,
+        _timeout: Duration,
     ) -> Option<Self::TopicType> {
         // Explicit call with the complete function path otherwise the generic type can't be infered.
         // This happens because TopicImpl has no generic type information.
-        let topic_shared = DomainParticipantTopicFactory::<'t, Foo>::topic_factory_find_topic(
-            &self.domain_participant,
-            topic_name,
-            timeout,
-        )?;
-        let topic_weak = rtps_shared_downgrade(&topic_shared);
-        Some(TopicProxy::new(self, topic_weak))
+        // let domain_participant = rtps_shared_read_lock(&self.domain_participant)
+        // let topic_shared = DomainParticipantTopicFactory::<'t, Foo>::topic_factory_find_topic(
+        //     &*,
+        //     topic_name,
+        //     timeout,
+        // )?;
+        // let topic_weak = rtps_shared_downgrade(&topic_shared);
+        // Some(TopicProxy::new(self, topic_weak))
+        todo!()
     }
 }
 
 impl DomainParticipant for DomainParticipantProxy {
     fn lookup_topicdescription<'t, T>(
         &'t self,
-        name: &'t str,
+        _name: &'t str,
     ) -> Option<&'t dyn TopicDescription<T>>
     where
         Self: Sized,
     {
-        self.domain_participant.lookup_topicdescription(name)
+        todo!()
+        // rtps_shared_read_lock(&self.domain_participant).lookup_topicdescription(name)
     }
 
     fn ignore_participant(&self, handle: InstanceHandle) -> DDSResult<()> {
-        self.domain_participant.ignore_participant(handle)
+        rtps_shared_read_lock(&self.domain_participant).ignore_participant(handle)
     }
 
     fn ignore_topic(&self, handle: InstanceHandle) -> DDSResult<()> {
-        self.domain_participant.ignore_topic(handle)
+        rtps_shared_read_lock(&self.domain_participant).ignore_topic(handle)
     }
 
     fn ignore_publication(&self, handle: InstanceHandle) -> DDSResult<()> {
-        self.domain_participant.ignore_publication(handle)
+        rtps_shared_read_lock(&self.domain_participant).ignore_publication(handle)
     }
 
     fn ignore_subscription(&self, handle: InstanceHandle) -> DDSResult<()> {
-        self.domain_participant.ignore_subscription(handle)
+        rtps_shared_read_lock(&self.domain_participant).ignore_subscription(handle)
     }
 
     fn get_domain_id(&self) -> DomainId {
-        self.domain_participant.get_domain_id()
+        rtps_shared_read_lock(&self.domain_participant).get_domain_id()
     }
 
     fn delete_contained_entities(&self) -> DDSResult<()> {
-        self.domain_participant.delete_contained_entities()
+        rtps_shared_read_lock(&self.domain_participant).delete_contained_entities()
     }
 
     fn assert_liveliness(&self) -> DDSResult<()> {
-        self.domain_participant.assert_liveliness()
+        rtps_shared_read_lock(&self.domain_participant).assert_liveliness()
     }
 
     fn set_default_publisher_qos(&mut self, qos: Option<PublisherQos>) -> DDSResult<()> {
-        self.domain_participant.set_default_publisher_qos(qos)
+        rtps_shared_write_lock(&self.domain_participant).set_default_publisher_qos(qos)
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
-        self.domain_participant.get_default_publisher_qos()
+        rtps_shared_read_lock(&self.domain_participant).get_default_publisher_qos()
     }
 
     fn set_default_subscriber_qos(&mut self, qos: Option<SubscriberQos>) -> DDSResult<()> {
-        self.domain_participant.set_default_subscriber_qos(qos)
+        rtps_shared_write_lock(&self.domain_participant).set_default_subscriber_qos(qos)
     }
 
     fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        self.domain_participant.get_default_subscriber_qos()
+        rtps_shared_read_lock(&self.domain_participant).get_default_subscriber_qos()
     }
 
     fn set_default_topic_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()> {
-        self.domain_participant.set_default_topic_qos(qos)
+        rtps_shared_write_lock(&self.domain_participant).set_default_topic_qos(qos)
     }
 
     fn get_default_topic_qos(&self) -> TopicQos {
-        self.domain_participant.get_default_topic_qos()
+        rtps_shared_read_lock(&self.domain_participant).get_default_topic_qos()
     }
 
     fn get_discovered_participants(
         &self,
         participant_handles: &mut [InstanceHandle],
     ) -> DDSResult<()> {
-        self.domain_participant
+        rtps_shared_read_lock(&self.domain_participant)
             .get_discovered_participants(participant_handles)
     }
 
@@ -241,12 +243,12 @@ impl DomainParticipant for DomainParticipantProxy {
         participant_data: ParticipantBuiltinTopicData,
         participant_handle: InstanceHandle,
     ) -> DDSResult<()> {
-        self.domain_participant
+        rtps_shared_read_lock(&self.domain_participant)
             .get_discovered_participant_data(participant_data, participant_handle)
     }
 
     fn get_discovered_topics(&self, topic_handles: &mut [InstanceHandle]) -> DDSResult<()> {
-        self.domain_participant.get_discovered_topics(topic_handles)
+        rtps_shared_read_lock(&self.domain_participant).get_discovered_topics(topic_handles)
     }
 
     fn get_discovered_topic_data(
@@ -254,16 +256,16 @@ impl DomainParticipant for DomainParticipantProxy {
         topic_data: TopicBuiltinTopicData,
         topic_handle: InstanceHandle,
     ) -> DDSResult<()> {
-        self.domain_participant
+        rtps_shared_read_lock(&self.domain_participant)
             .get_discovered_topic_data(topic_data, topic_handle)
     }
 
     fn contains_entity(&self, a_handle: InstanceHandle) -> bool {
-        self.domain_participant.contains_entity(a_handle)
+        rtps_shared_read_lock(&self.domain_participant).contains_entity(a_handle)
     }
 
     fn get_current_time(&self) -> DDSResult<Time> {
-        self.domain_participant.get_current_time()
+        rtps_shared_read_lock(&self.domain_participant).get_current_time()
     }
 }
 
@@ -272,34 +274,34 @@ impl Entity for DomainParticipantProxy {
     type Listener = &'static dyn DomainParticipantListener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.domain_participant.set_qos(qos)
+        rtps_shared_write_lock(&self.domain_participant).set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.domain_participant.get_qos()
+        rtps_shared_read_lock(&self.domain_participant).get_qos()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        self.domain_participant.set_listener(a_listener, mask)
+        rtps_shared_read_lock(&self.domain_participant).set_listener(a_listener, mask)
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        self.domain_participant.get_listener()
+        rtps_shared_read_lock(&self.domain_participant).get_listener()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        self.domain_participant.get_statuscondition()
+        rtps_shared_read_lock(&self.domain_participant).get_statuscondition()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        self.domain_participant.get_status_changes()
+        rtps_shared_read_lock(&self.domain_participant).get_status_changes()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        self.domain_participant.enable()
+        rtps_shared_read_lock(&self.domain_participant).enable()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.domain_participant.get_instance_handle()
+        rtps_shared_read_lock(&self.domain_participant).get_instance_handle()
     }
 }

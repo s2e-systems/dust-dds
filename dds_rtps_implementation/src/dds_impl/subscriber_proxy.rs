@@ -26,38 +26,40 @@ use crate::{
 };
 
 use super::{
-    data_reader_proxy::DataReaderProxy, subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy,
+    data_reader_proxy::DataReaderProxy, domain_participant_proxy::DomainParticipantProxy,
+    subscriber_impl::SubscriberImpl, topic_proxy::TopicProxy,
 };
 
-pub struct SubscriberProxy<'s> {
-    participant: &'s dyn DomainParticipant,
+#[derive(Clone)]
+pub struct SubscriberProxy {
+    _participant: DomainParticipantProxy,
     subscriber_impl: RtpsWeak<SubscriberImpl>,
 }
 
-impl<'s> SubscriberProxy<'s> {
+impl SubscriberProxy {
     pub fn new(
-        participant: &'s dyn DomainParticipant,
+        participant: DomainParticipantProxy,
         subscriber_impl: RtpsWeak<SubscriberImpl>,
     ) -> Self {
         Self {
-            participant,
+            _participant: participant,
             subscriber_impl,
         }
     }
 }
 
-impl AsRef<RtpsWeak<SubscriberImpl>> for SubscriberProxy<'_> {
+impl AsRef<RtpsWeak<SubscriberImpl>> for SubscriberProxy {
     fn as_ref(&self) -> &RtpsWeak<SubscriberImpl> {
         &self.subscriber_impl
     }
 }
 
-impl<'dr, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy<'dr>
+impl<'dr, Foo> SubscriberDataReaderFactory<'dr, Foo> for SubscriberProxy
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
-    type TopicType = TopicProxy<'dr, Foo>;
-    type DataReaderType = DataReaderProxy<'dr, Foo>;
+    type TopicType = TopicProxy<Foo>;
+    type DataReaderType = DataReaderProxy<Foo>;
 
     fn datareader_factory_create_datareader(
         &'dr self,
@@ -72,7 +74,7 @@ where
         let data_reader_shared = rtps_shared_write_lock(&subscriber_shared)
             .datareader_factory_create_datareader(&topic_shared, qos, a_listener, mask)?;
         let data_reader_weak = rtps_shared_downgrade(&data_reader_shared);
-        let data_reader = DataReaderProxy::new(self, a_topic, data_reader_weak);
+        let data_reader = DataReaderProxy::new(self.clone(), a_topic.clone(), data_reader_weak);
         Some(data_reader)
     }
 
@@ -99,7 +101,7 @@ where
     }
 }
 
-impl Subscriber for SubscriberProxy<'_> {
+impl Subscriber for SubscriberProxy {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
     }
@@ -148,11 +150,12 @@ impl Subscriber for SubscriberProxy<'_> {
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
     fn get_participant(&self) -> &dyn DomainParticipant {
-        self.participant
+        // self.participant
+        todo!()
     }
 }
 
-impl Entity for SubscriberProxy<'_> {
+impl Entity for SubscriberProxy {
     type Qos = <SubscriberImpl as Entity>::Qos;
     type Listener = <SubscriberImpl as Entity>::Listener;
 
