@@ -6,7 +6,7 @@ use crate::{
         SampleRejectedStatus, SubscriptionMatchedStatus,
     },
     publication::data_writer::AnyDataWriter,
-    subscription::{data_reader::AnyDataReader, subscriber::Subscriber},
+    subscription::data_reader::AnyDataReader,
     topic::topic_description::AnyTopicDescription,
 };
 
@@ -20,7 +20,7 @@ pub trait DomainParticipantListener {
         the_topic: &dyn AnyTopicDescription,
         status: InconsistentTopicStatus,
     );
-    fn on_data_on_readers(&self, the_subscriber: &dyn Subscriber);
+    fn on_data_on_readers(&self);
     fn on_data_available(&self, the_reader: &dyn AnyDataReader);
     fn on_sample_rejected(&self, the_reader: &dyn AnyDataReader, status: SampleRejectedStatus);
     fn on_liveliness_changed(

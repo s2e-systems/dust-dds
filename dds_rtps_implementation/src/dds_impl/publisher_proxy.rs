@@ -1,6 +1,5 @@
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
-    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, TopicQos},
@@ -11,14 +10,13 @@ use rust_dds_api::{
         publisher::{Publisher, PublisherDataWriterFactory},
     },
     return_type::{DDSError, DDSResult},
-    topic::topic_description::TopicDescription,
 };
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
     utils::shared_object::{
         rtps_shared_downgrade, rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade,
-        RtpsShared, RtpsWeak,
+        RtpsWeak,
     },
 };
 
@@ -51,7 +49,7 @@ impl AsRef<RtpsWeak<PublisherImpl>> for PublisherProxy {
     }
 }
 
-impl<'dw, Foo> PublisherDataWriterFactory<'dw, Foo> for PublisherProxy
+impl<Foo> PublisherDataWriterFactory<Foo> for PublisherProxy
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
@@ -59,15 +57,14 @@ where
     type DataWriterType = DataWriterProxy<Foo>;
 
     fn datawriter_factory_create_datawriter(
-        &'dw self,
-        a_topic: &'dw Self::TopicType,
+        &self,
+        a_topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
         a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = rtps_weak_upgrade(&self.publisher_impl).ok()?;
-        let topic_shared: RtpsShared<dyn TopicDescription<Foo> + Send + Sync> =
-            rtps_weak_upgrade(a_topic.as_ref()).ok()?;
+        let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
         let data_writer_shared = rtps_shared_write_lock(&publisher_shared)
             .datawriter_factory_create_datawriter(&topic_shared, qos, a_listener, mask)?;
         let data_writer_weak = rtps_shared_downgrade(&data_writer_shared);
@@ -80,7 +77,7 @@ where
         a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
         let a_datawriter_shared = rtps_weak_upgrade(a_datawriter.as_ref())?;
-        if std::ptr::eq(a_datawriter.get_publisher(), self) {
+        if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
             rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
                 .datawriter_factory_delete_datawriter(&a_datawriter_shared)
         } else {
@@ -91,14 +88,16 @@ where
     }
 
     fn datawriter_factory_lookup_datawriter(
-        &'dw self,
-        _topic: &'dw Self::TopicType,
+        &self,
+        _topic: &Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         todo!()
     }
 }
 
 impl Publisher for PublisherProxy {
+    type DomainParticipant = DomainParticipantProxy;
+
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
@@ -150,9 +149,8 @@ impl Publisher for PublisherProxy {
         todo!()
     }
 
-    fn get_participant(&self) -> &dyn DomainParticipant {
-        // self.participant
-        todo!()
+    fn get_participant(&self) -> Self::DomainParticipant {
+        self._participant.clone()
     }
 }
 

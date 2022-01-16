@@ -20,9 +20,7 @@ use rust_dds_api::{
         data_reader::{AnyDataReader, DataReader, DataReaderBorrowedSamples},
         data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
-        subscriber::Subscriber,
     },
-    topic::topic_description::TopicDescription,
 };
 
 use super::{
@@ -32,8 +30,8 @@ use super::{
 };
 
 pub struct DataReaderProxy<Foo> {
-    _subscriber: SubscriberProxy,
-    _topic: TopicProxy<Foo>,
+    subscriber: SubscriberProxy,
+    topic: TopicProxy<Foo>,
     data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
 }
 
@@ -41,8 +39,8 @@ pub struct DataReaderProxy<Foo> {
 impl<Foo> Clone for DataReaderProxy<Foo> {
     fn clone(&self) -> Self {
         Self {
-            _subscriber: self._subscriber.clone(),
-            _topic: self._topic.clone(),
+            subscriber: self.subscriber.clone(),
+            topic: self.topic.clone(),
             data_reader_impl: self.data_reader_impl.clone(),
         }
     }
@@ -55,8 +53,8 @@ impl<Foo> DataReaderProxy<Foo> {
         data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
     ) -> Self {
         Self {
-            _subscriber: subscriber,
-            _topic: topic,
+            subscriber,
+            topic,
             data_reader_impl,
         }
     }
@@ -93,6 +91,9 @@ where
 }
 
 impl<Foo> DataReader<Foo> for DataReaderProxy<Foo> {
+    type Subscriber = SubscriberProxy;
+    type TopicDescription = TopicProxy<Foo>;
+
     fn take(
         &self,
         _data_values: &mut [Foo],
@@ -291,6 +292,14 @@ impl<Foo> DataReader<Foo> for DataReaderProxy<Foo> {
         todo!()
     }
 
+    fn get_topicdescription(&self) -> DDSResult<Self::TopicDescription> {
+        Ok(self.topic.clone())
+    }
+
+    fn get_subscriber(&self) -> DDSResult<Self::Subscriber> {
+        Ok(self.subscriber.clone())
+    }
+
     fn delete_contained_entities(&self) -> DDSResult<()> {
         todo!()
     }
@@ -308,16 +317,6 @@ impl<Foo> DataReader<Foo> for DataReaderProxy<Foo> {
     }
 
     fn get_match_publication(&self, _publication_handles: &mut [InstanceHandle]) -> DDSResult<()> {
-        todo!()
-    }
-
-    fn get_topicdescription(&self) -> &dyn TopicDescription<Foo> {
-        // self.topic
-        todo!()
-    }
-
-    fn get_subscriber(&self) -> &dyn Subscriber {
-        // self.subscriber
         todo!()
     }
 }

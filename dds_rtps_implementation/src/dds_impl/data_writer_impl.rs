@@ -1,11 +1,8 @@
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
     infrastructure::{entity::Entity, qos::DataWriterQos},
-    publication::{
-        data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
-    },
+    publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
     return_type::{DDSError, DDSResult},
-    topic::topic::Topic,
 };
 use rust_rtps_pim::{
     behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
@@ -79,6 +76,9 @@ impl<Foo> DataWriter<Foo> for DataWriterImpl<Foo>
 where
     Foo: DdsSerialize,
 {
+    type Publisher = ();
+    type Topic = ();
+
     fn register_instance(&mut self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         unimplemented!()
     }
@@ -193,12 +193,12 @@ where
         todo!()
     }
 
-    fn get_topic(&self) -> &dyn Topic<Foo> {
-        unimplemented!()
+    fn get_topic(&self) -> DDSResult<Self::Topic> {
+        todo!()
     }
 
-    fn get_publisher(&self) -> &dyn Publisher {
-        unimplemented!()
+    fn get_publisher(&self) -> DDSResult<Self::Publisher> {
+        todo!()
     }
 
     fn assert_liveliness(&self) -> DDSResult<()> {

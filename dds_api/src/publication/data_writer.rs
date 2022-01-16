@@ -5,12 +5,12 @@ use crate::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, Time,
     },
     return_type::DDSResult,
-    topic::topic::Topic,
 };
 
-use super::publisher::Publisher;
+pub trait DataWriter<Foo> {
+    type Publisher;
+    type Topic;
 
-pub trait DataWriter<T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -25,7 +25,7 @@ pub trait DataWriter<T> {
     /// allocated handle. This may be used to lookup and retrieve the handle allocated to a given instance. The explicit use of this
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
-    fn register_instance(&mut self, instance: T) -> DDSResult<Option<InstanceHandle>>;
+    fn register_instance(&mut self, instance: Foo) -> DDSResult<Option<InstanceHandle>>;
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the
@@ -36,7 +36,7 @@ pub trait DataWriter<T> {
     /// (2.2.2.4.2.11).
     fn register_instance_w_timestamp(
         &mut self,
-        instance: T,
+        instance: Foo,
         timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>>;
 
@@ -67,8 +67,11 @@ pub trait DataWriter<T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11,
     /// write).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
-    fn unregister_instance(&mut self, instance: T, handle: Option<InstanceHandle>)
-        -> DDSResult<()>;
+    fn unregister_instance(
+        &mut self,
+        instance: Foo,
+        handle: Option<InstanceHandle>,
+    ) -> DDSResult<()>;
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the
@@ -79,7 +82,7 @@ pub trait DataWriter<T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     fn unregister_instance_w_timestamp(
         &mut self,
-        instance: T,
+        instance: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()>;
@@ -89,14 +92,14 @@ pub trait DataWriter<T> {
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataWriter. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
-    fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> DDSResult<()>;
+    fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DDSResult<()>;
 
     /// This operation takes as a parameter an instance and returns a handle that can be used in subsequent operations that accept an
     /// instance handle as an argument. The instance parameter is only used for the purpose of examining the fields that define the
     /// key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
-    fn lookup_instance(&self, instance: &T) -> DDSResult<Option<InstanceHandle>>;
+    fn lookup_instance(&self, instance: &Foo) -> DDSResult<Option<InstanceHandle>>;
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
     /// value of the source_timestamp that is made available to DataReader objects by means of the source_timestamp attribute
@@ -136,7 +139,7 @@ pub trait DataWriter<T> {
     /// by the ‘data’ parameter, the behavior is in general unspecified, but if detectable by the Service implementation, the return
     /// error-code will be PRECONDITION_NOT_MET. In case the handle is invalid, the behavior is in general unspecified, but if
     /// detectable the returned error-code will be BAD_PARAMETER.
-    fn write(&mut self, data: &T, handle: Option<InstanceHandle>) -> DDSResult<()>;
+    fn write(&mut self, data: &Foo, handle: Option<InstanceHandle>) -> DDSResult<()>;
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
     /// available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo. See 2.2.2.5, Subscription
@@ -153,7 +156,7 @@ pub trait DataWriter<T> {
     /// data-type that is being written.
     fn write_w_timestamp(
         &mut self,
-        data: &T,
+        data: &Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()>;
@@ -170,7 +173,7 @@ pub trait DataWriter<T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
-    fn dispose(&mut self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()>;
+    fn dispose(&mut self, data: Foo, handle: Option<InstanceHandle>) -> DDSResult<()>;
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
     /// that is made available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo (see 2.2.2.5,
@@ -187,7 +190,7 @@ pub trait DataWriter<T> {
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     fn dispose_w_timestamp(
         &mut self,
-        data: T,
+        data: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()>;
@@ -227,10 +230,10 @@ pub trait DataWriter<T> {
     ) -> DDSResult<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &dyn Topic<T>;
+    fn get_topic(&self) -> DDSResult<Self::Topic>;
 
     /// This operation returns the Publisher to which the data writer object belongs.
-    fn get_publisher(&self) -> &dyn Publisher;
+    fn get_publisher(&self) -> DDSResult<Self::Publisher>;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.

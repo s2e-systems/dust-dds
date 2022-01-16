@@ -3,7 +3,6 @@ use crate::utils::shared_object::{
 };
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
-    domain::domain_participant::DomainParticipant,
     infrastructure::entity::{Entity, StatusCondition},
     return_type::DDSResult,
     topic::{topic::Topic, topic_description::TopicDescription},
@@ -41,16 +40,17 @@ impl<Foo> AsRef<RtpsWeak<TopicImpl<Foo>>> for TopicProxy<Foo> {
     }
 }
 
-impl<Foo> Topic<Foo> for TopicProxy<Foo> {
+impl<Foo> Topic for TopicProxy<Foo> {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
     }
 }
 
-impl<Foo> TopicDescription<Foo> for TopicProxy<Foo> {
-    fn get_participant(&self) -> &dyn DomainParticipant {
-        // self.participant
-        todo!()
+impl<Foo> TopicDescription for TopicProxy<Foo> {
+    type DomainParticipant = DomainParticipantProxy;
+
+    fn get_participant(&self) -> Self::DomainParticipant {
+        self.participant.clone()
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {

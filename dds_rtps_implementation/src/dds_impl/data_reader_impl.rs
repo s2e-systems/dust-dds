@@ -6,7 +6,6 @@ use rust_dds_api::{
         data_reader::{DataReader, DataReaderBorrowedSamples},
         data_reader_listener::DataReaderListener,
     },
-    topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
     behavior::reader::reader::RtpsReaderAttributes,
@@ -155,6 +154,9 @@ impl<Foo> DataReader<Foo> for DataReaderImpl<Foo>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
 {
+    type Subscriber = ();
+    type TopicDescription = ();
+
     fn take(
         &self,
         _data_values: &mut [Foo],
@@ -360,11 +362,11 @@ where
         todo!()
     }
 
-    fn get_topicdescription(&self) -> &dyn TopicDescription<Foo> {
+    fn get_topicdescription(&self) -> DDSResult<Self::TopicDescription> {
         todo!()
     }
 
-    fn get_subscriber(&self) -> &dyn rust_dds_api::subscription::subscriber::Subscriber {
+    fn get_subscriber(&self) -> DDSResult<Self::Subscriber> {
         todo!()
     }
 

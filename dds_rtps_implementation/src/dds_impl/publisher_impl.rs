@@ -55,7 +55,7 @@ use crate::{
     },
 };
 
-use super::data_writer_impl::RtpsWriter;
+use super::{data_writer_impl::RtpsWriter, topic_impl::TopicImpl};
 
 pub trait AnyDataWriter {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
@@ -83,7 +83,7 @@ pub struct PublisherImpl {
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     sedp_builtin_publications_announcer:
-        Option<RtpsShared<dyn DataWriter<SedpDiscoveredWriterData> + Send + Sync>>,
+        Option<RtpsShared<DataWriterImpl<SedpDiscoveredWriterData>>>,
 }
 
 pub struct DataWriterListIterator<'a> {
@@ -107,7 +107,7 @@ impl PublisherImpl {
         rtps_group: RtpsGroupImpl,
         data_writer_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
         sedp_builtin_publications_announcer: Option<
-            RtpsShared<dyn DataWriter<SedpDiscoveredWriterData> + Send + Sync>,
+            RtpsShared<DataWriterImpl<SedpDiscoveredWriterData>>,
         >,
     ) -> Self {
         Self {
@@ -128,16 +128,16 @@ impl PublisherImpl {
     }
 }
 
-impl<Foo> PublisherDataWriterFactory<'_, Foo> for PublisherImpl
+impl<Foo> PublisherDataWriterFactory<Foo> for PublisherImpl
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
-    type TopicType = RtpsShared<dyn TopicDescription<Foo> + Send + Sync>;
-    type DataWriterType = RtpsShared<dyn DataWriter<Foo> + Send + Sync>;
+    type TopicType = RtpsShared<TopicImpl<Foo>>;
+    type DataWriterType = RtpsShared<DataWriterImpl<Foo>>;
 
     fn datawriter_factory_create_datawriter(
-        &'_ self,
-        a_topic: &'_ Self::TopicType,
+        &self,
+        a_topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
         _a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
         _mask: StatusMask,
@@ -263,6 +263,8 @@ where
 }
 
 impl Publisher for PublisherImpl {
+    type DomainParticipant = ();
+
     fn suspend_publications(&self) -> DDSResult<()> {
         todo!()
     }
@@ -286,7 +288,7 @@ impl Publisher for PublisherImpl {
         todo!()
     }
 
-    fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant {
+    fn get_participant(&self) -> Self::DomainParticipant {
         todo!()
     }
 
@@ -361,7 +363,7 @@ impl Entity for PublisherImpl {
 mod tests {
     use super::*;
     use mockall::mock;
-    use rust_dds_api::domain::domain_participant::DomainParticipant;
+    use rust_dds_api::infrastructure::qos::TopicQos;
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
     struct MockDDSType;
@@ -388,8 +390,9 @@ mod tests {
     mock! {
         Topic<Foo>{}
 
-        impl<Foo> TopicDescription<Foo> for Topic<Foo> {
-            fn get_participant(&self) -> &'static dyn DomainParticipant;
+        impl<Foo> TopicDescription for Topic<Foo> {
+            type DomainParticipant = ();
+            fn get_participant(&self) -> ();
             fn get_type_name(&self) -> DDSResult<&'static str>;
             fn get_name(&self) -> DDSResult<String>;
         }
@@ -434,8 +437,11 @@ mod tests {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
         let publisher_impl =
             PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], None);
-        let a_topic_shared: Arc<RwLock<dyn TopicDescription<MockDDSType> + Send + Sync>> =
-            rtps_shared_new(MockTopic::new());
+        let a_topic_shared = rtps_shared_new(TopicImpl::new(
+            TopicQos::default(),
+            "MockDDSType",
+            "MyTopic",
+        ));
 
         let data_writer_counter_before = publisher_impl
             .user_defined_data_writer_counter
