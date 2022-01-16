@@ -4,7 +4,6 @@ use crate::dcps_psm::{
 };
 
 pub trait DataWriterListener {
-    type DataType;
     fn on_liveliness_lost(&self, status: LivelinessLostStatus);
     fn on_offered_deadline_missed(&self, status: OfferedDeadlineMissedStatus);
     fn on_offered_incompatible_qos(&self, status: OfferedIncompatibleQosStatus);

@@ -54,11 +54,7 @@ pub trait AnyDataReader {
     fn into_as_mut_rtps_reader(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsReader>>>;
 }
 
-impl<Foo> AnyDataReader for RwLock<DataReaderImpl<Foo>>
-where
-    for<'a> Foo: DdsDeserialize<'a>,
-    Foo: Send + Sync + 'static,
-{
+impl AnyDataReader for RwLock<DataReaderImpl> {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
@@ -96,14 +92,14 @@ impl<Foo> SubscriberDataReaderFactory<Foo> for SubscriberImpl
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
-    type TopicType = RtpsShared<TopicImpl<Foo>>;
-    type DataReaderType = RtpsShared<DataReaderImpl<Foo>>;
+    type TopicType = RtpsShared<TopicImpl>;
+    type DataReaderType = RtpsShared<DataReaderImpl>;
 
     fn datareader_factory_create_datareader(
         &'_ self,
         _a_topic: &'_ Self::TopicType,
         qos: Option<DataReaderQos>,
-        _a_listener: Option<&'static dyn DataReaderListener<DataType = Foo>>,
+        _a_listener: Option<&'static dyn DataReaderListener>,
         _mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         let qos = qos.unwrap_or(self.default_data_reader_qos.clone());
@@ -169,7 +165,7 @@ where
         let found_data_reader = data_reader_list_lock
             .iter()
             .cloned()
-            .find_map(|x| Arc::downcast::<RwLock<DataReaderImpl<Foo>>>(x.into_any()).ok());
+            .find_map(|x| Arc::downcast::<RwLock<DataReaderImpl>>(x.into_any()).ok());
 
         if let Some(found_data_reader) = found_data_reader {
             return Some(found_data_reader);

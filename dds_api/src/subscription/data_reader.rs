@@ -11,7 +11,7 @@ use crate::{
 
 use super::query_condition::QueryCondition;
 
-pub trait DataReaderBorrowedSamples<'a> {
+pub trait DataReaderBorrowedSamples<'a, Foo> {
     type Samples;
 
     fn read_borrowed_samples(
@@ -121,7 +121,7 @@ pub trait DataReader<Foo> {
         instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples>
     where
-        Self: DataReaderBorrowedSamples<'a> + Sized,
+        Self: DataReaderBorrowedSamples<'a, Foo> + Sized,
     {
         self.read_borrowed_samples(max_samples, sample_states, view_states, instance_states)
     }

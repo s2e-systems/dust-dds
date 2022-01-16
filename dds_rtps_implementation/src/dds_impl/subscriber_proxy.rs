@@ -63,7 +63,7 @@ where
         &self,
         a_topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<&'static dyn DataReaderListener<DataType = Foo>>,
+        a_listener: Option<&'static dyn DataReaderListener>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         let subscriber_shared = rtps_weak_upgrade(&self.subscriber_impl).ok()?;

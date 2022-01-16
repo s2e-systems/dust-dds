@@ -50,7 +50,7 @@ use super::{
 
 pub trait AnyTopic {}
 
-impl<Foo> AnyTopic for TopicImpl<Foo> {}
+impl AnyTopic for TopicImpl {}
 
 pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipantImpl,
@@ -162,7 +162,7 @@ impl<Foo> DomainParticipantTopicFactory<Foo> for DomainParticipantImpl
 where
     Foo: DdsType + 'static,
 {
-    type TopicType = RtpsShared<TopicImpl<Foo>>;
+    type TopicType = RtpsShared<TopicImpl>;
 
     fn topic_factory_create_topic(
         &self,

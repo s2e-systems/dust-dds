@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, StatusMask},
     infrastructure::{entity::Entity, qos::TopicQos},
@@ -7,20 +5,18 @@ use rust_dds_api::{
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-pub struct TopicImpl<Foo> {
+pub struct TopicImpl {
     _qos: TopicQos,
     type_name: &'static str,
     topic_name: String,
-    phantom: PhantomData<Foo>,
 }
 
-impl<Foo> TopicImpl<Foo> {
+impl TopicImpl {
     pub fn new(qos: TopicQos, type_name: &'static str, topic_name: &str) -> Self {
         Self {
             _qos: qos,
             type_name,
             topic_name: topic_name.to_string(),
-            phantom: PhantomData,
         }
     }
 
@@ -36,13 +32,13 @@ impl<Foo> TopicImpl<Foo> {
     // }
 }
 
-impl<Foo> Topic for TopicImpl<Foo> {
+impl Topic for TopicImpl {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         todo!()
     }
 }
 
-impl<Foo> TopicDescription for TopicImpl<Foo> {
+impl TopicDescription for TopicImpl {
     type DomainParticipant = ();
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
@@ -58,7 +54,7 @@ impl<Foo> TopicDescription for TopicImpl<Foo> {
     }
 }
 
-impl<Foo> Entity for TopicImpl<Foo> {
+impl Entity for TopicImpl {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 

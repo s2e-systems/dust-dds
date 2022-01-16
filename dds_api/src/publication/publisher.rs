@@ -14,7 +14,7 @@ pub trait PublisherDataWriterFactory<Foo> {
         &self,
         a_topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
+        a_listener: Option<&'static dyn DataWriterListener>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>;
 
@@ -63,7 +63,7 @@ pub trait Publisher {
         &self,
         a_topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
+        a_listener: Option<&'static dyn DataWriterListener>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>
     where

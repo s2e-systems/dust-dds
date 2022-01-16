@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::{
     dds_type::DdsDeserialize,
     utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak},
@@ -32,7 +34,8 @@ use super::{
 pub struct DataReaderProxy<Foo> {
     subscriber: SubscriberProxy,
     topic: TopicProxy<Foo>,
-    data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
+    data_reader_impl: RtpsWeak<DataReaderImpl>,
+    phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
@@ -42,6 +45,7 @@ impl<Foo> Clone for DataReaderProxy<Foo> {
             subscriber: self.subscriber.clone(),
             topic: self.topic.clone(),
             data_reader_impl: self.data_reader_impl.clone(),
+            phantom: self.phantom.clone(),
         }
     }
 }
@@ -50,23 +54,24 @@ impl<Foo> DataReaderProxy<Foo> {
     pub fn new(
         subscriber: SubscriberProxy,
         topic: TopicProxy<Foo>,
-        data_reader_impl: RtpsWeak<DataReaderImpl<Foo>>,
+        data_reader_impl: RtpsWeak<DataReaderImpl>,
     ) -> Self {
         Self {
             subscriber,
             topic,
             data_reader_impl,
+            phantom: PhantomData,
         }
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<DataReaderImpl<Foo>>> for DataReaderProxy<Foo> {
-    fn as_ref(&self) -> &RtpsWeak<DataReaderImpl<Foo>> {
+impl<Foo> AsRef<RtpsWeak<DataReaderImpl>> for DataReaderProxy<Foo> {
+    fn as_ref(&self) -> &RtpsWeak<DataReaderImpl> {
         &self.data_reader_impl
     }
 }
 
-impl<'a, Foo> DataReaderBorrowedSamples<'a> for DataReaderProxy<Foo>
+impl<'a, Foo> DataReaderBorrowedSamples<'a, Foo> for DataReaderProxy<Foo>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
 {
@@ -323,7 +328,7 @@ impl<Foo> DataReader<Foo> for DataReaderProxy<Foo> {
 
 impl<Foo> Entity for DataReaderProxy<Foo> {
     type Qos = DataReaderQos;
-    type Listener = Box<dyn DataReaderListener<DataType = Foo>>;
+    type Listener = Box<dyn DataReaderListener>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)

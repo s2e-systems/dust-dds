@@ -41,16 +41,13 @@ impl RtpsWriter {
     }
 }
 
-pub struct DataWriterImpl<Foo> {
+pub struct DataWriterImpl {
     _qos: DataWriterQos,
     rtps_writer: RtpsWriter,
-    _listener: Option<Box<dyn DataWriterListener<DataType = Foo> + Send + Sync>>,
+    _listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
 }
 
-impl<Foo> DataWriterImpl<Foo>
-where
-    Foo: Send + 'static,
-{
+impl DataWriterImpl {
     pub fn new(qos: DataWriterQos, rtps_writer: RtpsWriter) -> Self {
         Self {
             _qos: qos,
@@ -60,19 +57,19 @@ where
     }
 }
 
-impl<Foo> AsRef<RtpsWriter> for DataWriterImpl<Foo> {
+impl AsRef<RtpsWriter> for DataWriterImpl {
     fn as_ref(&self) -> &RtpsWriter {
         &self.rtps_writer
     }
 }
 
-impl<Foo> AsMut<RtpsWriter> for DataWriterImpl<Foo> {
+impl AsMut<RtpsWriter> for DataWriterImpl {
     fn as_mut(&mut self) -> &mut RtpsWriter {
         &mut self.rtps_writer
     }
 }
 
-impl<Foo> DataWriter<Foo> for DataWriterImpl<Foo>
+impl<Foo> DataWriter<Foo> for DataWriterImpl
 where
     Foo: DdsSerialize,
 {
@@ -221,9 +218,9 @@ where
     }
 }
 
-impl<Foo> Entity for DataWriterImpl<Foo> {
+impl Entity for DataWriterImpl {
     type Qos = DataWriterQos;
-    type Listener = Box<dyn DataWriterListener<DataType = Foo>>;
+    type Listener = Box<dyn DataWriterListener>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // let qos = qos.unwrap_or_default();

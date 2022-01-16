@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::{
     dds_type::DdsSerialize,
     utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak},
@@ -28,7 +30,8 @@ use super::{
 pub struct DataWriterProxy<Foo> {
     publisher: PublisherProxy,
     topic: TopicProxy<Foo>,
-    data_writer_impl: RtpsWeak<DataWriterImpl<Foo>>,
+    data_writer_impl: RtpsWeak<DataWriterImpl>,
+    phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
@@ -38,6 +41,7 @@ impl<Foo> Clone for DataWriterProxy<Foo> {
             publisher: self.publisher.clone(),
             topic: self.topic.clone(),
             data_writer_impl: self.data_writer_impl.clone(),
+            phantom: self.phantom.clone(),
         }
     }
 }
@@ -46,18 +50,19 @@ impl<Foo> DataWriterProxy<Foo> {
     pub fn new(
         publisher: PublisherProxy,
         topic: TopicProxy<Foo>,
-        data_writer_impl: RtpsWeak<DataWriterImpl<Foo>>,
+        data_writer_impl: RtpsWeak<DataWriterImpl>,
     ) -> Self {
         Self {
             publisher,
             topic,
             data_writer_impl,
+            phantom: PhantomData,
         }
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<DataWriterImpl<Foo>>> for DataWriterProxy<Foo> {
-    fn as_ref(&self) -> &RtpsWeak<DataWriterImpl<Foo>> {
+impl<Foo> AsRef<RtpsWeak<DataWriterImpl>> for DataWriterProxy<Foo> {
+    fn as_ref(&self) -> &RtpsWeak<DataWriterImpl> {
         &self.data_writer_impl
     }
 }
@@ -197,7 +202,7 @@ where
 
 impl<Foo> Entity for DataWriterProxy<Foo> {
     type Qos = DataWriterQos;
-    type Listener = Box<dyn DataWriterListener<DataType = Foo>>;
+    type Listener = Box<dyn DataWriterListener>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).set_qos(qos)

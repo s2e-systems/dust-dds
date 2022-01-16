@@ -63,10 +63,7 @@ pub trait AnyDataWriter {
     fn into_as_mut_rtps_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>>;
 }
 
-impl<T> AnyDataWriter for RwLock<DataWriterImpl<T>>
-where
-    T: Send + Sync + 'static,
-{
+impl AnyDataWriter for RwLock<DataWriterImpl> {
     fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
@@ -82,8 +79,7 @@ pub struct PublisherImpl {
     data_writer_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
-    sedp_builtin_publications_announcer:
-        Option<RtpsShared<DataWriterImpl<SedpDiscoveredWriterData>>>,
+    sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterImpl>>,
 }
 
 pub struct DataWriterListIterator<'a> {
@@ -106,9 +102,7 @@ impl PublisherImpl {
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
         data_writer_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
-        sedp_builtin_publications_announcer: Option<
-            RtpsShared<DataWriterImpl<SedpDiscoveredWriterData>>,
-        >,
+        sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterImpl>>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -132,14 +126,14 @@ impl<Foo> PublisherDataWriterFactory<Foo> for PublisherImpl
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
-    type TopicType = RtpsShared<TopicImpl<Foo>>;
-    type DataWriterType = RtpsShared<DataWriterImpl<Foo>>;
+    type TopicType = RtpsShared<TopicImpl>;
+    type DataWriterType = RtpsShared<DataWriterImpl>;
 
     fn datawriter_factory_create_datawriter(
         &self,
         a_topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
-        _a_listener: Option<&'static dyn DataWriterListener<DataType = Foo>>,
+        _a_listener: Option<&'static dyn DataWriterListener>,
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
@@ -253,7 +247,7 @@ where
         let found_data_writer = data_writer_impl_list_lock
             .iter()
             .cloned()
-            .find_map(|x| Arc::downcast::<RwLock<DataWriterImpl<Foo>>>(x.into_any()).ok());
+            .find_map(|x| Arc::downcast::<RwLock<DataWriterImpl>>(x.into_any()).ok());
 
         if let Some(found_data_writer) = found_data_writer {
             return Some(found_data_writer);

@@ -59,25 +59,25 @@ impl RtpsReader {
     }
 }
 
-pub struct DataReaderImpl<Foo> {
+pub struct DataReaderImpl {
     rtps_reader: RtpsReader,
     _qos: DataReaderQos,
-    _listener: Option<Box<dyn DataReaderListener<DataType = Foo> + Send + Sync>>,
+    _listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
 }
 
-impl<Foo> AsRef<RtpsReader> for DataReaderImpl<Foo> {
+impl AsRef<RtpsReader> for DataReaderImpl {
     fn as_ref(&self) -> &RtpsReader {
         &self.rtps_reader
     }
 }
 
-impl<Foo> AsMut<RtpsReader> for DataReaderImpl<Foo> {
+impl AsMut<RtpsReader> for DataReaderImpl {
     fn as_mut(&mut self) -> &mut RtpsReader {
         &mut self.rtps_reader
     }
 }
 
-impl<Foo> DataReaderImpl<Foo> {
+impl DataReaderImpl {
     pub fn new(qos: DataReaderQos, rtps_reader: RtpsReader) -> Self {
         Self {
             rtps_reader,
@@ -114,7 +114,7 @@ impl<Foo> DataReaderImpl<Foo> {
 //     })
 //     .collect())
 
-impl<'a, Foo> DataReaderBorrowedSamples<'a> for DataReaderImpl<Foo>
+impl<'a, Foo> DataReaderBorrowedSamples<'a, Foo> for DataReaderImpl
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
 {
@@ -150,7 +150,7 @@ where
     }
 }
 
-impl<Foo> DataReader<Foo> for DataReaderImpl<Foo>
+impl<Foo> DataReader<Foo> for DataReaderImpl
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
 {
@@ -394,10 +394,9 @@ where
     }
 }
 
-impl<Foo> Entity for DataReaderImpl<Foo> {
+impl Entity for DataReaderImpl {
     type Qos = DataReaderQos;
-
-    type Listener = Box<dyn DataReaderListener<DataType = Foo>>;
+    type Listener = Box<dyn DataReaderListener>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

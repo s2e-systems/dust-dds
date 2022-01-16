@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::utils::shared_object::{
     rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak,
 };
@@ -12,7 +14,8 @@ use super::{domain_participant_proxy::DomainParticipantProxy, topic_impl::TopicI
 
 pub struct TopicProxy<Foo> {
     participant: DomainParticipantProxy,
-    topic_impl: RtpsWeak<TopicImpl<Foo>>,
+    topic_impl: RtpsWeak<TopicImpl>,
+    phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
@@ -21,21 +24,23 @@ impl<Foo> Clone for TopicProxy<Foo> {
         Self {
             participant: self.participant.clone(),
             topic_impl: self.topic_impl.clone(),
+            phantom: self.phantom.clone(),
         }
     }
 }
 
 impl<Foo> TopicProxy<Foo> {
-    pub fn new(participant: DomainParticipantProxy, topic_impl: RtpsWeak<TopicImpl<Foo>>) -> Self {
+    pub fn new(participant: DomainParticipantProxy, topic_impl: RtpsWeak<TopicImpl>) -> Self {
         Self {
             participant,
             topic_impl,
+            phantom: PhantomData,
         }
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<TopicImpl<Foo>>> for TopicProxy<Foo> {
-    fn as_ref(&self) -> &RtpsWeak<TopicImpl<Foo>> {
+impl<Foo> AsRef<RtpsWeak<TopicImpl>> for TopicProxy<Foo> {
+    fn as_ref(&self) -> &RtpsWeak<TopicImpl> {
         &self.topic_impl
     }
 }
@@ -63,8 +68,8 @@ impl<Foo> TopicDescription for TopicProxy<Foo> {
 }
 
 impl<Foo> Entity for TopicProxy<Foo> {
-    type Qos = <TopicImpl<Foo> as Entity>::Qos;
-    type Listener = <TopicImpl<Foo> as Entity>::Listener;
+    type Qos = <TopicImpl as Entity>::Qos;
+    type Listener = <TopicImpl as Entity>::Listener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
         rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_qos(qos)
