@@ -20,12 +20,7 @@ use rust_dds_api::{
     subscription::data_reader::DataReaderBorrowedSamples,
 };
 use rust_dds_rtps_implementation::{
-    data_representation_builtin_endpoints::{
-        sedp_discovered_reader_data::SedpDiscoveredReaderData,
-        sedp_discovered_topic_data::SedpDiscoveredTopicData,
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    },
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReader},
         data_writer_impl::{DataWriterImpl, RtpsWriter},
@@ -137,7 +132,7 @@ pub struct EnabledPeriodicTask {
 
 fn task_discovery<T>(
     spdp_builtin_participant_data_reader_arc: &RtpsShared<
-        impl for<'a> DataReaderBorrowedSamples<'a, Samples = T>,
+        impl for<'a> DataReaderBorrowedSamples<'a, SpdpDiscoveredParticipantData, Samples = T>,
     >,
     domain_id: u32,
     domain_tag: &str,
@@ -334,53 +329,45 @@ impl DomainParticipantFactory {
         spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
         // ///////// Create built-in DDS data readers and data writers
-        let spdp_builtin_participant_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SpdpDiscoveredParticipantData>::new(
-                DataReaderQos::default(),
-                RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
-            ));
+        let spdp_builtin_participant_dds_data_reader = rtps_shared_new(DataReaderImpl::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
+        ));
 
-        let spdp_builtin_participant_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SpdpDiscoveredParticipantData>::new(
-                DataWriterQos::default(),
-                RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-            ));
+        let spdp_builtin_participant_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
+        ));
 
-        let sedp_builtin_publications_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SedpDiscoveredWriterData>::new(
-                DataReaderQos::default(),
-                RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
-            ));
+        let sedp_builtin_publications_dds_data_reader = rtps_shared_new(DataReaderImpl::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
+        ));
 
-        let sedp_builtin_publications_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData>::new(
-                DataWriterQos::default(),
-                RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-            ));
+        let sedp_builtin_publications_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
+        ));
 
-        let sedp_builtin_subscriptions_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SedpDiscoveredReaderData>::new(
-                DataReaderQos::default(),
-                RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
-            ));
+        let sedp_builtin_subscriptions_dds_data_reader = rtps_shared_new(DataReaderImpl::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
+        ));
 
-        let sedp_builtin_subscriptions_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredReaderData>::new(
-                DataWriterQos::default(),
-                RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
-            ));
+        let sedp_builtin_subscriptions_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
+        ));
 
-        let sedp_builtin_topics_dds_data_reader =
-            rtps_shared_new(DataReaderImpl::<SedpDiscoveredTopicData>::new(
-                DataReaderQos::default(),
-                RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
-            ));
+        let sedp_builtin_topics_dds_data_reader = rtps_shared_new(DataReaderImpl::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
+        ));
 
-        let sedp_builtin_topics_dds_data_writer =
-            rtps_shared_new(DataWriterImpl::<SedpDiscoveredTopicData>::new(
-                DataWriterQos::default(),
-                RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
-            ));
+        let sedp_builtin_topics_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
+        ));
 
         let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
             SubscriberQos::default(),
@@ -537,7 +524,9 @@ impl DomainParticipantFactory {
 
         executor.run();
 
-        Some(DomainParticipantProxy::new(rtps_shared_new(domain_participant)))
+        Some(DomainParticipantProxy::new(rtps_shared_new(
+            domain_participant,
+        )))
     }
 }
 
@@ -569,7 +558,7 @@ mod tests {
     mock! {
         DdsDataReader<T: 'static>{}
 
-        impl<'a, T>  DataReaderBorrowedSamples<'a> for DdsDataReader<T>{
+        impl<'a, T>  DataReaderBorrowedSamples<'a, T> for DdsDataReader<T>{
             type Samples = Vec<T>;
 
             fn read_borrowed_samples(

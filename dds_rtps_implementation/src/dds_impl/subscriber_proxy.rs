@@ -68,8 +68,14 @@ where
     ) -> Option<Self::DataReaderType> {
         let subscriber_shared = rtps_weak_upgrade(&self.subscriber_impl).ok()?;
         let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
-        let data_reader_shared = rtps_shared_write_lock(&subscriber_shared)
-            .datareader_factory_create_datareader(&topic_shared, qos, a_listener, mask)?;
+        let data_reader_shared =
+            SubscriberDataReaderFactory::<Foo>::datareader_factory_create_datareader(
+                &*rtps_shared_write_lock(&subscriber_shared),
+                &topic_shared,
+                qos,
+                a_listener,
+                mask,
+            )?;
         let data_reader_weak = rtps_shared_downgrade(&data_reader_shared);
         let data_reader = DataReaderProxy::new(self.clone(), a_topic.clone(), data_reader_weak);
         Some(data_reader)
@@ -81,8 +87,10 @@ where
     ) -> DDSResult<()> {
         if std::ptr::eq(&a_datareader.get_subscriber()?, self) {
             let datareader_shared = rtps_weak_upgrade(a_datareader.as_ref())?;
-            rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?)
-                .datareader_factory_delete_datareader(&datareader_shared)
+            SubscriberDataReaderFactory::<Foo>::datareader_factory_delete_datareader(
+                &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?),
+                &datareader_shared,
+            )
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),

@@ -34,7 +34,7 @@ use rust_dds_rtps_implementation::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_impl::{
-        data_reader_impl::{DataReaderImpl, RtpsReader},
+        data_reader_impl::{DataReaderImpl, RtpsReader, Samples},
         data_writer_impl::{DataWriterImpl, RtpsWriter},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
@@ -162,7 +162,7 @@ fn send_and_receive_discovery_data_happy_path() {
         RtpsStatelessReaderImpl,
     >(GuidPrefix([5; 12]), &[], &[]);
 
-    let data_reader: DataReaderImpl<SpdpDiscoveredParticipantData> = DataReaderImpl::new(
+    let data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
         RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
     );
@@ -180,7 +180,8 @@ fn send_and_receive_discovery_data_happy_path() {
 
     let mut shared_data_reader = rtps_shared_write_lock(&shared_data_reader);
 
-    let result = shared_data_reader.read(1, &[], &[], &[]).unwrap();
+    let result: Samples<SpdpDiscoveredParticipantData> =
+        shared_data_reader.read(1, &[], &[], &[]).unwrap();
     assert_eq!(result[0].participant_proxy.domain_id, 1);
     assert_eq!(result[0].participant_proxy.domain_tag, "ab");
 }
@@ -262,11 +263,10 @@ fn process_discovery_data_happy_path() {
     let sedp_builtin_publications_rtps_writer =
         SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
-    let sedp_builtin_publications_data_writer =
-        rtps_shared_new(DataWriterImpl::<SedpDiscoveredWriterData>::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-        ));
+    let sedp_builtin_publications_data_writer = rtps_shared_new(DataWriterImpl::new(
+        DataWriterQos::default(),
+        RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
+    ));
 
     let publisher = rtps_shared_new(PublisherImpl::new(
         PublisherQos::default(),
@@ -298,11 +298,10 @@ fn process_discovery_data_happy_path() {
         RtpsStatelessReaderImpl,
     >(GuidPrefix([5; 12]), &[], &[]);
 
-    let spdp_builtin_participant_data_reader: DataReaderImpl<SpdpDiscoveredParticipantData> =
-        DataReaderImpl::new(
-            DataReaderQos::default(),
-            RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
-        );
+    let spdp_builtin_participant_data_reader = DataReaderImpl::new(
+        DataReaderQos::default(),
+        RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
+    );
     let shared_data_reader = rtps_shared_new(spdp_builtin_participant_data_reader);
     let subscriber = rtps_shared_new(SubscriberImpl::new(
         SubscriberQos::default(),
@@ -317,15 +316,15 @@ fn process_discovery_data_happy_path() {
     communication.receive(core::slice::from_ref(&subscriber));
     let mut shared_data_reader = rtps_shared_write_lock(&shared_data_reader);
 
-    let discovered_participant = shared_data_reader.read(1, &[], &[], &[]).unwrap();
+    let discovered_participant: Samples<SpdpDiscoveredParticipantData> =
+        shared_data_reader.read(1, &[], &[], &[]).unwrap();
 
     let sedp_builtin_publications_rtps_reader =
         SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-    let mut sedp_built_publications_reader: DataReaderImpl<SedpDiscoveredWriterData> =
-        DataReaderImpl::new(
-            DataReaderQos::default(),
-            RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
-        );
+    let mut sedp_built_publications_reader = DataReaderImpl::new(
+        DataReaderQos::default(),
+        RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
+    );
 
     if let Ok(participant_discovery) = ParticipantDiscovery::new(
         &discovered_participant[0].participant_proxy,

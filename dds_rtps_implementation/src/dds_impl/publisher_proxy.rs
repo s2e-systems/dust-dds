@@ -65,8 +65,13 @@ where
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = rtps_weak_upgrade(&self.publisher_impl).ok()?;
         let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
-        let data_writer_shared = rtps_shared_write_lock(&publisher_shared)
-            .datawriter_factory_create_datawriter(&topic_shared, qos, a_listener, mask)?;
+        let data_writer_shared = PublisherDataWriterFactory::<Foo>::datawriter_factory_create_datawriter(
+            &*rtps_shared_write_lock(&publisher_shared),
+            &topic_shared,
+            qos,
+            a_listener,
+            mask,
+        )?;
         let data_writer_weak = rtps_shared_downgrade(&data_writer_shared);
         let datawriter = DataWriterProxy::new(self.clone(), a_topic.clone(), data_writer_weak);
         Some(datawriter)
@@ -78,8 +83,10 @@ where
     ) -> DDSResult<()> {
         let a_datawriter_shared = rtps_weak_upgrade(a_datawriter.as_ref())?;
         if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
-            rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
-                .datawriter_factory_delete_datawriter(&a_datawriter_shared)
+            PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
+                &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?),
+                &a_datawriter_shared,
+            )
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),

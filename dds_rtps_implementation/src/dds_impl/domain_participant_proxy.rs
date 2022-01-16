@@ -52,8 +52,13 @@ where
         a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> Option<Self::TopicType> {
-        let topic_shared = rtps_shared_read_lock(&self.domain_participant)
-            .topic_factory_create_topic(topic_name, qos, a_listener, mask)?;
+        let topic_shared = DomainParticipantTopicFactory::<Foo>::topic_factory_create_topic(
+            &*rtps_shared_read_lock(&self.domain_participant),
+            topic_name,
+            qos,
+            a_listener,
+            mask,
+        )?;
         let topic_weak = rtps_shared_downgrade(&topic_shared);
         Some(TopicProxy::new(self.clone(), topic_weak))
     }

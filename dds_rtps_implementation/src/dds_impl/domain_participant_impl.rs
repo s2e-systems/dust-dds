@@ -36,7 +36,7 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    data_representation_builtin_endpoints::{spdp_discovered_participant_data::SpdpDiscoveredParticipantData, sedp_discovered_writer_data::SedpDiscoveredWriterData},
     dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
     utils::shared_object::{
@@ -253,7 +253,7 @@ impl DomainParticipant for DomainParticipantImpl {
         let sedp_builtin_publications_topic =
             rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
         let sedp_builtin_publications_announcer = rtps_shared_read_lock(&self.builtin_publisher)
-            .lookup_datawriter(&sedp_builtin_publications_topic);
+            .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
         let publisher_impl = PublisherImpl::new(
             publisher_qos,
             rtps_group,
