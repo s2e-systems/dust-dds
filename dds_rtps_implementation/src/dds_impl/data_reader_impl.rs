@@ -22,7 +22,7 @@ use crate::{
 use super::topic_impl::TopicImpl;
 
 pub struct Samples<Foo> {
-    samples: Vec<Foo>,
+    pub samples: Vec<Foo>,
 }
 
 impl<Foo> std::ops::Deref for Samples<Foo> {
