@@ -508,6 +508,8 @@ impl DomainParticipantFactory {
         let spdp_builtin_participant_data_reader_arc =
             spdp_builtin_participant_dds_data_reader.clone();
         let domain_tag_arc = domain_tag.clone();
+        let sedp_builtin_publications_dds_data_reader_arc =
+            sedp_builtin_publications_dds_data_reader.clone();
 
         spawner.spawn_enabled_periodic_task(
             "spdp discovery",
@@ -520,7 +522,7 @@ impl DomainParticipantFactory {
                         .as_mut()
                         .try_as_stateful_writer()
                         .unwrap(),
-                    rtps_shared_write_lock(&sedp_builtin_publications_dds_data_reader)
+                    rtps_shared_write_lock(&sedp_builtin_publications_dds_data_reader_arc)
                         .as_mut()
                         .try_as_stateful_reader()
                         .unwrap(),
@@ -557,6 +559,21 @@ impl DomainParticipantFactory {
                         rtps_shared_write_lock(&user_defined_publisher);
                     // user_defined_publisher_lock.process_discovery();
                 }
+            },
+            std::time::Duration::from_millis(500),
+        );
+
+        // let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
+        let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
+        let sedp_builtin_publications_dds_data_reader_arc =
+            sedp_builtin_publications_dds_data_reader.clone();
+        spawner.spawn_enabled_periodic_task(
+            "sedp discovery",
+            move || {
+                task_sedp_discovery(
+                    &sedp_builtin_publications_dds_data_reader_arc,
+                    &user_defined_subscriber_list_arc,
+                )
             },
             std::time::Duration::from_millis(500),
         );
@@ -1014,46 +1031,48 @@ mod tests {
     #[test]
     fn task_sedp_discovery_() {
         let mut mock_sedp_discovered_writer_data_reader = MockDdsDataReader::new();
-        mock_sedp_discovered_writer_data_reader.expect_read().returning(|_, _, _, _| {
-            Ok(Samples {
-                samples: vec![SedpDiscoveredWriterData {
-                    writer_proxy: RtpsWriterProxy {
-                        remote_writer_guid: Guid::new(
-                            GuidPrefix([1; 12]),
-                            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-                        ),
-                        unicast_locator_list: vec![],
-                        multicast_locator_list: vec![],
-                        data_max_size_serialized: None,
-                        remote_group_entity_id: EntityId::new([0; 3], 0),
-                    },
-                    publication_builtin_topic_data: PublicationBuiltinTopicData {
-                        key: BuiltInTopicKey { value: [1; 16] },
-                        participant_key: BuiltInTopicKey { value: [1; 16] },
-                        topic_name: "MyTopic".to_string(),
-                        type_name: "MyType".to_string(),
-                        durability: DurabilityQosPolicy::default(),
-                        durability_service: DurabilityServiceQosPolicy::default(),
-                        deadline: DeadlineQosPolicy::default(),
-                        latency_budget: LatencyBudgetQosPolicy::default(),
-                        liveliness: LivelinessQosPolicy::default(),
-                        reliability: ReliabilityQosPolicy {
-                            kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                            max_blocking_time: Duration::new(3, 0),
+        mock_sedp_discovered_writer_data_reader
+            .expect_read()
+            .returning(|_, _, _, _| {
+                Ok(Samples {
+                    samples: vec![SedpDiscoveredWriterData {
+                        writer_proxy: RtpsWriterProxy {
+                            remote_writer_guid: Guid::new(
+                                GuidPrefix([1; 12]),
+                                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                            ),
+                            unicast_locator_list: vec![],
+                            multicast_locator_list: vec![],
+                            data_max_size_serialized: None,
+                            remote_group_entity_id: EntityId::new([0; 3], 0),
                         },
-                        lifespan: LifespanQosPolicy::default(),
-                        user_data: UserDataQosPolicy::default(),
-                        ownership: OwnershipQosPolicy::default(),
-                        ownership_strength: OwnershipStrengthQosPolicy::default(),
-                        destination_order: DestinationOrderQosPolicy::default(),
-                        presentation: PresentationQosPolicy::default(),
-                        partition: PartitionQosPolicy::default(),
-                        topic_data: TopicDataQosPolicy::default(),
-                        group_data: GroupDataQosPolicy::default(),
-                    },
-                }],
-            })
-        });
+                        publication_builtin_topic_data: PublicationBuiltinTopicData {
+                            key: BuiltInTopicKey { value: [1; 16] },
+                            participant_key: BuiltInTopicKey { value: [1; 16] },
+                            topic_name: "MyTopic".to_string(),
+                            type_name: "MyType".to_string(),
+                            durability: DurabilityQosPolicy::default(),
+                            durability_service: DurabilityServiceQosPolicy::default(),
+                            deadline: DeadlineQosPolicy::default(),
+                            latency_budget: LatencyBudgetQosPolicy::default(),
+                            liveliness: LivelinessQosPolicy::default(),
+                            reliability: ReliabilityQosPolicy {
+                                kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                                max_blocking_time: Duration::new(3, 0),
+                            },
+                            lifespan: LifespanQosPolicy::default(),
+                            user_data: UserDataQosPolicy::default(),
+                            ownership: OwnershipQosPolicy::default(),
+                            ownership_strength: OwnershipStrengthQosPolicy::default(),
+                            destination_order: DestinationOrderQosPolicy::default(),
+                            presentation: PresentationQosPolicy::default(),
+                            partition: PartitionQosPolicy::default(),
+                            topic_data: TopicDataQosPolicy::default(),
+                            group_data: GroupDataQosPolicy::default(),
+                        },
+                    }],
+                })
+            });
 
         let subscriber = SubscriberImpl::new(
             SubscriberQos::default(),
