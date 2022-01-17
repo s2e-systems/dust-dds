@@ -12,7 +12,7 @@ use rust_dds_api::{
         data_reader_listener::DataReaderListener,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
         subscriber_listener::SubscriberListener,
-    },
+    }, topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
     behavior::{
@@ -36,7 +36,7 @@ use crate::{
     },
     utils::{
         message_receiver::ProcessDataSubmessage,
-        shared_object::{rtps_shared_new, rtps_shared_write_lock, RtpsShared},
+        shared_object::{rtps_shared_new, rtps_shared_write_lock, RtpsShared, rtps_shared_read_lock},
     },
 };
 
@@ -144,7 +144,10 @@ where
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {
         let data_reader_list_lock = self.data_reader_list.lock().unwrap();
-        let found_data_reader = data_reader_list_lock.iter().cloned().find(|x| true);
+        let found_data_reader = data_reader_list_lock
+            .iter()
+            .cloned()
+            .find(|x| rtps_shared_read_lock(&rtps_shared_read_lock(x).topic).get_type_name().unwrap() == Foo::type_name());
 
         if let Some(found_data_reader) = found_data_reader {
             return Some(found_data_reader);
