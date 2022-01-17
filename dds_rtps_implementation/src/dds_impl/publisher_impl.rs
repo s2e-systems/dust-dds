@@ -225,7 +225,7 @@ where
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         let data_writer_impl_list_lock = self.data_writer_list.lock().unwrap();
-        let found_data_writer = data_writer_impl_list_lock.iter().cloned().find(|x| true);
+        let found_data_writer = data_writer_impl_list_lock.iter().cloned().find(|_x| true);
 
         if let Some(found_data_writer) = found_data_writer {
             return Some(found_data_writer);

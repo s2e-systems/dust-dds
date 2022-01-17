@@ -36,7 +36,10 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::{spdp_discovered_participant_data::SpdpDiscoveredParticipantData, sedp_discovered_writer_data::SedpDiscoveredWriterData},
+    data_representation_builtin_endpoints::{
+        sedp_discovered_writer_data::SedpDiscoveredWriterData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    },
     dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
     utils::shared_object::{
@@ -252,8 +255,9 @@ impl DomainParticipant for DomainParticipantImpl {
         let rtps_group = RtpsGroupImpl::new(guid);
         let sedp_builtin_publications_topic =
             rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
-        let sedp_builtin_publications_announcer = rtps_shared_read_lock(&self.builtin_publisher)
-            .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
+        let sedp_builtin_publications_announcer =
+            rtps_shared_read_lock(&self.builtin_publisher)
+                .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
         let publisher_impl = PublisherImpl::new(
             publisher_qos,
             rtps_group,
@@ -328,7 +332,7 @@ impl DomainParticipant for DomainParticipantImpl {
         todo!()
     }
 
-    fn get_domain_id(&self) -> DomainId {
+    fn get_domain_id(&self) -> DDSResult<DomainId> {
         // self.domain_id
         todo!()
     }
@@ -346,8 +350,8 @@ impl DomainParticipant for DomainParticipantImpl {
         Ok(())
     }
 
-    fn get_default_publisher_qos(&self) -> PublisherQos {
-        self.default_publisher_qos.clone()
+    fn get_default_publisher_qos(&self) -> DDSResult<PublisherQos> {
+        Ok(self.default_publisher_qos.clone())
     }
 
     fn set_default_subscriber_qos(&mut self, qos: Option<SubscriberQos>) -> DDSResult<()> {
@@ -355,8 +359,8 @@ impl DomainParticipant for DomainParticipantImpl {
         Ok(())
     }
 
-    fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        self.default_subscriber_qos.clone()
+    fn get_default_subscriber_qos(&self) -> DDSResult<SubscriberQos> {
+        Ok(self.default_subscriber_qos.clone())
     }
 
     fn set_default_topic_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()> {
@@ -366,8 +370,8 @@ impl DomainParticipant for DomainParticipantImpl {
         Ok(())
     }
 
-    fn get_default_topic_qos(&self) -> TopicQos {
-        self.default_topic_qos.clone()
+    fn get_default_topic_qos(&self) -> DDSResult<TopicQos> {
+        Ok(self.default_topic_qos.clone())
     }
 
     fn get_discovered_participants(
@@ -397,7 +401,7 @@ impl DomainParticipant for DomainParticipantImpl {
         todo!()
     }
 
-    fn contains_entity(&self, _a_handle: InstanceHandle) -> bool {
+    fn contains_entity(&self, _a_handle: InstanceHandle) -> DDSResult<bool> {
         todo!()
     }
 
@@ -498,7 +502,7 @@ mod tests {
         domain_participant
             .set_default_publisher_qos(Some(qos.clone()))
             .unwrap();
-        assert!(domain_participant.get_default_publisher_qos() == qos);
+        assert!(domain_participant.get_default_publisher_qos().unwrap() == qos);
     }
 
     #[test]
@@ -536,7 +540,7 @@ mod tests {
             .unwrap();
 
         domain_participant.set_default_publisher_qos(None).unwrap();
-        assert!(domain_participant.get_default_publisher_qos() == PublisherQos::default());
+        assert!(domain_participant.get_default_publisher_qos().unwrap() == PublisherQos::default());
     }
 
     #[test]
@@ -572,7 +576,10 @@ mod tests {
         domain_participant
             .set_default_subscriber_qos(Some(qos.clone()))
             .unwrap();
-        assert_eq!(domain_participant.get_default_subscriber_qos(), qos);
+        assert_eq!(
+            domain_participant.get_default_subscriber_qos().unwrap(),
+            qos
+        );
     }
 
     #[test]
@@ -611,7 +618,7 @@ mod tests {
 
         domain_participant.set_default_subscriber_qos(None).unwrap();
         assert_eq!(
-            domain_participant.get_default_subscriber_qos(),
+            domain_participant.get_default_subscriber_qos().unwrap(),
             SubscriberQos::default()
         );
     }
@@ -649,7 +656,7 @@ mod tests {
         domain_participant
             .set_default_topic_qos(Some(qos.clone()))
             .unwrap();
-        assert_eq!(domain_participant.get_default_topic_qos(), qos);
+        assert_eq!(domain_participant.get_default_topic_qos().unwrap(), qos);
     }
 
     #[test]
@@ -724,7 +731,7 @@ mod tests {
 
         domain_participant.set_default_topic_qos(None).unwrap();
         assert_eq!(
-            domain_participant.get_default_topic_qos(),
+            domain_participant.get_default_topic_qos().unwrap(),
             TopicQos::default()
         );
     }

@@ -205,7 +205,7 @@ pub trait DomainParticipant {
     /// This operation retrieves the domain_id used to create the DomainParticipant. The domain_id identifies the DDS domain to
     /// which the DomainParticipant belongs. As described in the introduction to 2.2.2.2.1 each DDS domain represents a separate
     /// data “communication plane” isolated from other domains
-    fn get_domain_id(&self) -> DomainId;
+    fn get_domain_id(&self) -> DDSResult<DomainId>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
     /// it deletes all contained Publisher, Subscriber, Topic, ContentFilteredTopic, and MultiTopic.
@@ -243,7 +243,7 @@ pub trait DomainParticipant {
     /// The values retrieved get_default_publisher_qos will match the set of values specified on the last successful call to
     /// set_default_publisher_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_publisher_qos(&self) -> PublisherQos;
+    fn get_default_publisher_qos(&self) -> DDSResult<PublisherQos>;
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created Subscriber entities in the
     /// case where the QoS policies are defaulted in the create_subscriber operation.
@@ -259,7 +259,7 @@ pub trait DomainParticipant {
     /// The values retrieved get_default_subscriber_qos will match the set of values specified on the last successful call to
     /// set_default_subscriber_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_subscriber_qos(&self) -> SubscriberQos;
+    fn get_default_subscriber_qos(&self) -> DDSResult<SubscriberQos>;
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created Topic entities in the case
     /// where the QoS policies are defaulted in the create_topic operation.
@@ -274,7 +274,7 @@ pub trait DomainParticipant {
     /// entities in the case where the QoS policies are defaulted in the create_topic operation.
     /// The values retrieved get_default_topic_qos will match the set of values specified on the last successful call to
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
-    fn get_default_topic_qos(&self) -> TopicQos;
+    fn get_default_topic_qos(&self) -> DDSResult<TopicQos>;
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the DomainParticipant ignore_participant operation.
@@ -325,7 +325,7 @@ pub trait DomainParticipant {
     /// so forth.
     /// The instance handle for an Entity may be obtained from built-in topic data, from various statuses, or from the Entity operation
     /// get_instance_handle.
-    fn contains_entity(&self, a_handle: InstanceHandle) -> bool;
+    fn contains_entity(&self, a_handle: InstanceHandle) -> DDSResult<bool>;
 
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.

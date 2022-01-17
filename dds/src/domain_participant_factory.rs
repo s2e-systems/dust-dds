@@ -46,7 +46,8 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::shared_object::{
-        rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock, RtpsShared,
+        rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
+        RtpsShared,
     },
 };
 use rust_rtps_pim::{
@@ -619,9 +620,9 @@ impl DomainParticipantFactory {
             .unwrap()
             .push(shared_domain_participant.clone());
 
-        Some(DomainParticipantProxy::new(
-            shared_domain_participant.clone(),
-        ))
+        Some(DomainParticipantProxy::new(rtps_shared_downgrade(
+            &shared_domain_participant.clone(),
+        )))
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
