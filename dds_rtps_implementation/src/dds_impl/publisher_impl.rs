@@ -1,9 +1,6 @@
-use std::{
-    any::Any,
-    sync::{
-        atomic::{self, AtomicU8},
-        Arc, Mutex, MutexGuard, RwLock,
-    },
+use std::sync::{
+    atomic::{self, AtomicU8},
+    Mutex, MutexGuard,
 };
 
 use rust_dds_api::{
@@ -57,38 +54,22 @@ use crate::{
 
 use super::{data_writer_impl::RtpsWriter, topic_impl::TopicImpl};
 
-pub trait AnyDataWriter {
-    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
-
-    fn into_as_mut_rtps_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>>;
-}
-
-impl AnyDataWriter for RwLock<DataWriterImpl> {
-    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
-        self
-    }
-
-    fn into_as_mut_rtps_writer(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsWriter>>> {
-        self
-    }
-}
-
 pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
-    data_writer_list: Mutex<Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
+    data_writer_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterImpl>>,
 }
 
 pub struct DataWriterListIterator<'a> {
-    data_writer_list_lock: MutexGuard<'a, Vec<Arc<dyn AnyDataWriter + Send + Sync>>>,
+    data_writer_list_lock: MutexGuard<'a, Vec<RtpsShared<DataWriterImpl>>>,
     index: usize,
 }
 
 impl<'a> Iterator for DataWriterListIterator<'a> {
-    type Item = Arc<dyn AnyDataWriter + Send + Sync>;
+    type Item = RtpsShared<DataWriterImpl>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let item = self.data_writer_list_lock.get(self.index)?;
@@ -101,7 +82,7 @@ impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        data_writer_list: Vec<Arc<dyn AnyDataWriter + Send + Sync>>,
+        data_writer_list: Vec<RtpsShared<DataWriterImpl>>,
         sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterImpl>>,
     ) -> Self {
         Self {
@@ -244,10 +225,7 @@ where
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         let data_writer_impl_list_lock = self.data_writer_list.lock().unwrap();
-        let found_data_writer = data_writer_impl_list_lock
-            .iter()
-            .cloned()
-            .find_map(|x| Arc::downcast::<RwLock<DataWriterImpl>>(x.into_any()).ok());
+        let found_data_writer = data_writer_impl_list_lock.iter().cloned().find(|x| true);
 
         if let Some(found_data_writer) = found_data_writer {
             return Some(found_data_writer);
