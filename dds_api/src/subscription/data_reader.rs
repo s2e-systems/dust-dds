@@ -11,17 +11,6 @@ use crate::{
 
 use super::query_condition::QueryCondition;
 
-pub trait DataReaderBorrowedSamples<'a, Foo> {
-    type Samples;
-
-    fn read_borrowed_samples(
-        &'a mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Self::Samples>;
-}
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
 ///
@@ -34,6 +23,7 @@ pub trait DataReaderBorrowedSamples<'a, Foo> {
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
 pub trait DataReader<Foo> {
+    type Samples;
     type Subscriber;
     type TopicDescription;
 
@@ -113,18 +103,13 @@ pub trait DataReader<Foo> {
     /// This operation must be provided on the specialized class that is generated for the particular application data-type that is being
     /// read.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
-    fn read<'a>(
-        &'a mut self,
+    fn read(
+        &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Self::Samples>
-    where
-        Self: DataReaderBorrowedSamples<'a, Foo> + Sized,
-    {
-        self.read_borrowed_samples(max_samples, sample_states, view_states, instance_states)
-    }
+    ) -> DDSResult<Self::Samples>;
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
     /// structures. The operation will return either a ‘list’ of samples or else a single sample. This is controlled by the

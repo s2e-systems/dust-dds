@@ -17,7 +17,7 @@ use rust_dds_api::{
         DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
     },
     publication::data_writer::DataWriter,
-    subscription::data_reader::DataReaderBorrowedSamples,
+    subscription::data_reader::DataReader,
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
@@ -132,7 +132,7 @@ pub struct EnabledPeriodicTask {
 
 fn spdp_task_discovery<T>(
     spdp_builtin_participant_data_reader_arc: &RtpsShared<
-        impl for<'a> DataReaderBorrowedSamples<'a, SpdpDiscoveredParticipantData, Samples = T>,
+        impl DataReader<SpdpDiscoveredParticipantData, Samples = T>,
     >,
     domain_id: u32,
     domain_tag: &str,
@@ -147,9 +147,7 @@ fn spdp_task_discovery<T>(
 {
     let mut spdp_builtin_participant_data_reader_lock =
         rtps_shared_write_lock(&spdp_builtin_participant_data_reader_arc);
-    if let Ok(samples) =
-        spdp_builtin_participant_data_reader_lock.read_borrowed_samples(1, &[], &[], &[])
-    {
+    if let Ok(samples) = spdp_builtin_participant_data_reader_lock.read(1, &[], &[], &[]) {
         for discovered_participant in samples.into_iter() {
             if let Ok(participant_discovery) = ParticipantDiscovery::new(
                 &discovered_participant.participant_proxy,
@@ -534,9 +532,15 @@ impl DomainParticipantFactory {
 mod tests {
     use mockall::{mock, predicate};
     use rust_dds_api::{
-        builtin_topics::ParticipantBuiltinTopicData,
-        dcps_psm::{BuiltInTopicKey, InstanceStateKind, SampleStateKind, ViewStateKind},
+        builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
+        dcps_psm::{
+            BuiltInTopicKey, InstanceHandle, InstanceStateKind, LivelinessChangedStatus,
+            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+            SampleRejectedStatus, SampleStateKind, SubscriptionMatchedStatus, ViewStateKind,
+        },
+        infrastructure::{read_condition::ReadCondition, sample_info::SampleInfo},
         return_type::DDSResult,
+        subscription::query_condition::QueryCondition,
     };
     use rust_rtps_pim::{
         behavior::{reader::writer_proxy::RtpsWriterProxy, writer::reader_proxy::RtpsReaderProxy},
@@ -556,18 +560,197 @@ mod tests {
     };
 
     mock! {
-        DdsDataReader<T: 'static>{}
+        DdsDataReader<Foo: 'static>{}
 
-        impl<'a, T>  DataReaderBorrowedSamples<'a, T> for DdsDataReader<T>{
-            type Samples = Vec<T>;
-
-            fn read_borrowed_samples(
-                &'a mut self,
+        impl<Foo>  DataReader<Foo> for DdsDataReader<Foo>{
+            type Samples = Vec<Foo>;
+            type Subscriber = ();
+            type TopicDescription = ();
+            fn read(
+                &mut self,
                 max_samples: i32,
                 sample_states: &[SampleStateKind],
                 view_states: &[ViewStateKind],
                 instance_states: &[InstanceStateKind],
-            ) -> DDSResult<Vec<T>>;
+            ) -> DDSResult<Vec<Foo>>;
+
+            fn take(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
+
+            fn read_w_condition(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                a_condition: ReadCondition,
+            ) -> DDSResult<()>;
+
+            fn take_w_condition(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                a_condition: ReadCondition,
+            ) -> DDSResult<()>;
+
+            fn read_next_sample(
+                &self,
+                data_value: &mut [Foo],
+                sample_info: &mut [SampleInfo],
+            ) -> DDSResult<()>;
+
+            fn take_next_sample(
+                &self,
+                data_value: &mut [Foo],
+                sample_info: &mut [SampleInfo],
+            ) -> DDSResult<()>;
+
+            fn read_instance(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                a_handle: InstanceHandle,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
+
+            fn take_instance(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                a_handle: InstanceHandle,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
+
+            fn read_next_instance(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                previous_handle: InstanceHandle,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
+
+            fn take_next_instance(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                previous_handle: InstanceHandle,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> DDSResult<()>;
+
+            fn read_next_instance_w_condition(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                previous_handle: InstanceHandle,
+                a_condition: ReadCondition,
+            ) -> DDSResult<()>;
+
+
+            fn take_next_instance_w_condition(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+                max_samples: i32,
+                previous_handle: InstanceHandle,
+                a_condition: ReadCondition,
+            ) -> DDSResult<()>;
+
+
+            fn return_loan(
+                &self,
+                data_values: &mut [Foo],
+                sample_infos: &mut [SampleInfo],
+            ) -> DDSResult<()>;
+
+            fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DDSResult<()>;
+
+
+            fn lookup_instance(&self, instance: &Foo) -> InstanceHandle;
+
+
+            fn create_readcondition(
+                &self,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+            ) -> ReadCondition;
+
+
+            fn create_querycondition(
+                &self,
+                sample_states: &[SampleStateKind],
+                view_states: &[ViewStateKind],
+                instance_states: &[InstanceStateKind],
+                query_expression: &'static str,
+                query_parameters: &[&'static str],
+            ) -> QueryCondition;
+
+
+            fn delete_readcondition(&self, a_condition: ReadCondition) -> DDSResult<()>;
+
+            fn get_liveliness_changed_status(&self, status: &mut LivelinessChangedStatus) -> DDSResult<()>;
+
+
+            fn get_requested_deadline_missed_status(
+                &self,
+                status: &mut RequestedDeadlineMissedStatus,
+            ) -> DDSResult<()>;
+
+
+            fn get_requested_incompatible_qos_status(
+                &self,
+                status: &mut RequestedIncompatibleQosStatus,
+            ) -> DDSResult<()>;
+
+            fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;
+
+
+            fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> DDSResult<()>;
+
+
+            fn get_subscription_matched_status(
+                &self,
+                status: &mut SubscriptionMatchedStatus,
+            ) -> DDSResult<()>;
+
+
+            fn get_topicdescription(&self) -> DDSResult<()>;
+
+            fn get_subscriber(&self) -> DDSResult<()>;
+
+
+            fn delete_contained_entities(&self) -> DDSResult<()>;
+
+            fn wait_for_historical_data(&self) -> DDSResult<()>;
+
+
+            fn get_matched_publication_data(
+                &self,
+                publication_data: &mut PublicationBuiltinTopicData,
+                publication_handle: InstanceHandle,
+            ) -> DDSResult<()>;
+
+            fn get_match_publication(&self, publication_handles: &mut [InstanceHandle]) -> DDSResult<()>;
         }
 
     }
@@ -599,46 +782,44 @@ mod tests {
     #[test]
     fn discovery_task_all_sedp_endpoints() {
         let mut mock_spdp_data_reader = MockDdsDataReader::new();
-        mock_spdp_data_reader
-            .expect_read_borrowed_samples()
-            .returning(|_, _, _, _| {
-                Ok(vec![SpdpDiscoveredParticipantData {
-                    dds_participant_data: ParticipantBuiltinTopicData {
-                        key: BuiltInTopicKey { value: [5; 16] },
-                        user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
-                            value: vec![],
-                        },
+        mock_spdp_data_reader.expect_read().returning(|_, _, _, _| {
+            Ok(vec![SpdpDiscoveredParticipantData {
+                dds_participant_data: ParticipantBuiltinTopicData {
+                    key: BuiltInTopicKey { value: [5; 16] },
+                    user_data: rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy {
+                        value: vec![],
                     },
-                    participant_proxy: ParticipantProxy {
-                        domain_id: 1,
-                        domain_tag: String::new(),
-                        protocol_version: PROTOCOLVERSION,
-                        guid_prefix: GuidPrefix([5; 12]),
-                        vendor_id: VENDOR_ID_S2E,
-                        expects_inline_qos: false,
-                        metatraffic_unicast_locator_list: vec![],
-                        metatraffic_multicast_locator_list: vec![],
-                        default_unicast_locator_list: vec![],
-                        default_multicast_locator_list: vec![],
-                        available_builtin_endpoints: BuiltinEndpointSet(
-                            BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
-                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
-                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR
-                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER
-                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR
-                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER
-                                | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR,
-                        ),
-                        manual_liveliness_count: Count(1),
-                        builtin_endpoint_qos: BuiltinEndpointQos(0),
-                    },
-                    lease_duration: rust_rtps_pim::behavior::types::Duration {
-                        seconds: 100,
-                        fraction: 0,
-                    },
-                }])
-            });
+                },
+                participant_proxy: ParticipantProxy {
+                    domain_id: 1,
+                    domain_tag: String::new(),
+                    protocol_version: PROTOCOLVERSION,
+                    guid_prefix: GuidPrefix([5; 12]),
+                    vendor_id: VENDOR_ID_S2E,
+                    expects_inline_qos: false,
+                    metatraffic_unicast_locator_list: vec![],
+                    metatraffic_multicast_locator_list: vec![],
+                    default_unicast_locator_list: vec![],
+                    default_multicast_locator_list: vec![],
+                    available_builtin_endpoints: BuiltinEndpointSet(
+                        BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+                            | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+                            | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
+                            | BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR
+                            | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER
+                            | BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR
+                            | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER
+                            | BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR,
+                    ),
+                    manual_liveliness_count: Count(1),
+                    builtin_endpoint_qos: BuiltinEndpointQos(0),
+                },
+                lease_duration: rust_rtps_pim::behavior::types::Duration {
+                    seconds: 100,
+                    fraction: 0,
+                },
+            }])
+        });
 
         let mut mock_builtin_publications_writer = MockStatefulWriter::new();
         mock_builtin_publications_writer

@@ -19,7 +19,7 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
     subscription::{
-        data_reader::{AnyDataReader, DataReader, DataReaderBorrowedSamples},
+        data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
     },
@@ -71,14 +71,16 @@ impl<Foo> AsRef<RtpsWeak<DataReaderImpl>> for DataReaderProxy<Foo> {
     }
 }
 
-impl<'a, Foo> DataReaderBorrowedSamples<'a, Foo> for DataReaderProxy<Foo>
+impl<Foo> DataReader<Foo> for DataReaderProxy<Foo>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
 {
     type Samples = Samples<Foo>;
+    type Subscriber = SubscriberProxy;
+    type TopicDescription = TopicProxy<Foo>;
 
-    fn read_borrowed_samples(
-        &'a mut self,
+    fn read(
+        &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
@@ -86,18 +88,8 @@ where
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = rtps_weak_upgrade(&self.data_reader_impl)?;
         let mut data_reader_lock = rtps_shared_write_lock(&data_reader_shared);
-        data_reader_lock.read_borrowed_samples(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        data_reader_lock.read(max_samples, sample_states, view_states, instance_states)
     }
-}
-
-impl<Foo> DataReader<Foo> for DataReaderProxy<Foo> {
-    type Subscriber = SubscriberProxy;
-    type TopicDescription = TopicProxy<Foo>;
 
     fn take(
         &self,

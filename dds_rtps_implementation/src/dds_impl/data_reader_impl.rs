@@ -2,10 +2,7 @@ use rust_dds_api::{
     dcps_psm::{SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus},
     infrastructure::{entity::Entity, qos::DataReaderQos},
     return_type::{DDSError, DDSResult},
-    subscription::{
-        data_reader::{DataReader, DataReaderBorrowedSamples},
-        data_reader_listener::DataReaderListener,
-    },
+    subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
 };
 use rust_rtps_pim::{
     behavior::reader::reader::RtpsReaderAttributes,
@@ -114,14 +111,16 @@ impl DataReaderImpl {
 //     })
 //     .collect())
 
-impl<'a, Foo> DataReaderBorrowedSamples<'a, Foo> for DataReaderImpl
+impl<Foo> DataReader<Foo> for DataReaderImpl
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
 {
     type Samples = Samples<Foo>;
+    type Subscriber = ();
+    type TopicDescription = ();
 
-    fn read_borrowed_samples(
-        &'a mut self,
+    fn read(
+        &mut self,
         _max_samples: i32,
         _sample_states: &[rust_dds_api::dcps_psm::SampleStateKind],
         _view_states: &[rust_dds_api::dcps_psm::ViewStateKind],
@@ -148,14 +147,6 @@ where
             }
         }
     }
-}
-
-impl<Foo> DataReader<Foo> for DataReaderImpl
-where
-    Foo: for<'de> DdsDeserialize<'de> + 'static,
-{
-    type Subscriber = ();
-    type TopicDescription = ();
 
     fn take(
         &self,
