@@ -6,7 +6,7 @@ use std::{
 use rust_dds::{
     communication::Communication,
     infrastructure::{
-        qos::{DataReaderQos, SubscriberQos},
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
             DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
@@ -38,7 +38,9 @@ use rust_dds_rtps_implementation::{
         data_writer_impl::{DataWriterImpl, RtpsWriter},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
+        topic_impl::TopicImpl,
     },
+    dds_type::DdsType,
     rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
@@ -165,6 +167,11 @@ fn send_and_receive_discovery_data_happy_path() {
     let data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
         RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
+        rtps_shared_new(TopicImpl::new(
+            TopicQos::default(),
+            SpdpDiscoveredParticipantData::type_name(),
+            "DCPSParticipant",
+        )),
     );
     let shared_data_reader = rtps_shared_new(data_reader);
     let subscriber = rtps_shared_new(SubscriberImpl::new(
@@ -301,6 +308,11 @@ fn process_discovery_data_happy_path() {
     let spdp_builtin_participant_data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
         RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
+        rtps_shared_new(TopicImpl::new(
+            TopicQos::default(),
+            SpdpDiscoveredParticipantData::type_name(),
+            "DCPSParticipant",
+        )),
     );
     let shared_data_reader = rtps_shared_new(spdp_builtin_participant_data_reader);
     let subscriber = rtps_shared_new(SubscriberImpl::new(
@@ -324,6 +336,11 @@ fn process_discovery_data_happy_path() {
     let mut sedp_built_publications_reader = DataReaderImpl::new(
         DataReaderQos::default(),
         RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
+        rtps_shared_new(TopicImpl::new(
+            TopicQos::default(),
+            SedpDiscoveredWriterData::type_name(),
+            "DCPSPublication",
+        )),
     );
 
     if let Ok(participant_discovery) = ParticipantDiscovery::new(
