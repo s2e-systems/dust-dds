@@ -130,7 +130,7 @@ pub struct EnabledPeriodicTask {
     pub enabled: Arc<AtomicBool>,
 }
 
-fn task_discovery<T>(
+fn spdp_task_discovery<T>(
     spdp_builtin_participant_data_reader_arc: &RtpsShared<
         impl for<'a> DataReaderBorrowedSamples<'a, SpdpDiscoveredParticipantData, Samples = T>,
     >,
@@ -446,7 +446,7 @@ impl DomainParticipantFactory {
         spawner.spawn_enabled_periodic_task(
             "spdp discovery",
             move || {
-                task_discovery(
+                spdp_task_discovery(
                     &spdp_builtin_participant_data_reader_arc,
                     domain_id as u32,
                     domain_tag_arc.as_ref(),
@@ -736,7 +736,7 @@ mod tests {
             .once()
             .return_const(());
 
-        task_discovery(
+        spdp_task_discovery(
             &rtps_shared_new(mock_spdp_data_reader),
             1,
             "",
