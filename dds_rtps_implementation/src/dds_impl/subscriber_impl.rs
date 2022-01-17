@@ -1,7 +1,4 @@
-use std::{
-    any::Any,
-    sync::{Arc, Mutex, RwLock},
-};
+use std::sync::Mutex;
 
 use rust_dds_api::{
     dcps_psm::StatusMask,
@@ -48,26 +45,10 @@ use super::{
     topic_impl::TopicImpl,
 };
 
-pub trait AnyDataReader {
-    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
-
-    fn into_as_mut_rtps_reader(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsReader>>>;
-}
-
-impl AnyDataReader for RwLock<DataReaderImpl> {
-    fn into_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
-        self
-    }
-
-    fn into_as_mut_rtps_reader(self: Arc<Self>) -> Arc<RwLock<dyn AsMut<RtpsReader>>> {
-        self
-    }
-}
-
 pub struct SubscriberImpl {
     qos: SubscriberQos,
     rtps_group: RtpsGroupImpl,
-    data_reader_list: Mutex<Vec<Arc<dyn AnyDataReader + Send + Sync>>>,
+    pub data_reader_list: Mutex<Vec<RtpsShared<DataReaderImpl>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -76,7 +57,7 @@ impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
-        data_reader_list: Vec<Arc<dyn AnyDataReader + Send + Sync>>,
+        data_reader_list: Vec<RtpsShared<DataReaderImpl>>,
     ) -> Self {
         Self {
             qos,
@@ -97,7 +78,7 @@ where
 
     fn datareader_factory_create_datareader(
         &'_ self,
-        _a_topic: &'_ Self::TopicType,
+        a_topic: &'_ Self::TopicType,
         qos: Option<DataReaderQos>,
         _a_listener: Option<&'static dyn DataReaderListener>,
         _mask: StatusMask,
@@ -136,7 +117,7 @@ where
             heartbeat_supression_duration,
             expects_inline_qos,
         ));
-        let reader_storage = DataReaderImpl::new(qos, rtps_reader);
+        let reader_storage = DataReaderImpl::new(qos, rtps_reader, a_topic.clone());
         let reader_storage_shared = rtps_shared_new(reader_storage);
         self.data_reader_list
             .lock()
@@ -149,12 +130,13 @@ where
         &self,
         a_datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
-        let any_data_reader: Arc<dyn AnyDataReader + Send + Sync> = a_datareader.clone();
-        self.data_reader_list
-            .lock()
-            .unwrap()
-            .retain(|x| !Arc::ptr_eq(x, &any_data_reader));
-        Ok(())
+        // let any_data_reader: Arc<dyn AnyDataReader + Send + Sync> = a_datareader.clone();
+        // self.data_reader_list
+        //     .lock()
+        //     .unwrap()
+        //     .retain(|x| !Arc::ptr_eq(x, &any_data_reader));
+        // Ok(())
+        todo!()
     }
 
     fn datareader_factory_lookup_datareader(
@@ -162,10 +144,7 @@ where
         _topic: &'_ Self::TopicType,
     ) -> Option<Self::DataReaderType> {
         let data_reader_list_lock = self.data_reader_list.lock().unwrap();
-        let found_data_reader = data_reader_list_lock
-            .iter()
-            .cloned()
-            .find_map(|x| Arc::downcast::<RwLock<DataReaderImpl>>(x.into_any()).ok());
+        let found_data_reader = data_reader_list_lock.iter().cloned().find(|x| true);
 
         if let Some(found_data_reader) = found_data_reader {
             return Some(found_data_reader);
@@ -287,8 +266,7 @@ impl ProcessDataSubmessage for SubscriberImpl {
         {
             let data_reader_list_lock = self.data_reader_list.lock().unwrap();
             for data_reader in data_reader_list_lock.iter().cloned() {
-                let as_mut_rtps_reader = data_reader.into_as_mut_rtps_reader();
-                let mut as_mut_rtps_reader_lock = rtps_shared_write_lock(&as_mut_rtps_reader);
+                let mut as_mut_rtps_reader_lock = rtps_shared_write_lock(&data_reader);
                 let rtps_reader = as_mut_rtps_reader_lock.as_mut();
                 match rtps_reader {
                     RtpsReader::Stateless(stateless_rtps_reader) => {

@@ -1,6 +1,6 @@
 use crate::structure::types::{EntityId, Guid, SequenceNumber};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RtpsWriterProxy<L> {
     pub remote_writer_guid: Guid,
     pub unicast_locator_list: L,

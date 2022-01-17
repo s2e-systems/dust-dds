@@ -18,11 +18,15 @@ use rust_dds_api::{
     },
     publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
+    topic::topic_description::TopicDescription,
 };
 use rust_dds_rtps_implementation::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    data_representation_builtin_endpoints::{
+        sedp_discovered_writer_data::SedpDiscoveredWriterData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    },
     dds_impl::{
-        data_reader_impl::{DataReaderImpl, RtpsReader},
+        data_reader_impl::{DataReaderImpl, RtpsReader, Samples},
         data_writer_impl::{DataWriterImpl, RtpsWriter},
         domain_participant_impl::DomainParticipantImpl,
         domain_participant_proxy::DomainParticipantProxy,
@@ -35,7 +39,9 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::shared_object::{rtps_shared_new, rtps_shared_write_lock, RtpsShared},
+    utils::shared_object::{
+        rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock, RtpsShared,
+    },
 };
 use rust_rtps_pim::{
     behavior::{
@@ -175,6 +181,44 @@ fn spdp_task_discovery<T>(
 
                 participant_discovery
                     .discovered_participant_add_topics_reader(sedp_builtin_topics_reader);
+            }
+        }
+    }
+}
+
+fn task_sedp_discovery(
+    sedp_builtin_publications_data_reader: &RtpsShared<
+        impl DataReader<SedpDiscoveredWriterData, Samples = Samples<SedpDiscoveredWriterData>>,
+    >,
+    subscriber_list: &RtpsShared<Vec<RtpsShared<SubscriberImpl>>>,
+) {
+    let mut sedp_builtin_publications_data_reader_lock =
+        rtps_shared_write_lock(&sedp_builtin_publications_data_reader);
+    if let Ok(samples) = sedp_builtin_publications_data_reader_lock.read(1, &[], &[], &[]) {
+        if let Some(sample) = samples.into_iter().next() {
+            let topic_name = &sample.publication_builtin_topic_data.topic_name;
+            let type_name = &sample.publication_builtin_topic_data.type_name;
+            let subscriber_list_lock = rtps_shared_read_lock(&subscriber_list);
+            for subscriber in subscriber_list_lock.iter() {
+                let subscriber_lock = rtps_shared_read_lock(subscriber);
+                let data_reader_list_lock = subscriber_lock.data_reader_list.lock().unwrap();
+                for data_reader in data_reader_list_lock.iter() {
+                    let mut data_reader_lock = data_reader.write().unwrap();
+                    let reader_topic_name = &rtps_shared_read_lock(&data_reader_lock.topic)
+                        .get_name()
+                        .unwrap();
+                    let reader_type_name = rtps_shared_read_lock(&data_reader_lock.topic)
+                        .get_type_name()
+                        .unwrap();
+                    if topic_name == reader_topic_name && type_name == reader_type_name {
+                        match &mut data_reader_lock.rtps_reader {
+                            RtpsReader::Stateless(_) => (),
+                            RtpsReader::Stateful(rtps_stateful_reader) => {
+                                rtps_stateful_reader.matched_writer_add(sample.writer_proxy.clone())
+                            }
+                        };
+                    }
+                }
             }
         }
     }
