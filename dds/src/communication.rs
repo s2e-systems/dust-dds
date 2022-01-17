@@ -49,8 +49,7 @@ where
             };
 
             for any_data_writer in publisher_lock.iter_data_writer_list() {
-                let as_mut_rtps_writer = any_data_writer.into_as_mut_rtps_writer();
-                let mut rtps_writer_lock = as_mut_rtps_writer.write().unwrap();
+                let mut rtps_writer_lock = any_data_writer.write().unwrap();
                 let rtps_writer = rtps_writer_lock.as_mut();
 
                 match rtps_writer {
