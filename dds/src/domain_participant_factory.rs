@@ -6,7 +6,7 @@ use std::{
     sync::{
         atomic::{self, AtomicBool},
         mpsc::{Receiver, SyncSender},
-        Arc,
+        Arc, Mutex,
     },
 };
 
@@ -285,7 +285,9 @@ fn get_user_defined_udp_socket(domain_id: u16) -> Option<UdpSocket> {
     None
 }
 
-pub struct DomainParticipantFactory;
+pub struct DomainParticipantFactory {
+    participant_list: Mutex<Vec<RtpsShared<DomainParticipantImpl>>>,
+}
 
 impl DomainParticipantFactory {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
@@ -301,6 +303,7 @@ impl DomainParticipantFactory {
     /// to call,e.g. create_topic(), because we can't write impl DomainParticipant + for<'t, T> TopicGAT<'t, T> on the return. This issue will
     /// probably be solved once the GAT functionality is available on stable.
     pub fn create_participant(
+        &self,
         domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
@@ -609,15 +612,22 @@ impl DomainParticipantFactory {
 
         executor.run();
 
-        Some(DomainParticipantProxy::new(rtps_shared_new(
-            domain_participant,
-        )))
+        let shared_domain_participant = rtps_shared_new(domain_participant);
+
+        self.participant_list
+            .lock()
+            .unwrap()
+            .push(shared_domain_participant.clone());
+
+        Some(DomainParticipantProxy::new(
+            shared_domain_participant.clone(),
+        ))
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
     /// the participant have already been deleted. Otherwise the error PRECONDITION_NOT_MET is returned.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_participant(&self, a_participant: DomainParticipantProxy) -> DDSResult<()> {
+    pub fn delete_participant(&self, _a_participant: DomainParticipantProxy) -> DDSResult<()> {
         todo!()
     }
 
@@ -628,7 +638,9 @@ impl DomainParticipantFactory {
     /// The pre-defined value TheParticipantFactory can also be used as an alias for the singleton factory returned by the operation
     /// get_instance.
     pub fn get_instance() -> Self {
-        todo!()
+        Self {
+            participant_list: Mutex::new(Vec::new()),
+        }
     }
 
     /// This operation retrieves a previously created DomainParticipant belonging to specified domain_id. If no such
