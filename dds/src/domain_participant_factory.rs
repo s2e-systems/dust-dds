@@ -14,9 +14,11 @@ use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask, Time},
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{
-        DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos,
+        DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
+        PublisherQos, SubscriberQos, TopicQos,
     },
     publication::data_writer::DataWriter,
+    return_type::DDSResult,
     subscription::data_reader::DataReader,
     topic::topic_description::TopicDescription,
 };
@@ -610,6 +612,63 @@ impl DomainParticipantFactory {
         Some(DomainParticipantProxy::new(rtps_shared_new(
             domain_participant,
         )))
+    }
+
+    /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
+    /// the participant have already been deleted. Otherwise the error PRECONDITION_NOT_MET is returned.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    pub fn delete_participant(&self, a_participant: DomainParticipantProxy) -> DDSResult<()> {
+        todo!()
+    }
+
+    /// This operation returns the DomainParticipantFactory singleton. The operation is idempotent, that is, it can be called multiple
+    /// times without side-effects and it will return the same DomainParticipantFactory instance.
+    /// The get_instance operation is a static operation implemented using the syntax of the native language and can therefore not be
+    /// expressed in the IDL PSM.
+    /// The pre-defined value TheParticipantFactory can also be used as an alias for the singleton factory returned by the operation
+    /// get_instance.
+    pub fn get_instance() -> Self {
+        todo!()
+    }
+
+    /// This operation retrieves a previously created DomainParticipant belonging to specified domain_id. If no such
+    /// DomainParticipant exists, the operation will return a ‘nil’ value.
+    /// If multiple DomainParticipant entities belonging to that domain_id exist, then the operation will return one of them. It is not
+    /// specified which one.
+    pub fn lookup_participant(&self, _domain_id: DomainId) -> DomainParticipantProxy {
+        todo!()
+    }
+
+    /// This operation sets a default value of the DomainParticipant QoS policies which will be used for newly created
+    /// DomainParticipant entities in the case where the QoS policies are defaulted in the create_participant operation.
+    /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
+    /// return INCONSISTENT_POLICY.
+    pub fn set_default_participant_qos(&self, _qos: DomainParticipantQos) -> DDSResult<()> {
+        todo!()
+    }
+
+    /// This operation retrieves the default value of the DomainParticipant QoS, that is, the QoS policies which will be used for
+    /// newly created DomainParticipant entities in the case where the QoS policies are defaulted in the create_participant
+    /// operation.
+    /// The values retrieved get_default_participant_qos will match the set of values specified on the last successful call to
+    /// set_default_participant_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
+    /// Supported QoS.
+    pub fn get_default_participant_qos(&self) -> DDSResult<DomainParticipantQos> {
+        todo!()
+    }
+
+    /// This operation sets the value of the DomainParticipantFactory QoS policies. These policies control the behavior of the object
+    /// a factory for entities.
+    /// Note that despite having QoS, the DomainParticipantFactory is not an Entity.
+    /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
+    /// return INCONSISTENT_POLICY.
+    pub fn set_qos(&self, _qos: DomainParticipantFactoryQos) -> DDSResult<()> {
+        todo!()
+    }
+
+    /// This operation returns the value of the DomainParticipantFactory QoS policies.
+    pub fn get_qos(&self) -> DomainParticipantFactoryQos {
+        todo!()
     }
 }
 

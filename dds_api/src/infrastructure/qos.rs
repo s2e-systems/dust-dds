@@ -14,6 +14,11 @@ use super::qos_policy::{
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]
+pub struct DomainParticipantFactoryQos {
+    entity_factory: EntityFactoryQosPolicy,
+}
+
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct DomainParticipantQos {
     pub user_data: UserDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
