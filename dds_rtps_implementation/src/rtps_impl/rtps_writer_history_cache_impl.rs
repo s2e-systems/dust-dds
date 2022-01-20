@@ -4,8 +4,7 @@ use rust_rtps_pim::{
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
-            RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
-            RtpsHistoryCacheOperations,
+            RtpsHistoryAttributes, RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations,
         },
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
@@ -21,7 +20,7 @@ pub struct WriterCacheChange {
     pub _source_timestamp: Option<Time>,
     pub _view_state_kind: ViewStateKind,
     pub _instance_state_kind: InstanceStateKind,
-    pub inline_qos: Vec<ParameterOwned>
+    pub inline_qos: Vec<ParameterOwned>,
 }
 
 impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
@@ -100,15 +99,15 @@ impl RtpsHistoryCacheConstructor for WriterHistoryCache {
     }
 }
 
-impl RtpsHistoryCacheAddChange for WriterHistoryCache {
-    type CacheChangeType = WriterCacheChange;
+// impl RtpsHistoryCacheAddChange for WriterHistoryCache {
+//     type CacheChangeType = WriterCacheChange;
 
-    fn add_change(&mut self, change: Self::CacheChangeType) {
-        self.changes.push(change)
-    }
-}
+//     fn add_change(&mut self, change: Self::CacheChangeType) {
+//         self.changes.push(change)
+//     }
+// }
 
-impl RtpsHistoryCacheGetChange for WriterHistoryCache {
+impl RtpsHistoryAttributes for WriterHistoryCache {
     type CacheChangeType = WriterCacheChange;
 
     fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
@@ -119,6 +118,12 @@ impl RtpsHistoryCacheGetChange for WriterHistoryCache {
 }
 
 impl RtpsHistoryCacheOperations for WriterHistoryCache {
+    type CacheChangeType = WriterCacheChange;
+
+    fn add_change(&mut self, change: Self::CacheChangeType) {
+        self.changes.push(change)
+    }
+
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }

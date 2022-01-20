@@ -15,7 +15,7 @@ use crate::{
     },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
-        history_cache::{RtpsHistoryCacheGetChange, RtpsHistoryCacheOperations},
+        history_cache::{RtpsHistoryAttributes, RtpsHistoryCacheOperations},
         types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
@@ -55,7 +55,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
             ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
-        C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
+        C: RtpsHistoryAttributes<CacheChangeType = CacheChange>,
         CacheChange: RtpsCacheChangeAttributes + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         SequenceNumberElement:
@@ -140,7 +140,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(Gap),
     ) where
         R: RtpsReaderLocatorOperations,
-        C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
+        C: RtpsHistoryAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -280,7 +280,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(Gap),
     ) where
         R: RtpsReaderLocatorOperations,
-        C: RtpsHistoryCacheGetChange<CacheChangeType = CacheChange>,
+        C: RtpsHistoryAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -499,7 +499,7 @@ mod tests {
     fn best_effort_stateless_writer_send_data() {
         struct MockWriterCache;
 
-        impl RtpsHistoryCacheGetChange for MockWriterCache {
+        impl RtpsHistoryAttributes for MockWriterCache {
             type CacheChangeType = MockCacheChange;
             fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
                 Some(&MockCacheChange {
@@ -528,7 +528,7 @@ mod tests {
     fn best_effort_stateless_writer_send_gap() {
         struct MockWriterCache;
 
-        impl RtpsHistoryCacheGetChange for MockWriterCache {
+        impl RtpsHistoryAttributes for MockWriterCache {
             type CacheChangeType = MockCacheChange;
             fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
                 None
@@ -553,7 +553,7 @@ mod tests {
     fn best_effort_stateless_writer_do_nothing() {
         struct MockWriterCache;
 
-        impl RtpsHistoryCacheGetChange for MockWriterCache {
+        impl RtpsHistoryAttributes for MockWriterCache {
             type CacheChangeType = MockCacheChange;
 
             fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {

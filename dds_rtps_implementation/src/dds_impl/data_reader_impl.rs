@@ -7,7 +7,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::reader::reader::RtpsReaderAttributes,
     structure::{
-        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheGetChange,
+        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryAttributes,
     },
 };
 

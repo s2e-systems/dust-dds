@@ -8,7 +8,7 @@ use crate::{
     },
     structure::{
         cache_change::RtpsCacheChangeConstructor,
-        history_cache::RtpsHistoryCacheAddChange,
+        history_cache::RtpsHistoryCacheOperations,
         types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
@@ -35,7 +35,7 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
             >,
         >,
     ) where
-        H: RtpsHistoryCacheAddChange,
+        H: RtpsHistoryCacheOperations,
         H::CacheChangeType: RtpsCacheChangeConstructor<'a>,
     {
         let reader_id = data.reader_id().value();
@@ -66,7 +66,12 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        discovery::{spdp::builtin_endpoints::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER}, sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR},
+        discovery::{
+            sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+            spdp::builtin_endpoints::{
+                ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+            },
+        },
         messages::types::SubmessageFlag,
         structure::types::{EntityId, SequenceNumber},
     };
@@ -192,10 +197,22 @@ mod tests {
     fn best_effort_stateless_reader_receive_data_reader_id_unknown() {
         struct MockHistoryCache(bool);
 
-        impl RtpsHistoryCacheAddChange for MockHistoryCache {
+        impl RtpsHistoryCacheOperations for MockHistoryCache {
             type CacheChangeType = MockCacheChange;
             fn add_change(&mut self, _change: Self::CacheChangeType) {
                 self.0 = true;
+            }
+
+            fn remove_change(&mut self, _seq_num: &SequenceNumber) {
+                todo!()
+            }
+
+            fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+                todo!()
+            }
+
+            fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+                todo!()
             }
         }
         let mut history_cache = MockHistoryCache(false);
@@ -246,10 +263,22 @@ mod tests {
     fn best_effort_stateless_reader_receive_data_reader_id_same_as_receiver() {
         struct MockHistoryCache(bool);
 
-        impl RtpsHistoryCacheAddChange for MockHistoryCache {
+        impl RtpsHistoryCacheOperations for MockHistoryCache {
             type CacheChangeType = MockCacheChange;
             fn add_change(&mut self, _change: Self::CacheChangeType) {
                 self.0 = true;
+            }
+
+            fn remove_change(&mut self, _seq_num: &SequenceNumber) {
+                todo!()
+            }
+
+            fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+                todo!()
+            }
+
+            fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+                todo!()
             }
         }
         let mut history_cache = MockHistoryCache(false);
@@ -300,10 +329,22 @@ mod tests {
     fn best_effort_stateless_reader_receive_data_reader_id_other_than_receiver() {
         struct MockHistoryCache(bool);
 
-        impl RtpsHistoryCacheAddChange for MockHistoryCache {
+        impl RtpsHistoryCacheOperations for MockHistoryCache {
             type CacheChangeType = MockCacheChange;
             fn add_change(&mut self, _change: Self::CacheChangeType) {
                 self.0 = true;
+            }
+
+            fn remove_change(&mut self, _seq_num: &SequenceNumber) {
+                todo!()
+            }
+
+            fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+                todo!()
+            }
+
+            fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+                todo!()
             }
         }
         let mut history_cache = MockHistoryCache(false);

@@ -4,7 +4,7 @@ use rust_rtps_pim::{
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
-            RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
+            RtpsHistoryCacheConstructor, RtpsHistoryAttributes,
             RtpsHistoryCacheOperations,
         },
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
@@ -117,15 +117,15 @@ impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
     }
 }
 
-impl RtpsHistoryCacheAddChange for ReaderHistoryCache {
-    type CacheChangeType = ReaderCacheChange;
+// impl RtpsHistoryCacheAddChange for ReaderHistoryCache {
+//     type CacheChangeType = ReaderCacheChange;
 
-    fn add_change(&mut self, change: Self::CacheChangeType) {
-        self.changes.push(change)
-    }
-}
+//     fn add_change(&mut self, change: Self::CacheChangeType) {
+//         self.changes.push(change)
+//     }
+// }
 
-impl RtpsHistoryCacheGetChange for ReaderHistoryCache {
+impl RtpsHistoryAttributes for ReaderHistoryCache {
     type CacheChangeType = ReaderCacheChange;
 
     fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
@@ -136,6 +136,8 @@ impl RtpsHistoryCacheGetChange for ReaderHistoryCache {
 }
 
 impl RtpsHistoryCacheOperations for ReaderHistoryCache {
+    type CacheChangeType = ReaderCacheChange;
+
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
@@ -154,6 +156,10 @@ impl RtpsHistoryCacheOperations for ReaderHistoryCache {
             .map(|cc| cc.sequence_number)
             .max()
             .clone()
+    }
+
+    fn add_change(&mut self, change: Self::CacheChangeType) {
+        self.changes.push(change)
     }
 }
 
