@@ -7,7 +7,7 @@ use rust_rtps_pim::{
         },
         types::Duration,
         writer::{
-            reader_locator::{RtpsReaderLocator, RtpsReaderLocatorAttributes},
+            reader_locator::{RtpsReaderLocatorAttributes},
             stateless_writer::{RtpsStatelessWriterConstructor, RtpsStatelessWriterOperations},
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
@@ -181,9 +181,11 @@ impl RtpsWriterAttributes for RtpsStatelessWriterImpl {
 }
 
 impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
-    fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator) {
-        let reader_locator_impl = RtpsReaderLocatorImpl::new(a_locator);
-        self.reader_locators.push(reader_locator_impl);
+
+    type ReaderLocatorType = RtpsReaderLocatorImpl;
+
+    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
+        self.reader_locators.push(a_locator);
     }
 
     fn reader_locator_remove(&mut self, a_locator: &Locator) {
@@ -195,6 +197,7 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
             reader_locator.unsent_changes_reset()
         }
     }
+
 }
 
 impl RtpsWriterOperations for RtpsStatelessWriterImpl {

@@ -45,16 +45,15 @@ use rust_dds_rtps_implementation::{
         rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
     },
     utils::shared_object::{rtps_shared_new, rtps_shared_write_lock},
 };
 use rust_rtps_pim::{
     behavior::{
         reader::writer_proxy::RtpsWriterProxy,
-        writer::{
-            reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
-        },
+        writer::stateless_writer::RtpsStatelessWriterOperations,
+        writer::reader_locator::RtpsReaderLocatorConstructor
     },
     discovery::{
         participant_discovery::ParticipantDiscovery,
@@ -117,7 +116,7 @@ fn send_and_receive_discovery_data_happy_path() {
         RtpsStatelessWriterImpl,
     >(GuidPrefix([3; 12]), &[], &[]);
 
-    let spdp_discovery_locator = RtpsReaderLocator::new(
+    let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
@@ -243,7 +242,7 @@ fn process_discovery_data_happy_path() {
         RtpsStatelessWriterImpl,
     >(GuidPrefix([3; 12]), &[], &[]);
 
-    let spdp_discovery_locator = RtpsReaderLocator::new(
+    let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
             7402,

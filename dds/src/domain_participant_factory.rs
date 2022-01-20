@@ -43,7 +43,7 @@ use rust_dds_rtps_implementation::{
         rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
     },
     utils::shared_object::{
         rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
@@ -54,8 +54,8 @@ use rust_rtps_pim::{
     behavior::{
         reader::stateful_reader::RtpsStatefulReaderOperations,
         writer::{
-            reader_locator::RtpsReaderLocator, stateful_writer::RtpsStatefulWriterOperations,
-            stateless_writer::RtpsStatelessWriterOperations,
+            stateful_writer::RtpsStatefulWriterOperations,
+            stateless_writer::RtpsStatelessWriterOperations, reader_locator::RtpsReaderLocatorConstructor,
         },
     },
     discovery::{
@@ -369,7 +369,7 @@ impl DomainParticipantFactory {
             SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
         // ////////// Configure SPDP reader locator
-        let spdp_discovery_locator = RtpsReaderLocator::new(
+        let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
                 7400,

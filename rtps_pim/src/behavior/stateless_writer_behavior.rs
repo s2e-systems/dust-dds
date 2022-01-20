@@ -385,10 +385,6 @@ mod tests {
             self.0.take()
         }
 
-        fn requested_changes(&self) -> Self::SequenceNumberVector {
-            todo!()
-        }
-
         fn requested_changes_set(
             &mut self,
             _req_seq_num_set: &[SequenceNumber],
