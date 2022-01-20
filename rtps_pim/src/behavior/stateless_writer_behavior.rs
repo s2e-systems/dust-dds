@@ -74,7 +74,13 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
             .reader_locator
             .next_unsent_change(self.last_change_sequence_number)
         {
-            if let Some(change) = self.writer_cache.get_change(&seq_num) {
+            let change = self
+                .writer_cache
+                .changes()
+                .iter()
+                .filter(|cc| cc.sequence_number() == &seq_num)
+                .next();
+            if let Some(change) = change {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind() {
@@ -165,7 +171,13 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             .reader_locator
             .next_unsent_change(self.last_change_sequence_number)
         {
-            if let Some(change) = self.writer_cache.get_change(&seq_num) {
+            let change = self
+                .writer_cache
+                .changes()
+                .iter()
+                .filter(|cc| cc.sequence_number() == &seq_num)
+                .next();
+            if let Some(change) = change {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind() {
@@ -302,7 +314,13 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         >,
     {
         while let Some(seq_num) = self.reader_locator.next_requested_change() {
-            if let Some(change) = self.writer_cache.get_change(&seq_num) {
+            let change = self
+                .writer_cache
+                .changes()
+                .iter()
+                .filter(|cc| cc.sequence_number() == &seq_num)
+                .next();
+            if let Some(change) = change {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind() {
@@ -497,22 +515,34 @@ mod tests {
 
     #[test]
     fn best_effort_stateless_writer_send_data() {
-        struct MockWriterCache;
+        struct MockWriterCache {
+            change: MockCacheChange,
+        }
 
         impl RtpsHistoryAttributes for MockWriterCache {
             type CacheChangeType = MockCacheChange;
-            fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
-                Some(&MockCacheChange {
-                    kind: ChangeKind::Alive,
-                    writer_guid: GUID_UNKNOWN,
-                    sequence_number: 1,
-                })
-            }
-        }
 
+            fn changes(&self) -> &[Self::CacheChangeType] {
+                core::slice::from_ref(&self.change)
+            }
+            // fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
+            //     Some(&MockCacheChange {
+            //         kind: ChangeKind::Alive,
+            //         writer_guid: GUID_UNKNOWN,
+            //         sequence_number: 1,
+            //     })
+            // }
+        }
+        let writer_cache = MockWriterCache {
+            change: MockCacheChange {
+                kind: ChangeKind::Alive,
+                writer_guid: GUID_UNKNOWN,
+                sequence_number: 1,
+            },
+        };
         let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
             reader_locator: &mut MockReaderLocatorOperations(Some(1)),
-            writer_cache: &MockWriterCache,
+            writer_cache: &writer_cache,
             last_change_sequence_number: &1,
         };
         let mut data_messages = None;
@@ -521,7 +551,7 @@ mod tests {
             |_: MockGapSubmessage| assert!(false),
         );
 
-        assert!(data_messages.is_some());
+        assert!(data_messages.is_some())
     }
 
     #[test]
@@ -530,8 +560,9 @@ mod tests {
 
         impl RtpsHistoryAttributes for MockWriterCache {
             type CacheChangeType = MockCacheChange;
-            fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
-                None
+
+            fn changes(&self) -> &[Self::CacheChangeType] {
+                &[]
             }
         }
 
@@ -556,8 +587,8 @@ mod tests {
         impl RtpsHistoryAttributes for MockWriterCache {
             type CacheChangeType = MockCacheChange;
 
-            fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
-                None
+            fn changes(&self) -> &[Self::CacheChangeType] {
+                &[]
             }
         }
 

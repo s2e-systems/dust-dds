@@ -73,7 +73,13 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
             .reader_proxy
             .next_unsent_change(self.last_change_sequence_number)
         {
-            if let Some(change) = self.writer_cache.get_change(&seq_num) {
+            let change = self
+                .writer_cache
+                .changes()
+                .iter()
+                .filter(|cc| cc.sequence_number() == &seq_num)
+                .next();
+            if let Some(change) = change {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind() {
@@ -167,7 +173,13 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             .reader_proxy
             .next_unsent_change(self.last_change_sequence_number)
         {
-            if let Some(change) = self.writer_cache.get_change(&seq_num) {
+            let change = self
+                .writer_cache
+                .changes()
+                .iter()
+                .filter(|cc| cc.sequence_number() == &seq_num)
+                .next();
+            if let Some(change) = change {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind() {
@@ -308,7 +320,13 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         >,
     {
         while let Some(seq_num) = self.reader_proxy.next_requested_change() {
-            if let Some(change) = self.writer_cache.get_change(&seq_num) {
+            let change = self
+                .writer_cache
+                .changes()
+                .iter()
+                .filter(|cc| cc.sequence_number() == &seq_num)
+                .next();
+            if let Some(change) = change {
                 let endianness_flag = true;
                 let inline_qos_flag = true;
                 let (data_flag, key_flag) = match change.kind() {

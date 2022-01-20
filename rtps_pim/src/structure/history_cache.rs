@@ -8,7 +8,7 @@ pub trait RtpsHistoryCacheConstructor {
 pub trait RtpsHistoryAttributes {
     type CacheChangeType;
 
-    fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType>;
+    fn changes(&self) -> &[Self::CacheChangeType];
 }
 
 pub trait RtpsHistoryCacheOperations {
