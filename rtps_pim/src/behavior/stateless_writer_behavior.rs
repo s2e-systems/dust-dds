@@ -372,8 +372,6 @@ mod tests {
     struct MockReaderLocatorOperations(Option<i64>);
 
     impl RtpsReaderLocatorOperations for MockReaderLocatorOperations {
-        type SequenceNumberVector = ();
-
         fn next_requested_change(&mut self) -> Option<SequenceNumber> {
             todo!()
         }
@@ -393,10 +391,7 @@ mod tests {
             todo!()
         }
 
-        fn unsent_changes(
-            &self,
-            _last_change_sequence_number: &SequenceNumber,
-        ) -> Self::SequenceNumberVector {
+        fn unsent_changes(&self) -> &[SequenceNumber] {
             todo!()
         }
     }
@@ -521,13 +516,6 @@ mod tests {
             fn changes(&self) -> &[Self::CacheChangeType] {
                 core::slice::from_ref(&self.change)
             }
-            // fn get_change(&self, _seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
-            //     Some(&MockCacheChange {
-            //         kind: ChangeKind::Alive,
-            //         writer_guid: GUID_UNKNOWN,
-            //         sequence_number: 1,
-            //     })
-            // }
         }
         let writer_cache = MockWriterCache {
             change: MockCacheChange {

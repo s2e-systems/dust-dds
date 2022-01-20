@@ -12,8 +12,6 @@ pub trait RtpsReaderLocatorAttributes {
 }
 
 pub trait RtpsReaderLocatorOperations {
-    type SequenceNumberVector;
-
     fn next_requested_change(&mut self) -> Option<SequenceNumber>;
 
     fn next_unsent_change(
@@ -27,8 +25,5 @@ pub trait RtpsReaderLocatorOperations {
         last_change_sequence_number: &SequenceNumber,
     );
 
-    fn unsent_changes(
-        &self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Self::SequenceNumberVector;
+    fn unsent_changes(&self) -> &[SequenceNumber];
 }
