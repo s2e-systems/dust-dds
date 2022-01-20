@@ -10,7 +10,7 @@ The aim of this project was to create a high-quality Rust implementation of the 
 
 This section briefly describes the high-level architecture at crate level. The implementation is divided in 5 crates as shown in the figure below.
 
-![Project architecture](./high_level_architecture.drawio.png)
+![Project architecture](./component_architecture.drawio.png)
 
 The crates are divided as:
 
