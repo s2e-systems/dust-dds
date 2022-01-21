@@ -19,22 +19,6 @@ impl RtpsReaderLocatorImpl {
     }
 }
 
-impl RtpsReaderLocatorAttributes for RtpsReaderLocatorImpl {
-    fn locator(&self) -> &Locator {
-        &self.locator
-    }
-
-    fn expects_inline_qos(&self) -> &bool {
-        &self.expects_inline_qos
-    }
-
-    type CacheChangeType = SequenceNumber;
-
-    fn requested_changes(&self) -> &[Self::CacheChangeType] {
-        &self.requested_changes
-    }
-}
-
 impl RtpsReaderLocatorConstructor for RtpsReaderLocatorImpl {
     fn new(locator: Locator, expects_inline_qos: bool) -> Self {
         Self {
@@ -47,50 +31,51 @@ impl RtpsReaderLocatorConstructor for RtpsReaderLocatorImpl {
     }
 }
 
-impl RtpsReaderLocatorOperations for RtpsReaderLocatorImpl {
+impl RtpsReaderLocatorAttributes for RtpsReaderLocatorImpl {
+    type CacheChangeType = SequenceNumber;
 
-    fn next_requested_change(&mut self) -> Option<SequenceNumber> {
-        if let Some(requested_change) = self.requested_changes.iter().min().cloned() {
-            self.requested_changes.retain(|x| x != &requested_change);
-            Some(requested_change.clone())
-        } else {
+    fn requested_changes(&self) -> &[Self::CacheChangeType] {
+        &self.requested_changes
+    }
+    fn unsent_changes(&self) -> &[Self::CacheChangeType] {
+        &self.unsent_changes
+    }
+    fn locator(&self) -> &Locator {
+        &self.locator
+    }
+    fn expects_inline_qos(&self) -> &bool {
+        &self.expects_inline_qos
+    }
+}
+
+impl RtpsReaderLocatorOperations for RtpsReaderLocatorImpl {
+    type CacheChangeType = SequenceNumber;
+
+
+    fn next_requested_change(&mut self) -> Option<Self::CacheChangeType> {
+        if self.requested_changes.is_empty() {
             None
+        } else {
+            Some(self.requested_changes.remove(0))
         }
     }
 
     fn next_unsent_change(
         &mut self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Option<SequenceNumber> {
-        if &self.last_sent_sequence_number < last_change_sequence_number {
-            self.last_sent_sequence_number = self.last_sent_sequence_number + 1;
-            Some(self.last_sent_sequence_number.clone())
-        } else {
+    ) -> Option<Self::CacheChangeType> {
+        if self.unsent_changes.is_empty() {
             None
+        } else {
+            Some(self.unsent_changes.remove(0))
         }
     }
 
-    fn requested_changes_set(
-        &mut self,
-        req_seq_num_set: &[SequenceNumber],
-        last_change_sequence_number: &SequenceNumber,
-    ) {
-        for requested_change in req_seq_num_set.as_ref() {
-            if requested_change <= last_change_sequence_number {
-                self.requested_changes.push(requested_change.clone())
-            }
-        }
+    fn requested_changes_set(&mut self, req_seq_num_set: &[Self::CacheChangeType]) {
+        self.requested_changes = req_seq_num_set.to_vec();
     }
 
-    fn unsent_changes(&self) -> &[SequenceNumber] {
-        // let mut unsent_changes = Vec::new();
-        // for unsent_change_seq_num in
-        //     self.last_sent_sequence_number + 1..=*last_change_sequence_number
-        // {
-        //     unsent_changes.push(unsent_change_seq_num)
-        // }
-        // unsent_changes
-        &self.unsent_changes
+    fn unsent_changes_add(&mut self, unsent_seq_num_set: &[Self::CacheChangeType]) {
+        self.unsent_changes.extend(unsent_seq_num_set)
     }
 }
 

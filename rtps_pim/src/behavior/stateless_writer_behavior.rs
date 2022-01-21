@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-use super::writer::reader_locator::RtpsReaderLocatorOperations;
+use super::writer::reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations};
 
 pub enum StatelessWriterBehavior<'a, R, C> {
     BestEffort(BestEffortStatelessWriterBehavior<'a, R, C>),
@@ -48,7 +48,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderLocatorOperations,
+        R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -70,10 +70,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
-        while let Some(seq_num) = self
-            .reader_locator
-            .next_unsent_change(self.last_change_sequence_number)
-        {
+        while let Some(seq_num) = self.reader_locator.next_unsent_change() {
             let change = self
                 .writer_cache
                 .changes()
@@ -145,7 +142,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderLocatorOperations,
+        R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         C: RtpsHistoryAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
@@ -167,10 +164,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
-        while let Some(seq_num) = self
-            .reader_locator
-            .next_unsent_change(self.last_change_sequence_number)
-        {
+        while let Some(seq_num) = self.reader_locator.next_unsent_change() {
             let change = self
                 .writer_cache
                 .changes()
@@ -206,7 +200,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                     inline_qos,
                     serialized_payload,
                 );
-                send_data(data_submessage)
+                send_data(data_submessage);
             } else {
                 let endianness_flag = true;
                 let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
@@ -215,7 +209,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let gap_list = SequenceNumberSetElement::new(&seq_num, &[]);
                 let gap_submessage =
                     Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
-                send_gap(gap_submessage)
+                send_gap(gap_submessage);
             }
         }
     }
@@ -268,13 +262,11 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             >,
         >,
     ) where
-        R: RtpsReaderLocatorOperations,
+        R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         S: AsRef<[SequenceNumber]>,
     {
-        self.reader_locator.requested_changes_set(
-            acknack.reader_sn_state().set(),
-            self.last_change_sequence_number,
-        );
+        self.reader_locator
+            .requested_changes_set(acknack.reader_sn_state().set());
     }
 
     /// Implement 8.4.9.2.12 Transition T10
@@ -291,7 +283,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderLocatorOperations,
+        R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         C: RtpsHistoryAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
@@ -372,26 +364,17 @@ mod tests {
     struct MockReaderLocatorOperations(Option<i64>);
 
     impl RtpsReaderLocatorOperations for MockReaderLocatorOperations {
-        fn next_requested_change(&mut self) -> Option<SequenceNumber> {
+        type CacheChangeType = i64;
+        fn next_requested_change(&mut self) -> Option<Self::CacheChangeType> {
             todo!()
         }
-
-        fn next_unsent_change(
-            &mut self,
-            _last_change_sequence_number: &SequenceNumber,
-        ) -> Option<SequenceNumber> {
-            self.0.take()
+        fn next_unsent_change(&mut self) -> Option<Self::CacheChangeType> {
+            self.0
         }
-
-        fn requested_changes_set(
-            &mut self,
-            _req_seq_num_set: &[SequenceNumber],
-            _last_change_sequence_number: &SequenceNumber,
-        ) {
+        fn requested_changes_set(&mut self, _req_seq_num_set: &[Self::CacheChangeType]) {
             todo!()
         }
-
-        fn unsent_changes(&self) -> &[SequenceNumber] {
+        fn unsent_changes_add(&mut self, _unsent_seq_num_set: &[Self::CacheChangeType]) {
             todo!()
         }
     }

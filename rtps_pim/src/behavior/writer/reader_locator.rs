@@ -6,24 +6,18 @@ pub trait RtpsReaderLocatorConstructor {
 
 pub trait RtpsReaderLocatorAttributes {
     type CacheChangeType;
+
     fn requested_changes(&self) -> &[Self::CacheChangeType];
+    fn unsent_changes(&self) -> &[Self::CacheChangeType];
     fn locator(&self) -> &Locator;
     fn expects_inline_qos(&self) -> &bool;
 }
 
 pub trait RtpsReaderLocatorOperations {
-    fn next_requested_change(&mut self) -> Option<SequenceNumber>;
+    type CacheChangeType;
 
-    fn next_unsent_change(
-        &mut self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Option<SequenceNumber>;
-
-    fn requested_changes_set(
-        &mut self,
-        req_seq_num_set: &[SequenceNumber],
-        last_change_sequence_number: &SequenceNumber,
-    );
-
-    fn unsent_changes(&self) -> &[SequenceNumber];
+    fn next_requested_change(&mut self) -> Option<Self::CacheChangeType>;
+    fn next_unsent_change(&mut self) -> Option<Self::CacheChangeType>;
+    fn requested_changes_set(&mut self, req_seq_num_set: &[Self::CacheChangeType]);
+    fn unsent_changes_add(&mut self, unsent_seq_num_set: &[Self::CacheChangeType]);
 }
