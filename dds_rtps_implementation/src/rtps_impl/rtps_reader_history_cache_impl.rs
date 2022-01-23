@@ -4,7 +4,7 @@ use rust_rtps_pim::{
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
-            RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
+            RtpsHistoryCacheConstructor, RtpsHistoryAttributes,
             RtpsHistoryCacheOperations,
         },
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
@@ -117,25 +117,19 @@ impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
     }
 }
 
-impl RtpsHistoryCacheAddChange for ReaderHistoryCache {
+impl RtpsHistoryAttributes for ReaderHistoryCache {
     type CacheChangeType = ReaderCacheChange;
 
-    fn add_change(&mut self, change: Self::CacheChangeType) {
-        self.changes.push(change)
+    fn changes(&self) -> &[Self::CacheChangeType] {
+        &self.changes
     }
-}
 
-impl RtpsHistoryCacheGetChange for ReaderHistoryCache {
-    type CacheChangeType = ReaderCacheChange;
 
-    fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
-        self.changes
-            .iter()
-            .find(|&cc| &cc.sequence_number == seq_num)
-    }
 }
 
 impl RtpsHistoryCacheOperations for ReaderHistoryCache {
+    type CacheChangeType = ReaderCacheChange;
+
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
@@ -155,6 +149,10 @@ impl RtpsHistoryCacheOperations for ReaderHistoryCache {
             .max()
             .clone()
     }
+
+    fn add_change(&mut self, change: Self::CacheChangeType) {
+        self.changes.push(change)
+    }
 }
 
 #[cfg(test)]
@@ -162,21 +160,6 @@ mod tests {
     use rust_rtps_pim::structure::{cache_change::RtpsCacheChangeConstructor, types::GUID_UNKNOWN};
 
     use super::*;
-
-    #[test]
-    fn add_change() {
-        let mut hc = ReaderHistoryCache::new();
-        let change = ReaderCacheChange::new(
-            &rust_rtps_pim::structure::types::ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &1,
-            &vec![],
-            &vec![],
-        );
-        hc.add_change(change);
-        assert!(hc.get_change(&1).is_some());
-    }
 
     #[test]
     fn remove_change() {
@@ -191,23 +174,7 @@ mod tests {
         );
         hc.add_change(change);
         hc.remove_change(&1);
-        assert!(hc.get_change(&1).is_none());
-    }
-
-    #[test]
-    fn get_change() {
-        let mut hc = ReaderHistoryCache::new();
-        let change = ReaderCacheChange::new(
-            &rust_rtps_pim::structure::types::ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &1,
-            &vec![],
-            &vec![],
-        );
-        hc.add_change(change);
-        assert!(hc.get_change(&1).is_some());
-        assert!(hc.get_change(&2).is_none());
+        assert!(hc.changes().is_empty());
     }
 
     #[test]

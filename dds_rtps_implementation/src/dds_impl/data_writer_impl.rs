@@ -6,7 +6,7 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{
     behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
-    structure::{history_cache::RtpsHistoryCacheAddChange, types::ChangeKind},
+    structure::{history_cache::{RtpsHistoryCacheOperations}, types::ChangeKind},
 };
 
 use crate::{

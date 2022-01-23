@@ -4,8 +4,7 @@ use rust_rtps_pim::{
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
-            RtpsHistoryCacheAddChange, RtpsHistoryCacheConstructor, RtpsHistoryCacheGetChange,
-            RtpsHistoryCacheOperations,
+            RtpsHistoryAttributes, RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations,
         },
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
@@ -21,7 +20,7 @@ pub struct WriterCacheChange {
     pub _source_timestamp: Option<Time>,
     pub _view_state_kind: ViewStateKind,
     pub _instance_state_kind: InstanceStateKind,
-    pub inline_qos: Vec<ParameterOwned>
+    pub inline_qos: Vec<ParameterOwned>,
 }
 
 impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
@@ -100,25 +99,21 @@ impl RtpsHistoryCacheConstructor for WriterHistoryCache {
     }
 }
 
-impl RtpsHistoryCacheAddChange for WriterHistoryCache {
+impl RtpsHistoryAttributes for WriterHistoryCache {
+    type CacheChangeType = WriterCacheChange;
+
+    fn changes(&self) -> &[Self::CacheChangeType] {
+        &self.changes
+    }
+}
+
+impl RtpsHistoryCacheOperations for WriterHistoryCache {
     type CacheChangeType = WriterCacheChange;
 
     fn add_change(&mut self, change: Self::CacheChangeType) {
         self.changes.push(change)
     }
-}
 
-impl RtpsHistoryCacheGetChange for WriterHistoryCache {
-    type CacheChangeType = WriterCacheChange;
-
-    fn get_change(&self, seq_num: &SequenceNumber) -> Option<&Self::CacheChangeType> {
-        self.changes
-            .iter()
-            .find(|&cc| &cc.sequence_number == seq_num)
-    }
-}
-
-impl RtpsHistoryCacheOperations for WriterHistoryCache {
     fn remove_change(&mut self, seq_num: &SequenceNumber) {
         self.changes.retain(|cc| &cc.sequence_number != seq_num)
     }
@@ -146,20 +141,6 @@ mod tests {
     use super::*;
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
-    #[test]
-    fn add_change() {
-        let mut hc = WriterHistoryCache::new();
-        let change = WriterCacheChange::new(
-            &rust_rtps_pim::structure::types::ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &1,
-            &vec![],
-            &vec![],
-        );
-        hc.add_change(change);
-        assert!(hc.get_change(&1).is_some());
-    }
 
     #[test]
     fn remove_change() {
@@ -174,23 +155,7 @@ mod tests {
         );
         hc.add_change(change);
         hc.remove_change(&1);
-        assert!(hc.get_change(&1).is_none());
-    }
-
-    #[test]
-    fn get_change() {
-        let mut hc = WriterHistoryCache::new();
-        let change = WriterCacheChange::new(
-            &rust_rtps_pim::structure::types::ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &1,
-            &vec![],
-            &vec![],
-        );
-        hc.add_change(change);
-        assert!(hc.get_change(&1).is_some());
-        assert!(hc.get_change(&2).is_none());
+        assert!(hc.changes().is_empty());
     }
 
     #[test]

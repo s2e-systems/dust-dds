@@ -8,7 +8,7 @@ use crate::{
     },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        history_cache::RtpsHistoryCacheAddChange,
+        history_cache::{RtpsHistoryCacheOperations},
         types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
     },
 };
@@ -71,7 +71,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
         >,
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
-        H: RtpsHistoryCacheAddChange,
+        H: RtpsHistoryCacheOperations,
         H::CacheChangeType: RtpsCacheChangeConstructor<'a> + RtpsCacheChangeAttributes,
     {
         let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
@@ -214,11 +214,23 @@ mod tests {
             add_change_called: bool,
         }
 
-        impl RtpsHistoryCacheAddChange for MockReaderCache {
+        impl RtpsHistoryCacheOperations for MockReaderCache {
             type CacheChangeType = MockCacheChange;
 
             fn add_change(&mut self, _change: Self::CacheChangeType) {
                 self.add_change_called = true;
+            }
+
+            fn remove_change(&mut self, _seq_num: &SequenceNumber) {
+                todo!()
+            }
+
+            fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+                todo!()
+            }
+
+            fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+                todo!()
             }
         }
 

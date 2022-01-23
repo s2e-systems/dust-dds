@@ -7,7 +7,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::reader::reader::RtpsReaderAttributes,
     structure::{
-        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheGetChange,
+        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryAttributes,
     },
 };
 
@@ -132,7 +132,7 @@ where
     ) -> DDSResult<Self::Samples> {
         match &self.rtps_reader {
             RtpsReader::Stateless(rtps_reader) => {
-                if let Some(cc) = rtps_reader.reader_cache().get_change(&1) {
+                if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
                     Ok(Samples {
                         samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
                     })
@@ -141,7 +141,7 @@ where
                 }
             }
             RtpsReader::Stateful(rtps_reader) => {
-                if let Some(cc) = rtps_reader.reader_cache().get_change(&1) {
+                if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
                     Ok(Samples {
                         samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
                     })
