@@ -31,7 +31,6 @@ pub enum StatelessWriterBehavior<'a, R, C, CC> {
 pub struct BestEffortStatelessWriterBehavior<'a, R, C, CC> {
     pub reader_locator: &'a mut R,
     pub writer_cache: &'a C,
-    pub last_change_sequence_number: &'a SequenceNumber,
     pub last_sent_change: Option<&'a CC>,
 }
 
@@ -523,7 +522,6 @@ mod tests {
         let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
             reader_locator: &mut MockReaderLocatorOperations(Some(1)),
             writer_cache: &writer_cache,
-            last_change_sequence_number: &1,
             last_sent_change: None,
         };
         let mut data_messages = None;
@@ -550,7 +548,6 @@ mod tests {
         let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
             reader_locator: &mut MockReaderLocatorOperations(Some(1)),
             writer_cache: &MockWriterCache,
-            last_change_sequence_number: &1,
             last_sent_change: None,
         };
         let mut gap_message = None;
@@ -577,7 +574,6 @@ mod tests {
         let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
             reader_locator: &mut MockReaderLocatorOperations(None),
             writer_cache: &MockWriterCache,
-            last_change_sequence_number: &1,
             last_sent_change: None,
         };
         best_effort_behavior.send_unsent_changes(

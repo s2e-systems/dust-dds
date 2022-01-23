@@ -62,7 +62,6 @@ impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
                 BestEffortStatelessWriterBehavior {
                     reader_locator,
                     writer_cache: self.writer_cache,
-                    last_change_sequence_number: self.last_change_sequence_number,
                     last_sent_change: None,
                 },
             )),
