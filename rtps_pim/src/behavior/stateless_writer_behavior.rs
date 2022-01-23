@@ -22,25 +22,25 @@ use crate::{
 
 use super::writer::reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations};
 
-pub enum StatelessWriterBehavior<'a, R, C> {
-    BestEffort(BestEffortStatelessWriterBehavior<'a, R, C>),
+pub enum StatelessWriterBehavior<'a, R, C, CC> {
+    BestEffort(BestEffortStatelessWriterBehavior<'a, R, C, CC>),
     Reliable(ReliableStatelessWriterBehavior<'a, R, C>),
 }
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.1 Best-Effort StatelessWriter Behavior
-pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
+pub struct BestEffortStatelessWriterBehavior<'a, R, C, CC> {
     pub reader_locator: &'a mut R,
     pub writer_cache: &'a C,
     pub last_change_sequence_number: &'a SequenceNumber,
+    pub last_sent_change: Option<&'a CC>,
 }
 
-impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
+impl<'a, R, C, CacheChange> BestEffortStatelessWriterBehavior<'a, R, C, CacheChange> {
     /// Implement 8.4.8.1.4 Transition T4
     pub fn send_unsent_changes<
         Data,
         EntityIdElement,
         SequenceNumberElement,
-        CacheChange,
         Gap,
         SequenceNumberSetElement,
     >(
@@ -70,6 +70,18 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
+        for change in self.writer_cache.changes().iter() {
+            if match self.last_sent_change {
+                Some(last_sent_change) => {
+                    last_sent_change.sequence_number() < change.sequence_number()
+                }
+                None => true,
+            } {
+                self.reader_locator
+                    .unsent_changes_add(change.sequence_number());
+            }
+        }
+
         while let Some(seq_num) = self.reader_locator.next_unsent_change() {
             let change = self
                 .writer_cache
@@ -105,7 +117,8 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                     inline_qos,
                     serialized_payload,
                 );
-                send_data(data_submessage)
+                send_data(data_submessage);
+                self.last_sent_change = Some(change);
             } else {
                 let endianness_flag = true;
                 let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
@@ -114,7 +127,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 let gap_list = SequenceNumberSetElement::new(&seq_num, &[]);
                 let gap_submessage =
                     Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
-                send_gap(gap_submessage)
+                send_gap(gap_submessage);
             }
         }
     }
@@ -369,13 +382,13 @@ mod tests {
             todo!()
         }
         fn next_unsent_change(&mut self) -> Option<Self::CacheChangeType> {
-            self.0
+            self.0.take()
         }
         fn requested_changes_set(&mut self, _req_seq_num_set: &[Self::CacheChangeType]) {
             todo!()
         }
-        fn unsent_changes_add(&mut self, _unsent_seq_num_set: &[Self::CacheChangeType]) {
-            todo!()
+        fn unsent_changes_add(&mut self, unsent_seq_num_set: &Self::CacheChangeType) {
+            self.0.replace(*unsent_seq_num_set);
         }
     }
 
@@ -511,6 +524,7 @@ mod tests {
             reader_locator: &mut MockReaderLocatorOperations(Some(1)),
             writer_cache: &writer_cache,
             last_change_sequence_number: &1,
+            last_sent_change: None,
         };
         let mut data_messages = None;
         best_effort_behavior.send_unsent_changes(
@@ -537,6 +551,7 @@ mod tests {
             reader_locator: &mut MockReaderLocatorOperations(Some(1)),
             writer_cache: &MockWriterCache,
             last_change_sequence_number: &1,
+            last_sent_change: None,
         };
         let mut gap_message = None;
         best_effort_behavior.send_unsent_changes(
@@ -563,6 +578,7 @@ mod tests {
             reader_locator: &mut MockReaderLocatorOperations(None),
             writer_cache: &MockWriterCache,
             last_change_sequence_number: &1,
+            last_sent_change: None,
         };
         best_effort_behavior.send_unsent_changes(
             |_: MockDataSubmessage| assert!(false),

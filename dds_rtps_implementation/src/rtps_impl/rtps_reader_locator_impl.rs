@@ -74,8 +74,8 @@ impl RtpsReaderLocatorOperations for RtpsReaderLocatorImpl {
         self.requested_changes = req_seq_num_set.to_vec();
     }
 
-    fn unsent_changes_add(&mut self, unsent_seq_num_set: &[Self::CacheChangeType]) {
-        self.unsent_changes.extend(unsent_seq_num_set)
+    fn unsent_changes_add(&mut self, seq_num: &Self::CacheChangeType) {
+        self.unsent_changes.push(*seq_num)
     }
 }
 
