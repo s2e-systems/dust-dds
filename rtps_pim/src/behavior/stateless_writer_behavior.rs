@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-use super::writer::reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations};
+use super::writer::reader_locator::RtpsReaderLocatorOperations;
 
 pub enum StatelessWriterBehavior<'a, R, C> {
     BestEffort(BestEffortStatelessWriterBehavior<'a, R, C>),

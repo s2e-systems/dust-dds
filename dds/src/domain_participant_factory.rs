@@ -370,6 +370,7 @@ impl DomainParticipantFactory {
 
         // ////////// Configure SPDP reader locator
         let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
+            &[],
             Locator::new(
                 LOCATOR_KIND_UDPv4,
                 7400,
