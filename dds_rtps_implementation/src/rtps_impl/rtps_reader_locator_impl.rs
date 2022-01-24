@@ -19,7 +19,11 @@ impl RtpsReaderLocatorImpl {
 
 impl RtpsReaderLocatorConstructor for RtpsReaderLocatorImpl {
     type CacheChangeType = SequenceNumber;
-    fn new(unsent_changes: &[Self::CacheChangeType], locator: Locator, expects_inline_qos: bool) -> Self {
+    fn new(
+        unsent_changes: &[Self::CacheChangeType],
+        locator: Locator,
+        expects_inline_qos: bool,
+    ) -> Self {
         Self {
             locator,
             expects_inline_qos,
@@ -49,7 +53,6 @@ impl RtpsReaderLocatorAttributes for RtpsReaderLocatorImpl {
 impl RtpsReaderLocatorOperations for RtpsReaderLocatorImpl {
     type CacheChangeType = SequenceNumber;
 
-
     fn next_requested_change(&mut self) -> Option<Self::CacheChangeType> {
         if self.requested_changes.is_empty() {
             None
@@ -58,9 +61,7 @@ impl RtpsReaderLocatorOperations for RtpsReaderLocatorImpl {
         }
     }
 
-    fn next_unsent_change(
-        &mut self,
-    ) -> Option<Self::CacheChangeType> {
+    fn next_unsent_change(&mut self) -> Option<Self::CacheChangeType> {
         if self.unsent_changes.is_empty() {
             None
         } else {
@@ -73,7 +74,8 @@ impl RtpsReaderLocatorOperations for RtpsReaderLocatorImpl {
     }
 
     fn unsent_changes_add(&mut self, seq_num: &Self::CacheChangeType) {
-        if self.unsent_changes.iter().all(|c|c != seq_num) {
+        // add only changes that are not yet present
+        if self.unsent_changes.iter().all(|c| c != seq_num) {
             self.unsent_changes.push(*seq_num);
         }
     }
@@ -87,8 +89,7 @@ mod tests {
 
     #[test]
     fn reader_locator_next_unsent_change() {
-        let mut reader_locator =
-            RtpsReaderLocatorImpl::new(&[1, 2], LOCATOR_INVALID, false);
+        let mut reader_locator = RtpsReaderLocatorImpl::new(&[1, 2], LOCATOR_INVALID, false);
 
         assert_eq!(reader_locator.next_unsent_change(), Some(1));
         assert_eq!(reader_locator.next_unsent_change(), Some(2));
@@ -97,8 +98,7 @@ mod tests {
 
     #[test]
     fn reader_locator_requested_changes_set() {
-        let mut reader_locator =
-            RtpsReaderLocatorImpl::new(&[], LOCATOR_INVALID, false);
+        let mut reader_locator = RtpsReaderLocatorImpl::new(&[], LOCATOR_INVALID, false);
 
         let req_seq_num_set = vec![1, 2, 3];
         reader_locator.requested_changes_set(&req_seq_num_set);
@@ -112,8 +112,7 @@ mod tests {
 
     #[test]
     fn reader_locator_unsent_changes() {
-        let reader_locator =
-            RtpsReaderLocatorImpl::new(&[1, 2, 3], LOCATOR_INVALID, false);
+        let reader_locator = RtpsReaderLocatorImpl::new(&[1, 2, 3], LOCATOR_INVALID, false);
 
         let unsent_changes = reader_locator.unsent_changes();
         let expected_unsent_changes = vec![1, 2, 3];

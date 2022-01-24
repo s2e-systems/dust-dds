@@ -40,10 +40,11 @@ use rust_dds_rtps_implementation::{
     },
     dds_type::DdsType,
     rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_group_impl::RtpsGroupImpl, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
     utils::shared_object::{
         rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
@@ -54,8 +55,9 @@ use rust_rtps_pim::{
     behavior::{
         reader::stateful_reader::RtpsStatefulReaderOperations,
         writer::{
+            reader_locator::RtpsReaderLocatorConstructor,
             stateful_writer::RtpsStatefulWriterOperations,
-            stateless_writer::RtpsStatelessWriterOperations, reader_locator::RtpsReaderLocatorConstructor,
+            stateless_writer::RtpsStatelessWriterOperations,
         },
     },
     discovery::{
