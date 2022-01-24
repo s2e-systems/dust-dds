@@ -53,7 +53,7 @@ pub struct RtpsReaderLocatorIterator<'a> {
 }
 
 impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
-    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorImpl, WriterHistoryCache, WriterCacheChange>;
+    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorImpl, WriterHistoryCache>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let reader_locator = self.reader_locator_iterator.next()?;
@@ -78,7 +78,7 @@ impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a mut RtpsStatelessWriterImpl {
-    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorImpl, WriterHistoryCache, WriterCacheChange>;
+    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorImpl, WriterHistoryCache>;
 
     type IntoIter = RtpsReaderLocatorIterator<'a>;
 

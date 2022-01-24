@@ -21,5 +21,4 @@ pub trait RtpsReaderLocatorOperations {
     fn requested_changes_set(&mut self, req_seq_num_set: &[Self::CacheChangeType]);
 
     fn unsent_changes_add(&mut self, unsent_seq_num_set: &Self::CacheChangeType);
-    // fn last_sent_change
 }

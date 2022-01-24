@@ -22,22 +22,23 @@ use crate::{
 
 use super::writer::reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations};
 
-pub enum StatelessWriterBehavior<'a, R, C, CC> {
-    BestEffort(BestEffortStatelessWriterBehavior<'a, R, C, CC>),
+pub enum StatelessWriterBehavior<'a, R, C> {
+    BestEffort(BestEffortStatelessWriterBehavior<'a, R, C>),
     Reliable(ReliableStatelessWriterBehavior<'a, R, C>),
 }
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.1 Best-Effort StatelessWriter Behavior
-pub struct BestEffortStatelessWriterBehavior<'a, R, C, CC> {
+pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
     pub reader_locator: &'a mut R,
     pub writer_cache: &'a C,
-    pub last_sent_change: Option<&'a CC>,
+    pub last_sent_change: Option<SequenceNumber>,
 }
 
-impl<'a, R, C, CacheChange> BestEffortStatelessWriterBehavior<'a, R, C, CacheChange> {
+impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.1.4 Transition T4
     pub fn send_unsent_changes<
         Data,
+        CacheChange,
         EntityIdElement,
         SequenceNumberElement,
         Gap,
@@ -71,9 +72,7 @@ impl<'a, R, C, CacheChange> BestEffortStatelessWriterBehavior<'a, R, C, CacheCha
     {
         for change in self.writer_cache.changes().iter() {
             if match self.last_sent_change {
-                Some(last_sent_change) => {
-                    last_sent_change.sequence_number() < change.sequence_number()
-                }
+                Some(last_sent_change) => &last_sent_change < change.sequence_number(),
                 None => true,
             } {
                 self.reader_locator
@@ -117,7 +116,7 @@ impl<'a, R, C, CacheChange> BestEffortStatelessWriterBehavior<'a, R, C, CacheCha
                     serialized_payload,
                 );
                 send_data(data_submessage);
-                self.last_sent_change = Some(change);
+                self.last_sent_change = Some(*change.sequence_number());
             } else {
                 let endianness_flag = true;
                 let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
