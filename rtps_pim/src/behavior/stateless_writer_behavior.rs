@@ -31,7 +31,7 @@ pub enum StatelessWriterBehavior<'a, R, C> {
 pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
     pub reader_locator: &'a mut R,
     pub writer_cache: &'a C,
-    pub last_sent_change: Option<SequenceNumber>,
+    pub last_change_sequence_number: &'a SequenceNumber,
 }
 
 impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
@@ -70,17 +70,10 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
-        for change in self.writer_cache.changes().iter() {
-            if match self.last_sent_change {
-                Some(last_sent_change) => &last_sent_change < change.sequence_number(),
-                None => true,
-            } {
-                self.reader_locator
-                    .unsent_changes_add(change.sequence_number());
-            }
-        }
-
-        while let Some(seq_num) = self.reader_locator.next_unsent_change() {
+        while let Some(seq_num) = self
+            .reader_locator
+            .next_unsent_change(self.last_change_sequence_number)
+        {
             let change = self
                 .writer_cache
                 .changes()
@@ -116,7 +109,6 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                     serialized_payload,
                 );
                 send_data(data_submessage);
-                self.last_sent_change = Some(*change.sequence_number());
             } else {
                 let endianness_flag = true;
                 let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
@@ -175,7 +167,10 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
-        while let Some(seq_num) = self.reader_locator.next_unsent_change() {
+        while let Some(seq_num) = self
+            .reader_locator
+            .next_unsent_change(self.last_change_sequence_number)
+        {
             let change = self
                 .writer_cache
                 .changes()
@@ -379,14 +374,14 @@ mod tests {
         fn next_requested_change(&mut self) -> Option<Self::CacheChangeType> {
             todo!()
         }
-        fn next_unsent_change(&mut self) -> Option<Self::CacheChangeType> {
+        fn next_unsent_change(
+            &mut self,
+            _last_change: &Self::CacheChangeType,
+        ) -> Option<Self::CacheChangeType> {
             self.0.take()
         }
         fn requested_changes_set(&mut self, _req_seq_num_set: &[Self::CacheChangeType]) {
             todo!()
-        }
-        fn unsent_changes_add(&mut self, unsent_seq_num_set: &Self::CacheChangeType) {
-            self.0.replace(*unsent_seq_num_set);
         }
     }
 
@@ -521,7 +516,7 @@ mod tests {
         let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
             reader_locator: &mut MockReaderLocatorOperations(Some(1)),
             writer_cache: &writer_cache,
-            last_sent_change: None,
+            last_change_sequence_number: &0,
         };
         let mut data_messages = None;
         best_effort_behavior.send_unsent_changes(
@@ -547,7 +542,7 @@ mod tests {
         let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
             reader_locator: &mut MockReaderLocatorOperations(Some(1)),
             writer_cache: &MockWriterCache,
-            last_sent_change: None,
+            last_change_sequence_number: &0,
         };
         let mut gap_message = None;
         best_effort_behavior.send_unsent_changes(
@@ -573,7 +568,7 @@ mod tests {
         let mut best_effort_behavior = BestEffortStatelessWriterBehavior {
             reader_locator: &mut MockReaderLocatorOperations(None),
             writer_cache: &MockWriterCache,
-            last_sent_change: None,
+            last_change_sequence_number: &0,
         };
         best_effort_behavior.send_unsent_changes(
             |_: MockDataSubmessage| assert!(false),

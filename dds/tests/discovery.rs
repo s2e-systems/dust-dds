@@ -118,7 +118,6 @@ fn send_and_receive_discovery_data_happy_path() {
     >(GuidPrefix([3; 12]), &[], &[]);
 
     let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
-        &[],
         Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
@@ -245,7 +244,6 @@ fn process_discovery_data_happy_path() {
     >(GuidPrefix([3; 12]), &[], &[]);
 
     let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
-        &[],
         Locator::new(
             LOCATOR_KIND_UDPv4,
             7402,
