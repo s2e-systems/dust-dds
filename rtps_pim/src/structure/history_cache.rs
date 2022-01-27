@@ -5,7 +5,7 @@ pub trait RtpsHistoryCacheConstructor {
     fn new() -> Self;
 }
 
-pub trait RtpsHistoryAttributes {
+pub trait RtpsHistoryCacheAttributes {
     type CacheChangeType;
 
     fn changes(&self) -> &[Self::CacheChangeType];

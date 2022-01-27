@@ -4,7 +4,7 @@ use rust_rtps_pim::{
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
-            RtpsHistoryCacheConstructor, RtpsHistoryAttributes,
+            RtpsHistoryCacheConstructor, RtpsHistoryCacheAttributes,
             RtpsHistoryCacheOperations,
         },
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
@@ -117,7 +117,7 @@ impl RtpsHistoryCacheConstructor for ReaderHistoryCache {
     }
 }
 
-impl RtpsHistoryAttributes for ReaderHistoryCache {
+impl RtpsHistoryCacheAttributes for ReaderHistoryCache {
     type CacheChangeType = ReaderCacheChange;
 
     fn changes(&self) -> &[Self::CacheChangeType] {

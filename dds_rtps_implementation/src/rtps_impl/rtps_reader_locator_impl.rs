@@ -3,7 +3,7 @@ use rust_rtps_pim::{
         RtpsReaderLocatorAttributes, RtpsReaderLocatorConstructor, RtpsReaderLocatorOperations,
     },
     structure::{
-        history_cache::RtpsHistoryAttributes,
+        history_cache::RtpsHistoryCacheAttributes,
         types::{Locator, SequenceNumber},
     },
 };

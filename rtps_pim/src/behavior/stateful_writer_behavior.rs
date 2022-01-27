@@ -15,7 +15,7 @@ use crate::{
     },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
-        history_cache::{RtpsHistoryAttributes, RtpsHistoryCacheOperations},
+        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
         types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
@@ -54,7 +54,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
             ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
-        C: RtpsHistoryAttributes<CacheChangeType = CacheChange>,
+        C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         CacheChange: RtpsCacheChangeAttributes + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
         SequenceNumberElement:
@@ -148,7 +148,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(Gap),
     ) where
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
-        C: RtpsHistoryAttributes<CacheChangeType = CacheChange>,
+        C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -298,7 +298,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(Gap),
     ) where
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
-        C: RtpsHistoryAttributes<CacheChangeType = CacheChange>,
+        C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
