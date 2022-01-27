@@ -1,131 +1,145 @@
 use rust_rtps_pim::{
     behavior::writer::reader_locator::{
-        RtpsReaderLocator, RtpsReaderLocatorAttributes, RtpsReaderLocatorOperations,
+        RtpsReaderLocatorAttributes, RtpsReaderLocatorConstructor, RtpsReaderLocatorOperations,
     },
-    structure::types::{Locator, SequenceNumber},
+    structure::{
+        history_cache::RtpsHistoryAttributes,
+        types::{Locator, SequenceNumber},
+    },
 };
+
+use super::rtps_writer_history_cache_impl::WriterHistoryCache;
 pub struct RtpsReaderLocatorImpl {
+    requested_changes: Vec<SequenceNumber>,
+    unsent_changes: Vec<SequenceNumber>,
     locator: Locator,
     expects_inline_qos: bool,
     last_sent_sequence_number: SequenceNumber,
-    requested_changes: Vec<SequenceNumber>,
+}
+
+impl RtpsReaderLocatorImpl {
+    pub fn unsent_changes_reset(&mut self) {
+        self.unsent_changes = vec![];
+    }
+}
+
+impl RtpsReaderLocatorConstructor for RtpsReaderLocatorImpl {
+    type CacheChangeType = SequenceNumber;
+    fn new(locator: Locator, expects_inline_qos: bool) -> Self {
+        Self {
+            locator,
+            expects_inline_qos,
+            requested_changes: vec![],
+            unsent_changes: vec![],
+            last_sent_sequence_number: 0,
+        }
+    }
 }
 
 impl RtpsReaderLocatorAttributes for RtpsReaderLocatorImpl {
+    type CacheChangeType = SequenceNumber;
+    type HistoryCacheType = WriterHistoryCache;
+
+    fn requested_changes(&self) -> &[Self::CacheChangeType] {
+        &self.requested_changes
+    }
+    fn unsent_changes(
+        &mut self,
+        history_cache: &Self::HistoryCacheType,
+    ) -> &[Self::CacheChangeType] {
+        self.unsent_changes = history_cache
+            .changes()
+            .iter()
+            .filter_map(|f| {
+                if f.sequence_number > self.last_sent_sequence_number {
+                    Some(f.sequence_number)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        &self.unsent_changes
+    }
     fn locator(&self) -> &Locator {
         &self.locator
     }
-
     fn expects_inline_qos(&self) -> &bool {
         &self.expects_inline_qos
     }
 }
 
-impl RtpsReaderLocatorImpl {
-    pub fn new(reader_locator: RtpsReaderLocator) -> Self {
-        Self {
-            locator: reader_locator.locator,
-            expects_inline_qos: reader_locator.expects_inline_qos,
-            last_sent_sequence_number: 0,
-            requested_changes: Vec::new(),
-        }
-    }
-
-    pub fn unsent_changes_reset(&mut self) {
-        self.last_sent_sequence_number = 0;
-    }
-}
-
 impl RtpsReaderLocatorOperations for RtpsReaderLocatorImpl {
-    type SequenceNumberVector = Vec<SequenceNumber>;
+    type CacheChangeType = SequenceNumber;
+    type HistoryCacheType = WriterHistoryCache;
 
-    fn next_requested_change(&mut self) -> Option<SequenceNumber> {
-        if let Some(requested_change) = self.requested_changes.iter().min().cloned() {
-            self.requested_changes.retain(|x| x != &requested_change);
-            Some(requested_change.clone())
-        } else {
+    fn next_requested_change(&mut self) -> Option<Self::CacheChangeType> {
+        if self.requested_changes.is_empty() {
             None
+        } else {
+            Some(self.requested_changes.remove(0))
         }
     }
 
     fn next_unsent_change(
         &mut self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Option<SequenceNumber> {
-        if &self.last_sent_sequence_number < last_change_sequence_number {
-            self.last_sent_sequence_number = self.last_sent_sequence_number + 1;
-            Some(self.last_sent_sequence_number.clone())
-        } else {
-            None
-        }
+        history_cache: &Self::HistoryCacheType,
+    ) -> Option<Self::CacheChangeType> {
+        let unsent_change = self.unsent_changes(history_cache).first().cloned();
+        if let Some(unsent_change) = unsent_change {
+            self.last_sent_sequence_number = unsent_change;
+        };
+        unsent_change
     }
 
-    fn requested_changes(&self) -> Self::SequenceNumberVector {
-        self.requested_changes.clone()
-    }
-
-    fn requested_changes_set(
-        &mut self,
-        req_seq_num_set: &[SequenceNumber],
-        last_change_sequence_number: &SequenceNumber,
-    ) {
-        for requested_change in req_seq_num_set.as_ref() {
-            if requested_change <= last_change_sequence_number {
-                self.requested_changes.push(requested_change.clone())
-            }
-        }
-    }
-
-    fn unsent_changes(
-        &self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Self::SequenceNumberVector {
-        let mut unsent_changes = Vec::new();
-        for unsent_change_seq_num in
-            self.last_sent_sequence_number + 1..=*last_change_sequence_number
-        {
-            unsent_changes.push(unsent_change_seq_num)
-        }
-        unsent_changes
+    fn requested_changes_set(&mut self, req_seq_num_set: &[Self::CacheChangeType]) {
+        self.requested_changes = req_seq_num_set.to_vec();
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::types::LOCATOR_INVALID;
+    use rust_rtps_pim::structure::{
+        cache_change::RtpsCacheChangeConstructor,
+        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
+        types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
+    };
+
+    use crate::rtps_impl::rtps_writer_history_cache_impl::WriterCacheChange;
 
     use super::*;
 
     #[test]
     fn reader_locator_next_unsent_change() {
-        let mut reader_locator =
-            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
+        let mut hc = WriterHistoryCache::new();
+        hc.add_change(WriterCacheChange::new(
+            &ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &1,
+            &[],
+            &[],
+        ));
+        hc.add_change(WriterCacheChange::new(
+            &ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &2,
+            &[],
+            &[],
+        ));
+        let mut reader_locator = RtpsReaderLocatorImpl::new(LOCATOR_INVALID, false);
 
-        assert_eq!(reader_locator.next_unsent_change(&2), Some(1));
-        assert_eq!(reader_locator.next_unsent_change(&2), Some(2));
-        assert_eq!(reader_locator.next_unsent_change(&2), None);
-    }
-
-    #[test]
-    fn reader_locator_next_unsent_change_non_compliant_last_change_sequence_number() {
-        let mut reader_locator =
-            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
-
-        assert_eq!(reader_locator.next_unsent_change(&2), Some(1));
-        assert_eq!(reader_locator.next_unsent_change(&2), Some(2));
-        assert_eq!(reader_locator.next_unsent_change(&2), None);
-        assert_eq!(reader_locator.next_unsent_change(&0), None);
-        assert_eq!(reader_locator.next_unsent_change(&-10), None);
-        assert_eq!(reader_locator.next_unsent_change(&3), Some(3));
+        assert_eq!(reader_locator.next_unsent_change(&hc), Some(1));
+        assert_eq!(reader_locator.next_unsent_change(&hc), Some(2));
+        assert_eq!(reader_locator.next_unsent_change(&hc), None);
     }
 
     #[test]
     fn reader_locator_requested_changes_set() {
-        let mut reader_locator =
-            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
+        let mut reader_locator = RtpsReaderLocatorImpl::new(LOCATOR_INVALID, false);
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(&req_seq_num_set, &3);
+        reader_locator.requested_changes_set(&req_seq_num_set);
 
         let expected_requested_changes = vec![1, 2, 3];
         assert_eq!(
@@ -135,42 +149,39 @@ mod tests {
     }
 
     #[test]
-    fn reader_locator_requested_changes_set_above_last_change_sequence_number() {
-        let mut reader_locator =
-            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
-
-        let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(&req_seq_num_set, &1);
-
-        let expected_requested_changes = vec![1];
-        assert_eq!(
-            reader_locator.requested_changes(),
-            expected_requested_changes
-        )
-    }
-
-    #[test]
     fn reader_locator_unsent_changes() {
-        let reader_locator =
-            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
+        let mut hc = WriterHistoryCache::new();
+        hc.add_change(WriterCacheChange::new(
+            &ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &2,
+            &[],
+            &[],
+        ));
+        hc.add_change(WriterCacheChange::new(
+            &ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &4,
+            &[],
+            &[],
+        ));
+        hc.add_change(WriterCacheChange::new(
+            &ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &6,
+            &[],
+            &[],
+        ));
+        let mut reader_locator = RtpsReaderLocatorImpl::new(LOCATOR_INVALID, false);
 
-        let unsent_changes = reader_locator.unsent_changes(&3);
-        let expected_unsent_changes = vec![1, 2, 3];
+        let unsent_changes = reader_locator.unsent_changes(&hc);
+        assert_eq!(unsent_changes, vec![2, 4, 6]);
 
-        assert_eq!(unsent_changes, expected_unsent_changes);
-    }
-
-    #[test]
-    fn reader_locator_unsent_changes_after_next_unsent_change() {
-        let mut reader_locator =
-            RtpsReaderLocatorImpl::new(RtpsReaderLocator::new(LOCATOR_INVALID, false));
-
-        let last_change_sequence_number = 3;
-        reader_locator.next_unsent_change(&last_change_sequence_number);
-        let unsent_changes = reader_locator.unsent_changes(&last_change_sequence_number);
-
-        let expected_unsent_changes = vec![2, 3];
-
-        assert_eq!(unsent_changes, expected_unsent_changes);
+        reader_locator.next_unsent_change(&hc);
+        let unsent_changes = reader_locator.unsent_changes(&hc);
+        assert_eq!(unsent_changes, vec![4, 6]);
     }
 }

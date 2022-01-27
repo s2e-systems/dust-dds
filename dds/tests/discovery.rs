@@ -42,7 +42,8 @@ use rust_dds_rtps_implementation::{
     },
     dds_type::DdsType,
     rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_group_impl::RtpsGroupImpl, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
@@ -52,9 +53,8 @@ use rust_dds_rtps_implementation::{
 use rust_rtps_pim::{
     behavior::{
         reader::writer_proxy::RtpsWriterProxy,
-        writer::{
-            reader_locator::RtpsReaderLocator, stateless_writer::RtpsStatelessWriterOperations,
-        },
+        writer::reader_locator::RtpsReaderLocatorConstructor,
+        writer::stateless_writer::RtpsStatelessWriterOperations,
     },
     discovery::{
         participant_discovery::ParticipantDiscovery,
@@ -117,7 +117,7 @@ fn send_and_receive_discovery_data_happy_path() {
         RtpsStatelessWriterImpl,
     >(GuidPrefix([3; 12]), &[], &[]);
 
-    let spdp_discovery_locator = RtpsReaderLocator::new(
+    let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
@@ -243,7 +243,7 @@ fn process_discovery_data_happy_path() {
         RtpsStatelessWriterImpl,
     >(GuidPrefix([3; 12]), &[], &[]);
 
-    let spdp_discovery_locator = RtpsReaderLocator::new(
+    let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
             7402,

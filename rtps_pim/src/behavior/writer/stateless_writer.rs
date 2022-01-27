@@ -3,8 +3,6 @@ use crate::{
     structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
-use super::reader_locator::RtpsReaderLocator;
-
 pub trait StatelessWriterAttributes {
     fn reader_locators(&self);
 }
@@ -25,7 +23,9 @@ pub trait RtpsStatelessWriterConstructor {
 }
 
 pub trait RtpsStatelessWriterOperations {
-    fn reader_locator_add(&mut self, a_locator: RtpsReaderLocator);
+    type ReaderLocatorType;
+
+    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType);
 
     fn reader_locator_remove(&mut self, a_locator: &Locator);
 
