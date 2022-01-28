@@ -7,6 +7,7 @@ use rust_rtps_pim::{
         },
         types::Duration,
         writer::{
+            reader_proxy::RtpsReaderProxyAttributes,
             stateful_writer::{RtpsStatefulWriterConstructor, RtpsStatefulWriterOperations},
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
@@ -57,13 +58,13 @@ impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
 
     fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid) {
         self.matched_readers
-            .retain(|x| &x.remote_reader_guid != reader_proxy_guid);
+            .retain(|x| x.remote_reader_guid() != reader_proxy_guid);
     }
 
     fn matched_reader_lookup(&self, a_reader_guid: &Guid) -> Option<&Self::ReaderProxyType> {
         self.matched_readers
             .iter()
-            .find(|&x| &x.remote_reader_guid == a_reader_guid)
+            .find(|&x| x.remote_reader_guid() == a_reader_guid)
     }
 
     fn is_acked_by_all(&self) -> bool {

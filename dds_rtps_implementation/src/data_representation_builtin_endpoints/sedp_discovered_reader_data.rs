@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
-use rust_rtps_pim::{behavior::writer::reader_proxy::RtpsReaderProxy, structure::types::Locator};
+use rust_rtps_pim::structure::types::{EntityId, Guid, Locator};
 
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
@@ -37,8 +37,17 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
+pub struct RtpsReaderProxy {
+    remote_reader_guid: Guid,
+    remote_group_entity_id: EntityId,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    expects_inline_qos: bool,
+}
+
+#[derive(Debug, PartialEq)]
 pub struct SedpDiscoveredReaderData {
-    pub reader_proxy: RtpsReaderProxy<Vec<Locator>>,
+    pub reader_proxy: RtpsReaderProxy,
     pub subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
 }
 

@@ -1,32 +1,5 @@
 use crate::structure::types::{EntityId, Guid, Locator, SequenceNumber};
 
-#[derive(Debug, PartialEq)]
-pub struct RtpsReaderProxy<L> {
-    pub remote_reader_guid: Guid,
-    pub remote_group_entity_id: EntityId,
-    pub unicast_locator_list: L,
-    pub multicast_locator_list: L,
-    pub expects_inline_qos: bool,
-}
-
-impl<L> RtpsReaderProxy<L> {
-    pub fn new(
-        remote_reader_guid: Guid,
-        remote_group_entity_id: EntityId,
-        unicast_locator_list: L,
-        multicast_locator_list: L,
-        expects_inline_qos: bool,
-    ) -> Self {
-        Self {
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-        }
-    }
-}
-
 pub trait RtpsReaderProxyConstructor {
     fn new(
         remote_reader_guid: Guid,

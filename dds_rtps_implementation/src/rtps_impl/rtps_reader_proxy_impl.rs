@@ -1,16 +1,17 @@
-use std::ops::{Deref, DerefMut};
-
 use rust_rtps_pim::{
     behavior::writer::reader_proxy::{
-        RtpsReaderProxy, RtpsReaderProxyAttributes, RtpsReaderProxyConstructor,
-        RtpsReaderProxyOperations,
+        RtpsReaderProxyAttributes, RtpsReaderProxyConstructor, RtpsReaderProxyOperations,
     },
     structure::types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxyImpl {
-    pub reader_proxy: RtpsReaderProxy<Vec<Locator>>,
+    remote_reader_guid: Guid,
+    remote_group_entity_id: EntityId,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    expects_inline_qos: bool,
     last_sent_sequence_number: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
     highest_acknowledge_change_sequence_number: SequenceNumber,
@@ -25,13 +26,11 @@ impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
         expects_inline_qos: bool,
     ) -> Self {
         Self {
-            reader_proxy: RtpsReaderProxy {
-                remote_reader_guid,
-                remote_group_entity_id,
-                unicast_locator_list: unicast_locator_list.to_vec(),
-                multicast_locator_list: multicast_locator_list.to_vec(),
-                expects_inline_qos,
-            },
+            remote_reader_guid,
+            remote_group_entity_id,
+            unicast_locator_list: unicast_locator_list.to_vec(),
+            multicast_locator_list: multicast_locator_list.to_vec(),
+            expects_inline_qos,
             last_sent_sequence_number: 0,
             requested_changes: Vec::new(),
             highest_acknowledge_change_sequence_number: 0,
@@ -39,23 +38,9 @@ impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
     }
 }
 
-impl Deref for RtpsReaderProxyImpl {
-    type Target = RtpsReaderProxy<Vec<Locator>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.reader_proxy
-    }
-}
-
-impl DerefMut for RtpsReaderProxyImpl {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.reader_proxy
-    }
-}
-
 impl RtpsReaderProxyAttributes for RtpsReaderProxyImpl {
     fn remote_reader_guid(&self) -> &Guid {
-        &self.reader_proxy.remote_reader_guid
+        &self.remote_reader_guid
     }
 
     fn remote_group_entity_id(&self) -> &EntityId {
