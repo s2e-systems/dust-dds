@@ -7,23 +7,6 @@ use rust_rtps_pim::{
 
 use super::rtps_writer_history_cache_impl::WriterHistoryCache;
 
-pub struct RtpsReaderProxyOperationsImpl<'a> {
-    pub reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
-    writer_cache: &'a WriterHistoryCache,
-}
-
-impl<'a> RtpsReaderProxyOperationsImpl<'a> {
-    pub fn new(
-        reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
-        writer_cache: &'a WriterHistoryCache,
-    ) -> Self {
-        Self {
-            reader_proxy_attributes,
-            writer_cache,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxyAttributesImpl {
     remote_reader_guid: Guid,
@@ -76,6 +59,51 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyAttributesImpl {
 
     fn expects_inline_qos(&self) -> &bool {
         &self.expects_inline_qos
+    }
+
+    fn is_active(&self) -> &bool {
+        todo!()
+    }
+}
+
+pub struct RtpsReaderProxyOperationsImpl<'a> {
+    pub reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
+    writer_cache: &'a WriterHistoryCache,
+}
+
+impl<'a> RtpsReaderProxyOperationsImpl<'a> {
+    pub fn new(
+        reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
+        writer_cache: &'a WriterHistoryCache,
+    ) -> Self {
+        Self {
+            reader_proxy_attributes,
+            writer_cache,
+        }
+    }
+}
+
+impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
+    fn remote_reader_guid(&self) -> &Guid {
+        &self.reader_proxy_attributes.remote_reader_guid
+    }
+
+    fn remote_group_entity_id(&self) -> &EntityId {
+        &self.reader_proxy_attributes.remote_group_entity_id
+    }
+
+    fn unicast_locator_list(&self) -> &[Locator] {
+        self.reader_proxy_attributes.unicast_locator_list.as_slice()
+    }
+
+    fn multicast_locator_list(&self) -> &[Locator] {
+        self.reader_proxy_attributes
+            .multicast_locator_list
+            .as_slice()
+    }
+
+    fn expects_inline_qos(&self) -> &bool {
+        &self.reader_proxy_attributes.expects_inline_qos
     }
 
     fn is_active(&self) -> &bool {
@@ -157,8 +185,9 @@ impl RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'_> {
 #[cfg(test)]
 mod tests {
     use rust_rtps_pim::structure::{
+        cache_change::RtpsCacheChangeConstructor,
         history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
-        types::{ENTITYID_UNKNOWN, GUID_UNKNOWN, ChangeKind}, cache_change::RtpsCacheChangeConstructor,
+        types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
     };
 
     use crate::rtps_impl::rtps_writer_history_cache_impl::WriterCacheChange;
@@ -201,7 +230,7 @@ mod tests {
         let writer_cache = WriterHistoryCache::new();
 
         let mut reader_proxy_operations_impl =
-        RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
 
         let req_seq_num_set = vec![1, 2, 3];
         reader_proxy_operations_impl.requested_changes_set(&req_seq_num_set);
@@ -220,7 +249,7 @@ mod tests {
         let writer_cache = WriterHistoryCache::new();
 
         let reader_proxy_operations_impl =
-        RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
 
         let unsent_changes = reader_proxy_operations_impl.unsent_changes();
         let expected_unsent_changes = vec![1, 2, 3];
@@ -235,7 +264,7 @@ mod tests {
         let writer_cache = WriterHistoryCache::new();
 
         let mut reader_proxy_operations_impl =
-        RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
 
         reader_proxy_operations_impl.next_unsent_change();
         let unsent_changes = reader_proxy_operations_impl.unsent_changes();
@@ -252,7 +281,7 @@ mod tests {
         let writer_cache = WriterHistoryCache::new();
 
         let mut reader_proxy_operations_impl =
-        RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
 
         reader_proxy_operations_impl.acked_changes_set(2);
 

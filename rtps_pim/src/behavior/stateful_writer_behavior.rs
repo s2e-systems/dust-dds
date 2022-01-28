@@ -28,7 +28,7 @@ pub enum StatefulWriterBehavior<'a, R, C> {
 }
 
 pub struct BestEffortStatefulWriterBehavior<'a, R, C> {
-    pub reader_proxy: &'a mut R,
+    pub reader_proxy: R,
     pub writer_cache: &'a C,
     pub last_change_sequence_number: &'a SequenceNumber,
 }
@@ -123,7 +123,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.9.2 Reliable StatefulWriter Behavior
 pub struct ReliableStatefulWriterBehavior<'a, R, C> {
-    pub reader_proxy: &'a mut R,
+    pub reader_proxy: R,
     pub writer_cache: &'a C,
     pub last_change_sequence_number: &'a SequenceNumber,
     pub writer_guid: &'a Guid,
@@ -291,7 +291,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber> + RtpsReaderProxyAttributes,
+        R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
