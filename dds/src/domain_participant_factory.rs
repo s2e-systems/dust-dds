@@ -740,7 +740,7 @@ mod tests {
             spdp_discovered_participant_data::ParticipantProxy,
         },
         rtps_impl::{
-            rtps_reader_proxy_impl::RtpsReaderProxyImpl,
+            rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
             rtps_writer_proxy_impl::RtpsWriterProxyImpl,
         },
     };
@@ -975,10 +975,10 @@ mod tests {
         StatefulWriter {}
 
         impl RtpsStatefulWriterOperations for StatefulWriter {
-            type ReaderProxyType = RtpsReaderProxyImpl;
-            fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxyImpl);
+            type ReaderProxyType = RtpsReaderProxyAttributesImpl;
+            fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxyAttributesImpl);
             fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid);
-            fn matched_reader_lookup(&self, a_reader_guid: &Guid) -> Option<&'static RtpsReaderProxyImpl>;
+            fn matched_reader_lookup(&self, a_reader_guid: &Guid) -> Option<&'static RtpsReaderProxyAttributesImpl>;
             fn is_acked_by_all(&self) -> bool;
         }
     }
@@ -1030,7 +1030,7 @@ mod tests {
         let mut mock_builtin_publications_writer = MockStatefulWriter::new();
         mock_builtin_publications_writer
             .expect_matched_reader_add()
-            .with(predicate::eq(RtpsReaderProxyImpl::new(
+            .with(predicate::eq(RtpsReaderProxyAttributesImpl::new(
                 Guid::new(
                     GuidPrefix([5; 12]),
                     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -1062,7 +1062,7 @@ mod tests {
         let mut mock_builtin_subscriptions_writer = MockStatefulWriter::new();
         mock_builtin_subscriptions_writer
             .expect_matched_reader_add()
-            .with(predicate::eq(RtpsReaderProxyImpl::new(
+            .with(predicate::eq(RtpsReaderProxyAttributesImpl::new(
                 Guid::new(
                     GuidPrefix([5; 12]),
                     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -1094,7 +1094,7 @@ mod tests {
         let mut mock_builtin_topics_writer = MockStatefulWriter::new();
         mock_builtin_topics_writer
             .expect_matched_reader_add()
-            .with(predicate::eq(RtpsReaderProxyImpl::new(
+            .with(predicate::eq(RtpsReaderProxyAttributesImpl::new(
                 Guid::new(GuidPrefix([5; 12]), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
                 ENTITYID_UNKNOWN,
                 &[],
