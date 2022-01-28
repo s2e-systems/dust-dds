@@ -48,7 +48,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber, HistoryCacheType = C>,
+        R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -70,10 +70,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
-        while let Some(seq_num) = self
-            .reader_locator
-            .next_unsent_change(self.writer_cache)
-        {
+        while let Some(seq_num) = self.reader_locator.next_unsent_change() {
             let change = self
                 .writer_cache
                 .changes()
@@ -145,7 +142,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber, HistoryCacheType = C>,
+        R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
@@ -167,10 +164,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
-        while let Some(seq_num) = self
-            .reader_locator
-            .next_unsent_change(self.writer_cache)
-        {
+        while let Some(seq_num) = self.reader_locator.next_unsent_change() {
             let change = self
                 .writer_cache
                 .changes()

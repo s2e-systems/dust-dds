@@ -4,7 +4,9 @@ use crate::{
 };
 
 pub trait StatelessWriterAttributes {
-    fn reader_locators(&self);
+    type ReaderLocatorType;
+
+    fn reader_locators(&self) -> &[Self::ReaderLocatorType];
 }
 
 pub trait RtpsStatelessWriterConstructor {
