@@ -40,7 +40,7 @@ use rust_dds_rtps_implementation::{
     },
     dds_type::DdsType,
     rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+        rtps_group_impl::RtpsGroupImpl, rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
@@ -371,7 +371,7 @@ impl DomainParticipantFactory {
             SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
         // ////////// Configure SPDP reader locator
-        let spdp_discovery_locator = RtpsReaderLocatorImpl::new(
+        let spdp_discovery_locator = RtpsReaderLocatorAttributesImpl::new(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
                 7400,

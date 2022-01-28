@@ -24,7 +24,7 @@ use rust_rtps_pim::{
 use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
 use super::{
-    rtps_reader_locator_impl::RtpsReaderLocatorImpl,
+    rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
     rtps_writer_history_cache_impl::{WriterCacheChange, WriterHistoryCache},
 };
 
@@ -41,11 +41,11 @@ pub struct RtpsStatelessWriterImpl {
     last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: Option<i32>,
     writer_cache: WriterHistoryCache,
-    reader_locators: Vec<RtpsReaderLocatorImpl>,
+    reader_locators: Vec<RtpsReaderLocatorAttributesImpl>,
 }
 
 pub struct RtpsReaderLocatorIterator<'a> {
-    reader_locator_iterator: std::slice::IterMut<'a, RtpsReaderLocatorImpl>,
+    reader_locator_iterator: std::slice::IterMut<'a, RtpsReaderLocatorAttributesImpl>,
     writer_cache: &'a WriterHistoryCache,
     last_change_sequence_number: &'a SequenceNumber,
     reliability_level: &'a ReliabilityKind,
@@ -53,7 +53,7 @@ pub struct RtpsReaderLocatorIterator<'a> {
 }
 
 impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
-    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorImpl, WriterHistoryCache>;
+    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorAttributesImpl, WriterHistoryCache>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let reader_locator = self.reader_locator_iterator.next()?;
@@ -78,7 +78,7 @@ impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a mut RtpsStatelessWriterImpl {
-    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorImpl, WriterHistoryCache>;
+    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorAttributesImpl, WriterHistoryCache>;
 
     type IntoIter = RtpsReaderLocatorIterator<'a>;
 
@@ -182,7 +182,7 @@ impl RtpsWriterAttributes for RtpsStatelessWriterImpl {
 
 impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
 
-    type ReaderLocatorType = RtpsReaderLocatorImpl;
+    type ReaderLocatorType = RtpsReaderLocatorAttributesImpl;
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
         self.reader_locators.push(a_locator);
