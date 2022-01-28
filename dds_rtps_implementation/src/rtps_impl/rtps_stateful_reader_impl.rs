@@ -3,7 +3,7 @@ use rust_rtps_pim::{
         reader::{
             reader::RtpsReaderAttributes,
             stateful_reader::{RtpsStatefulReaderConstructor, RtpsStatefulReaderOperations},
-            writer_proxy::{RtpsWriterProxy, RtpsWriterProxyAttributes},
+            writer_proxy::RtpsWriterProxyAttributes,
         },
         stateful_reader_behavior::StatefulReaderBehavior,
         types::Duration,
@@ -59,12 +59,11 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
     }
 }
 
-impl RtpsStatefulReaderOperations<Vec<Locator>> for RtpsStatefulReaderImpl {
+impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
     type WriterProxyType = RtpsWriterProxyImpl;
 
-    fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<Vec<Locator>>) {
-        let writer_proxy = RtpsWriterProxyImpl::new(a_writer_proxy);
-        self.matched_writers.push(writer_proxy);
+    fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType) {
+        self.matched_writers.push(a_writer_proxy);
     }
 
     fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid) {

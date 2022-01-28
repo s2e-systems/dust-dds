@@ -27,6 +27,16 @@ impl<L> RtpsReaderProxy<L> {
     }
 }
 
+pub trait RtpsReaderProxyConstructor {
+    fn new(
+        remote_reader_guid: Guid,
+        remote_group_entity_id: EntityId,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        expects_inline_qos: bool,
+    ) -> Self;
+}
+
 pub trait RtpsReaderProxyAttributes {
     fn remote_reader_guid(&self) -> &Guid;
     fn remote_group_entity_id(&self) -> &EntityId;

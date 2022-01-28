@@ -20,10 +20,7 @@ use rust_dds_api::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::{
-    discovery::{
-        spdp::participant_proxy::ParticipantProxy,
-        types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
+    discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
     messages::types::Count,
     structure::{
         entity::RtpsEntityAttributes,
@@ -38,7 +35,7 @@ use rust_rtps_pim::{
 use crate::{
     data_representation_builtin_endpoints::{
         sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
     dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},

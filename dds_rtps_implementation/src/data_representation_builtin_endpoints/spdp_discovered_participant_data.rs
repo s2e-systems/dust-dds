@@ -1,8 +1,14 @@
 use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use rust_rtps_pim::{
     behavior::types::Duration,
-    discovery::spdp::participant_proxy::ParticipantProxy,
-    structure::types::{Guid, Locator, ENTITYID_PARTICIPANT},
+    discovery::{
+        spdp::participant_proxy::ParticipantProxyAttributes,
+        types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
+    },
+    messages::types::Count,
+    structure::types::{
+        Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
+    },
 };
 
 use crate::{
@@ -34,9 +40,80 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
+pub struct ParticipantProxy {
+    pub domain_id: DomainId,
+    pub domain_tag: String,
+    pub protocol_version: ProtocolVersion,
+    pub guid_prefix: GuidPrefix,
+    pub vendor_id: VendorId,
+    pub expects_inline_qos: bool,
+    pub metatraffic_unicast_locator_list: Vec<Locator>,
+    pub metatraffic_multicast_locator_list: Vec<Locator>,
+    pub default_unicast_locator_list: Vec<Locator>,
+    pub default_multicast_locator_list: Vec<Locator>,
+    pub available_builtin_endpoints: BuiltinEndpointSet,
+    pub manual_liveliness_count: Count,
+    pub builtin_endpoint_qos: BuiltinEndpointQos,
+}
+
+impl ParticipantProxyAttributes for ParticipantProxy {
+    fn domain_id(&self) -> &DomainId {
+        &self.domain_id
+    }
+
+    fn domain_tag(&self) -> &str {
+        &self.domain_tag
+    }
+
+    fn protocol_version(&self) -> &ProtocolVersion {
+        &self.protocol_version
+    }
+
+    fn guid_prefix(&self) -> &GuidPrefix {
+        &self.guid_prefix
+    }
+
+    fn vendor_id(&self) -> &VendorId {
+        &self.vendor_id
+    }
+
+    fn expects_inline_qos(&self) -> &bool {
+        &self.expects_inline_qos
+    }
+
+    fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
+        &self.metatraffic_unicast_locator_list
+    }
+
+    fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
+        &self.metatraffic_multicast_locator_list
+    }
+
+    fn default_unicast_locator_list(&self) -> &[Locator] {
+        &self.default_unicast_locator_list
+    }
+
+    fn default_multicast_locator_list(&self) -> &[Locator] {
+        &self.default_multicast_locator_list
+    }
+
+    fn available_builtin_endpoints(&self) -> &BuiltinEndpointSet {
+        &self.available_builtin_endpoints
+    }
+
+    fn manual_liveliness_count(&self) -> &Count {
+        &self.manual_liveliness_count
+    }
+
+    fn builtin_endpoint_qos(&self) -> &BuiltinEndpointQos {
+        &self.builtin_endpoint_qos
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct SpdpDiscoveredParticipantData {
     pub dds_participant_data: ParticipantBuiltinTopicData,
-    pub participant_proxy: ParticipantProxy<String, Vec<Locator>>,
+    pub participant_proxy: ParticipantProxy,
     pub lease_duration: Duration,
 }
 
@@ -106,10 +183,11 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             &self.participant_proxy.manual_liveliness_count,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<BuiltinEndpointQosSerialize, _>(
-            PID_BUILTIN_ENDPOINT_QOS,
-            &self.participant_proxy.builtin_endpoint_qos,
-        )?;
+        parameter_list_serializer
+            .serialize_parameter_if_not_default::<BuiltinEndpointQosSerialize, _>(
+                PID_BUILTIN_ENDPOINT_QOS,
+                &self.participant_proxy.builtin_endpoint_qos,
+            )?;
         parameter_list_serializer.serialize_parameter::<DurationSerialize, _>(
             PID_PARTICIPANT_LEASE_DURATION,
             &self.lease_duration,

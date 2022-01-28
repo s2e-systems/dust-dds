@@ -1,4 +1,4 @@
-use crate::structure::types::{EntityId, Guid, SequenceNumber};
+use crate::structure::types::{EntityId, Guid, Locator, SequenceNumber};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct RtpsWriterProxy<L> {
@@ -25,6 +25,16 @@ impl<L> RtpsWriterProxy<L> {
             remote_group_entity_id,
         }
     }
+}
+
+pub trait RtpsWriterProxyConstructor {
+    fn new(
+        remote_writer_guid: Guid,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        data_max_size_serialized: Option<i32>,
+        remote_group_entity_id: EntityId,
+    ) -> Self;
 }
 
 pub trait RtpsWriterProxyAttributes {

@@ -7,7 +7,6 @@ use rust_rtps_pim::{
         },
         types::Duration,
         writer::{
-            reader_proxy::RtpsReaderProxy,
             stateful_writer::{RtpsStatefulWriterConstructor, RtpsStatefulWriterOperations},
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
@@ -49,12 +48,11 @@ pub struct RtpsStatefulWriterImpl {
     heartbeat_count: Count,
 }
 
-impl RtpsStatefulWriterOperations<Vec<Locator>> for RtpsStatefulWriterImpl {
+impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
     type ReaderProxyType = RtpsReaderProxyImpl;
 
-    fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>) {
-        let reader_proxy = RtpsReaderProxyImpl::new(a_reader_proxy);
-        self.matched_readers.push(reader_proxy)
+    fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType) {
+        self.matched_readers.push(a_reader_proxy)
     }
 
     fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid) {

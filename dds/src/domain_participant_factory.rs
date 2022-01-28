@@ -45,6 +45,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        rtps_writer_proxy_impl::RtpsWriterProxyImpl,
     },
     utils::shared_object::{
         rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
@@ -53,9 +54,11 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::stateful_reader::RtpsStatefulReaderOperations,
+        reader::{
+            stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxyConstructor,
+        },
         writer::{
-            reader_locator::RtpsReaderLocatorConstructor,
+            reader_locator::RtpsReaderLocatorConstructor, reader_proxy::RtpsReaderProxyConstructor,
             stateful_writer::RtpsStatefulWriterOperations,
             stateless_writer::RtpsStatelessWriterOperations,
         },
@@ -151,12 +154,24 @@ fn spdp_task_discovery<T>(
     >,
     domain_id: u32,
     domain_tag: &str,
-    sedp_builtin_publications_writer: &mut impl RtpsStatefulWriterOperations<Vec<Locator>>,
-    sedp_builtin_publication_reader: &mut impl RtpsStatefulReaderOperations<Vec<Locator>>,
-    sedp_builtin_subscriptions_writer: &mut impl RtpsStatefulWriterOperations<Vec<Locator>>,
-    sedp_builtin_subscriptions_reader: &mut impl RtpsStatefulReaderOperations<Vec<Locator>>,
-    sedp_builtin_topics_writer: &mut impl RtpsStatefulWriterOperations<Vec<Locator>>,
-    sedp_builtin_topics_reader: &mut impl RtpsStatefulReaderOperations<Vec<Locator>>,
+    sedp_builtin_publications_writer: &mut impl RtpsStatefulWriterOperations<
+        ReaderProxyType = impl RtpsReaderProxyConstructor,
+    >,
+    sedp_builtin_publication_reader: &mut impl RtpsStatefulReaderOperations<
+        WriterProxyType = impl RtpsWriterProxyConstructor,
+    >,
+    sedp_builtin_subscriptions_writer: &mut impl RtpsStatefulWriterOperations<
+        ReaderProxyType = impl RtpsReaderProxyConstructor,
+    >,
+    sedp_builtin_subscriptions_reader: &mut impl RtpsStatefulReaderOperations<
+        WriterProxyType = impl RtpsWriterProxyConstructor,
+    >,
+    sedp_builtin_topics_writer: &mut impl RtpsStatefulWriterOperations<
+        ReaderProxyType = impl RtpsReaderProxyConstructor,
+    >,
+    sedp_builtin_topics_reader: &mut impl RtpsStatefulReaderOperations<
+        WriterProxyType = impl RtpsWriterProxyConstructor,
+    >,
 ) where
     T: Deref<Target = [SpdpDiscoveredParticipantData]>,
 {
@@ -166,7 +181,7 @@ fn spdp_task_discovery<T>(
         for discovered_participant in samples.into_iter() {
             if let Ok(participant_discovery) = ParticipantDiscovery::new(
                 &discovered_participant.participant_proxy,
-                domain_id as u32,
+                &(domain_id as u32),
                 domain_tag,
             ) {
                 participant_discovery.discovered_participant_add_publications_writer(
@@ -220,10 +235,17 @@ fn task_sedp_discovery(
                         .get_type_name()
                         .unwrap();
                     if topic_name == reader_topic_name && type_name == reader_type_name {
+                        let writer_proxy = RtpsWriterProxyImpl::new(
+                            sample.writer_proxy.remote_writer_guid,
+                            sample.writer_proxy.unicast_locator_list.as_ref(),
+                            sample.writer_proxy.multicast_locator_list.as_ref(),
+                            sample.writer_proxy.data_max_size_serialized,
+                            sample.writer_proxy.remote_group_entity_id,
+                        );
                         match &mut data_reader_lock.rtps_reader {
                             RtpsReader::Stateless(_) => (),
                             RtpsReader::Stateful(rtps_stateful_reader) => {
-                                rtps_stateful_reader.matched_writer_add(sample.writer_proxy.clone())
+                                rtps_stateful_reader.matched_writer_add(writer_proxy)
                             }
                         };
                     }
@@ -712,8 +734,18 @@ mod tests {
         return_type::DDSResult,
         subscription::query_condition::QueryCondition,
     };
+    use rust_dds_rtps_implementation::{
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::ParticipantProxy,
+        rtps_impl::{
+            rtps_reader_proxy_impl::RtpsReaderProxyImpl,
+            rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+        },
+    };
     use rust_rtps_pim::{
-        behavior::{reader::writer_proxy::RtpsWriterProxy, writer::reader_proxy::RtpsReaderProxy},
+        behavior::{
+            reader::writer_proxy::{RtpsWriterProxy, RtpsWriterProxyConstructor},
+            writer::reader_proxy::{RtpsReaderProxyConstructor},
+        },
         discovery::{
             sedp::builtin_endpoints::{
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
@@ -722,7 +754,6 @@ mod tests {
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
-            spdp::participant_proxy::ParticipantProxy,
             types::{BuiltinEndpointQos, BuiltinEndpointSet},
         },
         messages::types::Count,
@@ -929,22 +960,22 @@ mod tests {
     mock! {
         StatefulReader {}
 
-        impl RtpsStatefulReaderOperations<Vec<Locator>> for StatefulReader {
-            type WriterProxyType = ();
-            fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<Vec<Locator>>);
+        impl RtpsStatefulReaderOperations for StatefulReader {
+            type WriterProxyType = RtpsWriterProxyImpl;
+            fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxyImpl);
             fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid);
-            fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&'static ()>;
+            fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&'static RtpsWriterProxyImpl>;
         }
     }
 
     mock! {
         StatefulWriter {}
 
-        impl RtpsStatefulWriterOperations<Vec<Locator>> for StatefulWriter {
-            type ReaderProxyType = ();
-            fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxy<Vec<Locator>>);
+        impl RtpsStatefulWriterOperations for StatefulWriter {
+            type ReaderProxyType = RtpsReaderProxyImpl;
+            fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxyImpl);
             fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid);
-            fn matched_reader_lookup(&self, a_reader_guid: &Guid) -> Option<&'static ()>;
+            fn matched_reader_lookup(&self, a_reader_guid: &Guid) -> Option<&'static RtpsReaderProxyImpl>;
             fn is_acked_by_all(&self) -> bool;
         }
     }
@@ -996,96 +1027,90 @@ mod tests {
         let mut mock_builtin_publications_writer = MockStatefulWriter::new();
         mock_builtin_publications_writer
             .expect_matched_reader_add()
-            .with(predicate::eq(RtpsReaderProxy {
-                remote_reader_guid: Guid::new(
+            .with(predicate::eq(RtpsReaderProxyImpl::new(
+                Guid::new(
                     GuidPrefix([5; 12]),
                     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 ),
-                remote_group_entity_id: ENTITYID_UNKNOWN,
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
-                expects_inline_qos: false,
-            }))
+                ENTITYID_UNKNOWN,
+                &[],
+                &[],
+                false,
+            )))
             .once()
             .return_const(());
 
         let mut mock_builtin_publications_reader = MockStatefulReader::new();
         mock_builtin_publications_reader
             .expect_matched_writer_add()
-            .with(predicate::eq(RtpsWriterProxy {
-                remote_writer_guid: Guid::new(
+            .with(predicate::eq(RtpsWriterProxyImpl::new(
+                Guid::new(
                     GuidPrefix([5; 12]),
                     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ),
-                remote_group_entity_id: ENTITYID_UNKNOWN,
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
-                data_max_size_serialized: None,
-            }))
+                &[],
+                &[],
+                None,
+                ENTITYID_UNKNOWN,
+            )))
             .once()
             .return_const(());
 
         let mut mock_builtin_subscriptions_writer = MockStatefulWriter::new();
         mock_builtin_subscriptions_writer
             .expect_matched_reader_add()
-            .with(predicate::eq(RtpsReaderProxy {
-                remote_reader_guid: Guid::new(
+            .with(predicate::eq(RtpsReaderProxyImpl::new(
+                Guid::new(
                     GuidPrefix([5; 12]),
                     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
                 ),
-                remote_group_entity_id: ENTITYID_UNKNOWN,
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
-                expects_inline_qos: false,
-            }))
+                ENTITYID_UNKNOWN,
+                &[],
+                &[],
+                false,
+            )))
             .once()
             .return_const(());
 
         let mut mock_builtin_subscriptions_reader = MockStatefulReader::new();
         mock_builtin_subscriptions_reader
             .expect_matched_writer_add()
-            .with(predicate::eq(RtpsWriterProxy {
-                remote_writer_guid: Guid::new(
+            .with(predicate::eq(RtpsWriterProxyImpl::new(
+                Guid::new(
                     GuidPrefix([5; 12]),
                     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ),
-                remote_group_entity_id: ENTITYID_UNKNOWN,
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
-                data_max_size_serialized: None,
-            }))
+                &[],
+                &[],
+                None,
+                ENTITYID_UNKNOWN,
+            )))
             .once()
             .return_const(());
 
         let mut mock_builtin_topics_writer = MockStatefulWriter::new();
         mock_builtin_topics_writer
             .expect_matched_reader_add()
-            .with(predicate::eq(RtpsReaderProxy {
-                remote_reader_guid: Guid::new(
-                    GuidPrefix([5; 12]),
-                    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-                ),
-                remote_group_entity_id: ENTITYID_UNKNOWN,
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
-                expects_inline_qos: false,
-            }))
+            .with(predicate::eq(RtpsReaderProxyImpl::new(
+                Guid::new(GuidPrefix([5; 12]), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
+                ENTITYID_UNKNOWN,
+                &[],
+                &[],
+                false,
+            )))
             .once()
             .return_const(());
 
         let mut mock_builtin_topics_reader = MockStatefulReader::new();
         mock_builtin_topics_reader
             .expect_matched_writer_add()
-            .with(predicate::eq(RtpsWriterProxy {
-                remote_writer_guid: Guid::new(
-                    GuidPrefix([5; 12]),
-                    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-                ),
-                remote_group_entity_id: ENTITYID_UNKNOWN,
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
-                data_max_size_serialized: None,
-            }))
+            .with(predicate::eq(RtpsWriterProxyImpl::new(
+                Guid::new(GuidPrefix([5; 12]), ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
+                &[],
+                &[],
+                None,
+                ENTITYID_UNKNOWN,
+            )))
             .once()
             .return_const(());
 

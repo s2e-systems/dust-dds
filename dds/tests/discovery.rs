@@ -31,7 +31,7 @@ use rust_dds_api::{
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
         sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReader, Samples},
@@ -62,10 +62,7 @@ use rust_rtps_pim::{
             SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         },
-        spdp::{
-            builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
-            participant_proxy::ParticipantProxy,
-        },
+        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     messages::types::Count,
@@ -345,7 +342,7 @@ fn process_discovery_data_happy_path() {
 
     if let Ok(participant_discovery) = ParticipantDiscovery::new(
         &discovered_participant[0].participant_proxy,
-        domain_id,
+        &domain_id,
         domain_tag,
     ) {
         if let RtpsReader::Stateful(sedp_built_publications_reader) =

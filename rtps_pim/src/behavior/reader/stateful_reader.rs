@@ -3,8 +3,6 @@ use crate::{
     structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
-use super::writer_proxy::RtpsWriterProxy;
-
 pub trait RtpsStatefulReaderAttributes {
     fn matched_writers(&self);
 }
@@ -22,10 +20,10 @@ pub trait RtpsStatefulReaderConstructor {
     ) -> Self;
 }
 
-pub trait RtpsStatefulReaderOperations<L> {
+pub trait RtpsStatefulReaderOperations {
     type WriterProxyType;
 
-    fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy<L>);
+    fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType);
     fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid);
     fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&Self::WriterProxyType>;
 }

@@ -8,7 +8,7 @@ use crate::{
     },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        history_cache::{RtpsHistoryCacheOperations},
+        history_cache::RtpsHistoryCacheOperations,
         types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
     },
 };
@@ -28,7 +28,6 @@ pub struct BestEffortStatefulReaderBehavior;
 impl BestEffortStatefulReaderBehavior {
     pub fn receive_data<L, P>(
         stateful_reader: &impl RtpsStatefulReaderOperations<
-            L,
             WriterProxyType = impl RtpsWriterProxyOperations,
         >,
         source_guid_prefix: GuidPrefix,
