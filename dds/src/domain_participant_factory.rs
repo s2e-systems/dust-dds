@@ -32,8 +32,7 @@ use rust_dds_rtps_implementation::{
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReader, Samples},
         data_writer_impl::{DataWriterImpl, RtpsWriter},
-        domain_participant_impl::DomainParticipantImpl,
-        domain_participant_proxy::DomainParticipantProxy,
+        domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
         topic_impl::TopicImpl,
@@ -311,7 +310,7 @@ fn get_user_defined_udp_socket(domain_id: u16) -> Option<UdpSocket> {
 }
 
 pub struct DomainParticipantFactory {
-    participant_list: Mutex<Vec<RtpsShared<DomainParticipantImpl>>>,
+    participant_list: Mutex<Vec<RtpsShared<DomainParticipantAttributes>>>,
 }
 
 impl DomainParticipantFactory {
@@ -608,7 +607,7 @@ impl DomainParticipantFactory {
             std::time::Duration::from_millis(500),
         );
 
-        let domain_participant = DomainParticipantImpl::new(
+        let domain_participant = DomainParticipantAttributes::new(
             guid_prefix,
             domain_id,
             domain_tag,
