@@ -58,16 +58,21 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyImpl {
     fn expects_inline_qos(&self) -> &bool {
         &self.expects_inline_qos
     }
+
+    fn is_active(&self) -> &bool {
+        todo!()
+    }
 }
 
 impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
-    type SequenceNumberVector = Vec<SequenceNumber>;
+    type ChangeForReaderType = SequenceNumber;
+    type ChangeForReaderListType = Vec<SequenceNumber>;
 
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
         self.highest_acknowledge_change_sequence_number = committed_seq_num;
     }
 
-    fn next_requested_change(&mut self) -> Option<SequenceNumber> {
+    fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType> {
         if let Some(requested_change) = self.requested_changes.iter().min().cloned() {
             self.requested_changes.retain(|x| x != &requested_change);
             Some(requested_change.clone())
@@ -76,57 +81,48 @@ impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
         }
     }
 
-    fn next_unsent_change(
-        &mut self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Option<SequenceNumber> {
-        if &self.last_sent_sequence_number < last_change_sequence_number {
-            self.last_sent_sequence_number = self.last_sent_sequence_number + 1;
-            Some(self.last_sent_sequence_number.clone())
-        } else {
-            None
-        }
+    fn next_unsent_change(&mut self) -> Option<Self::ChangeForReaderType> {
+        todo!()
+        // if &self.last_sent_sequence_number < last_change_sequence_number {
+        //     self.last_sent_sequence_number = self.last_sent_sequence_number + 1;
+        //     Some(self.last_sent_sequence_number.clone())
+        // } else {
+        //     None
+        // }
     }
 
-    fn unsent_changes(
-        &self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Self::SequenceNumberVector {
-        let mut unsent_changes = Vec::new();
-        for unsent_change_seq_num in
-            self.last_sent_sequence_number + 1..=*last_change_sequence_number
-        {
-            unsent_changes.push(unsent_change_seq_num)
-        }
-        unsent_changes
+    fn unsent_changes(&self) -> Self::ChangeForReaderListType {
+        todo!()
+        // let mut unsent_changes = Vec::new();
+        // for unsent_change_seq_num in
+        //     self.last_sent_sequence_number + 1..=*last_change_sequence_number
+        // {
+        //     unsent_changes.push(unsent_change_seq_num)
+        // }
+        // unsent_changes
     }
 
-    fn requested_changes(&self) -> Self::SequenceNumberVector {
+    fn requested_changes(&self) -> Self::ChangeForReaderListType {
         self.requested_changes.clone()
     }
 
-    fn requested_changes_set(
-        &mut self,
-        req_seq_num_set: &[SequenceNumber],
-        last_change_sequence_number: &SequenceNumber,
-    ) {
-        let mut requested_changes: Self::SequenceNumberVector =
-            req_seq_num_set.iter().cloned().collect();
-        requested_changes.retain(|x| x <= last_change_sequence_number);
-        self.requested_changes = requested_changes;
+    fn requested_changes_set(&mut self, _req_seq_num_set: &[SequenceNumber]) {
+        todo!()
+        // let mut requested_changes: Self::SequenceNumberVector =
+        //     req_seq_num_set.iter().cloned().collect();
+        // requested_changes.retain(|x| x <= last_change_sequence_number);
+        // self.requested_changes = requested_changes;
     }
 
-    fn unacked_changes(
-        &self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Self::SequenceNumberVector {
-        let mut unacked_changes = Vec::new();
-        for unacked_changes_seq_num in
-            self.highest_acknowledge_change_sequence_number + 1..=*last_change_sequence_number
-        {
-            unacked_changes.push(unacked_changes_seq_num)
-        }
-        unacked_changes
+    fn unacked_changes(&self) -> Self::ChangeForReaderListType {
+        todo!()
+        // let mut unacked_changes = Vec::new();
+        // for unacked_changes_seq_num in
+        //     self.highest_acknowledge_change_sequence_number + 1..=*last_change_sequence_number
+        // {
+        //     unacked_changes.push(unacked_changes_seq_num)
+        // }
+        // unacked_changes
     }
 }
 
@@ -150,9 +146,9 @@ mod tests {
             multicast_locator_list,
             expects_inline_qos,
         );
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), Some(1));
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), Some(2));
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), None);
+        assert_eq!(reader_proxy_impl.next_unsent_change(), Some(1));
+        assert_eq!(reader_proxy_impl.next_unsent_change(), Some(2));
+        assert_eq!(reader_proxy_impl.next_unsent_change(), None);
     }
 
     #[test]
@@ -170,12 +166,12 @@ mod tests {
             expects_inline_qos,
         );
 
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), Some(1));
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), Some(2));
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), None);
-        assert_eq!(reader_proxy_impl.next_unsent_change(&0), None);
-        assert_eq!(reader_proxy_impl.next_unsent_change(&-10), None);
-        assert_eq!(reader_proxy_impl.next_unsent_change(&3), Some(3));
+        assert_eq!(reader_proxy_impl.next_unsent_change(), Some(1));
+        assert_eq!(reader_proxy_impl.next_unsent_change(), Some(2));
+        assert_eq!(reader_proxy_impl.next_unsent_change(), None);
+        assert_eq!(reader_proxy_impl.next_unsent_change(), None);
+        assert_eq!(reader_proxy_impl.next_unsent_change(), None);
+        assert_eq!(reader_proxy_impl.next_unsent_change(), Some(3));
     }
 
     #[test]
@@ -195,7 +191,7 @@ mod tests {
         );
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_proxy_impl.requested_changes_set(&req_seq_num_set, &3);
+        reader_proxy_impl.requested_changes_set(&req_seq_num_set);
 
         let expected_requested_changes = vec![1, 2, 3];
         assert_eq!(
@@ -221,7 +217,7 @@ mod tests {
         );
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_proxy_impl.requested_changes_set(&req_seq_num_set, &1);
+        reader_proxy_impl.requested_changes_set(&req_seq_num_set);
 
         let expected_requested_changes = vec![1];
         assert_eq!(
@@ -246,7 +242,7 @@ mod tests {
             expects_inline_qos,
         );
 
-        let unsent_changes = reader_proxy_impl.unsent_changes(&3);
+        let unsent_changes = reader_proxy_impl.unsent_changes();
         let expected_unsent_changes = vec![1, 2, 3];
 
         assert_eq!(unsent_changes, expected_unsent_changes);
@@ -268,8 +264,8 @@ mod tests {
         );
 
         let last_change_sequence_number = 3;
-        reader_proxy_impl.next_unsent_change(&last_change_sequence_number);
-        let unsent_changes = reader_proxy_impl.unsent_changes(&last_change_sequence_number);
+        reader_proxy_impl.next_unsent_change();
+        let unsent_changes = reader_proxy_impl.unsent_changes();
 
         let expected_unsent_changes = vec![2, 3];
 
@@ -298,7 +294,7 @@ mod tests {
         let expected_unacked_changes = vec![3, 4];
 
         assert_eq!(
-            reader_proxy_impl.unacked_changes(&last_change_sequence_number),
+            reader_proxy_impl.unacked_changes(),
             expected_unacked_changes
         );
     }

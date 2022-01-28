@@ -47,7 +47,8 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
+        R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>
+            + RtpsReaderProxyAttributes,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -69,10 +70,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
-        while let Some(seq_num) = self
-            .reader_proxy
-            .next_unsent_change(self.last_change_sequence_number)
-        {
+        while let Some(seq_num) = self.reader_proxy.next_unsent_change() {
             let change = self
                 .writer_cache
                 .changes()
@@ -147,7 +145,8 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
+        R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>
+            + RtpsReaderProxyAttributes,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
@@ -169,10 +168,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             SequenceNumberSetSubmessageElementType = SequenceNumberSetElement,
         >,
     {
-        while let Some(seq_num) = self
-            .reader_proxy
-            .next_unsent_change(self.last_change_sequence_number)
-        {
+        while let Some(seq_num) = self.reader_proxy.next_unsent_change() {
             let change = self
                 .writer_cache
                 .changes()
@@ -278,10 +274,8 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     {
         self.reader_proxy
             .acked_changes_set(acknack.reader_sn_state().base() - 1);
-        self.reader_proxy.requested_changes_set(
-            acknack.reader_sn_state().set(),
-            self.last_change_sequence_number,
-        );
+        self.reader_proxy
+            .requested_changes_set(acknack.reader_sn_state().set());
     }
 
     /// Implement 8.4.8.2.10 Transition T10
@@ -297,7 +291,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
+        R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber> + RtpsReaderProxyAttributes,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
