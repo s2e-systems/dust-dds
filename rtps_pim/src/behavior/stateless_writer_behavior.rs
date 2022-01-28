@@ -29,9 +29,8 @@ pub enum StatelessWriterBehavior<'a, R, C> {
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.1 Best-Effort StatelessWriter Behavior
 pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
-    pub reader_locator: &'a mut R,
+    pub reader_locator: R,
     pub writer_cache: &'a C,
-    pub last_change_sequence_number: &'a SequenceNumber,
 }
 
 impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
@@ -122,9 +121,8 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.2 Reliable StatelessWriter Behavior
 pub struct ReliableStatelessWriterBehavior<'a, R, C> {
-    pub reader_locator: &'a mut R,
+    pub reader_locator: R,
     pub writer_cache: &'a C,
-    pub last_change_sequence_number: &'a SequenceNumber,
     pub writer_guid: &'a Guid,
 }
 

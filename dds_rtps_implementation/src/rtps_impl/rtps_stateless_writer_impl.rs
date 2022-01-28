@@ -7,7 +7,7 @@ use rust_rtps_pim::{
         },
         types::Duration,
         writer::{
-            reader_locator::{RtpsReaderLocatorAttributes},
+            reader_locator::RtpsReaderLocatorAttributes,
             stateless_writer::{RtpsStatelessWriterConstructor, RtpsStatelessWriterOperations},
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
@@ -24,7 +24,7 @@ use rust_rtps_pim::{
 use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
 use super::{
-    rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
+    rtps_reader_locator_impl::{RtpsReaderLocatorAttributesImpl, RtpsReaderLocatorOperationsImpl},
     rtps_writer_history_cache_impl::{WriterCacheChange, WriterHistoryCache},
 };
 
@@ -45,31 +45,31 @@ pub struct RtpsStatelessWriterImpl {
 }
 
 pub struct RtpsReaderLocatorIterator<'a> {
-    reader_locator_iterator: std::slice::IterMut<'a, RtpsReaderLocatorAttributesImpl>,
+    reader_locator_attributes_iterator: std::slice::IterMut<'a, RtpsReaderLocatorAttributesImpl>,
     writer_cache: &'a WriterHistoryCache,
-    last_change_sequence_number: &'a SequenceNumber,
     reliability_level: &'a ReliabilityKind,
     writer_guid: &'a Guid,
 }
 
 impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
-    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorAttributesImpl, WriterHistoryCache>;
+    type Item =
+        StatelessWriterBehavior<'a, RtpsReaderLocatorOperationsImpl<'a>, WriterHistoryCache>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let reader_locator = self.reader_locator_iterator.next()?;
+        let reader_locator_attributes = self.reader_locator_attributes_iterator.next()?;
+        let reader_locator_operations =
+            RtpsReaderLocatorOperationsImpl::new(reader_locator_attributes, self.writer_cache);
         match self.reliability_level {
             ReliabilityKind::BestEffort => Some(StatelessWriterBehavior::BestEffort(
                 BestEffortStatelessWriterBehavior {
-                    reader_locator,
+                    reader_locator: reader_locator_operations,
                     writer_cache: self.writer_cache,
-                    last_change_sequence_number: self.last_change_sequence_number,
                 },
             )),
             ReliabilityKind::Reliable => Some(StatelessWriterBehavior::Reliable(
                 ReliableStatelessWriterBehavior {
-                    reader_locator,
+                    reader_locator: reader_locator_operations,
                     writer_cache: self.writer_cache,
-                    last_change_sequence_number: self.last_change_sequence_number,
                     writer_guid: self.writer_guid,
                 },
             )),
@@ -78,15 +78,15 @@ impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a mut RtpsStatelessWriterImpl {
-    type Item = StatelessWriterBehavior<'a, RtpsReaderLocatorAttributesImpl, WriterHistoryCache>;
+    type Item =
+        StatelessWriterBehavior<'a, RtpsReaderLocatorOperationsImpl<'a>, WriterHistoryCache>;
 
     type IntoIter = RtpsReaderLocatorIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         RtpsReaderLocatorIterator {
-            reader_locator_iterator: self.reader_locators.iter_mut(),
+            reader_locator_attributes_iterator: self.reader_locators.iter_mut(),
             writer_cache: &self.writer_cache,
-            last_change_sequence_number: &self.last_change_sequence_number,
             reliability_level: &self.reliability_level,
             writer_guid: &self.guid,
         }
@@ -181,7 +181,6 @@ impl RtpsWriterAttributes for RtpsStatelessWriterImpl {
 }
 
 impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
-
     type ReaderLocatorType = RtpsReaderLocatorAttributesImpl;
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
@@ -197,7 +196,6 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
             reader_locator.unsent_changes_reset()
         }
     }
-
 }
 
 impl RtpsWriterOperations for RtpsStatelessWriterImpl {

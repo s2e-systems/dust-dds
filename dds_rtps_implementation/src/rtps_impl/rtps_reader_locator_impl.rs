@@ -46,8 +46,20 @@ impl RtpsReaderLocatorAttributes for RtpsReaderLocatorAttributesImpl {
 }
 
 pub struct RtpsReaderLocatorOperationsImpl<'a> {
-    reader_locator_attributes: &'a mut RtpsReaderLocatorAttributesImpl,
+    pub reader_locator_attributes: &'a mut RtpsReaderLocatorAttributesImpl,
     writer_cache: &'a WriterHistoryCache,
+}
+
+impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
+    pub fn new(
+        reader_locator_attributes: &'a mut RtpsReaderLocatorAttributesImpl,
+        writer_cache: &'a WriterHistoryCache,
+    ) -> Self {
+        Self {
+            reader_locator_attributes,
+            writer_cache,
+        }
+    }
 }
 
 impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {

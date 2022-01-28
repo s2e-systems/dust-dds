@@ -74,7 +74,7 @@ where
                                     let submessages = submessages.take();
                                     if !submessages.is_empty() {
                                         destined_submessages.push((
-                                            best_effort_behavior.reader_locator.locator(),
+                                            best_effort_behavior.reader_locator.reader_locator_attributes.locator(),
                                             submessages,
                                         ));
                                     }
