@@ -46,9 +46,11 @@ use crate::{
 };
 
 use super::{
-    publisher_impl::PublisherImpl, publisher_proxy::PublisherProxy,
-    subscriber_impl::SubscriberImpl, subscriber_proxy::SubscriberProxy, topic_impl::TopicImpl,
-    topic_proxy::TopicProxy,
+    publisher_impl::PublisherImpl,
+    publisher_proxy::PublisherProxy,
+    subscriber_impl::SubscriberImpl,
+    subscriber_proxy::SubscriberProxy,
+    topic_proxy::{TopicAttributes, TopicProxy},
 };
 
 pub struct DomainParticipantAttributes {
@@ -64,7 +66,7 @@ pub struct DomainParticipantAttributes {
     user_defined_publisher_list: RtpsShared<Vec<RtpsShared<PublisherImpl>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    topic_list: RtpsShared<Vec<RtpsShared<TopicImpl>>>,
+    topic_list: RtpsShared<Vec<RtpsShared<TopicAttributes>>>,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
     lease_duration: rust_rtps_pim::behavior::types::Duration,
@@ -222,7 +224,7 @@ where
         //         .ok()?;
         // }
 
-        let topic_impl = TopicImpl::new(topic_qos, Foo::type_name(), topic_name);
+        let topic_impl = TopicAttributes::new(topic_qos, Foo::type_name(), topic_name);
         let topic_impl_shared = rtps_shared_new(topic_impl);
         rtps_shared_write_lock(&domain_participant_attributes_lock.topic_list)
             .push(topic_impl_shared.clone());
@@ -300,7 +302,7 @@ impl DomainParticipant for DomainParticipantProxy {
         );
         let rtps_group = RtpsGroupImpl::new(guid);
         let sedp_builtin_publications_topic =
-            rtps_shared_new(TopicImpl::new(TopicQos::default(), "", ""));
+            rtps_shared_new(TopicAttributes::new(TopicQos::default(), "", ""));
         let sedp_builtin_publications_announcer =
             rtps_shared_read_lock(&domain_participant_attributes_lock.builtin_publisher)
                 .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);

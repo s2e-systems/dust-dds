@@ -12,5 +12,4 @@ pub mod publisher_proxy;
 pub mod subscriber_impl;
 pub mod subscriber_proxy;
 
-pub mod topic_impl;
 pub mod topic_proxy;
