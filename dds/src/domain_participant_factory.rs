@@ -735,7 +735,10 @@ mod tests {
         subscription::query_condition::QueryCondition,
     };
     use rust_dds_rtps_implementation::{
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::ParticipantProxy,
+        data_representation_builtin_endpoints::{
+            sedp_discovered_writer_data::RtpsWriterProxy,
+            spdp_discovered_participant_data::ParticipantProxy,
+        },
         rtps_impl::{
             rtps_reader_proxy_impl::RtpsReaderProxyImpl,
             rtps_writer_proxy_impl::RtpsWriterProxyImpl,
@@ -743,8 +746,8 @@ mod tests {
     };
     use rust_rtps_pim::{
         behavior::{
-            reader::writer_proxy::{RtpsWriterProxy, RtpsWriterProxyConstructor},
-            writer::reader_proxy::{RtpsReaderProxyConstructor},
+            reader::writer_proxy::RtpsWriterProxyConstructor,
+            writer::reader_proxy::RtpsReaderProxyConstructor,
         },
         discovery::{
             sedp::builtin_endpoints::{

@@ -27,10 +27,7 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
-    behavior::{
-        reader::writer_proxy::RtpsWriterProxy,
-        writer::stateful_writer::RtpsStatefulWriterConstructor,
-    },
+    behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
     structure::{
         entity::RtpsEntityAttributes,
         types::{
@@ -41,7 +38,9 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::sedp_discovered_writer_data::SedpDiscoveredWriterData,
+    data_representation_builtin_endpoints::sedp_discovered_writer_data::{
+        RtpsWriterProxy, SedpDiscoveredWriterData,
+    },
     dds_impl::data_writer_impl::DataWriterImpl,
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::{

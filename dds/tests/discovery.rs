@@ -30,7 +30,7 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
+        sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
     dds_impl::{
@@ -52,7 +52,6 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::writer_proxy::RtpsWriterProxy,
         writer::reader_locator::RtpsReaderLocatorConstructor,
         writer::stateless_writer::RtpsStatelessWriterOperations,
     },

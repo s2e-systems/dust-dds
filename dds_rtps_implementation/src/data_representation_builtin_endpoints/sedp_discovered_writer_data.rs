@@ -3,7 +3,7 @@ use std::io::Write;
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey, return_type::DDSResult,
 };
-use rust_rtps_pim::{behavior::reader::writer_proxy::RtpsWriterProxy, structure::types::Locator};
+use rust_rtps_pim::structure::types::{EntityId, Guid, Locator};
 
 use crate::{
     data_representation_builtin_endpoints::serde_remote_rtps_pim::EntityIdDeserialize,
@@ -42,8 +42,17 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
+pub struct RtpsWriterProxy {
+    pub remote_writer_guid: Guid,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+    pub data_max_size_serialized: Option<i32>,
+    pub remote_group_entity_id: EntityId,
+}
+
+#[derive(Debug, PartialEq)]
 pub struct SedpDiscoveredWriterData {
-    pub writer_proxy: RtpsWriterProxy<Vec<Locator>>,
+    pub writer_proxy: RtpsWriterProxy,
     pub publication_builtin_topic_data: PublicationBuiltinTopicData,
 }
 

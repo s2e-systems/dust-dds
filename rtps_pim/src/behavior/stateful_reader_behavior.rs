@@ -128,6 +128,22 @@ mod tests {
             fn remote_writer_guid(&self) -> &Guid {
                 &self.0
             }
+
+            fn unicast_locator_list(&self) -> &[crate::structure::types::Locator] {
+                todo!()
+            }
+
+            fn multicast_locator_list(&self) -> &[crate::structure::types::Locator] {
+                todo!()
+            }
+
+            fn data_max_size_serialized(&self) -> &Option<i32> {
+                todo!()
+            }
+
+            fn remote_group_entity_id(&self) -> &EntityId {
+                todo!()
+            }
         }
 
         impl RtpsWriterProxyOperations for MockWriterProxy {
