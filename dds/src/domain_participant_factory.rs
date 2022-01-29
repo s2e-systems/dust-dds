@@ -32,7 +32,7 @@ use rust_dds_rtps_implementation::{
         data_reader_impl::{DataReaderImpl, RtpsReader, Samples},
         data_writer_impl::{DataWriterImpl, RtpsWriter},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
-        publisher_impl::PublisherImpl,
+        publisher_proxy::PublisherAttributes,
         subscriber_impl::SubscriberImpl,
         topic_proxy::TopicAttributes,
     },
@@ -475,7 +475,7 @@ impl DomainParticipantFactory {
             ],
         ));
 
-        let builtin_publisher = rtps_shared_new(PublisherImpl::new(
+        let builtin_publisher = rtps_shared_new(PublisherAttributes::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,

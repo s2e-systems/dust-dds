@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 
 use rust_dds_rtps_implementation::{
-    dds_impl::{data_writer_impl::RtpsWriter, publisher_impl::PublisherImpl},
+    dds_impl::{data_writer_impl::RtpsWriter, publisher_proxy::PublisherAttributes},
     utils::{
         message_receiver::{MessageReceiver, ProcessDataSubmessage},
         shared_object::RtpsShared,
@@ -37,7 +37,7 @@ impl<T> Communication<T>
 where
     T: TransportWrite,
 {
-    pub fn send(&mut self, list: &[RtpsShared<PublisherImpl>]) {
+    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes>]) {
         for publisher in list {
             let publisher_lock = publisher.write().unwrap();
 
@@ -74,7 +74,10 @@ where
                                     let submessages = submessages.take();
                                     if !submessages.is_empty() {
                                         destined_submessages.push((
-                                            best_effort_behavior.reader_locator.reader_locator_attributes.locator(),
+                                            best_effort_behavior
+                                                .reader_locator
+                                                .reader_locator_attributes
+                                                .locator(),
                                             submessages,
                                         ));
                                     }

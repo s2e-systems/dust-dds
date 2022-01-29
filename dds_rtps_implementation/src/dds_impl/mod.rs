@@ -6,7 +6,6 @@ pub mod data_writer_proxy;
 
 pub mod domain_participant_proxy;
 
-pub mod publisher_impl;
 pub mod publisher_proxy;
 
 pub mod subscriber_impl;

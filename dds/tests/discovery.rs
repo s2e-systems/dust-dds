@@ -36,7 +36,7 @@ use rust_dds_rtps_implementation::{
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReader, Samples},
         data_writer_impl::{DataWriterImpl, RtpsWriter},
-        publisher_impl::PublisherImpl,
+        publisher_proxy::PublisherAttributes,
         subscriber_impl::SubscriberImpl,
         topic_proxy::TopicAttributes,
     },
@@ -136,7 +136,7 @@ fn send_and_receive_discovery_data_happy_path() {
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )
         .unwrap();
-    let publisher = rtps_shared_new(PublisherImpl::new(
+    let publisher = rtps_shared_new(PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(GUID_UNKNOWN),
         vec![Arc::new(RwLock::new(data_writer))],
@@ -271,7 +271,7 @@ fn process_discovery_data_happy_path() {
         RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
     ));
 
-    let publisher = rtps_shared_new(PublisherImpl::new(
+    let publisher = rtps_shared_new(PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(Guid::new(
             GuidPrefix([4; 12]),

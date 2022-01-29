@@ -33,9 +33,8 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
+    data_representation_builtin_endpoints::spdp_discovered_participant_data::{
+        ParticipantProxy, SpdpDiscoveredParticipantData,
     },
     dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
@@ -46,7 +45,7 @@ use crate::{
 };
 
 use super::{
-    publisher_impl::PublisherImpl,
+    publisher_proxy::PublisherAttributes,
     publisher_proxy::PublisherProxy,
     subscriber_impl::SubscriberImpl,
     subscriber_proxy::SubscriberProxy,
@@ -59,11 +58,11 @@ pub struct DomainParticipantAttributes {
     domain_tag: Arc<String>,
     qos: DomainParticipantQos,
     builtin_subscriber: RtpsShared<SubscriberImpl>,
-    builtin_publisher: RtpsShared<PublisherImpl>,
+    builtin_publisher: RtpsShared<PublisherAttributes>,
     user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<SubscriberImpl>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: RtpsShared<Vec<RtpsShared<PublisherImpl>>>,
+    user_defined_publisher_list: RtpsShared<Vec<RtpsShared<PublisherAttributes>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
     topic_list: RtpsShared<Vec<RtpsShared<TopicAttributes>>>,
@@ -86,9 +85,9 @@ impl DomainParticipantAttributes {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
         builtin_subscriber: RtpsShared<SubscriberImpl>,
-        builtin_publisher: RtpsShared<PublisherImpl>,
+        builtin_publisher: RtpsShared<PublisherAttributes>,
         user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<SubscriberImpl>>>,
-        user_defined_publisher_list: RtpsShared<Vec<RtpsShared<PublisherImpl>>>,
+        user_defined_publisher_list: RtpsShared<Vec<RtpsShared<PublisherAttributes>>>,
         enabled: Arc<AtomicBool>,
     ) -> Self {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
@@ -301,17 +300,12 @@ impl DomainParticipant for DomainParticipantProxy {
             entity_id,
         );
         let rtps_group = RtpsGroupImpl::new(guid);
-        let sedp_builtin_publications_topic =
-            rtps_shared_new(TopicAttributes::new(TopicQos::default(), "", ""));
-        let sedp_builtin_publications_announcer =
-            rtps_shared_read_lock(&domain_participant_attributes_lock.builtin_publisher)
-                .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
-        let publisher_impl = PublisherImpl::new(
-            publisher_qos,
-            rtps_group,
-            Vec::new(),
-            sedp_builtin_publications_announcer,
-        );
+        // let sedp_builtin_publications_topic =
+        // rtps_shared_new(TopicAttributes::new(TopicQos::default(), "", ""));
+        // let sedp_builtin_publications_announcer =
+        //     rtps_shared_read_lock(&domain_participant_attributes_lock.builtin_publisher)
+        //         .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
+        let publisher_impl = PublisherAttributes::new(publisher_qos, rtps_group, Vec::new(), None);
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
         rtps_shared_write_lock(&domain_participant_attributes_lock.user_defined_publisher_list)
             .push(publisher_impl_shared.clone());

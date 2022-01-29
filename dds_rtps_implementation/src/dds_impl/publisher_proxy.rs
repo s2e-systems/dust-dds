@@ -1,40 +1,93 @@
+use std::sync::{atomic::AtomicU8, Mutex, MutexGuard};
+
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
     infrastructure::{
         entity::{Entity, StatusCondition},
-        qos::{DataWriterQos, TopicQos},
+        qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
         data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
         publisher::{Publisher, PublisherDataWriterFactory},
+        publisher_listener::PublisherListener,
     },
     return_type::{DDSError, DDSResult},
 };
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
+    rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::shared_object::{
         rtps_shared_downgrade, rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade,
-        RtpsWeak,
+        RtpsShared, RtpsWeak,
     },
 };
 
 use super::{
-    data_writer_proxy::DataWriterProxy, domain_participant_proxy::DomainParticipantProxy,
-    publisher_impl::PublisherImpl, topic_proxy::TopicProxy,
+    data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy,
+    domain_participant_proxy::DomainParticipantProxy, topic_proxy::TopicProxy,
 };
+
+pub struct PublisherAttributes {
+    _qos: PublisherQos,
+    rtps_group: RtpsGroupImpl,
+    data_writer_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
+    user_defined_data_writer_counter: AtomicU8,
+    default_datawriter_qos: DataWriterQos,
+    sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterImpl>>,
+}
+
+pub struct DataWriterListIterator<'a> {
+    data_writer_list_lock: MutexGuard<'a, Vec<RtpsShared<DataWriterImpl>>>,
+    index: usize,
+}
+
+impl<'a> Iterator for DataWriterListIterator<'a> {
+    type Item = RtpsShared<DataWriterImpl>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.data_writer_list_lock.get(self.index)?;
+        self.index += 1;
+        Some(item.clone())
+    }
+}
+
+impl PublisherAttributes {
+    pub fn new(
+        qos: PublisherQos,
+        rtps_group: RtpsGroupImpl,
+        data_writer_list: Vec<RtpsShared<DataWriterImpl>>,
+        sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterImpl>>,
+    ) -> Self {
+        Self {
+            _qos: qos,
+            rtps_group,
+            data_writer_list: Mutex::new(data_writer_list),
+            user_defined_data_writer_counter: AtomicU8::new(0),
+            default_datawriter_qos: DataWriterQos::default(),
+            sedp_builtin_publications_announcer,
+        }
+    }
+
+    pub fn iter_data_writer_list(&self) -> DataWriterListIterator {
+        DataWriterListIterator {
+            data_writer_list_lock: self.data_writer_list.lock().unwrap(),
+            index: 0,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct PublisherProxy {
     _participant: DomainParticipantProxy,
-    publisher_impl: RtpsWeak<PublisherImpl>,
+    publisher_impl: RtpsWeak<PublisherAttributes>,
 }
 
 impl<'p> PublisherProxy {
     pub fn new(
         participant: DomainParticipantProxy,
-        publisher_impl: RtpsWeak<PublisherImpl>,
+        publisher_impl: RtpsWeak<PublisherAttributes>,
     ) -> Self {
         Self {
             _participant: participant,
@@ -43,8 +96,8 @@ impl<'p> PublisherProxy {
     }
 }
 
-impl AsRef<RtpsWeak<PublisherImpl>> for PublisherProxy {
-    fn as_ref(&self) -> &RtpsWeak<PublisherImpl> {
+impl AsRef<RtpsWeak<PublisherAttributes>> for PublisherProxy {
+    fn as_ref(&self) -> &RtpsWeak<PublisherAttributes> {
         &self.publisher_impl
     }
 }
@@ -63,18 +116,106 @@ where
         a_listener: Option<&'static dyn DataWriterListener>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        let publisher_shared = rtps_weak_upgrade(&self.publisher_impl).ok()?;
-        let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
-        let data_writer_shared = PublisherDataWriterFactory::<Foo>::datawriter_factory_create_datawriter(
-            &*rtps_shared_write_lock(&publisher_shared),
-            &topic_shared,
-            qos,
-            a_listener,
-            mask,
-        )?;
-        let data_writer_weak = rtps_shared_downgrade(&data_writer_shared);
-        let datawriter = DataWriterProxy::new(self.clone(), a_topic.clone(), data_writer_weak);
-        Some(datawriter)
+        // let publisher_shared = rtps_weak_upgrade(&self.publisher_impl).ok()?;
+        // let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
+        // let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
+        // let user_defined_data_writer_counter = self
+        //     .user_defined_data_writer_counter
+        //     .fetch_add(1, atomic::Ordering::SeqCst);
+        // let (entity_kind, topic_kind) = match Foo::has_key() {
+        //     true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
+        //     false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
+        // };
+        // let entity_id = EntityId::new(
+        //     [
+        //         self.rtps_group.guid().entity_id().entity_key()[0],
+        //         user_defined_data_writer_counter,
+        //         0,
+        //     ],
+        //     entity_kind,
+        // );
+        // let guid = Guid::new(*self.rtps_group.guid().prefix(), entity_id);
+        // let reliability_level = match qos.reliability.kind {
+        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        // };
+        // let unicast_locator_list = &[];
+        // let multicast_locator_list = &[];
+        // let push_mode = true;
+        // let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
+        // let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        // let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        // let data_max_size_serialized = None;
+        // let rtps_writer_impl = RtpsWriter::Stateful(RtpsStatefulWriterImpl::new(
+        //     guid,
+        //     topic_kind,
+        //     reliability_level,
+        //     unicast_locator_list,
+        //     multicast_locator_list,
+        //     push_mode,
+        //     heartbeat_period,
+        //     nack_response_delay,
+        //     nack_suppression_duration,
+        //     data_max_size_serialized,
+        // ));
+
+        // if let Some(sedp_builtin_publications_announcer) = &self.sedp_builtin_publications_announcer
+        // {
+        //     let topic_shared = rtps_shared_read_lock(a_topic);
+        //     let mut sedp_builtin_publications_announcer_lock =
+        //         rtps_shared_write_lock(sedp_builtin_publications_announcer);
+        //     let sedp_discovered_writer_data = SedpDiscoveredWriterData {
+        //         writer_proxy: RtpsWriterProxy {
+        //             remote_writer_guid: guid,
+        //             unicast_locator_list: vec![],
+        //             multicast_locator_list: vec![],
+        //             data_max_size_serialized: None,
+        //             remote_group_entity_id: EntityId::new([0; 3], 0),
+        //         },
+        //         publication_builtin_topic_data: PublicationBuiltinTopicData {
+        //             key: BuiltInTopicKey { value: guid.into() },
+        //             participant_key: BuiltInTopicKey { value: [1; 16] },
+        //             topic_name: topic_shared.topic_name.clone(),
+        //             type_name: Foo::type_name().to_string(),
+        //             durability: DurabilityQosPolicy::default(),
+        //             durability_service: DurabilityServiceQosPolicy::default(),
+        //             deadline: DeadlineQosPolicy::default(),
+        //             latency_budget: LatencyBudgetQosPolicy::default(),
+        //             liveliness: LivelinessQosPolicy::default(),
+        //             reliability: ReliabilityQosPolicy {
+        //                 kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+        //                 max_blocking_time: Duration::new(3, 0),
+        //             },
+        //             lifespan: LifespanQosPolicy::default(),
+        //             user_data: UserDataQosPolicy::default(),
+        //             ownership: OwnershipQosPolicy::default(),
+        //             ownership_strength: OwnershipStrengthQosPolicy::default(),
+        //             destination_order: DestinationOrderQosPolicy::default(),
+        //             presentation: PresentationQosPolicy::default(),
+        //             partition: PartitionQosPolicy::default(),
+        //             topic_data: TopicDataQosPolicy::default(),
+        //             group_data: GroupDataQosPolicy::default(),
+        //         },
+        //     };
+        //     sedp_builtin_publications_announcer_lock
+        //         .write_w_timestamp(
+        //             &sedp_discovered_writer_data,
+        //             None,
+        //             Time { sec: 0, nanosec: 0 },
+        //         )
+        //         .unwrap();
+        // }
+        // let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
+        // let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
+        // self.data_writer_list
+        //     .lock()
+        //     .unwrap()
+        //     .push(data_writer_impl_shared.clone());
+        // // Some(data_writer_impl_shared)
+        // let data_writer_weak = rtps_shared_downgrade(&data_writer_shared);
+        // let datawriter = DataWriterProxy::new(self.clone(), a_topic.clone(), data_writer_weak);
+        // Some(datawriter)
+        todo!()
     }
 
     fn datawriter_factory_delete_datawriter(
@@ -83,10 +224,11 @@ where
     ) -> DDSResult<()> {
         let a_datawriter_shared = rtps_weak_upgrade(a_datawriter.as_ref())?;
         if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
-            PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
-                &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?),
-                &a_datawriter_shared,
-            )
+            todo!()
+            // PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
+            //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?),
+            //     &a_datawriter_shared,
+            // )
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
@@ -98,6 +240,13 @@ where
         &self,
         _topic: &Self::TopicType,
     ) -> Option<Self::DataWriterType> {
+        // let data_writer_impl_list_lock = self.data_writer_list.lock().unwrap();
+        // let found_data_writer = data_writer_impl_list_lock.iter().cloned().find(|_x| true);
+
+        // if let Some(found_data_writer) = found_data_writer {
+        // return Some(found_data_writer);
+        // };
+        // None
         todo!()
     }
 }
@@ -162,40 +311,48 @@ impl Publisher for PublisherProxy {
 }
 
 impl Entity for PublisherProxy {
-    type Qos = <PublisherImpl as Entity>::Qos;
-    type Listener = <PublisherImpl as Entity>::Listener;
+    type Qos = PublisherQos;
+    type Listener = &'static dyn PublisherListener;
 
     fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        rtps_shared_write_lock(&rtps_weak_upgrade(&self.publisher_impl)?).set_qos(qos)
+        // rtps_shared_write_lock(&rtps_weak_upgrade(&self.publisher_impl)?).set_qos(qos)
+        todo!()
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_qos()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_qos()
+        todo!()
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
-            .set_listener(a_listener, mask)
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
+        //     .set_listener(a_listener, mask)
+        todo!()
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_listener()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_listener()
+        todo!()
     }
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_statuscondition()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_statuscondition()
+        todo!()
     }
 
     fn get_status_changes(&self) -> DDSResult<StatusMask> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_status_changes()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_status_changes()
+        todo!()
     }
 
     fn enable(&self) -> DDSResult<()> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).enable()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).enable()
+        todo!()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_instance_handle()
+        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_instance_handle()
+        todo!()
     }
 }
 
