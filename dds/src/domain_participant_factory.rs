@@ -30,7 +30,7 @@ use rust_dds_rtps_implementation::{
     },
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReader, Samples},
-        data_writer_impl::{DataWriterImpl, RtpsWriter},
+        data_writer_proxy::{DataWriterAttributes, RtpsWriter},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
@@ -411,7 +411,7 @@ impl DomainParticipantFactory {
             )),
         ));
 
-        let spdp_builtin_participant_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+        let spdp_builtin_participant_dds_data_writer = rtps_shared_new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
         ));
@@ -426,7 +426,7 @@ impl DomainParticipantFactory {
             )),
         ));
 
-        let sedp_builtin_publications_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+        let sedp_builtin_publications_dds_data_writer = rtps_shared_new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
         ));
@@ -441,7 +441,7 @@ impl DomainParticipantFactory {
             )),
         ));
 
-        let sedp_builtin_subscriptions_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+        let sedp_builtin_subscriptions_dds_data_writer = rtps_shared_new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
         ));
@@ -456,7 +456,7 @@ impl DomainParticipantFactory {
             )),
         ));
 
-        let sedp_builtin_topics_dds_data_writer = rtps_shared_new(DataWriterImpl::new(
+        let sedp_builtin_topics_dds_data_writer = rtps_shared_new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
         ));
@@ -623,13 +623,13 @@ impl DomainParticipantFactory {
         let spdp_discovered_participant_data =
             domain_participant.as_spdp_discovered_participant_data();
 
-        rtps_shared_write_lock(&spdp_builtin_participant_dds_data_writer)
-            .write_w_timestamp(
-                &spdp_discovered_participant_data,
-                None,
-                Time { sec: 0, nanosec: 0 },
-            )
-            .unwrap();
+        // rtps_shared_write_lock(&spdp_builtin_participant_dds_data_writer)
+        //     .write_w_timestamp(
+        //         &spdp_discovered_participant_data,
+        //         None,
+        //         Time { sec: 0, nanosec: 0 },
+        //     )
+        //     .unwrap();
 
         executor.run();
 

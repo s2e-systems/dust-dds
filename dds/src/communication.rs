@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 
 use rust_dds_rtps_implementation::{
-    dds_impl::{data_writer_impl::RtpsWriter, publisher_proxy::PublisherAttributes},
+    dds_impl::{data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes},
     utils::{
         message_receiver::{MessageReceiver, ProcessDataSubmessage},
         shared_object::RtpsShared,

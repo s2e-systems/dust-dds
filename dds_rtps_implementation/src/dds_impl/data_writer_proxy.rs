@@ -1,7 +1,11 @@
 use std::marker::PhantomData;
 
 use crate::{
-    dds_type::DdsSerialize,
+    dds_type::{DdsSerialize, LittleEndian},
+    rtps_impl::{
+        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    },
     utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak},
 };
 use rust_dds_api::{
@@ -20,17 +24,68 @@ use rust_dds_api::{
         data_writer_listener::DataWriterListener,
         publisher::Publisher,
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
 };
+use rust_rtps_pim::{behavior::writer::writer::RtpsWriterOperations, structure::types::ChangeKind};
 
-use super::{
-    data_writer_impl::DataWriterImpl, publisher_proxy::PublisherProxy, topic_proxy::TopicProxy,
-};
+use super::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
+
+pub enum RtpsWriter {
+    Stateless(RtpsStatelessWriterImpl),
+    Stateful(RtpsStatefulWriterImpl),
+}
+
+impl RtpsWriter {
+    pub fn try_as_stateless_writer(&mut self) -> DDSResult<&mut RtpsStatelessWriterImpl> {
+        match self {
+            RtpsWriter::Stateless(x) => Ok(x),
+            RtpsWriter::Stateful(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateless writer".to_string(),
+            )),
+        }
+    }
+    pub fn try_as_stateful_writer(&mut self) -> DDSResult<&mut RtpsStatefulWriterImpl> {
+        match self {
+            RtpsWriter::Stateless(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateful writer".to_string(),
+            )),
+            RtpsWriter::Stateful(x) => Ok(x),
+        }
+    }
+}
+
+pub struct DataWriterAttributes {
+    _qos: DataWriterQos,
+    rtps_writer: RtpsWriter,
+    _listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
+}
+
+impl DataWriterAttributes {
+    pub fn new(qos: DataWriterQos, rtps_writer: RtpsWriter) -> Self {
+        Self {
+            _qos: qos,
+            rtps_writer,
+            _listener: None,
+        }
+    }
+}
+
+impl AsRef<RtpsWriter> for DataWriterAttributes {
+    fn as_ref(&self) -> &RtpsWriter {
+        &self.rtps_writer
+    }
+}
+
+impl AsMut<RtpsWriter> for DataWriterAttributes {
+    fn as_mut(&mut self) -> &mut RtpsWriter {
+        &mut self.rtps_writer
+    }
+}
 
 pub struct DataWriterProxy<Foo> {
     publisher: PublisherProxy,
     topic: TopicProxy<Foo>,
-    data_writer_impl: RtpsWeak<DataWriterImpl>,
+    data_writer_impl: RtpsWeak<DataWriterAttributes>,
     phantom: PhantomData<Foo>,
 }
 
@@ -50,7 +105,7 @@ impl<Foo> DataWriterProxy<Foo> {
     pub fn new(
         publisher: PublisherProxy,
         topic: TopicProxy<Foo>,
-        data_writer_impl: RtpsWeak<DataWriterImpl>,
+        data_writer_impl: RtpsWeak<DataWriterAttributes>,
     ) -> Self {
         Self {
             publisher,
@@ -61,8 +116,8 @@ impl<Foo> DataWriterProxy<Foo> {
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<DataWriterImpl>> for DataWriterProxy<Foo> {
-    fn as_ref(&self) -> &RtpsWeak<DataWriterImpl> {
+impl<Foo> AsRef<RtpsWeak<DataWriterAttributes>> for DataWriterProxy<Foo> {
+    fn as_ref(&self) -> &RtpsWeak<DataWriterAttributes> {
         &self.data_writer_impl
     }
 }
@@ -84,8 +139,9 @@ where
         instance: Foo,
         timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
-        rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
-            .register_instance_w_timestamp(instance, timestamp)
+        // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
+            // .register_instance_w_timestamp(instance, timestamp)
+        todo!()
     }
 
     fn unregister_instance(
@@ -103,8 +159,9 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
-        rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
-            .unregister_instance_w_timestamp(instance, handle, timestamp)
+        // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
+        // .unregister_instance_w_timestamp(instance, handle, timestamp)
+        todo!()
     }
 
     fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DDSResult<()> {
@@ -126,8 +183,23 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DDSResult<()> {
-        rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
-            .write_w_timestamp(data, handle, timestamp)
+        let mut serialized_data = Vec::new();
+        data.serialize::<_, LittleEndian>(&mut serialized_data)
+            .unwrap();
+        // match &mut self.rtps_writer {
+        //     RtpsWriter::Stateless(stateless_rtps_writer) => {
+        //         let change =
+        //             stateless_rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+        //         stateless_rtps_writer.writer_cache().add_change(change);
+        //     }
+        //     RtpsWriter::Stateful(stateful_rtps_writer) => {
+        //         let change =
+        //             stateful_rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+        //         stateful_rtps_writer.writer_cache().add_change(change);
+        //     }
+        // }
+
+        Ok(())
     }
 
     fn dispose(&mut self, _data: Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {

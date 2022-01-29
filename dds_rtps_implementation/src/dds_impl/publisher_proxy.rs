@@ -25,26 +25,26 @@ use crate::{
 };
 
 use super::{
-    data_writer_impl::DataWriterImpl, data_writer_proxy::DataWriterProxy,
+    data_writer_proxy::DataWriterAttributes, data_writer_proxy::DataWriterProxy,
     domain_participant_proxy::DomainParticipantProxy, topic_proxy::TopicProxy,
 };
 
 pub struct PublisherAttributes {
     _qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
-    data_writer_list: Mutex<Vec<RtpsShared<DataWriterImpl>>>,
+    data_writer_list: Mutex<Vec<RtpsShared<DataWriterAttributes>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
-    sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterImpl>>,
+    sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes>>,
 }
 
 pub struct DataWriterListIterator<'a> {
-    data_writer_list_lock: MutexGuard<'a, Vec<RtpsShared<DataWriterImpl>>>,
+    data_writer_list_lock: MutexGuard<'a, Vec<RtpsShared<DataWriterAttributes>>>,
     index: usize,
 }
 
 impl<'a> Iterator for DataWriterListIterator<'a> {
-    type Item = RtpsShared<DataWriterImpl>;
+    type Item = RtpsShared<DataWriterAttributes>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let item = self.data_writer_list_lock.get(self.index)?;
@@ -57,8 +57,8 @@ impl PublisherAttributes {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        data_writer_list: Vec<RtpsShared<DataWriterImpl>>,
-        sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterImpl>>,
+        data_writer_list: Vec<RtpsShared<DataWriterAttributes>>,
+        sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes>>,
     ) -> Self {
         Self {
             _qos: qos,
