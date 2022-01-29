@@ -33,7 +33,7 @@ use rust_dds_rtps_implementation::{
         data_writer_impl::{DataWriterImpl, RtpsWriter},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_proxy::PublisherAttributes,
-        subscriber_impl::SubscriberImpl,
+        subscriber_proxy::SubscriberAttributes,
         topic_proxy::TopicAttributes,
     },
     dds_type::DdsType,
@@ -212,7 +212,7 @@ fn task_sedp_discovery(
     sedp_builtin_publications_data_reader: &RtpsShared<
         impl DataReader<SedpDiscoveredWriterData, Samples = Samples<SedpDiscoveredWriterData>>,
     >,
-    subscriber_list: &RtpsShared<Vec<RtpsShared<SubscriberImpl>>>,
+    subscriber_list: &RtpsShared<Vec<RtpsShared<SubscriberAttributes>>>,
 ) {
     let mut sedp_builtin_publications_data_reader_lock =
         rtps_shared_write_lock(&sedp_builtin_publications_data_reader);
@@ -461,7 +461,7 @@ impl DomainParticipantFactory {
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
         ));
 
-        let builtin_subscriber = rtps_shared_new(SubscriberImpl::new(
+        let builtin_subscriber = rtps_shared_new(SubscriberAttributes::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
@@ -1172,7 +1172,7 @@ mod tests {
                 })
             });
 
-        let subscriber = SubscriberImpl::new(
+        let subscriber = SubscriberAttributes::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 GuidPrefix([0; 12]),

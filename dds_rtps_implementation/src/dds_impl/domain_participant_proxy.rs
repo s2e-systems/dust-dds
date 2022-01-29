@@ -47,7 +47,7 @@ use crate::{
 use super::{
     publisher_proxy::PublisherAttributes,
     publisher_proxy::PublisherProxy,
-    subscriber_impl::SubscriberImpl,
+    subscriber_proxy::SubscriberAttributes,
     subscriber_proxy::SubscriberProxy,
     topic_proxy::{TopicAttributes, TopicProxy},
 };
@@ -57,9 +57,9 @@ pub struct DomainParticipantAttributes {
     domain_id: DomainId,
     domain_tag: Arc<String>,
     qos: DomainParticipantQos,
-    builtin_subscriber: RtpsShared<SubscriberImpl>,
+    builtin_subscriber: RtpsShared<SubscriberAttributes>,
     builtin_publisher: RtpsShared<PublisherAttributes>,
-    user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<SubscriberImpl>>>,
+    user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<SubscriberAttributes>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
     user_defined_publisher_list: RtpsShared<Vec<RtpsShared<PublisherAttributes>>>,
@@ -84,9 +84,9 @@ impl DomainParticipantAttributes {
         metatraffic_multicast_locator_list: Vec<Locator>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        builtin_subscriber: RtpsShared<SubscriberImpl>,
+        builtin_subscriber: RtpsShared<SubscriberAttributes>,
         builtin_publisher: RtpsShared<PublisherAttributes>,
-        user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<SubscriberImpl>>>,
+        user_defined_subscriber_list: RtpsShared<Vec<RtpsShared<SubscriberAttributes>>>,
         user_defined_publisher_list: RtpsShared<Vec<RtpsShared<PublisherAttributes>>>,
         enabled: Arc<AtomicBool>,
     ) -> Self {
@@ -364,7 +364,7 @@ impl DomainParticipant for DomainParticipantProxy {
             entity_id,
         );
         let rtps_group = RtpsGroupImpl::new(guid);
-        let subscriber = SubscriberImpl::new(subscriber_qos, rtps_group, Vec::new());
+        let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, Vec::new());
         let subscriber_shared = rtps_shared_new(subscriber);
         rtps_shared_write_lock(&domain_participant_attributes_lock.user_defined_subscriber_list)
             .push(subscriber_shared.clone());

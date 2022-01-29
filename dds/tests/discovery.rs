@@ -37,7 +37,7 @@ use rust_dds_rtps_implementation::{
         data_reader_impl::{DataReaderImpl, RtpsReader, Samples},
         data_writer_impl::{DataWriterImpl, RtpsWriter},
         publisher_proxy::PublisherAttributes,
-        subscriber_impl::SubscriberImpl,
+        subscriber_proxy::SubscriberAttributes,
         topic_proxy::TopicAttributes,
     },
     dds_type::DdsType,
@@ -170,7 +170,7 @@ fn send_and_receive_discovery_data_happy_path() {
         )),
     );
     let shared_data_reader = rtps_shared_new(data_reader);
-    let subscriber = rtps_shared_new(SubscriberImpl::new(
+    let subscriber = rtps_shared_new(SubscriberAttributes::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
             GuidPrefix([6; 12]),
@@ -311,7 +311,7 @@ fn process_discovery_data_happy_path() {
         )),
     );
     let shared_data_reader = rtps_shared_new(spdp_builtin_participant_data_reader);
-    let subscriber = rtps_shared_new(SubscriberImpl::new(
+    let subscriber = rtps_shared_new(SubscriberAttributes::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
             GuidPrefix([6; 12]),
