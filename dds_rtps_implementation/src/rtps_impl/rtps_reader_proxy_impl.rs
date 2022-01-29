@@ -10,23 +10,6 @@ use rust_rtps_pim::{
 
 use super::rtps_writer_history_cache_impl::WriterHistoryCache;
 
-pub struct RtpsReaderProxyOperationsImpl<'a> {
-    pub reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
-    writer_cache: &'a WriterHistoryCache,
-}
-
-impl<'a> RtpsReaderProxyOperationsImpl<'a> {
-    pub fn new(
-        reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
-        writer_cache: &'a WriterHistoryCache,
-    ) -> Self {
-        Self {
-            reader_proxy_attributes,
-            writer_cache,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxyAttributesImpl {
     remote_reader_guid: Guid,
@@ -84,6 +67,51 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyAttributesImpl {
 
     fn is_active(&self) -> &bool {
         &self.is_active
+    }
+}
+
+pub struct RtpsReaderProxyOperationsImpl<'a> {
+    pub reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
+    writer_cache: &'a WriterHistoryCache,
+}
+
+impl<'a> RtpsReaderProxyOperationsImpl<'a> {
+    pub fn new(
+        reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
+        writer_cache: &'a WriterHistoryCache,
+    ) -> Self {
+        Self {
+            reader_proxy_attributes,
+            writer_cache,
+        }
+    }
+}
+
+impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
+    fn remote_reader_guid(&self) -> &Guid {
+        &self.reader_proxy_attributes.remote_reader_guid
+    }
+
+    fn remote_group_entity_id(&self) -> &EntityId {
+        &self.reader_proxy_attributes.remote_group_entity_id
+    }
+
+    fn unicast_locator_list(&self) -> &[Locator] {
+        self.reader_proxy_attributes.unicast_locator_list.as_slice()
+    }
+
+    fn multicast_locator_list(&self) -> &[Locator] {
+        self.reader_proxy_attributes
+            .multicast_locator_list
+            .as_slice()
+    }
+
+    fn expects_inline_qos(&self) -> &bool {
+        &self.reader_proxy_attributes.expects_inline_qos
+    }
+
+    fn is_active(&self) -> &bool {
+        todo!()
     }
 }
 

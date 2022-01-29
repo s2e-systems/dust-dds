@@ -290,7 +290,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber> + RtpsReaderProxyAttributes,
+        R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
