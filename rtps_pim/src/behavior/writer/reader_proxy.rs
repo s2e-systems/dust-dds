@@ -7,6 +7,7 @@ pub trait RtpsReaderProxyConstructor {
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
         expects_inline_qos: bool,
+        is_active: bool,
     ) -> Self;
 }
 
@@ -30,4 +31,5 @@ pub trait RtpsReaderProxyOperations {
     fn requested_changes(&self) -> Self::ChangeForReaderListType;
     fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
     fn unacked_changes(&self) -> Self::ChangeForReaderListType;
+    fn changes_for_reader(&self) -> Self::ChangeForReaderListType;
 }

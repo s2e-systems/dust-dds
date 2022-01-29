@@ -102,6 +102,7 @@ where
                 self.participant_data.metatraffic_unicast_locator_list(),
                 self.participant_data.metatraffic_multicast_locator_list(),
                 expects_inline_qos,
+                true,
             );
             writer.matched_reader_add(proxy);
         }
@@ -160,6 +161,7 @@ where
                 self.participant_data.metatraffic_unicast_locator_list(),
                 self.participant_data.metatraffic_multicast_locator_list(),
                 expects_inline_qos,
+                true,
             );
             writer.matched_reader_add(proxy);
         }
@@ -221,6 +223,7 @@ where
                 self.participant_data.metatraffic_unicast_locator_list(),
                 self.participant_data.metatraffic_multicast_locator_list(),
                 expects_inline_qos,
+                true,
             );
             writer.matched_reader_add(proxy);
         }

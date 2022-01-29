@@ -28,7 +28,7 @@ pub enum StatefulWriterBehavior<'a, R, C> {
 }
 
 pub struct BestEffortStatefulWriterBehavior<'a, R, C> {
-    pub reader_proxy: &'a mut R,
+    pub reader_proxy: R,
     pub writer_cache: &'a C,
     pub last_change_sequence_number: &'a SequenceNumber,
 }
@@ -123,7 +123,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.9.2 Reliable StatefulWriter Behavior
 pub struct ReliableStatefulWriterBehavior<'a, R, C> {
-    pub reader_proxy: &'a mut R,
+    pub reader_proxy: R,
     pub writer_cache: &'a C,
     pub last_change_sequence_number: &'a SequenceNumber,
     pub writer_guid: &'a Guid,
@@ -145,8 +145,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
     ) where
-        R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>
-            + RtpsReaderProxyAttributes,
+        R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
@@ -186,8 +185,8 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id =
-                    EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
+                let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
+                    // EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = change.inline_qos();

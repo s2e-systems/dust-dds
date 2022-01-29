@@ -24,10 +24,10 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
-use crate::utils::clock::{StdTimer, Timer};
+use crate::{utils::clock::{StdTimer, Timer}, data_representation_builtin_endpoints::sedp_discovered_reader_data::RtpsReaderProxy};
 
 use super::{
-    rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
+    rtps_reader_proxy_impl::{RtpsReaderProxyAttributesImpl, RtpsReaderProxyOperationsImpl},
     rtps_writer_history_cache_impl::{WriterCacheChange, WriterHistoryCache},
 };
 
@@ -197,21 +197,22 @@ pub struct RtpsReaderProxyIterator<'a> {
 }
 
 impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyAttributesImpl, WriterHistoryCache>;
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, WriterHistoryCache>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let reader_proxy = self.reader_proxy_iterator.next()?;
+        let reader_proxy_attributes = self.reader_proxy_iterator.next()?;
+        let reader_proxy_operations = RtpsReaderProxyOperationsImpl::new(reader_proxy_attributes, self.writer_cache);
         match self.reliability_level {
             ReliabilityKind::BestEffort => Some(StatefulWriterBehavior::BestEffort(
                 BestEffortStatefulWriterBehavior {
-                    reader_proxy,
+                    reader_proxy: reader_proxy_operations,
                     writer_cache: self.writer_cache,
                     last_change_sequence_number: self.last_change_sequence_number,
                 },
             )),
             ReliabilityKind::Reliable => Some(StatefulWriterBehavior::Reliable(
                 ReliableStatefulWriterBehavior {
-                    reader_proxy,
+                    reader_proxy: reader_proxy_operations,
                     writer_cache: self.writer_cache,
                     last_change_sequence_number: self.last_change_sequence_number,
                     writer_guid: self.writer_guid,
@@ -224,7 +225,7 @@ impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyAttributesImpl, WriterHistoryCache>;
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, WriterHistoryCache>;
     type IntoIter = RtpsReaderProxyIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

@@ -1039,6 +1039,7 @@ mod tests {
                 &[],
                 &[],
                 false,
+                true
             )))
             .once()
             .return_const(());
@@ -1071,6 +1072,7 @@ mod tests {
                 &[],
                 &[],
                 false,
+                true,
             )))
             .once()
             .return_const(());
@@ -1100,6 +1102,7 @@ mod tests {
                 &[],
                 &[],
                 false,
+                true,
             )))
             .once()
             .return_const(());
