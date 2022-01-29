@@ -431,20 +431,22 @@ impl DomainParticipantFactory {
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
         ));
 
-        let sedp_builtin_subscriptions_dds_data_reader = rtps_shared_new(DataReaderAttributes::new(
-            DataReaderQos::default(),
-            RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
-            rtps_shared_new(TopicAttributes::new(
-                TopicQos::default(),
-                SedpDiscoveredReaderData::type_name(),
-                "DCPSSubscription",
-            )),
-        ));
+        let sedp_builtin_subscriptions_dds_data_reader =
+            rtps_shared_new(DataReaderAttributes::new(
+                DataReaderQos::default(),
+                RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
+                rtps_shared_new(TopicAttributes::new(
+                    TopicQos::default(),
+                    SedpDiscoveredReaderData::type_name(),
+                    "DCPSSubscription",
+                )),
+            ));
 
-        let sedp_builtin_subscriptions_dds_data_writer = rtps_shared_new(DataWriterAttributes::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
-        ));
+        let sedp_builtin_subscriptions_dds_data_writer =
+            rtps_shared_new(DataWriterAttributes::new(
+                DataWriterQos::default(),
+                RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
+            ));
 
         let sedp_builtin_topics_dds_data_reader = rtps_shared_new(DataReaderAttributes::new(
             DataReaderQos::default(),
@@ -490,8 +492,8 @@ impl DomainParticipantFactory {
             None,
         ));
 
-        let user_defined_subscriber_list = rtps_shared_new(Vec::new());
-        let user_defined_publisher_list = rtps_shared_new(Vec::new());
+        let user_defined_subscriber_list = Vec::new();
+        let user_defined_publisher_list = Vec::new();
         let enabled = Arc::new(AtomicBool::new(false));
 
         let (sender, receiver) = std::sync::mpsc::sync_channel(10);
@@ -515,27 +517,27 @@ impl DomainParticipantFactory {
             std::time::Duration::from_millis(500),
         );
 
-        let mut communication = Communication {
-            version: PROTOCOLVERSION,
-            vendor_id: VENDOR_ID_S2E,
-            guid_prefix,
-            transport: default_transport,
-        };
-        let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
-        let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
-        spawner.spawn_enabled_periodic_task(
-            "user-defined communication",
-            move || {
-                communication.send(&rtps_shared_write_lock(&user_defined_publisher_list_arc));
-                communication.receive(&rtps_shared_write_lock(&user_defined_subscriber_list_arc));
-            },
-            std::time::Duration::from_millis(500),
-        );
-        let spdp_builtin_participant_data_reader_arc =
-            spdp_builtin_participant_dds_data_reader.clone();
-        let domain_tag_arc = domain_tag.clone();
-        let sedp_builtin_publications_dds_data_reader_arc =
-            sedp_builtin_publications_dds_data_reader.clone();
+        // let mut communication = Communication {
+        //     version: PROTOCOLVERSION,
+        //     vendor_id: VENDOR_ID_S2E,
+        //     guid_prefix,
+        //     transport: default_transport,
+        // };
+        // let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
+        // let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
+        // spawner.spawn_enabled_periodic_task(
+        //     "user-defined communication",
+        //     move || {
+        //         communication.send(&rtps_shared_write_lock(&user_defined_publisher_list_arc));
+        //         communication.receive(&rtps_shared_write_lock(&user_defined_subscriber_list_arc));
+        //     },
+        //     std::time::Duration::from_millis(500),
+        // );
+        // let spdp_builtin_participant_data_reader_arc =
+        //     spdp_builtin_participant_dds_data_reader.clone();
+        // let domain_tag_arc = domain_tag.clone();
+        // let sedp_builtin_publications_dds_data_reader_arc =
+        //     sedp_builtin_publications_dds_data_reader.clone();
 
         // spawner.spawn_enabled_periodic_task(
         //     "spdp discovery",
@@ -573,26 +575,26 @@ impl DomainParticipantFactory {
         //     std::time::Duration::from_millis(500),
         // );
 
-        let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
-        let _user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
-        spawner.spawn_enabled_periodic_task(
-            "sedp discovery",
-            move || {
-                let user_defined_publisher_list_lock =
-                    rtps_shared_write_lock(&user_defined_publisher_list_arc);
-                for user_defined_publisher in user_defined_publisher_list_lock.iter() {
-                    let _user_defined_publisher_lock =
-                        rtps_shared_write_lock(&user_defined_publisher);
-                    // user_defined_publisher_lock.process_discovery();
-                }
-            },
-            std::time::Duration::from_millis(500),
-        );
+        // let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
+        // let _user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
+        // spawner.spawn_enabled_periodic_task(
+        //     "sedp discovery",
+        //     move || {
+        //         let user_defined_publisher_list_lock =
+        //             rtps_shared_write_lock(&user_defined_publisher_list_arc);
+        //         for user_defined_publisher in user_defined_publisher_list_lock.iter() {
+        //             let _user_defined_publisher_lock =
+        //                 rtps_shared_write_lock(&user_defined_publisher);
+        //             // user_defined_publisher_lock.process_discovery();
+        //         }
+        //     },
+        //     std::time::Duration::from_millis(500),
+        // );
 
         // let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
-        let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
-        let sedp_builtin_publications_dds_data_reader_arc =
-            sedp_builtin_publications_dds_data_reader.clone();
+        // let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
+        // let sedp_builtin_publications_dds_data_reader_arc =
+        // sedp_builtin_publications_dds_data_reader.clone();
         // spawner.spawn_enabled_periodic_task(
         //     "sedp discovery",
         //     move || {
@@ -620,8 +622,8 @@ impl DomainParticipantFactory {
             enabled,
         );
 
-        let spdp_discovered_participant_data =
-            domain_participant.as_spdp_discovered_participant_data();
+        // let spdp_discovered_participant_data =
+        //     domain_participant.as_spdp_discovered_participant_data();
 
         // rtps_shared_write_lock(&spdp_builtin_participant_dds_data_writer)
         //     .write_w_timestamp(
