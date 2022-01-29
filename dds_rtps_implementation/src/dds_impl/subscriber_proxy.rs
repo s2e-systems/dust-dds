@@ -35,7 +35,7 @@ use crate::{
 };
 
 use super::{
-    data_reader_impl::{DataReaderImpl, RtpsReader},
+    data_reader_proxy::{DataReaderAttributes, RtpsReader},
     data_reader_proxy::DataReaderProxy,
     domain_participant_proxy::DomainParticipantProxy,
     topic_proxy::TopicProxy,
@@ -44,7 +44,7 @@ use super::{
 pub struct SubscriberAttributes {
     qos: SubscriberQos,
     rtps_group: RtpsGroupImpl,
-    pub data_reader_list: Mutex<Vec<RtpsShared<DataReaderImpl>>>,
+    pub data_reader_list: Mutex<Vec<RtpsShared<DataReaderAttributes>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
 }
@@ -53,7 +53,7 @@ impl SubscriberAttributes {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
-        data_reader_list: Vec<RtpsShared<DataReaderImpl>>,
+        data_reader_list: Vec<RtpsShared<DataReaderAttributes>>,
     ) -> Self {
         Self {
             qos,

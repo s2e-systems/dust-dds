@@ -2,7 +2,11 @@ use std::marker::PhantomData;
 
 use crate::{
     dds_type::DdsDeserialize,
-    utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak},
+    rtps_impl::{
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    },
+    utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsShared, RtpsWeak},
 };
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -17,7 +21,7 @@ use rust_dds_api::{
         read_condition::ReadCondition,
         sample_info::SampleInfo,
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
     subscription::{
         data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
@@ -26,15 +30,85 @@ use rust_dds_api::{
 };
 
 use super::{
-    data_reader_impl::{DataReaderImpl, Samples},
     subscriber_proxy::SubscriberProxy,
-    topic_proxy::TopicProxy,
+    topic_proxy::{TopicAttributes, TopicProxy},
 };
+
+pub struct Samples<Foo> {
+    pub samples: Vec<Foo>,
+}
+
+impl<Foo> std::ops::Deref for Samples<Foo> {
+    type Target = [Foo];
+
+    fn deref(&self) -> &Self::Target {
+        &self.samples
+    }
+}
+
+pub enum RtpsReader {
+    Stateless(RtpsStatelessReaderImpl),
+    Stateful(RtpsStatefulReaderImpl),
+}
+
+impl RtpsReader {
+    pub fn try_as_stateless_reader(&mut self) -> DDSResult<&mut RtpsStatelessReaderImpl> {
+        match self {
+            RtpsReader::Stateless(x) => Ok(x),
+            RtpsReader::Stateful(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateless reader".to_string(),
+            )),
+        }
+    }
+
+    pub fn try_as_stateful_reader(&mut self) -> DDSResult<&mut RtpsStatefulReaderImpl> {
+        match self {
+            RtpsReader::Stateless(_) => Err(DDSError::PreconditionNotMet(
+                "Not a stateful reader".to_string(),
+            )),
+            RtpsReader::Stateful(x) => Ok(x),
+        }
+    }
+}
+
+pub struct DataReaderAttributes {
+    pub rtps_reader: RtpsReader,
+    _qos: DataReaderQos,
+    pub topic: RtpsShared<TopicAttributes>,
+    _listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
+}
+
+impl AsRef<RtpsReader> for DataReaderAttributes {
+    fn as_ref(&self) -> &RtpsReader {
+        &self.rtps_reader
+    }
+}
+
+impl AsMut<RtpsReader> for DataReaderAttributes {
+    fn as_mut(&mut self) -> &mut RtpsReader {
+        &mut self.rtps_reader
+    }
+}
+
+impl DataReaderAttributes {
+    pub fn new(
+        qos: DataReaderQos,
+        rtps_reader: RtpsReader,
+        topic: RtpsShared<TopicAttributes>,
+    ) -> Self {
+        Self {
+            rtps_reader,
+            _qos: qos,
+            topic,
+            _listener: None,
+        }
+    }
+}
 
 pub struct DataReaderProxy<Foo> {
     subscriber: SubscriberProxy,
     topic: TopicProxy<Foo>,
-    data_reader_impl: RtpsWeak<DataReaderImpl>,
+    data_reader_impl: RtpsWeak<DataReaderAttributes>,
     phantom: PhantomData<Foo>,
 }
 
@@ -54,7 +128,7 @@ impl<Foo> DataReaderProxy<Foo> {
     pub fn new(
         subscriber: SubscriberProxy,
         topic: TopicProxy<Foo>,
-        data_reader_impl: RtpsWeak<DataReaderImpl>,
+        data_reader_impl: RtpsWeak<DataReaderAttributes>,
     ) -> Self {
         Self {
             subscriber,
@@ -65,8 +139,8 @@ impl<Foo> DataReaderProxy<Foo> {
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<DataReaderImpl>> for DataReaderProxy<Foo> {
-    fn as_ref(&self) -> &RtpsWeak<DataReaderImpl> {
+impl<Foo> AsRef<RtpsWeak<DataReaderAttributes>> for DataReaderProxy<Foo> {
+    fn as_ref(&self) -> &RtpsWeak<DataReaderAttributes> {
         &self.data_reader_impl
     }
 }
@@ -88,7 +162,27 @@ where
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = rtps_weak_upgrade(&self.data_reader_impl)?;
         let mut data_reader_lock = rtps_shared_write_lock(&data_reader_shared);
-        data_reader_lock.read(max_samples, sample_states, view_states, instance_states)
+        // match &self.rtps_reader {
+        //     RtpsReader::Stateless(rtps_reader) => {
+        //         if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
+        //             Ok(Samples {
+        //                 samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
+        //             })
+        //         } else {
+        //             Err(DDSError::NoData)
+        //         }
+        //     }
+        //     RtpsReader::Stateful(rtps_reader) => {
+        //         if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
+        //             Ok(Samples {
+        //                 samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
+        //             })
+        //         } else {
+        //             Err(DDSError::NoData)
+        //         }
+        //     }
+        // }
+        todo!()
     }
 
     fn take(
