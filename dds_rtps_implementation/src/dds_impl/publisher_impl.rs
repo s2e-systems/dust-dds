@@ -24,7 +24,6 @@ use rust_dds_api::{
         publisher_listener::PublisherListener,
     },
     return_type::DDSResult,
-    topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
     behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
@@ -51,7 +50,7 @@ use crate::{
     },
 };
 
-use super::{data_writer_impl::RtpsWriter, topic_impl::TopicImpl};
+use super::{data_writer_impl::RtpsWriter, topic_proxy::TopicAttributes};
 
 pub struct PublisherImpl {
     _qos: PublisherQos,
@@ -106,7 +105,7 @@ impl<Foo> PublisherDataWriterFactory<Foo> for PublisherImpl
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
 {
-    type TopicType = RtpsShared<TopicImpl>;
+    type TopicType = RtpsShared<TopicAttributes>;
     type DataWriterType = RtpsShared<DataWriterImpl>;
 
     fn datawriter_factory_create_datawriter(
@@ -173,7 +172,7 @@ where
                 publication_builtin_topic_data: PublicationBuiltinTopicData {
                     key: BuiltInTopicKey { value: guid.into() },
                     participant_key: BuiltInTopicKey { value: [1; 16] },
-                    topic_name: topic_shared.get_name().unwrap().to_string(),
+                    topic_name: topic_shared.topic_name.clone(),
                     type_name: Foo::type_name().to_string(),
                     durability: DurabilityQosPolicy::default(),
                     durability_service: DurabilityServiceQosPolicy::default(),
@@ -334,7 +333,7 @@ impl Entity for PublisherImpl {
 mod tests {
     use super::*;
     use mockall::mock;
-    use rust_dds_api::infrastructure::qos::TopicQos;
+    use rust_dds_api::{infrastructure::qos::TopicQos, topic::topic_description::TopicDescription};
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
 
     struct MockDDSType;
@@ -408,7 +407,7 @@ mod tests {
         let rtps_group_impl = RtpsGroupImpl::new(GUID_UNKNOWN);
         let publisher_impl =
             PublisherImpl::new(PublisherQos::default(), rtps_group_impl, vec![], None);
-        let a_topic_shared = rtps_shared_new(TopicImpl::new(
+        let a_topic_shared = rtps_shared_new(TopicAttributes::new(
             TopicQos::default(),
             "MockDDSType",
             "MyTopic",

@@ -38,7 +38,7 @@ use rust_dds_rtps_implementation::{
         data_writer_impl::{DataWriterImpl, RtpsWriter},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
-        topic_impl::TopicImpl,
+        topic_proxy::TopicAttributes,
     },
     dds_type::DdsType,
     rtps_impl::{
@@ -163,7 +163,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
         RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
-        rtps_shared_new(TopicImpl::new(
+        rtps_shared_new(TopicAttributes::new(
             TopicQos::default(),
             SpdpDiscoveredParticipantData::type_name(),
             "DCPSParticipant",
@@ -304,7 +304,7 @@ fn process_discovery_data_happy_path() {
     let spdp_builtin_participant_data_reader = DataReaderImpl::new(
         DataReaderQos::default(),
         RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
-        rtps_shared_new(TopicImpl::new(
+        rtps_shared_new(TopicAttributes::new(
             TopicQos::default(),
             SpdpDiscoveredParticipantData::type_name(),
             "DCPSParticipant",
@@ -332,7 +332,7 @@ fn process_discovery_data_happy_path() {
     let mut sedp_built_publications_reader = DataReaderImpl::new(
         DataReaderQos::default(),
         RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
-        rtps_shared_new(TopicImpl::new(
+        rtps_shared_new(TopicAttributes::new(
             TopicQos::default(),
             SedpDiscoveredWriterData::type_name(),
             "DCPSPublication",

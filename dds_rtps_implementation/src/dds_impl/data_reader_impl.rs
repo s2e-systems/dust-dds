@@ -16,10 +16,11 @@ use crate::{
     rtps_impl::{
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    }, utils::shared_object::RtpsShared,
+    },
+    utils::shared_object::RtpsShared,
 };
 
-use super::topic_impl::TopicImpl;
+use super::topic_proxy::TopicAttributes;
 
 pub struct Samples<Foo> {
     pub samples: Vec<Foo>,
@@ -61,7 +62,7 @@ impl RtpsReader {
 pub struct DataReaderImpl {
     pub rtps_reader: RtpsReader,
     _qos: DataReaderQos,
-    pub topic: RtpsShared<TopicImpl>,
+    pub topic: RtpsShared<TopicAttributes>,
     _listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
 }
 
@@ -78,7 +79,11 @@ impl AsMut<RtpsReader> for DataReaderImpl {
 }
 
 impl DataReaderImpl {
-    pub fn new(qos: DataReaderQos, rtps_reader: RtpsReader, topic: RtpsShared<TopicImpl>) -> Self {
+    pub fn new(
+        qos: DataReaderQos,
+        rtps_reader: RtpsReader,
+        topic: RtpsShared<TopicAttributes>,
+    ) -> Self {
         Self {
             rtps_reader,
             _qos: qos,

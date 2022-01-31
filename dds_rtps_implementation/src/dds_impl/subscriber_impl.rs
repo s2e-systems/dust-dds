@@ -13,7 +13,6 @@ use rust_dds_api::{
         subscriber::{Subscriber, SubscriberDataReaderFactory},
         subscriber_listener::SubscriberListener,
     },
-    topic::topic_description::TopicDescription,
 };
 use rust_rtps_pim::{
     behavior::{
@@ -45,7 +44,7 @@ use crate::{
 
 use super::{
     data_reader_impl::{DataReaderImpl, RtpsReader},
-    topic_impl::TopicImpl,
+    topic_proxy::TopicAttributes,
 };
 
 pub struct SubscriberImpl {
@@ -76,7 +75,7 @@ impl<Foo> SubscriberDataReaderFactory<Foo> for SubscriberImpl
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
 {
-    type TopicType = RtpsShared<TopicImpl>;
+    type TopicType = RtpsShared<TopicAttributes>;
     type DataReaderType = RtpsShared<DataReaderImpl>;
 
     fn datareader_factory_create_datareader(
@@ -149,8 +148,7 @@ where
         let data_reader_list_lock = self.data_reader_list.lock().unwrap();
         let found_data_reader = data_reader_list_lock.iter().cloned().find(|x| {
             rtps_shared_read_lock(&rtps_shared_read_lock(x).topic)
-                .get_type_name()
-                .unwrap()
+                .type_name
                 == Foo::type_name()
         });
 

@@ -20,7 +20,6 @@ use rust_dds_api::{
     publication::data_writer::DataWriter,
     return_type::DDSResult,
     subscription::data_reader::DataReader,
-    topic::topic_description::TopicDescription,
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
@@ -32,11 +31,10 @@ use rust_dds_rtps_implementation::{
     dds_impl::{
         data_reader_impl::{DataReaderImpl, RtpsReader, Samples},
         data_writer_impl::{DataWriterImpl, RtpsWriter},
-        domain_participant_impl::DomainParticipantImpl,
-        domain_participant_proxy::DomainParticipantProxy,
+        domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl,
-        topic_impl::TopicImpl,
+        topic_proxy::TopicAttributes,
     },
     dds_type::DdsType,
     rtps_impl::{
@@ -229,11 +227,9 @@ fn task_sedp_discovery(
                 for data_reader in data_reader_list_lock.iter() {
                     let mut data_reader_lock = data_reader.write().unwrap();
                     let reader_topic_name = &rtps_shared_read_lock(&data_reader_lock.topic)
-                        .get_name()
-                        .unwrap();
-                    let reader_type_name = rtps_shared_read_lock(&data_reader_lock.topic)
-                        .get_type_name()
-                        .unwrap();
+                        .topic_name
+                        .clone();
+                    let reader_type_name = rtps_shared_read_lock(&data_reader_lock.topic).type_name;
                     if topic_name == reader_topic_name && type_name == reader_type_name {
                         let writer_proxy = RtpsWriterProxyImpl::new(
                             sample.writer_proxy.remote_writer_guid,
@@ -311,7 +307,7 @@ fn get_user_defined_udp_socket(domain_id: u16) -> Option<UdpSocket> {
 }
 
 pub struct DomainParticipantFactory {
-    participant_list: Mutex<Vec<RtpsShared<DomainParticipantImpl>>>,
+    participant_list: Mutex<Vec<RtpsShared<DomainParticipantAttributes>>>,
 }
 
 impl DomainParticipantFactory {
@@ -408,7 +404,7 @@ impl DomainParticipantFactory {
         let spdp_builtin_participant_dds_data_reader = rtps_shared_new(DataReaderImpl::new(
             DataReaderQos::default(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
-            rtps_shared_new(TopicImpl::new(
+            rtps_shared_new(TopicAttributes::new(
                 TopicQos::default(),
                 SpdpDiscoveredParticipantData::type_name(),
                 "DCPSParticipant",
@@ -423,7 +419,7 @@ impl DomainParticipantFactory {
         let sedp_builtin_publications_dds_data_reader = rtps_shared_new(DataReaderImpl::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
-            rtps_shared_new(TopicImpl::new(
+            rtps_shared_new(TopicAttributes::new(
                 TopicQos::default(),
                 SedpDiscoveredWriterData::type_name(),
                 "DCPSPublication",
@@ -438,7 +434,7 @@ impl DomainParticipantFactory {
         let sedp_builtin_subscriptions_dds_data_reader = rtps_shared_new(DataReaderImpl::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
-            rtps_shared_new(TopicImpl::new(
+            rtps_shared_new(TopicAttributes::new(
                 TopicQos::default(),
                 SedpDiscoveredReaderData::type_name(),
                 "DCPSSubscription",
@@ -453,7 +449,7 @@ impl DomainParticipantFactory {
         let sedp_builtin_topics_dds_data_reader = rtps_shared_new(DataReaderImpl::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
-            rtps_shared_new(TopicImpl::new(
+            rtps_shared_new(TopicAttributes::new(
                 TopicQos::default(),
                 SedpDiscoveredTopicData::type_name(),
                 "DCPSTopic",
@@ -608,7 +604,7 @@ impl DomainParticipantFactory {
             std::time::Duration::from_millis(500),
         );
 
-        let domain_participant = DomainParticipantImpl::new(
+        let domain_participant = DomainParticipantAttributes::new(
             guid_prefix,
             domain_id,
             domain_tag,
