@@ -113,7 +113,7 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
     }
 
     fn is_active(&self) -> &bool {
-        todo!()
+        &self.reader_proxy_attributes.is_active
     }
 }
 
