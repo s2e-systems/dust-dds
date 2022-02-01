@@ -48,7 +48,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::shared_object::{rtps_shared_new, rtps_shared_write_lock},
+    utils::shared_object::{rtps_shared_new, rtps_shared_write_lock, RtpsWeak},
 };
 use rust_rtps_pim::{
     behavior::{
@@ -139,9 +139,11 @@ fn send_and_receive_discovery_data_happy_path() {
     let publisher = rtps_shared_new(PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(GUID_UNKNOWN),
-        vec![Arc::new(RwLock::new(data_writer))],
         None,
+        RtpsWeak::new(),
     ));
+
+    // vec![Arc::new(RwLock::new(data_writer))],
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
     socket.set_nonblocking(true).unwrap();
@@ -176,8 +178,9 @@ fn send_and_receive_discovery_data_happy_path() {
             GuidPrefix([6; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),
-        vec![shared_data_reader.clone()],
+        RtpsWeak::new(),
     ));
+    // vec![shared_data_reader.clone()],
 
     communication.receive(core::slice::from_ref(&subscriber));
 
@@ -277,12 +280,14 @@ fn process_discovery_data_happy_path() {
             GuidPrefix([4; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
-        vec![
-            rtps_shared_new(spdp_builtin_participant_data_writer),
-            sedp_builtin_publications_data_writer.clone(),
-        ],
         None,
+        RtpsWeak::new(),
     ));
+
+    // vec![
+    //         rtps_shared_new(spdp_builtin_participant_data_writer),
+    //         sedp_builtin_publications_data_writer.clone(),
+    //     ],
 
     let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
     socket.set_nonblocking(true).unwrap();
@@ -317,8 +322,10 @@ fn process_discovery_data_happy_path() {
             GuidPrefix([6; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),
-        vec![shared_data_reader.clone()],
+        RtpsWeak::new(),
     ));
+    // vec![shared_data_reader.clone()],
+
     communication.receive(core::slice::from_ref(&subscriber));
 
     communication.receive(core::slice::from_ref(&subscriber));
@@ -397,13 +404,13 @@ fn process_discovery_data_happy_path() {
     //         },
     //     };
 
-        // sedp_builtin_publications_data_writer_lock
-        //     .write_w_timestamp(
-        //         &sedp_discovered_writer_data,
-        //         None,
-        //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-        //     )
-        //     .unwrap();
+    // sedp_builtin_publications_data_writer_lock
+    //     .write_w_timestamp(
+    //         &sedp_discovered_writer_data,
+    //         None,
+    //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+    //     )
+    //     .unwrap();
     // }
 
     // assert_eq!(sedp_built_publications_reader.matched_writers.len(), 1);

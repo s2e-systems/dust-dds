@@ -1,4 +1,4 @@
-use std::sync::{atomic::AtomicU8, Mutex, MutexGuard};
+use std::sync::atomic::AtomicU8;
 
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
@@ -25,80 +25,47 @@ use crate::{
 };
 
 use super::{
-    data_writer_proxy::DataWriterAttributes, data_writer_proxy::DataWriterProxy,
-    domain_participant_proxy::DomainParticipantProxy, topic_proxy::TopicProxy,
+    data_writer_proxy::DataWriterAttributes,
+    data_writer_proxy::DataWriterProxy,
+    domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
+    topic_proxy::TopicProxy,
 };
 
 pub struct PublisherAttributes {
-    _qos: PublisherQos,
-    rtps_group: RtpsGroupImpl,
-    data_writer_list: Mutex<Vec<RtpsShared<DataWriterAttributes>>>,
-    user_defined_data_writer_counter: AtomicU8,
-    default_datawriter_qos: DataWriterQos,
-    sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes>>,
-}
-
-pub struct DataWriterListIterator<'a> {
-    data_writer_list_lock: MutexGuard<'a, Vec<RtpsShared<DataWriterAttributes>>>,
-    index: usize,
-}
-
-impl<'a> Iterator for DataWriterListIterator<'a> {
-    type Item = RtpsShared<DataWriterAttributes>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let item = self.data_writer_list_lock.get(self.index)?;
-        self.index += 1;
-        Some(item.clone())
-    }
+    pub _qos: PublisherQos,
+    pub rtps_group: RtpsGroupImpl,
+    pub data_writer_list: Vec<RtpsShared<DataWriterAttributes>>,
+    pub user_defined_data_writer_counter: AtomicU8,
+    pub default_datawriter_qos: DataWriterQos,
+    pub sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes>>,
+    pub parent_participant: RtpsWeak<DomainParticipantAttributes>,
 }
 
 impl PublisherAttributes {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        data_writer_list: Vec<RtpsShared<DataWriterAttributes>>,
         sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes>>,
+        parent_participant: RtpsWeak<DomainParticipantAttributes>,
     ) -> Self {
         Self {
             _qos: qos,
             rtps_group,
-            data_writer_list: Mutex::new(data_writer_list),
+            data_writer_list: Vec::new(),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             sedp_builtin_publications_announcer,
-        }
-    }
-
-    pub fn iter_data_writer_list(&self) -> DataWriterListIterator {
-        DataWriterListIterator {
-            data_writer_list_lock: self.data_writer_list.lock().unwrap(),
-            index: 0,
+            parent_participant,
         }
     }
 }
 
 #[derive(Clone)]
-pub struct PublisherProxy {
-    _participant: DomainParticipantProxy,
-    publisher_impl: RtpsWeak<PublisherAttributes>,
-}
+pub struct PublisherProxy(pub(crate) RtpsWeak<PublisherAttributes>);
 
 impl<'p> PublisherProxy {
-    pub fn new(
-        participant: DomainParticipantProxy,
-        publisher_impl: RtpsWeak<PublisherAttributes>,
-    ) -> Self {
-        Self {
-            _participant: participant,
-            publisher_impl,
-        }
-    }
-}
-
-impl AsRef<RtpsWeak<PublisherAttributes>> for PublisherProxy {
-    fn as_ref(&self) -> &RtpsWeak<PublisherAttributes> {
-        &self.publisher_impl
+    pub fn new(publisher_impl: RtpsWeak<PublisherAttributes>) -> Self {
+        Self(publisher_impl)
     }
 }
 
@@ -305,8 +272,12 @@ impl Publisher for PublisherProxy {
         todo!()
     }
 
-    fn get_participant(&self) -> Self::DomainParticipant {
-        self._participant.clone()
+    fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
+        let publisher_attributes = rtps_weak_upgrade(&self.0)?;
+        let publisher_attributes_lock = rtps_shared_read_lock(&publisher_attributes);
+        Ok(DomainParticipantProxy::new(
+            publisher_attributes_lock.parent_participant.clone(),
+        ))
     }
 }
 

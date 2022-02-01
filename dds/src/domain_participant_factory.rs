@@ -47,7 +47,7 @@ use rust_dds_rtps_implementation::{
     },
     utils::shared_object::{
         rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
-        RtpsShared,
+        RtpsShared, RtpsWeak,
     },
 };
 use rust_rtps_pim::{
@@ -223,8 +223,7 @@ fn task_sedp_discovery(
             let subscriber_list_lock = rtps_shared_read_lock(&subscriber_list);
             for subscriber in subscriber_list_lock.iter() {
                 let subscriber_lock = rtps_shared_read_lock(subscriber);
-                let data_reader_list_lock = subscriber_lock.data_reader_list.lock().unwrap();
-                for data_reader in data_reader_list_lock.iter() {
+                for data_reader in subscriber_lock.data_reader_list.iter() {
                     let mut data_reader_lock = data_reader.write().unwrap();
                     let reader_topic_name = &rtps_shared_read_lock(&data_reader_lock.topic)
                         .topic_name
@@ -468,14 +467,14 @@ impl DomainParticipantFactory {
             RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
-            vec![
-                spdp_builtin_participant_dds_data_reader.clone(),
-                sedp_builtin_publications_dds_data_reader.clone(),
-                sedp_builtin_subscriptions_dds_data_reader.clone(),
-                sedp_builtin_topics_dds_data_reader.clone(),
-            ],
+            )), RtpsWeak::new(),
         ));
+        // vec![
+        //     spdp_builtin_participant_dds_data_reader.clone(),
+        //     sedp_builtin_publications_dds_data_reader.clone(),
+        //     sedp_builtin_subscriptions_dds_data_reader.clone(),
+        //     sedp_builtin_topics_dds_data_reader.clone(),
+        // ],
 
         let builtin_publisher = rtps_shared_new(PublisherAttributes::new(
             PublisherQos::default(),
@@ -483,14 +482,16 @@ impl DomainParticipantFactory {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
-            vec![
-                spdp_builtin_participant_dds_data_writer.clone(),
-                sedp_builtin_publications_dds_data_writer.clone(),
-                sedp_builtin_subscriptions_dds_data_writer.clone(),
-                sedp_builtin_topics_dds_data_writer.clone(),
-            ],
             None,
+            RtpsWeak::new(),
         ));
+
+        // vec![
+        // spdp_builtin_participant_dds_data_writer.clone(),
+        // sedp_builtin_publications_dds_data_writer.clone(),
+        // sedp_builtin_subscriptions_dds_data_writer.clone(),
+        // sedp_builtin_topics_dds_data_writer.clone(),
+        // ],
 
         let user_defined_subscriber_list = Vec::new();
         let user_defined_publisher_list = Vec::new();
@@ -615,8 +616,6 @@ impl DomainParticipantFactory {
             metatraffic_multicast_locator_list,
             default_unicast_locator_list,
             default_multicast_locator_list,
-            builtin_subscriber,
-            builtin_publisher,
             user_defined_subscriber_list,
             user_defined_publisher_list,
             enabled,
@@ -1179,8 +1178,7 @@ mod tests {
             RtpsGroupImpl::new(Guid::new(
                 GuidPrefix([0; 12]),
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
-            vec![],
+            )), RtpsWeak::new(),
         );
         let subscriber_list = vec![rtps_shared_new(subscriber)];
 

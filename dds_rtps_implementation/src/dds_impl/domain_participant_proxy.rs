@@ -57,8 +57,8 @@ pub struct DomainParticipantAttributes {
     domain_id: DomainId,
     domain_tag: Arc<String>,
     qos: DomainParticipantQos,
-    builtin_subscriber: RtpsShared<SubscriberAttributes>,
-    builtin_publisher: RtpsShared<PublisherAttributes>,
+    builtin_subscriber_list: Vec<RtpsShared<SubscriberAttributes>>,
+    builtin_publisher_list: Vec<RtpsShared<PublisherAttributes>>,
     user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
@@ -84,8 +84,6 @@ impl DomainParticipantAttributes {
         metatraffic_multicast_locator_list: Vec<Locator>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        builtin_subscriber: RtpsShared<SubscriberAttributes>,
-        builtin_publisher: RtpsShared<PublisherAttributes>,
         user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes>>,
         user_defined_publisher_list: Vec<RtpsShared<PublisherAttributes>>,
         enabled: Arc<AtomicBool>,
@@ -106,8 +104,8 @@ impl DomainParticipantAttributes {
             domain_id,
             domain_tag,
             qos: domain_participant_qos,
-            builtin_subscriber,
-            builtin_publisher,
+            builtin_subscriber_list: Vec::new(),
+            builtin_publisher_list: Vec::new(),
             user_defined_subscriber_list,
             user_defined_subscriber_counter: AtomicU8::new(0),
             default_subscriber_qos: SubscriberQos::default(),
@@ -307,7 +305,12 @@ impl DomainParticipant for DomainParticipantProxy {
         // let sedp_builtin_publications_announcer =
         //     rtps_shared_read_lock(&domain_participant_attributes_lock.builtin_publisher)
         //         .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
-        let publisher_impl = PublisherAttributes::new(publisher_qos, rtps_group, Vec::new(), None);
+        let publisher_impl = PublisherAttributes::new(
+            publisher_qos,
+            rtps_group,
+            None,
+            self.domain_participant.clone(),
+        );
         let publisher_impl_shared = rtps_shared_new(publisher_impl);
         domain_participant_attributes_lock
             .user_defined_publisher_list
@@ -315,15 +318,15 @@ impl DomainParticipant for DomainParticipantProxy {
 
         let publisher_weak = rtps_shared_downgrade(&publisher_impl_shared);
 
-        Some(PublisherProxy::new(self.clone(), publisher_weak))
+        Some(PublisherProxy::new(publisher_weak))
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         let domain_participant_attributes = rtps_weak_upgrade(&self.domain_participant)?;
         let mut domain_participant_attributes_lock =
             rtps_shared_write_lock(&domain_participant_attributes);
-        let publisher_shared = rtps_weak_upgrade(a_publisher.as_ref())?;
-        if std::ptr::eq(&a_publisher.get_participant(), self) {
+        let publisher_shared = rtps_weak_upgrade(&a_publisher.0)?;
+        if std::ptr::eq(&a_publisher.get_participant()?, self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_publisher(&publisher_shared)
             domain_participant_attributes_lock
                 .user_defined_publisher_list
@@ -368,7 +371,7 @@ impl DomainParticipant for DomainParticipantProxy {
             entity_id,
         );
         let rtps_group = RtpsGroupImpl::new(guid);
-        let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, Vec::new());
+        let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, RtpsWeak::new());
         let subscriber_shared = rtps_shared_new(subscriber);
         domain_participant_attributes_lock
             .user_defined_subscriber_list
@@ -411,7 +414,7 @@ impl DomainParticipant for DomainParticipantProxy {
     fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
         let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
-        let subscriber_shared = domain_participant_lock.builtin_subscriber.clone();
+        let subscriber_shared = domain_participant_lock.builtin_subscriber_list[0].clone();
         let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
         Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
     }

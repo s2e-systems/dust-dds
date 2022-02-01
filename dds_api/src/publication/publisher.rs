@@ -146,7 +146,7 @@ pub trait Publisher {
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&self) -> Self::DomainParticipant;
+    fn get_participant(&self) -> DDSResult<Self::DomainParticipant>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.

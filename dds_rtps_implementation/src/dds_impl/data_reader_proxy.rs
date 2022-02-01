@@ -73,9 +73,9 @@ impl RtpsReader {
 
 pub struct DataReaderAttributes {
     pub rtps_reader: RtpsReader,
-    _qos: DataReaderQos,
+    pub _qos: DataReaderQos,
     pub topic: RtpsShared<TopicAttributes>,
-    _listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
+    pub _listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
 }
 
 impl AsRef<RtpsReader> for DataReaderAttributes {

@@ -130,7 +130,7 @@ where
     type Topic = TopicProxy<Foo>;
 
     fn register_instance(&mut self, instance: Foo) -> DDSResult<Option<InstanceHandle>> {
-        let timestamp = self.publisher.get_participant().get_current_time()?;
+        let timestamp = self.publisher.get_participant()?.get_current_time()?;
         self.register_instance_w_timestamp(instance, timestamp)
     }
 
@@ -149,7 +149,7 @@ where
         instance: Foo,
         handle: Option<InstanceHandle>,
     ) -> DDSResult<()> {
-        let timestamp = self.publisher.get_participant().get_current_time()?;
+        let timestamp = self.publisher.get_participant()?.get_current_time()?;
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
@@ -173,7 +173,7 @@ where
     }
 
     fn write(&mut self, data: &Foo, handle: Option<InstanceHandle>) -> DDSResult<()> {
-        let timestamp = self.publisher.get_participant().get_current_time()?;
+        let timestamp = self.publisher.get_participant()?.get_current_time()?;
         self.write_w_timestamp(data, handle, timestamp)
     }
 
