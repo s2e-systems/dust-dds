@@ -30,7 +30,7 @@ use rust_dds_api::{
 };
 
 use super::{
-    subscriber_proxy::SubscriberProxy,
+    subscriber_proxy::{SubscriberProxy, SubscriberAttributes},
     topic_proxy::{TopicAttributes, TopicProxy},
 };
 
@@ -76,18 +76,7 @@ pub struct DataReaderAttributes {
     pub _qos: DataReaderQos,
     pub topic: RtpsShared<TopicAttributes>,
     pub _listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
-}
-
-impl AsRef<RtpsReader> for DataReaderAttributes {
-    fn as_ref(&self) -> &RtpsReader {
-        &self.rtps_reader
-    }
-}
-
-impl AsMut<RtpsReader> for DataReaderAttributes {
-    fn as_mut(&mut self) -> &mut RtpsReader {
-        &mut self.rtps_reader
-    }
+    pub parent_subscriber: RtpsWeak<SubscriberAttributes>,
 }
 
 impl DataReaderAttributes {
@@ -95,12 +84,14 @@ impl DataReaderAttributes {
         qos: DataReaderQos,
         rtps_reader: RtpsReader,
         topic: RtpsShared<TopicAttributes>,
+        parent_subscriber: RtpsWeak<SubscriberAttributes>,
     ) -> Self {
         Self {
             rtps_reader,
             _qos: qos,
             topic,
             _listener: None,
+            parent_subscriber,
         }
     }
 }

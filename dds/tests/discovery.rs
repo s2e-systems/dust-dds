@@ -127,6 +127,8 @@ fn send_and_receive_discovery_data_happy_path() {
     let mut data_writer = DataWriterAttributes::new(
         DataWriterQos::default(),
         RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
+        RtpsWeak::new(),
+        RtpsWeak::new(),
     );
 
     // data_writer
@@ -170,6 +172,7 @@ fn send_and_receive_discovery_data_happy_path() {
             SpdpDiscoveredParticipantData::type_name(),
             "DCPSParticipant",
         )),
+        RtpsWeak::new(),
     );
     let shared_data_reader = rtps_shared_new(data_reader);
     let subscriber = rtps_shared_new(SubscriberAttributes::new(
@@ -256,6 +259,8 @@ fn process_discovery_data_happy_path() {
     let mut spdp_builtin_participant_data_writer = DataWriterAttributes::new(
         DataWriterQos::default(),
         RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
+        RtpsWeak::new(),
+        RtpsWeak::new(),
     );
 
     // spdp_builtin_participant_data_writer
@@ -272,6 +277,8 @@ fn process_discovery_data_happy_path() {
     let sedp_builtin_publications_data_writer = rtps_shared_new(DataWriterAttributes::new(
         DataWriterQos::default(),
         RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
+        RtpsWeak::new(),
+        RtpsWeak::new(),
     ));
 
     let publisher = rtps_shared_new(PublisherAttributes::new(
@@ -314,6 +321,7 @@ fn process_discovery_data_happy_path() {
             SpdpDiscoveredParticipantData::type_name(),
             "DCPSParticipant",
         )),
+        RtpsWeak::new(),
     );
     let shared_data_reader = rtps_shared_new(spdp_builtin_participant_data_reader);
     let subscriber = rtps_shared_new(SubscriberAttributes::new(
@@ -344,6 +352,7 @@ fn process_discovery_data_happy_path() {
             SedpDiscoveredWriterData::type_name(),
             "DCPSPublication",
         )),
+        RtpsWeak::new(),
     );
 
     // if let Ok(participant_discovery) = ParticipantDiscovery::new(

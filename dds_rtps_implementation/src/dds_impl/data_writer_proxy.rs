@@ -28,7 +28,10 @@ use rust_dds_api::{
 };
 use rust_rtps_pim::{behavior::writer::writer::RtpsWriterOperations, structure::types::ChangeKind};
 
-use super::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
+use super::{
+    publisher_proxy::{PublisherAttributes, PublisherProxy},
+    topic_proxy::{TopicAttributes, TopicProxy},
+};
 
 pub enum RtpsWriter {
     Stateless(RtpsStatelessWriterImpl),
@@ -55,17 +58,26 @@ impl RtpsWriter {
 }
 
 pub struct DataWriterAttributes {
-    _qos: DataWriterQos,
-    rtps_writer: RtpsWriter,
-    _listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
+    pub _qos: DataWriterQos,
+    pub rtps_writer: RtpsWriter,
+    pub _listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
+    pub topic: RtpsWeak<TopicAttributes>,
+    pub publisher: RtpsWeak<PublisherAttributes>,
 }
 
 impl DataWriterAttributes {
-    pub fn new(qos: DataWriterQos, rtps_writer: RtpsWriter) -> Self {
+    pub fn new(
+        qos: DataWriterQos,
+        rtps_writer: RtpsWriter,
+        topic: RtpsWeak<TopicAttributes>,
+        publisher: RtpsWeak<PublisherAttributes>,
+    ) -> Self {
         Self {
             _qos: qos,
             rtps_writer,
             _listener: None,
+            topic,
+            publisher,
         }
     }
 }
@@ -83,8 +95,6 @@ impl AsMut<RtpsWriter> for DataWriterAttributes {
 }
 
 pub struct DataWriterProxy<Foo> {
-    publisher: PublisherProxy,
-    topic: TopicProxy<Foo>,
     data_writer_impl: RtpsWeak<DataWriterAttributes>,
     phantom: PhantomData<Foo>,
 }
@@ -93,8 +103,6 @@ pub struct DataWriterProxy<Foo> {
 impl<Foo> Clone for DataWriterProxy<Foo> {
     fn clone(&self) -> Self {
         Self {
-            publisher: self.publisher.clone(),
-            topic: self.topic.clone(),
             data_writer_impl: self.data_writer_impl.clone(),
             phantom: self.phantom.clone(),
         }
@@ -102,14 +110,8 @@ impl<Foo> Clone for DataWriterProxy<Foo> {
 }
 
 impl<Foo> DataWriterProxy<Foo> {
-    pub fn new(
-        publisher: PublisherProxy,
-        topic: TopicProxy<Foo>,
-        data_writer_impl: RtpsWeak<DataWriterAttributes>,
-    ) -> Self {
+    pub fn new(data_writer_impl: RtpsWeak<DataWriterAttributes>) -> Self {
         Self {
-            publisher,
-            topic,
             data_writer_impl,
             phantom: PhantomData,
         }
@@ -130,8 +132,9 @@ where
     type Topic = TopicProxy<Foo>;
 
     fn register_instance(&mut self, instance: Foo) -> DDSResult<Option<InstanceHandle>> {
-        let timestamp = self.publisher.get_participant()?.get_current_time()?;
-        self.register_instance_w_timestamp(instance, timestamp)
+        // let timestamp = self.publisher.get_participant()?.get_current_time()?;
+        // self.register_instance_w_timestamp(instance, timestamp)
+        todo!()
     }
 
     fn register_instance_w_timestamp(
@@ -140,7 +143,7 @@ where
         timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
-            // .register_instance_w_timestamp(instance, timestamp)
+        // .register_instance_w_timestamp(instance, timestamp)
         todo!()
     }
 
@@ -149,8 +152,9 @@ where
         instance: Foo,
         handle: Option<InstanceHandle>,
     ) -> DDSResult<()> {
-        let timestamp = self.publisher.get_participant()?.get_current_time()?;
-        self.unregister_instance_w_timestamp(instance, handle, timestamp)
+        todo!()
+        // let timestamp = self.publisher.get_participant()?.get_current_time()?;
+        // self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     fn unregister_instance_w_timestamp(
@@ -173,8 +177,9 @@ where
     }
 
     fn write(&mut self, data: &Foo, handle: Option<InstanceHandle>) -> DDSResult<()> {
-        let timestamp = self.publisher.get_participant()?.get_current_time()?;
-        self.write_w_timestamp(data, handle, timestamp)
+        // let timestamp = self.publisher.get_participant()?.get_current_time()?;
+        // self.write_w_timestamp(data, handle, timestamp)
+        todo!()
     }
 
     fn write_w_timestamp(
@@ -245,11 +250,13 @@ where
     }
 
     fn get_topic(&self) -> DDSResult<Self::Topic> {
-        Ok(self.topic.clone())
+        // Ok(self.topic.clone())
+        todo!()
     }
 
     fn get_publisher(&self) -> DDSResult<Self::Publisher> {
-        Ok(self.publisher.clone())
+        // Ok(self.publisher.clone())
+        todo!()
     }
 
     fn assert_liveliness(&self) -> DDSResult<()> {
