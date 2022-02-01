@@ -227,7 +227,7 @@ where
             .push(topic_impl_shared.clone());
 
         let topic_weak = rtps_shared_downgrade(&topic_impl_shared);
-        Some(TopicProxy::new(self.clone(), topic_weak))
+        Some(TopicProxy::new(topic_weak))
     }
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()> {

@@ -11,7 +11,7 @@ use rust_dds_api::{
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-use super::domain_participant_proxy::{DomainParticipantProxy, DomainParticipantAttributes};
+use super::domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy};
 
 pub struct TopicAttributes {
     pub _qos: TopicQos,
@@ -37,7 +37,6 @@ impl TopicAttributes {
 }
 
 pub struct TopicProxy<Foo> {
-    participant: DomainParticipantProxy,
     topic_impl: RtpsWeak<TopicAttributes>,
     phantom: PhantomData<Foo>,
 }
@@ -46,7 +45,6 @@ pub struct TopicProxy<Foo> {
 impl<Foo> Clone for TopicProxy<Foo> {
     fn clone(&self) -> Self {
         Self {
-            participant: self.participant.clone(),
             topic_impl: self.topic_impl.clone(),
             phantom: self.phantom.clone(),
         }
@@ -54,9 +52,8 @@ impl<Foo> Clone for TopicProxy<Foo> {
 }
 
 impl<Foo> TopicProxy<Foo> {
-    pub fn new(participant: DomainParticipantProxy, topic_impl: RtpsWeak<TopicAttributes>) -> Self {
+    pub fn new(topic_impl: RtpsWeak<TopicAttributes>) -> Self {
         Self {
-            participant,
             topic_impl,
             phantom: PhantomData,
         }
@@ -80,7 +77,8 @@ impl<Foo> TopicDescription for TopicProxy<Foo> {
     type DomainParticipant = DomainParticipantProxy;
 
     fn get_participant(&self) -> Self::DomainParticipant {
-        self.participant.clone()
+        todo!()
+        // self.participant.clone()
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
