@@ -24,7 +24,7 @@ use rust_rtps_pim::{
 };
 use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
-use crate::{utils::clock::{StdTimer, Timer}, data_representation_builtin_endpoints::sedp_discovered_reader_data::RtpsReaderProxy};
+use crate::utils::clock::{StdTimer, Timer};
 
 use super::{
     rtps_reader_proxy_impl::{RtpsReaderProxyAttributesImpl, RtpsReaderProxyOperationsImpl},
@@ -201,7 +201,8 @@ impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let reader_proxy_attributes = self.reader_proxy_iterator.next()?;
-        let reader_proxy_operations = RtpsReaderProxyOperationsImpl::new(reader_proxy_attributes, self.writer_cache);
+        let reader_proxy_operations =
+            RtpsReaderProxyOperationsImpl::new(reader_proxy_attributes, self.writer_cache);
         match self.reliability_level {
             ReliabilityKind::BestEffort => Some(StatefulWriterBehavior::BestEffort(
                 BestEffortStatefulWriterBehavior {
