@@ -30,7 +30,7 @@ use rust_dds_api::{
 };
 
 use super::{
-    subscriber_proxy::{SubscriberProxy, SubscriberAttributes},
+    subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
     topic_proxy::{TopicAttributes, TopicProxy},
 };
 
@@ -97,8 +97,6 @@ impl DataReaderAttributes {
 }
 
 pub struct DataReaderProxy<Foo> {
-    subscriber: SubscriberProxy,
-    topic: TopicProxy<Foo>,
     data_reader_impl: RtpsWeak<DataReaderAttributes>,
     phantom: PhantomData<Foo>,
 }
@@ -107,8 +105,6 @@ pub struct DataReaderProxy<Foo> {
 impl<Foo> Clone for DataReaderProxy<Foo> {
     fn clone(&self) -> Self {
         Self {
-            subscriber: self.subscriber.clone(),
-            topic: self.topic.clone(),
             data_reader_impl: self.data_reader_impl.clone(),
             phantom: self.phantom.clone(),
         }
@@ -116,14 +112,8 @@ impl<Foo> Clone for DataReaderProxy<Foo> {
 }
 
 impl<Foo> DataReaderProxy<Foo> {
-    pub fn new(
-        subscriber: SubscriberProxy,
-        topic: TopicProxy<Foo>,
-        data_reader_impl: RtpsWeak<DataReaderAttributes>,
-    ) -> Self {
+    pub fn new(data_reader_impl: RtpsWeak<DataReaderAttributes>) -> Self {
         Self {
-            subscriber,
-            topic,
             data_reader_impl,
             phantom: PhantomData,
         }
@@ -375,11 +365,13 @@ where
     }
 
     fn get_topicdescription(&self) -> DDSResult<Self::TopicDescription> {
-        Ok(self.topic.clone())
+        // Ok(self.topic.clone())
+        todo!()
     }
 
     fn get_subscriber(&self) -> DDSResult<Self::Subscriber> {
-        Ok(self.subscriber.clone())
+        // Ok(self.subscriber.clone())
+        todo!()
     }
 
     fn delete_contained_entities(&self) -> DDSResult<()> {

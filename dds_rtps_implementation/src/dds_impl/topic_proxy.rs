@@ -11,20 +11,27 @@ use rust_dds_api::{
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-use super::domain_participant_proxy::DomainParticipantProxy;
+use super::domain_participant_proxy::{DomainParticipantProxy, DomainParticipantAttributes};
 
 pub struct TopicAttributes {
     pub _qos: TopicQos,
     pub type_name: &'static str,
     pub topic_name: String,
+    pub parent_participant: RtpsWeak<DomainParticipantAttributes>,
 }
 
 impl TopicAttributes {
-    pub fn new(qos: TopicQos, type_name: &'static str, topic_name: &str) -> Self {
+    pub fn new(
+        qos: TopicQos,
+        type_name: &'static str,
+        topic_name: &str,
+        parent_participant: RtpsWeak<DomainParticipantAttributes>,
+    ) -> Self {
         Self {
             _qos: qos,
             type_name,
             topic_name: topic_name.to_string(),
+            parent_participant,
         }
     }
 }

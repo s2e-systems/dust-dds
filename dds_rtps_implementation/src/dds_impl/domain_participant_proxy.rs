@@ -221,7 +221,8 @@ where
         //         .ok()?;
         // }
 
-        let topic_impl = TopicAttributes::new(topic_qos, Foo::type_name(), topic_name);
+        let topic_impl =
+            TopicAttributes::new(topic_qos, Foo::type_name(), topic_name, RtpsWeak::new());
         let topic_impl_shared = rtps_shared_new(topic_impl);
         domain_participant_attributes_lock
             .topic_list

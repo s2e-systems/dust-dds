@@ -407,6 +407,7 @@ impl DomainParticipantFactory {
                 TopicQos::default(),
                 SpdpDiscoveredParticipantData::type_name(),
                 "DCPSParticipant",
+                RtpsWeak::new(),
             )),
             RtpsWeak::new(),
         ));
@@ -425,6 +426,7 @@ impl DomainParticipantFactory {
                 TopicQos::default(),
                 SedpDiscoveredWriterData::type_name(),
                 "DCPSPublication",
+                RtpsWeak::new(),
             )),
             RtpsWeak::new(),
         ));
@@ -444,6 +446,7 @@ impl DomainParticipantFactory {
                     TopicQos::default(),
                     SedpDiscoveredReaderData::type_name(),
                     "DCPSSubscription",
+                    RtpsWeak::new(),
                 )),
                 RtpsWeak::new(),
             ));
@@ -463,6 +466,7 @@ impl DomainParticipantFactory {
                 TopicQos::default(),
                 SedpDiscoveredTopicData::type_name(),
                 "DCPSTopic",
+                RtpsWeak::new(),
             )),
             RtpsWeak::new(),
         ));

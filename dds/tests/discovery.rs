@@ -171,6 +171,7 @@ fn send_and_receive_discovery_data_happy_path() {
             TopicQos::default(),
             SpdpDiscoveredParticipantData::type_name(),
             "DCPSParticipant",
+            RtpsWeak::new(),
         )),
         RtpsWeak::new(),
     );
@@ -320,6 +321,7 @@ fn process_discovery_data_happy_path() {
             TopicQos::default(),
             SpdpDiscoveredParticipantData::type_name(),
             "DCPSParticipant",
+            RtpsWeak::new(),
         )),
         RtpsWeak::new(),
     );
@@ -351,6 +353,7 @@ fn process_discovery_data_happy_path() {
             TopicQos::default(),
             SedpDiscoveredWriterData::type_name(),
             "DCPSPublication",
+            RtpsWeak::new(),
         )),
         RtpsWeak::new(),
     );
