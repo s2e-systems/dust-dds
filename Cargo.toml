@@ -1,7 +1,5 @@
 [workspace]
 
-# this is a test
-
 members = [
     "dds",
     "dds_api",
