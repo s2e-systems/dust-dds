@@ -50,7 +50,7 @@ where
 
             for any_data_writer in &mut publisher_lock.data_writer_list {
                 let mut rtps_writer_lock = any_data_writer.write().unwrap();
-                let rtps_writer = rtps_writer_lock.as_mut();
+                let rtps_writer = &mut rtps_writer_lock.rtps_writer;
 
                 match rtps_writer {
                     RtpsWriter::Stateless(stateless_rtps_writer) => {

@@ -38,14 +38,14 @@ fn create_delete_publisher() {
         .create_participant(0, None, None, 0)
         .unwrap();
     participant.enable().unwrap();
-    let my_topic = participant
+    let _my_topic = participant
         .create_topic::<TestType>("my_topic", None, None, 0)
         .unwrap();
-    let publisher = participant.create_publisher(None, None, 0).unwrap();
-    publisher
-        .create_datawriter(&my_topic, None, None, 0)
-        .unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    let _publisher = participant.create_publisher(None, None, 0).unwrap();
+    // publisher
+        // .create_datawriter(&my_topic, None, None, 0)
+        // .unwrap();
+    // std::thread::sleep(std::time::Duration::from_secs(2));
 
     // assert_eq!(participant.delete_publisher(&publisher), Ok(()));
     // assert_eq!(publisher.get_qos(), Err(DDSError::AlreadyDeleted));

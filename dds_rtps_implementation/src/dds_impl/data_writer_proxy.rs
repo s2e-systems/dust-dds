@@ -82,18 +82,6 @@ impl DataWriterAttributes {
     }
 }
 
-impl AsRef<RtpsWriter> for DataWriterAttributes {
-    fn as_ref(&self) -> &RtpsWriter {
-        &self.rtps_writer
-    }
-}
-
-impl AsMut<RtpsWriter> for DataWriterAttributes {
-    fn as_mut(&mut self) -> &mut RtpsWriter {
-        &mut self.rtps_writer
-    }
-}
-
 pub struct DataWriterProxy<Foo> {
     data_writer_impl: RtpsWeak<DataWriterAttributes>,
     phantom: PhantomData<Foo>,
