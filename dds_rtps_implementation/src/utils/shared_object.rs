@@ -1,8 +1,8 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak, LockResult};
 
 use rust_dds_api::return_type::{DDSError, DDSResult};
 
-pub struct RtpsShared<T: ?Sized>(pub Arc<RwLock<T>>);
+pub struct RtpsShared<T: ?Sized>(Arc<RwLock<T>>);
 
 impl<T> RtpsShared<T> {
     pub fn new(t: T) -> Self {
@@ -20,6 +20,14 @@ impl<T> RtpsShared<T> {
     pub fn write_lock(&self) -> RwLockWriteGuard<'_, T> {
         self.0.write().unwrap()
     }
+
+    pub fn write(&self) -> LockResult<RwLockWriteGuard<'_, T>> {
+        self.0.write()
+    }
+
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
 }
 
 impl<T: ?Sized> Clone for RtpsShared<T> {
@@ -28,7 +36,7 @@ impl<T: ?Sized> Clone for RtpsShared<T> {
     }
 }
 
-pub struct RtpsWeak<T: ?Sized>(pub Weak<RwLock<T>>);
+pub struct RtpsWeak<T: ?Sized>(Weak<RwLock<T>>);
 
 impl<T> RtpsWeak<T> {
     pub fn new() -> Self {

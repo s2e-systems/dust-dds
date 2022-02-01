@@ -222,7 +222,7 @@ fn _task_sedp_discovery(
             for subscriber in subscriber_list_lock.iter() {
                 let subscriber_lock = subscriber.read_lock();
                 for data_reader in subscriber_lock.data_reader_list.iter() {
-                    let mut data_reader_lock = data_reader.0.write().unwrap();
+                    let mut data_reader_lock = data_reader.write().unwrap();
                     let reader_topic_name = &data_reader_lock.topic.read_lock()
                         .topic_name
                         .clone();
