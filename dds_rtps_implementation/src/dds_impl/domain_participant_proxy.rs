@@ -238,7 +238,7 @@ where
         if std::ptr::eq(&a_topic.get_participant(), self) {
             domain_participant_attributes_lock
                 .topic_list
-                .retain(|x| !Arc::ptr_eq(x, &topic_shared));
+                .retain(|x| !Arc::ptr_eq(&x.0, &topic_shared.0));
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -329,7 +329,7 @@ impl DomainParticipant for DomainParticipantProxy {
             // rtps_shared_read_lock(&domain_participant_lock).delete_publisher(&publisher_shared)
             domain_participant_attributes_lock
                 .user_defined_publisher_list
-                .retain(|x| !Arc::ptr_eq(&x, &publisher_shared));
+                .retain(|x| !Arc::ptr_eq(&x.0, &publisher_shared.0));
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -390,7 +390,7 @@ impl DomainParticipant for DomainParticipantProxy {
 
             domain_participant_attributes_lock
                 .user_defined_subscriber_list
-                .retain(|x| !Arc::ptr_eq(&x, &subscriber_shared));
+                .retain(|x| !Arc::ptr_eq(&x.0, &subscriber_shared.0));
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(

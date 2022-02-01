@@ -223,7 +223,7 @@ fn _task_sedp_discovery(
             for subscriber in subscriber_list_lock.iter() {
                 let subscriber_lock = rtps_shared_read_lock(subscriber);
                 for data_reader in subscriber_lock.data_reader_list.iter() {
-                    let mut data_reader_lock = data_reader.write().unwrap();
+                    let mut data_reader_lock = data_reader.0.write().unwrap();
                     let reader_topic_name = &rtps_shared_read_lock(&data_reader_lock.topic)
                         .topic_name
                         .clone();
