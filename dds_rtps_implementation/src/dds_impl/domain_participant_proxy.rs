@@ -39,8 +39,7 @@ use crate::{
     dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
     utils::shared_object::{
-        rtps_shared_downgrade, rtps_shared_new, rtps_shared_read_lock, rtps_shared_write_lock,
-        rtps_weak_upgrade, RtpsShared, RtpsWeak,
+        RtpsShared, RtpsWeak,
     },
 };
 
@@ -178,9 +177,9 @@ where
         _a_listener: Option<Box<dyn TopicListener>>,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
-        let domain_participant_attributes = rtps_weak_upgrade(&self.domain_participant).ok()?;
+        let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
         let mut domain_participant_attributes_lock =
-            rtps_shared_write_lock(&domain_participant_attributes);
+            domain_participant_attributes.write_lock();
         let topic_qos = qos.unwrap_or(domain_participant_attributes_lock.default_topic_qos.clone());
 
         // let _builtin_publisher_lock =
@@ -221,20 +220,20 @@ where
 
         let topic_impl =
             TopicAttributes::new(topic_qos, Foo::type_name(), topic_name, RtpsWeak::new());
-        let topic_impl_shared = rtps_shared_new(topic_impl);
+        let topic_impl_shared = RtpsShared::new(topic_impl);
         domain_participant_attributes_lock
             .topic_list
             .push(topic_impl_shared.clone());
 
-        let topic_weak = rtps_shared_downgrade(&topic_impl_shared);
+        let topic_weak = topic_impl_shared.downgrade();
         Some(TopicProxy::new(topic_weak))
     }
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()> {
-        let domain_participant_attributes = rtps_weak_upgrade(&self.domain_participant)?;
+        let domain_participant_attributes = self.domain_participant.upgrade()?;
         let mut domain_participant_attributes_lock =
-            rtps_shared_write_lock(&domain_participant_attributes);
-        let topic_shared = rtps_weak_upgrade(a_topic.as_ref())?;
+            domain_participant_attributes.write_lock();
+        let topic_shared = a_topic.as_ref().upgrade()?;
         if std::ptr::eq(&a_topic.get_participant(), self) {
             domain_participant_attributes_lock
                 .topic_list
@@ -276,9 +275,9 @@ impl DomainParticipant for DomainParticipantProxy {
         _a_listener: Option<&'static dyn PublisherListener>,
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let domain_participant_attributes = rtps_weak_upgrade(&self.domain_participant).ok()?;
+        let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
         let mut domain_participant_attributes_lock =
-            rtps_shared_write_lock(&domain_participant_attributes);
+            domain_participant_attributes.write_lock();
         let publisher_qos = qos.unwrap_or(
             domain_participant_attributes_lock
                 .default_publisher_qos
@@ -310,21 +309,21 @@ impl DomainParticipant for DomainParticipantProxy {
             None,
             self.domain_participant.clone(),
         );
-        let publisher_impl_shared = rtps_shared_new(publisher_impl);
+        let publisher_impl_shared = RtpsShared::new(publisher_impl);
         domain_participant_attributes_lock
             .user_defined_publisher_list
             .push(publisher_impl_shared.clone());
 
-        let publisher_weak = rtps_shared_downgrade(&publisher_impl_shared);
+        let publisher_weak = publisher_impl_shared.downgrade();
 
         Some(PublisherProxy::new(publisher_weak))
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        let domain_participant_attributes = rtps_weak_upgrade(&self.domain_participant)?;
+        let domain_participant_attributes = self.domain_participant.upgrade()?;
         let mut domain_participant_attributes_lock =
-            rtps_shared_write_lock(&domain_participant_attributes);
-        let publisher_shared = rtps_weak_upgrade(&a_publisher.0)?;
+            domain_participant_attributes.write_lock();
+        let publisher_shared = a_publisher.0.upgrade()?;
         if std::ptr::eq(&a_publisher.get_participant()?, self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_publisher(&publisher_shared)
             domain_participant_attributes_lock
@@ -344,9 +343,9 @@ impl DomainParticipant for DomainParticipantProxy {
         _a_listener: Option<&'static dyn SubscriberListener>,
         _mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
-        let domain_participant_attributes = rtps_weak_upgrade(&self.domain_participant).ok()?;
+        let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
         let mut domain_participant_attributes_lock =
-            rtps_shared_write_lock(&domain_participant_attributes);
+            domain_participant_attributes.write_lock();
         // let subscriber_shared = rtps_shared_read_lock(&domain_participant_lock)
         // .create_subscriber(qos, a_listener, mask)?;
 
@@ -371,20 +370,20 @@ impl DomainParticipant for DomainParticipantProxy {
         );
         let rtps_group = RtpsGroupImpl::new(guid);
         let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, RtpsWeak::new());
-        let subscriber_shared = rtps_shared_new(subscriber);
+        let subscriber_shared = RtpsShared::new(subscriber);
         domain_participant_attributes_lock
             .user_defined_subscriber_list
             .push(subscriber_shared.clone());
 
-        let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
+        let subscriber_weak = subscriber_shared.downgrade();
         Some(SubscriberProxy::new(self.clone(), subscriber_weak))
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
-        let domain_participant_attributes = rtps_weak_upgrade(&self.domain_participant)?;
+        let domain_participant_attributes = self.domain_participant.upgrade()?;
         let mut domain_participant_attributes_lock =
-            rtps_shared_write_lock(&domain_participant_attributes);
-        let subscriber_shared = rtps_weak_upgrade(a_subscriber.as_ref())?;
+            domain_participant_attributes.write_lock();
+        let subscriber_shared = a_subscriber.as_ref().upgrade()?;
         if std::ptr::eq(&a_subscriber.get_participant(), self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_subscriber(&subscriber_shared)
 
@@ -411,10 +410,10 @@ impl DomainParticipant for DomainParticipantProxy {
     }
 
     fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
-        let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
-        let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
+        let domain_participant_shared = self.domain_participant.upgrade()?;
+        let domain_participant_lock = domain_participant_shared.read_lock();
         let subscriber_shared = domain_participant_lock.builtin_subscriber_list[0].clone();
-        let subscriber_weak = rtps_shared_downgrade(&subscriber_shared);
+        let subscriber_weak = subscriber_shared.downgrade();
         Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
     }
 
@@ -615,8 +614,8 @@ impl Entity for DomainParticipantProxy {
     }
 
     fn enable(&self) -> DDSResult<()> {
-        let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
-        let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
+        let domain_participant_shared = self.domain_participant.upgrade()?;
+        let domain_participant_lock = domain_participant_shared.read_lock();
         domain_participant_lock
             .enabled
             .store(true, atomic::Ordering::SeqCst);

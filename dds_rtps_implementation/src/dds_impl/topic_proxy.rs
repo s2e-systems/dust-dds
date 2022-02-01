@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::utils::shared_object::{rtps_shared_read_lock, rtps_weak_upgrade, RtpsWeak};
+use crate::utils::shared_object::RtpsWeak;
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     infrastructure::{
@@ -82,11 +82,11 @@ impl<Foo> TopicDescription for TopicProxy<Foo> {
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
-        Ok(rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).type_name)
+        Ok(self.topic_impl.upgrade()?.read_lock().type_name)
     }
 
     fn get_name(&self) -> DDSResult<String> {
-        Ok(rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?)
+        Ok(self.topic_impl.upgrade()?.read_lock()
             .topic_name
             .clone())
     }

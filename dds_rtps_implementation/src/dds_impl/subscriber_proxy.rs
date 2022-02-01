@@ -23,7 +23,7 @@ use crate::{
     rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
         message_receiver::ProcessDataSubmessage,
-        shared_object::{rtps_weak_upgrade, RtpsShared, RtpsWeak},
+        shared_object::{RtpsShared, RtpsWeak},
     },
 };
 
@@ -192,7 +192,7 @@ where
         a_datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
         if std::ptr::eq(&a_datareader.get_subscriber()?, self) {
-            let _datareader_shared = rtps_weak_upgrade(a_datareader.as_ref())?;
+            let _datareader_shared = a_datareader.as_ref().upgrade()?;
             todo!()
             // SubscriberDataReaderFactory::<Foo>::datareader_factory_delete_datareader(
             //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?),

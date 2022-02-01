@@ -4,26 +4,28 @@ use rust_dds_api::return_type::{DDSError, DDSResult};
 
 pub struct RtpsShared<T: ?Sized>(pub Arc<RwLock<T>>);
 
+impl<T> RtpsShared<T> {
+    pub fn new(t: T) -> Self {
+        RtpsShared(Arc::new(RwLock::new(t)))
+    }
+
+    pub fn downgrade(&self) -> RtpsWeak<T> {
+        RtpsWeak(Arc::downgrade(&self.0))
+    }
+
+    pub fn read_lock(&self) -> RwLockReadGuard<'_, T> {
+        self.0.read().unwrap()
+    }
+
+    pub fn write_lock(&self) -> RwLockWriteGuard<'_, T> {
+        self.0.write().unwrap()
+    }
+}
+
 impl<T: ?Sized> Clone for RtpsShared<T> {
     fn clone(&self) -> Self {
         RtpsShared(self.0.clone())
     }
-}
-
-pub fn rtps_shared_new<T>(t: T) -> RtpsShared<T> {
-    RtpsShared(Arc::new(RwLock::new(t)))
-}
-
-pub fn rtps_shared_downgrade<T: ?Sized>(this: &RtpsShared<T>) -> RtpsWeak<T> {
-    RtpsWeak(Arc::downgrade(&this.0))
-}
-
-pub fn rtps_shared_read_lock<T: ?Sized>(this: &RtpsShared<T>) -> RwLockReadGuard<'_, T> {
-    this.0.read().unwrap()
-}
-
-pub fn rtps_shared_write_lock<T: ?Sized>(this: &RtpsShared<T>) -> RwLockWriteGuard<'_, T> {
-    this.0.write().unwrap()
 }
 
 pub struct RtpsWeak<T: ?Sized>(pub Weak<RwLock<T>>);
@@ -32,16 +34,16 @@ impl<T> RtpsWeak<T> {
     pub fn new() -> Self {
         RtpsWeak(Weak::new())
     }
+
+    pub fn upgrade(&self) -> DDSResult<RtpsShared<T>> {
+        self.0.upgrade()
+            .map(|x| RtpsShared(x))
+            .ok_or(DDSError::AlreadyDeleted)
+    }
 }
 
 impl<T: ?Sized> Clone for RtpsWeak<T> {
     fn clone(&self) -> Self {
         RtpsWeak(self.0.clone())
     }
-}
-
-pub fn rtps_weak_upgrade<T: ?Sized>(this: &RtpsWeak<T>) -> DDSResult<RtpsShared<T>> {
-    this.0.upgrade()
-        .map(|x| RtpsShared(x))
-        .ok_or(DDSError::AlreadyDeleted)
 }
