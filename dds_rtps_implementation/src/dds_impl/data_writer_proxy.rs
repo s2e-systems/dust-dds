@@ -6,7 +6,7 @@ use crate::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsWeak},
+    utils::shared_object::RtpsWeak,
 };
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -14,7 +14,6 @@ use rust_dds_api::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
-    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
@@ -22,11 +21,9 @@ use rust_dds_api::{
     publication::{
         data_writer::{AnyDataWriter, DataWriter},
         data_writer_listener::DataWriterListener,
-        publisher::Publisher,
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::{behavior::writer::writer::RtpsWriterOperations, structure::types::ChangeKind};
 
 use super::{
     publisher_proxy::{PublisherAttributes, PublisherProxy},
@@ -119,7 +116,7 @@ where
     type Publisher = PublisherProxy;
     type Topic = TopicProxy<Foo>;
 
-    fn register_instance(&mut self, instance: Foo) -> DDSResult<Option<InstanceHandle>> {
+    fn register_instance(&mut self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         // let timestamp = self.publisher.get_participant()?.get_current_time()?;
         // self.register_instance_w_timestamp(instance, timestamp)
         todo!()
@@ -127,8 +124,8 @@ where
 
     fn register_instance_w_timestamp(
         &mut self,
-        instance: Foo,
-        timestamp: Time,
+        _instance: Foo,
+        _timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
         // .register_instance_w_timestamp(instance, timestamp)
@@ -137,8 +134,8 @@ where
 
     fn unregister_instance(
         &mut self,
-        instance: Foo,
-        handle: Option<InstanceHandle>,
+        _instance: Foo,
+        _handle: Option<InstanceHandle>,
     ) -> DDSResult<()> {
         todo!()
         // let timestamp = self.publisher.get_participant()?.get_current_time()?;
@@ -147,9 +144,9 @@ where
 
     fn unregister_instance_w_timestamp(
         &mut self,
-        instance: Foo,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _instance: Foo,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
         // .unregister_instance_w_timestamp(instance, handle, timestamp)
@@ -164,7 +161,7 @@ where
         todo!()
     }
 
-    fn write(&mut self, data: &Foo, handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&mut self, _data: &Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         // let timestamp = self.publisher.get_participant()?.get_current_time()?;
         // self.write_w_timestamp(data, handle, timestamp)
         todo!()
@@ -173,8 +170,8 @@ where
     fn write_w_timestamp(
         &mut self,
         data: &Foo,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> DDSResult<()> {
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)

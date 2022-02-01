@@ -1,40 +1,25 @@
-use std::{
-    net::UdpSocket,
-    sync::{Arc, RwLock},
-};
+use std::net::UdpSocket;
 
 use rust_dds::{
     communication::Communication,
-    infrastructure::{
-        qos::{DataReaderQos, SubscriberQos, TopicQos},
-        qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-            DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind, TopicDataQosPolicy,
-        },
-    },
-    subscription::data_reader::DataReader,
-    types::Duration,
+    infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos},
     udp_transport::UdpTransport,
 };
 use rust_dds_api::{
-    builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
+    builtin_topics::ParticipantBuiltinTopicData,
     dcps_psm::BuiltInTopicKey,
     infrastructure::{
         qos::{DataWriterQos, PublisherQos},
         qos_policy::UserDataQosPolicy,
     },
-    publication::data_writer::DataWriter,
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
+        sedp_discovered_writer_data::SedpDiscoveredWriterData,
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
     dds_impl::{
-        data_reader_proxy::{DataReaderAttributes, RtpsReader, Samples},
+        data_reader_proxy::{DataReaderAttributes, RtpsReader},
         data_writer_proxy::{DataWriterAttributes, RtpsWriter},
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
@@ -56,11 +41,7 @@ use rust_rtps_pim::{
         writer::stateless_writer::RtpsStatelessWriterOperations,
     },
     discovery::{
-        participant_discovery::ParticipantDiscovery,
-        sedp::builtin_endpoints::{
-            SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-        },
+        sedp::builtin_endpoints::{SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter},
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
@@ -103,7 +84,7 @@ fn send_and_receive_discovery_data_happy_path() {
         fraction: 0,
     };
 
-    let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+    let _spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
         dds_participant_data,
         participant_proxy,
         lease_duration,
@@ -124,7 +105,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-    let mut data_writer = DataWriterAttributes::new(
+    let mut _data_writer = DataWriterAttributes::new(
         DataWriterQos::default(),
         RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
         RtpsWeak::new(),
@@ -188,7 +169,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     communication.receive(core::slice::from_ref(&subscriber));
 
-    let mut shared_data_reader = rtps_shared_write_lock(&shared_data_reader);
+    let mut _shared_data_reader = rtps_shared_write_lock(&shared_data_reader);
 
     // let result: Samples<SpdpDiscoveredParticipantData> =
     //     shared_data_reader.read(1, &[], &[], &[]).unwrap();
@@ -236,7 +217,7 @@ fn process_discovery_data_happy_path() {
         fraction: 0,
     };
 
-    let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+    let _spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
         dds_participant_data,
         participant_proxy,
         lease_duration,
@@ -257,7 +238,7 @@ fn process_discovery_data_happy_path() {
 
     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-    let mut spdp_builtin_participant_data_writer = DataWriterAttributes::new(
+    let mut _spdp_builtin_participant_data_writer = DataWriterAttributes::new(
         DataWriterQos::default(),
         RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
         RtpsWeak::new(),
@@ -275,7 +256,7 @@ fn process_discovery_data_happy_path() {
     let sedp_builtin_publications_rtps_writer =
         SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
-    let sedp_builtin_publications_data_writer = rtps_shared_new(DataWriterAttributes::new(
+    let _sedp_builtin_publications_data_writer = rtps_shared_new(DataWriterAttributes::new(
         DataWriterQos::default(),
         RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
         RtpsWeak::new(),
@@ -339,14 +320,14 @@ fn process_discovery_data_happy_path() {
     communication.receive(core::slice::from_ref(&subscriber));
 
     communication.receive(core::slice::from_ref(&subscriber));
-    let mut shared_data_reader = rtps_shared_write_lock(&shared_data_reader);
+    let mut _shared_data_reader = rtps_shared_write_lock(&shared_data_reader);
 
     // let discovered_participant: Samples<SpdpDiscoveredParticipantData> =
     //     shared_data_reader.read(1, &[], &[], &[]).unwrap();
 
     let sedp_builtin_publications_rtps_reader =
         SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-    let mut sedp_built_publications_reader = DataReaderAttributes::new(
+    let mut _sedp_built_publications_reader = DataReaderAttributes::new(
         DataReaderQos::default(),
         RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
         rtps_shared_new(TopicAttributes::new(

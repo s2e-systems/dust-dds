@@ -3,7 +3,6 @@ use std::io::Write;
 use rust_dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
-    publication::publisher::Publisher,
 };
 use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
@@ -43,8 +42,8 @@ fn create_delete_publisher() {
         .unwrap();
     let _publisher = participant.create_publisher(None, None, 0).unwrap();
     // publisher
-        // .create_datawriter(&my_topic, None, None, 0)
-        // .unwrap();
+    // .create_datawriter(&my_topic, None, None, 0)
+    // .unwrap();
     // std::thread::sleep(std::time::Duration::from_secs(2));
 
     // assert_eq!(participant.delete_publisher(&publisher), Ok(()));

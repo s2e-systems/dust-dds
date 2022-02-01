@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use rust_dds_api::{
     dcps_psm::{
         InstanceHandle, InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask,
@@ -17,9 +15,7 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::{
-    behavior::stateful_reader_behavior::StatefulReaderBehavior, structure::types::GuidPrefix,
-};
+use rust_rtps_pim::structure::types::GuidPrefix;
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
@@ -27,16 +23,12 @@ use crate::{
     rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
         message_receiver::ProcessDataSubmessage,
-        shared_object::{
-            rtps_shared_downgrade, rtps_shared_read_lock, rtps_shared_write_lock,
-            rtps_weak_upgrade, RtpsShared, RtpsWeak,
-        },
+        shared_object::{rtps_weak_upgrade, RtpsShared, RtpsWeak},
     },
 };
 
 use super::{
-    data_reader_proxy::DataReaderProxy,
-    data_reader_proxy::{DataReaderAttributes, RtpsReader},
+    data_reader_proxy::{DataReaderAttributes, DataReaderProxy},
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
     topic_proxy::TopicProxy,
 };
@@ -70,8 +62,8 @@ impl SubscriberAttributes {
 impl ProcessDataSubmessage for SubscriberAttributes {
     fn process_data_submessage(
         &mut self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessageRead,
+        _source_guid_prefix: GuidPrefix,
+        _data: &DataSubmessageRead,
     ) {
         //         {
         //             let data_reader_list_lock = self.data_reader_list.lock().unwrap();
@@ -133,10 +125,10 @@ where
 
     fn datareader_factory_create_datareader(
         &self,
-        a_topic: &Self::TopicType,
-        qos: Option<DataReaderQos>,
-        a_listener: Option<&'static dyn DataReaderListener>,
-        mask: StatusMask,
+        _a_topic: &Self::TopicType,
+        _qos: Option<DataReaderQos>,
+        _a_listener: Option<&'static dyn DataReaderListener>,
+        _mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         // let subscriber_shared = rtps_weak_upgrade(&self.subscriber_impl).ok()?;
         // let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
@@ -200,7 +192,7 @@ where
         a_datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
         if std::ptr::eq(&a_datareader.get_subscriber()?, self) {
-            let datareader_shared = rtps_weak_upgrade(a_datareader.as_ref())?;
+            let _datareader_shared = rtps_weak_upgrade(a_datareader.as_ref())?;
             todo!()
             // SubscriberDataReaderFactory::<Foo>::datareader_factory_delete_datareader(
             //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?),
@@ -291,7 +283,7 @@ impl Entity for SubscriberProxy {
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 
-    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).set_qos(qos)
         todo!()
     }
@@ -301,7 +293,11 @@ impl Entity for SubscriberProxy {
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?)
         // .set_listener(a_listener, mask)
         todo!()

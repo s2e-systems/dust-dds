@@ -18,10 +18,7 @@ use rust_dds_api::{
 use crate::{
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::rtps_group_impl::RtpsGroupImpl,
-    utils::shared_object::{
-        rtps_shared_downgrade, rtps_shared_read_lock, rtps_shared_write_lock, rtps_weak_upgrade,
-        RtpsShared, RtpsWeak,
-    },
+    utils::shared_object::{rtps_shared_read_lock, rtps_weak_upgrade, RtpsShared, RtpsWeak},
 };
 
 use super::{
@@ -78,10 +75,10 @@ where
 
     fn datawriter_factory_create_datawriter(
         &self,
-        a_topic: &Self::TopicType,
-        qos: Option<DataWriterQos>,
-        a_listener: Option<&'static dyn DataWriterListener>,
-        mask: StatusMask,
+        _a_topic: &Self::TopicType,
+        _qos: Option<DataWriterQos>,
+        _a_listener: Option<&'static dyn DataWriterListener>,
+        _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         // let publisher_shared = rtps_weak_upgrade(&self.publisher_impl).ok()?;
         // let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
@@ -189,7 +186,7 @@ where
         &self,
         a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
-        let a_datawriter_shared = rtps_weak_upgrade(a_datawriter.as_ref())?;
+        let _a_datawriter_shared = rtps_weak_upgrade(a_datawriter.as_ref())?;
         if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
             todo!()
             // PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
@@ -285,7 +282,7 @@ impl Entity for PublisherProxy {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 
-    fn set_qos(&mut self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.publisher_impl)?).set_qos(qos)
         todo!()
     }
@@ -295,7 +292,11 @@ impl Entity for PublisherProxy {
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
         //     .set_listener(a_listener, mask)
         todo!()

@@ -136,13 +136,13 @@ where
 
     fn read(
         &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = rtps_weak_upgrade(&self.data_reader_impl)?;
-        let mut data_reader_lock = rtps_shared_write_lock(&data_reader_shared);
+        let mut _data_reader_lock = rtps_shared_write_lock(&data_reader_shared);
         // match &self.rtps_reader {
         //     RtpsReader::Stateless(rtps_reader) => {
         //         if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
