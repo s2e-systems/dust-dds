@@ -24,15 +24,17 @@ impl<T> RtpsShared<T> {
     pub fn write(&self) -> LockResult<RwLockWriteGuard<'_, T>> {
         self.0.write()
     }
-
-    pub fn ptr_eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
 }
 
 impl<T: ?Sized> Clone for RtpsShared<T> {
     fn clone(&self) -> Self {
         RtpsShared(self.0.clone())
+    }
+}
+
+impl<T> PartialEq for RtpsShared<T> {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
