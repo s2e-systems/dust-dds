@@ -2,28 +2,35 @@ use rust_rtps_pim::{
     behavior::writer::reader_proxy::{
         RtpsReaderProxyAttributes, RtpsReaderProxyConstructor, RtpsReaderProxyOperations,
     },
-    structure::types::{EntityId, Guid, Locator, SequenceNumber},
+    structure::{
+        history_cache::RtpsHistoryCacheAttributes,
+        types::{EntityId, Guid, Locator, SequenceNumber},
+    },
 };
 
+use super::rtps_writer_history_cache_impl::WriterHistoryCache;
+
 #[derive(Debug, PartialEq)]
-pub struct RtpsReaderProxyImpl {
+pub struct RtpsReaderProxyAttributesImpl {
     remote_reader_guid: Guid,
     remote_group_entity_id: EntityId,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
     expects_inline_qos: bool,
-    last_sent_sequence_number: SequenceNumber,
+    is_active: bool,
+    highest_seq_num_sent: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
-    highest_acknowledge_change_sequence_number: SequenceNumber,
+    committed_seq_num: SequenceNumber,
 }
 
-impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
+impl RtpsReaderProxyConstructor for RtpsReaderProxyAttributesImpl {
     fn new(
         remote_reader_guid: Guid,
         remote_group_entity_id: EntityId,
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
         expects_inline_qos: bool,
+        is_active: bool,
     ) -> Self {
         Self {
             remote_reader_guid,
@@ -31,14 +38,15 @@ impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
             unicast_locator_list: unicast_locator_list.to_vec(),
             multicast_locator_list: multicast_locator_list.to_vec(),
             expects_inline_qos,
-            last_sent_sequence_number: 0,
-            requested_changes: Vec::new(),
-            highest_acknowledge_change_sequence_number: 0,
+            is_active,
+            highest_seq_num_sent: 0,
+            requested_changes: vec![],
+            committed_seq_num: 0,
         }
     }
 }
 
-impl RtpsReaderProxyAttributes for RtpsReaderProxyImpl {
+impl RtpsReaderProxyAttributes for RtpsReaderProxyAttributesImpl {
     fn remote_reader_guid(&self) -> &Guid {
         &self.remote_reader_guid
     }
@@ -58,248 +66,273 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyImpl {
     fn expects_inline_qos(&self) -> &bool {
         &self.expects_inline_qos
     }
+
+    fn is_active(&self) -> &bool {
+        &self.is_active
+    }
 }
 
-impl RtpsReaderProxyOperations for RtpsReaderProxyImpl {
-    type SequenceNumberVector = Vec<SequenceNumber>;
+pub struct RtpsReaderProxyOperationsImpl<'a> {
+    pub reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
+    writer_cache: &'a WriterHistoryCache,
+}
+
+impl<'a> RtpsReaderProxyOperationsImpl<'a> {
+    pub fn new(
+        reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
+        writer_cache: &'a WriterHistoryCache,
+    ) -> Self {
+        Self {
+            reader_proxy_attributes,
+            writer_cache,
+        }
+    }
+}
+
+impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
+    fn remote_reader_guid(&self) -> &Guid {
+        &self.reader_proxy_attributes.remote_reader_guid
+    }
+
+    fn remote_group_entity_id(&self) -> &EntityId {
+        &self.reader_proxy_attributes.remote_group_entity_id
+    }
+
+    fn unicast_locator_list(&self) -> &[Locator] {
+        self.reader_proxy_attributes.unicast_locator_list.as_slice()
+    }
+
+    fn multicast_locator_list(&self) -> &[Locator] {
+        self.reader_proxy_attributes
+            .multicast_locator_list
+            .as_slice()
+    }
+
+    fn expects_inline_qos(&self) -> &bool {
+        &self.reader_proxy_attributes.expects_inline_qos
+    }
+
+    fn is_active(&self) -> &bool {
+        &self.reader_proxy_attributes.is_active
+    }
+}
+
+impl RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'_> {
+    type ChangeForReaderType = SequenceNumber;
+    type ChangeForReaderListType = Vec<SequenceNumber>;
 
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
-        self.highest_acknowledge_change_sequence_number = committed_seq_num;
+        // "FOR_EACH change in this.changes_for_reader
+        // SUCH-THAT (change.sequenceNumber <= committed_seq_num) DO
+        // change.status := ACKNOWLEDGED;"
+        self.reader_proxy_attributes.committed_seq_num = committed_seq_num;
     }
 
-    fn next_requested_change(&mut self) -> Option<SequenceNumber> {
-        if let Some(requested_change) = self.requested_changes.iter().min().cloned() {
-            self.requested_changes.retain(|x| x != &requested_change);
-            Some(requested_change.clone())
-        } else {
-            None
+    fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType> {
+        // "next_seq_num := MIN {change.sequenceNumber
+        //     SUCH-THAT change IN this.requested_changes()}
+        //     return change IN this.requested_changes()
+        //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
+
+        let next_seq_num = self.reader_proxy_attributes.requested_changes.iter().min().cloned();
+
+        //remove from requested_changes
+        if let Some(next_seq_num) = next_seq_num {
+            self.reader_proxy_attributes
+                .requested_changes
+                .retain(|x| x != &next_seq_num);
+        };
+
+        next_seq_num
+    }
+
+    fn next_unsent_change(&mut self) -> Option<Self::ChangeForReaderType> {
+        // "next_seq_num := MIN { change.sequenceNumber
+        //     SUCH-THAT change IN this.unsent_changes() };
+        // return change IN this.unsent_changes()
+        //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
+        // "The implementation of next_unsent_change() would also look at
+        //  the HistoryCache and return the CacheChange that has the
+        //  next-highest sequence number greater than highestSeqNumSent."
+
+        let next_change_seq_num = self
+            .unsent_changes()
+            .iter()
+            .filter(|&c| c > &self.reader_proxy_attributes.highest_seq_num_sent)
+            .next()
+            .cloned();
+        if let Some(next_change_seq_num) = next_change_seq_num {
+            self.reader_proxy_attributes.highest_seq_num_sent = next_change_seq_num;
         }
+        next_change_seq_num
     }
 
-    fn next_unsent_change(
-        &mut self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Option<SequenceNumber> {
-        if &self.last_sent_sequence_number < last_change_sequence_number {
-            self.last_sent_sequence_number = self.last_sent_sequence_number + 1;
-            Some(self.last_sent_sequence_number.clone())
-        } else {
-            None
-        }
+    fn unsent_changes(&self) -> Self::ChangeForReaderListType {
+        // "return change IN this.changes_for_reader SUCH-THAT (change.status == UNSENT);"
+        // "the operation unsent_changes() could be implemented by looking
+        //  up all changes in the HistoryCache and selecting the ones with
+        //  sequenceNumber greater than highestSeqNumSent."
+        self.writer_cache
+            .changes()
+            .iter()
+            .filter_map(|cc| {
+                if cc.sequence_number > self.reader_proxy_attributes.highest_seq_num_sent {
+                    Some(cc.sequence_number)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
-    fn unsent_changes(
-        &self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Self::SequenceNumberVector {
-        let mut unsent_changes = Vec::new();
-        for unsent_change_seq_num in
-            self.last_sent_sequence_number + 1..=*last_change_sequence_number
-        {
-            unsent_changes.push(unsent_change_seq_num)
-        }
-        unsent_changes
+    fn requested_changes(&self) -> Self::ChangeForReaderListType {
+        // "return change IN this.changes_for_reader
+        //      SUCH-THAT (change.status == REQUESTED);"
+        self.reader_proxy_attributes.requested_changes.clone()
     }
 
-    fn requested_changes(&self) -> Self::SequenceNumberVector {
-        self.requested_changes.clone()
+    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
+        // "FOR_EACH seq_num IN req_seq_num_set DO
+        //     FIND change_for_reader IN this.changes_for_reader
+        //          SUCH-THAT (change_for_reader.sequenceNumber==seq_num)
+        //     change_for_reader.status := REQUESTED;
+        // END"
+        self.reader_proxy_attributes.requested_changes = req_seq_num_set.to_vec();
     }
 
-    fn requested_changes_set(
-        &mut self,
-        req_seq_num_set: &[SequenceNumber],
-        last_change_sequence_number: &SequenceNumber,
-    ) {
-        let mut requested_changes: Self::SequenceNumberVector =
-            req_seq_num_set.iter().cloned().collect();
-        requested_changes.retain(|x| x <= last_change_sequence_number);
-        self.requested_changes = requested_changes;
+    fn unacked_changes(&self) -> Self::ChangeForReaderListType {
+        //"return change IN this.changes_for_reader
+        //    SUCH-THAT (change.status == UNACKNOWLEDGED);"
+        self.changes_for_reader()
+            .iter()
+            .filter(|&cc| cc > &self.reader_proxy_attributes.committed_seq_num)
+            .cloned()
+            .collect()
     }
 
-    fn unacked_changes(
-        &self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Self::SequenceNumberVector {
-        let mut unacked_changes = Vec::new();
-        for unacked_changes_seq_num in
-            self.highest_acknowledge_change_sequence_number + 1..=*last_change_sequence_number
-        {
-            unacked_changes.push(unacked_changes_seq_num)
-        }
-        unacked_changes
+    fn changes_for_reader(&self) -> Self::ChangeForReaderListType {
+        // "List of CacheChange changes as they relate to the matched RTPS Reader."
+        self.writer_cache
+            .changes()
+            .iter()
+            .map(|cc| cc.sequence_number)
+            .collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::types::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
+    use rust_rtps_pim::structure::{
+        cache_change::RtpsCacheChangeConstructor,
+        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
+        types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+    };
+
+    use crate::rtps_impl::rtps_writer_history_cache_impl::WriterCacheChange;
 
     use super::*;
 
-    #[test]
-    fn next_unsent_change() {
-        let remote_reader_guid = GUID_UNKNOWN;
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let expects_inline_qos = false;
-        let mut reader_proxy_impl = RtpsReaderProxyImpl::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-        );
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), Some(1));
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), Some(2));
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), None);
+    fn add_new_change(writer_cache: &mut WriterHistoryCache, sequence_number: SequenceNumber) {
+        writer_cache.add_change(WriterCacheChange::new(
+            &ChangeKind::Alive,
+            &GUID_UNKNOWN,
+            &0,
+            &sequence_number,
+            &[],
+            &[],
+        ));
     }
 
     #[test]
-    fn next_unsent_change_non_compliant_last_change_sequence_number() {
-        let remote_reader_guid = GUID_UNKNOWN;
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let expects_inline_qos = false;
-        let mut reader_proxy_impl = RtpsReaderProxyImpl::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
+    fn next_requested_change() {
+        let mut reader_proxy_attributes = RtpsReaderProxyAttributesImpl::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
         );
+        let mut writer_cache = WriterHistoryCache::new();
+        add_new_change(&mut writer_cache, 1);
+        add_new_change(&mut writer_cache, 2);
+        add_new_change(&mut writer_cache, 4);
+        add_new_change(&mut writer_cache, 6);
 
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), Some(1));
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), Some(2));
-        assert_eq!(reader_proxy_impl.next_unsent_change(&2), None);
-        assert_eq!(reader_proxy_impl.next_unsent_change(&0), None);
-        assert_eq!(reader_proxy_impl.next_unsent_change(&-10), None);
-        assert_eq!(reader_proxy_impl.next_unsent_change(&3), Some(3));
-    }
+        let mut reader_proxy =
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
 
-    #[test]
-    fn requested_changes_set() {
-        let remote_reader_guid = GUID_UNKNOWN;
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let expects_inline_qos = false;
+        reader_proxy.requested_changes_set(&[2, 4]);
 
-        let mut reader_proxy_impl = RtpsReaderProxyImpl::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-        );
-
-        let req_seq_num_set = vec![1, 2, 3];
-        reader_proxy_impl.requested_changes_set(&req_seq_num_set, &3);
-
-        let expected_requested_changes = vec![1, 2, 3];
-        assert_eq!(
-            reader_proxy_impl.requested_changes(),
-            expected_requested_changes
-        )
-    }
-
-    #[test]
-    fn requested_changes_set_above_last_change_sequence_number() {
-        let remote_reader_guid = GUID_UNKNOWN;
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let expects_inline_qos = false;
-
-        let mut reader_proxy_impl = RtpsReaderProxyImpl::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-        );
-
-        let req_seq_num_set = vec![1, 2, 3];
-        reader_proxy_impl.requested_changes_set(&req_seq_num_set, &1);
-
-        let expected_requested_changes = vec![1];
-        assert_eq!(
-            reader_proxy_impl.requested_changes(),
-            expected_requested_changes
-        )
+        assert_eq!(reader_proxy.next_requested_change(), Some(2));
+        assert_eq!(reader_proxy.next_requested_change(), Some(4));
+        assert_eq!(reader_proxy.next_requested_change(), None);
     }
 
     #[test]
     fn unsent_changes() {
-        let remote_reader_guid = GUID_UNKNOWN;
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let expects_inline_qos = false;
-
-        let reader_proxy_impl = RtpsReaderProxyImpl::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
+        let mut reader_proxy_attributes = RtpsReaderProxyAttributesImpl::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
         );
+        let mut writer_cache = WriterHistoryCache::new();
+        add_new_change(&mut writer_cache, 1);
+        add_new_change(&mut writer_cache, 3);
+        add_new_change(&mut writer_cache, 4);
 
-        let unsent_changes = reader_proxy_impl.unsent_changes(&3);
-        let expected_unsent_changes = vec![1, 2, 3];
+        let reader_proxy =
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
 
-        assert_eq!(unsent_changes, expected_unsent_changes);
+        let result = reader_proxy.unsent_changes();
+        assert_eq!(result, vec![1, 3, 4]);
     }
 
     #[test]
-    fn unsent_changes_after_next_unsent_change() {
-        let remote_reader_guid = GUID_UNKNOWN;
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let expects_inline_qos = false;
-        let mut reader_proxy_impl = RtpsReaderProxyImpl::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
+    fn next_unsent_change() {
+        let mut reader_proxy_attributes = RtpsReaderProxyAttributesImpl::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
         );
+        let mut writer_cache = WriterHistoryCache::new();
+        add_new_change(&mut writer_cache, 1);
+        add_new_change(&mut writer_cache, 2);
 
-        let last_change_sequence_number = 3;
-        reader_proxy_impl.next_unsent_change(&last_change_sequence_number);
-        let unsent_changes = reader_proxy_impl.unsent_changes(&last_change_sequence_number);
-
-        let expected_unsent_changes = vec![2, 3];
-
-        assert_eq!(unsent_changes, expected_unsent_changes);
+        let mut reader_proxy =
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
+        assert_eq!(reader_proxy.next_unsent_change(), Some(1));
+        assert_eq!(reader_proxy.next_unsent_change(), Some(2));
+        assert_eq!(reader_proxy.next_unsent_change(), None);
     }
 
     #[test]
     fn unacked_changes() {
-        let remote_reader_guid = GUID_UNKNOWN;
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let unicast_locator_list = &[];
-        let multicast_locator_list = &[];
-        let expects_inline_qos = false;
-
-        let mut reader_proxy_impl = RtpsReaderProxyImpl::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
+        let mut reader_proxy_attributes = RtpsReaderProxyAttributesImpl::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
         );
+        let mut writer_cache = WriterHistoryCache::new();
+        add_new_change(&mut writer_cache, 1);
+        add_new_change(&mut writer_cache, 2);
+        add_new_change(&mut writer_cache, 4);
+        add_new_change(&mut writer_cache, 6);
 
-        reader_proxy_impl.acked_changes_set(2);
-        let last_change_sequence_number = 4;
-
-        let expected_unacked_changes = vec![3, 4];
-
-        assert_eq!(
-            reader_proxy_impl.unacked_changes(&last_change_sequence_number),
-            expected_unacked_changes
-        );
+        let mut reader_proxy =
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
+        reader_proxy.acked_changes_set(2);
+        let result = reader_proxy.unacked_changes();
+        assert_eq!(result, vec![4, 6]);
     }
+
 }

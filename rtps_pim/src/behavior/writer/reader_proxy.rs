@@ -7,6 +7,7 @@ pub trait RtpsReaderProxyConstructor {
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
         expects_inline_qos: bool,
+        is_active: bool,
     ) -> Self;
 }
 
@@ -16,29 +17,19 @@ pub trait RtpsReaderProxyAttributes {
     fn unicast_locator_list(&self) -> &[Locator];
     fn multicast_locator_list(&self) -> &[Locator];
     fn expects_inline_qos(&self) -> &bool;
+    fn is_active(&self) -> &bool;
 }
 
 pub trait RtpsReaderProxyOperations {
-    type SequenceNumberVector;
+    type ChangeForReaderType;
+    type ChangeForReaderListType;
 
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber);
-    fn next_requested_change(&mut self) -> Option<SequenceNumber>;
-    fn next_unsent_change(
-        &mut self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Option<SequenceNumber>;
-    fn unsent_changes(
-        &self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Self::SequenceNumberVector;
-    fn requested_changes(&self) -> Self::SequenceNumberVector;
-    fn requested_changes_set(
-        &mut self,
-        req_seq_num_set: &[SequenceNumber],
-        last_change_sequence_number: &SequenceNumber,
-    );
-    fn unacked_changes(
-        &self,
-        last_change_sequence_number: &SequenceNumber,
-    ) -> Self::SequenceNumberVector;
+    fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType>;
+    fn next_unsent_change(&mut self) -> Option<Self::ChangeForReaderType>;
+    fn unsent_changes(&self) -> Self::ChangeForReaderListType;
+    fn requested_changes(&self) -> Self::ChangeForReaderListType;
+    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
+    fn unacked_changes(&self) -> Self::ChangeForReaderListType;
+    fn changes_for_reader(&self) -> Self::ChangeForReaderListType;
 }
