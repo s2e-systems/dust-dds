@@ -3,7 +3,7 @@ use std::net::UdpSocket;
 use rust_dds::{
     communication::Communication,
     infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos},
-    udp_transport::UdpTransport, publication::data_writer::DataWriter,
+    udp_transport::UdpTransport, publication::data_writer::DataWriter, subscription::data_reader::DataReader,
 };
 use rust_dds_api::{
     builtin_topics::ParticipantBuiltinTopicData,
@@ -19,7 +19,7 @@ use rust_dds_rtps_implementation::{
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
     dds_impl::{
-        data_reader_proxy::{DataReaderAttributes, RtpsReader},
+        data_reader_proxy::{DataReaderAttributes, RtpsReader, Samples, DataReaderProxy},
         data_writer_proxy::{DataWriterAttributes, RtpsWriter, DataWriterProxy},
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
@@ -174,12 +174,13 @@ fn send_and_receive_discovery_data_happy_path() {
 
     communication.receive(core::slice::from_ref(&subscriber));
 
-    let mut _shared_data_reader = shared_data_reader.write_lock();
+    //let mut shared_data_reader = shared_data_reader.write_lock();
+    let mut shared_data_reader_proxy = DataReaderProxy::new(shared_data_reader.downgrade());
 
-    // let result: Samples<SpdpDiscoveredParticipantData> =
-    //     shared_data_reader.read(1, &[], &[], &[]).unwrap();
-    // assert_eq!(result[0].participant_proxy.domain_id, 1);
-    // assert_eq!(result[0].participant_proxy.domain_tag, "ab");
+    let result: Samples<SpdpDiscoveredParticipantData> =
+        shared_data_reader_proxy.read(1, &[], &[], &[]).unwrap();
+    assert_eq!(result[0].participant_proxy.domain_id, 1);
+    assert_eq!(result[0].participant_proxy.domain_tag, "ab");
 }
 
 #[test]
