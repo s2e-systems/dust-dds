@@ -44,8 +44,9 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
         rtps_writer_proxy_impl::RtpsWriterProxyImpl,
     },
-    utils::shared_object::{
-        RtpsShared, RtpsWeak,
+    utils::{
+        rtps_structure::RtpsStructure,
+        shared_object::{RtpsShared, RtpsWeak},
     },
 };
 use rust_rtps_pim::{
@@ -75,6 +76,15 @@ use rust_rtps_pim::{
 };
 
 use crate::{communication::Communication, udp_transport::UdpTransport};
+
+pub struct RtpsStructureImpl;
+
+impl RtpsStructure for RtpsStructureImpl {
+    type StatelessWriter = RtpsStatelessWriterImpl;
+    type StatefulWriter = RtpsStatefulWriterImpl;
+    type StatelessReader = RtpsStatelessReaderImpl;
+    type StatefulReader = RtpsStatefulReaderImpl;
+}
 
 pub struct Executor {
     receiver: Receiver<EnabledPeriodicTask>,
@@ -210,7 +220,7 @@ fn _task_sedp_discovery(
     sedp_builtin_publications_data_reader: &RtpsShared<
         impl DataReader<SedpDiscoveredWriterData, Samples = Samples<SedpDiscoveredWriterData>>,
     >,
-    subscriber_list: &RtpsShared<Vec<RtpsShared<SubscriberAttributes>>>,
+    subscriber_list: &RtpsShared<Vec<RtpsShared<SubscriberAttributes<RtpsStructureImpl>>>>,
 ) {
     let mut sedp_builtin_publications_data_reader_lock =
         sedp_builtin_publications_data_reader.write_lock();
@@ -223,9 +233,7 @@ fn _task_sedp_discovery(
                 let subscriber_lock = subscriber.read_lock();
                 for data_reader in subscriber_lock.data_reader_list.iter() {
                     let mut data_reader_lock = data_reader.write().unwrap();
-                    let reader_topic_name = &data_reader_lock.topic.read_lock()
-                        .topic_name
-                        .clone();
+                    let reader_topic_name = &data_reader_lock.topic.read_lock().topic_name.clone();
                     let reader_type_name = data_reader_lock.topic.read_lock().type_name;
                     if topic_name == reader_topic_name && type_name == reader_type_name {
                         let writer_proxy = RtpsWriterProxyImpl::new(
@@ -304,7 +312,7 @@ fn get_user_defined_udp_socket(domain_id: u16) -> Option<UdpSocket> {
 }
 
 pub struct DomainParticipantFactory {
-    participant_list: Mutex<Vec<RtpsShared<DomainParticipantAttributes>>>,
+    participant_list: Mutex<Vec<RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>>>,
 }
 
 impl DomainParticipantFactory {
@@ -326,7 +334,7 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<DomainParticipantProxy> {
+    ) -> Option<DomainParticipantProxy<RtpsStructureImpl>> {
         let domain_participant_qos = qos.unwrap_or_default();
 
         // /////// Define guid prefix
@@ -398,108 +406,110 @@ impl DomainParticipantFactory {
         spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
         // ///////// Create built-in DDS data readers and data writers
-        let _spdp_builtin_participant_dds_data_reader = RtpsShared::new(DataReaderAttributes::new(
-            DataReaderQos::default(),
-            RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
-            RtpsShared::new(TopicAttributes::new(
-                TopicQos::default(),
-                SpdpDiscoveredParticipantData::type_name(),
-                "DCPSParticipant",
-                RtpsWeak::new(),
-            )),
-            RtpsWeak::new(),
-        ));
+        // let _spdp_builtin_participant_dds_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        //     DataReaderQos::default(),
+        //     RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
+        //     RtpsShared::new(TopicAttributes::new(
+        //         TopicQos::default(),
+        //         SpdpDiscoveredParticipantData::type_name(),
+        //         "DCPSParticipant",
+        //         RtpsWeak::new(),
+        //     )),
+        //     RtpsWeak::new(),
+        // ));
 
-        let _spdp_builtin_participant_dds_data_writer = RtpsShared::new(DataWriterAttributes::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-            RtpsWeak::new(),
-            RtpsWeak::new(),
-        ));
+        // let _spdp_builtin_participant_dds_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        //     DataWriterQos::default(),
+        //     RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
+        //     RtpsWeak::new(),
+        //     RtpsWeak::new(),
+        // ));
 
-        let _sedp_builtin_publications_dds_data_reader = RtpsShared::new(DataReaderAttributes::new(
-            DataReaderQos::default(),
-            RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
-            RtpsShared::new(TopicAttributes::new(
-                TopicQos::default(),
-                SedpDiscoveredWriterData::type_name(),
-                "DCPSPublication",
-                RtpsWeak::new(),
-            )),
-            RtpsWeak::new(),
-        ));
+        // let _sedp_builtin_publications_dds_data_reader =
+        //     RtpsShared::new(DataReaderAttributes::new(
+        //         DataReaderQos::default(),
+        //         RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
+        //         RtpsShared::new(TopicAttributes::new(
+        //             TopicQos::default(),
+        //             SedpDiscoveredWriterData::type_name(),
+        //             "DCPSPublication",
+        //             RtpsWeak::new(),
+        //         )),
+        //         RtpsWeak::new(),
+        //     ));
 
-        let _sedp_builtin_publications_dds_data_writer = RtpsShared::new(DataWriterAttributes::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-            RtpsWeak::new(),
-            RtpsWeak::new(),
-        ));
+        // let _sedp_builtin_publications_dds_data_writer =
+        //     RtpsShared::new(DataWriterAttributes::new(
+        //         DataWriterQos::default(),
+        //         RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
+        //         RtpsWeak::new(),
+        //         RtpsWeak::new(),
+        //     ));
 
-        let _sedp_builtin_subscriptions_dds_data_reader =
-            RtpsShared::new(DataReaderAttributes::new(
-                DataReaderQos::default(),
-                RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
-                RtpsShared::new(TopicAttributes::new(
-                    TopicQos::default(),
-                    SedpDiscoveredReaderData::type_name(),
-                    "DCPSSubscription",
-                    RtpsWeak::new(),
-                )),
-                RtpsWeak::new(),
-            ));
+        // let _sedp_builtin_subscriptions_dds_data_reader =
+        //     RtpsShared::new(DataReaderAttributes::new(
+        //         DataReaderQos::default(),
+        //         RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
+        //         RtpsShared::new(TopicAttributes::new(
+        //             TopicQos::default(),
+        //             SedpDiscoveredReaderData::type_name(),
+        //             "DCPSSubscription",
+        //             RtpsWeak::new(),
+        //         )),
+        //         RtpsWeak::new(),
+        //     ));
 
-        let _sedp_builtin_subscriptions_dds_data_writer =
-            RtpsShared::new(DataWriterAttributes::new(
-                DataWriterQos::default(),
-                RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
-                RtpsWeak::new(),
-                RtpsWeak::new(),
-            ));
+        // let _sedp_builtin_subscriptions_dds_data_writer =
+        //     RtpsShared::new(DataWriterAttributes::new(
+        //         DataWriterQos::default(),
+        //         RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
+        //         RtpsWeak::new(),
+        //         RtpsWeak::new(),
+        //     ));
 
-        let _sedp_builtin_topics_dds_data_reader = RtpsShared::new(DataReaderAttributes::new(
-            DataReaderQos::default(),
-            RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
-            RtpsShared::new(TopicAttributes::new(
-                TopicQos::default(),
-                SedpDiscoveredTopicData::type_name(),
-                "DCPSTopic",
-                RtpsWeak::new(),
-            )),
-            RtpsWeak::new(),
-        ));
+        // let _sedp_builtin_topics_dds_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        //     DataReaderQos::default(),
+        //     RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
+        //     RtpsShared::new(TopicAttributes::new(
+        //         TopicQos::default(),
+        //         SedpDiscoveredTopicData::type_name(),
+        //         "DCPSTopic",
+        //         RtpsWeak::new(),
+        //     )),
+        //     RtpsWeak::new(),
+        // ));
 
-        let _sedp_builtin_topics_dds_data_writer = RtpsShared::new(DataWriterAttributes::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
-            RtpsWeak::new(),
-            RtpsWeak::new(),
-        ));
+        // let _sedp_builtin_topics_dds_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        //     DataWriterQos::default(),
+        //     RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
+        //     RtpsWeak::new(),
+        //     RtpsWeak::new(),
+        // ));
 
-        let builtin_subscriber = RtpsShared::new(SubscriberAttributes::new(
-            SubscriberQos::default(),
-            RtpsGroupImpl::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
-            RtpsWeak::new(),
-        ));
-        // vec![
-        //     spdp_builtin_participant_dds_data_reader.clone(),
-        //     sedp_builtin_publications_dds_data_reader.clone(),
-        //     sedp_builtin_subscriptions_dds_data_reader.clone(),
-        //     sedp_builtin_topics_dds_data_reader.clone(),
-        // ],
+        // let builtin_subscriber = RtpsShared::new(SubscriberAttributes::new(
+        //     SubscriberQos::default(),
+        //     RtpsGroupImpl::new(Guid::new(
+        //         guid_prefix,
+        //         EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+        //     )),
+        //     RtpsWeak::new(),
+        // ));
+        // // vec![
+        // //     spdp_builtin_participant_dds_data_reader.clone(),
+        // //     sedp_builtin_publications_dds_data_reader.clone(),
+        // //     sedp_builtin_subscriptions_dds_data_reader.clone(),
+        // //     sedp_builtin_topics_dds_data_reader.clone(),
+        // // ],
 
-        let builtin_publisher = RtpsShared::new(PublisherAttributes::new(
-            PublisherQos::default(),
-            RtpsGroupImpl::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-            )),
-            None,
-            RtpsWeak::new(),
-        ));
+        // let builtin_publisher = RtpsShared::new(PublisherAttributes::new(
+        //     PublisherQos::default(),
+        //     RtpsGroupImpl::new(Guid::new(
+        //         guid_prefix,
+        //         EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+        //     )),
+        //     None,
+        //     RtpsWeak::new(),
+        // ));
 
         // vec![
         // spdp_builtin_participant_dds_data_writer.clone(),
@@ -522,16 +532,16 @@ impl DomainParticipantFactory {
             guid_prefix,
             transport: metatraffic_transport,
         };
-        let builtin_publisher_arc = builtin_publisher.clone();
-        let builtin_subscriber_arc = builtin_subscriber.clone();
-        spawner.spawn_enabled_periodic_task(
-            "builtin communication",
-            move || {
-                communication.send(core::slice::from_ref(&builtin_publisher_arc));
-                communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
-            },
-            std::time::Duration::from_millis(500),
-        );
+        // let builtin_publisher_arc = builtin_publisher.clone();
+        // let builtin_subscriber_arc = builtin_subscriber.clone();
+        // spawner.spawn_enabled_periodic_task(
+        //     "builtin communication",
+        //     move || {
+        //         communication.send(core::slice::from_ref(&builtin_publisher_arc));
+        //         communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
+        //     },
+        //     std::time::Duration::from_millis(500),
+        // );
 
         // let mut communication = Communication {
         //     version: PROTOCOLVERSION,
@@ -657,14 +667,17 @@ impl DomainParticipantFactory {
             .push(shared_domain_participant.clone());
 
         Some(DomainParticipantProxy::new(
-            shared_domain_participant.clone().downgrade()
+            shared_domain_participant.clone().downgrade(),
         ))
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
     /// the participant have already been deleted. Otherwise the error PRECONDITION_NOT_MET is returned.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_participant(&self, _a_participant: DomainParticipantProxy) -> DDSResult<()> {
+    pub fn delete_participant(
+        &self,
+        _a_participant: DomainParticipantProxy<RtpsStructureImpl>,
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -684,7 +697,10 @@ impl DomainParticipantFactory {
     /// DomainParticipant exists, the operation will return a ‘nil’ value.
     /// If multiple DomainParticipant entities belonging to that domain_id exist, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_participant(&self, _domain_id: DomainId) -> DomainParticipantProxy {
+    pub fn lookup_participant(
+        &self,
+        _domain_id: DomainId,
+    ) -> DomainParticipantProxy<RtpsStructureImpl> {
         todo!()
     }
 
@@ -1051,7 +1067,7 @@ mod tests {
                 &[],
                 &[],
                 false,
-                true
+                true,
             )))
             .once()
             .return_const(());

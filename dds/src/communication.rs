@@ -26,6 +26,8 @@ use rust_rtps_psm::messages::{
     submessages::DataSubmessageWrite,
 };
 
+use crate::domain_participant_factory::RtpsStructureImpl;
+
 pub struct Communication<T> {
     pub version: ProtocolVersion,
     pub vendor_id: VendorId,
@@ -37,7 +39,7 @@ impl<T> Communication<T>
 where
     T: TransportWrite,
 {
-    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes>]) {
+    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes<RtpsStructureImpl>>]) {
         for publisher in list {
             let mut publisher_lock = publisher.write().unwrap();
 

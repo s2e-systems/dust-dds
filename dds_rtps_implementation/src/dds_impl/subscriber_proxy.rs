@@ -23,6 +23,7 @@ use crate::{
     rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
         message_receiver::ProcessDataSubmessage,
+        rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
     },
 };
@@ -33,20 +34,26 @@ use super::{
     topic_proxy::TopicProxy,
 };
 
-pub struct SubscriberAttributes {
+pub struct SubscriberAttributes<RTPS>
+where
+    RTPS: RtpsStructure,
+{
     pub qos: SubscriberQos,
     pub rtps_group: RtpsGroupImpl,
-    pub data_reader_list: Vec<RtpsShared<DataReaderAttributes>>,
+    pub data_reader_list: Vec<RtpsShared<DataReaderAttributes<RTPS>>>,
     pub user_defined_data_reader_counter: u8,
     pub default_data_reader_qos: DataReaderQos,
-    pub parent_domain_participant: RtpsWeak<DomainParticipantAttributes>,
+    pub parent_domain_participant: RtpsWeak<DomainParticipantAttributes<RTPS>>,
 }
 
-impl SubscriberAttributes {
+impl<RTPS> SubscriberAttributes<RTPS>
+where
+    RTPS: RtpsStructure,
+{
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
-        parent_domain_participant: RtpsWeak<DomainParticipantAttributes>,
+        parent_domain_participant: RtpsWeak<DomainParticipantAttributes<RTPS>>,
     ) -> Self {
         Self {
             qos,
@@ -59,7 +66,10 @@ impl SubscriberAttributes {
     }
 }
 
-impl ProcessDataSubmessage for SubscriberAttributes {
+impl<RTPS> ProcessDataSubmessage for SubscriberAttributes<RTPS>
+where
+    RTPS: RtpsStructure,
+{
     fn process_data_submessage(
         &mut self,
         _source_guid_prefix: GuidPrefix,
@@ -93,15 +103,21 @@ impl ProcessDataSubmessage for SubscriberAttributes {
 }
 
 #[derive(Clone)]
-pub struct SubscriberProxy {
-    participant: DomainParticipantProxy,
-    subscriber_impl: RtpsWeak<SubscriberAttributes>,
+pub struct SubscriberProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
+    participant: DomainParticipantProxy<RTPS>,
+    subscriber_impl: RtpsWeak<SubscriberAttributes<RTPS>>,
 }
 
-impl SubscriberProxy {
+impl<RTPS> SubscriberProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
     pub fn new(
-        participant: DomainParticipantProxy,
-        subscriber_impl: RtpsWeak<SubscriberAttributes>,
+        participant: DomainParticipantProxy<RTPS>,
+        subscriber_impl: RtpsWeak<SubscriberAttributes<RTPS>>,
     ) -> Self {
         Self {
             participant,
@@ -110,18 +126,22 @@ impl SubscriberProxy {
     }
 }
 
-impl AsRef<RtpsWeak<SubscriberAttributes>> for SubscriberProxy {
-    fn as_ref(&self) -> &RtpsWeak<SubscriberAttributes> {
+impl<RTPS> AsRef<RtpsWeak<SubscriberAttributes<RTPS>>> for SubscriberProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
+    fn as_ref(&self) -> &RtpsWeak<SubscriberAttributes<RTPS>> {
         &self.subscriber_impl
     }
 }
 
-impl<Foo> SubscriberDataReaderFactory<Foo> for SubscriberProxy
+impl<Foo, RTPS> SubscriberDataReaderFactory<Foo> for SubscriberProxy<RTPS>
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
+    RTPS: RtpsStructure,
 {
-    type TopicType = TopicProxy<Foo>;
-    type DataReaderType = DataReaderProxy<Foo>;
+    type TopicType = TopicProxy<Foo, RTPS>;
+    type DataReaderType = DataReaderProxy<Foo, RTPS>;
 
     fn datareader_factory_create_datareader(
         &self,
@@ -225,8 +245,11 @@ where
     }
 }
 
-impl Subscriber for SubscriberProxy {
-    type DomainParticipant = DomainParticipantProxy;
+impl<RTPS> Subscriber for SubscriberProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
+    type DomainParticipant = DomainParticipantProxy<RTPS>;
 
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
@@ -279,7 +302,10 @@ impl Subscriber for SubscriberProxy {
     }
 }
 
-impl Entity for SubscriberProxy {
+impl<RTPS> Entity for SubscriberProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 

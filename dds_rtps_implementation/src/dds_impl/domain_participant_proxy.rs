@@ -38,8 +38,9 @@ use crate::{
     },
     dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
-    utils::shared_object::{
-        RtpsShared, RtpsWeak,
+    utils::{
+        rtps_structure::RtpsStructure,
+        shared_object::{RtpsShared, RtpsWeak},
     },
 };
 
@@ -49,20 +50,23 @@ use super::{
     topic_proxy::{TopicAttributes, TopicProxy},
 };
 
-pub struct DomainParticipantAttributes {
+pub struct DomainParticipantAttributes<RTPS>
+where
+    RTPS: RtpsStructure,
+{
     pub rtps_participant: RtpsParticipantImpl,
     pub domain_id: DomainId,
     pub domain_tag: Arc<String>,
     pub qos: DomainParticipantQos,
-    pub builtin_subscriber_list: Vec<RtpsShared<SubscriberAttributes>>,
-    pub builtin_publisher_list: Vec<RtpsShared<PublisherAttributes>>,
-    pub user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes>>,
+    pub builtin_subscriber_list: Vec<RtpsShared<SubscriberAttributes<RTPS>>>,
+    pub builtin_publisher_list: Vec<RtpsShared<PublisherAttributes<RTPS>>>,
+    pub user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes<RTPS>>>,
     pub user_defined_subscriber_counter: AtomicU8,
     pub default_subscriber_qos: SubscriberQos,
-    pub user_defined_publisher_list: Vec<RtpsShared<PublisherAttributes>>,
+    pub user_defined_publisher_list: Vec<RtpsShared<PublisherAttributes<RTPS>>>,
     pub user_defined_publisher_counter: AtomicU8,
     pub default_publisher_qos: PublisherQos,
-    pub topic_list: Vec<RtpsShared<TopicAttributes>>,
+    pub topic_list: Vec<RtpsShared<TopicAttributes<RTPS>>>,
     pub default_topic_qos: TopicQos,
     pub manual_liveliness_count: Count,
     pub lease_duration: rust_rtps_pim::behavior::types::Duration,
@@ -71,7 +75,10 @@ pub struct DomainParticipantAttributes {
     pub enabled: Arc<AtomicBool>,
 }
 
-impl DomainParticipantAttributes {
+impl<RTPS> DomainParticipantAttributes<RTPS>
+where
+    RTPS: RtpsStructure,
+{
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
@@ -81,8 +88,8 @@ impl DomainParticipantAttributes {
         metatraffic_multicast_locator_list: Vec<Locator>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes>>,
-        user_defined_publisher_list: Vec<RtpsShared<PublisherAttributes>>,
+        user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes<RTPS>>>,
+        user_defined_publisher_list: Vec<RtpsShared<PublisherAttributes<RTPS>>>,
         enabled: Arc<AtomicBool>,
     ) -> Self {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
@@ -153,22 +160,40 @@ impl DomainParticipantAttributes {
     }
 }
 
-#[derive(Clone)]
-pub struct DomainParticipantProxy {
-    domain_participant: RtpsWeak<DomainParticipantAttributes>,
+pub struct DomainParticipantProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
+    domain_participant: RtpsWeak<DomainParticipantAttributes<RTPS>>,
 }
 
-impl DomainParticipantProxy {
-    pub fn new(domain_participant: RtpsWeak<DomainParticipantAttributes>) -> Self {
+impl<RTPS> Clone for DomainParticipantProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
+    fn clone(&self) -> Self {
+        Self {
+            domain_participant: self.domain_participant.clone(),
+        }
+    }
+}
+
+impl<RTPS> DomainParticipantProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
+    pub fn new(domain_participant: RtpsWeak<DomainParticipantAttributes<RTPS>>) -> Self {
         Self { domain_participant }
     }
 }
 
-impl<Foo> DomainParticipantTopicFactory<Foo> for DomainParticipantProxy
+impl<Foo, RTPS> DomainParticipantTopicFactory<Foo> for DomainParticipantProxy<RTPS>
 where
     Foo: DdsType + 'static,
+
+    RTPS: RtpsStructure,
 {
-    type TopicType = TopicProxy<Foo>;
+    type TopicType = TopicProxy<Foo, RTPS>;
 
     fn topic_factory_create_topic(
         &self,
@@ -178,8 +203,7 @@ where
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
-        let mut domain_participant_attributes_lock =
-            domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let topic_qos = qos.unwrap_or(domain_participant_attributes_lock.default_topic_qos.clone());
 
         // let _builtin_publisher_lock =
@@ -231,8 +255,7 @@ where
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock =
-            domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let topic_shared = a_topic.as_ref().upgrade()?;
         if std::ptr::eq(&a_topic.get_participant(), self) {
             domain_participant_attributes_lock
@@ -265,9 +288,12 @@ where
     }
 }
 
-impl DomainParticipant for DomainParticipantProxy {
-    type PublisherType = PublisherProxy;
-    type SubscriberType = SubscriberProxy;
+impl<RTPS> DomainParticipant for DomainParticipantProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
+    type PublisherType = PublisherProxy<RTPS>;
+    type SubscriberType = SubscriberProxy<RTPS>;
 
     fn create_publisher(
         &self,
@@ -276,8 +302,7 @@ impl DomainParticipant for DomainParticipantProxy {
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
         let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
-        let mut domain_participant_attributes_lock =
-            domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let publisher_qos = qos.unwrap_or(
             domain_participant_attributes_lock
                 .default_publisher_qos
@@ -321,8 +346,7 @@ impl DomainParticipant for DomainParticipantProxy {
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock =
-            domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let publisher_shared = a_publisher.0.upgrade()?;
         if std::ptr::eq(&a_publisher.get_participant()?, self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_publisher(&publisher_shared)
@@ -344,8 +368,7 @@ impl DomainParticipant for DomainParticipantProxy {
         _mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
         let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
-        let mut domain_participant_attributes_lock =
-            domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         // let subscriber_shared = rtps_shared_read_lock(&domain_participant_lock)
         // .create_subscriber(qos, a_listener, mask)?;
 
@@ -381,8 +404,7 @@ impl DomainParticipant for DomainParticipantProxy {
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock =
-            domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let subscriber_shared = a_subscriber.as_ref().upgrade()?;
         if std::ptr::eq(&a_subscriber.get_participant(), self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_subscriber(&subscriber_shared)
@@ -563,7 +585,10 @@ impl DomainParticipant for DomainParticipantProxy {
     }
 }
 
-impl Entity for DomainParticipantProxy {
+impl<RTPS> Entity for DomainParticipantProxy<RTPS>
+where
+    RTPS: RtpsStructure,
+{
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
