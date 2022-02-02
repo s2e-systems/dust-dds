@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak, LockResult};
+use std::{sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak, LockResult}, ops::Deref};
 
 use rust_dds_api::return_type::{DDSError, DDSResult};
 
@@ -35,6 +35,13 @@ impl<T: ?Sized> Clone for RtpsShared<T> {
 impl<T> PartialEq for RtpsShared<T> {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl<T: ?Sized> Deref for RtpsShared<T> {
+    type Target = RwLock<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
