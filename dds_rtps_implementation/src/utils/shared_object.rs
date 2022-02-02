@@ -1,27 +1,59 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak, LockResult};
 
 use rust_dds_api::return_type::{DDSError, DDSResult};
 
-pub type RtpsShared<T> = Arc<RwLock<T>>;
+pub struct RtpsShared<T: ?Sized>(Arc<RwLock<T>>);
 
-pub fn rtps_shared_new<T>(t: T) -> RtpsShared<T> {
-    Arc::new(RwLock::new(t))
+impl<T> RtpsShared<T> {
+    pub fn new(t: T) -> Self {
+        RtpsShared(Arc::new(RwLock::new(t)))
+    }
+
+    pub fn downgrade(&self) -> RtpsWeak<T> {
+        RtpsWeak(Arc::downgrade(&self.0))
+    }
+
+    pub fn read_lock(&self) -> RwLockReadGuard<'_, T> {
+        self.0.read().unwrap()
+    }
+
+    pub fn write_lock(&self) -> RwLockWriteGuard<'_, T> {
+        self.0.write().unwrap()
+    }
+
+    pub fn write(&self) -> LockResult<RwLockWriteGuard<'_, T>> {
+        self.0.write()
+    }
 }
 
-pub fn rtps_shared_downgrade<T: ?Sized>(this: &RtpsShared<T>) -> RtpsWeak<T> {
-    Arc::downgrade(this)
+impl<T: ?Sized> Clone for RtpsShared<T> {
+    fn clone(&self) -> Self {
+        RtpsShared(self.0.clone())
+    }
 }
 
-pub fn rtps_shared_read_lock<T: ?Sized>(this: &RtpsShared<T>) -> RwLockReadGuard<'_, T> {
-    this.read().unwrap()
+impl<T> PartialEq for RtpsShared<T> {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
 }
 
-pub fn rtps_shared_write_lock<T: ?Sized>(this: &RtpsShared<T>) -> RwLockWriteGuard<'_, T> {
-    this.write().unwrap()
+pub struct RtpsWeak<T: ?Sized>(Weak<RwLock<T>>);
+
+impl<T> RtpsWeak<T> {
+    pub fn new() -> Self {
+        RtpsWeak(Weak::new())
+    }
+
+    pub fn upgrade(&self) -> DDSResult<RtpsShared<T>> {
+        self.0.upgrade()
+            .map(|x| RtpsShared(x))
+            .ok_or(DDSError::AlreadyDeleted)
+    }
 }
 
-pub type RtpsWeak<T> = Weak<RwLock<T>>;
-
-pub fn rtps_weak_upgrade<T: ?Sized>(this: &RtpsWeak<T>) -> DDSResult<RtpsShared<T>> {
-    this.upgrade().ok_or(DDSError::AlreadyDeleted)
+impl<T: ?Sized> Clone for RtpsWeak<T> {
+    fn clone(&self) -> Self {
+        RtpsWeak(self.0.clone())
+    }
 }

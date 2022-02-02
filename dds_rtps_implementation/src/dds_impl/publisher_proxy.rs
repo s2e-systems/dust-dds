@@ -18,7 +18,7 @@ use rust_dds_api::{
 use crate::{
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::rtps_group_impl::RtpsGroupImpl,
-    utils::shared_object::{rtps_shared_read_lock, rtps_weak_upgrade, RtpsShared, RtpsWeak},
+    utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
 use super::{
@@ -186,7 +186,7 @@ where
         &self,
         a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
-        let _a_datawriter_shared = rtps_weak_upgrade(a_datawriter.as_ref())?;
+        let _a_datawriter_shared = a_datawriter.as_ref().upgrade()?;
         if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
             todo!()
             // PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
@@ -270,8 +270,8 @@ impl Publisher for PublisherProxy {
     }
 
     fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
-        let publisher_attributes = rtps_weak_upgrade(&self.0)?;
-        let publisher_attributes_lock = rtps_shared_read_lock(&publisher_attributes);
+        let publisher_attributes = self.0.upgrade()?;
+        let publisher_attributes_lock = publisher_attributes.read_lock();
         Ok(DomainParticipantProxy::new(
             publisher_attributes_lock.parent_participant.clone(),
         ))

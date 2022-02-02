@@ -6,7 +6,7 @@ use crate::{
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
     },
-    utils::shared_object::{rtps_shared_write_lock, rtps_weak_upgrade, RtpsShared, RtpsWeak},
+    utils::shared_object::{RtpsShared, RtpsWeak},
 };
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -141,8 +141,8 @@ where
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        let data_reader_shared = rtps_weak_upgrade(&self.data_reader_impl)?;
-        let mut _data_reader_lock = rtps_shared_write_lock(&data_reader_shared);
+        let data_reader_shared = self.data_reader_impl.upgrade()?;
+        let mut _data_reader_lock = data_reader_shared.write_lock();
         // match &self.rtps_reader {
         //     RtpsReader::Stateless(rtps_reader) => {
         //         if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {

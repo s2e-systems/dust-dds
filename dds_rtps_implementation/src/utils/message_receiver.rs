@@ -1,5 +1,3 @@
-use crate::utils::shared_object::rtps_shared_write_lock;
-
 use super::shared_object::RtpsShared;
 use rust_rtps_pim::{
     messages::{
@@ -69,7 +67,7 @@ impl MessageReceiver {
                 RtpsSubmessageTypeRead::AckNack(_) => todo!(),
                 RtpsSubmessageTypeRead::Data(data) => {
                     for element in list {
-                        rtps_shared_write_lock(&element)
+                        element.write_lock()
                             .process_data_submessage(self.source_guid_prefix, &data)
                     }
                 }
