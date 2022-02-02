@@ -143,12 +143,14 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
+
+        let rtps_reader = &data_reader_shared.read()
+                           .map_err(|_| DDSError::NoData)?
+                           .rtps_reader;
+
         let mut _data_reader_lock = data_reader_shared.write_lock();
-        
-        match &self.data_reader_impl.upgrade()?
-               .read().map_err(|_| DDSError::NoData)?
-               .rtps_reader
-        {
+
+        match rtps_reader {
             RtpsReader::Stateless(rtps_reader) => {
                 if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
                     Ok(Samples {
