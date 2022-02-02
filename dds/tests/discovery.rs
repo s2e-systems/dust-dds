@@ -105,11 +105,18 @@ fn send_and_receive_discovery_data_happy_path() {
 
     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
+    let publisher = RtpsShared::new(PublisherAttributes::new(
+        PublisherQos::default(),
+        RtpsGroupImpl::new(GUID_UNKNOWN),
+        None,
+        RtpsWeak::new(),
+    ));
+
     let data_writer = DataWriterAttributes::new(
         DataWriterQos::default(),
         RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
         RtpsWeak::new(),
-        RtpsWeak::new(),
+        publisher.downgrade(),
     );
 
     let data_writer_ptr = RtpsShared::new(data_writer);
@@ -124,13 +131,6 @@ fn send_and_receive_discovery_data_happy_path() {
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )
         .unwrap();
-    let publisher = RtpsShared::new(PublisherAttributes::new(
-        PublisherQos::default(),
-        RtpsGroupImpl::new(GUID_UNKNOWN),
-        None,
-        RtpsWeak::new(),
-    ));
-
     // vec![Arc::new(RwLock::new(data_writer))],
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
@@ -150,6 +150,14 @@ fn send_and_receive_discovery_data_happy_path() {
         RtpsStatelessReaderImpl,
     >(GuidPrefix([5; 12]), &[], &[]);
 
+    let subscriber = RtpsShared::new(SubscriberAttributes::new(
+        SubscriberQos::default(),
+        RtpsGroupImpl::new(Guid::new(
+            GuidPrefix([6; 12]),
+            EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+        )),
+        RtpsWeak::new(),
+    ));
     let data_reader = DataReaderAttributes::new(
         DataReaderQos::default(),
         RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
@@ -159,22 +167,13 @@ fn send_and_receive_discovery_data_happy_path() {
             "DCPSParticipant",
             RtpsWeak::new(),
         )),
-        RtpsWeak::new(),
+        subscriber.downgrade(),
     );
     let shared_data_reader = RtpsShared::new(data_reader);
-    let subscriber = RtpsShared::new(SubscriberAttributes::new(
-        SubscriberQos::default(),
-        RtpsGroupImpl::new(Guid::new(
-            GuidPrefix([6; 12]),
-            EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-        )),
-        RtpsWeak::new(),
-    ));
     // vec![shared_data_reader.clone()],
 
     communication.receive(core::slice::from_ref(&subscriber));
 
-    //let mut shared_data_reader = shared_data_reader.write_lock();
     let mut shared_data_reader_proxy = DataReaderProxy::new(shared_data_reader.downgrade());
 
     let result: Samples<SpdpDiscoveredParticipantData> =
