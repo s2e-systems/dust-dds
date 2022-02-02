@@ -23,19 +23,19 @@ use super::{
     topic_proxy::{TopicAttributes, TopicProxy},
 };
 
-pub enum RtpsWriter<RTPS>
+pub enum RtpsWriter<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    Stateless(RTPS::StatelessWriter),
-    Stateful(RTPS::StatefulWriter),
+    Stateless(Rtps::StatelessWriter),
+    Stateful(Rtps::StatefulWriter),
 }
 
-impl<RTPS> RtpsWriter<RTPS>
+impl<Rtps> RtpsWriter<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    pub fn try_as_stateless_writer(&mut self) -> DDSResult<&mut RTPS::StatelessWriter> {
+    pub fn try_as_stateless_writer(&mut self) -> DDSResult<&mut Rtps::StatelessWriter> {
         match self {
             RtpsWriter::Stateless(x) => Ok(x),
             RtpsWriter::Stateful(_) => Err(DDSError::PreconditionNotMet(
@@ -43,7 +43,7 @@ where
             )),
         }
     }
-    pub fn try_as_stateful_writer(&mut self) -> DDSResult<&mut RTPS::StatefulWriter> {
+    pub fn try_as_stateful_writer(&mut self) -> DDSResult<&mut Rtps::StatefulWriter> {
         match self {
             RtpsWriter::Stateless(_) => Err(DDSError::PreconditionNotMet(
                 "Not a stateful writer".to_string(),
@@ -53,26 +53,26 @@ where
     }
 }
 
-pub struct DataWriterAttributes<RTPS>
+pub struct DataWriterAttributes<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     pub _qos: DataWriterQos,
-    pub rtps_writer: RtpsWriter<RTPS>,
+    pub rtps_writer: RtpsWriter<Rtps>,
     pub _listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
-    pub topic: RtpsWeak<TopicAttributes<RTPS>>,
-    pub publisher: RtpsWeak<PublisherAttributes<RTPS>>,
+    pub topic: RtpsWeak<TopicAttributes<Rtps>>,
+    pub publisher: RtpsWeak<PublisherAttributes<Rtps>>,
 }
 
-impl<RTPS> DataWriterAttributes<RTPS>
+impl<Rtps> DataWriterAttributes<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     pub fn new(
         qos: DataWriterQos,
-        rtps_writer: RtpsWriter<RTPS>,
-        topic: RtpsWeak<TopicAttributes<RTPS>>,
-        publisher: RtpsWeak<PublisherAttributes<RTPS>>,
+        rtps_writer: RtpsWriter<Rtps>,
+        topic: RtpsWeak<TopicAttributes<Rtps>>,
+        publisher: RtpsWeak<PublisherAttributes<Rtps>>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -84,18 +84,18 @@ where
     }
 }
 
-pub struct DataWriterProxy<Foo, RTPS>
+pub struct DataWriterProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    data_writer_impl: RtpsWeak<DataWriterAttributes<RTPS>>,
+    data_writer_impl: RtpsWeak<DataWriterAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo, RTPS> Clone for DataWriterProxy<Foo, RTPS>
+impl<Foo, Rtps> Clone for DataWriterProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     fn clone(&self) -> Self {
         Self {
@@ -105,11 +105,11 @@ where
     }
 }
 
-impl<Foo, RTPS> DataWriterProxy<Foo, RTPS>
+impl<Foo, Rtps> DataWriterProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    pub fn new(data_writer_impl: RtpsWeak<DataWriterAttributes<RTPS>>) -> Self {
+    pub fn new(data_writer_impl: RtpsWeak<DataWriterAttributes<Rtps>>) -> Self {
         Self {
             data_writer_impl,
             phantom: PhantomData,
@@ -117,23 +117,23 @@ where
     }
 }
 
-impl<Foo, RTPS> AsRef<RtpsWeak<DataWriterAttributes<RTPS>>> for DataWriterProxy<Foo, RTPS>
+impl<Foo, Rtps> AsRef<RtpsWeak<DataWriterAttributes<Rtps>>> for DataWriterProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    fn as_ref(&self) -> &RtpsWeak<DataWriterAttributes<RTPS>> {
+    fn as_ref(&self) -> &RtpsWeak<DataWriterAttributes<Rtps>> {
         &self.data_writer_impl
     }
 }
 
-impl<Foo, RTPS> DataWriter<Foo> for DataWriterProxy<Foo, RTPS>
+impl<Foo, Rtps> DataWriter<Foo> for DataWriterProxy<Foo, Rtps>
 where
     Foo: DdsSerialize,
 
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    type Publisher = PublisherProxy<RTPS>;
-    type Topic = TopicProxy<Foo, RTPS>;
+    type Publisher = PublisherProxy<Rtps>;
+    type Topic = TopicProxy<Foo, Rtps>;
 
     fn register_instance(&mut self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         // let timestamp = self.publisher.get_participant()?.get_current_time()?;
@@ -283,9 +283,9 @@ where
     }
 }
 
-impl<Foo, RTPS> Entity for DataWriterProxy<Foo, RTPS>
+impl<Foo, Rtps> Entity for DataWriterProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener>;

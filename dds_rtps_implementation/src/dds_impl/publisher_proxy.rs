@@ -31,28 +31,28 @@ use super::{
     topic_proxy::TopicProxy,
 };
 
-pub struct PublisherAttributes<RTPS>
+pub struct PublisherAttributes<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     pub _qos: PublisherQos,
     pub rtps_group: RtpsGroupImpl,
-    pub data_writer_list: Vec<RtpsShared<DataWriterAttributes<RTPS>>>,
+    pub data_writer_list: Vec<RtpsShared<DataWriterAttributes<Rtps>>>,
     pub user_defined_data_writer_counter: AtomicU8,
     pub default_datawriter_qos: DataWriterQos,
-    pub sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<RTPS>>>,
-    pub parent_participant: RtpsWeak<DomainParticipantAttributes<RTPS>>,
+    pub sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<Rtps>>>,
+    pub parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
-impl<RTPS> PublisherAttributes<RTPS>
+impl<Rtps> PublisherAttributes<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<RTPS>>>,
-        parent_participant: RtpsWeak<DomainParticipantAttributes<RTPS>>,
+        sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<Rtps>>>,
+        parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -67,26 +67,26 @@ where
 }
 
 #[derive(Clone)]
-pub struct PublisherProxy<RTPS>(pub(crate) RtpsWeak<PublisherAttributes<RTPS>>)
+pub struct PublisherProxy<Rtps>(pub(crate) RtpsWeak<PublisherAttributes<Rtps>>)
 where
-    RTPS: RtpsStructure;
+    Rtps: RtpsStructure;
 
-impl<RTPS> PublisherProxy<RTPS>
+impl<Rtps> PublisherProxy<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    pub fn new(publisher_impl: RtpsWeak<PublisherAttributes<RTPS>>) -> Self {
+    pub fn new(publisher_impl: RtpsWeak<PublisherAttributes<Rtps>>) -> Self {
         Self(publisher_impl)
     }
 }
 
-impl<Foo, RTPS> PublisherDataWriterFactory<Foo> for PublisherProxy<RTPS>
+impl<Foo, Rtps> PublisherDataWriterFactory<Foo> for PublisherProxy<Rtps>
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    type TopicType = TopicProxy<Foo, RTPS>;
-    type DataWriterType = DataWriterProxy<Foo, RTPS>;
+    type TopicType = TopicProxy<Foo, Rtps>;
+    type DataWriterType = DataWriterProxy<Foo, Rtps>;
 
     fn datawriter_factory_create_datawriter(
         &self,
@@ -230,11 +230,11 @@ where
     }
 }
 
-impl<RTPS> Publisher for PublisherProxy<RTPS>
+impl<Rtps> Publisher for PublisherProxy<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    type DomainParticipant = DomainParticipantProxy<RTPS>;
+    type DomainParticipant = DomainParticipantProxy<Rtps>;
 
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
@@ -296,9 +296,9 @@ where
     }
 }
 
-impl<RTPS> Entity for PublisherProxy<RTPS>
+impl<Rtps> Entity for PublisherProxy<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;

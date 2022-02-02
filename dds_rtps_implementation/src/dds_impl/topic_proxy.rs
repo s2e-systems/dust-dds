@@ -13,25 +13,25 @@ use rust_dds_api::{
 
 use super::domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy};
 
-pub struct TopicAttributes<RTPS>
+pub struct TopicAttributes<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     pub _qos: TopicQos,
     pub type_name: &'static str,
     pub topic_name: String,
-    pub parent_participant: RtpsWeak<DomainParticipantAttributes<RTPS>>,
+    pub parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
-impl<RTPS> TopicAttributes<RTPS>
+impl<Rtps> TopicAttributes<Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     pub fn new(
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
-        parent_participant: RtpsWeak<DomainParticipantAttributes<RTPS>>,
+        parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -42,18 +42,18 @@ where
     }
 }
 
-pub struct TopicProxy<Foo, RTPS>
+pub struct TopicProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    topic_impl: RtpsWeak<TopicAttributes<RTPS>>,
+    topic_impl: RtpsWeak<TopicAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo, RTPS> Clone for TopicProxy<Foo, RTPS>
+impl<Foo, Rtps> Clone for TopicProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     fn clone(&self) -> Self {
         Self {
@@ -63,11 +63,11 @@ where
     }
 }
 
-impl<Foo, RTPS> TopicProxy<Foo, RTPS>
+impl<Foo, Rtps> TopicProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    pub fn new(topic_impl: RtpsWeak<TopicAttributes<RTPS>>) -> Self {
+    pub fn new(topic_impl: RtpsWeak<TopicAttributes<Rtps>>) -> Self {
         Self {
             topic_impl,
             phantom: PhantomData,
@@ -75,18 +75,18 @@ where
     }
 }
 
-impl<Foo, RTPS> AsRef<RtpsWeak<TopicAttributes<RTPS>>> for TopicProxy<Foo, RTPS>
+impl<Foo, Rtps> AsRef<RtpsWeak<TopicAttributes<Rtps>>> for TopicProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    fn as_ref(&self) -> &RtpsWeak<TopicAttributes<RTPS>> {
+    fn as_ref(&self) -> &RtpsWeak<TopicAttributes<Rtps>> {
         &self.topic_impl
     }
 }
 
-impl<Foo, RTPS> Topic for TopicProxy<Foo, RTPS>
+impl<Foo, Rtps> Topic for TopicProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
@@ -94,11 +94,11 @@ where
     }
 }
 
-impl<Foo, RTPS> TopicDescription for TopicProxy<Foo, RTPS>
+impl<Foo, Rtps> TopicDescription for TopicProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
-    type DomainParticipant = DomainParticipantProxy<RTPS>;
+    type DomainParticipant = DomainParticipantProxy<Rtps>;
 
     fn get_participant(&self) -> Self::DomainParticipant {
         todo!()
@@ -114,9 +114,9 @@ where
     }
 }
 
-impl<Foo, RTPS> Entity for TopicProxy<Foo, RTPS>
+impl<Foo, Rtps> Entity for TopicProxy<Foo, Rtps>
 where
-    RTPS: RtpsStructure,
+    Rtps: RtpsStructure,
 {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
