@@ -3,7 +3,7 @@ use std::net::UdpSocket;
 use rust_dds::{
     communication::Communication,
     infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos},
-    udp_transport::UdpTransport,
+    udp_transport::UdpTransport, publication::data_writer::DataWriter,
 };
 use rust_dds_api::{
     builtin_topics::ParticipantBuiltinTopicData,
@@ -20,7 +20,7 @@ use rust_dds_rtps_implementation::{
     },
     dds_impl::{
         data_reader_proxy::{DataReaderAttributes, RtpsReader},
-        data_writer_proxy::{DataWriterAttributes, RtpsWriter},
+        data_writer_proxy::{DataWriterAttributes, RtpsWriter, DataWriterProxy},
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
         topic_proxy::TopicAttributes,
@@ -84,7 +84,7 @@ fn send_and_receive_discovery_data_happy_path() {
         fraction: 0,
     };
 
-    let _spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+    let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
         dds_participant_data,
         participant_proxy,
         lease_duration,
@@ -105,20 +105,25 @@ fn send_and_receive_discovery_data_happy_path() {
 
     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-    let mut _data_writer = DataWriterAttributes::new(
+    let data_writer = DataWriterAttributes::new(
         DataWriterQos::default(),
         RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
         RtpsWeak::new(),
         RtpsWeak::new(),
     );
 
-    // data_writer
-    //     .write_w_timestamp(
-    //         &spdp_discovered_participant_data,
-    //         None,
-    //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-    //     )
-    //     .unwrap();
+    let data_writer_ptr = RtpsShared::new(data_writer);
+    let mut data_writer_proxy = DataWriterProxy::new(
+        data_writer_ptr.downgrade()
+    );
+
+    data_writer_proxy
+        .write_w_timestamp(
+            &spdp_discovered_participant_data,
+            None,
+            rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+        )
+        .unwrap();
     let publisher = RtpsShared::new(PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(GUID_UNKNOWN),
@@ -217,7 +222,7 @@ fn process_discovery_data_happy_path() {
         fraction: 0,
     };
 
-    let _spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+    let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
         dds_participant_data,
         participant_proxy,
         lease_duration,
@@ -238,20 +243,26 @@ fn process_discovery_data_happy_path() {
 
     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-    let mut _spdp_builtin_participant_data_writer = DataWriterAttributes::new(
+    let spdp_builtin_participant_data_writer = DataWriterAttributes::new(
         DataWriterQos::default(),
         RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
         RtpsWeak::new(),
         RtpsWeak::new(),
     );
 
-    // spdp_builtin_participant_data_writer
-    //     .write_w_timestamp(
-    //         &spdp_discovered_participant_data,
-    //         None,
-    //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-    //     )
-    //     .unwrap();
+    let spdp_builtin_participant_data_writer_ptr = RtpsShared::new(spdp_builtin_participant_data_writer);
+
+    let mut spdp_builtin_participant_data_writer_proxy = DataWriterProxy::new(
+        spdp_builtin_participant_data_writer_ptr.downgrade()
+    );
+
+    spdp_builtin_participant_data_writer_proxy
+        .write_w_timestamp(
+            &spdp_discovered_participant_data,
+            None,
+            rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+        )
+        .unwrap();
 
     let sedp_builtin_publications_rtps_writer =
         SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
