@@ -16,22 +16,11 @@ use rust_dds_api::{
     },
 };
 use rust_rtps_pim::{
-    behavior::{
-        reader::{
-            reader::RtpsReaderAttributes,
-            stateful_reader::RtpsStatefulReaderAttributes,
-            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
-        },
-        stateful_reader_behavior::StatefulReaderBehavior,
-        stateless_reader_behavior::BestEffortStatelessReaderBehavior,
-    },
+    behavior::reader::reader::RtpsReaderAttributes,
     structure::{
-        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::GuidPrefix,
+        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheAttributes,
     },
 };
-use rust_rtps_psm::messages::{submessage_elements::Parameter, submessages::DataSubmessageRead};
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
@@ -43,7 +32,7 @@ use crate::{
 };
 
 use super::{
-    data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader},
+    data_reader_proxy::{DataReaderAttributes, DataReaderProxy},
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
     topic_proxy::TopicProxy,
 };

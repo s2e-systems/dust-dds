@@ -2,8 +2,8 @@ use std::cell::RefCell;
 
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_reader_proxy::DataReaderAttributes, data_writer_proxy::RtpsWriter,
-        publisher_proxy::PublisherAttributes, subscriber_proxy::SubscriberAttributes,
+        data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
+        subscriber_proxy::SubscriberAttributes,
     },
     utils::{
         shared_object::RtpsShared,

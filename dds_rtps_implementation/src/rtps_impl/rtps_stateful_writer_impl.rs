@@ -22,7 +22,6 @@ use rust_rtps_pim::{
         },
     },
 };
-use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
 use crate::utils::clock::{StdTimer, Timer};
 

@@ -21,7 +21,6 @@ use rust_rtps_pim::{
         },
     },
 };
-use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
 use super::{
     rtps_reader_locator_impl::{RtpsReaderLocatorAttributesImpl, RtpsReaderLocatorOperationsImpl},

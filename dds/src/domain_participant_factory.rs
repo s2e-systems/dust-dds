@@ -13,41 +13,29 @@ use std::{
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::qos::{
-        DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
-        PublisherQos, SubscriberQos, TopicQos,
-    },
+    infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos},
     return_type::DDSResult,
     subscription::data_reader::DataReader,
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_reader_data::SedpDiscoveredReaderData,
-        sedp_discovered_topic_data::SedpDiscoveredTopicData,
         sedp_discovered_writer_data::SedpDiscoveredWriterData,
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_impl::{
-        data_reader_proxy::{DataReaderAttributes, RtpsReader, Samples},
-        data_writer_proxy::{DataWriterAttributes, RtpsWriter},
+        data_reader_proxy::{RtpsReader, Samples},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
-        publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
-        topic_proxy::TopicAttributes,
     },
-    dds_type::DdsType,
     rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
+        rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
         rtps_writer_proxy_impl::RtpsWriterProxyImpl,
     },
-    utils::{
-        rtps_structure::RtpsStructure,
-        shared_object::{RtpsShared, RtpsWeak},
-    },
+    utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
 };
 use rust_rtps_pim::{
     behavior::{
@@ -69,10 +57,7 @@ use rust_rtps_pim::{
         },
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
     },
-    structure::types::{
-        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
-        BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_S2E,
-    },
+    structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E},
 };
 
 use crate::{communication::Communication, udp_transport::UdpTransport};
@@ -376,21 +361,21 @@ impl DomainParticipantFactory {
         let _default_transport = UdpTransport::new(socket);
 
         // /////// Create SPDP and SEDP endpoints
-        let spdp_builtin_participant_rtps_reader =
+        let _spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_rtps_reader =
+        let _sedp_builtin_publications_rtps_reader =
             SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_rtps_writer =
+        let _sedp_builtin_publications_rtps_writer =
             SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_rtps_reader =
+        let _sedp_builtin_subscriptions_rtps_reader =
             SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_rtps_writer =
+        let _sedp_builtin_subscriptions_rtps_writer =
             SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_rtps_reader =
+        let _sedp_builtin_topics_rtps_reader =
             SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_rtps_writer =
+        let _sedp_builtin_topics_rtps_writer =
             SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
         // ////////// Configure SPDP reader locator
@@ -524,9 +509,9 @@ impl DomainParticipantFactory {
 
         let (sender, receiver) = std::sync::mpsc::sync_channel(10);
         let executor = Executor { receiver };
-        let spawner = Spawner::new(sender, enabled.clone());
+        let _spawner = Spawner::new(sender, enabled.clone());
 
-        let mut communication = Communication {
+        let mut _communication = Communication {
             version: PROTOCOLVERSION,
             vendor_id: VENDOR_ID_S2E,
             guid_prefix,
@@ -748,6 +733,7 @@ mod tests {
             SampleRejectedStatus, SampleStateKind, SubscriptionMatchedStatus, ViewStateKind,
         },
         infrastructure::{
+            qos::SubscriberQos,
             qos_policy::{
                 DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
                 DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
@@ -768,9 +754,10 @@ mod tests {
             spdp_discovered_participant_data::ParticipantProxy,
         },
         rtps_impl::{
-            rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
+            rtps_group_impl::RtpsGroupImpl, rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
             rtps_writer_proxy_impl::RtpsWriterProxyImpl,
         },
+        utils::shared_object::RtpsWeak,
     };
     use rust_rtps_pim::{
         behavior::{
@@ -788,7 +775,7 @@ mod tests {
             types::{BuiltinEndpointQos, BuiltinEndpointSet},
         },
         messages::types::Count,
-        structure::types::ENTITYID_UNKNOWN,
+        structure::types::{EntityId, Guid, BUILT_IN_READER_GROUP, ENTITYID_UNKNOWN},
     };
 
     mock! {
