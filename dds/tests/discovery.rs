@@ -55,12 +55,14 @@ use rust_rtps_pim::{
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
+
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey {
             value: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         },
         user_data: UserDataQosPolicy { value: vec![] },
     };
+
     let participant_proxy = ParticipantProxy {
         domain_id: 1,
         domain_tag: "ab".to_string(),
@@ -135,7 +137,6 @@ fn send_and_receive_discovery_data_happy_path() {
             rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
         )
         .unwrap();
-    // vec![Arc::new(RwLock::new(data_writer))],
 
     let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
     socket.set_nonblocking(true).unwrap();
@@ -196,12 +197,14 @@ fn process_discovery_data_happy_path() {
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let domain_id = 1;
     let domain_tag = "ab";
+
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey {
             value: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         },
         user_data: UserDataQosPolicy { value: vec![] },
     };
+
     let participant_proxy = ParticipantProxy {
         domain_id,
         domain_tag: domain_tag.to_string(),
@@ -226,6 +229,7 @@ fn process_discovery_data_happy_path() {
         manual_liveliness_count: Count(0),
         builtin_endpoint_qos: BuiltinEndpointQos::default(),
     };
+
     let lease_duration = rust_rtps_pim::behavior::types::Duration {
         seconds: 100,
         fraction: 0,

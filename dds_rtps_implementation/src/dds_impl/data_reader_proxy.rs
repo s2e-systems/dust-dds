@@ -148,7 +148,6 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
-
         let rtps_reader = &data_reader_shared.read()
             .map_err(|_| DDSError::NoData)?
             .rtps_reader;
