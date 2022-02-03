@@ -15,7 +15,7 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::structure::types::GuidPrefix;
+use rust_rtps_pim::{structure::types::GuidPrefix, behavior::stateful_reader_behavior::StatefulReaderBehavior};
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
@@ -28,7 +28,7 @@ use crate::{
 };
 
 use super::{
-    data_reader_proxy::{DataReaderAttributes, DataReaderProxy},
+    data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader},
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
     topic_proxy::TopicProxy,
 };
@@ -62,33 +62,30 @@ impl SubscriberAttributes {
 impl ProcessDataSubmessage for SubscriberAttributes {
     fn process_data_submessage(
         &mut self,
-        _source_guid_prefix: GuidPrefix,
-        _data: &DataSubmessageRead,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessageRead,
     ) {
-        //         {
-        //             let data_reader_list_lock = self.data_reader_list.lock().unwrap();
-        //             for data_reader in data_reader_list_lock.iter().cloned() {
-        //                 let mut as_mut_rtps_reader_lock = rtps_shared_write_lock(&data_reader);
-        //                 let rtps_reader = as_mut_rtps_reader_lock.as_mut();
-        //                 match rtps_reader {
-        //                     RtpsReader::Stateless(stateless_rtps_reader) => {
-        //                         for mut stateless_reader_behavior in stateless_rtps_reader.into_iter() {
-        //                             stateless_reader_behavior.receive_data(source_guid_prefix, data)
-        //                         }
-        //                     }
-        //                     RtpsReader::Stateful(stateful_rtps_reader) => {
-        //                         for stateful_reader_behavior in stateful_rtps_reader.into_iter() {
-        //                             match stateful_reader_behavior {
-        //                                 StatefulReaderBehavior::BestEffort(_) => todo!(),
-        //                                 StatefulReaderBehavior::Reliable(mut reliable_stateful_reader) => {
-        //                                     reliable_stateful_reader.receive_data(source_guid_prefix, data)
-        //                                 }
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //             }
-        //         }
+        for data_reader in self.data_reader_list.iter().cloned() {
+            let mut as_mut_rtps_reader_lock = data_reader.write_lock();
+            let rtps_reader = &mut as_mut_rtps_reader_lock.rtps_reader;
+            match rtps_reader {
+                RtpsReader::Stateless(stateless_rtps_reader) => {
+                    for mut stateless_reader_behavior in stateless_rtps_reader.into_iter() {
+                        stateless_reader_behavior.receive_data(source_guid_prefix, data)
+                    }
+                }
+                RtpsReader::Stateful(stateful_rtps_reader) => {
+                    for stateful_reader_behavior in stateful_rtps_reader.into_iter() {
+                        match stateful_reader_behavior {
+                            StatefulReaderBehavior::BestEffort(_) => todo!(),
+                            StatefulReaderBehavior::Reliable(mut reliable_stateful_reader) => {
+                                reliable_stateful_reader.receive_data(source_guid_prefix, data)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

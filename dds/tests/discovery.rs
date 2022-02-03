@@ -147,6 +147,7 @@ fn send_and_receive_discovery_data_happy_path() {
         guid_prefix,
         transport,
     };
+
     communication.send(core::slice::from_ref(&publisher));
 
     // Reception
@@ -175,7 +176,7 @@ fn send_and_receive_discovery_data_happy_path() {
         )),
         subscriber.downgrade(),
     );
-    
+
     let mut data_reader_proxy = {
         let data_reader_ptr = RtpsShared::new(data_reader);
         let data_reader_weak = data_reader_ptr.downgrade();
