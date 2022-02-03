@@ -26,6 +26,12 @@ use rust_dds_api::{
         query_condition::QueryCondition,
     },
 };
+use rust_rtps_pim::{
+    behavior::reader::reader::RtpsReaderAttributes,
+    structure::{
+        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheAttributes,
+    },
+};
 
 use super::{
     subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
@@ -165,28 +171,30 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
-        let mut _data_reader_lock = data_reader_shared.write_lock();
-        // match &self.rtps_reader {
-        //     RtpsReader::Stateless(rtps_reader) => {
-        //         if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
-        //             Ok(Samples {
-        //                 samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
-        //             })
-        //         } else {
-        //             Err(DDSError::NoData)
-        //         }
-        //     }
-        //     RtpsReader::Stateful(rtps_reader) => {
-        //         if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
-        //             Ok(Samples {
-        //                 samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
-        //             })
-        //         } else {
-        //             Err(DDSError::NoData)
-        //         }
-        //     }
-        // }
-        todo!()
+        let rtps_reader = &data_reader_shared.read()
+            .map_err(|_| DDSError::NoData)?
+            .rtps_reader;
+
+        match rtps_reader {
+            RtpsReader::Stateless(rtps_reader) => {
+                if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
+                    Ok(Samples {
+                        samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
+                    })
+                } else {
+                    Err(DDSError::NoData)
+                }
+            }
+            RtpsReader::Stateful(rtps_reader) => {
+                if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
+                    Ok(Samples {
+                        samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
+                    })
+                } else {
+                    Err(DDSError::NoData)
+                }
+            }
+        }
     }
 
     fn take(
