@@ -15,7 +15,15 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::{structure::types::GuidPrefix, behavior::stateful_reader_behavior::StatefulReaderBehavior};
+use rust_rtps_pim::{
+    behavior::{
+        reader::reader::RtpsReaderAttributes, stateful_reader_behavior::StatefulReaderBehavior,
+    },
+    structure::{
+        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheAttributes,
+        types::GuidPrefix,
+    },
+};
 use rust_rtps_psm::messages::submessages::DataSubmessageRead;
 
 use crate::{
@@ -75,27 +83,27 @@ where
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessageRead,
     ) {
-        for data_reader in self.data_reader_list.iter().cloned() {
-            let mut as_mut_rtps_reader_lock = data_reader.write_lock();
-            let rtps_reader = &mut as_mut_rtps_reader_lock.rtps_reader;
-            match rtps_reader {
-                RtpsReader::Stateless(stateless_rtps_reader) => {
-                    for mut stateless_reader_behavior in stateless_rtps_reader.into_iter() {
-                        stateless_reader_behavior.receive_data(source_guid_prefix, data)
-                    }
-                }
-                RtpsReader::Stateful(stateful_rtps_reader) => {
-                    for stateful_reader_behavior in stateful_rtps_reader.into_iter() {
-                        match stateful_reader_behavior {
-                            StatefulReaderBehavior::BestEffort(_) => todo!(),
-                            StatefulReaderBehavior::Reliable(mut reliable_stateful_reader) => {
-                                reliable_stateful_reader.receive_data(source_guid_prefix, data)
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // for data_reader in self.data_reader_list.iter().cloned() {
+        //     let mut as_mut_rtps_reader_lock = data_reader.write_lock();
+        //     let rtps_reader = &mut as_mut_rtps_reader_lock.rtps_reader;
+        //     match rtps_reader {
+        //         RtpsReader::Stateless(stateless_rtps_reader) => {
+        //             for mut stateless_reader_behavior in stateless_rtps_reader.into_iter() {
+        //                 stateless_reader_behavior.receive_data(source_guid_prefix, data)
+        //             }
+        //         }
+        //         RtpsReader::Stateful(stateful_rtps_reader) => {
+        //             for stateful_reader_behavior in stateful_rtps_reader.into_iter() {
+        //                 match stateful_reader_behavior {
+        //                     StatefulReaderBehavior::BestEffort(_) => todo!(),
+        //                     StatefulReaderBehavior::Reliable(mut reliable_stateful_reader) => {
+        //                         reliable_stateful_reader.receive_data(source_guid_prefix, data)
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
     }
 }
 
@@ -136,6 +144,14 @@ impl<Foo, Rtps> SubscriberDataReaderFactory<Foo> for SubscriberProxy<Rtps>
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
     Rtps: RtpsStructure,
+    Rtps::StatelessReader: RtpsReaderAttributes,
+    Rtps::StatefulReader: RtpsReaderAttributes,
+    <Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
+        RtpsHistoryCacheAttributes,
+    <Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
+        RtpsHistoryCacheAttributes,
+    <<Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
+    <<Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataReaderType = DataReaderProxy<Foo, Rtps>;

@@ -14,6 +14,10 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
+use rust_rtps_pim::{
+    behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
+    structure::history_cache::RtpsHistoryCacheOperations,
+};
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
@@ -84,6 +88,18 @@ impl<Foo, Rtps> PublisherDataWriterFactory<Foo> for PublisherProxy<Rtps>
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
     Rtps: RtpsStructure,
+    Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataWriterType = DataWriterProxy<Foo, Rtps>;
@@ -233,6 +249,18 @@ where
 impl<Rtps> Publisher for PublisherProxy<Rtps>
 where
     Rtps: RtpsStructure,
+    Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
 {
     type DomainParticipant = DomainParticipantProxy<Rtps>;
 

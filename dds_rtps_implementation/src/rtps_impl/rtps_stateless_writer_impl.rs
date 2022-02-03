@@ -200,7 +200,7 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
 
 impl RtpsWriterOperations for RtpsStatelessWriterImpl {
     type DataType = Vec<u8>;
-    type ParameterListType = Vec<ParameterOwned>;
+    type ParameterListType = Vec<u8>;
     type CacheChangeType = WriterCacheChange;
     fn new_change(
         &mut self,

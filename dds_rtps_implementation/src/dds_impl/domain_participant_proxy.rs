@@ -20,10 +20,12 @@ use rust_dds_api::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::{
+    behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
     discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
     messages::types::Count,
     structure::{
         entity::RtpsEntityAttributes,
+        history_cache::RtpsHistoryCacheOperations,
         participant::RtpsParticipantAttributes,
         types::{
             EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
@@ -291,6 +293,18 @@ where
 impl<Rtps> DomainParticipant for DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
+    Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
 {
     type PublisherType = PublisherProxy<Rtps>;
     type SubscriberType = SubscriberProxy<Rtps>;

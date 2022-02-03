@@ -17,7 +17,10 @@ use rust_dds_api::{
     publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::{behavior::writer::writer::{RtpsWriterOperations, RtpsWriterAttributes}, structure::{types::ChangeKind, history_cache::RtpsHistoryCacheOperations}};
+use rust_rtps_pim::{
+    behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
+    structure::{history_cache::RtpsHistoryCacheOperations, types::ChangeKind},
+};
 
 use super::{
     publisher_proxy::{PublisherAttributes, PublisherProxy},
@@ -131,6 +134,18 @@ impl<Foo, Rtps> DataWriter<Foo> for DataWriterProxy<Foo, Rtps>
 where
     Foo: DdsSerialize,
     Rtps: RtpsStructure,
+    Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
 {
     type Publisher = PublisherProxy<Rtps>;
     type Topic = TopicProxy<Foo, Rtps>;
@@ -196,19 +211,18 @@ where
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 
         let data_writer_shared = self.data_writer_impl.upgrade()?;
-        let rtps_writer = &mut data_writer_shared.write()
+        let rtps_writer = &mut data_writer_shared
+            .write()
             .map_err(|_| DDSError::Error)?
             .rtps_writer;
 
         match rtps_writer {
             RtpsWriter::Stateless(rtps_writer) => {
-                let change =
-                    rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+                let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
                 rtps_writer.writer_cache().add_change(change);
             }
             RtpsWriter::Stateful(rtps_writer) => {
-                let change =
-                    rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+                let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
                 rtps_writer.writer_cache().add_change(change);
             }
         }

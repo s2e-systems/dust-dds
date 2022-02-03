@@ -158,6 +158,14 @@ impl<Foo, Rtps> DataReader<Foo> for DataReaderProxy<Foo, Rtps>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
     Rtps: RtpsStructure,
+    Rtps::StatelessReader: RtpsReaderAttributes,
+    Rtps::StatefulReader: RtpsReaderAttributes,
+    <Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
+        RtpsHistoryCacheAttributes,
+    <Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
+        RtpsHistoryCacheAttributes,
+    <<Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
+    <<Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
 {
     type Samples = Samples<Foo>;
     type Subscriber = SubscriberProxy<Rtps>;
@@ -171,7 +179,8 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
-        let rtps_reader = &data_reader_shared.read()
+        let rtps_reader = &data_reader_shared
+            .read()
             .map_err(|_| DDSError::NoData)?
             .rtps_reader;
 
