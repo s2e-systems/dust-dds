@@ -28,7 +28,12 @@ use rust_dds_api::{
         query_condition::QueryCondition,
     },
 };
-use rust_rtps_pim::{behavior::reader::reader::RtpsReaderAttributes, structure::{history_cache::RtpsHistoryCacheAttributes, cache_change::RtpsCacheChangeAttributes}};
+use rust_rtps_pim::{
+    behavior::reader::reader::RtpsReaderAttributes,
+    structure::{
+        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheAttributes,
+    },
+};
 
 use super::{
     subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
@@ -145,10 +150,8 @@ where
         let data_reader_shared = self.data_reader_impl.upgrade()?;
 
         let rtps_reader = &data_reader_shared.read()
-                           .map_err(|_| DDSError::NoData)?
-                           .rtps_reader;
-
-        let mut _data_reader_lock = data_reader_shared.write_lock();
+            .map_err(|_| DDSError::NoData)?
+            .rtps_reader;
 
         match rtps_reader {
             RtpsReader::Stateless(rtps_reader) => {

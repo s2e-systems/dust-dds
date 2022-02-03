@@ -3,7 +3,7 @@ use std::net::UdpSocket;
 use rust_dds::{
     communication::Communication,
     infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos},
-    udp_transport::UdpTransport, publication::data_writer::DataWriter, subscription::data_reader::DataReader,
+    udp_transport::UdpTransport, publication::data_writer::{DataWriter}, subscription::data_reader::{DataReader},
 };
 use rust_dds_api::{
     builtin_topics::ParticipantBuiltinTopicData,
@@ -74,11 +74,12 @@ fn send_and_receive_discovery_data_happy_path() {
         default_multicast_locator_list: vec![],
         available_builtin_endpoints: BuiltinEndpointSet::new(
             BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
-                | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
+            | BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR,
         ),
         manual_liveliness_count: Count(0),
         builtin_endpoint_qos: BuiltinEndpointQos::default(),
     };
+
     let lease_duration = rust_rtps_pim::behavior::types::Duration {
         seconds: 100,
         fraction: 0,
@@ -119,10 +120,13 @@ fn send_and_receive_discovery_data_happy_path() {
         publisher.downgrade(),
     );
 
-    let data_writer_ptr = RtpsShared::new(data_writer);
-    let mut data_writer_proxy = DataWriterProxy::new(
-        data_writer_ptr.downgrade()
-    );
+    let mut data_writer_proxy = {
+        let data_writer_ptr = RtpsShared::new(data_writer);
+        let data_writer_weak = data_writer_ptr.downgrade();
+        publisher.write().unwrap().data_writer_list.push(data_writer_ptr);
+
+        DataWriterProxy::new(data_writer_weak)
+    };
 
     data_writer_proxy
         .write_w_timestamp(
@@ -158,6 +162,7 @@ fn send_and_receive_discovery_data_happy_path() {
         )),
         RtpsWeak::new(),
     ));
+
     let data_reader = DataReaderAttributes::new(
         DataReaderQos::default(),
         RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
@@ -169,15 +174,19 @@ fn send_and_receive_discovery_data_happy_path() {
         )),
         subscriber.downgrade(),
     );
-    let shared_data_reader = RtpsShared::new(data_reader);
-    // vec![shared_data_reader.clone()],
+    
+    let mut data_reader_proxy = {
+        let data_reader_ptr = RtpsShared::new(data_reader);
+        let data_reader_weak = data_reader_ptr.downgrade();
+        subscriber.write().unwrap().data_reader_list.push(data_reader_ptr);
+
+        DataReaderProxy::new(data_reader_weak)
+    };
 
     communication.receive(core::slice::from_ref(&subscriber));
 
-    let mut shared_data_reader_proxy = DataReaderProxy::new(shared_data_reader.downgrade());
-
     let result: Samples<SpdpDiscoveredParticipantData> =
-        shared_data_reader_proxy.read(1, &[], &[], &[]).unwrap();
+        data_reader_proxy.read(1, &[], &[], &[]).unwrap();
     assert_eq!(result[0].participant_proxy.domain_id, 1);
     assert_eq!(result[0].participant_proxy.domain_tag, "ab");
 }
