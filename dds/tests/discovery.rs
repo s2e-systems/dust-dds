@@ -116,7 +116,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let spdp_discovery_locator = RtpsReaderLocatorAttributesImpl::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
-            7400,
+            8000,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         ),
         false,
@@ -158,7 +158,7 @@ fn send_and_receive_discovery_data_happy_path() {
         )
         .unwrap();
 
-    let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+    let socket = UdpSocket::bind("127.0.0.1:8000").unwrap();
     socket.set_nonblocking(true).unwrap();
     let transport = UdpTransport::new(socket);
     let mut communication = Communication {
@@ -239,7 +239,7 @@ fn process_discovery_data_happy_path() {
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(
             LOCATOR_KIND_UDPv4,
-            7405,
+            8010,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         )],
         metatraffic_multicast_locator_list: vec![],
@@ -284,7 +284,7 @@ fn process_discovery_data_happy_path() {
         let spdp_discovery_locator = RtpsReaderLocatorAttributesImpl::new(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
-                7402,
+                8008,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
             ),
             false,
@@ -340,7 +340,7 @@ fn process_discovery_data_happy_path() {
         DataWriterProxy::new(weak_data_writer)
     };
 
-    let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
+    let socket = UdpSocket::bind("127.0.0.1:8008").unwrap();
     socket.set_nonblocking(true).unwrap();
     let transport = UdpTransport::new(socket);
     let mut communication = Communication {
@@ -389,8 +389,6 @@ fn process_discovery_data_happy_path() {
 
         DataReaderProxy::new(weak_data_reader)
     };
-
-    communication.receive(core::slice::from_ref(&subscriber));
 
     communication.receive(core::slice::from_ref(&subscriber));
 
