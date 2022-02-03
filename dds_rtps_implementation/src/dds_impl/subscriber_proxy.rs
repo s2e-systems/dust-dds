@@ -37,7 +37,6 @@ use crate::{
     dds_type::{DdsDeserialize, DdsType},
     rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
-        message_receiver::ProcessDataSubmessage,
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
     },
@@ -77,60 +76,6 @@ where
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant,
-        }
-    }
-}
-
-impl<Rtps> ProcessDataSubmessage for SubscriberAttributes<Rtps>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatelessReader: RtpsReaderAttributes,
-    <Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
-        RtpsHistoryCacheOperations,
-    for<'a> < <Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8], ParameterListType = [Parameter<'a>]>,
-    for<'a> &'a mut Rtps::StatelessReader: IntoIterator<
-        Item = BestEffortStatelessReaderBehavior<
-            'a,
-            <Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType,
-        >,
-    >,
-    Rtps::StatefulReader: RtpsReaderAttributes + RtpsStatefulReaderAttributes,
-    <Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType: RtpsHistoryCacheOperations,
-    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8], ParameterListType = [Parameter<'a>]> + RtpsCacheChangeAttributes,
-    <Rtps::StatefulReader as RtpsStatefulReaderAttributes>::WriterProxyType: RtpsWriterProxyOperations + RtpsWriterProxyAttributes,
-    for<'a> &'a mut Rtps::StatefulReader: IntoIterator<
-        Item = StatefulReaderBehavior<
-            'a,
-            <Rtps::StatefulReader as RtpsStatefulReaderAttributes>::WriterProxyType,
-            <Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType,
-        >,
-    >,
-{
-    fn process_data_submessage(
-        &mut self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessageRead,
-    ) {
-        for data_reader in self.data_reader_list.iter().cloned() {
-            let mut as_mut_rtps_reader_lock = data_reader.write_lock();
-            let rtps_reader = &mut as_mut_rtps_reader_lock.rtps_reader;
-            match rtps_reader {
-                RtpsReader::Stateless(stateless_rtps_reader) => {
-                    for mut stateless_reader_behavior in stateless_rtps_reader.into_iter() {
-                        stateless_reader_behavior.receive_data(source_guid_prefix, data)
-                    }
-                }
-                RtpsReader::Stateful(stateful_rtps_reader) => {
-                                for stateful_reader_behavior in stateful_rtps_reader.into_iter() {
-                                    match stateful_reader_behavior {
-                                        StatefulReaderBehavior::BestEffort(_) => todo!(),
-                                        StatefulReaderBehavior::Reliable(mut reliable_stateful_reader) => {
-                                            reliable_stateful_reader.receive_data(source_guid_prefix, data)
-                                        }
-                                    }
-                                }
-                }
-            }
         }
     }
 }

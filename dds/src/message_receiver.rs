@@ -1,5 +1,9 @@
-use super::shared_object::RtpsShared;
+use rust_dds_rtps_implementation::{
+    dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
+    utils::shared_object::RtpsShared,
+};
 use rust_rtps_pim::{
+    behavior::stateful_reader_behavior::StatefulReaderBehavior,
     messages::{
         submessage_elements::TimestampSubmessageElementAttributes,
         submessages::InfoTimestampSubmessageAttributes,
@@ -14,6 +18,8 @@ use rust_rtps_psm::messages::{
     overall_structure::{RtpsMessageRead, RtpsSubmessageTypeRead},
     submessages::{AckNackSubmessageRead, DataSubmessageRead},
 };
+
+use crate::domain_participant_factory::RtpsStructureImpl;
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -43,7 +49,7 @@ impl MessageReceiver {
     pub fn process_message<'a>(
         mut self,
         participant_guid_prefix: GuidPrefix,
-        list: &'a [RtpsShared<impl ProcessDataSubmessage>],
+        list: &'a [RtpsShared<SubscriberAttributes<RtpsStructureImpl>>],
         source_locator: Locator,
         message: &'a RtpsMessageRead,
     ) {
@@ -66,9 +72,34 @@ impl MessageReceiver {
             match submessage {
                 RtpsSubmessageTypeRead::AckNack(_) => todo!(),
                 RtpsSubmessageTypeRead::Data(data) => {
-                    for element in list {
-                        element.write_lock()
-                            .process_data_submessage(self.source_guid_prefix, &data)
+                    for subscriber in list {
+                        let subscriber_lock = subscriber.read_lock();
+                        for data_reader in &subscriber_lock.data_reader_list {
+                            let mut data_reader_lock = data_reader.write_lock();
+                            let rtps_reader = &mut data_reader_lock.rtps_reader;
+                            match rtps_reader {
+                                RtpsReader::Stateless(stateless_rtps_reader) => {
+                                    for mut stateless_reader_behavior in
+                                        stateless_rtps_reader.into_iter()
+                                    {
+                                        stateless_reader_behavior
+                                            .receive_data(self.source_guid_prefix, data)
+                                    }
+                                }
+                                RtpsReader::Stateful(stateful_rtps_reader) => {
+                                    for stateful_reader_behavior in stateful_rtps_reader.into_iter()
+                                    {
+                                        match stateful_reader_behavior {
+                                            StatefulReaderBehavior::BestEffort(_) => todo!(),
+                                            StatefulReaderBehavior::Reliable(
+                                                mut reliable_stateful_reader,
+                                            ) => reliable_stateful_reader
+                                                .receive_data(self.source_guid_prefix, data),
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 RtpsSubmessageTypeRead::DataFrag(_) => todo!(),
