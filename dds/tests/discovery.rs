@@ -2,11 +2,23 @@ use std::net::UdpSocket;
 
 use rust_dds::{
     communication::Communication,
-    infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos},
+    infrastructure::{
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
+        qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+            DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            ReliabilityQosPolicyKind, TopicDataQosPolicy,
+        },
+    },
+    publication::data_writer::DataWriter,
+    subscription::data_reader::DataReader,
+    types::Duration,
     udp_transport::UdpTransport,
 };
 use rust_dds_api::{
-    builtin_topics::ParticipantBuiltinTopicData,
+    builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
     dcps_psm::BuiltInTopicKey,
     infrastructure::{
         qos::{DataWriterQos, PublisherQos},
@@ -15,12 +27,12 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
+        sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
     dds_impl::{
-        data_reader_proxy::{DataReaderAttributes, RtpsReader},
-        data_writer_proxy::{DataWriterAttributes, RtpsWriter},
+        data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader, Samples},
+        data_writer_proxy::{DataWriterAttributes, DataWriterProxy, RtpsWriter},
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
         topic_proxy::TopicAttributes,
@@ -33,7 +45,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::shared_object::{RtpsWeak, RtpsShared},
+    utils::shared_object::{RtpsShared, RtpsWeak},
 };
 use rust_rtps_pim::{
     behavior::{
@@ -41,7 +53,11 @@ use rust_rtps_pim::{
         writer::stateless_writer::RtpsStatelessWriterOperations,
     },
     discovery::{
-        sedp::builtin_endpoints::{SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter},
+        participant_discovery::ParticipantDiscovery,
+        sedp::builtin_endpoints::{
+            SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        },
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
@@ -55,12 +71,14 @@ use rust_rtps_pim::{
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
+
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey {
             value: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         },
         user_data: UserDataQosPolicy { value: vec![] },
     };
+
     let participant_proxy = ParticipantProxy {
         domain_id: 1,
         domain_tag: "ab".to_string(),
@@ -79,12 +97,13 @@ fn send_and_receive_discovery_data_happy_path() {
         manual_liveliness_count: Count(0),
         builtin_endpoint_qos: BuiltinEndpointQos::default(),
     };
+
     let lease_duration = rust_rtps_pim::behavior::types::Duration {
         seconds: 100,
         fraction: 0,
     };
 
-    let _spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+    let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
         dds_participant_data,
         participant_proxy,
         lease_duration,
@@ -97,7 +116,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let spdp_discovery_locator = RtpsReaderLocatorAttributesImpl::new(
         Locator::new(
             LOCATOR_KIND_UDPv4,
-            7400,
+            8000,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         ),
         false,
@@ -105,20 +124,6 @@ fn send_and_receive_discovery_data_happy_path() {
 
     spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-    let mut _data_writer = DataWriterAttributes::new(
-        DataWriterQos::default(),
-        RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-        RtpsWeak::new(),
-        RtpsWeak::new(),
-    );
-
-    // data_writer
-    //     .write_w_timestamp(
-    //         &spdp_discovered_participant_data,
-    //         None,
-    //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-    //     )
-    //     .unwrap();
     let publisher = RtpsShared::new(PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(GUID_UNKNOWN),
@@ -126,9 +131,34 @@ fn send_and_receive_discovery_data_happy_path() {
         RtpsWeak::new(),
     ));
 
-    // vec![Arc::new(RwLock::new(data_writer))],
+    let mut data_writer_proxy = {
+        let data_writer = DataWriterAttributes::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
+            RtpsWeak::new(),
+            publisher.downgrade(),
+        );
 
-    let socket = UdpSocket::bind("127.0.0.1:7400").unwrap();
+        let shared_data_writer = RtpsShared::new(data_writer);
+        let weak_data_writer = shared_data_writer.downgrade();
+        publisher
+            .write()
+            .unwrap()
+            .data_writer_list
+            .push(shared_data_writer);
+
+        DataWriterProxy::new(weak_data_writer)
+    };
+
+    data_writer_proxy
+        .write_w_timestamp(
+            &spdp_discovered_participant_data,
+            None,
+            rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+        )
+        .unwrap();
+
+    let socket = UdpSocket::bind("127.0.0.1:8000").unwrap();
     socket.set_nonblocking(true).unwrap();
     let transport = UdpTransport::new(socket);
     let mut communication = Communication {
@@ -137,6 +167,7 @@ fn send_and_receive_discovery_data_happy_path() {
         guid_prefix,
         transport,
     };
+
     communication.send(core::slice::from_ref(&publisher));
 
     // Reception
@@ -145,18 +176,6 @@ fn send_and_receive_discovery_data_happy_path() {
         RtpsStatelessReaderImpl,
     >(GuidPrefix([5; 12]), &[], &[]);
 
-    let data_reader = DataReaderAttributes::new(
-        DataReaderQos::default(),
-        RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
-        RtpsShared::new(TopicAttributes::new(
-            TopicQos::default(),
-            SpdpDiscoveredParticipantData::type_name(),
-            "DCPSParticipant",
-            RtpsWeak::new(),
-        )),
-        RtpsWeak::new(),
-    );
-    let shared_data_reader = RtpsShared::new(data_reader);
     let subscriber = RtpsShared::new(SubscriberAttributes::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
@@ -165,16 +184,37 @@ fn send_and_receive_discovery_data_happy_path() {
         )),
         RtpsWeak::new(),
     ));
-    // vec![shared_data_reader.clone()],
+
+    let mut data_reader_proxy = {
+        let data_reader = DataReaderAttributes::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
+            RtpsShared::new(TopicAttributes::new(
+                TopicQos::default(),
+                SpdpDiscoveredParticipantData::type_name(),
+                "DCPSParticipant",
+                RtpsWeak::new(),
+            )),
+            subscriber.downgrade(),
+        );
+
+        let shared_data_reader = RtpsShared::new(data_reader);
+        let weak_data_reader = shared_data_reader.downgrade();
+        subscriber
+            .write()
+            .unwrap()
+            .data_reader_list
+            .push(shared_data_reader);
+
+        DataReaderProxy::new(weak_data_reader)
+    };
 
     communication.receive(core::slice::from_ref(&subscriber));
 
-    let mut _shared_data_reader = shared_data_reader.write_lock();
-
-    // let result: Samples<SpdpDiscoveredParticipantData> =
-    //     shared_data_reader.read(1, &[], &[], &[]).unwrap();
-    // assert_eq!(result[0].participant_proxy.domain_id, 1);
-    // assert_eq!(result[0].participant_proxy.domain_tag, "ab");
+    let result: Samples<SpdpDiscoveredParticipantData> =
+        data_reader_proxy.read(1, &[], &[], &[]).unwrap();
+    assert_eq!(result[0].participant_proxy.domain_id, 1);
+    assert_eq!(result[0].participant_proxy.domain_tag, "ab");
 }
 
 #[test]
@@ -182,12 +222,14 @@ fn process_discovery_data_happy_path() {
     let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
     let domain_id = 1;
     let domain_tag = "ab";
+
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey {
             value: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         },
         user_data: UserDataQosPolicy { value: vec![] },
     };
+
     let participant_proxy = ParticipantProxy {
         domain_id,
         domain_tag: domain_tag.to_string(),
@@ -197,7 +239,7 @@ fn process_discovery_data_happy_path() {
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(
             LOCATOR_KIND_UDPv4,
-            7405,
+            8010,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
         )],
         metatraffic_multicast_locator_list: vec![],
@@ -212,56 +254,17 @@ fn process_discovery_data_happy_path() {
         manual_liveliness_count: Count(0),
         builtin_endpoint_qos: BuiltinEndpointQos::default(),
     };
+
     let lease_duration = rust_rtps_pim::behavior::types::Duration {
         seconds: 100,
         fraction: 0,
     };
 
-    let _spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
+    let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
         dds_participant_data,
         participant_proxy,
         lease_duration,
     };
-
-    let mut spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
-        RtpsStatelessWriterImpl,
-    >(GuidPrefix([3; 12]), &[], &[]);
-
-    let spdp_discovery_locator = RtpsReaderLocatorAttributesImpl::new(
-        Locator::new(
-            LOCATOR_KIND_UDPv4,
-            7402,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-        ),
-        false,
-    );
-
-    spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
-
-    let mut _spdp_builtin_participant_data_writer = DataWriterAttributes::new(
-        DataWriterQos::default(),
-        RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-        RtpsWeak::new(),
-        RtpsWeak::new(),
-    );
-
-    // spdp_builtin_participant_data_writer
-    //     .write_w_timestamp(
-    //         &spdp_discovered_participant_data,
-    //         None,
-    //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-    //     )
-    //     .unwrap();
-
-    let sedp_builtin_publications_rtps_writer =
-        SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-
-    let _sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
-        DataWriterQos::default(),
-        RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-        RtpsWeak::new(),
-        RtpsWeak::new(),
-    ));
 
     let publisher = RtpsShared::new(PublisherAttributes::new(
         PublisherQos::default(),
@@ -273,12 +276,71 @@ fn process_discovery_data_happy_path() {
         RtpsWeak::new(),
     ));
 
-    // vec![
-    //         RtpsShared::new(spdp_builtin_participant_data_writer),
-    //         sedp_builtin_publications_data_writer.clone(),
-    //     ],
+    let mut spdp_builtin_participant_data_writer_proxy = {
+        let mut spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
+            RtpsStatelessWriterImpl,
+        >(GuidPrefix([3; 12]), &[], &[]);
 
-    let socket = UdpSocket::bind("127.0.0.1:7402").unwrap();
+        let spdp_discovery_locator = RtpsReaderLocatorAttributesImpl::new(
+            Locator::new(
+                LOCATOR_KIND_UDPv4,
+                8008,
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+            ),
+            false,
+        );
+
+        spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
+
+        let data_writer = DataWriterAttributes::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
+            RtpsWeak::new(),
+            publisher.downgrade(),
+        );
+
+        let shared_data_writer = RtpsShared::new(data_writer);
+        let weak_data_writer = shared_data_writer.downgrade();
+        publisher
+            .write()
+            .unwrap()
+            .data_writer_list
+            .push(shared_data_writer);
+
+        DataWriterProxy::new(weak_data_writer)
+    };
+
+    spdp_builtin_participant_data_writer_proxy
+        .write_w_timestamp(
+            &spdp_discovered_participant_data,
+            None,
+            rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+        )
+        .unwrap();
+
+    let mut sedp_builtin_publications_data_writer_proxy = {
+        let sedp_builtin_publications_rtps_writer =
+            SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+
+        let data_writer = DataWriterAttributes::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
+            RtpsWeak::new(),
+            publisher.downgrade(),
+        );
+
+        let shared_data_writer = RtpsShared::new(data_writer);
+        let weak_data_writer = shared_data_writer.downgrade();
+        publisher
+            .write()
+            .unwrap()
+            .data_writer_list
+            .push(shared_data_writer);
+
+        DataWriterProxy::new(weak_data_writer)
+    };
+
+    let socket = UdpSocket::bind("127.0.0.1:8008").unwrap();
     socket.set_nonblocking(true).unwrap();
     let transport = UdpTransport::new(socket);
     let mut communication = Communication {
@@ -291,22 +353,6 @@ fn process_discovery_data_happy_path() {
 
     // Reception
 
-    let spdp_builtin_participant_rtps_reader_impl = SpdpBuiltinParticipantReader::create::<
-        RtpsStatelessReaderImpl,
-    >(GuidPrefix([5; 12]), &[], &[]);
-
-    let spdp_builtin_participant_data_reader = DataReaderAttributes::new(
-        DataReaderQos::default(),
-        RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
-        RtpsShared::new(TopicAttributes::new(
-            TopicQos::default(),
-            SpdpDiscoveredParticipantData::type_name(),
-            "DCPSParticipant",
-            RtpsWeak::new(),
-        )),
-        RtpsWeak::new(),
-    );
-    let shared_data_reader = RtpsShared::new(spdp_builtin_participant_data_reader);
     let subscriber = RtpsShared::new(SubscriberAttributes::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
@@ -315,102 +361,162 @@ fn process_discovery_data_happy_path() {
         )),
         RtpsWeak::new(),
     ));
-    // vec![shared_data_reader.clone()],
+
+    let spdp_builtin_participant_rtps_reader_impl = SpdpBuiltinParticipantReader::create::<
+        RtpsStatelessReaderImpl,
+    >(GuidPrefix([5; 12]), &[], &[]);
+
+    let mut spdp_builtin_participant_data_reader_proxy = {
+        let data_reader = DataReaderAttributes::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateless(spdp_builtin_participant_rtps_reader_impl),
+            RtpsShared::new(TopicAttributes::new(
+                TopicQos::default(),
+                SpdpDiscoveredParticipantData::type_name(),
+                "DCPSParticipant",
+                RtpsWeak::new(),
+            )),
+            subscriber.downgrade(),
+        );
+
+        let shared_data_reader = RtpsShared::new(data_reader);
+        let weak_data_reader = shared_data_reader.downgrade();
+        subscriber
+            .write()
+            .unwrap()
+            .data_reader_list
+            .push(shared_data_reader);
+
+        DataReaderProxy::new(weak_data_reader)
+    };
 
     communication.receive(core::slice::from_ref(&subscriber));
 
-    communication.receive(core::slice::from_ref(&subscriber));
-    let mut _shared_data_reader = shared_data_reader.write_lock();
-
-    // let discovered_participant: Samples<SpdpDiscoveredParticipantData> =
-    //     shared_data_reader.read(1, &[], &[], &[]).unwrap();
+    let discovered_participant: Samples<SpdpDiscoveredParticipantData> =
+        spdp_builtin_participant_data_reader_proxy
+            .read(1, &[], &[], &[])
+            .unwrap();
 
     let sedp_builtin_publications_rtps_reader =
         SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-    let mut _sedp_built_publications_reader = DataReaderAttributes::new(
-        DataReaderQos::default(),
-        RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
-        RtpsShared::new(TopicAttributes::new(
-            TopicQos::default(),
-            SedpDiscoveredWriterData::type_name(),
-            "DCPSPublication",
-            RtpsWeak::new(),
-        )),
-        RtpsWeak::new(),
-    );
 
-    // if let Ok(participant_discovery) = ParticipantDiscovery::new(
-    //     &discovered_participant[0].participant_proxy,
-    //     &domain_id,
-    //     domain_tag,
-    // ) {
-    //     if let RtpsReader::Stateful(sedp_built_publications_reader) =
-    //         sedp_built_publications_reader.as_mut()
-    //     {
-    //         participant_discovery
-    //             .discovered_participant_add_publications_reader(sedp_built_publications_reader);
-    //     }
+    let sedp_built_publications_reader_proxy = {
+        let data_reader = DataReaderAttributes::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
+            RtpsShared::new(TopicAttributes::new(
+                TopicQos::default(),
+                SedpDiscoveredWriterData::type_name(),
+                "DCPSPublication",
+                RtpsWeak::new(),
+            )),
+            subscriber.downgrade(),
+        );
 
-    //     let mut sedp_builtin_publications_data_writer_lock =
-    //         sedp_builtin_publications_data_writer.write().unwrap();
+        let shared_data_reader = RtpsShared::new(data_reader);
+        let weak_data_reader = shared_data_reader.downgrade();
+        subscriber
+            .write()
+            .unwrap()
+            .data_reader_list
+            .push(shared_data_reader);
 
-    //     participant_discovery.discovered_participant_add_publications_writer(
-    //         sedp_builtin_publications_data_writer_lock
-    //             .as_mut()
-    //             .try_as_stateful_writer()
-    //             .unwrap(),
+        DataReaderProxy::<SedpBuiltinPublicationsReader>::new(weak_data_reader)
+    };
+
+    if let Ok(participant_discovery) = ParticipantDiscovery::new(
+        &discovered_participant[0].participant_proxy,
+        &domain_id,
+        domain_tag,
+    ) {
+        if let RtpsReader::Stateful(sedp_built_publications_reader) =
+            &mut sedp_built_publications_reader_proxy
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                .write()
+                .unwrap() // ??????
+                .rtps_reader
+        {
+            participant_discovery
+                .discovered_participant_add_publications_reader(sedp_built_publications_reader);
+        }
+
+        participant_discovery.discovered_participant_add_publications_writer(
+            sedp_builtin_publications_data_writer_proxy
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                .write()
+                .unwrap()
+                .rtps_writer
+                .try_as_stateful_writer()
+                .unwrap(),
+        );
+        let sedp_discovered_writer_data = SedpDiscoveredWriterData {
+            writer_proxy: RtpsWriterProxy {
+                remote_writer_guid: Guid::new(
+                    GuidPrefix([1; 12]),
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ),
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: None,
+                remote_group_entity_id: EntityId::new([0; 3], 0),
+            },
+            publication_builtin_topic_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey { value: [1; 16] },
+                participant_key: BuiltInTopicKey { value: [1; 16] },
+                topic_name: "MyTopic".to_string(),
+                type_name: "MyType".to_string(),
+                durability: DurabilityQosPolicy::default(),
+                durability_service: DurabilityServiceQosPolicy::default(),
+                deadline: DeadlineQosPolicy::default(),
+                latency_budget: LatencyBudgetQosPolicy::default(),
+                liveliness: LivelinessQosPolicy::default(),
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: Duration::new(3, 0),
+                },
+                lifespan: LifespanQosPolicy::default(),
+                user_data: UserDataQosPolicy::default(),
+                ownership: OwnershipQosPolicy::default(),
+                ownership_strength: OwnershipStrengthQosPolicy::default(),
+                destination_order: DestinationOrderQosPolicy::default(),
+                presentation: PresentationQosPolicy::default(),
+                partition: PartitionQosPolicy::default(),
+                topic_data: TopicDataQosPolicy::default(),
+                group_data: GroupDataQosPolicy::default(),
+            },
+        };
+
+        sedp_builtin_publications_data_writer_proxy
+            .write_w_timestamp(
+                &sedp_discovered_writer_data,
+                None,
+                rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
+    }
+
+    // {
+    //     let shared_data_reader = sedp_built_publications_reader_proxy
+    //         .as_ref()
+    //         .upgrade()
+    //         .unwrap();
+    //     let mut data_reader = shared_data_reader.write().unwrap();
+    //     let matched_writers = &data_reader
+    //         .rtps_reader
+    //         .try_as_stateful_reader()
+    //         .unwrap()
+    //         .matched_writers;
+
+    //     assert_eq!(matched_writers.len(), 1);
+    //     assert_eq!(
+    //         matched_writers[0].remote_writer_guid,
+    //         Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
     //     );
-    //     let sedp_discovered_writer_data = SedpDiscoveredWriterData {
-    //         writer_proxy: RtpsWriterProxy {
-    //             remote_writer_guid: Guid::new(
-    //                 GuidPrefix([1; 12]),
-    //                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    //             ),
-    //             unicast_locator_list: vec![],
-    //             multicast_locator_list: vec![],
-    //             data_max_size_serialized: None,
-    //             remote_group_entity_id: EntityId::new([0; 3], 0),
-    //         },
-    //         publication_builtin_topic_data: PublicationBuiltinTopicData {
-    //             key: BuiltInTopicKey { value: [1; 16] },
-    //             participant_key: BuiltInTopicKey { value: [1; 16] },
-    //             topic_name: "MyTopic".to_string(),
-    //             type_name: "MyType".to_string(),
-    //             durability: DurabilityQosPolicy::default(),
-    //             durability_service: DurabilityServiceQosPolicy::default(),
-    //             deadline: DeadlineQosPolicy::default(),
-    //             latency_budget: LatencyBudgetQosPolicy::default(),
-    //             liveliness: LivelinessQosPolicy::default(),
-    //             reliability: ReliabilityQosPolicy {
-    //                 kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-    //                 max_blocking_time: Duration::new(3, 0),
-    //             },
-    //             lifespan: LifespanQosPolicy::default(),
-    //             user_data: UserDataQosPolicy::default(),
-    //             ownership: OwnershipQosPolicy::default(),
-    //             ownership_strength: OwnershipStrengthQosPolicy::default(),
-    //             destination_order: DestinationOrderQosPolicy::default(),
-    //             presentation: PresentationQosPolicy::default(),
-    //             partition: PartitionQosPolicy::default(),
-    //             topic_data: TopicDataQosPolicy::default(),
-    //             group_data: GroupDataQosPolicy::default(),
-    //         },
-    //     };
-
-    // sedp_builtin_publications_data_writer_lock
-    //     .write_w_timestamp(
-    //         &sedp_discovered_writer_data,
-    //         None,
-    //         rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-    //     )
-    //     .unwrap();
     // }
-
-    // assert_eq!(sedp_built_publications_reader.matched_writers.len(), 1);
-    // assert_eq!(
-    //     sedp_built_publications_reader.matched_writers[0].remote_writer_guid,
-    //     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
-    // );
 
     for _i in 1..14 {
         communication.send(core::slice::from_ref(&publisher));
