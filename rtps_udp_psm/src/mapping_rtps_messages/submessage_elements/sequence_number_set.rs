@@ -5,9 +5,11 @@ use std::{
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::structure::types::SequenceNumber;
-use rust_rtps_psm::messages::submessage_elements::SequenceNumberSetSubmessageElementPsm;
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
+use crate::{
+    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
+    messages::submessage_elements::SequenceNumberSetSubmessageElementPsm,
+};
 
 impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElementPsm {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

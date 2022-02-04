@@ -5,9 +5,11 @@ use std::{
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::structure::types::Locator;
-use rust_rtps_psm::messages::submessage_elements::LocatorListSubmessageElementPsm;
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
+use crate::{
+    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
+    messages::submessage_elements::LocatorListSubmessageElementPsm,
+};
 
 impl<T> MappingWriteByteOrdered for LocatorListSubmessageElementPsm<T>
 where

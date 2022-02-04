@@ -1,8 +1,7 @@
-use rust_rtps_psm::messages::submessages::{
-    InfoTimestampSubmessageRead, InfoTimestampSubmessageWrite,
+use crate::{
+    mapping_traits::{MappingRead, MappingWrite},
+    messages::submessages::{InfoTimestampSubmessageRead, InfoTimestampSubmessageWrite},
 };
-
-use crate::{mapping_traits::{MappingRead, MappingWrite}};
 
 use std::io::{Error, Write};
 

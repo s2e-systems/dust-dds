@@ -1,11 +1,13 @@
 use std::io::{BufRead, Error, Write};
 
 use rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
-use rust_rtps_psm::messages::overall_structure::{
-    RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageTypeRead, RtpsSubmessageTypeWrite,
-};
 
-use crate::mapping_traits::{MappingRead, MappingWrite};
+use crate::{
+    mapping_traits::{MappingRead, MappingWrite},
+    messages::overall_structure::{
+        RtpsMessageRead, RtpsMessageWrite, RtpsSubmessageTypeRead, RtpsSubmessageTypeWrite,
+    },
+};
 
 use super::submessages::submessage_header::{
     ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
@@ -87,6 +89,11 @@ mod tests {
 
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};
+    use crate::messages::submessage_elements::{
+        EntityIdSubmessageElementPsm, Parameter, ParameterListSubmessageElementRead,
+        ParameterOwned, SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
+    };
+    use crate::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementConstructor;
 
@@ -98,13 +105,6 @@ mod tests {
         EntityId, GuidPrefix, ProtocolVersion, USER_DEFINED_READER_GROUP,
         USER_DEFINED_READER_NO_KEY,
     };
-    use rust_rtps_psm::messages::submessage_elements::Parameter;
-    use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
-    use rust_rtps_psm::messages::submessage_elements::{
-        EntityIdSubmessageElementPsm, ParameterListSubmessageElementRead,
-        SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
-    };
-    use rust_rtps_psm::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
 
     #[test]
     fn serialize_rtps_message_no_submessage() {

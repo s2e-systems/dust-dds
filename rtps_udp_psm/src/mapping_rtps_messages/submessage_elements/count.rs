@@ -2,9 +2,8 @@ use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::types::Count;
-use rust_rtps_psm::messages::submessage_elements::CountSubmessageElementPsm;
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
+use crate::{mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes}, messages::submessage_elements::CountSubmessageElementPsm};
 
 impl MappingWriteByteOrdered for Count {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

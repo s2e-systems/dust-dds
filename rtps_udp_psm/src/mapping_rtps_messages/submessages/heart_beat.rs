@@ -1,7 +1,9 @@
 use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
-use rust_rtps_psm::messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite};
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
+use crate::{
+    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
+    messages::submessages::{HeartbeatSubmessageRead, HeartbeatSubmessageWrite},
+};
 
 use std::io::{Error, Write};
 
@@ -68,16 +70,20 @@ impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessageRead {
 
 #[cfg(test)]
 mod tests {
-    use crate::mapping_traits::{from_bytes, to_bytes};
+    use crate::{
+        mapping_traits::{from_bytes, to_bytes},
+        messages::submessage_elements::{
+            CountSubmessageElementPsm, EntityIdSubmessageElementPsm,
+            SequenceNumberSubmessageElementPsm,
+        },
+    };
 
     use super::*;
     use rust_rtps_pim::{
         messages::types::Count,
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
-    use rust_rtps_psm::messages::submessage_elements::{
-        EntityIdSubmessageElementPsm, SequenceNumberSubmessageElementPsm, CountSubmessageElementPsm,
-    };
+
     #[test]
     fn serialize_heart_beat() {
         let endianness_flag = true;

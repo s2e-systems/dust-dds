@@ -9,5 +9,4 @@ edition = "2018"
 
 [dependencies]
 rust-rtps-pim = {path="../rtps_pim"}
-rust-rtps-psm = {path="../rtps_psm"}
 byteorder = "1.4.3"

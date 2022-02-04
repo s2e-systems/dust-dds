@@ -1,6 +1,7 @@
-use rust_rtps_psm::messages::submessages::{NackFragSubmessageRead, NackFragSubmessageWrite};
-
-use crate::{mapping_traits::{MappingRead, MappingWrite}};
+use crate::{
+    mapping_traits::{MappingRead, MappingWrite},
+    messages::submessages::{NackFragSubmessageRead, NackFragSubmessageWrite},
+};
 
 use std::io::{Error, Write};
 

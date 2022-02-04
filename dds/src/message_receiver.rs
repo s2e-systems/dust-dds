@@ -14,7 +14,7 @@ use rust_rtps_pim::{
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
     },
 };
-use rust_rtps_psm::messages::{
+use rust_rtps_udp_psm::messages::{
     overall_structure::{RtpsMessageRead, RtpsSubmessageTypeRead},
     submessages::{AckNackSubmessageRead, DataSubmessageRead},
 };
@@ -153,7 +153,7 @@ pub trait ProcessAckNackSubmessage {
 #[cfg(test)]
 mod tests {
 
-    use rust_rtps_psm::messages::{
+    use rust_rtps_udp_psm::messages::{
         submessage_elements::TimestampSubmessageElementPsm,
         submessages::InfoTimestampSubmessageRead,
     };

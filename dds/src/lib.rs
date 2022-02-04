@@ -2,6 +2,7 @@ pub mod domain_participant_factory;
 pub mod udp_transport;
 pub mod communication;
 pub mod message_receiver;
+pub mod transport;
 
 pub use rust_dds_api::dcps_psm as types;
 pub use rust_dds_api::domain;
