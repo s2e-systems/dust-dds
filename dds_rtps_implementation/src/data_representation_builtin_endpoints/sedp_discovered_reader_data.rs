@@ -37,7 +37,7 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct RtpsReaderProxy {
+pub struct  RtpsReaderProxy {
     remote_reader_guid: Guid,
     remote_group_entity_id: EntityId,
     unicast_locator_list: Vec<Locator>,
