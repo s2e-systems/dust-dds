@@ -1,6 +1,5 @@
 use rust_dds_api::builtin_topics::TopicBuiltinTopicData;
-
-use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
+use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
 use super::{
     parameter_id_values::{
@@ -46,7 +45,7 @@ impl DdsType for SedpDiscoveredTopicData {
 }
 
 impl DdsSerialize for SedpDiscoveredTopicData {
-    fn serialize<W: std::io::Write, E: crate::dds_type::Endianness>(
+    fn serialize<W: std::io::Write, E: Endianness>(
         &self,
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
@@ -204,14 +203,13 @@ mod tests {
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
     };
+    use rust_dds_rtps_implementation::dds_type::LittleEndian;
 
     use super::*;
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
-        value
-            .serialize::<_, crate::dds_type::LittleEndian>(&mut writer)
-            .unwrap();
+        value.serialize::<_, LittleEndian>(&mut writer).unwrap();
         writer
     }
 

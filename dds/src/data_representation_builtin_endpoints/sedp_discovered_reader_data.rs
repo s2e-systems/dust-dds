@@ -1,9 +1,8 @@
 use std::io::Write;
 
 use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
+use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use rust_rtps_pim::structure::types::{EntityId, Guid, Locator};
-
-use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
 use super::{
     parameter_id_values::{
@@ -266,13 +265,12 @@ mod tests {
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
     };
+    use rust_dds_rtps_implementation::dds_type::LittleEndian;
     use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
-        value
-            .serialize::<_, crate::dds_type::LittleEndian>(&mut writer)
-            .unwrap();
+        value.serialize::<_, LittleEndian>(&mut writer).unwrap();
         writer
     }
     #[test]

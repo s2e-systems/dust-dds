@@ -5,7 +5,7 @@ use std::sync::{
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dcps_psm::{BuiltInTopicKey, DomainId, Duration, InstanceHandle, StatusMask, Time},
+    dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
         domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
         domain_participant_listener::DomainParticipantListener,
@@ -20,11 +20,9 @@ use rust_dds_api::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::{
-    discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
     messages::types::Count,
     structure::{
         entity::RtpsEntityAttributes,
-        participant::RtpsParticipantAttributes,
         types::{
             EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
             USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
@@ -33,9 +31,6 @@ use rust_rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::{
-        ParticipantProxy, SpdpDiscoveredParticipantData,
-    },
     dds_type::DdsType,
     rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
     utils::{
@@ -126,38 +121,38 @@ where
         }
     }
 
-    pub fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
-        SpdpDiscoveredParticipantData {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: (*self.rtps_participant.guid()).into(),
-                },
-                user_data: self.qos.user_data.clone(),
-            },
-            participant_proxy: ParticipantProxy {
-                domain_id: self.domain_id as u32,
-                domain_tag: self.domain_tag.as_ref().clone(),
-                protocol_version: *self.rtps_participant.protocol_version(),
-                guid_prefix: *self.rtps_participant.guid().prefix(),
-                vendor_id: *self.rtps_participant.vendor_id(),
-                expects_inline_qos: false,
-                metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
-                metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
-                default_unicast_locator_list: self
-                    .rtps_participant
-                    .default_unicast_locator_list()
-                    .to_vec(),
-                default_multicast_locator_list: self
-                    .rtps_participant
-                    .default_multicast_locator_list()
-                    .to_vec(),
-                available_builtin_endpoints: BuiltinEndpointSet::default(),
-                manual_liveliness_count: self.manual_liveliness_count,
-                builtin_endpoint_qos: BuiltinEndpointQos::default(),
-            },
-            lease_duration: self.lease_duration,
-        }
-    }
+    // pub fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
+    //     SpdpDiscoveredParticipantData {
+    //         dds_participant_data: ParticipantBuiltinTopicData {
+    //             key: BuiltInTopicKey {
+    //                 value: (*self.rtps_participant.guid()).into(),
+    //             },
+    //             user_data: self.qos.user_data.clone(),
+    //         },
+    //         participant_proxy: ParticipantProxy {
+    //             domain_id: self.domain_id as u32,
+    //             domain_tag: self.domain_tag.as_ref().clone(),
+    //             protocol_version: *self.rtps_participant.protocol_version(),
+    //             guid_prefix: *self.rtps_participant.guid().prefix(),
+    //             vendor_id: *self.rtps_participant.vendor_id(),
+    //             expects_inline_qos: false,
+    //             metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
+    //             metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
+    //             default_unicast_locator_list: self
+    //                 .rtps_participant
+    //                 .default_unicast_locator_list()
+    //                 .to_vec(),
+    //             default_multicast_locator_list: self
+    //                 .rtps_participant
+    //                 .default_multicast_locator_list()
+    //                 .to_vec(),
+    //             available_builtin_endpoints: BuiltinEndpointSet::default(),
+    //             manual_liveliness_count: self.manual_liveliness_count,
+    //             builtin_endpoint_qos: BuiltinEndpointQos::default(),
+    //         },
+    //         lease_duration: self.lease_duration,
+    //     }
+    // }
 }
 
 pub struct DomainParticipantProxy<Rtps>
