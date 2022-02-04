@@ -1,9 +1,11 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_psm::messages::submessage_elements::SerializedDataSubmessageElementPsm;
 
-use crate::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes};
+use crate::{
+    mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
+    messages::submessage_elements::SerializedDataSubmessageElementPsm,
+};
 
 impl MappingWriteByteOrdered for SerializedDataSubmessageElementPsm<'_> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

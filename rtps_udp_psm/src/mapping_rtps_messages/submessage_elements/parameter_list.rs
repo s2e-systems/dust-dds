@@ -1,15 +1,15 @@
-use std::{
-    io::{Error, Write},
-};
+use std::io::{Error, Write};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 use rust_rtps_pim::messages::types::ParameterId;
-use rust_rtps_psm::messages::submessage_elements::{
-    Parameter, ParameterListSubmessageElementRead,
-    ParameterListSubmessageElementWrite, ParameterOwned,
-};
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
+use crate::{
+    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
+    messages::submessage_elements::{
+        Parameter, ParameterListSubmessageElementRead, ParameterListSubmessageElementWrite,
+        ParameterOwned,
+    },
+};
 
 const PID_SENTINEL: ParameterId = ParameterId(1);
 const SENTINEL: Parameter = Parameter {
@@ -128,9 +128,6 @@ impl<'a> NumberOfBytes for ParameterListSubmessageElementRead<'a> {
 
 #[cfg(test)]
 mod tests {
-
-    use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
-
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 

@@ -9,7 +9,7 @@ use rust_rtps_pim::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
-use rust_rtps_psm::messages::submessage_elements::{Parameter, ParameterOwned};
+use rust_rtps_udp_psm::messages::submessage_elements::{Parameter, ParameterOwned};
 
 pub struct WriterCacheChange {
     pub kind: ChangeKind,
@@ -140,7 +140,6 @@ mod tests {
 
     use super::*;
     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
-
 
     #[test]
     fn remove_change() {

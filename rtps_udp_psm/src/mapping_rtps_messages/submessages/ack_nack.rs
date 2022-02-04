@@ -1,6 +1,7 @@
-use rust_rtps_psm::messages::submessages::{AckNackSubmessageRead, AckNackSubmessageWrite};
-
-use crate::{mapping_traits::{MappingRead, MappingWrite}};
+use crate::{
+    mapping_traits::{MappingRead, MappingWrite},
+    messages::submessages::{AckNackSubmessageRead, AckNackSubmessageWrite},
+};
 
 use std::io::{Error, Write};
 

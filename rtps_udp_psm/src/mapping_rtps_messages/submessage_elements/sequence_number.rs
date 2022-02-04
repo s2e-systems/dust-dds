@@ -2,9 +2,11 @@ use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::structure::types::SequenceNumber;
-use rust_rtps_psm::messages::submessage_elements::SequenceNumberSubmessageElementPsm;
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
+use crate::{
+    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
+    messages::submessage_elements::SequenceNumberSubmessageElementPsm,
+};
 
 impl MappingWriteByteOrdered for SequenceNumber {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -42,7 +44,6 @@ impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSubmessageElementPsm {
         })
     }
 }
-
 
 #[cfg(test)]
 mod tests {

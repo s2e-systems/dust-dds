@@ -2,11 +2,16 @@ use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
-use rust_rtps_psm::messages::{
-    submessages::{DataSubmessageRead, DataSubmessageWrite}, submessage_elements::{ParameterListSubmessageElementRead, SerializedDataSubmessageElementPsm},
-};
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
+use crate::{
+    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
+    messages::{
+        submessage_elements::{
+            ParameterListSubmessageElementRead, SerializedDataSubmessageElementPsm,
+        },
+        submessages::{DataSubmessageRead, DataSubmessageWrite},
+    },
+};
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
@@ -126,7 +131,13 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessageRead<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::mapping_traits::{from_bytes, to_bytes};
+    use crate::{
+        mapping_traits::{from_bytes, to_bytes},
+        messages::submessage_elements::{
+            EntityIdSubmessageElementPsm, Parameter, ParameterOwned,
+            SequenceNumberSubmessageElementPsm,
+        },
+    };
 
     use super::*;
     use rust_rtps_pim::{
@@ -138,9 +149,6 @@ mod tests {
             types::ParameterId,
         },
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
-    };
-    use rust_rtps_psm::messages::submessage_elements::{
-        EntityIdSubmessageElementPsm, Parameter, SequenceNumberSubmessageElementPsm, ParameterOwned,
     };
 
     #[test]

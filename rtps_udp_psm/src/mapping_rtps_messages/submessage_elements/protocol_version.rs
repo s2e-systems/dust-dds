@@ -2,11 +2,10 @@ use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::structure::types::ProtocolVersion;
-use rust_rtps_psm::messages::submessage_elements::ProtocolVersionSubmessageElementPsm;
 
-use crate::mapping_traits::{
+use crate::{mapping_traits::{
     MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered, NumberOfBytes,
-};
+}, messages::submessage_elements::ProtocolVersionSubmessageElementPsm};
 
 impl MappingWriteByteOrdered for ProtocolVersion {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

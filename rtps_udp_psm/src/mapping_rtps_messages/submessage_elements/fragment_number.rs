@@ -2,9 +2,11 @@ use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::types::FragmentNumber;
-use rust_rtps_psm::messages::submessage_elements::FragmentNumberSubmessageElementPsm;
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
+use crate::{
+    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
+    messages::submessage_elements::FragmentNumberSubmessageElementPsm,
+};
 
 impl MappingWriteByteOrdered for FragmentNumber {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

@@ -2,9 +2,11 @@ use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
-use rust_rtps_psm::messages::submessages::{GapSubmessageRead, GapSubmessageWrite};
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
+use crate::{
+    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
+    messages::submessages::{GapSubmessageRead, GapSubmessageWrite},
+};
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
@@ -63,7 +65,7 @@ impl<'de> MappingReadSubmessage<'de> for GapSubmessageRead {
 
 #[cfg(test)]
 mod tests {
-    use crate::mapping_traits::{from_bytes, to_bytes};
+    use crate::{mapping_traits::{from_bytes, to_bytes}, messages::submessage_elements::{EntityIdSubmessageElementPsm, SequenceNumberSetSubmessageElementPsm, SequenceNumberSubmessageElementPsm}};
 
     use super::*;
     use rust_rtps_pim::{
@@ -75,10 +77,7 @@ mod tests {
         },
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
-    use rust_rtps_psm::messages::submessage_elements::{
-        EntityIdSubmessageElementPsm, SequenceNumberSetSubmessageElementPsm,
-        SequenceNumberSubmessageElementPsm,
-    };
+
     #[test]
     fn serialize_gap() {
         let endianness_flag = true;

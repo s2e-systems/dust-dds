@@ -5,10 +5,7 @@ use rust_dds_rtps_implementation::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
-    utils::{
-        shared_object::RtpsShared,
-        transport::{TransportRead, TransportWrite},
-    },
+    utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
     behavior::{
@@ -23,12 +20,15 @@ use rust_rtps_pim::{
         GuidPrefix, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
-use rust_rtps_psm::messages::{
+use rust_rtps_udp_psm::messages::{
     overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
     submessages::DataSubmessageWrite,
 };
 
-use crate::{domain_participant_factory::RtpsStructureImpl, message_receiver::MessageReceiver};
+use crate::{
+    domain_participant_factory::RtpsStructureImpl, message_receiver::MessageReceiver,
+    transport::{TransportWrite, TransportRead},
+};
 
 pub struct Communication<T> {
     pub version: ProtocolVersion,
