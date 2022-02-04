@@ -7,16 +7,11 @@ use rust_dds_api::{
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
-        data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
-    return_type::{DDSError, DDSResult},
-};
-use rust_rtps_pim::{
-    behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
-    structure::history_cache::RtpsHistoryCacheOperations,
+    return_type::DDSResult,
 };
 
 use crate::{
@@ -88,18 +83,6 @@ impl<Foo, Rtps> PublisherDataWriterFactory<Foo> for PublisherProxy<Rtps>
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
     Rtps: RtpsStructure,
-    Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
-        + RtpsWriterAttributes,
-    Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
-        + RtpsWriterAttributes,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataWriterType = DataWriterProxy<Foo, Rtps>;
@@ -218,17 +201,17 @@ where
         a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
         let _a_datawriter_shared = a_datawriter.as_ref().upgrade()?;
-        if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
-            todo!()
-            // PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
-            //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?),
-            //     &a_datawriter_shared,
-            // )
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher".to_string(),
-            ))
-        }
+        // if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
+        todo!()
+        // PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
+        //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?),
+        //     &a_datawriter_shared,
+        // )
+        // } else {
+        // Err(DDSError::PreconditionNotMet(
+        // "Data writer can only be deleted from its parent publisher".to_string(),
+        // ))
+        // }
     }
 
     fn datawriter_factory_lookup_datawriter(
@@ -249,18 +232,6 @@ where
 impl<Rtps> Publisher for PublisherProxy<Rtps>
 where
     Rtps: RtpsStructure,
-    Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
-        + RtpsWriterAttributes,
-    Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
-        + RtpsWriterAttributes,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
 {
     type DomainParticipant = DomainParticipantProxy<Rtps>;
 

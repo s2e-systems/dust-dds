@@ -7,9 +7,9 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
     subscription::{
-        data_reader::{AnyDataReader, DataReader},
+        data_reader::AnyDataReader,
         data_reader_listener::DataReaderListener,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
         subscriber_listener::SubscriberListener,
@@ -184,20 +184,20 @@ where
 
     fn datareader_factory_delete_datareader(
         &self,
-        a_datareader: &Self::DataReaderType,
+        _a_datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
-        if std::ptr::eq(&a_datareader.get_subscriber()?, self) {
-            let _datareader_shared = a_datareader.as_ref().upgrade()?;
+        // if std::ptr::eq(&a_datareader.get_subscriber()?, self) {
+            // let _datareader_shared = a_datareader.as_ref().upgrade()?;
             todo!()
             // SubscriberDataReaderFactory::<Foo>::datareader_factory_delete_datareader(
             //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?),
             //     &datareader_shared,
             // )
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher".to_string(),
-            ))
-        }
+        // } else {
+        //     Err(DDSError::PreconditionNotMet(
+        //         "Data writer can only be deleted from its parent publisher".to_string(),
+        //     ))
+        // }
     }
 
     fn datareader_factory_lookup_datareader(
