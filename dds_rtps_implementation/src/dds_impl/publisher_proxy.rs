@@ -7,18 +7,20 @@ use rust_dds_api::{
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
-        data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
 };
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
     rtps_impl::rtps_group_impl::RtpsGroupImpl,
-    utils::shared_object::{RtpsShared, RtpsWeak},
+    utils::{
+        rtps_structure::RtpsStructure,
+        shared_object::{RtpsShared, RtpsWeak},
+    },
 };
 
 use super::{
@@ -28,22 +30,28 @@ use super::{
     topic_proxy::TopicProxy,
 };
 
-pub struct PublisherAttributes {
+pub struct PublisherAttributes<Rtps>
+where
+    Rtps: RtpsStructure,
+{
     pub _qos: PublisherQos,
     pub rtps_group: RtpsGroupImpl,
-    pub data_writer_list: Vec<RtpsShared<DataWriterAttributes>>,
+    pub data_writer_list: Vec<RtpsShared<DataWriterAttributes<Rtps>>>,
     pub user_defined_data_writer_counter: AtomicU8,
     pub default_datawriter_qos: DataWriterQos,
-    pub sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes>>,
-    pub parent_participant: RtpsWeak<DomainParticipantAttributes>,
+    pub sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<Rtps>>>,
+    pub parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
-impl PublisherAttributes {
+impl<Rtps> PublisherAttributes<Rtps>
+where
+    Rtps: RtpsStructure,
+{
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes>>,
-        parent_participant: RtpsWeak<DomainParticipantAttributes>,
+        sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<Rtps>>>,
+        parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -58,20 +66,26 @@ impl PublisherAttributes {
 }
 
 #[derive(Clone)]
-pub struct PublisherProxy(pub(crate) RtpsWeak<PublisherAttributes>);
+pub struct PublisherProxy<Rtps>(pub(crate) RtpsWeak<PublisherAttributes<Rtps>>)
+where
+    Rtps: RtpsStructure;
 
-impl<'p> PublisherProxy {
-    pub fn new(publisher_impl: RtpsWeak<PublisherAttributes>) -> Self {
+impl<Rtps> PublisherProxy<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    pub fn new(publisher_impl: RtpsWeak<PublisherAttributes<Rtps>>) -> Self {
         Self(publisher_impl)
     }
 }
 
-impl<Foo> PublisherDataWriterFactory<Foo> for PublisherProxy
+impl<Foo, Rtps> PublisherDataWriterFactory<Foo> for PublisherProxy<Rtps>
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
+    Rtps: RtpsStructure,
 {
-    type TopicType = TopicProxy<Foo>;
-    type DataWriterType = DataWriterProxy<Foo>;
+    type TopicType = TopicProxy<Foo, Rtps>;
+    type DataWriterType = DataWriterProxy<Foo, Rtps>;
 
     fn datawriter_factory_create_datawriter(
         &self,
@@ -187,17 +201,17 @@ where
         a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
         let _a_datawriter_shared = a_datawriter.as_ref().upgrade()?;
-        if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
-            todo!()
-            // PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
-            //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?),
-            //     &a_datawriter_shared,
-            // )
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher".to_string(),
-            ))
-        }
+        // if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
+        todo!()
+        // PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
+        //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?),
+        //     &a_datawriter_shared,
+        // )
+        // } else {
+        // Err(DDSError::PreconditionNotMet(
+        // "Data writer can only be deleted from its parent publisher".to_string(),
+        // ))
+        // }
     }
 
     fn datawriter_factory_lookup_datawriter(
@@ -215,8 +229,11 @@ where
     }
 }
 
-impl Publisher for PublisherProxy {
-    type DomainParticipant = DomainParticipantProxy;
+impl<Rtps> Publisher for PublisherProxy<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    type DomainParticipant = DomainParticipantProxy<Rtps>;
 
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
@@ -278,7 +295,10 @@ impl Publisher for PublisherProxy {
     }
 }
 
-impl Entity for PublisherProxy {
+impl<Rtps> Entity for PublisherProxy<Rtps>
+where
+    Rtps: RtpsStructure,
+{
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 

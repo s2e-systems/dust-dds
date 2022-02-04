@@ -134,7 +134,12 @@ impl RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'_> {
         //     return change IN this.requested_changes()
         //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
 
-        let next_seq_num = self.reader_proxy_attributes.requested_changes.iter().min().cloned();
+        let next_seq_num = self
+            .reader_proxy_attributes
+            .requested_changes
+            .iter()
+            .min()
+            .cloned();
 
         //remove from requested_changes
         if let Some(next_seq_num) = next_seq_num {
@@ -334,5 +339,4 @@ mod tests {
         let result = reader_proxy.unacked_changes();
         assert_eq!(result, vec![4, 6]);
     }
-
 }

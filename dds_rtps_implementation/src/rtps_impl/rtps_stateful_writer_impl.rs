@@ -22,7 +22,6 @@ use rust_rtps_pim::{
         },
     },
 };
-use rust_rtps_psm::messages::submessage_elements::ParameterOwned;
 
 use crate::utils::clock::{StdTimer, Timer};
 
@@ -162,7 +161,7 @@ impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
 
 impl RtpsWriterOperations for RtpsStatefulWriterImpl {
     type DataType = Vec<u8>;
-    type ParameterListType = Vec<ParameterOwned>;
+    type ParameterListType = Vec<u8>;
     type CacheChangeType = WriterCacheChange;
     fn new_change(
         &mut self,

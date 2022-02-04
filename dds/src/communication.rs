@@ -1,9 +1,11 @@
 use std::cell::RefCell;
 
 use rust_dds_rtps_implementation::{
-    dds_impl::{data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes},
+    dds_impl::{
+        data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
+        subscriber_proxy::SubscriberAttributes,
+    },
     utils::{
-        message_receiver::{MessageReceiver, ProcessDataSubmessage},
         shared_object::RtpsShared,
         transport::{TransportRead, TransportWrite},
     },
@@ -26,6 +28,8 @@ use rust_rtps_psm::messages::{
     submessages::DataSubmessageWrite,
 };
 
+use crate::{domain_participant_factory::RtpsStructureImpl, message_receiver::MessageReceiver};
+
 pub struct Communication<T> {
     pub version: ProtocolVersion,
     pub vendor_id: VendorId,
@@ -37,7 +41,7 @@ impl<T> Communication<T>
 where
     T: TransportWrite,
 {
-    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes>]) {
+    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes<RtpsStructureImpl>>]) {
         for publisher in list {
             let mut publisher_lock = publisher.write().unwrap();
 
@@ -144,7 +148,7 @@ impl<T> Communication<T>
 where
     T: TransportRead,
 {
-    pub fn receive(&mut self, list: &[RtpsShared<impl ProcessDataSubmessage>]) {
+    pub fn receive(&mut self, list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
         if let Some((source_locator, message)) = self.transport.read() {
             MessageReceiver::new().process_message(
                 self.guid_prefix,

@@ -4,7 +4,8 @@ use crate::{
 };
 
 pub trait RtpsStatefulReaderAttributes {
-    fn matched_writers(&self);
+    type WriterProxyType;
+    fn matched_writers(&self) -> &[Self::WriterProxyType];
 }
 
 pub trait RtpsStatefulReaderConstructor {

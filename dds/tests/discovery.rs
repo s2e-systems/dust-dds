@@ -15,7 +15,7 @@ use rust_dds::{
     publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
     types::Duration,
-    udp_transport::UdpTransport,
+    udp_transport::UdpTransport, domain_participant_factory::RtpsStructureImpl,
 };
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
@@ -147,7 +147,7 @@ fn send_and_receive_discovery_data_happy_path() {
             .data_writer_list
             .push(shared_data_writer);
 
-        DataWriterProxy::new(weak_data_writer)
+        DataWriterProxy::<_,RtpsStructureImpl>::new(weak_data_writer)
     };
 
     data_writer_proxy
@@ -206,7 +206,7 @@ fn send_and_receive_discovery_data_happy_path() {
             .data_reader_list
             .push(shared_data_reader);
 
-        DataReaderProxy::new(weak_data_reader)
+        DataReaderProxy::<_,RtpsStructureImpl>::new(weak_data_reader)
     };
 
     communication.receive(core::slice::from_ref(&subscriber));
@@ -307,7 +307,7 @@ fn process_discovery_data_happy_path() {
             .data_writer_list
             .push(shared_data_writer);
 
-        DataWriterProxy::new(weak_data_writer)
+        DataWriterProxy::<_,RtpsStructureImpl>::new(weak_data_writer)
     };
 
     spdp_builtin_participant_data_writer_proxy
@@ -421,7 +421,7 @@ fn process_discovery_data_happy_path() {
             .data_reader_list
             .push(shared_data_reader);
 
-        DataReaderProxy::<SedpBuiltinPublicationsReader>::new(weak_data_reader)
+        DataReaderProxy::<SedpBuiltinPublicationsReader, RtpsStructureImpl>::new(weak_data_reader)
     };
 
     if let Ok(participant_discovery) = ParticipantDiscovery::new(

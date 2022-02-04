@@ -2,11 +2,10 @@ use std::marker::PhantomData;
 
 use crate::{
     dds_type::DdsDeserialize,
-    rtps_impl::{
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    utils::{
+        rtps_structure::RtpsStructure,
+        shared_object::{RtpsShared, RtpsWeak},
     },
-    utils::shared_object::{RtpsShared, RtpsWeak},
 };
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -23,8 +22,7 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
     subscription::{
-        data_reader::{AnyDataReader, DataReader},
-        data_reader_listener::DataReaderListener,
+        data_reader::DataReader, data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
     },
 };
@@ -52,13 +50,19 @@ impl<Foo> std::ops::Deref for Samples<Foo> {
     }
 }
 
-pub enum RtpsReader {
-    Stateless(RtpsStatelessReaderImpl),
-    Stateful(RtpsStatefulReaderImpl),
+pub enum RtpsReader<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    Stateless(Rtps::StatelessReader),
+    Stateful(Rtps::StatefulReader),
 }
 
-impl RtpsReader {
-    pub fn try_as_stateless_reader(&mut self) -> DDSResult<&mut RtpsStatelessReaderImpl> {
+impl<Rtps> RtpsReader<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    pub fn try_as_stateless_reader(&mut self) -> DDSResult<&mut Rtps::StatelessReader> {
         match self {
             RtpsReader::Stateless(x) => Ok(x),
             RtpsReader::Stateful(_) => Err(DDSError::PreconditionNotMet(
@@ -67,7 +71,7 @@ impl RtpsReader {
         }
     }
 
-    pub fn try_as_stateful_reader(&mut self) -> DDSResult<&mut RtpsStatefulReaderImpl> {
+    pub fn try_as_stateful_reader(&mut self) -> DDSResult<&mut Rtps::StatefulReader> {
         match self {
             RtpsReader::Stateless(_) => Err(DDSError::PreconditionNotMet(
                 "Not a stateful reader".to_string(),
@@ -77,20 +81,26 @@ impl RtpsReader {
     }
 }
 
-pub struct DataReaderAttributes {
-    pub rtps_reader: RtpsReader,
+pub struct DataReaderAttributes<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    pub rtps_reader: RtpsReader<Rtps>,
     pub _qos: DataReaderQos,
-    pub topic: RtpsShared<TopicAttributes>,
+    pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub _listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
-    pub parent_subscriber: RtpsWeak<SubscriberAttributes>,
+    pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
 }
 
-impl DataReaderAttributes {
+impl<Rtps> DataReaderAttributes<Rtps>
+where
+    Rtps: RtpsStructure,
+{
     pub fn new(
         qos: DataReaderQos,
-        rtps_reader: RtpsReader,
-        topic: RtpsShared<TopicAttributes>,
-        parent_subscriber: RtpsWeak<SubscriberAttributes>,
+        rtps_reader: RtpsReader<Rtps>,
+        topic: RtpsShared<TopicAttributes<Rtps>>,
+        parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         Self {
             rtps_reader,
@@ -102,13 +112,19 @@ impl DataReaderAttributes {
     }
 }
 
-pub struct DataReaderProxy<Foo> {
-    data_reader_impl: RtpsWeak<DataReaderAttributes>,
+pub struct DataReaderProxy<Foo, Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    data_reader_impl: RtpsWeak<DataReaderAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo> Clone for DataReaderProxy<Foo> {
+impl<Foo, Rtps> Clone for DataReaderProxy<Foo, Rtps>
+where
+    Rtps: RtpsStructure,
+{
     fn clone(&self) -> Self {
         Self {
             data_reader_impl: self.data_reader_impl.clone(),
@@ -117,8 +133,11 @@ impl<Foo> Clone for DataReaderProxy<Foo> {
     }
 }
 
-impl<Foo> DataReaderProxy<Foo> {
-    pub fn new(data_reader_impl: RtpsWeak<DataReaderAttributes>) -> Self {
+impl<Foo, Rtps> DataReaderProxy<Foo, Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    pub fn new(data_reader_impl: RtpsWeak<DataReaderAttributes<Rtps>>) -> Self {
         Self {
             data_reader_impl,
             phantom: PhantomData,
@@ -126,19 +145,31 @@ impl<Foo> DataReaderProxy<Foo> {
     }
 }
 
-impl<Foo> AsRef<RtpsWeak<DataReaderAttributes>> for DataReaderProxy<Foo> {
-    fn as_ref(&self) -> &RtpsWeak<DataReaderAttributes> {
+impl<Foo, Rtps> AsRef<RtpsWeak<DataReaderAttributes<Rtps>>> for DataReaderProxy<Foo, Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    fn as_ref(&self) -> &RtpsWeak<DataReaderAttributes<Rtps>> {
         &self.data_reader_impl
     }
 }
 
-impl<Foo> DataReader<Foo> for DataReaderProxy<Foo>
+impl<Foo, Rtps> DataReader<Foo> for DataReaderProxy<Foo, Rtps>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
+    Rtps: RtpsStructure,
+    Rtps::StatelessReader: RtpsReaderAttributes,
+    Rtps::StatefulReader: RtpsReaderAttributes,
+    <Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
+        RtpsHistoryCacheAttributes,
+    <Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
+        RtpsHistoryCacheAttributes,
+    <<Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
+    <<Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
 {
     type Samples = Samples<Foo>;
-    type Subscriber = SubscriberProxy;
-    type TopicDescription = TopicProxy<Foo>;
+    type Subscriber = SubscriberProxy<Rtps>;
+    type TopicDescription = TopicProxy<Foo, Rtps>;
 
     fn read(
         &mut self,
@@ -148,7 +179,8 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
-        let rtps_reader = &data_reader_shared.read()
+        let rtps_reader = &data_reader_shared
+            .read()
             .map_err(|_| DDSError::NoData)?
             .rtps_reader;
 
@@ -403,7 +435,10 @@ where
     }
 }
 
-impl<Foo> Entity for DataReaderProxy<Foo> {
+impl<Foo, Rtps> Entity for DataReaderProxy<Foo, Rtps>
+where
+    Rtps: RtpsStructure,
+{
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener>;
 
@@ -452,8 +487,6 @@ impl<Foo> Entity for DataReaderProxy<Foo> {
         todo!()
     }
 }
-
-impl<Foo> AnyDataReader for DataReaderProxy<Foo> {}
 
 #[cfg(test)]
 mod tests {

@@ -7,46 +7,56 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
     subscription::{
-        data_reader::{AnyDataReader, DataReader},
+        data_reader::AnyDataReader,
         data_reader_listener::DataReaderListener,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::{structure::types::GuidPrefix, behavior::stateful_reader_behavior::StatefulReaderBehavior};
-use rust_rtps_psm::messages::submessages::DataSubmessageRead;
+use rust_rtps_pim::{
+    behavior::reader::reader::RtpsReaderAttributes,
+    structure::{
+        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheAttributes,
+    },
+};
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
     rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
-        message_receiver::ProcessDataSubmessage,
+        rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
     },
 };
 
 use super::{
-    data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader},
+    data_reader_proxy::{DataReaderAttributes, DataReaderProxy},
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
     topic_proxy::TopicProxy,
 };
 
-pub struct SubscriberAttributes {
+pub struct SubscriberAttributes<Rtps>
+where
+    Rtps: RtpsStructure,
+{
     pub qos: SubscriberQos,
     pub rtps_group: RtpsGroupImpl,
-    pub data_reader_list: Vec<RtpsShared<DataReaderAttributes>>,
+    pub data_reader_list: Vec<RtpsShared<DataReaderAttributes<Rtps>>>,
     pub user_defined_data_reader_counter: u8,
     pub default_data_reader_qos: DataReaderQos,
-    pub parent_domain_participant: RtpsWeak<DomainParticipantAttributes>,
+    pub parent_domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
-impl SubscriberAttributes {
+impl<Rtps> SubscriberAttributes<Rtps>
+where
+    Rtps: RtpsStructure,
+{
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
-        parent_domain_participant: RtpsWeak<DomainParticipantAttributes>,
+        parent_domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
         Self {
             qos,
@@ -59,46 +69,22 @@ impl SubscriberAttributes {
     }
 }
 
-impl ProcessDataSubmessage for SubscriberAttributes {
-    fn process_data_submessage(
-        &mut self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessageRead,
-    ) {
-        for data_reader in self.data_reader_list.iter().cloned() {
-            let mut as_mut_rtps_reader_lock = data_reader.write_lock();
-            let rtps_reader = &mut as_mut_rtps_reader_lock.rtps_reader;
-            match rtps_reader {
-                RtpsReader::Stateless(stateless_rtps_reader) => {
-                    for mut stateless_reader_behavior in stateless_rtps_reader.into_iter() {
-                        stateless_reader_behavior.receive_data(source_guid_prefix, data)
-                    }
-                }
-                RtpsReader::Stateful(stateful_rtps_reader) => {
-                    for stateful_reader_behavior in stateful_rtps_reader.into_iter() {
-                        match stateful_reader_behavior {
-                            StatefulReaderBehavior::BestEffort(_) => todo!(),
-                            StatefulReaderBehavior::Reliable(mut reliable_stateful_reader) => {
-                                reliable_stateful_reader.receive_data(source_guid_prefix, data)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 #[derive(Clone)]
-pub struct SubscriberProxy {
-    participant: DomainParticipantProxy,
-    subscriber_impl: RtpsWeak<SubscriberAttributes>,
+pub struct SubscriberProxy<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    participant: DomainParticipantProxy<Rtps>,
+    subscriber_impl: RtpsWeak<SubscriberAttributes<Rtps>>,
 }
 
-impl SubscriberProxy {
+impl<Rtps> SubscriberProxy<Rtps>
+where
+    Rtps: RtpsStructure,
+{
     pub fn new(
-        participant: DomainParticipantProxy,
-        subscriber_impl: RtpsWeak<SubscriberAttributes>,
+        participant: DomainParticipantProxy<Rtps>,
+        subscriber_impl: RtpsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         Self {
             participant,
@@ -107,18 +93,30 @@ impl SubscriberProxy {
     }
 }
 
-impl AsRef<RtpsWeak<SubscriberAttributes>> for SubscriberProxy {
-    fn as_ref(&self) -> &RtpsWeak<SubscriberAttributes> {
+impl<Rtps> AsRef<RtpsWeak<SubscriberAttributes<Rtps>>> for SubscriberProxy<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    fn as_ref(&self) -> &RtpsWeak<SubscriberAttributes<Rtps>> {
         &self.subscriber_impl
     }
 }
 
-impl<Foo> SubscriberDataReaderFactory<Foo> for SubscriberProxy
+impl<Foo, Rtps> SubscriberDataReaderFactory<Foo> for SubscriberProxy<Rtps>
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
+    Rtps: RtpsStructure,
+    Rtps::StatelessReader: RtpsReaderAttributes,
+    Rtps::StatefulReader: RtpsReaderAttributes,
+    <Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
+        RtpsHistoryCacheAttributes,
+    <Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
+        RtpsHistoryCacheAttributes,
+    <<Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
+    <<Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
 {
-    type TopicType = TopicProxy<Foo>;
-    type DataReaderType = DataReaderProxy<Foo>;
+    type TopicType = TopicProxy<Foo, Rtps>;
+    type DataReaderType = DataReaderProxy<Foo, Rtps>;
 
     fn datareader_factory_create_datareader(
         &self,
@@ -186,20 +184,20 @@ where
 
     fn datareader_factory_delete_datareader(
         &self,
-        a_datareader: &Self::DataReaderType,
+        _a_datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
-        if std::ptr::eq(&a_datareader.get_subscriber()?, self) {
-            let _datareader_shared = a_datareader.as_ref().upgrade()?;
+        // if std::ptr::eq(&a_datareader.get_subscriber()?, self) {
+            // let _datareader_shared = a_datareader.as_ref().upgrade()?;
             todo!()
             // SubscriberDataReaderFactory::<Foo>::datareader_factory_delete_datareader(
             //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?),
             //     &datareader_shared,
             // )
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher".to_string(),
-            ))
-        }
+        // } else {
+        //     Err(DDSError::PreconditionNotMet(
+        //         "Data writer can only be deleted from its parent publisher".to_string(),
+        //     ))
+        // }
     }
 
     fn datareader_factory_lookup_datareader(
@@ -222,8 +220,11 @@ where
     }
 }
 
-impl Subscriber for SubscriberProxy {
-    type DomainParticipant = DomainParticipantProxy;
+impl<Rtps> Subscriber for SubscriberProxy<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    type DomainParticipant = DomainParticipantProxy<Rtps>;
 
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
@@ -276,7 +277,10 @@ impl Subscriber for SubscriberProxy {
     }
 }
 
-impl Entity for SubscriberProxy {
+impl<Rtps> Entity for SubscriberProxy<Rtps>
+where
+    Rtps: RtpsStructure,
+{
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 
