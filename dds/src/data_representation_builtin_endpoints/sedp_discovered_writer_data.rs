@@ -3,12 +3,8 @@ use std::io::Write;
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey, return_type::DDSResult,
 };
+use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use rust_rtps_pim::structure::types::{EntityId, Guid, Locator};
-
-use crate::{
-    data_representation_builtin_endpoints::serde_remote_rtps_pim::EntityIdDeserialize,
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
-};
 
 use super::{
     parameter_id_values::{
@@ -38,7 +34,9 @@ use super::{
         ReliabilityQosPolicyDataWriterSerialize, TopicDataQosPolicyDeserialize,
         TopicDataQosPolicySerialize, UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
     },
-    serde_remote_rtps_pim::{EntityIdSerialize, LocatorDeserialize, LocatorSerialize},
+    serde_remote_rtps_pim::{
+        EntityIdDeserialize, EntityIdSerialize, LocatorDeserialize, LocatorSerialize,
+    },
 };
 
 #[derive(Debug, PartialEq)]
@@ -283,15 +281,14 @@ mod tests {
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     };
+    use rust_dds_rtps_implementation::dds_type::LittleEndian;
     use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     use super::*;
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
-        value
-            .serialize::<_, crate::dds_type::LittleEndian>(&mut writer)
-            .unwrap();
+        value.serialize::<_, LittleEndian>(&mut writer).unwrap();
         writer
     }
     #[test]

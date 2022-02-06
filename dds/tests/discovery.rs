@@ -2,6 +2,11 @@ use std::net::UdpSocket;
 
 use rust_dds::{
     communication::Communication,
+    data_representation_builtin_endpoints::{
+        sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
+        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
+    },
+    domain_participant_factory::RtpsStructureImpl,
     infrastructure::{
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
@@ -15,7 +20,7 @@ use rust_dds::{
     publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
     types::Duration,
-    udp_transport::UdpTransport, domain_participant_factory::RtpsStructureImpl,
+    udp_transport::UdpTransport,
 };
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
@@ -26,10 +31,6 @@ use rust_dds_api::{
     },
 };
 use rust_dds_rtps_implementation::{
-    data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
-        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
-    },
     dds_impl::{
         data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader, Samples},
         data_writer_proxy::{DataWriterAttributes, DataWriterProxy, RtpsWriter},
@@ -147,7 +148,7 @@ fn send_and_receive_discovery_data_happy_path() {
             .data_writer_list
             .push(shared_data_writer);
 
-        DataWriterProxy::<_,RtpsStructureImpl>::new(weak_data_writer)
+        DataWriterProxy::<_, RtpsStructureImpl>::new(weak_data_writer)
     };
 
     data_writer_proxy
@@ -206,7 +207,7 @@ fn send_and_receive_discovery_data_happy_path() {
             .data_reader_list
             .push(shared_data_reader);
 
-        DataReaderProxy::<_,RtpsStructureImpl>::new(weak_data_reader)
+        DataReaderProxy::<_, RtpsStructureImpl>::new(weak_data_reader)
     };
 
     communication.receive(core::slice::from_ref(&subscriber));
@@ -307,7 +308,7 @@ fn process_discovery_data_happy_path() {
             .data_writer_list
             .push(shared_data_writer);
 
-        DataWriterProxy::<_,RtpsStructureImpl>::new(weak_data_writer)
+        DataWriterProxy::<_, RtpsStructureImpl>::new(weak_data_writer)
     };
 
     spdp_builtin_participant_data_writer_proxy

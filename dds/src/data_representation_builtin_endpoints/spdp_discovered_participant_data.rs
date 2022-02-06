@@ -1,4 +1,5 @@
 use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
+use rust_dds_rtps_implementation::dds_type::{DdsSerialize, DdsType, Endianness, DdsDeserialize};
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
@@ -11,19 +12,13 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::{
-    data_representation_builtin_endpoints::parameter_id_values::{
-        PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-        PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_LEASE_DURATION,
-    },
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
-};
-
 use super::{
     parameter_id_values::{
         PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-        PID_DOMAIN_ID, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_PARTICIPANT_GUID,
-        PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+        PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_EXPECTS_INLINE_QOS,
+        PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+        PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+        PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID, PID_DOMAIN_TAG,
     },
     parameter_list_deserializer::ParameterListDeserializer,
     parameter_list_serializer::ParameterListSerializer,
@@ -128,7 +123,7 @@ impl DdsType for SpdpDiscoveredParticipantData {
 }
 
 impl DdsSerialize for SpdpDiscoveredParticipantData {
-    fn serialize<W: std::io::Write, E: crate::dds_type::Endianness>(
+    fn serialize<W: std::io::Write, E: Endianness>(
         &self,
         writer: W,
     ) -> rust_dds_api::return_type::DDSResult<()> {
@@ -259,10 +254,10 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 
 #[cfg(test)]
 mod tests {
-    use crate::dds_type::LittleEndian;
 
     use super::*;
     use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
+    use rust_dds_rtps_implementation::dds_type::LittleEndian;
     use rust_rtps_pim::{
         discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,

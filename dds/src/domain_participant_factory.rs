@@ -18,10 +18,6 @@ use rust_dds_api::{
     subscription::data_reader::DataReader,
 };
 use rust_dds_rtps_implementation::{
-    data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    },
     dds_impl::{
         data_reader_proxy::{RtpsReader, Samples},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
@@ -60,7 +56,14 @@ use rust_rtps_pim::{
     structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E},
 };
 
-use crate::{communication::Communication, udp_transport::UdpTransport};
+use crate::{
+    communication::Communication,
+    data_representation_builtin_endpoints::{
+        sedp_discovered_writer_data::SedpDiscoveredWriterData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    },
+    udp_transport::UdpTransport,
+};
 
 pub struct RtpsStructureImpl;
 
@@ -749,10 +752,6 @@ mod tests {
         subscription::query_condition::QueryCondition,
     };
     use rust_dds_rtps_implementation::{
-        data_representation_builtin_endpoints::{
-            sedp_discovered_writer_data::RtpsWriterProxy,
-            spdp_discovered_participant_data::ParticipantProxy,
-        },
         rtps_impl::{
             rtps_group_impl::RtpsGroupImpl, rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
             rtps_writer_proxy_impl::RtpsWriterProxyImpl,
@@ -973,6 +972,11 @@ mod tests {
         }
 
     }
+
+    use crate::data_representation_builtin_endpoints::{
+        sedp_discovered_writer_data::RtpsWriterProxy,
+        spdp_discovered_participant_data::ParticipantProxy,
+    };
 
     use super::*;
     mock! {
