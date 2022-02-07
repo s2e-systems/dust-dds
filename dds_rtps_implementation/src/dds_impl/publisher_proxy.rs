@@ -257,7 +257,16 @@ where
         let publisher_shared = self.0.upgrade().ok()?;
         let data_writer_list = &publisher_shared.write().ok()?.data_writer_list;
 
-        data_writer_list.first().map(
+        data_writer_list.iter()
+        .find(|data_writer|
+            data_writer.read_lock()
+                .topic.upgrade().ok()
+                .map(|topic|
+                    topic.read_lock().type_name == Foo::type_name()
+                )
+                .unwrap_or(false)
+        )
+        .map(
             |found_data_writer| DataWriterProxy::new(found_data_writer.downgrade())
         )
     }
@@ -431,7 +440,7 @@ mod tests {
 
     impl DdsType for MockFoo {
         fn type_name() -> &'static str {
-            "MockFoo"
+            "type_name"
         }
 
         fn has_key() -> bool {

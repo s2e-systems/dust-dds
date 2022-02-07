@@ -197,11 +197,11 @@ where
         let data_reader_list = &subscriber_shared.write().ok()?.data_reader_list;
 
         data_reader_list.iter()
-        .find(|x| {
-            x.read_lock().topic.read_lock().type_name
+        .find(|data_reader|
+            data_reader.read_lock().topic.read_lock().type_name
             ==
             Foo::type_name()
-        })
+        )
         .map(
             |found_data_reader| DataReaderProxy::new(found_data_reader.downgrade())
         )
