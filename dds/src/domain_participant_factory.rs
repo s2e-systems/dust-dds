@@ -339,7 +339,7 @@ impl DomainParticipantFactory {
         let guid_prefix = GuidPrefix([3; 12]);
 
         // /////// Define other configurations
-        let domain_tag = Arc::new("".to_string());
+        let domain_tag = "".to_string();
         let metatraffic_unicast_locator_list = vec![Locator::new(
             LOCATOR_KIND_UDPv4,
             7400,
@@ -537,9 +537,9 @@ impl DomainParticipantFactory {
         // sedp_builtin_topics_dds_data_writer.clone(),
         // ],
 
-        let (sender, receiver) = std::sync::mpsc::sync_channel(10);
+        let (_sender, receiver) = std::sync::mpsc::sync_channel(10);
         let executor = Executor { receiver };
-        let _spawner = Spawner::new(sender, domain_participant.read().unwrap().enabled.clone());
+        // let _spawner = Spawner::new(sender, domain_participant.read().unwrap().enabled.clone());
 
         let mut _communication = Communication {
             version: PROTOCOLVERSION,

@@ -1,8 +1,3 @@
-use std::sync::{
-    atomic::{self, AtomicBool, AtomicU8},
-    Arc,
-};
-
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
@@ -51,15 +46,15 @@ where
 {
     pub rtps_participant: RtpsParticipantImpl,
     pub domain_id: DomainId,
-    pub domain_tag: Arc<String>,
+    pub domain_tag: String,
     pub qos: DomainParticipantQos,
     pub builtin_subscriber_list: Vec<RtpsShared<SubscriberAttributes<Rtps>>>,
     pub builtin_publisher_list: Vec<RtpsShared<PublisherAttributes<Rtps>>>,
     pub user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes<Rtps>>>,
-    pub user_defined_subscriber_counter: AtomicU8,
+    pub user_defined_subscriber_counter: u8,
     pub default_subscriber_qos: SubscriberQos,
     pub user_defined_publisher_list: Vec<RtpsShared<PublisherAttributes<Rtps>>>,
-    pub user_defined_publisher_counter: AtomicU8,
+    pub user_defined_publisher_counter: u8,
     pub default_publisher_qos: PublisherQos,
     pub topic_list: Vec<RtpsShared<TopicAttributes<Rtps>>>,
     pub default_topic_qos: TopicQos,
@@ -67,7 +62,7 @@ where
     pub lease_duration: rust_rtps_pim::behavior::types::Duration,
     pub metatraffic_unicast_locator_list: Vec<Locator>,
     pub metatraffic_multicast_locator_list: Vec<Locator>,
-    pub enabled: Arc<AtomicBool>,
+    pub enabled: bool,
 }
 
 impl<Rtps> DomainParticipantAttributes<Rtps>
@@ -77,7 +72,7 @@ where
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
-        domain_tag: Arc<String>,
+        domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
@@ -103,10 +98,10 @@ where
             builtin_subscriber_list: Vec::new(),
             builtin_publisher_list: Vec::new(),
             user_defined_subscriber_list: Vec::new(),
-            user_defined_subscriber_counter: AtomicU8::new(0),
+            user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
             user_defined_publisher_list: Vec::new(),
-            user_defined_publisher_counter: AtomicU8::new(0),
+            user_defined_publisher_counter: 0,
             default_publisher_qos: PublisherQos::default(),
             topic_list: Vec::new(),
             default_topic_qos: TopicQos::default(),
@@ -114,7 +109,7 @@ where
             lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
-            enabled: Arc::new(AtomicBool::new(false)),
+            enabled: false,
         }
     }
 
@@ -300,13 +295,15 @@ where
                 .default_publisher_qos
                 .clone(),
         );
-        let user_defined_publisher_counter = domain_participant_attributes_lock
-            .user_defined_publisher_counter
-            .fetch_add(1, atomic::Ordering::SeqCst);
         let entity_id = EntityId::new(
-            [user_defined_publisher_counter, 0, 0],
+            [
+                domain_participant_attributes_lock.user_defined_publisher_counter,
+                0,
+                0,
+            ],
             USER_DEFINED_WRITER_GROUP,
         );
+        domain_participant_attributes_lock.user_defined_publisher_counter += 1;
         let guid = Guid::new(
             *domain_participant_attributes_lock
                 .rtps_participant
@@ -369,13 +366,15 @@ where
                 .default_subscriber_qos
                 .clone(),
         );
-        let user_defined_subscriber_counter = domain_participant_attributes_lock
-            .user_defined_subscriber_counter
-            .fetch_add(1, atomic::Ordering::SeqCst);
         let entity_id = EntityId::new(
-            [user_defined_subscriber_counter, 0, 0],
+            [
+                domain_participant_attributes_lock.user_defined_subscriber_counter,
+                0,
+                0,
+            ],
             USER_DEFINED_READER_GROUP,
         );
+        domain_participant_attributes_lock.user_defined_subscriber_counter += 1;
         let guid = Guid::new(
             *domain_participant_attributes_lock
                 .rtps_participant
@@ -632,10 +631,8 @@ where
 
     fn enable(&self) -> DDSResult<()> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
-        let domain_participant_lock = domain_participant_shared.read_lock();
-        domain_participant_lock
-            .enabled
-            .store(true, atomic::Ordering::SeqCst);
+        let mut domain_participant_lock = domain_participant_shared.write_lock();
+        domain_participant_lock.enabled = true;
         Ok(())
     }
 
