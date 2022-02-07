@@ -5,21 +5,17 @@ use rust_dds_api::{
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
-        qos_policy::{
-            ReliabilityQosPolicyKind,
-        },
+        qos_policy::ReliabilityQosPolicyKind,
     },
     publication::{
         data_writer_listener::DataWriterListener,
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
-    return_type::{DDSResult, DDSError},
+    return_type::{DDSError, DDSResult},
 };
 use rust_rtps_pim::{
-    behavior::writer::{
-        stateful_writer::RtpsStatefulWriterConstructor,
-    },
+    behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
     structure::{
         entity::RtpsEntityAttributes,
         types::{
@@ -31,9 +27,7 @@ use rust_rtps_pim::{
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
-    rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl,
-    },
+    rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
@@ -137,10 +131,7 @@ where
             ],
             entity_kind,
         );
-        let guid = Guid::new(
-            *publisher_shared_lock.rtps_group.guid().prefix(),
-            entity_id,
-        );
+        let guid = Guid::new(*publisher_shared_lock.rtps_group.guid().prefix(), entity_id);
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -220,11 +211,13 @@ where
             _qos: qos,
             rtps_writer: rtps_writer_impl,
             _listener: None,
-            topic: topic_shared.downgrade(),
+            topic: topic_shared.clone(),
             publisher: publisher_shared.downgrade(),
         });
 
-        publisher_shared_lock.data_writer_list.push(data_writer_shared.clone());
+        publisher_shared_lock
+            .data_writer_list
+            .push(data_writer_shared.clone());
 
         Some(DataWriterProxy::new(data_writer_shared.downgrade()))
     }
@@ -237,14 +230,17 @@ where
         let datawriter_shared = datawriter.as_ref().upgrade()?;
 
         let data_writer_list = &mut publisher_shared
-            .write().map_err(|_| DDSError::Error)?
+            .write()
+            .map_err(|_| DDSError::Error)?
             .data_writer_list;
 
         data_writer_list.remove(
-            data_writer_list.iter().position(|x| x == &datawriter_shared)
-            .ok_or(DDSError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher".to_string(),
-            ))?
+            data_writer_list
+                .iter()
+                .position(|x| x == &datawriter_shared)
+                .ok_or(DDSError::PreconditionNotMet(
+                    "Data writer can only be deleted from its parent publisher".to_string(),
+                ))?,
         );
 
         Ok(())
@@ -257,9 +253,9 @@ where
         let publisher_shared = self.0.upgrade().ok()?;
         let data_writer_list = &publisher_shared.write().ok()?.data_writer_list;
 
-        data_writer_list.first().map(
-            |found_data_writer| DataWriterProxy::new(found_data_writer.downgrade())
-        )
+        data_writer_list
+            .first()
+            .map(|found_data_writer| DataWriterProxy::new(found_data_writer.downgrade()))
     }
 }
 
@@ -384,12 +380,27 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::atomic::AtomicU8, io::Write};
+    use std::{io::Write, sync::atomic::AtomicU8};
 
-    use rust_dds_api::{infrastructure::qos::{PublisherQos, DataWriterQos, TopicQos}, publication::publisher::{Publisher, PublisherDataWriterFactory}, return_type::{DDSResult, DDSError}};
-    use rust_rtps_pim::{structure::types::{GUID_UNKNOWN, ReliabilityKind, TopicKind, Guid, Locator}, behavior::{writer::stateful_writer::RtpsStatefulWriterConstructor, types::Duration}};
+    use rust_dds_api::{
+        infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos},
+        publication::publisher::{Publisher, PublisherDataWriterFactory},
+        return_type::{DDSError, DDSResult},
+    };
+    use rust_rtps_pim::{
+        behavior::{types::Duration, writer::stateful_writer::RtpsStatefulWriterConstructor},
+        structure::types::{Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN},
+    };
 
-    use crate::{utils::{shared_object::{RtpsShared, RtpsWeak}, rtps_structure::RtpsStructure}, rtps_impl::rtps_group_impl::RtpsGroupImpl, dds_impl::topic_proxy::{TopicProxy, TopicAttributes}, dds_type::{DdsSerialize, Endianness, DdsType}};
+    use crate::{
+        dds_impl::topic_proxy::{TopicAttributes, TopicProxy},
+        dds_type::{DdsSerialize, DdsType, Endianness},
+        rtps_impl::rtps_group_impl::RtpsGroupImpl,
+        utils::{
+            rtps_structure::RtpsStructure,
+            shared_object::{RtpsShared, RtpsWeak},
+        },
+    };
 
     use super::{PublisherAttributes, PublisherProxy};
 
@@ -416,9 +427,9 @@ mod tests {
 
     impl RtpsStructure for MockRtps {
         type StatelessWriter = ();
-        type StatefulWriter  = MockWriter;
+        type StatefulWriter = MockWriter;
         type StatelessReader = ();
-        type StatefulReader  = ();
+        type StatefulReader = ();
     }
 
     struct MockFoo {}
@@ -439,7 +450,7 @@ mod tests {
         }
     }
 
-    impl<Rtps : RtpsStructure> Default for PublisherAttributes<Rtps> {
+    impl<Rtps: RtpsStructure> Default for PublisherAttributes<Rtps> {
         fn default() -> Self {
             PublisherAttributes {
                 _qos: PublisherQos::default(),
@@ -452,11 +463,14 @@ mod tests {
             }
         }
     }
-    
-    impl<Rtps : RtpsStructure> Default for TopicAttributes<Rtps> {
+
+    impl<Rtps: RtpsStructure> Default for TopicAttributes<Rtps> {
         fn default() -> Self {
             TopicAttributes::new(
-            TopicQos::default(), "type_name", "topic_name", RtpsWeak::new(),
+                TopicQos::default(),
+                "type_name",
+                "topic_name",
+                RtpsWeak::new(),
             )
         }
     }
@@ -470,7 +484,7 @@ mod tests {
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.create_datawriter(&topic_proxy, None, None, 0);
-        
+
         assert!(data_writer.is_some());
     }
 
@@ -482,7 +496,8 @@ mod tests {
         let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
-        let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
+        let data_writer =
+            publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
         assert!(data_writer.is_some());
         assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
     }
@@ -495,12 +510,15 @@ mod tests {
         let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
-        let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+        let data_writer = publisher_proxy
+            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
 
         assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
 
-        publisher_proxy.datawriter_factory_delete_datawriter(&data_writer).unwrap();
+        publisher_proxy
+            .datawriter_factory_delete_datawriter(&data_writer)
+            .unwrap();
         assert_eq!(0, publisher.read().unwrap().data_writer_list.len());
     }
 
@@ -508,14 +526,15 @@ mod tests {
     fn datawriter_factory_delete_datawriter_from_other_publisher() {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-    
+
         let publisher2 = RtpsShared::new(PublisherAttributes::default());
         let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
 
         let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
-        let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+        let data_writer = publisher_proxy
+            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
         assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
         assert_eq!(0, publisher2.read().unwrap().data_writer_list.len());
@@ -534,7 +553,9 @@ mod tests {
         let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
-        assert!(publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy).is_none());
+        assert!(publisher_proxy
+            .datawriter_factory_lookup_datawriter(&topic_proxy)
+            .is_none());
     }
 
     #[test]
@@ -545,15 +566,18 @@ mod tests {
         let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
-        let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+        let data_writer = publisher_proxy
+            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
 
         assert!(
-            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy).unwrap()
-                .as_ref().upgrade().unwrap()
-            ==
-            data_writer
-                .as_ref().upgrade().unwrap()
+            publisher_proxy
+                .datawriter_factory_lookup_datawriter(&topic_proxy)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == data_writer.as_ref().upgrade().unwrap()
         );
     }
 }

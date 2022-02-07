@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use crate::{
     dds_type::{DdsSerialize, LittleEndian},
-    utils::{rtps_structure::RtpsStructure, shared_object::RtpsWeak},
+    utils::{
+        rtps_structure::RtpsStructure,
+        shared_object::{RtpsShared, RtpsWeak},
+    },
 };
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -64,7 +67,7 @@ where
     pub _qos: DataWriterQos,
     pub rtps_writer: RtpsWriter<Rtps>,
     pub _listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
-    pub topic: RtpsWeak<TopicAttributes<Rtps>>,
+    pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub publisher: RtpsWeak<PublisherAttributes<Rtps>>,
 }
 
@@ -75,7 +78,7 @@ where
     pub fn new(
         qos: DataWriterQos,
         rtps_writer: RtpsWriter<Rtps>,
-        topic: RtpsWeak<TopicAttributes<Rtps>>,
+        topic: RtpsShared<TopicAttributes<Rtps>>,
         publisher: RtpsWeak<PublisherAttributes<Rtps>>,
     ) -> Self {
         Self {
@@ -361,7 +364,7 @@ mod test {
 
     use mockall::mock;
     use rust_dds_api::dcps_psm::{InstanceHandle, Time};
-    use rust_dds_api::infrastructure::qos::DataWriterQos;
+    use rust_dds_api::infrastructure::qos::{DataWriterQos, TopicQos};
     use rust_dds_api::publication::data_writer::DataWriter;
     use rust_dds_api::return_type::DDSResult;
     use rust_rtps_pim::behavior::types::Duration;
@@ -369,11 +372,12 @@ mod test {
     use rust_rtps_pim::structure::history_cache::RtpsHistoryCacheOperations;
     use rust_rtps_pim::structure::types::{ChangeKind, SequenceNumber};
 
-    use crate::dds_type::{Endianness, DdsSerialize};
+    use crate::dds_impl::topic_proxy::TopicAttributes;
+    use crate::dds_type::{DdsSerialize, Endianness};
     use crate::utils::rtps_structure::RtpsStructure;
-    use crate::utils::shared_object::{RtpsWeak, RtpsShared};
+    use crate::utils::shared_object::{RtpsShared, RtpsWeak};
 
-    use super::{DataWriterAttributes, RtpsWriter, DataWriterProxy};
+    use super::{DataWriterAttributes, DataWriterProxy, RtpsWriter};
 
     mock! {
         WriterHistoryCacheType {}
@@ -438,40 +442,58 @@ mod test {
 
     #[test]
     fn try_as_stateful_writer_on_stateful_is_ok() {
-        assert!(RtpsWriter::<MockRtps>::Stateful(MockWriter::new()).try_as_stateful_writer().is_ok());
+        assert!(RtpsWriter::<MockRtps>::Stateful(MockWriter::new())
+            .try_as_stateful_writer()
+            .is_ok());
     }
 
     #[test]
     fn try_as_stateful_writer_on_stateless_is_err() {
-        assert!(RtpsWriter::<MockRtps>::Stateless(MockWriter::new()).try_as_stateful_writer().is_err());
+        assert!(RtpsWriter::<MockRtps>::Stateless(MockWriter::new())
+            .try_as_stateful_writer()
+            .is_err());
     }
 
     #[test]
     fn try_as_stateless_writer_on_stateless_is_ok() {
-        assert!(RtpsWriter::<MockRtps>::Stateless(MockWriter::new()).try_as_stateless_writer().is_ok());
+        assert!(RtpsWriter::<MockRtps>::Stateless(MockWriter::new())
+            .try_as_stateless_writer()
+            .is_ok());
     }
 
     #[test]
     fn try_as_stateless_writer_on_stateful_is_err() {
-        assert!(RtpsWriter::<MockRtps>::Stateful(MockWriter::new()).try_as_stateless_writer().is_err());
+        assert!(RtpsWriter::<MockRtps>::Stateful(MockWriter::new())
+            .try_as_stateless_writer()
+            .is_err());
     }
 
     #[test]
     fn write_w_timestamp_stateless() {
         let mut mock_writer_history_cache = MockWriterHistoryCacheType::new();
         mock_writer_history_cache
-            .expect_add_change().once().return_const(());
+            .expect_add_change()
+            .once()
+            .return_const(());
 
         let mut mock_writer = MockWriter::new();
-        mock_writer.expect_new_change().once()
-                   .return_const(());
-        mock_writer.expect_writer_cache().once()
-                   .return_var(mock_writer_history_cache);
+        mock_writer.expect_new_change().once().return_const(());
+        mock_writer
+            .expect_writer_cache()
+            .once()
+            .return_var(mock_writer_history_cache);
+
+        let dummy_topic = RtpsShared::new(TopicAttributes::new(
+            TopicQos::default(),
+            "",
+            "",
+            RtpsWeak::new(),
+        ));
 
         let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(mock_writer),
-            RtpsWeak::new(),
+            dummy_topic,
             RtpsWeak::new(),
         );
 
@@ -479,36 +501,46 @@ mod test {
         let weak_data_writer = shared_data_writer.downgrade();
 
         let mut data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
-        data_writer_proxy.write_w_timestamp(
-            &MockFoo {}, None, Time {sec: 0, nanosec: 0}
-        ).unwrap();
+        data_writer_proxy
+            .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
+            .unwrap();
     }
 
     #[test]
     fn write_w_timestamp_stateful() {
         let mut mock_writer_history_cache = MockWriterHistoryCacheType::new();
         mock_writer_history_cache
-            .expect_add_change().once().return_const(());
+            .expect_add_change()
+            .once()
+            .return_const(());
 
         let mut mock_writer = MockWriter::new();
-        mock_writer.expect_new_change().once()
-                   .return_const(());
-        mock_writer.expect_writer_cache().once()
-                   .return_var(mock_writer_history_cache);
-        
+        mock_writer.expect_new_change().once().return_const(());
+        mock_writer
+            .expect_writer_cache()
+            .once()
+            .return_var(mock_writer_history_cache);
+
+        let dummy_topic = RtpsShared::new(TopicAttributes::new(
+            TopicQos::default(),
+            "",
+            "",
+            RtpsWeak::new(),
+        ));
+
         let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(mock_writer),
-            RtpsWeak::new(),
+            dummy_topic,
             RtpsWeak::new(),
         );
 
-        let shared_data_writer  = RtpsShared::new(data_writer);
+        let shared_data_writer = RtpsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
 
         let mut data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
-        data_writer_proxy.write_w_timestamp(
-            &MockFoo {}, None, Time {sec: 0, nanosec: 0}
-        ).unwrap();
+        data_writer_proxy
+            .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
+            .unwrap();
     }
 }

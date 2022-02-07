@@ -132,11 +132,18 @@ fn send_and_receive_discovery_data_happy_path() {
         RtpsWeak::new(),
     ));
 
+    let spdp_discovered_participant_topic = RtpsShared::new(TopicAttributes::new(
+        TopicQos::default(),
+        SpdpDiscoveredParticipantData::type_name(),
+        "DCPSParticipant",
+        RtpsWeak::new(),
+    ));
+
     let mut data_writer_proxy = {
         let data_writer = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-            RtpsWeak::new(),
+            spdp_discovered_participant_topic,
             publisher.downgrade(),
         );
 
@@ -293,10 +300,17 @@ fn process_discovery_data_happy_path() {
 
         spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
+        let spdp_discovered_participant_topic = RtpsShared::new(TopicAttributes::new(
+            TopicQos::default(),
+            SpdpDiscoveredParticipantData::type_name(),
+            "DCPSParticipant",
+            RtpsWeak::new(),
+        ));
+
         let data_writer = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-            RtpsWeak::new(),
+            spdp_discovered_participant_topic.clone(),
             publisher.downgrade(),
         );
 
@@ -323,10 +337,17 @@ fn process_discovery_data_happy_path() {
         let sedp_builtin_publications_rtps_writer =
             SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
 
+        let sedp_builtin_publications_topic = RtpsShared::new(TopicAttributes::new(
+            TopicQos::default(),
+            SedpDiscoveredWriterData::type_name(),
+            "DCPSPublication",
+            RtpsWeak::new(),
+        ));
+
         let data_writer = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-            RtpsWeak::new(),
+            sedp_builtin_publications_topic,
             publisher.downgrade(),
         );
 

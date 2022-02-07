@@ -13,18 +13,25 @@ use std::{
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos},
+    infrastructure::qos::{
+        DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
+        PublisherQos, SubscriberQos, TopicQos,
+    },
     return_type::DDSResult,
     subscription::data_reader::DataReader,
 };
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_reader_proxy::{RtpsReader, Samples},
+        data_reader_proxy::{DataReaderAttributes, RtpsReader, Samples},
+        data_writer_proxy::{DataWriterAttributes, RtpsWriter},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
+        publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
+        topic_proxy::TopicAttributes,
     },
+    dds_type::DdsType,
     rtps_impl::{
-        rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
+        rtps_group_impl::RtpsGroupImpl, rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
@@ -53,7 +60,10 @@ use rust_rtps_pim::{
         },
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
     },
-    structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E},
+    structure::types::{
+        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
+        BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_S2E,
+    },
 };
 
 use crate::{
@@ -363,8 +373,50 @@ impl DomainParticipantFactory {
         socket.set_nonblocking(true).unwrap();
         let _default_transport = UdpTransport::new(socket);
 
+        // //////// Create the domain participant
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+            guid_prefix,
+            domain_id,
+            domain_tag,
+            domain_participant_qos,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+        ));
+
+        // ///////// Create the built-in publisher and subcriber
+        let builtin_subscriber = RtpsShared::new(SubscriberAttributes::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+            )),
+            domain_participant.downgrade(),
+        ));
+        // domain_participant
+        //     .write()
+        //     .unwrap()
+        //     .builtin_subscriber_list
+        //     .push(builtin_subscriber);
+
+        let builtin_publisher = RtpsShared::new(PublisherAttributes::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+            )),
+            None,
+            domain_participant.downgrade(),
+        ));
+        // domain_participant
+        //     .write()
+        //     .unwrap()
+        //     .builtin_publisher_list
+        //     .push(builtin_publisher);
+
         // /////// Create SPDP and SEDP endpoints
-        let _spdp_builtin_participant_rtps_reader =
+        let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
@@ -394,35 +446,39 @@ impl DomainParticipantFactory {
         spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
         // ///////// Create built-in DDS data readers and data writers
-        // let _spdp_builtin_participant_dds_data_reader = RtpsShared::new(DataReaderAttributes::new(
-        //     DataReaderQos::default(),
-        //     RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
-        //     RtpsShared::new(TopicAttributes::new(
-        //         TopicQos::default(),
-        //         SpdpDiscoveredParticipantData::type_name(),
-        //         "DCPSParticipant",
-        //         RtpsWeak::new(),
-        //     )),
-        //     RtpsWeak::new(),
-        // ));
+        let spdp_discovered_participant_topic = RtpsShared::new(TopicAttributes::new(
+            TopicQos::default(),
+            SpdpDiscoveredParticipantData::type_name(),
+            "DCPSParticipant",
+            domain_participant.downgrade(),
+        ));
 
-        // let _spdp_builtin_participant_dds_data_writer = RtpsShared::new(DataWriterAttributes::new(
-        //     DataWriterQos::default(),
-        //     RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-        //     RtpsWeak::new(),
-        //     RtpsWeak::new(),
-        // ));
+        let _spdp_builtin_participant_data_reader = RtpsShared::new(DataReaderAttributes::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
+            spdp_discovered_participant_topic.clone(),
+            builtin_subscriber.downgrade(),
+        ));
+
+        let _spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
+            spdp_discovered_participant_topic.clone(),
+            builtin_publisher.downgrade(),
+        ));
+
+        let _sedp_builtin_publications_topic = RtpsShared::new(TopicAttributes::new(
+            TopicQos::default(),
+            SedpDiscoveredWriterData::type_name(),
+            "DCPSPublication",
+            domain_participant.downgrade(),
+        ));
 
         // let _sedp_builtin_publications_dds_data_reader =
         //     RtpsShared::new(DataReaderAttributes::new(
         //         DataReaderQos::default(),
         //         RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
-        //         RtpsShared::new(TopicAttributes::new(
-        //             TopicQos::default(),
-        //             SedpDiscoveredWriterData::type_name(),
-        //             "DCPSPublication",
-        //             RtpsWeak::new(),
-        //         )),
+        //         ,
         //         RtpsWeak::new(),
         //     ));
 
@@ -474,31 +530,6 @@ impl DomainParticipantFactory {
         //     RtpsWeak::new(),
         // ));
 
-        // let builtin_subscriber = RtpsShared::new(SubscriberAttributes::new(
-        //     SubscriberQos::default(),
-        //     RtpsGroupImpl::new(Guid::new(
-        //         guid_prefix,
-        //         EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-        //     )),
-        //     RtpsWeak::new(),
-        // ));
-        // // vec![
-        // //     spdp_builtin_participant_dds_data_reader.clone(),
-        // //     sedp_builtin_publications_dds_data_reader.clone(),
-        // //     sedp_builtin_subscriptions_dds_data_reader.clone(),
-        // //     sedp_builtin_topics_dds_data_reader.clone(),
-        // // ],
-
-        // let builtin_publisher = RtpsShared::new(PublisherAttributes::new(
-        //     PublisherQos::default(),
-        //     RtpsGroupImpl::new(Guid::new(
-        //         guid_prefix,
-        //         EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-        //     )),
-        //     None,
-        //     RtpsWeak::new(),
-        // ));
-
         // vec![
         // spdp_builtin_participant_dds_data_writer.clone(),
         // sedp_builtin_publications_dds_data_writer.clone(),
@@ -506,13 +537,9 @@ impl DomainParticipantFactory {
         // sedp_builtin_topics_dds_data_writer.clone(),
         // ],
 
-        let user_defined_subscriber_list = Vec::new();
-        let user_defined_publisher_list = Vec::new();
-        let enabled = Arc::new(AtomicBool::new(false));
-
         let (sender, receiver) = std::sync::mpsc::sync_channel(10);
         let executor = Executor { receiver };
-        let _spawner = Spawner::new(sender, enabled.clone());
+        let _spawner = Spawner::new(sender, domain_participant.read().unwrap().enabled.clone());
 
         let mut _communication = Communication {
             version: PROTOCOLVERSION,
@@ -620,20 +647,6 @@ impl DomainParticipantFactory {
         //     std::time::Duration::from_millis(500),
         // );
 
-        let domain_participant = DomainParticipantAttributes::new(
-            guid_prefix,
-            domain_id,
-            domain_tag,
-            domain_participant_qos,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            user_defined_subscriber_list,
-            user_defined_publisher_list,
-            enabled,
-        );
-
         // let spdp_discovered_participant_data =
         //     domain_participant.as_spdp_discovered_participant_data();
 
@@ -647,16 +660,12 @@ impl DomainParticipantFactory {
 
         executor.run();
 
-        let shared_domain_participant = RtpsShared::new(domain_participant);
-
         self.participant_list
             .lock()
             .unwrap()
-            .push(shared_domain_participant.clone());
+            .push(domain_participant.clone());
 
-        Some(DomainParticipantProxy::new(
-            shared_domain_participant.clone().downgrade(),
-        ))
+        Some(DomainParticipantProxy::new(domain_participant.downgrade()))
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to

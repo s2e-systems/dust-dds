@@ -83,9 +83,6 @@ where
         metatraffic_multicast_locator_list: Vec<Locator>,
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
-        user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes<Rtps>>>,
-        user_defined_publisher_list: Vec<RtpsShared<PublisherAttributes<Rtps>>>,
-        enabled: Arc<AtomicBool>,
     ) -> Self {
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
@@ -105,10 +102,10 @@ where
             qos: domain_participant_qos,
             builtin_subscriber_list: Vec::new(),
             builtin_publisher_list: Vec::new(),
-            user_defined_subscriber_list,
+            user_defined_subscriber_list: Vec::new(),
             user_defined_subscriber_counter: AtomicU8::new(0),
             default_subscriber_qos: SubscriberQos::default(),
-            user_defined_publisher_list,
+            user_defined_publisher_list: Vec::new(),
             user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: PublisherQos::default(),
             topic_list: Vec::new(),
@@ -117,7 +114,7 @@ where
             lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
-            enabled,
+            enabled: Arc::new(AtomicBool::new(false)),
         }
     }
 
