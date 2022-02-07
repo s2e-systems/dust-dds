@@ -391,26 +391,92 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::{sync::atomic::AtomicU8, io::Write};
 
-//     #[test]
-//     fn create_datawriter() {
-//         let participant = MockDomainParticipant;
-//         let rtps_group = RtpsGroupImpl::new(GUID_UNKNOWN);
-//         let data_writer_storage_list = vec![];
-//         let publisher_storage = PublisherImpl::new(
-//             PublisherQos::default(),
-//             rtps_group,
-//             data_writer_storage_list,
-//         );
-//         let publisher_storage_shared = RtpsShared::new(publisher_storage);
-//         let publisher = PublisherProxy::new(&participant, publisher_storage_shared.downgrade());
-//         let topic_storage = TopicImpl::new(TopicQos::default());
-//         let topic_storage_shared = RtpsShared::new(topic_storage);
-//         let topic =
-//             TopicProxy::<MockKeyedType>::new(&participant, topic_storage_shared.downgrade());
+    use mockall::mock;
+    use rust_dds_api::{infrastructure::qos::{PublisherQos, DataWriterQos, TopicQos}, publication::publisher::Publisher, return_type::DDSResult};
+    use rust_rtps_pim::{structure::types::{GUID_UNKNOWN, ReliabilityKind, TopicKind, Guid, Locator}, behavior::{writer::stateful_writer::RtpsStatefulWriterConstructor, types::Duration}};
 
-//         let datawriter = publisher.create_datawriter_gat(&topic, None, None, 0);
+    use crate::{utils::{shared_object::{RtpsShared, RtpsWeak}, rtps_structure::RtpsStructure}, rtps_impl::rtps_group_impl::RtpsGroupImpl, dds_impl::topic_proxy::{TopicProxy, TopicAttributes}, dds_type::{DdsSerialize, Endianness, DdsType}};
 
-//         assert!(datawriter.is_some());
-//     }
+    use super::{PublisherAttributes, PublisherProxy};
+
+    struct MockWriter {}
+
+    impl RtpsStatefulWriterConstructor for MockWriter {
+        fn new(
+            _guid: Guid,
+            _topic_kind: TopicKind,
+            _reliability_level: ReliabilityKind,
+            _unicast_locator_list: &[Locator],
+            _multicast_locator_list: &[Locator],
+            _push_mode: bool,
+            _heartbeat_period: Duration,
+            _nack_response_delay: Duration,
+            _nack_suppression_duration: Duration,
+            _data_max_size_serialized: Option<i32>,
+        ) -> Self {
+            MockWriter {}
+        }
+    }
+
+    mock! {
+        Rtps {}
+
+        impl RtpsStructure for Rtps {
+            type StatelessWriter = ();
+            type StatefulWriter  = MockWriter;
+            type StatelessReader = ();
+            type StatefulReader  = ();
+        }
+    }
+
+    struct MockFoo {}
+
+    impl DdsSerialize for MockFoo {
+        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
+            Ok(())
+        }
+    }
+
+    impl DdsType for MockFoo {
+        fn type_name() -> &'static str {
+            "MockFoo"
+        }
+
+        fn has_key() -> bool {
+            false
+        }
+    }
+
+    fn dummy_publisher() -> RtpsShared<PublisherAttributes<MockRtps>> {
+        RtpsShared::new(PublisherAttributes::<MockRtps> {
+            _qos: PublisherQos::default(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
+            data_writer_list: Vec::new(),
+            user_defined_data_writer_counter: AtomicU8::new(0),
+            default_datawriter_qos: DataWriterQos::default(),
+            sedp_builtin_publications_announcer: None,
+            parent_participant: RtpsWeak::new(),
+        })
+    }
+
+    fn dummy_topic() -> RtpsShared<TopicAttributes<MockRtps>> {
+        RtpsShared::new(TopicAttributes::new(
+            TopicQos::default(), "type_name", "topic_name", RtpsWeak::new(),
+        ))
+    }
+
+    #[test]
+    fn create_datawriter() {
+        let publisher = dummy_publisher();
+        let topic = dummy_topic();
+
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+
+        let data_writer = publisher_proxy.create_datawriter(&topic_proxy, None, None, 0);
+        
+        assert!(data_writer.is_some());
+    }
 }
