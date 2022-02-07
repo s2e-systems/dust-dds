@@ -470,9 +470,9 @@ mod tests {
     #[test]
     fn create_datawriter() {
         let publisher = dummy_publisher();
-        let topic = dummy_topic();
-
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic = dummy_topic();
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.create_datawriter(&topic_proxy, None, None, 0);
@@ -483,9 +483,9 @@ mod tests {
     #[test]
     fn datawriter_factory_create_datawriter() {
         let publisher = dummy_publisher();
-        let topic = dummy_topic();
-
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic = dummy_topic();
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
@@ -496,9 +496,9 @@ mod tests {
     #[test]
     fn datawriter_factory_delete_datawriter() {
         let publisher = dummy_publisher();
-        let topic = dummy_topic();
-
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic = dummy_topic();
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -513,21 +513,44 @@ mod tests {
     #[test]
     fn datawriter_factory_delete_datawriter_from_other_publisher() {
         let publisher = dummy_publisher();
-        let publisher2 = dummy_publisher();
-        let topic = dummy_topic();
-
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+    
+        let publisher2 = dummy_publisher();
         let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
+
+        let topic = dummy_topic();
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
         assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
+        assert_eq!(0, publisher2.read().unwrap().data_writer_list.len());
 
-        match publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer) {
-            Err(DDSError::PreconditionNotMet(_)) => (),
-            Err(e) => panic!("This should fail with DDSError::PreconditonNotMet, but the error was {:?}", e),
-            Ok(_)  => panic!("This operation should not succeed"),
-        }
+        assert!(matches!(
+            publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),
+            Err(DDSError::PreconditionNotMet(_))
+        ));
+    }
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter() {
+        let publisher = dummy_publisher();
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic = dummy_topic();
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+
+        assert!(publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy).is_none());
+
+        let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+            .unwrap();
+
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy).unwrap()
+                .as_ref().upgrade().unwrap()
+            ==
+            data_writer
+                .as_ref().upgrade().unwrap()
+        );
     }
 }
