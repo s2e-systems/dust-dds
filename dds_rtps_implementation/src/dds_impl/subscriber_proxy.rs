@@ -5,9 +5,9 @@ use rust_dds_api::{
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
-        qos::{DataReaderQos, SubscriberQos, TopicQos},
+        qos::{DataReaderQos, SubscriberQos, TopicQos}, qos_policy::ReliabilityQosPolicyKind,
     },
-    return_type::DDSResult,
+    return_type::{DDSResult, DDSError},
     subscription::{
         data_reader::AnyDataReader,
         data_reader_listener::DataReaderListener,
@@ -15,16 +15,11 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::{
-    behavior::reader::reader::RtpsReaderAttributes,
-    structure::{
-        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheAttributes,
-    },
-};
+use rust_rtps_pim::{structure::{types::{USER_DEFINED_WRITER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY, TopicKind, EntityId, Guid, ReliabilityKind}, entity::RtpsEntityAttributes}, behavior::reader::{stateful_reader::RtpsStatefulReaderConstructor}};
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
-    rtps_impl::rtps_group_impl::RtpsGroupImpl,
+    rtps_impl::{rtps_group_impl::RtpsGroupImpl},
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
@@ -32,7 +27,7 @@ use crate::{
 };
 
 use super::{
-    data_reader_proxy::{DataReaderAttributes, DataReaderProxy},
+    data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader},
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
     topic_proxy::TopicProxy,
 };
@@ -106,117 +101,110 @@ impl<Foo, Rtps> SubscriberDataReaderFactory<Foo> for SubscriberProxy<Rtps>
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
     Rtps: RtpsStructure,
-    Rtps::StatelessReader: RtpsReaderAttributes,
-    Rtps::StatefulReader: RtpsReaderAttributes,
-    <Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
-        RtpsHistoryCacheAttributes,
-    <Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
-        RtpsHistoryCacheAttributes,
-    <<Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
-    <<Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
+    Rtps::StatefulReader: RtpsStatefulReaderConstructor,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataReaderType = DataReaderProxy<Foo, Rtps>;
 
     fn datareader_factory_create_datareader(
         &self,
-        _a_topic: &Self::TopicType,
-        _qos: Option<DataReaderQos>,
+        a_topic: &Self::TopicType,
+        qos: Option<DataReaderQos>,
         _a_listener: Option<&'static dyn DataReaderListener>,
         _mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
-        // let subscriber_shared = rtps_weak_upgrade(&self.subscriber_impl).ok()?;
-        // let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
-        // let data_reader_shared =
-        //     SubscriberDataReaderFactory::<Foo>::datareader_factory_create_datareader(
-        //         &*rtps_shared_write_lock(&subscriber_shared),
-        //         &topic_shared,
-        //         qos,
-        //         a_listener,
-        //         mask,
-        //     )?;
-        // let qos = qos.unwrap_or(self.default_data_reader_qos.clone());
-        // qos.is_consistent().ok()?;
+        let subscriber_shared = self.as_ref().upgrade().ok()?; // rtps_weak_upgrade(&self.subscriber_impl).ok()?;
+        let mut subscriber_shared_lock = subscriber_shared.write().ok()?;
+        
+        // let topic_shared = a_topic.as_ref().upgrade().ok()?;
 
-        // let (entity_kind, topic_kind) = match Foo::has_key() {
-        //     true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
-        //     false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
-        // };
-        // let entity_id = EntityId::new(
-        //     [
-        //         self.rtps_group.guid().entity_id().entity_key()[0],
-        //         self.user_defined_data_reader_counter,
-        //         0,
-        //     ],
-        //     entity_kind,
-        // );
-        // let guid = Guid::new(*self.rtps_group.guid().prefix(), entity_id);
-        // let reliability_level = match qos.reliability.kind {
-        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        // };
+        let qos = qos.unwrap_or(subscriber_shared_lock.default_data_reader_qos.clone());
+        qos.is_consistent().ok()?;
 
-        // let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        // let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        // let expects_inline_qos = false;
-        // let rtps_reader = RtpsReader::Stateful(RtpsStatefulReaderImpl::new(
-        //     guid,
-        //     topic_kind,
-        //     reliability_level,
-        //     &[],
-        //     &[],
-        //     heartbeat_response_delay,
-        //     heartbeat_supression_duration,
-        //     expects_inline_qos,
-        // ));
-        // let reader_storage = DataReaderImpl::new(qos, rtps_reader, a_topic.clone());
-        // let reader_storage_shared = rtps_shared_new(reader_storage);
-        // self.data_reader_list
-        //     .lock()
-        //     .unwrap()
-        //     .push(reader_storage_shared.clone());
-        // Some(reader_storage_shared)
-        // let data_reader_weak = rtps_shared_downgrade(&data_reader_shared);
-        // let data_reader = DataReaderProxy::new(self.clone(), a_topic.clone(), data_reader_weak);
-        // Some(data_reader)
-        todo!()
+        let (entity_kind, topic_kind) = match Foo::has_key() {
+            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
+            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
+        };
+        let entity_id = EntityId::new(
+            [
+                subscriber_shared_lock.rtps_group.guid().entity_id().entity_key()[0],
+                subscriber_shared_lock.user_defined_data_reader_counter,
+                0,
+            ],
+            entity_kind,
+        );
+        let guid = Guid::new(*subscriber_shared_lock.rtps_group.guid().prefix(), entity_id);
+        let reliability_level = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        };
+
+        let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        let expects_inline_qos = false;
+        let rtps_reader = RtpsReader::Stateful(Rtps::StatefulReader::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            &[],
+            &[],
+            heartbeat_response_delay,
+            heartbeat_supression_duration,
+            expects_inline_qos,
+        ));
+        let reader_storage = DataReaderAttributes {
+            rtps_reader,
+            _qos: qos,
+            topic: a_topic.as_ref().upgrade().ok()?,
+            _listener: None,
+            parent_subscriber: self.as_ref().clone(),
+        };
+
+        let reader_storage_shared = RtpsShared::new(reader_storage);
+
+        subscriber_shared_lock.data_reader_list
+            .push(reader_storage_shared.clone());
+
+        Some(DataReaderProxy::new(reader_storage_shared.downgrade()))
     }
 
     fn datareader_factory_delete_datareader(
         &self,
-        _a_datareader: &Self::DataReaderType,
+        datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
-        // if std::ptr::eq(&a_datareader.get_subscriber()?, self) {
-            // let _datareader_shared = a_datareader.as_ref().upgrade()?;
-            todo!()
-            // SubscriberDataReaderFactory::<Foo>::datareader_factory_delete_datareader(
-            //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?),
-            //     &datareader_shared,
-            // )
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Data writer can only be deleted from its parent publisher".to_string(),
-        //     ))
-        // }
+        let subscriber_shared = self.as_ref().upgrade()?;
+        let datareader_shared = datareader.as_ref().upgrade()?;
+
+        let data_reader_list = &mut subscriber_shared
+            .write().map_err(|_| DDSError::Error)?
+            .data_reader_list;
+
+        data_reader_list.remove(
+            data_reader_list.iter().position(|x| x == &datareader_shared)
+            .ok_or(DDSError::PreconditionNotMet(
+                "Data reader can only be deleted from its parent subscriber".to_string(),
+            ))?
+        );
+
+        Ok(())
     }
 
     fn datareader_factory_lookup_datareader(
         &self,
         _topic: &Self::TopicType,
     ) -> Option<Self::DataReaderType> {
-        // let data_reader_list_lock = self.data_reader_list.lock().unwrap();
-        // let found_data_reader = data_reader_list_lock.iter().cloned().find(|x| {
-        //     rtps_shared_read_lock(&rtps_shared_read_lock(x).topic)
-        //         .type_name
-        //         == Foo::type_name()
-        // });
+        let subscriber_shared = self.as_ref().upgrade().ok()?;
+        let data_reader_list = &subscriber_shared.write().ok()?.data_reader_list;
 
-        // if let Some(found_data_reader) = found_data_reader {
-        //     return Some(found_data_reader);
-        // };
-
-        // None
-        todo!()
+        data_reader_list.iter()
+        .find(|x| {
+            x.read_lock().topic.read_lock().type_name
+            ==
+            Foo::type_name()
+        })
+        .map(
+            |found_data_reader| DataReaderProxy::new(found_data_reader.downgrade())
+        )
     }
 }
 
