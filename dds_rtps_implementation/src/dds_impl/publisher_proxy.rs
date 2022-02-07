@@ -446,30 +446,34 @@ mod tests {
         }
     }
 
-    fn dummy_publisher() -> RtpsShared<PublisherAttributes<MockRtps>> {
-        RtpsShared::new(PublisherAttributes::<MockRtps> {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: Vec::new(),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            sedp_builtin_publications_announcer: None,
-            parent_participant: RtpsWeak::new(),
-        })
+    impl<Rtps : RtpsStructure> Default for PublisherAttributes<Rtps> {
+        fn default() -> Self {
+            PublisherAttributes {
+                _qos: PublisherQos::default(),
+                rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
+                data_writer_list: Vec::new(),
+                user_defined_data_writer_counter: AtomicU8::new(0),
+                default_datawriter_qos: DataWriterQos::default(),
+                sedp_builtin_publications_announcer: None,
+                parent_participant: RtpsWeak::new(),
+            }
+        }
     }
-
-    fn dummy_topic() -> RtpsShared<TopicAttributes<MockRtps>> {
-        RtpsShared::new(TopicAttributes::new(
+    
+    impl<Rtps : RtpsStructure> Default for TopicAttributes<Rtps> {
+        fn default() -> Self {
+            TopicAttributes::new(
             TopicQos::default(), "type_name", "topic_name", RtpsWeak::new(),
-        ))
+            )
+        }
     }
 
     #[test]
     fn create_datawriter() {
-        let publisher = dummy_publisher();
+        let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = dummy_topic();
+        let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.create_datawriter(&topic_proxy, None, None, 0);
@@ -479,10 +483,10 @@ mod tests {
 
     #[test]
     fn datawriter_factory_create_datawriter() {
-        let publisher = dummy_publisher();
+        let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = dummy_topic();
+        let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
@@ -492,10 +496,10 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter() {
-        let publisher = dummy_publisher();
+        let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = dummy_topic();
+        let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -509,13 +513,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter_from_other_publisher() {
-        let publisher = dummy_publisher();
+        let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
     
-        let publisher2 = dummy_publisher();
+        let publisher2 = RtpsShared::new(PublisherAttributes::default());
         let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
 
-        let topic = dummy_topic();
+        let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -531,10 +535,10 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_when_empty() {
-        let publisher = dummy_publisher();
+        let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = dummy_topic();
+        let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         assert!(publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy).is_none());
@@ -542,10 +546,10 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_when_one_datawriter() {
-        let publisher = dummy_publisher();
+        let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = dummy_topic();
+        let topic = RtpsShared::new(TopicAttributes::default());
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
