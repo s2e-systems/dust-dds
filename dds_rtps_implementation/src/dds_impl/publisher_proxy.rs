@@ -238,15 +238,16 @@ where
         &self,
         a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
-        let a_datawriter_proxy = DataWriterProxy::<Foo, Rtps>::new(a_datawriter.as_ref().clone());
-        let a_datawriter_publisher = a_datawriter.as_ref()
+        let datawriter_proxy = DataWriterProxy::<Foo, Rtps>::new(a_datawriter.as_ref().clone());
+        let datawriter_publisher = a_datawriter.as_ref()
             .upgrade()?
             .read_lock()
             .publisher.clone();
 
-        if a_datawriter_publisher.upgrade()? == self.0.upgrade()? {
-            PublisherProxy::new(self.0.clone())
-                .datawriter_factory_delete_datawriter(&a_datawriter_proxy)
+        if datawriter_publisher.upgrade()? == self.0.upgrade()? {
+            PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
+                self, &datawriter_proxy
+            )
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
