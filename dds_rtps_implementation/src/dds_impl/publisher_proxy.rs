@@ -1,22 +1,39 @@
-use std::sync::atomic::AtomicU8;
+use std::sync::atomic::{self, AtomicU8};
 
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
+        qos_policy::{
+            ReliabilityQosPolicyKind,
+        },
     },
     publication::{
         data_writer_listener::DataWriterListener,
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
-    return_type::DDSResult,
+    return_type::{DDSResult, DDSError},
+};
+use rust_rtps_pim::{
+    behavior::writer::{
+        stateful_writer::RtpsStatefulWriterConstructor,
+    },
+    structure::{
+        entity::RtpsEntityAttributes,
+        types::{
+            EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
+        },
+    },
 };
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
-    rtps_impl::rtps_group_impl::RtpsGroupImpl,
+    rtps_impl::{
+        rtps_group_impl::RtpsGroupImpl,
+    },
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
@@ -25,7 +42,7 @@ use crate::{
 
 use super::{
     data_writer_proxy::DataWriterAttributes,
-    data_writer_proxy::DataWriterProxy,
+    data_writer_proxy::{DataWriterProxy, RtpsWriter},
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
     topic_proxy::TopicProxy,
 };
@@ -83,67 +100,82 @@ impl<Foo, Rtps> PublisherDataWriterFactory<Foo> for PublisherProxy<Rtps>
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
     Rtps: RtpsStructure,
+    Rtps::StatefulWriter: RtpsStatefulWriterConstructor,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataWriterType = DataWriterProxy<Foo, Rtps>;
 
     fn datawriter_factory_create_datawriter(
         &self,
-        _a_topic: &Self::TopicType,
-        _qos: Option<DataWriterQos>,
+        a_topic: &Self::TopicType,
+        qos: Option<DataWriterQos>,
         _a_listener: Option<&'static dyn DataWriterListener>,
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        // let publisher_shared = rtps_weak_upgrade(&self.publisher_impl).ok()?;
-        // let topic_shared = rtps_weak_upgrade(a_topic.as_ref()).ok()?;
-        // let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
-        // let user_defined_data_writer_counter = self
-        //     .user_defined_data_writer_counter
-        //     .fetch_add(1, atomic::Ordering::SeqCst);
-        // let (entity_kind, topic_kind) = match Foo::has_key() {
-        //     true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
-        //     false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
-        // };
-        // let entity_id = EntityId::new(
-        //     [
-        //         self.rtps_group.guid().entity_id().entity_key()[0],
-        //         user_defined_data_writer_counter,
-        //         0,
-        //     ],
-        //     entity_kind,
-        // );
-        // let guid = Guid::new(*self.rtps_group.guid().prefix(), entity_id);
-        // let reliability_level = match qos.reliability.kind {
-        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        // };
-        // let unicast_locator_list = &[];
-        // let multicast_locator_list = &[];
-        // let push_mode = true;
-        // let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
-        // let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        // let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        // let data_max_size_serialized = None;
-        // let rtps_writer_impl = RtpsWriter::Stateful(RtpsStatefulWriterImpl::new(
-        //     guid,
-        //     topic_kind,
-        //     reliability_level,
-        //     unicast_locator_list,
-        //     multicast_locator_list,
-        //     push_mode,
-        //     heartbeat_period,
-        //     nack_response_delay,
-        //     nack_suppression_duration,
-        //     data_max_size_serialized,
-        // ));
+        let publisher_shared = self.0.upgrade().ok()?;
+        let topic_shared = a_topic.as_ref().upgrade().ok()?;
+        let qos = qos.unwrap_or(publisher_shared.read().ok()?.default_datawriter_qos.clone());
+        let user_defined_data_writer_counter = publisher_shared
+            .read()
+            .ok()?
+            .user_defined_data_writer_counter
+            .fetch_add(1, atomic::Ordering::SeqCst);
+        let (entity_kind, topic_kind) = match Foo::has_key() {
+            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
+            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
+        };
+        let entity_id = EntityId::new(
+            [
+                publisher_shared
+                    .read()
+                    .ok()?
+                    .rtps_group
+                    .guid()
+                    .entity_id()
+                    .entity_key()[0],
+                user_defined_data_writer_counter,
+                0,
+            ],
+            entity_kind,
+        );
+        let guid = Guid::new(
+            *publisher_shared.read().ok()?.rtps_group.guid().prefix(),
+            entity_id,
+        );
+        let reliability_level = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        };
+        let unicast_locator_list = &[];
+        let multicast_locator_list = &[];
+        let push_mode = true;
+        let heartbeat_period = rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000);
+        let nack_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        let nack_suppression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
+        let data_max_size_serialized = None;
+        let rtps_writer_impl = RtpsWriter::Stateful(Rtps::StatefulWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        ));
 
-        // if let Some(sedp_builtin_publications_announcer) = &self.sedp_builtin_publications_announcer
+        // if let Some(sedp_builtin_publications_announcer) = publisher_shared
+        //     .read()
+        //     .ok()?
+        //     .sedp_builtin_publications_announcer
         // {
-        //     let topic_shared = rtps_shared_read_lock(a_topic);
-        //     let mut sedp_builtin_publications_announcer_lock =
-        //         rtps_shared_write_lock(sedp_builtin_publications_announcer);
+        //     let topic_shared = a_topic.as_ref().upgrade().ok()?.read_lock();
+        //     let mut sedp_builtin_publications_announcer_proxy =
+        //         DataWriterProxy::new(sedp_builtin_publications_announcer.downgrade());
         //     let sedp_discovered_writer_data = SedpDiscoveredWriterData {
-        //         writer_proxy: RtpsWriterProxy {
+        //         writer_proxy: RtpsWriterProxyImpl {
         //             remote_writer_guid: guid,
         //             unicast_locator_list: vec![],
         //             multicast_locator_list: vec![],
@@ -175,7 +207,7 @@ where
         //             group_data: GroupDataQosPolicy::default(),
         //         },
         //     };
-        //     sedp_builtin_publications_announcer_lock
+        //     sedp_builtin_publications_announcer_proxy
         //         .write_w_timestamp(
         //             &sedp_discovered_writer_data,
         //             None,
@@ -183,49 +215,58 @@ where
         //         )
         //         .unwrap();
         // }
+
         // let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
-        // let data_writer_impl_shared = rtps_shared_new(data_writer_impl);
-        // self.data_writer_list
-        //     .lock()
-        //     .unwrap()
-        //     .push(data_writer_impl_shared.clone());
-        // // Some(data_writer_impl_shared)
-        // let data_writer_weak = rtps_shared_downgrade(&data_writer_shared);
-        // let datawriter = DataWriterProxy::new(self.clone(), a_topic.clone(), data_writer_weak);
-        // Some(datawriter)
-        todo!()
+        let data_writer_shared = RtpsShared::new(DataWriterAttributes {
+            _qos: qos,
+            rtps_writer: rtps_writer_impl,
+            _listener: None,
+            topic: topic_shared.downgrade(),
+            publisher: publisher_shared.downgrade(),
+        });
+
+        publisher_shared
+            .write()
+            .ok()?
+            .data_writer_list
+            .push(data_writer_shared.clone());
+
+        Some(DataWriterProxy::new(data_writer_shared.downgrade()))
     }
 
     fn datawriter_factory_delete_datawriter(
         &self,
         a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
-        let _a_datawriter_shared = a_datawriter.as_ref().upgrade()?;
-        // if std::ptr::eq(&a_datawriter.get_publisher()?, self) {
-        todo!()
-        // PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
-        //     &*rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?),
-        //     &a_datawriter_shared,
-        // )
-        // } else {
-        // Err(DDSError::PreconditionNotMet(
-        // "Data writer can only be deleted from its parent publisher".to_string(),
-        // ))
-        // }
+        let a_datawriter_proxy = DataWriterProxy::<Foo, Rtps>::new(a_datawriter.as_ref().clone());
+        let a_datawriter_publisher = a_datawriter.as_ref()
+            .upgrade()?
+            .read_lock()
+            .publisher.clone();
+
+        if a_datawriter_publisher.upgrade()? == self.0.upgrade()? {
+            PublisherProxy::new(self.0.clone())
+                .datawriter_factory_delete_datawriter(&a_datawriter_proxy)
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Data writer can only be deleted from its parent publisher".to_string(),
+            ))
+        }
     }
 
     fn datawriter_factory_lookup_datawriter(
         &self,
         _topic: &Self::TopicType,
     ) -> Option<Self::DataWriterType> {
-        // let data_writer_impl_list_lock = self.data_writer_list.lock().unwrap();
-        // let found_data_writer = data_writer_impl_list_lock.iter().cloned().find(|_x| true);
+        let publisher_shared = self.0.upgrade().ok()?;
+        let data_writer_impl_list_lock = &publisher_shared.write().ok()?.data_writer_list;
+        let found_data_writer = data_writer_impl_list_lock.iter().cloned().find(|_x| true);
 
-        // if let Some(found_data_writer) = found_data_writer {
-        // return Some(found_data_writer);
-        // };
-        // None
-        todo!()
+        if let Some(found_data_writer) = found_data_writer {
+            Some(DataWriterProxy::new(found_data_writer.downgrade()))
+        } else {
+            None
+        }
     }
 }
 
