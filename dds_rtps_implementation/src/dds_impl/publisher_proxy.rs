@@ -394,7 +394,7 @@ mod tests {
     use std::{sync::atomic::AtomicU8, io::Write};
 
     use mockall::mock;
-    use rust_dds_api::{infrastructure::qos::{PublisherQos, DataWriterQos, TopicQos}, publication::publisher::Publisher, return_type::DDSResult};
+    use rust_dds_api::{infrastructure::qos::{PublisherQos, DataWriterQos, TopicQos}, publication::publisher::{Publisher, PublisherDataWriterFactory}, return_type::DDSResult};
     use rust_rtps_pim::{structure::types::{GUID_UNKNOWN, ReliabilityKind, TopicKind, Guid, Locator}, behavior::{writer::stateful_writer::RtpsStatefulWriterConstructor, types::Duration}};
 
     use crate::{utils::{shared_object::{RtpsShared, RtpsWeak}, rtps_structure::RtpsStructure}, rtps_impl::rtps_group_impl::RtpsGroupImpl, dds_impl::topic_proxy::{TopicProxy, TopicAttributes}, dds_type::{DdsSerialize, Endianness, DdsType}};
@@ -476,6 +476,19 @@ mod tests {
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.create_datawriter(&topic_proxy, None, None, 0);
+        
+        assert!(data_writer.is_some());
+    }
+
+    #[test]
+    fn datawriter_factory_create_datawriter() {
+        let publisher = dummy_publisher();
+        let topic = dummy_topic();
+
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+
+        let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
         
         assert!(data_writer.is_some());
     }
