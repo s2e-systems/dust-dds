@@ -236,23 +236,23 @@ where
 
     fn datawriter_factory_delete_datawriter(
         &self,
-        a_datawriter: &Self::DataWriterType,
+        datawriter: &Self::DataWriterType,
     ) -> DDSResult<()> {
-        let datawriter_proxy = DataWriterProxy::<Foo, Rtps>::new(a_datawriter.as_ref().clone());
-        let datawriter_publisher = a_datawriter.as_ref()
-            .upgrade()?
-            .read_lock()
-            .publisher.clone();
+        let publisher_shared = self.0.upgrade()?;
+        let datawriter_shared = datawriter.as_ref().upgrade()?;
 
-        if datawriter_publisher.upgrade()? == self.0.upgrade()? {
-            PublisherDataWriterFactory::<Foo>::datawriter_factory_delete_datawriter(
-                self, &datawriter_proxy
-            )
-        } else {
-            Err(DDSError::PreconditionNotMet(
+        let data_writer_list = &mut publisher_shared
+            .write().map_err(|_| DDSError::Error)?
+            .data_writer_list;
+
+        data_writer_list.remove(
+            data_writer_list.iter().position(|x| x == &datawriter_shared)
+            .ok_or(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
-            ))
-        }
+            ))?
+        );
+
+        Ok(())
     }
 
     fn datawriter_factory_lookup_datawriter(
@@ -260,14 +260,13 @@ where
         _topic: &Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
-        let data_writer_impl_list_lock = &publisher_shared.write().ok()?.data_writer_list;
-        let found_data_writer = data_writer_impl_list_lock.iter().cloned().find(|_x| true);
+        let data_writer_list = &publisher_shared.write().ok()?.data_writer_list;
 
-        if let Some(found_data_writer) = found_data_writer {
-            Some(DataWriterProxy::new(found_data_writer.downgrade()))
-        } else {
-            None
-        }
+        // let found_data_writer = data_writer_list.iter().cloned().find(|_x| true);
+
+        data_writer_list.first().map(
+            |found_data_writer| DataWriterProxy::new(found_data_writer.downgrade())
+        )
     }
 }
 
@@ -390,178 +389,8 @@ where
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use rust_dds_api::{
-//         domain::domain_participant_listener::DomainParticipantListener,
-//         infrastructure::{entity::Entity, qos::DomainParticipantQos},
-//     };
-//     use rust_rtps_pim::structure::types::GUID_UNKNOWN;
-
-//     use crate::{
-//         dds_impl::topic_impl::TopicImpl, rtps_impl::rtps_group_impl::RtpsGroupImpl,
-//         utils::shared_object::RtpsShared,
-//     };
-
-//     use super::*;
-
-//     #[derive(serde::Serialize, serde::Deserialize)]
-//     struct MockKeyedType;
-
-//     impl DDSType for MockKeyedType {
-//         fn type_name() -> &'static str {
-//             todo!()
-//         }
-
-//         fn has_key() -> bool {
-//             true
-//         }
-//     }
-
-//     struct MockDomainParticipant;
-
-//     impl DomainParticipant for MockDomainParticipant {
-//         fn lookup_topicdescription<'t, T>(
-//             &'t self,
-//             _name: &'t str,
-//         ) -> Option<&'t dyn rust_dds_api::topic::topic_description::TopicDescription<T>>
-//         where
-//             Self: Sized,
-//         {
-//             todo!()
-//         }
-
-//         fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn ignore_topic(&self, _handle: InstanceHandle) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn ignore_publication(&self, _handle: InstanceHandle) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn ignore_subscription(&self, _handle: InstanceHandle) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_domain_id(&self) -> rust_dds_api::dcps_psm::DomainId {
-//             todo!()
-//         }
-
-//         fn delete_contained_entities(&self) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn assert_liveliness(&self) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_default_publisher_qos(&self) -> PublisherQos {
-//             todo!()
-//         }
-
-//         fn set_default_subscriber_qos(
-//             &self,
-//             _qos: Option<rust_dds_api::infrastructure::qos::SubscriberQos>,
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_default_subscriber_qos(&self) -> rust_dds_api::infrastructure::qos::SubscriberQos {
-//             todo!()
-//         }
-
-//         fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_default_topic_qos(&self) -> TopicQos {
-//             todo!()
-//         }
-
-//         fn get_discovered_participants(
-//             &self,
-//             _participant_handles: &mut [InstanceHandle],
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_discovered_participant_data(
-//             &self,
-//             _participant_data: rust_dds_api::builtin_topics::ParticipantBuiltinTopicData,
-//             _participant_handle: InstanceHandle,
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_discovered_topic_data(
-//             &self,
-//             _topic_data: rust_dds_api::builtin_topics::TopicBuiltinTopicData,
-//             _topic_handle: InstanceHandle,
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn contains_entity(&self, _a_handle: InstanceHandle) -> bool {
-//             todo!()
-//         }
-
-//         fn get_current_time(&self) -> DDSResult<rust_dds_api::dcps_psm::Time> {
-//             todo!()
-//         }
-//     }
-
-//     impl Entity for MockDomainParticipant {
-//         type Qos = DomainParticipantQos;
-//         type Listener = &'static dyn DomainParticipantListener;
-
-//         fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_qos(&self) -> DDSResult<Self::Qos> {
-//             todo!()
-//         }
-
-//         fn set_listener(
-//             &self,
-//             _a_listener: Option<Self::Listener>,
-//             _mask: StatusMask,
-//         ) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-//             todo!()
-//         }
-
-//         fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
-//             todo!()
-//         }
-
-//         fn get_status_changes(&self) -> DDSResult<StatusMask> {
-//             todo!()
-//         }
-
-//         fn enable(&self) -> DDSResult<()> {
-//             todo!()
-//         }
-
-//         fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-//             todo!()
-//         }
-//     }
+#[cfg(test)]
+mod tests {
 
 //     #[test]
 //     fn create_datawriter() {
@@ -584,4 +413,4 @@ where
 
 //         assert!(datawriter.is_some());
 //     }
-// }
+}
