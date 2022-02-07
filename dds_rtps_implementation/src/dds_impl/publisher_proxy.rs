@@ -530,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn datawriter_factory_lookup_datawriter() {
+    fn datawriter_factory_lookup_datawriter_when_empty() {
         let publisher = dummy_publisher();
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
@@ -538,6 +538,15 @@ mod tests {
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         assert!(publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy).is_none());
+    }
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter_when_one_datawriter() {
+        let publisher = dummy_publisher();
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic = dummy_topic();
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
