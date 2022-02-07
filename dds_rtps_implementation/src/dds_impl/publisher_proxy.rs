@@ -113,11 +113,12 @@ where
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
+        let mut publisher_shared_lock = publisher_shared.write().ok()?;
+
         let topic_shared = a_topic.as_ref().upgrade().ok()?;
-        let qos = qos.unwrap_or(publisher_shared.read().ok()?.default_datawriter_qos.clone());
-        let user_defined_data_writer_counter = publisher_shared
-            .read()
-            .ok()?
+
+        let qos = qos.unwrap_or(publisher_shared_lock.default_datawriter_qos.clone());
+        let user_defined_data_writer_counter = publisher_shared_lock
             .user_defined_data_writer_counter
             .fetch_add(1, atomic::Ordering::SeqCst);
         let (entity_kind, topic_kind) = match Foo::has_key() {
@@ -126,9 +127,7 @@ where
         };
         let entity_id = EntityId::new(
             [
-                publisher_shared
-                    .read()
-                    .ok()?
+                publisher_shared_lock
                     .rtps_group
                     .guid()
                     .entity_id()
@@ -139,7 +138,7 @@ where
             entity_kind,
         );
         let guid = Guid::new(
-            *publisher_shared.read().ok()?.rtps_group.guid().prefix(),
+            *publisher_shared_lock.rtps_group.guid().prefix(),
             entity_id,
         );
         let reliability_level = match qos.reliability.kind {
@@ -225,11 +224,7 @@ where
             publisher: publisher_shared.downgrade(),
         });
 
-        publisher_shared
-            .write()
-            .ok()?
-            .data_writer_list
-            .push(data_writer_shared.clone());
+        publisher_shared_lock.data_writer_list.push(data_writer_shared.clone());
 
         Some(DataWriterProxy::new(data_writer_shared.downgrade()))
     }
@@ -261,8 +256,6 @@ where
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
         let data_writer_list = &publisher_shared.write().ok()?.data_writer_list;
-
-        // let found_data_writer = data_writer_list.iter().cloned().find(|_x| true);
 
         data_writer_list.first().map(
             |found_data_writer| DataWriterProxy::new(found_data_writer.downgrade())
