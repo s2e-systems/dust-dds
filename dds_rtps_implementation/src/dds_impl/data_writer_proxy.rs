@@ -437,6 +437,26 @@ mod test {
     }
 
     #[test]
+    fn try_as_stateful_writer_on_stateful_is_ok() {
+        assert!(RtpsWriter::<MockRtps>::Stateful(MockWriter::new()).try_as_stateful_writer().is_ok());
+    }
+
+    #[test]
+    fn try_as_stateful_writer_on_stateless_is_err() {
+        assert!(RtpsWriter::<MockRtps>::Stateless(MockWriter::new()).try_as_stateful_writer().is_err());
+    }
+
+    #[test]
+    fn try_as_stateless_writer_on_stateless_is_ok() {
+        assert!(RtpsWriter::<MockRtps>::Stateless(MockWriter::new()).try_as_stateless_writer().is_ok());
+    }
+
+    #[test]
+    fn try_as_stateless_writer_on_stateful_is_err() {
+        assert!(RtpsWriter::<MockRtps>::Stateful(MockWriter::new()).try_as_stateless_writer().is_err());
+    }
+
+    #[test]
     fn write_w_timestamp_stateless() {
         let mut mock_writer_history_cache = MockWriterHistoryCacheType::new();
         mock_writer_history_cache
