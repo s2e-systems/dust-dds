@@ -393,7 +393,6 @@ where
 mod tests {
     use std::{sync::atomic::AtomicU8, io::Write};
 
-    use mockall::mock;
     use rust_dds_api::{infrastructure::qos::{PublisherQos, DataWriterQos, TopicQos}, publication::publisher::{Publisher, PublisherDataWriterFactory}, return_type::{DDSResult, DDSError}};
     use rust_rtps_pim::{structure::types::{GUID_UNKNOWN, ReliabilityKind, TopicKind, Guid, Locator}, behavior::{writer::stateful_writer::RtpsStatefulWriterConstructor, types::Duration}};
 
@@ -420,15 +419,13 @@ mod tests {
         }
     }
 
-    mock! {
-        Rtps {}
+    struct MockRtps {}
 
-        impl RtpsStructure for Rtps {
-            type StatelessWriter = ();
-            type StatefulWriter  = MockWriter;
-            type StatelessReader = ();
-            type StatefulReader  = ();
-        }
+    impl RtpsStructure for MockRtps {
+        type StatelessWriter = ();
+        type StatefulWriter  = MockWriter;
+        type StatelessReader = ();
+        type StatefulReader  = ();
     }
 
     struct MockFoo {}
