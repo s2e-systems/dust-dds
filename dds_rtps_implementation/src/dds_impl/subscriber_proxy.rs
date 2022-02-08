@@ -391,9 +391,9 @@ mod tests {
 
     use super::SubscriberAttributes;
 
-    struct MockReader {}
+    struct EmptyReader {}
 
-    impl RtpsStatefulReaderConstructor for MockReader {
+    impl RtpsStatefulReaderConstructor for EmptyReader {
         fn new(
             _guid: Guid,
             _topic_kind: TopicKind,
@@ -404,20 +404,20 @@ mod tests {
             _heartbeat_supression_duration: Duration,
             _expects_inline_qos: bool,
         ) -> Self {
-            MockReader {}
+            EmptyReader {}
         }
     }
 
-    struct MockRtps {}
+    struct EmptyRtps {}
 
-    impl RtpsStructure for MockRtps {
+    impl RtpsStructure for EmptyRtps {
         type StatelessWriter = ();
         type StatefulWriter  = ();
         type StatelessReader = ();
-        type StatefulReader  = MockReader;
+        type StatefulReader  = EmptyReader;
     }
 
-    macro_rules! make_foo {
+    macro_rules! make_empty_dds_type {
         ($type_name:ident) => {
             struct $type_name {}
 
@@ -439,7 +439,7 @@ mod tests {
         };
     }
 
-    make_foo!(MockFoo);
+    make_empty_dds_type!(Foo);
 
     impl<Rtps: RtpsStructure> Default for DomainParticipantAttributes<Rtps> {
         fn default() -> Self {
@@ -475,7 +475,7 @@ mod tests {
         }
     }
 
-    impl<Rtps : RtpsStructure> Default for SubscriberAttributes<Rtps> {
+    impl<Rtps: RtpsStructure> Default for SubscriberAttributes<Rtps> {
         fn default() -> Self {
             SubscriberAttributes {
                 qos: SubscriberQos::default(),
@@ -488,7 +488,7 @@ mod tests {
         }
     }
 
-    fn topic_with_type<Rtps : RtpsStructure>(type_name: &'static str) -> TopicAttributes<Rtps> {
+    fn topic_with_type<Rtps: RtpsStructure>(type_name: &'static str) -> TopicAttributes<Rtps> {
         TopicAttributes::new(
             TopicQos::default(), type_name, "topic_name", RtpsWeak::new(),
         )
@@ -502,8 +502,8 @@ mod tests {
         let subscriber = RtpsShared::new(SubscriberAttributes::default());
         let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy.create_datareader(&topic_proxy, None, None, 0);
         
@@ -518,8 +518,8 @@ mod tests {
         let subscriber = RtpsShared::new(SubscriberAttributes::default());
         let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0);
         assert!(data_reader.is_some());
@@ -534,8 +534,8 @@ mod tests {
         let subscriber = RtpsShared::new(SubscriberAttributes::default());
         let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0)
             .unwrap();
@@ -557,8 +557,8 @@ mod tests {
         let subscriber2 = RtpsShared::new(SubscriberAttributes::default());
         let subscriber2_proxy = SubscriberProxy::new(participant_proxy.clone(), subscriber2.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0)
             .unwrap();
@@ -580,8 +580,8 @@ mod tests {
         let subscriber = RtpsShared::new(SubscriberAttributes::default());
         let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         assert!(subscriber_proxy.datareader_factory_lookup_datareader(&topic_proxy).is_none());
     }
@@ -594,8 +594,8 @@ mod tests {
         let subscriber = RtpsShared::new(SubscriberAttributes::default());
         let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0)
             .unwrap();
@@ -609,7 +609,7 @@ mod tests {
         );
     }
 
-    make_foo!(MockBar);
+    make_empty_dds_type!(Bar);
 
     #[test]
     fn datawreader_factory_lookup_datareader_when_one_datareader_with_wrong_type() {
@@ -619,11 +619,11 @@ mod tests {
         let subscriber = RtpsShared::new(SubscriberAttributes::default());
         let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
 
-        let topic_foo = RtpsShared::new(topic_with_type(MockFoo::type_name()));
-        let topic_foo_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic_foo.downgrade());
+        let topic_foo = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
 
-        let topic_bar = RtpsShared::new(topic_with_type(MockBar::type_name()));
-        let topic_bar_proxy = TopicProxy::<MockBar, MockRtps>::new(topic_bar.downgrade());
+        let topic_bar = RtpsShared::new(topic_with_type(Bar::type_name()));
+        let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         subscriber_proxy.datareader_factory_create_datareader(&topic_bar_proxy, None, None, 0)
             .unwrap();
@@ -641,11 +641,11 @@ mod tests {
         let subscriber = RtpsShared::new(SubscriberAttributes::default());
         let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
 
-        let topic_foo = RtpsShared::new(topic_with_type(MockFoo::type_name()));
-        let topic_foo_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic_foo.downgrade());
+        let topic_foo = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
 
-        let topic_bar = RtpsShared::new(topic_with_type(MockBar::type_name()));
-        let topic_bar_proxy = TopicProxy::<MockBar, MockRtps>::new(topic_bar.downgrade());
+        let topic_bar = RtpsShared::new(topic_with_type(Bar::type_name()));
+        let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         let data_reader_foo = subscriber_proxy.datareader_factory_create_datareader(
                 &topic_foo_proxy, None, None, 0
