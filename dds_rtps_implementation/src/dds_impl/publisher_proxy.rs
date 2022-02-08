@@ -430,23 +430,29 @@ mod tests {
         type StatefulReader  = ();
     }
 
-    struct MockFoo {}
+    macro_rules! make_foo {
+        ($type_name:ident) => {
+            struct $type_name {}
 
-    impl DdsSerialize for MockFoo {
-        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
-            Ok(())
-        }
+            impl DdsSerialize for $type_name {
+                fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
+                    Ok(())
+                }
+            }
+
+            impl DdsType for $type_name {
+                fn type_name() -> &'static str {
+                    stringify!($type_name)
+                }
+
+                fn has_key() -> bool {
+                    false
+                }
+            }
+        };
     }
 
-    impl DdsType for MockFoo {
-        fn type_name() -> &'static str {
-            "type_name"
-        }
-
-        fn has_key() -> bool {
-            false
-        }
-    }
+    make_foo!(MockFoo);
 
     impl<Rtps : RtpsStructure> Default for PublisherAttributes<Rtps> {
         fn default() -> Self {
@@ -461,13 +467,11 @@ mod tests {
             }
         }
     }
-    
-    impl<Rtps : RtpsStructure> Default for TopicAttributes<Rtps> {
-        fn default() -> Self {
-            TopicAttributes::new(
-            TopicQos::default(), "type_name", "topic_name", RtpsWeak::new(),
-            )
-        }
+
+    fn topic_with_type<Rtps : RtpsStructure>(type_name: &'static str) -> TopicAttributes<Rtps> {
+        TopicAttributes::new(
+        TopicQos::default(), type_name, "topic_name", RtpsWeak::new(),
+        )
     }
 
     #[test]
@@ -475,7 +479,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.create_datawriter(&topic_proxy, None, None, 0);
@@ -488,7 +492,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
@@ -501,7 +505,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -521,7 +525,7 @@ mod tests {
         let publisher2 = RtpsShared::new(PublisherAttributes::default());
         let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -540,7 +544,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         assert!(publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy).is_none());
@@ -551,7 +555,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
         let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -565,4 +569,63 @@ mod tests {
                 .as_ref().upgrade().unwrap()
         );
     }
+
+    make_foo!(MockBar);
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter_when_one_datawriter_with_wrong_type() {
+        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic_foo = RtpsShared::new(topic_with_type(MockFoo::type_name()));
+        let topic_foo_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic_foo.downgrade());
+
+        let topic_bar = RtpsShared::new(topic_with_type(MockBar::type_name()));
+        let topic_bar_proxy = TopicProxy::<MockBar, MockRtps>::new(topic_bar.downgrade());
+
+        publisher_proxy.datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
+            .unwrap();
+
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_foo_proxy).is_none()
+        );
+    }
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter_with_two_topics() {
+        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic_foo = RtpsShared::new(topic_with_type::<MockRtps>(MockFoo::type_name()));
+        let topic_foo_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic_foo.downgrade());
+
+        let topic_bar = RtpsShared::new(topic_with_type::<MockRtps>(MockBar::type_name()));
+        let topic_bar_proxy = TopicProxy::<MockBar, MockRtps>::new(topic_bar.downgrade());
+
+        let data_writer_foo = publisher_proxy.datawriter_factory_create_datawriter(
+            &topic_foo_proxy, None, None, 0
+            )
+            .unwrap();
+        let data_writer_bar = publisher_proxy.datawriter_factory_create_datawriter(
+            &topic_bar_proxy, None, None, 0
+            )
+            .unwrap();
+
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_foo_proxy).unwrap()
+                .as_ref().upgrade().unwrap()
+            ==
+            data_writer_foo
+                .as_ref().upgrade().unwrap()
+        );
+
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_bar_proxy).unwrap()
+                .as_ref().upgrade().unwrap()
+            ==
+            data_writer_bar
+                .as_ref().upgrade().unwrap()
+        );
+    }
 }
+
