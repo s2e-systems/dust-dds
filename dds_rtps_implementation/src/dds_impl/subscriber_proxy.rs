@@ -127,7 +127,7 @@ where
         _a_listener: Option<&'static dyn DataReaderListener>,
         _mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
-        let subscriber_shared = self.as_ref().upgrade().ok()?; // rtps_weak_upgrade(&self.subscriber_impl).ok()?;
+        let subscriber_shared = self.subscriber_impl.upgrade().ok()?; // rtps_weak_upgrade(&self.subscriber_impl).ok()?;
         let mut subscriber_shared_lock = subscriber_shared.write().ok()?;
         
         // let topic_shared = a_topic.as_ref().upgrade().ok()?;
@@ -171,7 +171,7 @@ where
             _qos: qos,
             topic: a_topic.as_ref().upgrade().ok()?,
             _listener: None,
-            parent_subscriber: self.as_ref().clone(),
+            parent_subscriber: self.subscriber_impl.clone(),
         };
 
         let reader_storage_shared = RtpsShared::new(reader_storage);
@@ -186,7 +186,7 @@ where
         &self,
         datareader: &Self::DataReaderType,
     ) -> DDSResult<()> {
-        let subscriber_shared = self.as_ref().upgrade()?;
+        let subscriber_shared = self.subscriber_impl.upgrade()?;
         let datareader_shared = datareader.as_ref().upgrade()?;
 
         let data_reader_list = &mut subscriber_shared
@@ -207,7 +207,7 @@ where
         &self,
         topic: &Self::TopicType,
     ) -> Option<Self::DataReaderType> {
-        let subscriber_shared = self.as_ref().upgrade().ok()?;
+        let subscriber_shared = self.subscriber_impl.upgrade().ok()?;
         let data_reader_list = &subscriber_shared.write().ok()?.data_reader_list;
 
         let topic_shared = topic.as_ref().upgrade().ok()?;
@@ -383,7 +383,6 @@ mod tests {
         },
         dds_impl::{
             topic_proxy::{TopicAttributes, TopicProxy},
-            subscriber_proxy::SubscriberProxy,
             domain_participant_proxy::{
                 DomainParticipantProxy,
                 DomainParticipantAttributes,
@@ -391,7 +390,7 @@ mod tests {
         },
     };
 
-    use super::SubscriberAttributes;
+    use super::{SubscriberAttributes, SubscriberProxy};
 
     struct EmptyReader {}
 
@@ -524,6 +523,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0);
+
         assert!(data_reader.is_some());
         assert_eq!(1, subscriber.read().unwrap().data_reader_list.len());
     }
