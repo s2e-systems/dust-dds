@@ -253,23 +253,22 @@ where
 
     fn datawriter_factory_lookup_datawriter(
         &self,
-        _topic: &Self::TopicType,
+        topic: &Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
         let data_writer_list = &publisher_shared.write().ok()?.data_writer_list;
 
+        let topic_shared = topic.as_ref().upgrade().ok()?;
+        let topic = topic_shared.read().ok()?;
+
         data_writer_list.iter()
-        .find(|data_writer|
-            data_writer.read_lock()
-                .topic.upgrade().ok()
-                .map(|topic|
-                    topic.read_lock().type_name == Foo::type_name()
-                )
-                .unwrap_or(false)
-        )
-        .map(
-            |found_data_writer| DataWriterProxy::new(found_data_writer.downgrade())
-        )
+            .find_map(|data_writer|
+                data_writer.read().ok()?
+                    .topic.upgrade().ok()?.read().ok()
+                    .filter(|data_writer_topic| data_writer_topic.type_name  == Foo::type_name())
+                    .filter(|data_writer_topic| data_writer_topic.topic_name == topic.topic_name)
+                    .and(Some(DataWriterProxy::new(data_writer.downgrade())))
+            )
     }
 }
 
@@ -484,10 +483,10 @@ mod tests {
             }
         }
     }
-
-    fn topic_with_type<Rtps : RtpsStructure>(type_name: &'static str) -> TopicAttributes<Rtps> {
+    
+    fn make_topic<Rtps: RtpsStructure>(type_name: &'static str, topic_name: &'static str) -> TopicAttributes<Rtps> {
         TopicAttributes::new(
-        TopicQos::default(), type_name, "topic_name", RtpsWeak::new(),
+            TopicQos::default(), type_name, topic_name, RtpsWeak::new(),
         )
     }
 
@@ -496,7 +495,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.create_datawriter(&topic_proxy, None, None, 0);
@@ -509,7 +508,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
@@ -522,7 +521,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -542,7 +541,7 @@ mod tests {
         let publisher2 = RtpsShared::new(PublisherAttributes::default());
         let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -561,7 +560,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         assert!(publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy).is_none());
@@ -572,7 +571,7 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -594,10 +593,10 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic_foo = RtpsShared::new(topic_with_type(Foo::type_name()));
+        let topic_foo = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
 
-        let topic_bar = RtpsShared::new(topic_with_type(Bar::type_name()));
+        let topic_bar = RtpsShared::new(make_topic(Bar::type_name(), "topic"));
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         publisher_proxy.datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
@@ -607,16 +606,35 @@ mod tests {
             publisher_proxy.datawriter_factory_lookup_datawriter(&topic_foo_proxy).is_none()
         );
     }
-
+    
     #[test]
-    fn datawriter_factory_lookup_datawriter_with_two_topics() {
+    fn datawriter_factory_lookup_datawriter_when_one_datawriter_with_wrong_topic() {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic_foo = RtpsShared::new(topic_with_type::<EmptyRtps>(Foo::type_name()));
+        let topic1 = RtpsShared::new(make_topic(Foo::type_name(), "topic1"));
+        let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
+
+        let topic2 = RtpsShared::new(make_topic(Bar::type_name(), "topic2"));
+        let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
+
+        publisher_proxy.datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
+            .unwrap();
+
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic1_proxy).is_none()
+        );
+    }
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter_with_two_types() {
+        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic_foo = RtpsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic"));
         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
 
-        let topic_bar = RtpsShared::new(topic_with_type::<EmptyRtps>(Bar::type_name()));
+        let topic_bar = RtpsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic"));
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         let data_writer_foo = publisher_proxy.datawriter_factory_create_datawriter(
@@ -641,6 +659,43 @@ mod tests {
                 .as_ref().upgrade().unwrap()
             ==
             data_writer_bar
+                .as_ref().upgrade().unwrap()
+        );
+    }
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter_with_two_topics() {
+        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic1 = RtpsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic1"));
+        let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
+
+        let topic2 = RtpsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic2"));
+        let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
+
+        let data_writer1 = publisher_proxy.datawriter_factory_create_datawriter(
+            &topic1_proxy, None, None, 0
+            )
+            .unwrap();
+        let data_writer2 = publisher_proxy.datawriter_factory_create_datawriter(
+            &topic2_proxy, None, None, 0
+            )
+            .unwrap();
+
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic1_proxy).unwrap()
+                .as_ref().upgrade().unwrap()
+            ==
+            data_writer1
+                .as_ref().upgrade().unwrap()
+        );
+
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic2_proxy).unwrap()
+                .as_ref().upgrade().unwrap()
+            ==
+            data_writer2
                 .as_ref().upgrade().unwrap()
         );
     }
