@@ -373,7 +373,7 @@ impl DomainParticipantFactory {
 
         let socket = get_user_defined_udp_socket(domain_id as u16).unwrap();
         socket.set_nonblocking(true).unwrap();
-        let _default_transport = UdpTransport::new(socket);
+        let default_transport = UdpTransport::new(socket);
 
         // //////// Create the domain participant
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
@@ -577,43 +577,67 @@ impl DomainParticipantFactory {
             .push(sedp_builtin_topics_data_writer.clone());
 
         // ////////// Task creation
-        let (_sender, receiver) = std::sync::mpsc::sync_channel(10);
+        let (sender, receiver) = std::sync::mpsc::sync_channel(10);
         let executor = Executor { receiver };
-        // let _spawner = Spawner::new(sender, domain_participant.read().unwrap().enabled.clone());
+        let spawner = Spawner::new(sender);
 
-        let mut _communication = Communication {
+        let domain_participant_shared = domain_participant.clone();
+        let mut builtin_communication = Communication {
             version: PROTOCOLVERSION,
             vendor_id: VENDOR_ID_S2E,
             guid_prefix,
             transport: metatraffic_transport,
         };
-        // let builtin_publisher_arc = builtin_publisher.clone();
-        // let builtin_subscriber_arc = builtin_subscriber.clone();
-        // spawner.spawn_enabled_periodic_task(
-        //     "builtin communication",
-        //     move || {
-        //         communication.send(core::slice::from_ref(&builtin_publisher_arc));
-        //         communication.receive(core::slice::from_ref(&builtin_subscriber_arc));
-        //     },
-        //     std::time::Duration::from_millis(500),
-        // );
+        spawner.spawn_enabled_periodic_task(
+            "builtin communication",
+            move || {
+                builtin_communication.send(
+                    domain_participant_shared
+                        .read()
+                        .unwrap()
+                        .builtin_publisher_list
+                        .as_ref(),
+                );
+                builtin_communication.receive(
+                    domain_participant_shared
+                        .read()
+                        .unwrap()
+                        .builtin_subscriber_list
+                        .as_ref(),
+                );
+            },
+            std::time::Duration::from_millis(500),
+        );
 
-        // let mut communication = Communication {
-        //     version: PROTOCOLVERSION,
-        //     vendor_id: VENDOR_ID_S2E,
-        //     guid_prefix,
-        //     transport: default_transport,
-        // };
-        // let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
-        // let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
-        // spawner.spawn_enabled_periodic_task(
-        //     "user-defined communication",
-        //     move || {
-        //         communication.send(&rtps_shared_write_lock(&user_defined_publisher_list_arc));
-        //         communication.receive(&rtps_shared_write_lock(&user_defined_subscriber_list_arc));
-        //     },
-        //     std::time::Duration::from_millis(500),
-        // );
+        let mut communication = Communication {
+            version: PROTOCOLVERSION,
+            vendor_id: VENDOR_ID_S2E,
+            guid_prefix,
+            transport: default_transport,
+        };
+        let domain_participant_shared = domain_participant.clone();
+        spawner.spawn_enabled_periodic_task(
+            "user-defined communication",
+            move || {
+                communication.send(
+                    domain_participant_shared
+                        .read()
+                        .unwrap()
+                        .builtin_publisher_list
+                        .as_ref(),
+                );
+                communication.receive(
+                    domain_participant_shared
+                        .read()
+                        .unwrap()
+                        .builtin_subscriber_list
+                        .as_ref(),
+                );
+            },
+            std::time::Duration::from_millis(500),
+        );
+
+        //
         // let spdp_builtin_participant_data_reader_arc =
         //     spdp_builtin_participant_dds_data_reader.clone();
         // let domain_tag_arc = domain_tag.clone();
