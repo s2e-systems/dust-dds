@@ -1,4 +1,6 @@
 pub trait RtpsStructure {
+    type Participant;
+
     type StatelessWriter;
     type StatefulWriter;
 

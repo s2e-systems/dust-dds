@@ -357,9 +357,9 @@ mod tests {
     use rust_rtps_pim::{
         behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::Duration},
         messages::types::Count,
-        structure::types::{
+        structure::{types::{
             Guid, Locator, ProtocolVersion, ReliabilityKind, TopicKind, VendorId, GUID_UNKNOWN,
-        },
+        }, participant::RtpsParticipantConstructor},
     };
 
     use crate::{
@@ -368,7 +368,7 @@ mod tests {
             topic_proxy::{TopicAttributes, TopicProxy},
         },
         dds_type::{DdsDeserialize, DdsType},
-        rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
+        rtps_impl::rtps_group_impl::RtpsGroupImpl,
         utils::{
             rtps_structure::RtpsStructure,
             shared_object::{RtpsShared, RtpsWeak},
@@ -376,6 +376,20 @@ mod tests {
     };
 
     use super::{SubscriberAttributes, SubscriberProxy};
+
+    struct EmptyParticipant {}
+
+    impl RtpsParticipantConstructor for EmptyParticipant {
+        fn new(
+            _guid: Guid,
+            _protocol_version: ProtocolVersion,
+            _vendor_id: VendorId,
+            _default_unicast_locator_list: &[Locator],
+            _default_multicast_locator_list: &[Locator],
+        ) -> Self {
+            EmptyParticipant {}
+        }
+    }
 
     struct EmptyReader {}
 
@@ -397,6 +411,7 @@ mod tests {
     struct EmptyRtps {}
 
     impl RtpsStructure for EmptyRtps {
+        type Participant = EmptyParticipant;
         type StatelessWriter = ();
         type StatefulWriter = ();
         type StatelessReader = ();
@@ -427,15 +442,18 @@ mod tests {
 
     make_empty_dds_type!(Foo);
 
-    impl<Rtps: RtpsStructure> Default for DomainParticipantAttributes<Rtps> {
+    impl<Rtps: RtpsStructure> Default for DomainParticipantAttributes<Rtps>
+    where
+        Rtps::Participant: RtpsParticipantConstructor
+    {
         fn default() -> Self {
             DomainParticipantAttributes {
-                rtps_participant: RtpsParticipantImpl::new(
+                rtps_participant: Rtps::Participant::new(
                     GUID_UNKNOWN,
                     ProtocolVersion { major: 0, minor: 0 },
                     VendorId::default(),
-                    vec![],
-                    vec![],
+                    &[],
+                    &[],
                 ),
                 domain_id: DomainId::default(),
                 domain_tag: "".to_string(),

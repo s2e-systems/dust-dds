@@ -36,7 +36,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-        rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+        rtps_writer_proxy_impl::RtpsWriterProxyImpl, rtps_participant_impl::RtpsParticipantImpl,
     },
     utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
 };
@@ -80,6 +80,7 @@ use crate::{
 pub struct RtpsStructureImpl;
 
 impl RtpsStructure for RtpsStructureImpl {
+    type Participant = RtpsParticipantImpl;
     type StatelessWriter = RtpsStatelessWriterImpl;
     type StatefulWriter = RtpsStatefulWriterImpl;
     type StatelessReader = RtpsStatelessReaderImpl;

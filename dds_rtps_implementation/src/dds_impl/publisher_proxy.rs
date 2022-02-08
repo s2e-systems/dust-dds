@@ -438,6 +438,7 @@ mod tests {
     struct EmptyRtps {}
 
     impl RtpsStructure for EmptyRtps {
+        type Participant = ();
         type StatelessWriter = ();
         type StatefulWriter = EmptyWriter;
         type StatelessReader = ();
