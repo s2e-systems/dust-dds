@@ -317,3 +317,297 @@ where
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{sync::{Arc, atomic::{AtomicU8, AtomicBool}}};
+
+    use rust_dds_api::{infrastructure::qos::{SubscriberQos, DataReaderQos, TopicQos, DomainParticipantQos, PublisherQos}, dcps_psm::DomainId, subscription::subscriber::{Subscriber, SubscriberDataReaderFactory}, return_type::{DDSResult, DDSError}};
+    use rust_rtps_pim::{behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::Duration}, structure::types::{Guid, TopicKind, ReliabilityKind, Locator, GUID_UNKNOWN, ProtocolVersion, VendorId}, messages::types::Count};
+
+    use crate::{utils::{rtps_structure::RtpsStructure, shared_object::{RtpsWeak, RtpsShared}}, dds_type::{DdsType, DdsDeserialize}, rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl}, dds_impl::{topic_proxy::{TopicAttributes, TopicProxy}, subscriber_proxy::SubscriberProxy, domain_participant_proxy::{DomainParticipantProxy, DomainParticipantAttributes}}};
+
+    use super::SubscriberAttributes;
+
+    struct MockReader {}
+
+    impl RtpsStatefulReaderConstructor for MockReader {
+        fn new(
+            _guid: Guid,
+            _topic_kind: TopicKind,
+            _reliability_level: ReliabilityKind,
+            _unicast_locator_list: &[Locator],
+            _multicast_locator_list: &[Locator],
+            _heartbeat_response_delay: Duration,
+            _heartbeat_supression_duration: Duration,
+            _expects_inline_qos: bool,
+        ) -> Self {
+            MockReader {}
+        }
+    }
+
+    struct MockRtps {}
+
+    impl RtpsStructure for MockRtps {
+        type StatelessWriter = ();
+        type StatefulWriter  = ();
+        type StatelessReader = ();
+        type StatefulReader  = MockReader;
+    }
+
+    macro_rules! make_foo {
+        ($type_name:ident) => {
+            struct $type_name {}
+
+            impl<'de> DdsDeserialize<'de> for $type_name {
+                fn deserialize(_buf: &mut &'de [u8]) -> DDSResult<Self> {
+                    Ok($type_name {})
+                }
+            }
+
+            impl DdsType for $type_name {
+                fn type_name() -> &'static str {
+                    stringify!($type_name)
+                }
+
+                fn has_key() -> bool {
+                    false
+                }
+            }
+        };
+    }
+
+    make_foo!(MockFoo);
+
+    impl<Rtps: RtpsStructure> Default for DomainParticipantAttributes<Rtps> {
+        fn default() -> Self {
+            DomainParticipantAttributes {
+                rtps_participant: RtpsParticipantImpl::new(
+                    GUID_UNKNOWN,
+                    ProtocolVersion {
+                        major: 0, minor: 0,
+                    }, 
+                    VendorId::default(),
+                    vec![],
+                    vec![]
+                ),
+                domain_id: DomainId::default(),
+                domain_tag: Arc::new("".to_string()),
+                qos: DomainParticipantQos::default(),
+                builtin_subscriber_list: vec![],
+                builtin_publisher_list: vec![],
+                user_defined_subscriber_list: vec![],
+                user_defined_subscriber_counter: AtomicU8::new(0),
+                default_subscriber_qos: SubscriberQos::default(),
+                user_defined_publisher_list: vec![],
+                user_defined_publisher_counter: AtomicU8::new(0),
+                default_publisher_qos: PublisherQos::default(),
+                topic_list: vec![],
+                default_topic_qos: TopicQos::default(),
+                manual_liveliness_count: Count(0),
+                lease_duration: Duration::new(0, 0),
+                metatraffic_unicast_locator_list: vec![],
+                metatraffic_multicast_locator_list: vec![],
+                enabled: Arc::new(AtomicBool::new(false)),
+            }
+        }
+    }
+
+    impl<Rtps : RtpsStructure> Default for SubscriberAttributes<Rtps> {
+        fn default() -> Self {
+            SubscriberAttributes {
+                qos: SubscriberQos::default(),
+                rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
+                data_reader_list: Vec::new(),
+                user_defined_data_reader_counter: 0,
+                default_data_reader_qos: DataReaderQos::default(),
+                parent_domain_participant: RtpsWeak::new(),
+            }
+        }
+    }
+
+    fn topic_with_type<Rtps : RtpsStructure>(type_name: &'static str) -> TopicAttributes<Rtps> {
+        TopicAttributes::new(
+            TopicQos::default(), type_name, "topic_name", RtpsWeak::new(),
+        )
+    }
+
+    #[test]
+    fn create_datareader() {
+        let participant = RtpsShared::new(DomainParticipantAttributes::default());
+        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+
+        let subscriber = RtpsShared::new(SubscriberAttributes::default());
+        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+
+        let data_reader = subscriber_proxy.create_datareader(&topic_proxy, None, None, 0);
+        
+        assert!(data_reader.is_some());
+    }
+
+    #[test]
+    fn datareader_factory_create_datareader() {
+        let participant = RtpsShared::new(DomainParticipantAttributes::default());
+        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+
+        let subscriber = RtpsShared::new(SubscriberAttributes::default());
+        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+
+        let data_reader = subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0);
+        assert!(data_reader.is_some());
+        assert_eq!(1, subscriber.read().unwrap().data_reader_list.len());
+    }
+
+    #[test]
+    fn datareader_factory_delete_datareader() {
+        let participant = RtpsShared::new(DomainParticipantAttributes::default());
+        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+
+        let subscriber = RtpsShared::new(SubscriberAttributes::default());
+        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+
+        let data_reader = subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0)
+            .unwrap();
+
+        assert_eq!(1, subscriber.read().unwrap().data_reader_list.len());
+
+        subscriber_proxy.datareader_factory_delete_datareader(&data_reader).unwrap();
+        assert_eq!(0, subscriber.read().unwrap().data_reader_list.len());
+    }
+
+    #[test]
+    fn datareader_factory_delete_datareader_from_other_subscriber() {
+        let participant = RtpsShared::new(DomainParticipantAttributes::default());
+        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+
+        let subscriber = RtpsShared::new(SubscriberAttributes::default());
+        let subscriber_proxy = SubscriberProxy::new(participant_proxy.clone(), subscriber.downgrade());
+
+        let subscriber2 = RtpsShared::new(SubscriberAttributes::default());
+        let subscriber2_proxy = SubscriberProxy::new(participant_proxy.clone(), subscriber2.downgrade());
+
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+
+        let data_reader = subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0)
+            .unwrap();
+
+        assert_eq!(1, subscriber.read().unwrap().data_reader_list.len());
+        assert_eq!(0, subscriber2.read().unwrap().data_reader_list.len());
+
+        assert!(matches!(
+            subscriber2_proxy.datareader_factory_delete_datareader(&data_reader),
+            Err(DDSError::PreconditionNotMet(_))
+        ));
+    }
+
+    #[test]
+    fn datareader_factory_lookup_datareader_when_empty() {
+        let participant = RtpsShared::new(DomainParticipantAttributes::default());
+        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+
+        let subscriber = RtpsShared::new(SubscriberAttributes::default());
+        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+
+        assert!(subscriber_proxy.datareader_factory_lookup_datareader(&topic_proxy).is_none());
+    }
+
+    #[test]
+    fn datareader_factory_lookup_datareader_when_one_datareader() {
+        let participant = RtpsShared::new(DomainParticipantAttributes::default());
+        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+
+        let subscriber = RtpsShared::new(SubscriberAttributes::default());
+        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+
+        let topic = RtpsShared::new(topic_with_type(MockFoo::type_name()));
+        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+
+        let data_reader = subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0)
+            .unwrap();
+
+        assert!(
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic_proxy).unwrap()
+                .as_ref().upgrade().unwrap()
+            ==
+            data_reader
+                .as_ref().upgrade().unwrap()
+        );
+    }
+
+    make_foo!(MockBar);
+
+    #[test]
+    fn datawreader_factory_lookup_datareader_when_one_datareader_with_wrong_type() {
+        let participant = RtpsShared::new(DomainParticipantAttributes::default());
+        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+
+        let subscriber = RtpsShared::new(SubscriberAttributes::default());
+        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+
+        let topic_foo = RtpsShared::new(topic_with_type(MockFoo::type_name()));
+        let topic_foo_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic_foo.downgrade());
+
+        let topic_bar = RtpsShared::new(topic_with_type(MockBar::type_name()));
+        let topic_bar_proxy = TopicProxy::<MockBar, MockRtps>::new(topic_bar.downgrade());
+
+        subscriber_proxy.datareader_factory_create_datareader(&topic_bar_proxy, None, None, 0)
+            .unwrap();
+
+        assert!(
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic_foo_proxy).is_none()
+        );
+    }
+
+    #[test]
+    fn datareader_factory_lookup_datareader_with_two_topics() {
+        let participant = RtpsShared::new(DomainParticipantAttributes::default());
+        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+
+        let subscriber = RtpsShared::new(SubscriberAttributes::default());
+        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+
+        let topic_foo = RtpsShared::new(topic_with_type(MockFoo::type_name()));
+        let topic_foo_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic_foo.downgrade());
+
+        let topic_bar = RtpsShared::new(topic_with_type(MockBar::type_name()));
+        let topic_bar_proxy = TopicProxy::<MockBar, MockRtps>::new(topic_bar.downgrade());
+
+        let data_reader_foo = subscriber_proxy.datareader_factory_create_datareader(
+                &topic_foo_proxy, None, None, 0
+            )
+            .unwrap();
+        let data_reader_bar = subscriber_proxy.datareader_factory_create_datareader(
+                &topic_bar_proxy, None, None, 0
+            )
+            .unwrap();
+
+        assert!(
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic_foo_proxy).unwrap()
+                .as_ref().upgrade().unwrap()
+            ==
+            data_reader_foo
+                .as_ref().upgrade().unwrap()
+        );
+
+        assert!(
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic_bar_proxy).unwrap()
+                .as_ref().upgrade().unwrap()
+            ==
+            data_reader_bar
+                .as_ref().upgrade().unwrap()
+        );
+    }
+}
