@@ -408,8 +408,8 @@ mod tests {
 
     use crate::{
         utils::{
-            shared_object::{RtpsShared, RtpsWeak},
             rtps_structure::RtpsStructure,
+            shared_object::{RtpsShared, RtpsWeak},
         },
         rtps_impl::rtps_group_impl::RtpsGroupImpl,
         dds_impl::topic_proxy::{TopicProxy, TopicAttributes},
@@ -512,6 +512,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
+
         assert!(data_writer.is_some());
         assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
     }
@@ -546,6 +547,7 @@ mod tests {
 
         let data_writer = publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
+
         assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
         assert_eq!(0, publisher2.read().unwrap().data_writer_list.len());
 
