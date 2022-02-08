@@ -21,13 +21,12 @@ use rust_rtps_pim::{
         types::{
             EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
             USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
-        },
+        }, group::RtpsGroupConstructor,
     },
 };
 
 use crate::{
     dds_type::DdsType,
-    rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
@@ -279,6 +278,7 @@ where
 impl<Rtps> DomainParticipant for DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
+    Rtps::Group: RtpsGroupConstructor,
     Rtps::Participant: RtpsParticipantAttributes,
 {
     type PublisherType = PublisherProxy<Rtps>;
@@ -313,7 +313,7 @@ where
                 .prefix(),
             entity_id,
         );
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = Rtps::Group::new(guid);
         // let sedp_builtin_publications_topic =
         // rtps_shared_new(TopicAttributes::new(TopicQos::default(), "", ""));
         // let sedp_builtin_publications_announcer =
@@ -384,7 +384,7 @@ where
                 .prefix(),
             entity_id,
         );
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = Rtps::Group::new(guid);
         let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, RtpsWeak::new());
         let subscriber_shared = RtpsShared::new(subscriber);
         domain_participant_attributes_lock

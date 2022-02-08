@@ -425,6 +425,7 @@ mod test {
         Rtps {}
 
         impl RtpsStructure for Rtps {
+            type Group           = ();
             type Participant     = ();
             type StatelessWriter = MockWriter;
             type StatefulWriter  = MockWriter;

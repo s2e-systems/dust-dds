@@ -1,13 +1,13 @@
 use rust_rtps_pim::structure::{
-    entity::RtpsEntityAttributes, group::RtpsGroupAttributes, types::Guid,
+    entity::RtpsEntityAttributes, group::{RtpsGroupAttributes, RtpsGroupConstructor}, types::Guid,
 };
 
 pub struct RtpsGroupImpl {
     guid: Guid,
 }
 
-impl RtpsGroupImpl {
-    pub fn new(guid: Guid) -> Self {
+impl RtpsGroupConstructor for RtpsGroupImpl {
+    fn new(guid: Guid) -> Self {
         Self { guid }
     }
 }
@@ -18,4 +18,4 @@ impl RtpsEntityAttributes for RtpsGroupImpl {
     }
 }
 
-impl RtpsGroupAttributes for RtpsGroupImpl {}
+impl RtpsGroupAttributes for RtpsGroupImpl { }

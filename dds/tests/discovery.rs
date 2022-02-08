@@ -63,10 +63,10 @@ use rust_rtps_pim::{
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     messages::types::Count,
-    structure::types::{
+    structure::{types::{
         EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
         BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
-    },
+    }, group::RtpsGroupConstructor},
 };
 
 #[test]
