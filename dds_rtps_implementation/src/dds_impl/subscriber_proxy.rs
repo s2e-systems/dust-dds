@@ -15,7 +15,21 @@ use rust_dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps_pim::{structure::{types::{USER_DEFINED_WRITER_WITH_KEY, USER_DEFINED_WRITER_NO_KEY, TopicKind, EntityId, Guid, ReliabilityKind}, entity::RtpsEntityAttributes}, behavior::reader::{stateful_reader::RtpsStatefulReaderConstructor}};
+
+use rust_rtps_pim::{
+    structure::{
+        types::{
+            USER_DEFINED_WRITER_WITH_KEY,
+            USER_DEFINED_WRITER_NO_KEY,
+            TopicKind,
+            EntityId,
+            Guid,
+            ReliabilityKind
+        },
+        entity::RtpsEntityAttributes
+    },
+    behavior::reader::stateful_reader::RtpsStatefulReaderConstructor
+};
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
@@ -322,10 +336,58 @@ where
 mod tests {
     use std::{sync::{Arc, atomic::{AtomicU8, AtomicBool}}};
 
-    use rust_dds_api::{infrastructure::qos::{SubscriberQos, DataReaderQos, TopicQos, DomainParticipantQos, PublisherQos}, dcps_psm::DomainId, subscription::subscriber::{Subscriber, SubscriberDataReaderFactory}, return_type::{DDSResult, DDSError}};
-    use rust_rtps_pim::{behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::Duration}, structure::types::{Guid, TopicKind, ReliabilityKind, Locator, GUID_UNKNOWN, ProtocolVersion, VendorId}, messages::types::Count};
+    use rust_dds_api::{
+        infrastructure::qos::{
+            SubscriberQos,
+            DataReaderQos,
+            TopicQos,
+            DomainParticipantQos,
+            PublisherQos
+        },
+        dcps_psm::DomainId,
+        subscription::subscriber::{
+            Subscriber,
+            SubscriberDataReaderFactory
+        },
+        return_type::{DDSResult, DDSError}
+    };
 
-    use crate::{utils::{rtps_structure::RtpsStructure, shared_object::{RtpsWeak, RtpsShared}}, dds_type::{DdsType, DdsDeserialize}, rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl}, dds_impl::{topic_proxy::{TopicAttributes, TopicProxy}, subscriber_proxy::SubscriberProxy, domain_participant_proxy::{DomainParticipantProxy, DomainParticipantAttributes}}};
+    use rust_rtps_pim::{
+        behavior::{
+            reader::stateful_reader::RtpsStatefulReaderConstructor,
+            types::Duration
+        },
+        structure::types::{
+            Guid,
+            TopicKind,
+            ReliabilityKind,
+            Locator,
+            GUID_UNKNOWN,
+            ProtocolVersion,
+            VendorId
+        },
+        messages::types::Count
+    };
+
+    use crate::{
+        utils::{
+            rtps_structure::RtpsStructure,
+            shared_object::{RtpsWeak, RtpsShared},
+        },
+        dds_type::{DdsType, DdsDeserialize},
+        rtps_impl::{
+            rtps_group_impl::RtpsGroupImpl,
+            rtps_participant_impl::RtpsParticipantImpl,
+        },
+        dds_impl::{
+            topic_proxy::{TopicAttributes, TopicProxy},
+            subscriber_proxy::SubscriberProxy,
+            domain_participant_proxy::{
+                DomainParticipantProxy,
+                DomainParticipantAttributes,
+            },
+        },
+    };
 
     use super::SubscriberAttributes;
 
