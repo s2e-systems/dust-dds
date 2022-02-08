@@ -30,7 +30,6 @@ use rust_rtps_pim::{
 
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
-    rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
@@ -48,7 +47,7 @@ where
     Rtps: RtpsStructure,
 {
     pub qos: SubscriberQos,
-    pub rtps_group: RtpsGroupImpl,
+    pub rtps_group: Rtps::Group,
     pub data_reader_list: Vec<RtpsShared<DataReaderAttributes<Rtps>>>,
     pub user_defined_data_reader_counter: u8,
     pub default_data_reader_qos: DataReaderQos,
@@ -61,7 +60,7 @@ where
 {
     pub fn new(
         qos: SubscriberQos,
-        rtps_group: RtpsGroupImpl,
+        rtps_group: Rtps::Group,
         parent_domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
         Self {
@@ -112,6 +111,7 @@ impl<Foo, Rtps> SubscriberDataReaderFactory<Foo> for SubscriberProxy<Rtps>
 where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
     Rtps: RtpsStructure,
+    Rtps::Group: RtpsEntityAttributes,
     Rtps::StatefulReader: RtpsStatefulReaderConstructor,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
@@ -357,9 +357,9 @@ mod tests {
     use rust_rtps_pim::{
         behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::Duration},
         messages::types::Count,
-        structure::types::{
+        structure::{types::{
             Guid, Locator, ProtocolVersion, ReliabilityKind, TopicKind, VendorId, GUID_UNKNOWN,
-        },
+        }, participant::RtpsParticipantConstructor, group::RtpsGroupConstructor, entity::RtpsEntityAttributes},
     };
 
     use crate::{
@@ -368,7 +368,6 @@ mod tests {
             topic_proxy::{TopicAttributes, TopicProxy},
         },
         dds_type::{DdsDeserialize, DdsType},
-        rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
         utils::{
             rtps_structure::RtpsStructure,
             shared_object::{RtpsShared, RtpsWeak},
@@ -376,6 +375,34 @@ mod tests {
     };
 
     use super::{SubscriberAttributes, SubscriberProxy};
+
+    struct EmptyGroup {}
+
+    impl RtpsGroupConstructor for EmptyGroup {
+        fn new(_guid: Guid) -> Self {
+            EmptyGroup {}
+        }
+    }
+
+    impl RtpsEntityAttributes for EmptyGroup {
+        fn guid(&self) -> &Guid {
+            &GUID_UNKNOWN
+        }
+    }
+
+    struct EmptyParticipant {}
+
+    impl RtpsParticipantConstructor for EmptyParticipant {
+        fn new(
+            _guid: Guid,
+            _protocol_version: ProtocolVersion,
+            _vendor_id: VendorId,
+            _default_unicast_locator_list: &[Locator],
+            _default_multicast_locator_list: &[Locator],
+        ) -> Self {
+            EmptyParticipant {}
+        }
+    }
 
     struct EmptyReader {}
 
@@ -397,10 +424,12 @@ mod tests {
     struct EmptyRtps {}
 
     impl RtpsStructure for EmptyRtps {
+        type Group           = EmptyGroup;
+        type Participant     = EmptyParticipant;
         type StatelessWriter = ();
-        type StatefulWriter = ();
+        type StatefulWriter  = ();
         type StatelessReader = ();
-        type StatefulReader = EmptyReader;
+        type StatefulReader  = EmptyReader;
     }
 
     macro_rules! make_empty_dds_type {
@@ -427,15 +456,18 @@ mod tests {
 
     make_empty_dds_type!(Foo);
 
-    impl<Rtps: RtpsStructure> Default for DomainParticipantAttributes<Rtps> {
+    impl<Rtps: RtpsStructure> Default for DomainParticipantAttributes<Rtps>
+    where
+        Rtps::Participant: RtpsParticipantConstructor
+    {
         fn default() -> Self {
             DomainParticipantAttributes {
-                rtps_participant: RtpsParticipantImpl::new(
+                rtps_participant: Rtps::Participant::new(
                     GUID_UNKNOWN,
                     ProtocolVersion { major: 0, minor: 0 },
                     VendorId::default(),
-                    vec![],
-                    vec![],
+                    &[],
+                    &[],
                 ),
                 domain_id: DomainId::default(),
                 domain_tag: "".to_string(),
@@ -459,11 +491,14 @@ mod tests {
         }
     }
 
-    impl<Rtps: RtpsStructure> Default for SubscriberAttributes<Rtps> {
+    impl<Rtps: RtpsStructure> Default for SubscriberAttributes<Rtps>
+    where
+        Rtps::Group: RtpsGroupConstructor
+    {
         fn default() -> Self {
             SubscriberAttributes {
                 qos: SubscriberQos::default(),
-                rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
+                rtps_group: Rtps::Group::new(GUID_UNKNOWN),
                 data_reader_list: Vec::new(),
                 user_defined_data_reader_counter: 0,
                 default_data_reader_qos: DataReaderQos::default(),

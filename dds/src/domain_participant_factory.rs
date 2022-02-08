@@ -36,7 +36,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-        rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+        rtps_writer_proxy_impl::RtpsWriterProxyImpl, rtps_participant_impl::RtpsParticipantImpl,
     },
     utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
 };
@@ -60,10 +60,10 @@ use rust_rtps_pim::{
         },
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
     },
-    structure::types::{
+    structure::{types::{
         EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
         BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_S2E,
-    },
+    }, group::RtpsGroupConstructor},
 };
 
 use crate::{
@@ -80,10 +80,12 @@ use crate::{
 pub struct RtpsStructureImpl;
 
 impl RtpsStructure for RtpsStructureImpl {
+    type Group           = RtpsGroupImpl;
+    type Participant     = RtpsParticipantImpl;
     type StatelessWriter = RtpsStatelessWriterImpl;
-    type StatefulWriter = RtpsStatefulWriterImpl;
+    type StatefulWriter  = RtpsStatefulWriterImpl;
     type StatelessReader = RtpsStatelessReaderImpl;
-    type StatefulReader = RtpsStatefulReaderImpl;
+    type StatefulReader  = RtpsStatefulReaderImpl;
 }
 
 pub struct Executor {

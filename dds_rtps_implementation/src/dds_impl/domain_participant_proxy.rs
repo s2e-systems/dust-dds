@@ -17,17 +17,16 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     messages::types::Count,
     structure::{
-        entity::RtpsEntityAttributes,
+        participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
         types::{
             EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
             USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
-        },
+        }, group::RtpsGroupConstructor,
     },
 };
 
 use crate::{
     dds_type::DdsType,
-    rtps_impl::{rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl},
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
@@ -44,7 +43,7 @@ pub struct DomainParticipantAttributes<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub rtps_participant: RtpsParticipantImpl,
+    pub rtps_participant: Rtps::Participant,
     pub domain_id: DomainId,
     pub domain_tag: String,
     pub qos: DomainParticipantQos,
@@ -68,6 +67,7 @@ where
 impl<Rtps> DomainParticipantAttributes<Rtps>
 where
     Rtps: RtpsStructure,
+    Rtps::Participant: RtpsParticipantConstructor,
 {
     pub fn new(
         guid_prefix: GuidPrefix,
@@ -82,12 +82,12 @@ where
         let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
-        let rtps_participant = RtpsParticipantImpl::new(
+        let rtps_participant = Rtps::Participant::new(
             Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
             protocol_version,
             vendor_id,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
+            &default_unicast_locator_list,
+            &default_multicast_locator_list,
         );
 
         Self {
@@ -278,6 +278,8 @@ where
 impl<Rtps> DomainParticipant for DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
+    Rtps::Group: RtpsGroupConstructor,
+    Rtps::Participant: RtpsParticipantAttributes,
 {
     type PublisherType = PublisherProxy<Rtps>;
     type SubscriberType = SubscriberProxy<Rtps>;
@@ -311,7 +313,7 @@ where
                 .prefix(),
             entity_id,
         );
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = Rtps::Group::new(guid);
         // let sedp_builtin_publications_topic =
         // rtps_shared_new(TopicAttributes::new(TopicQos::default(), "", ""));
         // let sedp_builtin_publications_announcer =
@@ -382,7 +384,7 @@ where
                 .prefix(),
             entity_id,
         );
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = Rtps::Group::new(guid);
         let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, RtpsWeak::new());
         let subscriber_shared = RtpsShared::new(subscriber);
         domain_participant_attributes_lock

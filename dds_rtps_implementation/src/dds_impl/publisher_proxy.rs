@@ -28,7 +28,6 @@ use rust_rtps_pim::{
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
-    rtps_impl::rtps_group_impl::RtpsGroupImpl,
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
@@ -47,7 +46,7 @@ where
     Rtps: RtpsStructure,
 {
     pub _qos: PublisherQos,
-    pub rtps_group: RtpsGroupImpl,
+    pub rtps_group: Rtps::Group,
     pub data_writer_list: Vec<RtpsShared<DataWriterAttributes<Rtps>>>,
     pub user_defined_data_writer_counter: AtomicU8,
     pub default_datawriter_qos: DataWriterQos,
@@ -61,7 +60,7 @@ where
 {
     pub fn new(
         qos: PublisherQos,
-        rtps_group: RtpsGroupImpl,
+        rtps_group: Rtps::Group,
         sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<Rtps>>>,
         parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
@@ -95,6 +94,7 @@ impl<Foo, Rtps> PublisherDataWriterFactory<Foo> for PublisherProxy<Rtps>
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
     Rtps: RtpsStructure,
+    Rtps::Group: RtpsEntityAttributes,
     Rtps::StatefulWriter: RtpsStatefulWriterConstructor,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
@@ -401,13 +401,12 @@ mod tests {
     };
     use rust_rtps_pim::{
         behavior::{types::Duration, writer::stateful_writer::RtpsStatefulWriterConstructor},
-        structure::types::{Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN},
+        structure::{types::{Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN}, group::RtpsGroupConstructor, entity::RtpsEntityAttributes},
     };
 
     use crate::{
         dds_impl::topic_proxy::{TopicAttributes, TopicProxy},
         dds_type::{DdsSerialize, DdsType, Endianness},
-        rtps_impl::rtps_group_impl::RtpsGroupImpl,
         utils::{
             rtps_structure::RtpsStructure,
             shared_object::{RtpsShared, RtpsWeak},
@@ -415,6 +414,20 @@ mod tests {
     };
 
     use super::{PublisherAttributes, PublisherProxy};
+
+    struct EmptyGroup {}
+
+    impl RtpsGroupConstructor for EmptyGroup {
+        fn new(_guid: Guid) -> Self {
+            EmptyGroup {}
+        }
+    }
+
+    impl RtpsEntityAttributes for EmptyGroup {
+        fn guid(&self) -> &Guid {
+            &GUID_UNKNOWN
+        }
+    }
 
     struct EmptyWriter {}
 
@@ -438,10 +451,12 @@ mod tests {
     struct EmptyRtps {}
 
     impl RtpsStructure for EmptyRtps {
+        type Group           = EmptyGroup;
+        type Participant     = ();
         type StatelessWriter = ();
-        type StatefulWriter = EmptyWriter;
+        type StatefulWriter  = EmptyWriter;
         type StatelessReader = ();
-        type StatefulReader = ();
+        type StatefulReader  = ();
     }
 
     macro_rules! make_empty_dds_type {
@@ -468,11 +483,14 @@ mod tests {
 
     make_empty_dds_type!(Foo);
 
-    impl<Rtps: RtpsStructure> Default for PublisherAttributes<Rtps> {
+    impl<Rtps: RtpsStructure> Default for PublisherAttributes<Rtps>
+    where
+        Rtps::Group: RtpsGroupConstructor,
+    {
         fn default() -> Self {
             PublisherAttributes {
                 _qos: PublisherQos::default(),
-                rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
+                rtps_group: Rtps::Group::new(GUID_UNKNOWN),
                 data_writer_list: Vec::new(),
                 user_defined_data_writer_counter: AtomicU8::new(0),
                 default_datawriter_qos: DataWriterQos::default(),
