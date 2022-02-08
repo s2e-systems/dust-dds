@@ -1,4 +1,7 @@
-use std::{sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak, LockResult}, ops::Deref};
+use std::{
+    ops::Deref,
+    sync::{Arc, LockResult, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
+};
 
 use rust_dds_api::return_type::{DDSError, DDSResult};
 
@@ -53,7 +56,8 @@ impl<T> RtpsWeak<T> {
     }
 
     pub fn upgrade(&self) -> DDSResult<RtpsShared<T>> {
-        self.0.upgrade()
+        self.0
+            .upgrade()
             .map(|x| RtpsShared(x))
             .ok_or(DDSError::AlreadyDeleted)
     }

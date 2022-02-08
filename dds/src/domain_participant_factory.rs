@@ -430,12 +430,17 @@ impl DomainParticipantFactory {
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
 
-        let _spdp_builtin_participant_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let spdp_builtin_participant_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
             spdp_discovered_participant_topic.clone(),
             builtin_subscriber.downgrade(),
         ));
+        builtin_subscriber
+            .write()
+            .unwrap()
+            .data_reader_list
+            .push(spdp_builtin_participant_data_reader.clone());
 
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
@@ -451,12 +456,17 @@ impl DomainParticipantFactory {
 
         spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
 
-        let _spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
             spdp_discovered_participant_topic.clone(),
             builtin_publisher.downgrade(),
         ));
+        builtin_publisher
+            .write()
+            .unwrap()
+            .data_writer_list
+            .push(spdp_builtin_participant_data_writer.clone());
 
         // ////////// SEDP built-in publication topic, reader and writer
         let sedp_builtin_publications_topic = RtpsShared::new(TopicAttributes::new(
@@ -468,21 +478,31 @@ impl DomainParticipantFactory {
 
         let sedp_builtin_publications_rtps_reader =
             SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let _sedp_builtin_publications_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_publications_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
             sedp_builtin_publications_topic.clone(),
             builtin_subscriber.downgrade(),
         ));
+        builtin_subscriber
+            .write()
+            .unwrap()
+            .data_reader_list
+            .push(sedp_builtin_publications_data_reader.clone());
 
         let sedp_builtin_publications_rtps_writer =
             SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let _sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
             sedp_builtin_publications_topic.clone(),
             builtin_publisher.downgrade(),
         ));
+        builtin_publisher
+            .write()
+            .unwrap()
+            .data_writer_list
+            .push(sedp_builtin_publications_data_writer.clone());
 
         // ////////// SEDP built-in subcriptions topic, reader and writer
         let sedp_builtin_subscriptions_topic = RtpsShared::new(TopicAttributes::new(
@@ -494,22 +514,31 @@ impl DomainParticipantFactory {
 
         let sedp_builtin_subscriptions_rtps_reader =
             SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let _sedp_builtin_subscriptions_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_subscriptions_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
             sedp_builtin_subscriptions_topic.clone(),
             builtin_subscriber.downgrade(),
         ));
+        builtin_subscriber
+            .write()
+            .unwrap()
+            .data_reader_list
+            .push(sedp_builtin_subscriptions_data_reader.clone());
 
         let sedp_builtin_subscriptions_rtps_writer =
             SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let _sedp_builtin_subscriptions_dds_data_writer =
-            RtpsShared::new(DataWriterAttributes::new(
-                DataWriterQos::default(),
-                RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
-                sedp_builtin_subscriptions_topic.clone(),
-                builtin_publisher.downgrade(),
-            ));
+        let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
+            sedp_builtin_subscriptions_topic.clone(),
+            builtin_publisher.downgrade(),
+        ));
+        builtin_publisher
+            .write()
+            .unwrap()
+            .data_writer_list
+            .push(sedp_builtin_subscriptions_data_writer.clone());
 
         // ////////// SEDP built-in topics topic, reader and writer
         let sedp_builtin_topics_topic = RtpsShared::new(TopicAttributes::new(
@@ -521,21 +550,31 @@ impl DomainParticipantFactory {
 
         let sedp_builtin_topics_rtps_reader =
             SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let _sedp_builtin_topics_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_topics_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
             sedp_builtin_topics_topic.clone(),
             builtin_subscriber.downgrade(),
         ));
+        builtin_subscriber
+            .write()
+            .unwrap()
+            .data_reader_list
+            .push(sedp_builtin_topics_data_reader.clone());
 
         let sedp_builtin_topics_rtps_writer =
             SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let _sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
             sedp_builtin_topics_topic.clone(),
             builtin_publisher.downgrade(),
         ));
+        builtin_publisher
+            .write()
+            .unwrap()
+            .data_writer_list
+            .push(sedp_builtin_topics_data_writer.clone());
 
         // ////////// Task creation
         let (_sender, receiver) = std::sync::mpsc::sync_channel(10);
