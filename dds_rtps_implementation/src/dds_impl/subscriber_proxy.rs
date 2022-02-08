@@ -636,7 +636,7 @@ mod tests {
     }
 
     #[test]
-    fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_topic_name() {
+    fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_topic() {
         let participant = RtpsShared::new(DomainParticipantAttributes::default());
         let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
 
@@ -658,7 +658,7 @@ mod tests {
     }
 
     #[test]
-    fn datareader_factory_lookup_datareader_with_two_topic_types() {
+    fn datareader_factory_lookup_datareader_with_two_types() {
         let participant = RtpsShared::new(DomainParticipantAttributes::default());
         let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
 
@@ -698,7 +698,7 @@ mod tests {
     }
 
     #[test]
-    fn datareader_factory_lookup_datareader_with_two_topic_names() {
+    fn datareader_factory_lookup_datareader_with_two_topics() {
         let participant = RtpsShared::new(DomainParticipantAttributes::default());
         let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
 
