@@ -14,6 +14,7 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
+
 use rust_rtps_pim::{
     behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
     structure::{
@@ -248,14 +249,25 @@ where
 
     fn datawriter_factory_lookup_datawriter(
         &self,
-        _topic: &Self::TopicType,
+        topic: &Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
         let data_writer_list = &publisher_shared.write().ok()?.data_writer_list;
 
-        data_writer_list
-            .first()
-            .map(|found_data_writer| DataWriterProxy::new(found_data_writer.downgrade()))
+        let topic_shared = topic.as_ref().upgrade().ok()?;
+        let topic = topic_shared.read().ok()?;
+
+        data_writer_list.iter().find_map(|data_writer| {
+            data_writer
+                .read()
+                .ok()?
+                .topic
+                .read()
+                .ok()
+                .filter(|data_writer_topic| data_writer_topic.type_name == Foo::type_name())
+                .filter(|data_writer_topic| data_writer_topic.topic_name == topic.topic_name)
+                .and(Some(DataWriterProxy::new(data_writer.downgrade())))
+        })
     }
 }
 
@@ -404,9 +416,9 @@ mod tests {
 
     use super::{PublisherAttributes, PublisherProxy};
 
-    struct MockWriter {}
+    struct EmptyWriter {}
 
-    impl RtpsStatefulWriterConstructor for MockWriter {
+    impl RtpsStatefulWriterConstructor for EmptyWriter {
         fn new(
             _guid: Guid,
             _topic_kind: TopicKind,
@@ -419,36 +431,42 @@ mod tests {
             _nack_suppression_duration: Duration,
             _data_max_size_serialized: Option<i32>,
         ) -> Self {
-            MockWriter {}
+            EmptyWriter {}
         }
     }
 
-    struct MockRtps {}
+    struct EmptyRtps {}
 
-    impl RtpsStructure for MockRtps {
+    impl RtpsStructure for EmptyRtps {
         type StatelessWriter = ();
-        type StatefulWriter = MockWriter;
+        type StatefulWriter = EmptyWriter;
         type StatelessReader = ();
         type StatefulReader = ();
     }
 
-    struct MockFoo {}
+    macro_rules! make_empty_dds_type {
+        ($type_name:ident) => {
+            struct $type_name {}
 
-    impl DdsSerialize for MockFoo {
-        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
-            Ok(())
-        }
+            impl DdsSerialize for $type_name {
+                fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
+                    Ok(())
+                }
+            }
+
+            impl DdsType for $type_name {
+                fn type_name() -> &'static str {
+                    stringify!($type_name)
+                }
+
+                fn has_key() -> bool {
+                    false
+                }
+            }
+        };
     }
 
-    impl DdsType for MockFoo {
-        fn type_name() -> &'static str {
-            "MockFoo"
-        }
-
-        fn has_key() -> bool {
-            false
-        }
-    }
+    make_empty_dds_type!(Foo);
 
     impl<Rtps: RtpsStructure> Default for PublisherAttributes<Rtps> {
         fn default() -> Self {
@@ -464,15 +482,11 @@ mod tests {
         }
     }
 
-    impl<Rtps: RtpsStructure> Default for TopicAttributes<Rtps> {
-        fn default() -> Self {
-            TopicAttributes::new(
-                TopicQos::default(),
-                "type_name",
-                "topic_name",
-                RtpsWeak::new(),
-            )
-        }
+    fn make_topic<Rtps: RtpsStructure>(
+        type_name: &'static str,
+        topic_name: &'static str,
+    ) -> TopicAttributes<Rtps> {
+        TopicAttributes::new(TopicQos::default(), type_name, topic_name, RtpsWeak::new())
     }
 
     #[test]
@@ -480,8 +494,8 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy.create_datawriter(&topic_proxy, None, None, 0);
 
@@ -493,11 +507,12 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer =
             publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
+
         assert!(data_writer.is_some());
         assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
     }
@@ -507,8 +522,8 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy
             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -530,12 +545,13 @@ mod tests {
         let publisher2 = RtpsShared::new(PublisherAttributes::default());
         let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy
             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
+
         assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
         assert_eq!(0, publisher2.read().unwrap().data_writer_list.len());
 
@@ -550,8 +566,8 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         assert!(publisher_proxy
             .datawriter_factory_lookup_datawriter(&topic_proxy)
@@ -563,8 +579,8 @@ mod tests {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(TopicAttributes::default());
-        let topic_proxy = TopicProxy::<MockFoo, MockRtps>::new(topic.downgrade());
+        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy
             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
@@ -578,6 +594,126 @@ mod tests {
                 .upgrade()
                 .unwrap()
                 == data_writer.as_ref().upgrade().unwrap()
+        );
+    }
+
+    make_empty_dds_type!(Bar);
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter_when_one_datawriter_with_wrong_type() {
+        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic_foo = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
+
+        let topic_bar = RtpsShared::new(make_topic(Bar::type_name(), "topic"));
+        let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
+
+        publisher_proxy
+            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
+            .unwrap();
+
+        assert!(publisher_proxy
+            .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
+            .is_none());
+    }
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter_when_one_datawriter_with_wrong_topic() {
+        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic1 = RtpsShared::new(make_topic(Foo::type_name(), "topic1"));
+        let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
+
+        let topic2 = RtpsShared::new(make_topic(Bar::type_name(), "topic2"));
+        let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
+
+        publisher_proxy
+            .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
+            .unwrap();
+
+        assert!(publisher_proxy
+            .datawriter_factory_lookup_datawriter(&topic1_proxy)
+            .is_none());
+    }
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter_with_two_types() {
+        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic_foo = RtpsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic"));
+        let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
+
+        let topic_bar = RtpsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic"));
+        let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
+
+        let data_writer_foo = publisher_proxy
+            .datawriter_factory_create_datawriter(&topic_foo_proxy, None, None, 0)
+            .unwrap();
+        let data_writer_bar = publisher_proxy
+            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
+            .unwrap();
+
+        assert!(
+            publisher_proxy
+                .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == data_writer_foo.as_ref().upgrade().unwrap()
+        );
+
+        assert!(
+            publisher_proxy
+                .datawriter_factory_lookup_datawriter(&topic_bar_proxy)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == data_writer_bar.as_ref().upgrade().unwrap()
+        );
+    }
+
+    #[test]
+    fn datawriter_factory_lookup_datawriter_with_two_topics() {
+        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+        let topic1 = RtpsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic1"));
+        let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
+
+        let topic2 = RtpsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic2"));
+        let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
+
+        let data_writer1 = publisher_proxy
+            .datawriter_factory_create_datawriter(&topic1_proxy, None, None, 0)
+            .unwrap();
+        let data_writer2 = publisher_proxy
+            .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
+            .unwrap();
+
+        assert!(
+            publisher_proxy
+                .datawriter_factory_lookup_datawriter(&topic1_proxy)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == data_writer1.as_ref().upgrade().unwrap()
+        );
+
+        assert!(
+            publisher_proxy
+                .datawriter_factory_lookup_datawriter(&topic2_proxy)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == data_writer2.as_ref().upgrade().unwrap()
         );
     }
 }
