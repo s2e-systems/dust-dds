@@ -653,12 +653,6 @@ mod tests {
 
     use super::{DomainParticipantProxy, DomainParticipantAttributes};
 
-    // fn make_topic<Rtps: RtpsStructure>(
-    //     type_name: &'static str,
-    //     topic_name: &'static str,
-    // ) -> TopicAttributes<Rtps> {
-    //     TopicAttributes::new(TopicQos::default(), type_name, topic_name, RtpsWeak::new())
-    // }
     struct EmptyRtps {}
 
     impl RtpsStructure for EmptyRtps {
