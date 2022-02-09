@@ -25,7 +25,8 @@
 /// - The attributes trait shall return the attributes in the individual methods are references.
 ///     That guarantees that the attributes have to be implements as attributes, i.e. as struct fields
 /// - The constructor shall use move semantics for its parameters
-///     That is because the arguments are to be owned by the struct implementing the trait
+///     - Lists are an exception: a slice reference shall be used.
+///     - That is because the arguments are to be owned by the struct implementing the trait
 
 pub mod behavior;
 pub mod messages;
