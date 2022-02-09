@@ -251,27 +251,23 @@ where
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant".to_string(),
+                "Topic can only be deleted from its parent participant".to_string(),
             ))
         }
     }
 
     fn topic_factory_find_topic(
         &self,
-        _topic_name: &str,
+        topic_name: &str,
         _timeout: Duration,
     ) -> Option<Self::TopicType> {
-        // Explicit call with the complete function path otherwise the generic type can't be infered.
-        // This happens because TopicImpl has no generic type information.
-        // let domain_participant = rtps_shared_read_lock(&domain_participant_lock)
-        // let topic_shared = DomainParticipantTopicFactory::<'t, Foo>::topic_factory_find_topic(
-        //     &*,
-        //     topic_name,
-        //     timeout,
-        // )?;
-        // let topic_weak = rtps_shared_downgrade(&topic_shared);
-        // Some(TopicProxy::new(self, topic_weak))
-        todo!()
+        self.domain_participant.upgrade().ok()?.read().ok()?
+            .topic_list
+            .iter().find_map(|topic_shared|
+                topic_shared.read().ok()
+                    .filter(|topic| topic.topic_name == topic_name)
+                    .and(Some(TopicProxy::new(topic_shared.downgrade())))
+            )
     }
 }
 
