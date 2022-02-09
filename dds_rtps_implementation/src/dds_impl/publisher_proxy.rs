@@ -108,7 +108,7 @@ where
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
-        let mut publisher_shared_lock = publisher_shared.write_lock().ok()?;
+        let mut publisher_shared_lock = publisher_shared.write_lock();
 
         let topic_shared = a_topic.as_ref().upgrade().ok()?;
 
@@ -231,7 +231,7 @@ where
         let datawriter_shared = datawriter.as_ref().upgrade()?;
 
         let data_writer_list = &mut publisher_shared
-            .write_lock()?
+            .write_lock()
             .data_writer_list;
 
         data_writer_list.remove(
@@ -250,18 +250,24 @@ where
         topic: &Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
-        let data_writer_list = &publisher_shared.write_lock().ok()?.data_writer_list;
+        let data_writer_list = &publisher_shared.write_lock().data_writer_list;
 
         let topic_shared = topic.as_ref().upgrade().ok()?;
-        let topic = topic_shared.read_lock().ok()?;
+        let topic = topic_shared.read_lock();
 
-        data_writer_list.iter().find_map(|data_writer| {
-            data_writer.read_lock().ok()?
-                .topic.read_lock().ok()
-                .filter(|data_writer_topic| data_writer_topic.type_name == Foo::type_name())
-                .filter(|data_writer_topic| data_writer_topic.topic_name == topic.topic_name)
-                .and(Some(DataWriterProxy::new(data_writer.downgrade())))
-        })
+        data_writer_list.iter()
+            .find_map(|data_writer_shared| {
+                let data_writer_lock = data_writer_shared.read_lock();
+                let data_writer_topic = data_writer_lock.topic.read_lock();
+                
+                if data_writer_topic.topic_name == topic.topic_name &&
+                   data_writer_topic.type_name  == Foo::type_name()
+                {
+                    Some(DataWriterProxy::new(data_writer_shared.downgrade()))
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -324,7 +330,7 @@ where
 
     fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
         let publisher_attributes = self.0.upgrade()?;
-        let publisher_attributes_lock = publisher_attributes.read_lock()?;
+        let publisher_attributes_lock = publisher_attributes.read_lock();
         Ok(DomainParticipantProxy::new(
             publisher_attributes_lock.parent_participant.clone(),
         ))
@@ -521,7 +527,7 @@ mod tests {
             publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
 
         assert!(data_writer.is_some());
-        assert_eq!(1, publisher.read_lock().unwrap().data_writer_list.len());
+        assert_eq!(1, publisher.read_lock().data_writer_list.len());
     }
 
     #[test]
@@ -536,13 +542,13 @@ mod tests {
             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, publisher.read_lock().unwrap().data_writer_list.len());
+        assert_eq!(1, publisher.read_lock().data_writer_list.len());
 
         publisher_proxy
             .datawriter_factory_delete_datawriter(&data_writer)
             .unwrap();
 
-        assert_eq!(0, publisher.read_lock().unwrap().data_writer_list.len());
+        assert_eq!(0, publisher.read_lock().data_writer_list.len());
         assert!(data_writer.as_ref().upgrade().is_err())
     }
 
@@ -561,8 +567,8 @@ mod tests {
             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, publisher.read_lock().unwrap().data_writer_list.len());
-        assert_eq!(0, publisher2.read_lock().unwrap().data_writer_list.len());
+        assert_eq!(1, publisher.read_lock().data_writer_list.len());
+        assert_eq!(0, publisher2.read_lock().data_writer_list.len());
 
         assert!(matches!(
             publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),

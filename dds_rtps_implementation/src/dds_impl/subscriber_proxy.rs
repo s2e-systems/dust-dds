@@ -125,7 +125,7 @@ where
         _mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade().ok()?;
-        let mut subscriber_shared_lock = subscriber_shared.write_lock().ok()?;
+        let mut subscriber_shared_lock = subscriber_shared.write_lock();
 
         let qos = qos.unwrap_or(subscriber_shared_lock.default_data_reader_qos.clone());
         qos.is_consistent().ok()?;
@@ -193,7 +193,7 @@ where
         let datareader_shared = datareader.as_ref().upgrade()?;
 
         let data_reader_list = &mut subscriber_shared
-            .write_lock()?
+            .write_lock()
             .data_reader_list;
 
         data_reader_list.remove(
@@ -213,18 +213,24 @@ where
         topic: &Self::TopicType,
     ) -> Option<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade().ok()?;
-        let data_reader_list = &subscriber_shared.write_lock().ok()?.data_reader_list;
+        let data_reader_list = &subscriber_shared.write_lock().data_reader_list;
 
         let topic_shared = topic.as_ref().upgrade().ok()?;
-        let topic = topic_shared.read_lock().ok()?;
+        let topic = topic_shared.read_lock();
 
-        data_reader_list.iter().find_map(|data_reader| {
-            data_reader.read_lock().ok()?
-                .topic.read_lock().ok()
-                .filter(|data_reader_topic| data_reader_topic.type_name == Foo::type_name())
-                .filter(|data_reader_topic| data_reader_topic.topic_name == topic.topic_name)
-                .and(Some(DataReaderProxy::new(data_reader.downgrade())))
-        })
+        data_reader_list.iter()
+            .find_map(|data_reader_shared| {
+                let data_reader_lock = data_reader_shared.read_lock();
+                let data_reader_topic = data_reader_lock.topic.read_lock();
+                
+                if data_reader_topic.topic_name == topic.topic_name &&
+                   data_reader_topic.type_name  == Foo::type_name()
+                {
+                    Some(DataReaderProxy::new(data_reader_shared.downgrade()))
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -515,7 +521,7 @@ mod tests {
             subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0);
 
         assert!(data_reader.is_some());
-        assert_eq!(1, subscriber.read_lock().unwrap().data_reader_list.len());
+        assert_eq!(1, subscriber.read_lock().data_reader_list.len());
     }
 
     #[test]
@@ -533,12 +539,12 @@ mod tests {
             .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, subscriber.read_lock().unwrap().data_reader_list.len());
+        assert_eq!(1, subscriber.read_lock().data_reader_list.len());
 
         subscriber_proxy
             .datareader_factory_delete_datareader(&data_reader)
             .unwrap();
-        assert_eq!(0, subscriber.read_lock().unwrap().data_reader_list.len());
+        assert_eq!(0, subscriber.read_lock().data_reader_list.len());
         assert!(data_reader.as_ref().upgrade().is_err());
     }
 
@@ -562,8 +568,8 @@ mod tests {
             .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, subscriber.read_lock().unwrap().data_reader_list.len());
-        assert_eq!(0, subscriber2.read_lock().unwrap().data_reader_list.len());
+        assert_eq!(1, subscriber.read_lock().data_reader_list.len());
+        assert_eq!(0, subscriber2.read_lock().data_reader_list.len());
 
         assert!(matches!(
             subscriber2_proxy.datareader_factory_delete_datareader(&data_reader),

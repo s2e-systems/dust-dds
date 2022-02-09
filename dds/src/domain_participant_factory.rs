@@ -180,12 +180,12 @@ fn _spdp_task_discovery<T>(
     sedp_builtin_topics_reader: &mut impl RtpsStatefulReaderOperations<
         WriterProxyType = impl RtpsWriterProxyConstructor,
     >,
-) -> DDSResult<()>
+)
 where
     T: Deref<Target = [SpdpDiscoveredParticipantData]>,
 {
     let mut spdp_builtin_participant_data_reader_lock =
-        spdp_builtin_participant_data_reader_arc.write_lock()?;
+        spdp_builtin_participant_data_reader_arc.write_lock();
     if let Ok(samples) = spdp_builtin_participant_data_reader_lock.read(1, &[], &[], &[]) {
         for discovered_participant in samples.into_iter() {
             if let Ok(participant_discovery) = ParticipantDiscovery::new(
@@ -217,8 +217,6 @@ where
             }
         }
     }
-
-    Ok(())
 }
 
 fn _task_sedp_discovery(
@@ -226,20 +224,20 @@ fn _task_sedp_discovery(
         impl DataReader<SedpDiscoveredWriterData, Samples = Samples<SedpDiscoveredWriterData>>,
     >,
     subscriber_list: &RtpsShared<Vec<RtpsShared<SubscriberAttributes<RtpsStructureImpl>>>>,
-) -> DDSResult<()> {
+) {
     let mut sedp_builtin_publications_data_reader_lock =
-        sedp_builtin_publications_data_reader.write_lock()?;
+        sedp_builtin_publications_data_reader.write_lock();
     if let Ok(samples) = sedp_builtin_publications_data_reader_lock.read(1, &[], &[], &[]) {
         if let Some(sample) = samples.into_iter().next() {
             let topic_name = &sample.publication_builtin_topic_data.topic_name;
             let type_name = &sample.publication_builtin_topic_data.type_name;
-            let subscriber_list_lock = subscriber_list.read_lock()?;
+            let subscriber_list_lock = subscriber_list.read_lock();
             for subscriber in subscriber_list_lock.iter() {
-                let subscriber_lock = subscriber.read_lock()?;
+                let subscriber_lock = subscriber.read_lock();
                 for data_reader in subscriber_lock.data_reader_list.iter() {
-                    let mut data_reader_lock = data_reader.write_lock()?;
-                    let reader_topic_name = &data_reader_lock.topic.read_lock()?.topic_name.clone();
-                    let reader_type_name = data_reader_lock.topic.read_lock()?.type_name;
+                    let mut data_reader_lock = data_reader.write_lock();
+                    let reader_topic_name = &data_reader_lock.topic.read_lock().topic_name.clone();
+                    let reader_type_name = data_reader_lock.topic.read_lock().type_name;
                     if topic_name == reader_topic_name && type_name == reader_type_name {
                         let writer_proxy = RtpsWriterProxyImpl::new(
                             sample.writer_proxy.remote_writer_guid,
@@ -259,8 +257,6 @@ fn _task_sedp_discovery(
             }
         }
     }
-
-    Ok(())
 }
 
 /// The DomainParticipant object plays several roles:
@@ -404,7 +400,7 @@ impl DomainParticipantFactory {
             domain_participant.downgrade(),
         ));
         domain_participant
-            .write_lock().ok()?
+            .write_lock()
             .builtin_subscriber_list
             .push(builtin_subscriber.clone());
 
@@ -418,7 +414,7 @@ impl DomainParticipantFactory {
             domain_participant.downgrade(),
         ));
         domain_participant
-            .write_lock().ok()?
+            .write_lock()
             .builtin_subscriber_list
             .push(builtin_subscriber.clone());
 
@@ -442,7 +438,7 @@ impl DomainParticipantFactory {
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write_lock().ok()?
+            .write_lock()
             .data_reader_list
             .push(spdp_builtin_participant_data_reader.clone());
 
@@ -467,7 +463,7 @@ impl DomainParticipantFactory {
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write_lock().ok()?
+            .write_lock()
             .data_writer_list
             .push(spdp_builtin_participant_data_writer.clone());
 
@@ -488,7 +484,7 @@ impl DomainParticipantFactory {
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write_lock().ok()?
+            .write_lock()
             .data_reader_list
             .push(sedp_builtin_publications_data_reader.clone());
 
@@ -501,7 +497,7 @@ impl DomainParticipantFactory {
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write_lock().ok()?
+            .write_lock()
             .data_writer_list
             .push(sedp_builtin_publications_data_writer.clone());
 
@@ -522,7 +518,7 @@ impl DomainParticipantFactory {
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write_lock().ok()?
+            .write_lock()
             .data_reader_list
             .push(sedp_builtin_subscriptions_data_reader.clone());
 
@@ -535,7 +531,7 @@ impl DomainParticipantFactory {
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write_lock().ok()?
+            .write_lock()
             .data_writer_list
             .push(sedp_builtin_subscriptions_data_writer.clone());
 
@@ -556,7 +552,7 @@ impl DomainParticipantFactory {
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write_lock().ok()?
+            .write_lock()
             .data_reader_list
             .push(sedp_builtin_topics_data_reader.clone());
 
@@ -569,7 +565,7 @@ impl DomainParticipantFactory {
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write_lock().ok()?
+            .write_lock()
             .data_writer_list
             .push(sedp_builtin_topics_data_writer.clone());
 
@@ -591,17 +587,15 @@ impl DomainParticipantFactory {
                 builtin_communication.send(
                     domain_participant_shared
                         .read_lock()
-                        .unwrap()
                         .builtin_publisher_list
                         .as_ref(),
-                ).unwrap();
+                );
                 builtin_communication.receive(
                     domain_participant_shared
                         .read_lock()
-                        .unwrap()
                         .builtin_subscriber_list
                         .as_ref(),
-                ).unwrap();
+                );
             },
             std::time::Duration::from_millis(500),
         );
@@ -619,17 +613,15 @@ impl DomainParticipantFactory {
                 communication.send(
                     domain_participant_shared
                         .read_lock()
-                        .unwrap()
                         .builtin_publisher_list
                         .as_ref(),
-                ).unwrap();
+                );
                 communication.receive(
                     domain_participant_shared
                         .read_lock()
-                        .unwrap()
                         .builtin_subscriber_list
                         .as_ref(),
-                ).unwrap();
+                );
             },
             std::time::Duration::from_millis(500),
         );
@@ -1073,7 +1065,7 @@ mod tests {
     }
 
     #[test]
-    fn discovery_task_all_sedp_endpoints() -> DDSResult<()> {
+    fn discovery_task_all_sedp_endpoints() {
         let mut mock_spdp_data_reader = MockDdsDataReader::new();
         mock_spdp_data_reader.expect_read().returning(|_, _, _, _| {
             Ok(Samples {
@@ -1219,13 +1211,11 @@ mod tests {
             &mut mock_builtin_subscriptions_reader,
             &mut mock_builtin_topics_writer,
             &mut mock_builtin_topics_reader,
-        )?;
-
-        Ok(())
+        );
     }
 
     #[test]
-    fn task_sedp_discovery_() -> DDSResult<()> {
+    fn task_sedp_discovery_() {
         let mut mock_sedp_discovered_writer_data_reader = MockDdsDataReader::new();
         mock_sedp_discovered_writer_data_reader
             .expect_read()
@@ -1283,9 +1273,7 @@ mod tests {
         _task_sedp_discovery(
             &RtpsShared::new(mock_sedp_discovered_writer_data_reader),
             &RtpsShared::new(subscriber_list),
-        )?;
-
-        Ok(())
+        );
 
         //todo: Add readers and chack that thet got configured with appropriate proxies as
         // the returned from read() from the MockReader

@@ -106,11 +106,11 @@ where
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
-        Ok(self.topic_impl.upgrade()?.read_lock()?.type_name)
+        Ok(self.topic_impl.upgrade()?.read_lock().type_name)
     }
 
     fn get_name(&self) -> DDSResult<String> {
-        Ok(self.topic_impl.upgrade()?.read_lock()?.topic_name.clone())
+        Ok(self.topic_impl.upgrade()?.read_lock().topic_name.clone())
     }
 }
 

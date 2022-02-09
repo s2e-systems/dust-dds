@@ -215,7 +215,7 @@ where
 
         let data_writer_shared = self.data_writer_impl.upgrade()?;
         let rtps_writer = &mut data_writer_shared
-            .write_lock()?
+            .write_lock()
             .rtps_writer;
 
         match rtps_writer {

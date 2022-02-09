@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 
-use rust_dds_api::return_type::{DDSResult, DDSError};
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
@@ -42,9 +41,9 @@ impl<T> Communication<T>
 where
     T: TransportWrite,
 {
-    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes<RtpsStructureImpl>>]) -> DDSResult<()> {
+    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes<RtpsStructureImpl>>]) {
         for publisher in list {
-            let mut publisher_lock = publisher.write_lock()?;
+            let mut publisher_lock = publisher.write_lock();
 
             let message_header = RtpsMessageHeader {
                 protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
@@ -54,7 +53,7 @@ where
             };
 
             for any_data_writer in &mut publisher_lock.data_writer_list {
-                let mut rtps_writer_lock = any_data_writer.write_lock()?;
+                let mut rtps_writer_lock = any_data_writer.write_lock();
                 let rtps_writer = &mut rtps_writer_lock.rtps_writer;
 
                 match rtps_writer {
@@ -143,23 +142,20 @@ where
                 }
             }
         }
-        Ok(())
     }
 }
 impl<T> Communication<T>
 where
     T: TransportRead,
 {
-    pub fn receive(&mut self, list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>]) -> DDSResult<()> {
+    pub fn receive(&mut self, list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
         if let Some((source_locator, message)) = self.transport.read() {
             MessageReceiver::new().process_message(
                 self.guid_prefix,
                 list,
                 source_locator,
                 &message,
-            )
-        } else {
-            Err(DDSError::NoData) // should this be an error?
+            );
         }
     }
 }

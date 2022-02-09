@@ -15,14 +15,14 @@ impl<T> RtpsShared<T> {
         RtpsWeak(Arc::downgrade(&self.0))
     }
 
-    pub fn read_lock(&self) -> DDSResult<RwLockReadGuard<'_, T>> {
+    pub fn read_lock(&self) -> RwLockReadGuard<'_, T> {
         self.0.read()
-            .map_err(|_| DDSError::PreconditionNotMet("The lock is poisoned".to_string()))
+            .expect("The lock is poisoned (;_;)")
     }
 
-    pub fn write_lock(&self) -> DDSResult<RwLockWriteGuard<'_, T>> {
+    pub fn write_lock(&self) -> RwLockWriteGuard<'_, T> {
         self.0.write()
-            .map_err(|_| DDSError::PreconditionNotMet("The lock is poisoned".to_string()))
+            .expect("The lock is poisoned (;_;)")
     }
 }
 

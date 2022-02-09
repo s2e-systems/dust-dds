@@ -1,4 +1,3 @@
-use rust_dds_api::return_type::DDSResult;
 use rust_dds_rtps_implementation::{
     dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
     utils::shared_object::RtpsShared,
@@ -53,7 +52,7 @@ impl MessageReceiver {
         list: &'a [RtpsShared<SubscriberAttributes<RtpsStructureImpl>>],
         source_locator: Locator,
         message: &'a RtpsMessageRead,
-    ) -> DDSResult<()> {
+    ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
         self.source_vendor_id = message.header.vendor_id;
@@ -74,9 +73,9 @@ impl MessageReceiver {
                 RtpsSubmessageTypeRead::AckNack(_) => todo!(),
                 RtpsSubmessageTypeRead::Data(data) => {
                     for subscriber in list {
-                        let subscriber_lock = subscriber.read_lock()?;
+                        let subscriber_lock = subscriber.read_lock();
                         for data_reader in &subscriber_lock.data_reader_list {
-                            let mut data_reader_lock = data_reader.write_lock()?;
+                            let mut data_reader_lock = data_reader.write_lock();
                             let rtps_reader = &mut data_reader_lock.rtps_reader;
                             match rtps_reader {
                                 RtpsReader::Stateless(stateless_rtps_reader) => {
@@ -117,8 +116,6 @@ impl MessageReceiver {
                 RtpsSubmessageTypeRead::Pad(_) => todo!(),
             }
         }
-
-        Ok(())
     }
 
     fn process_info_timestamp_submessage(
