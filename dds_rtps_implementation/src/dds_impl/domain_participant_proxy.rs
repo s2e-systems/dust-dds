@@ -190,7 +190,7 @@ where
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock().ok()?;
         let topic_qos = qos.unwrap_or(domain_participant_attributes_lock.default_topic_qos.clone());
 
         // let _builtin_publisher_lock =
@@ -245,8 +245,7 @@ where
         let topic_shared = topic.as_ref().upgrade()?;
 
         let topic_list = &mut domain_participant_shared
-            .write()
-            .map_err(|_| DDSError::Error)?
+            .write_lock()?
             .topic_list;
 
         topic_list.remove(
@@ -265,10 +264,10 @@ where
         topic_name: &str,
         _timeout: Duration,
     ) -> Option<Self::TopicType> {
-        self.domain_participant.upgrade().ok()?.read().ok()?
+        self.domain_participant.upgrade().ok()?.read_lock().ok()?
             .topic_list.iter()
             .find_map(|topic_shared|
-                topic_shared.read().ok()
+                topic_shared.read_lock().ok()
                     .filter(|topic| topic.type_name == Foo::type_name())
                     .filter(|topic| topic.topic_name == topic_name)
                     .and(Some(TopicProxy::new(topic_shared.downgrade())))
@@ -292,7 +291,7 @@ where
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
         let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock().ok()?;
         let publisher_qos = qos.unwrap_or(
             domain_participant_attributes_lock
                 .default_publisher_qos
@@ -338,7 +337,7 @@ where
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock()?;
         let publisher_shared = a_publisher.0.upgrade()?;
         if std::ptr::eq(&a_publisher.get_participant()?, self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_publisher(&publisher_shared)
@@ -360,7 +359,7 @@ where
         _mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
         let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock().ok()?;
         // let subscriber_shared = rtps_shared_read_lock(&domain_participant_lock)
         // .create_subscriber(qos, a_listener, mask)?;
 
@@ -398,7 +397,7 @@ where
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
+        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock()?;
         let subscriber_shared = a_subscriber.as_ref().upgrade()?;
         if std::ptr::eq(&a_subscriber.get_participant(), self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_subscriber(&subscriber_shared)
@@ -427,7 +426,7 @@ where
 
     fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
-        let domain_participant_lock = domain_participant_shared.read_lock();
+        let domain_participant_lock = domain_participant_shared.read_lock()?;
         let subscriber_shared = domain_participant_lock.builtin_subscriber_list[0].clone();
         let subscriber_weak = subscriber_shared.downgrade();
         Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
@@ -634,7 +633,7 @@ where
 
     fn enable(&self) -> DDSResult<()> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
-        let mut domain_participant_lock = domain_participant_shared.write_lock();
+        let mut domain_participant_lock = domain_participant_shared.write_lock()?;
         domain_participant_lock.enabled = true;
         Ok(())
     }
@@ -658,10 +657,12 @@ mod tests {
     struct EmptyRtps {}
 
     impl RtpsStructure for EmptyRtps {
+        type Group           = ();
+        type Participant     = ();
         type StatelessWriter = ();
-        type StatefulWriter = ();
+        type StatefulWriter  = ();
         type StatelessReader = ();
-        type StatefulReader = ();
+        type StatefulReader  = ();
     }
 
     
@@ -695,7 +696,7 @@ mod tests {
             as Option<Topic>;
 
         assert!(topic.is_some());
-        assert_eq!(1, domain_participant.read().unwrap().topic_list.len());
+        assert_eq!(1, domain_participant.read_lock().unwrap().topic_list.len());
     }
 
     #[test]
@@ -709,13 +710,13 @@ mod tests {
             .topic_factory_create_topic("topic", None, None, 0)
             .unwrap() as Topic;
 
-        assert_eq!(1, domain_participant.read().unwrap().topic_list.len());
+        assert_eq!(1, domain_participant.read_lock().unwrap().topic_list.len());
 
         domain_participant_proxy
             .topic_factory_delete_topic(&topic)
             .unwrap();
 
-        assert_eq!(0, domain_participant.read().unwrap().topic_list.len());
+        assert_eq!(0, domain_participant.read_lock().unwrap().topic_list.len());
         assert!(topic.as_ref().upgrade().is_err());
     }
 
@@ -733,8 +734,8 @@ mod tests {
             .topic_factory_create_topic("topic", None, None, 0)
             .unwrap() as Topic;
 
-        assert_eq!(1, domain_participant.read().unwrap().topic_list.len());
-        assert_eq!(0, domain_participant2.read().unwrap().topic_list.len());
+        assert_eq!(1, domain_participant.read_lock().unwrap().topic_list.len());
+        assert_eq!(0, domain_participant2.read_lock().unwrap().topic_list.len());
 
         assert!(matches!(
             domain_participant2_proxy.topic_factory_delete_topic(&topic),

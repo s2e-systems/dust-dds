@@ -108,7 +108,7 @@ where
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
-        let mut publisher_shared_lock = publisher_shared.write().ok()?;
+        let mut publisher_shared_lock = publisher_shared.write_lock().ok()?;
 
         let topic_shared = a_topic.as_ref().upgrade().ok()?;
 
@@ -231,8 +231,7 @@ where
         let datawriter_shared = datawriter.as_ref().upgrade()?;
 
         let data_writer_list = &mut publisher_shared
-            .write()
-            .map_err(|_| DDSError::Error)?
+            .write_lock()?
             .data_writer_list;
 
         data_writer_list.remove(
@@ -251,14 +250,14 @@ where
         topic: &Self::TopicType,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
-        let data_writer_list = &publisher_shared.write().ok()?.data_writer_list;
+        let data_writer_list = &publisher_shared.write_lock().ok()?.data_writer_list;
 
         let topic_shared = topic.as_ref().upgrade().ok()?;
-        let topic = topic_shared.read().ok()?;
+        let topic = topic_shared.read_lock().ok()?;
 
         data_writer_list.iter().find_map(|data_writer| {
-            data_writer.read().ok()?
-                .topic.read().ok()
+            data_writer.read_lock().ok()?
+                .topic.read_lock().ok()
                 .filter(|data_writer_topic| data_writer_topic.type_name == Foo::type_name())
                 .filter(|data_writer_topic| data_writer_topic.topic_name == topic.topic_name)
                 .and(Some(DataWriterProxy::new(data_writer.downgrade())))
@@ -325,7 +324,7 @@ where
 
     fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
         let publisher_attributes = self.0.upgrade()?;
-        let publisher_attributes_lock = publisher_attributes.read_lock();
+        let publisher_attributes_lock = publisher_attributes.read_lock()?;
         Ok(DomainParticipantProxy::new(
             publisher_attributes_lock.parent_participant.clone(),
         ))
@@ -396,7 +395,7 @@ mod tests {
     };
     use rust_rtps_pim::{
         behavior::{types::Duration, writer::stateful_writer::RtpsStatefulWriterConstructor},
-        structure::{types::{Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN}, group::RtpsGroupConstructor, entity::RtpsEntityAttributes},
+        structure::{types::{Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN}, entity::RtpsEntityAttributes},
     };
 
     use crate::{
@@ -410,13 +409,8 @@ mod tests {
 
     use super::{PublisherAttributes, PublisherProxy};
 
-    struct EmptyGroup {}
-
-    impl RtpsGroupConstructor for EmptyGroup {
-        fn new(_guid: Guid) -> Self {
-            EmptyGroup {}
-        }
-    }
+    #[derive(Default)]
+    struct EmptyGroup;
 
     impl RtpsEntityAttributes for EmptyGroup {
         fn guid(&self) -> &Guid {
@@ -480,12 +474,12 @@ mod tests {
 
     impl<Rtps: RtpsStructure> Default for PublisherAttributes<Rtps>
     where
-        Rtps::Group: RtpsGroupConstructor,
+        Rtps::Group: Default,
     {
         fn default() -> Self {
             PublisherAttributes {
                 _qos: PublisherQos::default(),
-                rtps_group: Rtps::Group::new(GUID_UNKNOWN),
+                rtps_group: Rtps::Group::default(),
                 data_writer_list: Vec::new(),
                 user_defined_data_writer_counter: AtomicU8::new(0),
                 default_datawriter_qos: DataWriterQos::default(),
@@ -527,7 +521,7 @@ mod tests {
             publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
 
         assert!(data_writer.is_some());
-        assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
+        assert_eq!(1, publisher.read_lock().unwrap().data_writer_list.len());
     }
 
     #[test]
@@ -542,13 +536,13 @@ mod tests {
             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
+        assert_eq!(1, publisher.read_lock().unwrap().data_writer_list.len());
 
         publisher_proxy
             .datawriter_factory_delete_datawriter(&data_writer)
             .unwrap();
 
-        assert_eq!(0, publisher.read().unwrap().data_writer_list.len());
+        assert_eq!(0, publisher.read_lock().unwrap().data_writer_list.len());
         assert!(data_writer.as_ref().upgrade().is_err())
     }
 
@@ -567,8 +561,8 @@ mod tests {
             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, publisher.read().unwrap().data_writer_list.len());
-        assert_eq!(0, publisher2.read().unwrap().data_writer_list.len());
+        assert_eq!(1, publisher.read_lock().unwrap().data_writer_list.len());
+        assert_eq!(0, publisher2.read_lock().unwrap().data_writer_list.len());
 
         assert!(matches!(
             publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),

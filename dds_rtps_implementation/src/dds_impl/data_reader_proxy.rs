@@ -180,8 +180,7 @@ where
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let rtps_reader = &data_reader_shared
-            .read()
-            .map_err(|_| DDSError::NoData)?
+            .read_lock()?
             .rtps_reader;
 
         match rtps_reader {

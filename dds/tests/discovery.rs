@@ -150,7 +150,7 @@ fn send_and_receive_discovery_data_happy_path() {
         let shared_data_writer = RtpsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
         publisher
-            .write()
+            .write_lock()
             .unwrap()
             .data_writer_list
             .push(shared_data_writer);
@@ -176,7 +176,7 @@ fn send_and_receive_discovery_data_happy_path() {
         transport,
     };
 
-    communication.send(core::slice::from_ref(&publisher));
+    communication.send(core::slice::from_ref(&publisher)).unwrap();
 
     // Reception
 
@@ -209,7 +209,7 @@ fn send_and_receive_discovery_data_happy_path() {
         let shared_data_reader = RtpsShared::new(data_reader);
         let weak_data_reader = shared_data_reader.downgrade();
         subscriber
-            .write()
+            .write_lock()
             .unwrap()
             .data_reader_list
             .push(shared_data_reader);
@@ -217,7 +217,7 @@ fn send_and_receive_discovery_data_happy_path() {
         DataReaderProxy::<_, RtpsStructureImpl>::new(weak_data_reader)
     };
 
-    communication.receive(core::slice::from_ref(&subscriber));
+    communication.receive(core::slice::from_ref(&subscriber)).unwrap();
 
     let result: Samples<SpdpDiscoveredParticipantData> =
         data_reader_proxy.read(1, &[], &[], &[]).unwrap();
@@ -317,7 +317,7 @@ fn process_discovery_data_happy_path() {
         let shared_data_writer = RtpsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
         publisher
-            .write()
+            .write_lock()
             .unwrap()
             .data_writer_list
             .push(shared_data_writer);
@@ -354,7 +354,7 @@ fn process_discovery_data_happy_path() {
         let shared_data_writer = RtpsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
         publisher
-            .write()
+            .write_lock()
             .unwrap()
             .data_writer_list
             .push(shared_data_writer);
@@ -371,7 +371,7 @@ fn process_discovery_data_happy_path() {
         guid_prefix,
         transport,
     };
-    communication.send(core::slice::from_ref(&publisher));
+    communication.send(core::slice::from_ref(&publisher)).unwrap();
 
     // Reception
 
@@ -404,7 +404,7 @@ fn process_discovery_data_happy_path() {
         let shared_data_reader = RtpsShared::new(data_reader);
         let weak_data_reader = shared_data_reader.downgrade();
         subscriber
-            .write()
+            .write_lock()
             .unwrap()
             .data_reader_list
             .push(shared_data_reader);
@@ -412,7 +412,7 @@ fn process_discovery_data_happy_path() {
         DataReaderProxy::new(weak_data_reader)
     };
 
-    communication.receive(core::slice::from_ref(&subscriber));
+    communication.receive(core::slice::from_ref(&subscriber)).unwrap();
 
     let discovered_participant: Samples<SpdpDiscoveredParticipantData> =
         spdp_builtin_participant_data_reader_proxy
@@ -438,7 +438,7 @@ fn process_discovery_data_happy_path() {
         let shared_data_reader = RtpsShared::new(data_reader);
         let weak_data_reader = shared_data_reader.downgrade();
         subscriber
-            .write()
+            .write_lock()
             .unwrap()
             .data_reader_list
             .push(shared_data_reader);
@@ -456,7 +456,7 @@ fn process_discovery_data_happy_path() {
                 .as_ref()
                 .upgrade()
                 .unwrap()
-                .write()
+                .write_lock()
                 .unwrap() // ??????
                 .rtps_reader
         {
@@ -469,7 +469,7 @@ fn process_discovery_data_happy_path() {
                 .as_ref()
                 .upgrade()
                 .unwrap()
-                .write()
+                .write_lock()
                 .unwrap()
                 .rtps_writer
                 .try_as_stateful_writer()
@@ -541,7 +541,7 @@ fn process_discovery_data_happy_path() {
     // }
 
     for _i in 1..14 {
-        communication.send(core::slice::from_ref(&publisher));
+        communication.send(core::slice::from_ref(&publisher)).unwrap();
 
         std::thread::sleep(std::time::Duration::from_millis(50));
     }

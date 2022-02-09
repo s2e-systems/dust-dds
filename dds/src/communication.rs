@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 
+use rust_dds_api::return_type::DDSResult;
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
@@ -12,7 +13,7 @@ use rust_rtps_pim::{
         stateful_writer_behavior::StatefulWriterBehavior,
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::{
-            reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
+            reader_proxy::RtpsReaderProxyAttributes, reader_locator::RtpsReaderLocatorAttributes,
         },
     },
     messages::overall_structure::RtpsMessageHeader,
@@ -41,9 +42,9 @@ impl<T> Communication<T>
 where
     T: TransportWrite,
 {
-    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes<RtpsStructureImpl>>]) {
+    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes<RtpsStructureImpl>>]) -> DDSResult<()> {
         for publisher in list {
-            let mut publisher_lock = publisher.write().unwrap();
+            let mut publisher_lock = publisher.write_lock()?;
 
             let message_header = RtpsMessageHeader {
                 protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
@@ -53,7 +54,7 @@ where
             };
 
             for any_data_writer in &mut publisher_lock.data_writer_list {
-                let mut rtps_writer_lock = any_data_writer.write().unwrap();
+                let mut rtps_writer_lock = any_data_writer.write_lock()?;
                 let rtps_writer = &mut rtps_writer_lock.rtps_writer;
 
                 match rtps_writer {
@@ -142,20 +143,23 @@ where
                 }
             }
         }
+        Ok(())
     }
 }
 impl<T> Communication<T>
 where
     T: TransportRead,
 {
-    pub fn receive(&mut self, list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
+    pub fn receive(&mut self, list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>]) -> DDSResult<()> {
         if let Some((source_locator, message)) = self.transport.read() {
             MessageReceiver::new().process_message(
                 self.guid_prefix,
                 list,
                 source_locator,
                 &message,
-            );
+            )
+        } else {
+            Ok(()) // should this be an error?
         }
     }
 }
