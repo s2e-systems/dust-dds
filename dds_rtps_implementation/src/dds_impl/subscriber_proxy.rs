@@ -569,6 +569,7 @@ mod tests {
             .datareader_factory_delete_datareader(&data_reader)
             .unwrap();
         assert_eq!(0, subscriber.read().unwrap().data_reader_list.len());
+        assert!(data_reader.as_ref().upgrade().is_err());
     }
 
     #[test]
@@ -598,6 +599,7 @@ mod tests {
             subscriber2_proxy.datareader_factory_delete_datareader(&data_reader),
             Err(DDSError::PreconditionNotMet(_))
         ));
+        assert!(data_reader.as_ref().upgrade().is_ok());
     }
 
     #[test]

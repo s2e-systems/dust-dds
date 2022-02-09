@@ -236,8 +236,7 @@ where
             .data_writer_list;
 
         data_writer_list.remove(
-            data_writer_list
-                .iter()
+            data_writer_list.iter()
                 .position(|x| x == &datawriter_shared)
                 .ok_or(DDSError::PreconditionNotMet(
                     "Data writer can only be deleted from its parent publisher".to_string(),
@@ -258,12 +257,8 @@ where
         let topic = topic_shared.read().ok()?;
 
         data_writer_list.iter().find_map(|data_writer| {
-            data_writer
-                .read()
-                .ok()?
-                .topic
-                .read()
-                .ok()
+            data_writer.read().ok()?
+                .topic.read().ok()
                 .filter(|data_writer_topic| data_writer_topic.type_name == Foo::type_name())
                 .filter(|data_writer_topic| data_writer_topic.topic_name == topic.topic_name)
                 .and(Some(DataWriterProxy::new(data_writer.downgrade())))
@@ -552,7 +547,9 @@ mod tests {
         publisher_proxy
             .datawriter_factory_delete_datawriter(&data_writer)
             .unwrap();
+
         assert_eq!(0, publisher.read().unwrap().data_writer_list.len());
+        assert!(data_writer.as_ref().upgrade().is_err())
     }
 
     #[test]
@@ -577,23 +574,25 @@ mod tests {
             publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),
             Err(DDSError::PreconditionNotMet(_))
         ));
+        assert!(data_writer.as_ref().upgrade().is_ok())
     }
 
     #[test]
-    fn datawriter_factory_lookup_datawriter_when_empty() {
+    fn datawriter_factory_lookup_datawriter_with_no_datawriter() {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
-        assert!(publisher_proxy
-            .datawriter_factory_lookup_datawriter(&topic_proxy)
-            .is_none());
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy)
+            .is_none()
+        );
     }
 
     #[test]
-    fn datawriter_factory_lookup_datawriter_when_one_datawriter() {
+    fn datawriter_factory_lookup_datawriter_with_one_datawriter() {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
@@ -605,20 +604,18 @@ mod tests {
             .unwrap();
 
         assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer.as_ref().upgrade().unwrap()
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+            data_writer
+                .as_ref().upgrade().unwrap()
         );
     }
 
     make_empty_dds_type!(Bar);
 
     #[test]
-    fn datawriter_factory_lookup_datawriter_when_one_datawriter_with_wrong_type() {
+    fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_type() {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
@@ -632,13 +629,14 @@ mod tests {
             .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
             .unwrap();
 
-        assert!(publisher_proxy
-            .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
-            .is_none());
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_foo_proxy)
+            .is_none()
+        );
     }
 
     #[test]
-    fn datawriter_factory_lookup_datawriter_when_one_datawriter_with_wrong_topic() {
+    fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_topic() {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
@@ -652,13 +650,14 @@ mod tests {
             .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
             .unwrap();
 
-        assert!(publisher_proxy
-            .datawriter_factory_lookup_datawriter(&topic1_proxy)
-            .is_none());
+        assert!(
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic1_proxy)
+            .is_none()
+        );
     }
 
     #[test]
-    fn datawriter_factory_lookup_datawriter_with_two_types() {
+    fn datawriter_factory_lookup_datawriter_with_two_dawriters_with_different_types() {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
@@ -676,28 +675,24 @@ mod tests {
             .unwrap();
 
         assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer_foo.as_ref().upgrade().unwrap()
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_foo_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+            data_writer_foo
+                .as_ref().upgrade().unwrap()
         );
 
         assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_bar_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer_bar.as_ref().upgrade().unwrap()
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic_bar_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+            data_writer_bar
+                .as_ref().upgrade().unwrap()
         );
     }
 
     #[test]
-    fn datawriter_factory_lookup_datawriter_with_two_topics() {
+    fn datawriter_factory_lookup_datawriter_with_two_datawriters_with_different_topics() {
         let publisher = RtpsShared::new(PublisherAttributes::default());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
@@ -715,23 +710,19 @@ mod tests {
             .unwrap();
 
         assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic1_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer1.as_ref().upgrade().unwrap()
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic1_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+            data_writer1
+                .as_ref().upgrade().unwrap()
         );
 
         assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic2_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer2.as_ref().upgrade().unwrap()
+            publisher_proxy.datawriter_factory_lookup_datawriter(&topic2_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+            data_writer2
+                .as_ref().upgrade().unwrap()
         );
     }
 }
