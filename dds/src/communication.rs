@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use rust_dds_api::return_type::DDSResult;
+use rust_dds_api::return_type::{DDSResult, DDSError};
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
@@ -159,7 +159,7 @@ where
                 &message,
             )
         } else {
-            Ok(()) // should this be an error?
+            Err(DDSError::NoData) // should this be an error?
         }
     }
 }
