@@ -401,8 +401,7 @@ impl DomainParticipantFactory {
         ));
         domain_participant
             .write_lock()
-            .builtin_subscriber_list
-            .push(builtin_subscriber.clone());
+            .builtin_subscriber = Some(builtin_subscriber.clone());
 
         let builtin_publisher = RtpsShared::new(PublisherAttributes::new(
             PublisherQos::default(),
@@ -415,8 +414,7 @@ impl DomainParticipantFactory {
         ));
         domain_participant
             .write_lock()
-            .builtin_subscriber_list
-            .push(builtin_subscriber.clone());
+            .builtin_subscriber = Some(builtin_subscriber.clone());
 
         // ///////// Create built-in DDS data readers and data writers
 
@@ -585,16 +583,20 @@ impl DomainParticipantFactory {
             "builtin communication",
             move || {
                 builtin_communication.send(
-                    domain_participant_shared
+                   core::slice::from_ref(
+                       &domain_participant_shared
                         .read_lock()
-                        .builtin_publisher_list
-                        .as_ref(),
+                        .builtin_publisher
+                        .unwrap()
+                   ),
                 );
                 builtin_communication.receive(
-                    domain_participant_shared
+                    core::slice::from_ref(
+                        &domain_participant_shared
                         .read_lock()
-                        .builtin_subscriber_list
-                        .as_ref(),
+                        .builtin_subscriber
+                        .unwrap()
+                    ),
                 );
             },
             std::time::Duration::from_millis(500),
@@ -613,13 +615,13 @@ impl DomainParticipantFactory {
                 communication.send(
                     domain_participant_shared
                         .read_lock()
-                        .builtin_publisher_list
+                        .user_defined_publisher_list
                         .as_ref(),
                 );
                 communication.receive(
                     domain_participant_shared
                         .read_lock()
-                        .builtin_subscriber_list
+                        .user_defined_subscriber_list
                         .as_ref(),
                 );
             },

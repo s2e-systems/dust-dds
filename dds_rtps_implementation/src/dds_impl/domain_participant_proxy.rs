@@ -47,8 +47,8 @@ where
     pub domain_id: DomainId,
     pub domain_tag: String,
     pub qos: DomainParticipantQos,
-    pub builtin_subscriber_list: Vec<RtpsShared<SubscriberAttributes<Rtps>>>,
-    pub builtin_publisher_list: Vec<RtpsShared<PublisherAttributes<Rtps>>>,
+    pub builtin_subscriber: Option<RtpsShared<SubscriberAttributes<Rtps>>>,
+    pub builtin_publisher: Option<RtpsShared<PublisherAttributes<Rtps>>>,
     pub user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes<Rtps>>>,
     pub user_defined_subscriber_counter: u8,
     pub default_subscriber_qos: SubscriberQos,
@@ -95,8 +95,8 @@ where
             domain_id,
             domain_tag,
             qos: domain_participant_qos,
-            builtin_subscriber_list: Vec::new(),
-            builtin_publisher_list: Vec::new(),
+            builtin_subscriber: None,
+            builtin_publisher: None,
             user_defined_subscriber_list: Vec::new(),
             user_defined_subscriber_counter: 0,
             default_subscriber_qos: SubscriberQos::default(),
@@ -433,7 +433,7 @@ where
     fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
         let domain_participant_lock = domain_participant_shared.read_lock();
-        let subscriber_shared = domain_participant_lock.builtin_subscriber_list[0].clone();
+        let subscriber_shared = domain_participant_lock.builtin_subscriber.as_ref().unwrap().clone();
         let subscriber_weak = subscriber_shared.downgrade();
         Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
     }

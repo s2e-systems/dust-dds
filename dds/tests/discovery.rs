@@ -1,4 +1,4 @@
-use std::net::UdpSocket;
+use std::{net::UdpSocket, vec};
 
 use rust_dds::{
     communication::Communication,
@@ -8,7 +8,7 @@ use rust_dds::{
     },
     domain_participant_factory::RtpsStructureImpl,
     infrastructure::{
-        qos::{DataReaderQos, SubscriberQos, TopicQos},
+        qos::{DataReaderQos, SubscriberQos, TopicQos, DomainParticipantQos},
         qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
             DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
@@ -19,8 +19,8 @@ use rust_dds::{
     },
     publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
-    types::Duration,
-    udp_transport::UdpTransport,
+    types::{Duration, DomainId},
+    udp_transport::UdpTransport, domain::domain_participant::DomainParticipant,
 };
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
@@ -36,7 +36,7 @@ use rust_dds_rtps_implementation::{
         data_writer_proxy::{DataWriterAttributes, DataWriterProxy, RtpsWriter},
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
-        topic_proxy::TopicAttributes,
+        topic_proxy::TopicAttributes, domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
     },
     dds_type::DdsType,
     rtps_impl::{
@@ -44,9 +44,9 @@ use rust_dds_rtps_implementation::{
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl, rtps_participant_impl::RtpsParticipantImpl,
     },
-    utils::shared_object::{RtpsShared, RtpsWeak},
+    utils::{shared_object::{RtpsShared, RtpsWeak}, rtps_structure::RtpsStructure},
 };
 use rust_rtps_pim::{
     behavior::{
@@ -64,15 +64,17 @@ use rust_rtps_pim::{
     },
     messages::types::Count,
     structure::{types::{
-        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
-        BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
-    }, group::RtpsGroupConstructor},
+        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator,
+        BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E, EntityKey,
+    }, group::RtpsGroupConstructor, participant::{RtpsParticipantConstructor, RtpsParticipantAttributes}},
 };
+
+const BUILTIN_PARTICIPANT_KIND: u8 = 0xc1;
+
+const DEFAULT_GUID_PREFIX: GuidPrefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
 
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
-    let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
-
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey {
             value: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -83,9 +85,9 @@ fn send_and_receive_discovery_data_happy_path() {
     let participant_proxy = ParticipantProxy {
         domain_id: 1,
         domain_tag: "ab".to_string(),
-        protocol_version: ProtocolVersion { major: 1, minor: 4 },
-        guid_prefix,
-        vendor_id: [73, 74],
+        protocol_version: PROTOCOLVERSION,
+        guid_prefix: DEFAULT_GUID_PREFIX,
+        vendor_id: VENDOR_ID_S2E,
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(11, 12, [1; 16])],
         metatraffic_multicast_locator_list: vec![],
@@ -171,7 +173,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let mut communication = Communication {
         version: PROTOCOLVERSION,
         vendor_id: VENDOR_ID_S2E,
-        guid_prefix,
+        guid_prefix: DEFAULT_GUID_PREFIX,
         transport,
     };
 
@@ -239,9 +241,9 @@ fn process_discovery_data_happy_path() {
     let participant_proxy = ParticipantProxy {
         domain_id,
         domain_tag: domain_tag.to_string(),
-        protocol_version: ProtocolVersion { major: 1, minor: 4 },
+        protocol_version: PROTOCOLVERSION,
         guid_prefix,
-        vendor_id: [73, 74],
+        vendor_id: VENDOR_ID_S2E,
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -537,4 +539,38 @@ fn process_discovery_data_happy_path() {
 
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
+}
+
+struct Rtps;
+impl RtpsStructure for Rtps {
+    type Group = RtpsGroupImpl;
+    type Participant = RtpsParticipantImpl;
+
+    type StatelessWriter = RtpsStatelessWriterImpl;
+    type StatelessReader = RtpsStatelessReaderImpl;
+
+    type StatefulWriter = RtpsStatefulWriterImpl;
+    type StatefulReader = RtpsStatefulReaderImpl;
+}
+
+fn make_participant(domain_id: DomainId, domain_tag: &str) -> DomainParticipantAttributes<Rtps> {
+    DomainParticipantAttributes::<Rtps>::new(
+        DEFAULT_GUID_PREFIX,
+        domain_id, domain_tag.to_string(),
+        DomainParticipantQos::default(),
+        vec![], vec![],
+        vec![], vec![],
+    )
+}
+
+#[test]
+fn two_participants_discover_each_other() {
+    let participant1 = RtpsShared::new(make_participant(1, "ab"));
+    let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
+
+    let participant2 = RtpsShared::new(make_participant(1, "ab"));
+    let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
+
+    assert!(participant1_proxy.get_builtin_subscriber().is_ok());
+    assert!(participant2_proxy.get_builtin_subscriber().is_ok());
 }
