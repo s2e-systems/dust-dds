@@ -240,20 +240,24 @@ where
         Some(TopicProxy::new(topic_weak))
     }
 
-    fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()> {
-        let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
-        let topic_shared = a_topic.as_ref().upgrade()?;
-        if std::ptr::eq(&a_topic.get_participant(), self) {
-            domain_participant_attributes_lock
-                .topic_list
-                .retain(|x| *x != topic_shared);
-            Ok(())
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Topic can only be deleted from its parent participant".to_string(),
-            ))
-        }
+    fn topic_factory_delete_topic(&self, topic: &Self::TopicType) -> DDSResult<()> {
+        let domain_participant_shared = self.domain_participant.upgrade()?;
+        let topic_shared = topic.as_ref().upgrade()?;
+
+        let topic_list = &mut domain_participant_shared
+            .write()
+            .map_err(|_| DDSError::Error)?
+            .topic_list;
+
+        topic_list.remove(
+            topic_list.iter()
+                .position(|topic| topic == &topic_shared)
+                .ok_or(DDSError::PreconditionNotMet(
+                    "Topic can only be deleted from its parent publisher".to_string()
+                ))?
+        );
+
+        Ok(())
     }
 
     fn topic_factory_find_topic(
@@ -262,9 +266,10 @@ where
         _timeout: Duration,
     ) -> Option<Self::TopicType> {
         self.domain_participant.upgrade().ok()?.read().ok()?
-            .topic_list
-            .iter().find_map(|topic_shared|
+            .topic_list.iter()
+            .find_map(|topic_shared|
                 topic_shared.read().ok()
+                    .filter(|topic| topic.type_name == Foo::type_name())
                     .filter(|topic| topic.topic_name == topic_name)
                     .and(Some(TopicProxy::new(topic_shared.downgrade())))
             )
@@ -637,5 +642,245 @@ where
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_instance_handle()
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rust_dds_api::{domain::domain_participant::DomainParticipantTopicFactory, return_type::DDSError, dcps_psm::Duration};
+
+    use crate::{utils::{shared_object::RtpsShared, rtps_structure::RtpsStructure}, dds_type::DdsType, dds_impl::topic_proxy::TopicProxy};
+
+    use super::{DomainParticipantProxy, DomainParticipantAttributes};
+
+    // fn make_topic<Rtps: RtpsStructure>(
+    //     type_name: &'static str,
+    //     topic_name: &'static str,
+    // ) -> TopicAttributes<Rtps> {
+    //     TopicAttributes::new(TopicQos::default(), type_name, topic_name, RtpsWeak::new())
+    // }
+    struct EmptyRtps {}
+
+    impl RtpsStructure for EmptyRtps {
+        type StatelessWriter = ();
+        type StatefulWriter = ();
+        type StatelessReader = ();
+        type StatefulReader = ();
+    }
+
+    
+    macro_rules! make_empty_dds_type {
+        ($type_name:ident) => {
+            struct $type_name {}
+
+            impl DdsType for $type_name {
+                fn type_name() -> &'static str {
+                    stringify!($type_name)
+                }
+
+                fn has_key() -> bool {
+                    false
+                }
+            }
+        };
+    }
+
+    make_empty_dds_type!(Foo);
+
+    #[test]
+    fn topic_factory_create_topic() {
+        type Topic = TopicProxy<Foo, EmptyRtps>;
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+
+        let topic = domain_participant_proxy
+            .topic_factory_create_topic("topic", None, None, 0)
+            as Option<Topic>;
+
+        assert!(topic.is_some());
+        assert_eq!(1, domain_participant.read().unwrap().topic_list.len());
+    }
+
+    #[test]
+    fn topic_factory_delete_topic() {
+        type Topic = TopicProxy<Foo, EmptyRtps>;
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+
+        let topic = domain_participant_proxy
+            .topic_factory_create_topic("topic", None, None, 0)
+            .unwrap() as Topic;
+
+        assert_eq!(1, domain_participant.read().unwrap().topic_list.len());
+
+        domain_participant_proxy
+            .topic_factory_delete_topic(&topic)
+            .unwrap();
+
+        assert_eq!(0, domain_participant.read().unwrap().topic_list.len());
+        assert!(topic.as_ref().upgrade().is_err());
+    }
+
+    #[test]
+    fn topic_factory_delete_topic_from_other_participant() {
+        type Topic = TopicProxy<Foo, EmptyRtps>;
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+
+        let domain_participant2 = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant2_proxy = DomainParticipantProxy::new(domain_participant2.downgrade());
+
+        let topic = domain_participant_proxy
+            .topic_factory_create_topic("topic", None, None, 0)
+            .unwrap() as Topic;
+
+        assert_eq!(1, domain_participant.read().unwrap().topic_list.len());
+        assert_eq!(0, domain_participant2.read().unwrap().topic_list.len());
+
+        assert!(matches!(
+            domain_participant2_proxy.topic_factory_delete_topic(&topic),
+            Err(DDSError::PreconditionNotMet(_))
+        ));
+        assert!(topic.as_ref().upgrade().is_ok());
+    }
+
+    #[test]
+    fn topic_factory_lookup_topic_with_no_topic() {
+        type Topic = TopicProxy<Foo, EmptyRtps>;
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+
+        assert!(
+            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
+                as Option<Topic>
+            ).is_none()
+        );
+    }
+
+    #[test]
+    fn topic_factory_lookup_topic_with_one_topic() {
+        type Topic = TopicProxy<Foo, EmptyRtps>;
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+
+        let topic = domain_participant_proxy
+            .topic_factory_create_topic("topic", None, None, 0)
+            .unwrap() as Topic;
+
+        assert!(
+            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
+             as Option<Topic>
+            ).unwrap().as_ref().upgrade().unwrap()
+            == 
+            topic
+                .as_ref().upgrade().unwrap()
+        );
+    }
+
+    make_empty_dds_type!(Bar);
+
+    #[test]
+    fn topic_factory_lookup_topic_with_one_topic_with_wrong_type() {
+        type TopicFoo = TopicProxy<Foo, EmptyRtps>;
+        type TopicBar = TopicProxy<Bar, EmptyRtps>;
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+
+        domain_participant_proxy
+            .topic_factory_create_topic("topic", None, None, 0)
+            .unwrap() as TopicBar;
+
+        assert!(
+            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
+             as Option<TopicFoo>
+            ).is_none()
+        );
+    }
+
+    #[test]
+    fn topic_factory_lookup_topic_with_one_topic_with_wrong_name() {
+        type Topic = TopicProxy<Foo, EmptyRtps>;
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+
+        domain_participant_proxy
+            .topic_factory_create_topic("other_topic", None, None, 0)
+            .unwrap() as Topic;
+
+        assert!(
+            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
+             as Option<Topic>
+            ).is_none()
+        );
+    }
+
+    #[test]
+    fn topic_factory_lookup_topic_with_two_types() {
+        type TopicFoo = TopicProxy<Foo, EmptyRtps>;
+        type TopicBar = TopicProxy<Bar, EmptyRtps>;
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+
+        let topic_foo = domain_participant_proxy
+            .topic_factory_create_topic("topic", None, None, 0)
+            .unwrap() as TopicFoo;
+        let topic_bar = domain_participant_proxy
+            .topic_factory_create_topic("topic", None, None, 0)
+            .unwrap() as TopicBar;
+            
+        assert!(
+            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
+             as Option<TopicFoo>
+            ).unwrap().as_ref().upgrade().unwrap()
+            == 
+            topic_foo.as_ref().upgrade().unwrap()
+        );
+        
+        assert!(
+            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
+                as Option<TopicBar>
+            ).unwrap().as_ref().upgrade().unwrap()
+            == 
+            topic_bar.as_ref().upgrade().unwrap()
+        );
+    }
+
+    #[test]
+    fn topic_factory_lookup_topic_with_two_topics() {
+        type Topic = TopicProxy<Foo, EmptyRtps>;
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+
+        let topic1 = domain_participant_proxy
+            .topic_factory_create_topic("topic1", None, None, 0)
+            .unwrap() as Topic;
+        let topic2 = domain_participant_proxy
+            .topic_factory_create_topic("topic2", None, None, 0)
+            .unwrap() as Topic;
+
+        assert!(
+            (domain_participant_proxy.topic_factory_find_topic("topic1", Duration::new(1, 0))
+             as Option<Topic>
+            ).unwrap().as_ref().upgrade().unwrap()
+            == 
+            topic1.as_ref().upgrade().unwrap()
+        );
+
+        assert!(
+            (domain_participant_proxy.topic_factory_find_topic("topic2", Duration::new(1, 0))
+             as Option<Topic>
+            ).unwrap().as_ref().upgrade().unwrap()
+            == 
+            topic2.as_ref().upgrade().unwrap()
+        );
     }
 }
