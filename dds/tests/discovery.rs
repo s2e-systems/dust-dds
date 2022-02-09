@@ -150,8 +150,7 @@ fn send_and_receive_discovery_data_happy_path() {
         let shared_data_writer = RtpsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
         publisher
-            .write()
-            .unwrap()
+            .write_lock()
             .data_writer_list
             .push(shared_data_writer);
 
@@ -209,8 +208,7 @@ fn send_and_receive_discovery_data_happy_path() {
         let shared_data_reader = RtpsShared::new(data_reader);
         let weak_data_reader = shared_data_reader.downgrade();
         subscriber
-            .write()
-            .unwrap()
+            .write_lock()
             .data_reader_list
             .push(shared_data_reader);
 
@@ -317,8 +315,7 @@ fn process_discovery_data_happy_path() {
         let shared_data_writer = RtpsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
         publisher
-            .write()
-            .unwrap()
+            .write_lock()
             .data_writer_list
             .push(shared_data_writer);
 
@@ -354,8 +351,7 @@ fn process_discovery_data_happy_path() {
         let shared_data_writer = RtpsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
         publisher
-            .write()
-            .unwrap()
+            .write_lock()
             .data_writer_list
             .push(shared_data_writer);
 
@@ -404,8 +400,7 @@ fn process_discovery_data_happy_path() {
         let shared_data_reader = RtpsShared::new(data_reader);
         let weak_data_reader = shared_data_reader.downgrade();
         subscriber
-            .write()
-            .unwrap()
+            .write_lock()
             .data_reader_list
             .push(shared_data_reader);
 
@@ -438,8 +433,7 @@ fn process_discovery_data_happy_path() {
         let shared_data_reader = RtpsShared::new(data_reader);
         let weak_data_reader = shared_data_reader.downgrade();
         subscriber
-            .write()
-            .unwrap()
+            .write_lock()
             .data_reader_list
             .push(shared_data_reader);
 
@@ -456,8 +450,7 @@ fn process_discovery_data_happy_path() {
                 .as_ref()
                 .upgrade()
                 .unwrap()
-                .write()
-                .unwrap() // ??????
+                .write_lock()
                 .rtps_reader
         {
             participant_discovery
@@ -469,8 +462,7 @@ fn process_discovery_data_happy_path() {
                 .as_ref()
                 .upgrade()
                 .unwrap()
-                .write()
-                .unwrap()
+                .write_lock()
                 .rtps_writer
                 .try_as_stateful_writer()
                 .unwrap(),

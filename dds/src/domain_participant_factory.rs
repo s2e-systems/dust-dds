@@ -180,7 +180,8 @@ fn _spdp_task_discovery<T>(
     sedp_builtin_topics_reader: &mut impl RtpsStatefulReaderOperations<
         WriterProxyType = impl RtpsWriterProxyConstructor,
     >,
-) where
+)
+where
     T: Deref<Target = [SpdpDiscoveredParticipantData]>,
 {
     let mut spdp_builtin_participant_data_reader_lock =
@@ -234,7 +235,7 @@ fn _task_sedp_discovery(
             for subscriber in subscriber_list_lock.iter() {
                 let subscriber_lock = subscriber.read_lock();
                 for data_reader in subscriber_lock.data_reader_list.iter() {
-                    let mut data_reader_lock = data_reader.write().unwrap();
+                    let mut data_reader_lock = data_reader.write_lock();
                     let reader_topic_name = &data_reader_lock.topic.read_lock().topic_name.clone();
                     let reader_type_name = data_reader_lock.topic.read_lock().type_name;
                     if topic_name == reader_topic_name && type_name == reader_type_name {
@@ -399,8 +400,7 @@ impl DomainParticipantFactory {
             domain_participant.downgrade(),
         ));
         domain_participant
-            .write()
-            .unwrap()
+            .write_lock()
             .builtin_subscriber_list
             .push(builtin_subscriber.clone());
 
@@ -414,8 +414,7 @@ impl DomainParticipantFactory {
             domain_participant.downgrade(),
         ));
         domain_participant
-            .write()
-            .unwrap()
+            .write_lock()
             .builtin_subscriber_list
             .push(builtin_subscriber.clone());
 
@@ -439,8 +438,7 @@ impl DomainParticipantFactory {
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write()
-            .unwrap()
+            .write_lock()
             .data_reader_list
             .push(spdp_builtin_participant_data_reader.clone());
 
@@ -465,8 +463,7 @@ impl DomainParticipantFactory {
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write()
-            .unwrap()
+            .write_lock()
             .data_writer_list
             .push(spdp_builtin_participant_data_writer.clone());
 
@@ -487,8 +484,7 @@ impl DomainParticipantFactory {
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write()
-            .unwrap()
+            .write_lock()
             .data_reader_list
             .push(sedp_builtin_publications_data_reader.clone());
 
@@ -501,8 +497,7 @@ impl DomainParticipantFactory {
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write()
-            .unwrap()
+            .write_lock()
             .data_writer_list
             .push(sedp_builtin_publications_data_writer.clone());
 
@@ -523,8 +518,7 @@ impl DomainParticipantFactory {
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write()
-            .unwrap()
+            .write_lock()
             .data_reader_list
             .push(sedp_builtin_subscriptions_data_reader.clone());
 
@@ -537,8 +531,7 @@ impl DomainParticipantFactory {
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write()
-            .unwrap()
+            .write_lock()
             .data_writer_list
             .push(sedp_builtin_subscriptions_data_writer.clone());
 
@@ -559,8 +552,7 @@ impl DomainParticipantFactory {
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write()
-            .unwrap()
+            .write_lock()
             .data_reader_list
             .push(sedp_builtin_topics_data_reader.clone());
 
@@ -573,8 +565,7 @@ impl DomainParticipantFactory {
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write()
-            .unwrap()
+            .write_lock()
             .data_writer_list
             .push(sedp_builtin_topics_data_writer.clone());
 
@@ -595,15 +586,13 @@ impl DomainParticipantFactory {
             move || {
                 builtin_communication.send(
                     domain_participant_shared
-                        .read()
-                        .unwrap()
+                        .read_lock()
                         .builtin_publisher_list
                         .as_ref(),
                 );
                 builtin_communication.receive(
                     domain_participant_shared
-                        .read()
-                        .unwrap()
+                        .read_lock()
                         .builtin_subscriber_list
                         .as_ref(),
                 );
@@ -623,15 +612,13 @@ impl DomainParticipantFactory {
             move || {
                 communication.send(
                     domain_participant_shared
-                        .read()
-                        .unwrap()
+                        .read_lock()
                         .builtin_publisher_list
                         .as_ref(),
                 );
                 communication.receive(
                     domain_participant_shared
-                        .read()
-                        .unwrap()
+                        .read_lock()
                         .builtin_subscriber_list
                         .as_ref(),
                 );

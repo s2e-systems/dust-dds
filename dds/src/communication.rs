@@ -12,7 +12,7 @@ use rust_rtps_pim::{
         stateful_writer_behavior::StatefulWriterBehavior,
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::{
-            reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
+            reader_proxy::RtpsReaderProxyAttributes, reader_locator::RtpsReaderLocatorAttributes,
         },
     },
     messages::overall_structure::RtpsMessageHeader,
@@ -43,7 +43,7 @@ where
 {
     pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes<RtpsStructureImpl>>]) {
         for publisher in list {
-            let mut publisher_lock = publisher.write().unwrap();
+            let mut publisher_lock = publisher.write_lock();
 
             let message_header = RtpsMessageHeader {
                 protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
@@ -53,7 +53,7 @@ where
             };
 
             for any_data_writer in &mut publisher_lock.data_writer_list {
-                let mut rtps_writer_lock = any_data_writer.write().unwrap();
+                let mut rtps_writer_lock = any_data_writer.write_lock();
                 let rtps_writer = &mut rtps_writer_lock.rtps_writer;
 
                 match rtps_writer {

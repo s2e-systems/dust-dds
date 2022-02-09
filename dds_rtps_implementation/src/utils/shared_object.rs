@@ -1,6 +1,5 @@
 use std::{
-    ops::Deref,
-    sync::{Arc, LockResult, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
 };
 
 use rust_dds_api::return_type::{DDSError, DDSResult};
@@ -17,15 +16,13 @@ impl<T> RtpsShared<T> {
     }
 
     pub fn read_lock(&self) -> RwLockReadGuard<'_, T> {
-        self.0.read().unwrap()
+        self.0.read()
+            .expect("The lock is poisoned (;_;)")
     }
 
     pub fn write_lock(&self) -> RwLockWriteGuard<'_, T> {
-        self.0.write().unwrap()
-    }
-
-    pub fn write(&self) -> LockResult<RwLockWriteGuard<'_, T>> {
         self.0.write()
+            .expect("The lock is poisoned (;_;)")
     }
 }
 
@@ -38,13 +35,6 @@ impl<T: ?Sized> Clone for RtpsShared<T> {
 impl<T> PartialEq for RtpsShared<T> {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-impl<T: ?Sized> Deref for RtpsShared<T> {
-    type Target = RwLock<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 

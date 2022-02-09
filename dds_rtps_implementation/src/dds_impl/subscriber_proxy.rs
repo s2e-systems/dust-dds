@@ -125,7 +125,7 @@ where
         _mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade().ok()?;
-        let mut subscriber_shared_lock = subscriber_shared.write().ok()?;
+        let mut subscriber_shared_lock = subscriber_shared.write_lock();
 
         let qos = qos.unwrap_or(subscriber_shared_lock.default_data_reader_qos.clone());
         qos.is_consistent().ok()?;
@@ -193,8 +193,7 @@ where
         let datareader_shared = datareader.as_ref().upgrade()?;
 
         let data_reader_list = &mut subscriber_shared
-            .write()
-            .map_err(|_| DDSError::Error)?
+            .write_lock()
             .data_reader_list;
 
         data_reader_list.remove(
@@ -214,22 +213,24 @@ where
         topic: &Self::TopicType,
     ) -> Option<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade().ok()?;
-        let data_reader_list = &subscriber_shared.write().ok()?.data_reader_list;
+        let data_reader_list = &subscriber_shared.write_lock().data_reader_list;
 
         let topic_shared = topic.as_ref().upgrade().ok()?;
-        let topic = topic_shared.read().ok()?;
+        let topic = topic_shared.read_lock();
 
-        data_reader_list.iter().find_map(|data_reader| {
-            data_reader
-                .read()
-                .ok()?
-                .topic
-                .read()
-                .ok()
-                .filter(|data_reader_topic| data_reader_topic.type_name == Foo::type_name())
-                .filter(|data_reader_topic| data_reader_topic.topic_name == topic.topic_name)
-                .and(Some(DataReaderProxy::new(data_reader.downgrade())))
-        })
+        data_reader_list.iter()
+            .find_map(|data_reader_shared| {
+                let data_reader_lock = data_reader_shared.read_lock();
+                let data_reader_topic = data_reader_lock.topic.read_lock();
+                
+                if data_reader_topic.topic_name == topic.topic_name &&
+                   data_reader_topic.type_name  == Foo::type_name()
+                {
+                    Some(DataReaderProxy::new(data_reader_shared.downgrade()))
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -358,8 +359,8 @@ mod tests {
         behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::Duration},
         messages::types::Count,
         structure::{types::{
-            Guid, Locator, ProtocolVersion, ReliabilityKind, TopicKind, VendorId, GUID_UNKNOWN,
-        }, participant::RtpsParticipantConstructor, group::RtpsGroupConstructor, entity::RtpsEntityAttributes},
+            Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN,
+        }, entity::RtpsEntityAttributes},
     };
 
     use crate::{
@@ -376,31 +377,12 @@ mod tests {
 
     use super::{SubscriberAttributes, SubscriberProxy};
 
+    #[derive(Default)]
     struct EmptyGroup {}
-
-    impl RtpsGroupConstructor for EmptyGroup {
-        fn new(_guid: Guid) -> Self {
-            EmptyGroup {}
-        }
-    }
 
     impl RtpsEntityAttributes for EmptyGroup {
         fn guid(&self) -> &Guid {
             &GUID_UNKNOWN
-        }
-    }
-
-    struct EmptyParticipant {}
-
-    impl RtpsParticipantConstructor for EmptyParticipant {
-        fn new(
-            _guid: Guid,
-            _protocol_version: ProtocolVersion,
-            _vendor_id: VendorId,
-            _default_unicast_locator_list: &[Locator],
-            _default_multicast_locator_list: &[Locator],
-        ) -> Self {
-            EmptyParticipant {}
         }
     }
 
@@ -425,7 +407,7 @@ mod tests {
 
     impl RtpsStructure for EmptyRtps {
         type Group           = EmptyGroup;
-        type Participant     = EmptyParticipant;
+        type Participant     = ();
         type StatelessWriter = ();
         type StatefulWriter  = ();
         type StatelessReader = ();
@@ -458,17 +440,11 @@ mod tests {
 
     impl<Rtps: RtpsStructure> Default for DomainParticipantAttributes<Rtps>
     where
-        Rtps::Participant: RtpsParticipantConstructor
+        Rtps::Participant: Default,
     {
         fn default() -> Self {
             DomainParticipantAttributes {
-                rtps_participant: Rtps::Participant::new(
-                    GUID_UNKNOWN,
-                    ProtocolVersion { major: 0, minor: 0 },
-                    VendorId::default(),
-                    &[],
-                    &[],
-                ),
+                rtps_participant: Rtps::Participant::default(),
                 domain_id: DomainId::default(),
                 domain_tag: "".to_string(),
                 qos: DomainParticipantQos::default(),
@@ -493,12 +469,12 @@ mod tests {
 
     impl<Rtps: RtpsStructure> Default for SubscriberAttributes<Rtps>
     where
-        Rtps::Group: RtpsGroupConstructor
+        Rtps::Group: Default
     {
         fn default() -> Self {
             SubscriberAttributes {
                 qos: SubscriberQos::default(),
-                rtps_group: Rtps::Group::new(GUID_UNKNOWN),
+                rtps_group: Rtps::Group::default(),
                 data_reader_list: Vec::new(),
                 user_defined_data_reader_counter: 0,
                 default_data_reader_qos: DataReaderQos::default(),
@@ -545,7 +521,7 @@ mod tests {
             subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0);
 
         assert!(data_reader.is_some());
-        assert_eq!(1, subscriber.read().unwrap().data_reader_list.len());
+        assert_eq!(1, subscriber.read_lock().data_reader_list.len());
     }
 
     #[test]
@@ -563,12 +539,12 @@ mod tests {
             .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, subscriber.read().unwrap().data_reader_list.len());
+        assert_eq!(1, subscriber.read_lock().data_reader_list.len());
 
         subscriber_proxy
             .datareader_factory_delete_datareader(&data_reader)
             .unwrap();
-        assert_eq!(0, subscriber.read().unwrap().data_reader_list.len());
+        assert_eq!(0, subscriber.read_lock().data_reader_list.len());
         assert!(data_reader.as_ref().upgrade().is_err());
     }
 
@@ -592,8 +568,8 @@ mod tests {
             .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, subscriber.read().unwrap().data_reader_list.len());
-        assert_eq!(0, subscriber2.read().unwrap().data_reader_list.len());
+        assert_eq!(1, subscriber.read_lock().data_reader_list.len());
+        assert_eq!(0, subscriber2.read_lock().data_reader_list.len());
 
         assert!(matches!(
             subscriber2_proxy.datareader_factory_delete_datareader(&data_reader),
@@ -613,9 +589,10 @@ mod tests {
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
-        assert!(subscriber_proxy
-            .datareader_factory_lookup_datareader(&topic_proxy)
-            .is_none());
+        assert!(
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic_proxy)
+                .is_none()
+        );
     }
 
     #[test]
@@ -634,13 +611,11 @@ mod tests {
             .unwrap();
 
         assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader.as_ref().upgrade().unwrap()
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+            data_reader
+                .as_ref().upgrade().unwrap()
         );
     }
 
@@ -664,9 +639,10 @@ mod tests {
             .datareader_factory_create_datareader(&topic_bar_proxy, None, None, 0)
             .unwrap();
 
-        assert!(subscriber_proxy
-            .datareader_factory_lookup_datareader(&topic_foo_proxy)
-            .is_none());
+        assert!(
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic_foo_proxy)
+                .is_none()
+        );
     }
 
     #[test]
@@ -687,9 +663,10 @@ mod tests {
             .datareader_factory_create_datareader(&topic2_proxy, None, None, 0)
             .unwrap();
 
-        assert!(subscriber_proxy
-            .datareader_factory_lookup_datareader(&topic1_proxy)
-            .is_none());
+        assert!(
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic1_proxy)
+                .is_none()
+        );
     }
 
     #[test]
@@ -714,23 +691,19 @@ mod tests {
             .unwrap();
 
         assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic_foo_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader_foo.as_ref().upgrade().unwrap()
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic_foo_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+            data_reader_foo
+                .as_ref().upgrade().unwrap()
         );
 
         assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic_bar_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader_bar.as_ref().upgrade().unwrap()
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic_bar_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+            data_reader_bar
+                .as_ref().upgrade().unwrap()
         );
     }
 
@@ -756,23 +729,17 @@ mod tests {
             .unwrap();
 
         assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic1_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader1.as_ref().upgrade().unwrap()
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic1_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+                data_reader1.as_ref().upgrade().unwrap()
         );
 
         assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic2_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader2.as_ref().upgrade().unwrap()
+            subscriber_proxy.datareader_factory_lookup_datareader(&topic2_proxy)
+                .unwrap().as_ref().upgrade().unwrap()
+            ==
+                data_reader2.as_ref().upgrade().unwrap()
         );
     }
 }

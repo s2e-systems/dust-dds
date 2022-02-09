@@ -245,8 +245,7 @@ where
         let topic_shared = topic.as_ref().upgrade()?;
 
         let topic_list = &mut domain_participant_shared
-            .write()
-            .map_err(|_| DDSError::Error)?
+            .write_lock()
             .topic_list;
 
         topic_list.remove(
@@ -265,14 +264,20 @@ where
         topic_name: &str,
         _timeout: Duration,
     ) -> Option<Self::TopicType> {
-        self.domain_participant.upgrade().ok()?.read().ok()?
+
+        self.domain_participant.upgrade().ok()?.read_lock()
             .topic_list.iter()
-            .find_map(|topic_shared|
-                topic_shared.read().ok()
-                    .filter(|topic| topic.type_name == Foo::type_name())
-                    .filter(|topic| topic.topic_name == topic_name)
-                    .and(Some(TopicProxy::new(topic_shared.downgrade())))
-            )
+            .find_map(|topic_shared| {
+                let topic = topic_shared.read_lock();
+                
+                if topic.topic_name == topic_name &&
+                   topic.type_name  == Foo::type_name()
+                {
+                    Some(TopicProxy::new(topic_shared.downgrade()))
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -658,10 +663,12 @@ mod tests {
     struct EmptyRtps {}
 
     impl RtpsStructure for EmptyRtps {
+        type Group           = ();
+        type Participant     = ();
         type StatelessWriter = ();
-        type StatefulWriter = ();
+        type StatefulWriter  = ();
         type StatelessReader = ();
-        type StatefulReader = ();
+        type StatefulReader  = ();
     }
 
     
@@ -695,7 +702,7 @@ mod tests {
             as Option<Topic>;
 
         assert!(topic.is_some());
-        assert_eq!(1, domain_participant.read().unwrap().topic_list.len());
+        assert_eq!(1, domain_participant.read_lock().topic_list.len());
     }
 
     #[test]
@@ -709,13 +716,13 @@ mod tests {
             .topic_factory_create_topic("topic", None, None, 0)
             .unwrap() as Topic;
 
-        assert_eq!(1, domain_participant.read().unwrap().topic_list.len());
+        assert_eq!(1, domain_participant.read_lock().topic_list.len());
 
         domain_participant_proxy
             .topic_factory_delete_topic(&topic)
             .unwrap();
 
-        assert_eq!(0, domain_participant.read().unwrap().topic_list.len());
+        assert_eq!(0, domain_participant.read_lock().topic_list.len());
         assert!(topic.as_ref().upgrade().is_err());
     }
 
@@ -733,8 +740,8 @@ mod tests {
             .topic_factory_create_topic("topic", None, None, 0)
             .unwrap() as Topic;
 
-        assert_eq!(1, domain_participant.read().unwrap().topic_list.len());
-        assert_eq!(0, domain_participant2.read().unwrap().topic_list.len());
+        assert_eq!(1, domain_participant.read_lock().topic_list.len());
+        assert_eq!(0, domain_participant2.read_lock().topic_list.len());
 
         assert!(matches!(
             domain_participant2_proxy.topic_factory_delete_topic(&topic),
