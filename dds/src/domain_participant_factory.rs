@@ -584,17 +584,19 @@ impl DomainParticipantFactory {
             move || {
                 builtin_communication.send(
                    core::slice::from_ref(
-                       &domain_participant_shared
+                       domain_participant_shared
                         .read_lock()
                         .builtin_publisher
+                        .as_ref()
                         .unwrap()
                    ),
                 );
                 builtin_communication.receive(
                     core::slice::from_ref(
-                        &domain_participant_shared
+                        domain_participant_shared
                         .read_lock()
                         .builtin_subscriber
+                        .as_ref()
                         .unwrap()
                     ),
                 );

@@ -65,11 +65,9 @@ use rust_rtps_pim::{
     messages::types::Count,
     structure::{types::{
         EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator,
-        BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E, EntityKey,
-    }, group::RtpsGroupConstructor, participant::{RtpsParticipantConstructor, RtpsParticipantAttributes}},
+        BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
+    }, group::RtpsGroupConstructor},
 };
-
-const BUILTIN_PARTICIPANT_KIND: u8 = 0xc1;
 
 const DEFAULT_GUID_PREFIX: GuidPrefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
 
