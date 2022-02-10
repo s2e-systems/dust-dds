@@ -6,9 +6,9 @@ use rust_dds::{
         sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
-    domain_participant_factory::RtpsStructureImpl,
+    domain_participant_factory::{RtpsStructureImpl, DomainParticipantFactory},
     infrastructure::{
-        qos::{DataReaderQos, SubscriberQos, TopicQos, DomainParticipantQos},
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
             DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
@@ -19,7 +19,7 @@ use rust_dds::{
     },
     publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
-    types::{Duration, DomainId},
+    types::{Duration},
     udp_transport::UdpTransport, domain::domain_participant::DomainParticipant,
 };
 use rust_dds_api::{
@@ -36,7 +36,7 @@ use rust_dds_rtps_implementation::{
         data_writer_proxy::{DataWriterAttributes, DataWriterProxy, RtpsWriter},
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
-        topic_proxy::TopicAttributes, domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
+        topic_proxy::TopicAttributes,
     },
     dds_type::DdsType,
     rtps_impl::{
@@ -551,24 +551,15 @@ impl RtpsStructure for Rtps {
     type StatefulReader = RtpsStatefulReaderImpl;
 }
 
-fn make_participant(domain_id: DomainId, domain_tag: &str) -> DomainParticipantAttributes<Rtps> {
-    DomainParticipantAttributes::<Rtps>::new(
-        DEFAULT_GUID_PREFIX,
-        domain_id, domain_tag.to_string(),
-        DomainParticipantQos::default(),
-        vec![], vec![],
-        vec![], vec![],
-    )
-}
-
 #[test]
-fn two_participants_discover_each_other() {
-    let participant1 = RtpsShared::new(make_participant(1, "ab"));
-    let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
+fn create_two_participants() {
+    let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant2 = RtpsShared::new(make_participant(1, "ab"));
-    let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
+    let participant1 = participant_factory.create_participant(1, None, None, 0)
+        .unwrap();
+    let participant2 = participant_factory.create_participant(2, None, None, 0)
+        .unwrap();
 
-    assert!(participant1_proxy.get_builtin_subscriber().is_ok());
-    assert!(participant2_proxy.get_builtin_subscriber().is_ok());
+    assert!(participant1.get_builtin_subscriber().is_ok());
+    assert!(participant2.get_builtin_subscriber().is_ok());
 }
