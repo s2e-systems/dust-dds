@@ -3,9 +3,7 @@ use crate::{
     structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
-use super::reader::RtpsReaderAttributes;
-
-pub trait RtpsStatefulReaderAttributes: RtpsReaderAttributes {
+pub trait RtpsStatefulReaderAttributes {
     type WriterProxyType;
     fn matched_writers(&self) -> &[Self::WriterProxyType];
 }

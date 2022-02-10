@@ -1,6 +1,6 @@
-use crate::{behavior::types::Duration, structure::endpoint::RtpsEndpointAttributes};
+use crate::behavior::types::Duration;
 
-pub trait RtpsReaderAttributes: RtpsEndpointAttributes {
+pub trait RtpsReaderAttributes {
     type ReaderHistoryCacheType;
 
     fn heartbeat_response_delay(&self) -> &Duration;

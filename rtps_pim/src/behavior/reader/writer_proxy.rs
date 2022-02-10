@@ -1,6 +1,5 @@
 use crate::structure::types::{EntityId, Guid, Locator, SequenceNumber};
 
-
 pub trait RtpsWriterProxyConstructor {
     fn new(
         remote_writer_guid: Guid,
