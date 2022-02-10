@@ -7,7 +7,7 @@ use rust_rtps_pim::{
         types::Duration,
     },
     structure::{
-        types::{Guid, Locator, ReliabilityKind, TopicKind},
+        types::{Guid, Locator, ReliabilityKind, TopicKind}, entity::RtpsEntityAttributes,
     },
 };
 
@@ -49,7 +49,10 @@ impl<'a> IntoIterator for &'a mut RtpsStatelessReaderImpl {
         std::option::IntoIter<BestEffortStatelessReaderBehavior<'a, ReaderHistoryCache>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Some(self.into())
+        Some(BestEffortStatelessReaderBehavior {
+            reader_guid: self.endpoint.guid(),
+            reader_cache: &mut self.reader_cache,
+        })
         .into_iter()
     }
 }

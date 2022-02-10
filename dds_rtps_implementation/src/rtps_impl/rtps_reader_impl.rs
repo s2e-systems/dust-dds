@@ -2,7 +2,6 @@ use rust_rtps_pim::{
     behavior::{
         types::Duration,
         reader::reader::RtpsReaderAttributes,
-        stateless_reader_behavior::BestEffortStatelessReaderBehavior
     },
     structure::{
         entity::RtpsEntityAttributes,
@@ -18,11 +17,11 @@ use super::{
 };
 
 pub struct RtpsReaderImpl {
-    endpoint: RtpsEndpointImpl,
-    heartbeat_response_delay: Duration,
-    heartbeat_supression_duration: Duration,
-    reader_cache: ReaderHistoryCache,
-    expects_inline_qos: bool,
+    pub endpoint: RtpsEndpointImpl,
+    pub heartbeat_response_delay: Duration,
+    pub heartbeat_supression_duration: Duration,
+    pub reader_cache: ReaderHistoryCache,
+    pub expects_inline_qos: bool,
 }
 
 impl RtpsReaderImpl {
@@ -83,16 +82,5 @@ impl RtpsReaderAttributes for RtpsReaderImpl {
 
     fn expects_inline_qos(&self) -> &bool {
         &self.expects_inline_qos
-    }
-}
-
-impl<'a> From<&'a mut RtpsReaderImpl>
-for BestEffortStatelessReaderBehavior<'a, ReaderHistoryCache>
-{
-    fn from(reader: &'a mut RtpsReaderImpl) -> Self {
-        BestEffortStatelessReaderBehavior {
-            reader_guid: reader.endpoint.guid(),
-            reader_cache: &mut reader.reader_cache,
-        }
     }
 }

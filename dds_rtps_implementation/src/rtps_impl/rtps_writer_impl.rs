@@ -7,14 +7,14 @@ use super::{
 };
 
 pub struct RtpsWriterImpl {
-    endpoint: RtpsEndpointImpl,
-    push_mode: bool,
-    heartbeat_period: Duration,
-    nack_response_delay: Duration,
-    nack_suppression_duration: Duration,
-    last_change_sequence_number: SequenceNumber,
-    data_max_size_serialized: Option<i32>,
-    writer_cache: WriterHistoryCache,
+    pub endpoint: RtpsEndpointImpl,
+    pub push_mode: bool,
+    pub heartbeat_period: Duration,
+    pub nack_response_delay: Duration,
+    pub nack_suppression_duration: Duration,
+    pub last_change_sequence_number: SequenceNumber,
+    pub data_max_size_serialized: Option<i32>,
+    pub writer_cache: WriterHistoryCache,
 }
 
 impl RtpsWriterImpl {
