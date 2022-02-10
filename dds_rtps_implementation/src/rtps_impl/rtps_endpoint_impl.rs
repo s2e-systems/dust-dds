@@ -34,7 +34,7 @@ impl RtpsEndpointImpl {
 
 impl RtpsEntityAttributes for RtpsEndpointImpl {
     fn guid(&self) -> &Guid {
-        self.entity.guid()
+        &self.entity.guid
     }
 }
 
