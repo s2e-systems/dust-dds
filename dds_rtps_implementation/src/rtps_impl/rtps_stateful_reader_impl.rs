@@ -15,7 +15,6 @@ use rust_rtps_pim::{
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
-        history_cache::RtpsHistoryCacheConstructor,
         types::{Guid, Locator, ReliabilityKind, TopicKind},
     },
 };
@@ -23,39 +22,35 @@ use rust_rtps_pim::{
 use super::{
     rtps_reader_history_cache_impl::ReaderHistoryCache,
     rtps_writer_proxy_impl::RtpsWriterProxyImpl,
-    rtps_endpoint_impl::RtpsEndpointImpl,
+    rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_impl::RtpsReaderImpl,
 };
 
 pub struct RtpsStatefulReaderImpl {
-    endpoint: RtpsEndpointImpl,
-    heartbeat_response_delay: Duration,
-    heartbeat_supression_duration: Duration,
-    reader_cache: ReaderHistoryCache,
-    expects_inline_qos: bool,
+    reader: RtpsReaderImpl,
     matched_writers: Vec<RtpsWriterProxyImpl>,
 }
 
 impl RtpsEntityAttributes for RtpsStatefulReaderImpl {
     fn guid(&self) -> &Guid {
-        &self.endpoint.guid()
+        self.reader.guid()
     }
 }
 
 impl RtpsEndpointAttributes for RtpsStatefulReaderImpl {
     fn topic_kind(&self) -> &TopicKind {
-        &self.endpoint.topic_kind()
+        self.reader.topic_kind()
     }
 
     fn reliability_level(&self) -> &ReliabilityKind {
-        &self.endpoint.reliability_level()
+        self.reader.reliability_level()
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        &self.endpoint.unicast_locator_list()
+        self.reader.unicast_locator_list()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        &self.endpoint.multicast_locator_list()
+        self.reader.multicast_locator_list()
     }
 }
 
@@ -63,19 +58,19 @@ impl RtpsReaderAttributes for RtpsStatefulReaderImpl {
     type ReaderHistoryCacheType = ReaderHistoryCache;
 
     fn heartbeat_response_delay(&self) -> &Duration {
-        &self.heartbeat_response_delay
+        self.reader.heartbeat_response_delay()
     }
 
     fn heartbeat_supression_duration(&self) -> &Duration {
-        &self.heartbeat_supression_duration
+        self.reader.heartbeat_supression_duration()
     }
 
     fn reader_cache(&self) -> &Self::ReaderHistoryCacheType {
-        &self.reader_cache
+        self.reader.reader_cache()
     }
 
     fn expects_inline_qos(&self) -> &bool {
-        &self.expects_inline_qos
+        self.reader.expects_inline_qos()
     }
 }
 
@@ -99,17 +94,18 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
         expects_inline_qos: bool,
     ) -> Self {
         Self {
-            endpoint: RtpsEndpointImpl::new(
-                guid,
-                topic_kind,
-                reliability_level,
-                unicast_locator_list,
-                multicast_locator_list,
+            reader: RtpsReaderImpl::new(
+                RtpsEndpointImpl::new(
+                    guid,
+                    topic_kind,
+                    reliability_level,
+                    unicast_locator_list,
+                    multicast_locator_list,
+                ),
+                heartbeat_response_delay,
+                heartbeat_supression_duration,
+                expects_inline_qos,
             ),
-            heartbeat_response_delay,
-            heartbeat_supression_duration,
-            reader_cache: ReaderHistoryCache::new(),
-            expects_inline_qos,
             matched_writers: Vec::new(),
         }
     }

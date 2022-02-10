@@ -1,4 +1,3 @@
-use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
     behavior::{
         stateless_writer_behavior::{
@@ -19,7 +18,6 @@ use rust_rtps_pim::{
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
-        history_cache::RtpsHistoryCacheConstructor,
         types::{
             ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
         },
@@ -29,42 +27,35 @@ use rust_rtps_pim::{
 use super::{
     rtps_reader_locator_impl::{RtpsReaderLocatorAttributesImpl, RtpsReaderLocatorOperationsImpl},
     rtps_writer_history_cache_impl::{WriterCacheChange, WriterHistoryCache},
-    rtps_endpoint_impl::RtpsEndpointImpl,
+    rtps_endpoint_impl::RtpsEndpointImpl, rtps_writer_impl::RtpsWriterImpl,
 };
 
 pub struct RtpsStatelessWriterImpl {
-    endpoint: RtpsEndpointImpl,
-    push_mode: bool,
-    heartbeat_period: Duration,
-    nack_response_delay: Duration,
-    nack_suppression_duration: Duration,
-    last_change_sequence_number: SequenceNumber,
-    data_max_size_serialized: Option<i32>,
-    writer_cache: WriterHistoryCache,
+    writer: RtpsWriterImpl,
     reader_locators: Vec<RtpsReaderLocatorAttributesImpl>,
 }
 
 impl RtpsEntityAttributes for RtpsStatelessWriterImpl {
     fn guid(&self) -> &Guid {
-        self.endpoint.guid()
+        self.writer.guid()
     }
 }
 
 impl RtpsEndpointAttributes for RtpsStatelessWriterImpl {
     fn topic_kind(&self) -> &TopicKind {
-        self.endpoint.topic_kind()
+        self.writer.topic_kind()
     }
 
     fn reliability_level(&self) -> &ReliabilityKind {
-        self.endpoint.reliability_level()
+        self.writer.reliability_level()
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        self.endpoint.unicast_locator_list()
+        self.writer.unicast_locator_list()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        self.endpoint.multicast_locator_list()
+        self.writer.multicast_locator_list()
     }
 }
 
@@ -72,31 +63,31 @@ impl RtpsWriterAttributes for RtpsStatelessWriterImpl {
     type WriterHistoryCacheType = WriterHistoryCache;
 
     fn push_mode(&self) -> &bool {
-        &self.push_mode
+        self.writer.push_mode()
     }
 
     fn heartbeat_period(&self) -> &Duration {
-        &self.heartbeat_period
+        self.writer.heartbeat_period()
     }
 
     fn nack_response_delay(&self) -> &Duration {
-        &self.nack_response_delay
+        self.writer.nack_response_delay()
     }
 
     fn nack_suppression_duration(&self) -> &Duration {
-        &self.nack_suppression_duration
+        self.writer.nack_suppression_duration()
     }
 
     fn last_change_sequence_number(&self) -> &SequenceNumber {
-        &self.last_change_sequence_number
+        self.writer.last_change_sequence_number()
     }
 
     fn data_max_size_serialized(&self) -> &Option<i32> {
-        &self.data_max_size_serialized
+        self.writer.data_max_size_serialized()
     }
 
     fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType {
-        &mut self.writer_cache
+        self.writer.writer_cache()
     }
 }
 
@@ -122,20 +113,20 @@ impl RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl {
         data_max_size_serialized: Option<i32>,
     ) -> Self {
         Self {
-            endpoint: RtpsEndpointImpl::new(
-                guid,
-                topic_kind,
-                reliability_level,
-                unicast_locator_list,
-                multicast_locator_list,
+            writer: RtpsWriterImpl::new(
+                RtpsEndpointImpl::new(
+                    guid,
+                    topic_kind,
+                    reliability_level,
+                    unicast_locator_list,
+                    multicast_locator_list,
+                ),
+                push_mode,
+                heartbeat_period,
+                nack_response_delay,
+                nack_suppression_duration,
+                data_max_size_serialized
             ),
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            last_change_sequence_number: 0,
-            data_max_size_serialized,
-            writer_cache: WriterHistoryCache::new(),
             reader_locators: Vec::new(),
         }
     }
@@ -201,13 +192,12 @@ impl<'a> IntoIterator for &'a mut RtpsStatelessWriterImpl {
     fn into_iter(self) -> Self::IntoIter {
         RtpsReaderLocatorIterator {
             reader_locator_attributes_iterator: self.reader_locators.iter_mut(),
-            writer_cache: &self.writer_cache,
-            reliability_level: self.endpoint.reliability_level(),
-            writer_guid: self.endpoint.guid(),
+            writer_cache: self.writer.const_writer_cache(),
+            reliability_level: self.writer.reliability_level(),
+            writer_guid: self.writer.guid(),
         }
     }
 }
-
 
 impl RtpsWriterOperations for RtpsStatelessWriterImpl {
     type DataType = Vec<u8>;
@@ -220,17 +210,6 @@ impl RtpsWriterOperations for RtpsStatelessWriterImpl {
         _inline_qos: Self::ParameterListType,
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
-        self.last_change_sequence_number = self.last_change_sequence_number + 1;
-        WriterCacheChange {
-            kind,
-            writer_guid: *self.guid(),
-            sequence_number: self.last_change_sequence_number,
-            instance_handle: handle,
-            data,
-            _source_timestamp: None,
-            _view_state_kind: ViewStateKind::New,
-            _instance_state_kind: InstanceStateKind::Alive,
-            inline_qos: vec![],
-        }
+        self.writer.new_change(kind, data, _inline_qos, handle)
     }
 }
