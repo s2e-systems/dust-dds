@@ -1,4 +1,6 @@
-use super::types::{Locator, ReliabilityKind, TopicKind};
+use super::{
+    types::{Locator, ReliabilityKind, TopicKind},
+};
 
 pub trait RtpsEndpointAttributes {
     fn topic_kind(&self) -> &TopicKind;
