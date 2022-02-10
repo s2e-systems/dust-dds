@@ -552,7 +552,7 @@ impl RtpsStructure for Rtps {
 }
 
 #[test]
-fn create_two_participants() {
+fn create_two_participants_with_different_domains() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory.create_participant(1, None, None, 0)
