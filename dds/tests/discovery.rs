@@ -6,7 +6,7 @@ use rust_dds::{
         sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
-    domain_participant_factory::RtpsStructureImpl,
+    domain_participant_factory::{RtpsStructureImpl, DomainParticipantFactory},
     infrastructure::{
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
@@ -19,8 +19,8 @@ use rust_dds::{
     },
     publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
-    types::Duration,
-    udp_transport::UdpTransport,
+    types::{Duration},
+    udp_transport::UdpTransport, domain::domain_participant::DomainParticipant,
 };
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
@@ -44,9 +44,9 @@ use rust_dds_rtps_implementation::{
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl, rtps_participant_impl::RtpsParticipantImpl,
     },
-    utils::shared_object::{RtpsShared, RtpsWeak},
+    utils::{shared_object::{RtpsShared, RtpsWeak}, rtps_structure::RtpsStructure},
 };
 use rust_rtps_pim::{
     behavior::{
@@ -64,15 +64,13 @@ use rust_rtps_pim::{
     },
     messages::types::Count,
     structure::{types::{
-        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, ProtocolVersion,
+        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator,
         BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
     }, group::RtpsGroupConstructor},
 };
 
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
-    let guid_prefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
-
     let dds_participant_data = ParticipantBuiltinTopicData {
         key: BuiltInTopicKey {
             value: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -83,9 +81,9 @@ fn send_and_receive_discovery_data_happy_path() {
     let participant_proxy = ParticipantProxy {
         domain_id: 1,
         domain_tag: "ab".to_string(),
-        protocol_version: ProtocolVersion { major: 1, minor: 4 },
-        guid_prefix,
-        vendor_id: [73, 74],
+        protocol_version: PROTOCOLVERSION,
+        guid_prefix: GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]),
+        vendor_id: VENDOR_ID_S2E,
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(11, 12, [1; 16])],
         metatraffic_multicast_locator_list: vec![],
@@ -171,7 +169,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let mut communication = Communication {
         version: PROTOCOLVERSION,
         vendor_id: VENDOR_ID_S2E,
-        guid_prefix,
+        guid_prefix: GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]),
         transport,
     };
 
@@ -239,9 +237,9 @@ fn process_discovery_data_happy_path() {
     let participant_proxy = ParticipantProxy {
         domain_id,
         domain_tag: domain_tag.to_string(),
-        protocol_version: ProtocolVersion { major: 1, minor: 4 },
+        protocol_version: PROTOCOLVERSION,
         guid_prefix,
-        vendor_id: [73, 74],
+        vendor_id: VENDOR_ID_S2E,
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -537,4 +535,29 @@ fn process_discovery_data_happy_path() {
 
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
+}
+
+struct Rtps;
+impl RtpsStructure for Rtps {
+    type Group = RtpsGroupImpl;
+    type Participant = RtpsParticipantImpl;
+
+    type StatelessWriter = RtpsStatelessWriterImpl;
+    type StatelessReader = RtpsStatelessReaderImpl;
+
+    type StatefulWriter = RtpsStatefulWriterImpl;
+    type StatefulReader = RtpsStatefulReaderImpl;
+}
+
+#[test]
+fn create_two_participants_with_different_domains() {
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = participant_factory.create_participant(1, None, None, 0)
+        .unwrap();
+    let participant2 = participant_factory.create_participant(2, None, None, 0)
+        .unwrap();
+
+    assert!(participant1.get_builtin_subscriber().is_ok());
+    assert!(participant2.get_builtin_subscriber().is_ok());
 }
