@@ -1,4 +1,4 @@
-use std::{net::UdpSocket, vec};
+use std::net::UdpSocket;
 
 use rust_dds::{
     communication::Communication,
@@ -69,8 +69,6 @@ use rust_rtps_pim::{
     }, group::RtpsGroupConstructor},
 };
 
-const DEFAULT_GUID_PREFIX: GuidPrefix = GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
-
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
     let dds_participant_data = ParticipantBuiltinTopicData {
@@ -84,7 +82,7 @@ fn send_and_receive_discovery_data_happy_path() {
         domain_id: 1,
         domain_tag: "ab".to_string(),
         protocol_version: PROTOCOLVERSION,
-        guid_prefix: DEFAULT_GUID_PREFIX,
+        guid_prefix: GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]),
         vendor_id: VENDOR_ID_S2E,
         expects_inline_qos: false,
         metatraffic_unicast_locator_list: vec![Locator::new(11, 12, [1; 16])],
@@ -171,7 +169,7 @@ fn send_and_receive_discovery_data_happy_path() {
     let mut communication = Communication {
         version: PROTOCOLVERSION,
         vendor_id: VENDOR_ID_S2E,
-        guid_prefix: DEFAULT_GUID_PREFIX,
+        guid_prefix: GuidPrefix([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]),
         transport,
     };
 
