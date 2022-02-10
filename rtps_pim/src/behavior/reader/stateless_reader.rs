@@ -3,7 +3,9 @@ use crate::{
     structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
-pub trait RtpsStatelessReaderAttributes {}
+use super::reader::RtpsReaderAttributes;
+
+pub trait RtpsStatelessReaderAttributes: RtpsReaderAttributes {}
 
 pub trait RtpsStatelessReaderConstructor {
     fn new(

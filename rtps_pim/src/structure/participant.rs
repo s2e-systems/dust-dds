@@ -1,7 +1,6 @@
-use super::types::{Locator, ProtocolVersion, VendorId, Guid};
+use super::{types::{Locator, ProtocolVersion, VendorId, Guid}, entity::RtpsEntityAttributes};
 
-pub trait RtpsParticipantAttributes {
-    fn guid(&self) -> Guid;
+pub trait RtpsParticipantAttributes : RtpsEntityAttributes {
     fn protocol_version(&self) -> &ProtocolVersion;
     fn vendor_id(&self) -> &VendorId;
     fn default_unicast_locator_list(&self) -> &[Locator];

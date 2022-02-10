@@ -17,11 +17,11 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     messages::types::Count,
     structure::{
-        participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
+        participant::RtpsParticipantConstructor,
         types::{
             EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
             USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
-        }, group::RtpsGroupConstructor,
+        }, group::RtpsGroupConstructor, entity::RtpsEntityAttributes,
     },
 };
 
@@ -285,7 +285,7 @@ impl<Rtps> DomainParticipant for DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
     Rtps::Group: RtpsGroupConstructor,
-    Rtps::Participant: RtpsParticipantAttributes,
+    Rtps::Participant: RtpsEntityAttributes,
 {
     type PublisherType = PublisherProxy<Rtps>;
     type SubscriberType = SubscriberProxy<Rtps>;

@@ -1,5 +1,7 @@
+pub mod rtps_entity_impl;
 pub mod rtps_group_impl;
 pub mod rtps_participant_impl;
+pub mod rtps_endpoint_impl;
 pub mod rtps_reader_history_cache_impl;
 pub mod rtps_reader_locator_impl;
 pub mod rtps_reader_proxy_impl;
