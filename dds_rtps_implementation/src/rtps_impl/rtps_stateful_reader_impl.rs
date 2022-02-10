@@ -26,31 +26,31 @@ use super::{
 };
 
 pub struct RtpsStatefulReaderImpl {
-    reader: RtpsReaderImpl,
-    matched_writers: Vec<RtpsWriterProxyImpl>,
+    pub reader: RtpsReaderImpl,
+    pub matched_writers: Vec<RtpsWriterProxyImpl>,
 }
 
 impl RtpsEntityAttributes for RtpsStatefulReaderImpl {
     fn guid(&self) -> &Guid {
-        self.reader.guid()
+        &self.reader.endpoint.entity.guid
     }
 }
 
 impl RtpsEndpointAttributes for RtpsStatefulReaderImpl {
     fn topic_kind(&self) -> &TopicKind {
-        self.reader.topic_kind()
+        &self.reader.endpoint.topic_kind
     }
 
     fn reliability_level(&self) -> &ReliabilityKind {
-        self.reader.reliability_level()
+        &self.reader.endpoint.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        self.reader.unicast_locator_list()
+        &self.reader.endpoint.unicast_locator_list
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        self.reader.multicast_locator_list()
+        &self.reader.endpoint.multicast_locator_list
     }
 }
 
@@ -58,19 +58,19 @@ impl RtpsReaderAttributes for RtpsStatefulReaderImpl {
     type ReaderHistoryCacheType = ReaderHistoryCache;
 
     fn heartbeat_response_delay(&self) -> &Duration {
-        self.reader.heartbeat_response_delay()
+        &self.reader.heartbeat_response_delay
     }
 
     fn heartbeat_supression_duration(&self) -> &Duration {
-        self.reader.heartbeat_supression_duration()
+        &self.reader.heartbeat_supression_duration
     }
 
     fn reader_cache(&self) -> &Self::ReaderHistoryCacheType {
-        self.reader.reader_cache()
+        &self.reader.reader_cache
     }
 
     fn expects_inline_qos(&self) -> &bool {
-        self.reader.expects_inline_qos()
+        &self.reader.expects_inline_qos
     }
 }
 

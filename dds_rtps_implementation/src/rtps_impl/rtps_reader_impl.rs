@@ -43,25 +43,25 @@ impl RtpsReaderImpl {
 
 impl RtpsEntityAttributes for RtpsReaderImpl {
     fn guid(&self) -> &Guid {
-        self.endpoint.guid()
+        &self.endpoint.entity.guid
     }
 }
 
 impl RtpsEndpointAttributes for RtpsReaderImpl {
     fn topic_kind(&self) -> &TopicKind {
-        self.endpoint.topic_kind()
+        &self.endpoint.topic_kind
     }
 
     fn reliability_level(&self) -> &ReliabilityKind {
-        self.endpoint.reliability_level()
+        &self.endpoint.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        self.endpoint.unicast_locator_list()
+        &self.endpoint.unicast_locator_list
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        self.endpoint.multicast_locator_list()
+        &self.endpoint.multicast_locator_list
     }
 }
 

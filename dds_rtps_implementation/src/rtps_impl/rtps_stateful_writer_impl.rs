@@ -35,33 +35,33 @@ use super::{
 };
 
 pub struct RtpsStatefulWriterImpl {
-    writer: RtpsWriterImpl,
-    matched_readers: Vec<RtpsReaderProxyAttributesImpl>,
-    heartbeat_timer: StdTimer,
-    heartbeat_count: Count,
+    pub writer: RtpsWriterImpl,
+    pub matched_readers: Vec<RtpsReaderProxyAttributesImpl>,
+    pub heartbeat_timer: StdTimer,
+    pub heartbeat_count: Count,
 }
 
 impl RtpsEntityAttributes for RtpsStatefulWriterImpl {
     fn guid(&self) -> &Guid {
-        self.writer.guid()
+        &self.writer.endpoint.entity.guid
     }
 }
 
 impl RtpsEndpointAttributes for RtpsStatefulWriterImpl {
     fn topic_kind(&self) -> &TopicKind {
-        self.writer.topic_kind()
+        &self.writer.endpoint.topic_kind
     }
 
     fn reliability_level(&self) -> &ReliabilityKind {
-        self.writer.reliability_level()
+        &self.writer.endpoint.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        self.writer.unicast_locator_list()
+        &self.writer.endpoint.unicast_locator_list
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        self.writer.multicast_locator_list()
+        &self.writer.endpoint.multicast_locator_list
     }
 }
 
@@ -69,31 +69,31 @@ impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
     type WriterHistoryCacheType = WriterHistoryCache;
 
     fn push_mode(&self) -> &bool {
-        self.writer.push_mode()
+        &self.writer.push_mode
     }
 
     fn heartbeat_period(&self) -> &Duration {
-        self.writer.heartbeat_period()
+        &self.writer.heartbeat_period
     }
 
     fn nack_response_delay(&self) -> &Duration {
-        self.writer.nack_response_delay()
+        &self.writer.nack_response_delay
     }
 
     fn nack_suppression_duration(&self) -> &Duration {
-        self.writer.nack_suppression_duration()
+        &self.writer.nack_suppression_duration
     }
 
     fn last_change_sequence_number(&self) -> &SequenceNumber {
-        self.writer.last_change_sequence_number()
+        &self.writer.last_change_sequence_number
     }
 
     fn data_max_size_serialized(&self) -> &Option<i32> {
-        self.writer.data_max_size_serialized()
+        &self.writer.data_max_size_serialized
     }
 
     fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType {
-        self.writer.writer_cache()
+        &mut self.writer.writer_cache
     }
 }
 

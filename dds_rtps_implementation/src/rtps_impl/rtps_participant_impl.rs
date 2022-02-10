@@ -7,16 +7,16 @@ use rust_rtps_pim::structure::{
 use super::rtps_entity_impl::RtpsEntityImpl;
 
 pub struct RtpsParticipantImpl {
-    entity: RtpsEntityImpl,
-    protocol_version: ProtocolVersion,
-    vendor_id: VendorId,
-    default_unicast_locator_list: Vec<Locator>,
-    default_multicast_locator_list: Vec<Locator>,
+    pub entity: RtpsEntityImpl,
+    pub protocol_version: ProtocolVersion,
+    pub vendor_id: VendorId,
+    pub default_unicast_locator_list: Vec<Locator>,
+    pub default_multicast_locator_list: Vec<Locator>,
 }
 
 impl RtpsEntityAttributes for RtpsParticipantImpl {
-    fn guid(&self) -> &rust_rtps_pim::structure::types::Guid {
-        &self.entity.guid()
+    fn guid(&self) -> &Guid {
+        &self.entity.guid
     }
 }
 
@@ -47,7 +47,7 @@ impl RtpsParticipantConstructor for RtpsParticipantImpl {
         default_multicast_locator_list: &[Locator],
     ) -> Self {
         Self {
-            entity: RtpsEntityImpl::new(guid),
+            entity: RtpsEntityImpl{ guid },
             protocol_version,
             vendor_id,
             default_unicast_locator_list: default_unicast_locator_list.to_vec(),

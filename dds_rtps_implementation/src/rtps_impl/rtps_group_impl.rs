@@ -7,18 +7,18 @@ use rust_rtps_pim::structure::{
 use super::rtps_entity_impl::RtpsEntityImpl;
 
 pub struct RtpsGroupImpl {
-    entity: RtpsEntityImpl,
+    pub entity: RtpsEntityImpl,
 }
 
 impl RtpsGroupConstructor for RtpsGroupImpl {
     fn new(guid: Guid) -> Self {
-        Self { entity: RtpsEntityImpl::new(guid) }
+        Self { entity: RtpsEntityImpl { guid } }
     }
 }
 
 impl RtpsEntityAttributes for RtpsGroupImpl {
     fn guid(&self) -> &Guid {
-        &self.entity.guid()
+        &self.entity.guid
     }
 }
 
