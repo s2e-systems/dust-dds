@@ -511,24 +511,22 @@ fn process_discovery_data_happy_path() {
             .unwrap();
     }
 
-    // {
-    //     let shared_data_reader = sedp_built_publications_reader_proxy
-    //         .as_ref()
-    //         .upgrade()
-    //         .unwrap();
-    //     let mut data_reader = shared_data_reader.write().unwrap();
-    //     let matched_writers = &data_reader
-    //         .rtps_reader
-    //         .try_as_stateful_reader()
-    //         .unwrap()
-    //         .matched_writers;
+    let shared_data_reader = sedp_built_publications_reader_proxy
+        .as_ref()
+        .upgrade()
+        .unwrap();
+    let mut data_reader = shared_data_reader.write_lock();
+    let matched_writers = &data_reader
+        .rtps_reader
+        .try_as_stateful_reader()
+        .unwrap()
+        .matched_writers;
 
-    //     assert_eq!(matched_writers.len(), 1);
-    //     assert_eq!(
-    //         matched_writers[0].remote_writer_guid,
-    //         Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
-    //     );
-    // }
+    assert_eq!(matched_writers.len(), 1);
+    // assert_eq!(
+    //     matched_writers[0].remote_writer_guid,
+    //     Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)
+    // );
 
     for _i in 1..14 {
         communication.send(core::slice::from_ref(&publisher));
