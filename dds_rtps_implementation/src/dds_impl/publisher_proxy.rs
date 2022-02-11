@@ -90,6 +90,15 @@ where
     }
 }
 
+impl<Rtps> AsRef<RtpsWeak<PublisherAttributes<Rtps>>> for PublisherProxy<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    fn as_ref(&self) -> &RtpsWeak<PublisherAttributes<Rtps>> {
+        &self.0
+    }
+}
+
 impl<Foo, Rtps> PublisherDataWriterFactory<Foo> for PublisherProxy<Rtps>
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,

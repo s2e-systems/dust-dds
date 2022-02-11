@@ -400,9 +400,15 @@ where
     fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
         let domain_participant_lock = domain_participant_shared.read_lock();
-        let subscriber_shared = domain_participant_lock.builtin_subscriber.as_ref().unwrap().clone();
-        let subscriber_weak = subscriber_shared.downgrade();
-        Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
+        let subscriber = domain_participant_lock.builtin_subscriber.as_ref().unwrap().clone();
+        Ok(SubscriberProxy::new(self.clone(), subscriber.downgrade()))
+    }
+
+    fn get_builtin_publisher(&self) -> DDSResult<Self::PublisherType> {
+        let domain_participant_shared = self.domain_participant.upgrade()?;
+        let domain_participant_lock = domain_participant_shared.read_lock();
+        let publisher = domain_participant_lock.builtin_publisher.as_ref().unwrap().clone();
+        Ok(PublisherProxy::new(publisher.downgrade()))
     }
 
     fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {

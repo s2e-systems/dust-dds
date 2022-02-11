@@ -19,7 +19,7 @@ use rust_dds::{
     },
     publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
-    types::{Duration},
+    types::Duration,
     udp_transport::UdpTransport, domain::domain_participant::DomainParticipant,
 };
 use rust_dds_api::{
@@ -36,7 +36,7 @@ use rust_dds_rtps_implementation::{
         data_writer_proxy::{DataWriterAttributes, DataWriterProxy, RtpsWriter},
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
-        topic_proxy::TopicAttributes,
+        topic_proxy::TopicAttributes, domain_participant_proxy::DomainParticipantProxy,
     },
     dds_type::DdsType,
     rtps_impl::{
@@ -547,17 +547,49 @@ impl RtpsStructure for Rtps {
     type StatefulReader = RtpsStatefulReaderImpl;
 }
 
+fn num_matched_readers(participant: &DomainParticipantProxy<RtpsStructureImpl>) -> usize {
+    let publisher = participant.get_builtin_publisher().unwrap().as_ref().upgrade().unwrap();
+    let data_writers = &publisher.read_lock().data_writer_list;
+    data_writers.iter()
+        .filter_map(|w| w.write_lock().rtps_writer.try_as_stateful_writer().ok()
+            .map(|w| w.matched_readers.len())
+        )
+        .sum::<usize>()
+}
+
+fn num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) -> usize {
+    let subscriber = participant.get_builtin_subscriber().unwrap().as_ref().upgrade().unwrap();
+    let data_readers = &subscriber.read_lock().data_reader_list;
+    data_readers.iter()
+        .filter_map(|w| w.write_lock().rtps_reader.try_as_stateful_reader().ok()
+            .map(|w| w.matched_writers.len())
+        )
+        .sum::<usize>()
+}
+
 #[test]
 fn create_two_participants_with_different_domains() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory.create_participant(1, None, None, 0)
         .unwrap();
-    let participant2 = participant_factory.create_participant(2, None, None, 0)
-        .unwrap();
+
+    println!("[P1 created] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
 
     participant1.enable().unwrap();
+    println!("[P1 enabled] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
+
+    let participant2 = participant_factory.create_participant(2, None, None, 0)
+        .unwrap();
+    println!("[P2 created] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
     participant2.enable().unwrap();
+    println!("[P2 enabled] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
+
+    participant1.create_publisher(None, None, 0);
+    println!("[P1 created a publisher] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
+    
+    // std::thread::sleep(std::time::Duration::new(5, 0));
+    // println!("[After 5 seconds] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
 
     assert!(participant1.get_builtin_subscriber().is_ok());
     assert!(participant2.get_builtin_subscriber().is_ok());
