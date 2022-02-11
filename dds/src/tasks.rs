@@ -89,13 +89,13 @@ impl Spawner {
             .unwrap();
     }
 
-    // pub fn enable_tasks(&self) {
-    //     self.enabled.store(true, atomic::Ordering::SeqCst);
-    // }
+    pub fn _enable_tasks(&self) {
+        self.enabled.store(true, atomic::Ordering::SeqCst);
+    }
 
-    // pub fn disable_tasks(&self) {
-    //     self.enabled.store(false, atomic::Ordering::SeqCst);
-    // }
+    pub fn _disable_tasks(&self) {
+        self.enabled.store(false, atomic::Ordering::SeqCst);
+    }
 }
 
 pub struct EnabledPeriodicTask {
@@ -105,10 +105,9 @@ pub struct EnabledPeriodicTask {
     pub enabled: Arc<AtomicBool>,
 }
 
-pub fn _spdp_task_discovery<T>(
-    spdp_builtin_participant_data_reader_arc: &RtpsShared<
-        impl DataReader<SpdpDiscoveredParticipantData, Samples = T>,
-    >,
+pub fn spdp_task_discovery<T>(
+    spdp_builtin_participant_data_reader:
+        &mut impl DataReader<SpdpDiscoveredParticipantData, Samples = T>,
     domain_id: u32,
     domain_tag: &str,
     sedp_builtin_publications_writer: &mut impl RtpsStatefulWriterOperations<
@@ -132,9 +131,7 @@ pub fn _spdp_task_discovery<T>(
 ) where
     T: Deref<Target = [SpdpDiscoveredParticipantData]>,
 {
-    let mut spdp_builtin_participant_data_reader_lock =
-        spdp_builtin_participant_data_reader_arc.write_lock();
-    if let Ok(samples) = spdp_builtin_participant_data_reader_lock.read(1, &[], &[], &[]) {
+    if let Ok(samples) = spdp_builtin_participant_data_reader.read(1, &[], &[], &[]) {
         for discovered_participant in samples.into_iter() {
             if let Ok(participant_discovery) = ParticipantDiscovery::new(
                 &discovered_participant.participant_proxy,
@@ -157,11 +154,13 @@ pub fn _spdp_task_discovery<T>(
                     sedp_builtin_subscriptions_reader,
                 );
 
-                participant_discovery
-                    .discovered_participant_add_topics_writer(sedp_builtin_topics_writer);
+                participant_discovery.discovered_participant_add_topics_writer(
+                    sedp_builtin_topics_writer
+                );
 
-                participant_discovery
-                    .discovered_participant_add_topics_reader(sedp_builtin_topics_reader);
+                participant_discovery.discovered_participant_add_topics_reader(
+                    sedp_builtin_topics_reader
+                );
             }
         }
     }
@@ -205,4 +204,9 @@ pub fn _task_sedp_discovery(
             }
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    
 }

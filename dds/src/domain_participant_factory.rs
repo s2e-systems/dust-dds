@@ -17,7 +17,7 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_reader_proxy::{DataReaderAttributes, RtpsReader},
+        data_reader_proxy::{DataReaderAttributes, RtpsReader, DataReaderProxy},
         data_writer_proxy::{DataWriterAttributes, RtpsWriter},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_proxy::PublisherAttributes,
@@ -64,7 +64,7 @@ use crate::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     udp_transport::UdpTransport,
-    tasks::{Executor, Spawner},
+    tasks::{Executor, Spawner, spdp_task_discovery},
 };
 
 pub struct RtpsStructureImpl;
@@ -201,7 +201,7 @@ impl DomainParticipantFactory {
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             guid_prefix,
             domain_id,
-            domain_tag,
+            domain_tag.clone(),
             domain_participant_qos,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
@@ -449,61 +449,63 @@ impl DomainParticipantFactory {
             std::time::Duration::from_millis(500),
         );
 
-        //
-        // let spdp_builtin_participant_data_reader_arc =
-        //     spdp_builtin_participant_dds_data_reader.clone();
-        // let domain_tag_arc = domain_tag.clone();
-        // let sedp_builtin_publications_dds_data_reader_arc =
-        //     sedp_builtin_publications_dds_data_reader.clone();
+        let mut spdp_builtin_participant_data_reader_proxy =
+            DataReaderProxy::new(spdp_builtin_participant_data_reader.downgrade());
 
-        // spawner.spawn_enabled_periodic_task(
-        //     "spdp discovery",
-        //     move || {
-        //         spdp_task_discovery(
-        //             &spdp_builtin_participant_data_reader_arc,
-        //             domain_id as u32,
-        //             domain_tag_arc.as_ref(),
-        //             rtps_shared_write_lock(&sedp_builtin_publications_dds_data_writer)
-        //                 .as_mut()
-        //                 .try_as_stateful_writer()
-        //                 .unwrap(),
-        //             rtps_shared_write_lock(&sedp_builtin_publications_dds_data_reader_arc)
-        //                 .as_mut()
-        //                 .try_as_stateful_reader()
-        //                 .unwrap(),
-        //             rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_writer)
-        //                 .as_mut()
-        //                 .try_as_stateful_writer()
-        //                 .unwrap(),
-        //             rtps_shared_write_lock(&sedp_builtin_subscriptions_dds_data_reader)
-        //                 .as_mut()
-        //                 .try_as_stateful_reader()
-        //                 .unwrap(),
-        //             rtps_shared_write_lock(&sedp_builtin_topics_dds_data_writer)
-        //                 .as_mut()
-        //                 .try_as_stateful_writer()
-        //                 .unwrap(),
-        //             rtps_shared_write_lock(&sedp_builtin_topics_dds_data_reader)
-        //                 .as_mut()
-        //                 .try_as_stateful_reader()
-        //                 .unwrap(),
-        //         )
-        //     },
-        //     std::time::Duration::from_millis(500),
-        // );
+        spawner.spawn_enabled_periodic_task(
+            "spdp discovery",
+            move || {
+                spdp_task_discovery(
+                    &mut spdp_builtin_participant_data_reader_proxy,
+                    domain_id as u32,
+                    &domain_tag,
+                    sedp_builtin_publications_data_writer
+                        .write_lock()
+                        .rtps_writer
+                        .try_as_stateful_writer()
+                        .unwrap(),
+                    sedp_builtin_publications_data_reader
+                        .write_lock()
+                        .rtps_reader
+                        .try_as_stateful_reader()
+                        .unwrap(),
+                    sedp_builtin_subscriptions_data_writer
+                        .write_lock()
+                        .rtps_writer
+                        .try_as_stateful_writer()
+                        .unwrap(),
+                    sedp_builtin_subscriptions_data_reader
+                        .write_lock()
+                        .rtps_reader
+                        .try_as_stateful_reader()
+                        .unwrap(),
+                    sedp_builtin_topics_data_writer
+                        .write_lock()
+                        .rtps_writer
+                        .try_as_stateful_writer()
+                        .unwrap(),
+                    sedp_builtin_topics_data_reader
+                        .write_lock()
+                        .rtps_reader
+                        .try_as_stateful_reader()
+                        .unwrap(),
+                )
+            },
+            std::time::Duration::from_millis(500),
+        );
 
         // let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
         // let _user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
         // spawner.spawn_enabled_periodic_task(
         //     "sedp discovery",
         //     move || {
-        //         let user_defined_publisher_list_lock =
-        //             rtps_shared_write_lock(&user_defined_publisher_list_arc);
-        //         for user_defined_publisher in user_defined_publisher_list_lock.iter() {
-        //             let _user_defined_publisher_lock =
-        //                 rtps_shared_write_lock(&user_defined_publisher);
-        //             // user_defined_publisher_lock.process_discovery();
-        //         }
+                // let user_defined_publisher_list_lock =
+                //     rtps_shared_write_lock(&user_defined_publisher_list_arc);
+                // for user_defined_publisher in user_defined_publisher_list_lock.iter() {
+                //     let _user_defined_publisher_lock =
+                //         rtps_shared_write_lock(&user_defined_publisher);
+                //     // user_defined_publisher_lock.process_discovery();
+                // }
         //     },
         //     std::time::Duration::from_millis(500),
         // );
@@ -861,7 +863,7 @@ mod tests {
     use crate::{data_representation_builtin_endpoints::{
         sedp_discovered_writer_data::RtpsWriterProxy,
         spdp_discovered_participant_data::ParticipantProxy,
-    }, tasks::{_spdp_task_discovery, _task_sedp_discovery}};
+    }, tasks::_task_sedp_discovery};
 
     use super::*;
     mock! {
@@ -1024,8 +1026,8 @@ mod tests {
             .once()
             .return_const(());
 
-        _spdp_task_discovery(
-            &RtpsShared::new(mock_spdp_data_reader),
+        spdp_task_discovery(
+            &mut mock_spdp_data_reader,
             1,
             "",
             &mut mock_builtin_publications_writer,
