@@ -7,18 +7,18 @@ use std::{
 };
 
 use rust_dds_api::{
-    dcps_psm::{DomainId, StatusMask},
+    dcps_psm::{DomainId, StatusMask, Time},
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{
         DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
         PublisherQos, SubscriberQos, TopicQos,
     },
-    return_type::DDSResult,
+    return_type::DDSResult, publication::data_writer::DataWriter,
 };
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_reader_proxy::{DataReaderAttributes, RtpsReader, DataReaderProxy},
-        data_writer_proxy::{DataWriterAttributes, RtpsWriter},
+        data_writer_proxy::{DataWriterAttributes, RtpsWriter, DataWriterProxy},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
@@ -529,15 +529,14 @@ impl DomainParticipantFactory {
         // );
 
         let spdp_discovered_participant_data =
-            domain_participant.as_spdp_discovered_participant_data();
-
-        rtps_shared_write_lock(&spdp_builtin_participant_dds_data_writer)
+            SpdpDiscoveredParticipantData::from_domain_participant(&domain_participant.read_lock());
+        
+        DataWriterProxy::new(spdp_builtin_participant_data_writer.downgrade())
             .write_w_timestamp(
                 &spdp_discovered_participant_data,
                 None,
                 Time { sec: 0, nanosec: 0 },
-            )
-            .unwrap();
+            ).unwrap();
 
         spawner.enable_tasks();
         executor.run();
