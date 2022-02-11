@@ -1,6 +1,6 @@
 use crate::{
     behavior::types::Duration,
-    structure::types::{ChangeKind, InstanceHandle, SequenceNumber},
+    structure::types::{ChangeKind, InstanceHandle, SequenceNumber, Guid, TopicKind, ReliabilityKind, Locator},
 };
 
 pub trait RtpsWriterAttributes {
@@ -27,4 +27,19 @@ pub trait RtpsWriterOperations {
         inline_qos: Self::ParameterListType,
         handle: InstanceHandle,
     ) -> Self::CacheChangeType;
+}
+
+pub trait RtpsWriterConstructor {
+    fn new(
+        guid: Guid,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_size_serialized: Option<i32>,
+    ) -> Self;
 }
