@@ -50,7 +50,7 @@ impl Executor {
                     if enabled_periodic_task.enabled.load(atomic::Ordering::SeqCst) {
                         (enabled_periodic_task.task)();
                     } else {
-                        println!("Not enabled");
+                        println!("Task not enabled: {}", enabled_periodic_task.name);
                     }
                     interval.next().await;
                 }
@@ -89,7 +89,7 @@ impl Spawner {
             .unwrap();
     }
 
-    pub fn _enable_tasks(&self) {
+    pub fn enable_tasks(&self) {
         self.enabled.store(true, atomic::Ordering::SeqCst);
     }
 
@@ -167,14 +167,11 @@ pub fn spdp_task_discovery<T>(
 }
 
 pub fn _task_sedp_discovery(
-    sedp_builtin_publications_data_reader: &RtpsShared<
-        impl DataReader<SedpDiscoveredWriterData, Samples = Samples<SedpDiscoveredWriterData>>,
-    >,
+    sedp_builtin_publications_data_reader:
+        &mut impl DataReader<SedpDiscoveredWriterData, Samples = Samples<SedpDiscoveredWriterData>>,
     subscriber_list: &RtpsShared<Vec<RtpsShared<SubscriberAttributes<RtpsStructureImpl>>>>,
 ) {
-    let mut sedp_builtin_publications_data_reader_lock =
-        sedp_builtin_publications_data_reader.write_lock();
-    if let Ok(samples) = sedp_builtin_publications_data_reader_lock.read(1, &[], &[], &[]) {
+    if let Ok(samples) = sedp_builtin_publications_data_reader.read(1, &[], &[], &[]) {
         if let Some(sample) = samples.into_iter().next() {
             let topic_name = &sample.publication_builtin_topic_data.topic_name;
             let type_name = &sample.publication_builtin_topic_data.type_name;
@@ -643,7 +640,7 @@ mod tests {
         let subscriber_list = vec![RtpsShared::new(subscriber)];
 
         _task_sedp_discovery(
-            &RtpsShared::new(mock_sedp_discovered_writer_data_reader),
+            &mut mock_sedp_discovered_writer_data_reader,
             &RtpsShared::new(subscriber_list),
         );
 

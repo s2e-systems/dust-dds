@@ -234,6 +234,9 @@ impl DomainParticipantFactory {
         domain_participant
             .write_lock()
             .builtin_subscriber = Some(builtin_subscriber.clone());
+        domain_participant
+            .write_lock()
+            .builtin_publisher = Some(builtin_publisher.clone());
 
         // ///////// Create built-in DDS data readers and data writers
 
@@ -525,17 +528,18 @@ impl DomainParticipantFactory {
         //     std::time::Duration::from_millis(500),
         // );
 
-        // let spdp_discovered_participant_data =
-        //     domain_participant.as_spdp_discovered_participant_data();
+        let spdp_discovered_participant_data =
+            domain_participant.as_spdp_discovered_participant_data();
 
-        // rtps_shared_write_lock(&spdp_builtin_participant_dds_data_writer)
-        //     .write_w_timestamp(
-        //         &spdp_discovered_participant_data,
-        //         None,
-        //         Time { sec: 0, nanosec: 0 },
-        //     )
-        //     .unwrap();
+        rtps_shared_write_lock(&spdp_builtin_participant_dds_data_writer)
+            .write_w_timestamp(
+                &spdp_discovered_participant_data,
+                None,
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
 
+        spawner.enable_tasks();
         executor.run();
 
         self.participant_list

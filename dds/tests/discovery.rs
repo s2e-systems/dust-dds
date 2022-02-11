@@ -15,7 +15,7 @@ use rust_dds::{
             LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
             PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
             ReliabilityQosPolicyKind, TopicDataQosPolicy,
-        },
+        }, entity::Entity,
     },
     publication::data_writer::DataWriter,
     subscription::data_reader::DataReader,
@@ -557,6 +557,9 @@ fn create_two_participants_with_different_domains() {
         .unwrap();
     let participant2 = participant_factory.create_participant(2, None, None, 0)
         .unwrap();
+
+    participant1.enable().unwrap();
+    participant2.enable().unwrap();
 
     assert!(participant1.get_builtin_subscriber().is_ok());
     assert!(participant2.get_builtin_subscriber().is_ok());
