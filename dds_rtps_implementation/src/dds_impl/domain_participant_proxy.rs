@@ -404,13 +404,6 @@ where
         Ok(SubscriberProxy::new(self.clone(), subscriber.downgrade()))
     }
 
-    fn get_builtin_publisher(&self) -> DDSResult<Self::PublisherType> {
-        let domain_participant_shared = self.domain_participant.upgrade()?;
-        let domain_participant_lock = domain_participant_shared.read_lock();
-        let publisher = domain_participant_lock.builtin_publisher.as_ref().unwrap().clone();
-        Ok(PublisherProxy::new(publisher.downgrade()))
-    }
-
     fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);

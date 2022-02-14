@@ -157,7 +157,6 @@ pub trait DomainParticipant {
     /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
     fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType>;
-    fn get_builtin_publisher(&self) -> DDSResult<Self::PublisherType>;
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
     /// onwards the Service will locally behave as if the remote participant did not exist. This means it will ignore any Topic,

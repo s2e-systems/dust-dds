@@ -7,13 +7,15 @@ use std::{
 };
 
 use rust_dds_api::{
-    dcps_psm::{DomainId, StatusMask, Time},
+    dcps_psm::{DomainId, StatusMask, Time, BuiltInTopicKey},
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{
         DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
         PublisherQos, SubscriberQos, TopicQos,
     },
-    return_type::DDSResult, publication::data_writer::DataWriter,
+    return_type::DDSResult,
+    publication::data_writer::DataWriter,
+    builtin_topics::ParticipantBuiltinTopicData,
 };
 use rust_dds_rtps_implementation::{
     dds_impl::{
@@ -26,11 +28,13 @@ use rust_dds_rtps_implementation::{
     },
     dds_type::DdsType,
     rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
+        rtps_group_impl::RtpsGroupImpl,
+        rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl, rtps_participant_impl::RtpsParticipantImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        rtps_participant_impl::RtpsParticipantImpl,
     },
     utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
 };
@@ -47,12 +51,12 @@ use rust_rtps_pim::{
             SedpBuiltinSubscriptionsReader, SedpBuiltinSubscriptionsWriter,
             SedpBuiltinTopicsReader, SedpBuiltinTopicsWriter,
         },
-        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
+        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter}, types::{BuiltinEndpointSet, BuiltinEndpointQos},
     },
     structure::{types::{
         EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
         BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_S2E,
-    }, group::RtpsGroupConstructor},
+    }, group::RtpsGroupConstructor, participant::RtpsParticipantAttributes, entity::RtpsEntityAttributes},
 };
 
 use crate::{
@@ -61,7 +65,7 @@ use crate::{
         sedp_discovered_reader_data::SedpDiscoveredReaderData,
         sedp_discovered_topic_data::SedpDiscoveredTopicData,
         sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy},
     },
     udp_transport::UdpTransport,
     tasks::{Executor, Spawner, spdp_task_discovery},
@@ -529,7 +533,7 @@ impl DomainParticipantFactory {
         // );
 
         let spdp_discovered_participant_data =
-            SpdpDiscoveredParticipantData::from_domain_participant(&domain_participant.read_lock());
+            spdp_discovered_participant_data_from_domain_participant(&domain_participant.read_lock());
         
         DataWriterProxy::new(spdp_builtin_participant_data_writer.downgrade())
             .write_w_timestamp(
@@ -612,5 +616,44 @@ impl DomainParticipantFactory {
     /// This operation returns the value of the DomainParticipantFactory QoS policies.
     pub fn get_qos(&self) -> DomainParticipantFactoryQos {
         todo!()
+    }
+}
+
+pub fn spdp_discovered_participant_data_from_domain_participant<Rtps>(
+    participant: &DomainParticipantAttributes<Rtps>
+) -> SpdpDiscoveredParticipantData
+where
+    Rtps: RtpsStructure,
+    Rtps::Participant: RtpsParticipantAttributes,
+{
+    SpdpDiscoveredParticipantData {
+        dds_participant_data: ParticipantBuiltinTopicData {
+            key: BuiltInTopicKey {
+                value: (*participant.rtps_participant.guid()).into(),
+            },
+            user_data: participant.qos.user_data.clone(),
+        },
+        participant_proxy: ParticipantProxy {
+            domain_id: participant.domain_id as u32,
+            domain_tag: participant.domain_tag.clone(),
+            protocol_version: *participant.rtps_participant.protocol_version(),
+            guid_prefix: *participant.rtps_participant.guid().prefix(),
+            vendor_id: *participant.rtps_participant.vendor_id(),
+            expects_inline_qos: false,
+            metatraffic_unicast_locator_list: participant.metatraffic_unicast_locator_list.clone(),
+            metatraffic_multicast_locator_list: participant.metatraffic_multicast_locator_list.clone(),
+            default_unicast_locator_list: participant
+                .rtps_participant
+                .default_unicast_locator_list()
+                .to_vec(),
+            default_multicast_locator_list: participant
+                .rtps_participant
+                .default_multicast_locator_list()
+                .to_vec(),
+            available_builtin_endpoints: BuiltinEndpointSet::default(),
+            manual_liveliness_count: participant.manual_liveliness_count,
+            builtin_endpoint_qos: BuiltinEndpointQos::default(),
+        },
+        lease_duration: participant.lease_duration,
     }
 }

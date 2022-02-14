@@ -547,16 +547,6 @@ impl RtpsStructure for Rtps {
     type StatefulReader = RtpsStatefulReaderImpl;
 }
 
-fn num_matched_readers(participant: &DomainParticipantProxy<RtpsStructureImpl>) -> usize {
-    let publisher = participant.get_builtin_publisher().unwrap().as_ref().upgrade().unwrap();
-    let data_writers = &publisher.read_lock().data_writer_list;
-    data_writers.iter()
-        .filter_map(|w| w.write_lock().rtps_writer.try_as_stateful_writer().ok()
-            .map(|w| w.matched_readers.len())
-        )
-        .sum::<usize>()
-}
-
 fn num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) -> usize {
     let subscriber = participant.get_builtin_subscriber().unwrap().as_ref().upgrade().unwrap();
     let data_readers = &subscriber.read_lock().data_reader_list;
@@ -574,19 +564,19 @@ fn create_two_participants_with_different_domains() {
     let participant1 = participant_factory.create_participant(1, None, None, 0)
         .unwrap();
 
-    println!("[P1 created] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
+    println!("[P1 created] Matched {} writers", num_matched_writers(&participant1));
 
     participant1.enable().unwrap();
-    println!("[P1 enabled] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
+    println!("[P1 enabled] Matched {} writers", num_matched_writers(&participant1));
 
     let participant2 = participant_factory.create_participant(2, None, None, 0)
         .unwrap();
-    println!("[P2 created] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
+    println!("[P2 created] Matched {} writers", num_matched_writers(&participant1));
     participant2.enable().unwrap();
-    println!("[P2 enabled] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
+    println!("[P2 enabled] Matched {} writers", num_matched_writers(&participant1));
 
     participant1.create_publisher(None, None, 0);
-    println!("[P1 created a publisher] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
+    println!("[P1 created a publisher] Matched {} writers", num_matched_writers(&participant1));
     
     // std::thread::sleep(std::time::Duration::new(5, 0));
     // println!("[After 5 seconds] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));

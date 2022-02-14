@@ -1,5 +1,5 @@
 use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
-use rust_dds_rtps_implementation::{dds_type::{DdsSerialize, DdsType, Endianness, DdsDeserialize}, dds_impl::domain_participant_proxy::DomainParticipantAttributes, utils::rtps_structure::RtpsStructure};
+use rust_dds_rtps_implementation::dds_type::{DdsSerialize, DdsType, Endianness, DdsDeserialize};
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
@@ -7,9 +7,9 @@ use rust_rtps_pim::{
         types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
     },
     messages::types::Count,
-    structure::{types::{
+    structure::types::{
         Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
-    }, participant::RtpsParticipantAttributes, entity::RtpsEntityAttributes},
+    },
 };
 
 use super::{
@@ -110,45 +110,6 @@ pub struct SpdpDiscoveredParticipantData {
     pub dds_participant_data: ParticipantBuiltinTopicData,
     pub participant_proxy: ParticipantProxy,
     pub lease_duration: Duration,
-}
-
-impl SpdpDiscoveredParticipantData {
-    pub fn from_domain_participant<Rtps>(participant: &DomainParticipantAttributes<Rtps>) -> Self
-    where
-        Rtps: RtpsStructure,
-        Rtps::Participant: RtpsParticipantAttributes,
-    {
-        Self {
-            dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: (*participant.rtps_participant.guid()).into(),
-                },
-                user_data: participant.qos.user_data.clone(),
-            },
-            participant_proxy: ParticipantProxy {
-                domain_id: participant.domain_id as u32,
-                domain_tag: participant.domain_tag.clone(),
-                protocol_version: *participant.rtps_participant.protocol_version(),
-                guid_prefix: *participant.rtps_participant.guid().prefix(),
-                vendor_id: *participant.rtps_participant.vendor_id(),
-                expects_inline_qos: false,
-                metatraffic_unicast_locator_list: participant.metatraffic_unicast_locator_list.clone(),
-                metatraffic_multicast_locator_list: participant.metatraffic_multicast_locator_list.clone(),
-                default_unicast_locator_list: participant
-                    .rtps_participant
-                    .default_unicast_locator_list()
-                    .to_vec(),
-                default_multicast_locator_list: participant
-                    .rtps_participant
-                    .default_multicast_locator_list()
-                    .to_vec(),
-                available_builtin_endpoints: BuiltinEndpointSet::default(),
-                manual_liveliness_count: participant.manual_liveliness_count,
-                builtin_endpoint_qos: BuiltinEndpointQos::default(),
-            },
-            lease_duration: participant.lease_duration,
-        }
-    }
 }
 
 impl DdsType for SpdpDiscoveredParticipantData {
