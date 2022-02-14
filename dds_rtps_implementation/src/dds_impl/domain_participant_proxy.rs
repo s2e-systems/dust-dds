@@ -112,39 +112,6 @@ where
             enabled: false,
         }
     }
-
-    // pub fn as_spdp_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
-    //     SpdpDiscoveredParticipantData {
-    //         dds_participant_data: ParticipantBuiltinTopicData {
-    //             key: BuiltInTopicKey {
-    //                 value: (*self.rtps_participant.guid()).into(),
-    //             },
-    //             user_data: self.qos.user_data.clone(),
-    //         },
-    //         participant_proxy: ParticipantProxy {
-    //             domain_id: self.domain_id as u32,
-    //             domain_tag: self.domain_tag.as_ref().clone(),
-    //             protocol_version: *self.rtps_participant.protocol_version(),
-    //             guid_prefix: *self.rtps_participant.guid().prefix(),
-    //             vendor_id: *self.rtps_participant.vendor_id(),
-    //             expects_inline_qos: false,
-    //             metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
-    //             metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
-    //             default_unicast_locator_list: self
-    //                 .rtps_participant
-    //                 .default_unicast_locator_list()
-    //                 .to_vec(),
-    //             default_multicast_locator_list: self
-    //                 .rtps_participant
-    //                 .default_multicast_locator_list()
-    //                 .to_vec(),
-    //             available_builtin_endpoints: BuiltinEndpointSet::default(),
-    //             manual_liveliness_count: self.manual_liveliness_count,
-    //             builtin_endpoint_qos: BuiltinEndpointQos::default(),
-    //         },
-    //         lease_duration: self.lease_duration,
-    //     }
-    // }
 }
 
 pub struct DomainParticipantProxy<Rtps>
@@ -433,9 +400,8 @@ where
     fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
         let domain_participant_lock = domain_participant_shared.read_lock();
-        let subscriber_shared = domain_participant_lock.builtin_subscriber.as_ref().unwrap().clone();
-        let subscriber_weak = subscriber_shared.downgrade();
-        Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
+        let subscriber = domain_participant_lock.builtin_subscriber.as_ref().unwrap().clone();
+        Ok(SubscriberProxy::new(self.clone(), subscriber.downgrade()))
     }
 
     fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
