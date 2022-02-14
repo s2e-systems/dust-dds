@@ -1,4 +1,5 @@
 use std::{
+    ops::Deref,
     sync::{
         atomic::{self, AtomicBool},
         mpsc::{Receiver, SyncSender},
@@ -7,19 +8,22 @@ use std::{
 };
 
 use async_std::prelude::StreamExt;
-use rust_dds_api::subscription::data_reader::DataReader;
+use rust_dds_api::{subscription::{data_reader::DataReader}};
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_reader_proxy::{RtpsReader, Samples, DataReaderProxy},
-        subscriber_proxy::SubscriberAttributes, domain_participant_proxy::DomainParticipantAttributes,
+        data_reader_proxy::{RtpsReader, Samples},
+        subscriber_proxy::SubscriberAttributes,
     },
-    rtps_impl::{rtps_writer_proxy_impl::RtpsWriterProxyImpl},
+    rtps_impl::rtps_writer_proxy_impl::RtpsWriterProxyImpl,
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
     behavior::{
         reader::{
             stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxyConstructor,
+        },
+        writer::{
+            reader_proxy::RtpsReaderProxyConstructor, stateful_writer::RtpsStatefulWriterOperations,
         },
     },
     discovery::participant_discovery::ParticipantDiscovery,
@@ -30,7 +34,7 @@ use crate::{
         sedp_discovered_writer_data::SedpDiscoveredWriterData,
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
-    domain_participant_factory::{RtpsStructureImpl, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC},
+    domain_participant_factory::{RtpsStructureImpl},
 };
 
 pub struct Executor {
@@ -101,67 +105,62 @@ pub struct EnabledPeriodicTask {
     pub enabled: Arc<AtomicBool>,
 }
 
-pub fn spdp_task_discovery(domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>) {
-    let domain_id = domain_participant.read_lock().domain_id;
-    let domain_tag = domain_participant.read_lock().domain_tag.clone();
-    let domain_participant = domain_participant.read_lock();
+pub fn spdp_task_discovery<T>(
+    spdp_builtin_participant_data_reader:
+        &mut impl DataReader<SpdpDiscoveredParticipantData, Samples = T>,
+    domain_id: u32,
+    domain_tag: &str,
+    sedp_builtin_publications_writer: &mut impl RtpsStatefulWriterOperations<
+        ReaderProxyType = impl RtpsReaderProxyConstructor,
+    >,
+    sedp_builtin_publication_reader: &mut impl RtpsStatefulReaderOperations<
+        WriterProxyType = impl RtpsWriterProxyConstructor,
+    >,
+    sedp_builtin_subscriptions_writer: &mut impl RtpsStatefulWriterOperations<
+        ReaderProxyType = impl RtpsReaderProxyConstructor,
+    >,
+    sedp_builtin_subscriptions_reader: &mut impl RtpsStatefulReaderOperations<
+        WriterProxyType = impl RtpsWriterProxyConstructor,
+    >,
+    sedp_builtin_topics_writer: &mut impl RtpsStatefulWriterOperations<
+        ReaderProxyType = impl RtpsReaderProxyConstructor,
+    >,
+    sedp_builtin_topics_reader: &mut impl RtpsStatefulReaderOperations<
+        WriterProxyType = impl RtpsWriterProxyConstructor,
+    >,
+) where
+    T: Deref<Target = [SpdpDiscoveredParticipantData]>,
+{
 
-    let builtin_data_writers = &mut domain_participant.builtin_publisher.as_ref()
-        .expect("(T_T) The domain participant should have a builtin publisher by now")
-        .write_lock().data_writer_list;
-    let builtin_data_readers = &mut domain_participant.builtin_subscriber.as_ref()
-        .expect("(T_T) The domain participant should have a builtin publisher by now")
-        .write_lock().data_reader_list;
-
-    let builtin_publication_writer = builtin_data_writers.iter_mut().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_PUBLICATION)
-        .expect("(T_T) The domain participant should have a builtin publication writer by now").clone();
-    let builtin_subscription_writer = builtin_data_writers.iter_mut().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_SUBSCRIPTION)
-        .expect("(T_T) The domain participant should have a builtin subscription writer by now").clone();
-    let builtin_topic_writer = builtin_data_writers.iter_mut().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_TOPIC)
-        .expect("(T_T) The domain participant should have a builtin topic writer by now").clone();
-
-    let builtin_publication_reader = builtin_data_readers.iter_mut().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_PUBLICATION)
-        .expect("(T_T) The domain participant should have a builtin publication reader by now").clone();
-    let builtin_subscription_reader = builtin_data_readers.iter_mut().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_SUBSCRIPTION)
-        .expect("(T_T) The domain participant should have a builtin subscription reader by now").clone();
-    let builtin_topic_reader = builtin_data_readers.iter_mut().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_TOPIC)
-        .expect("(T_T) The domain participant should have a builtin topic reader by now").clone();
-
-    let mut builtin_participant_reader_proxy: DataReaderProxy<SpdpDiscoveredParticipantData, RtpsStructureImpl> = DataReaderProxy::new(
-        builtin_data_readers.iter().find(|r| r.read_lock().topic.read_lock().topic_name == DCPS_PARTICIPANT)
-            .expect("(T_T) The domain participant should have a builtin participant writer by now")
-            .downgrade()
-    );
-
-    if let Ok(samples) = builtin_participant_reader_proxy.read(1, &[], &[], &[]) {
+    if let Ok(samples) = spdp_builtin_participant_data_reader.read(1, &[], &[], &[]) {
         for discovered_participant in samples.into_iter() {
             if let Ok(participant_discovery) = ParticipantDiscovery::new(
                 &discovered_participant.participant_proxy,
                 &(domain_id as u32),
-                &domain_tag,
+                domain_tag,
             ) {
                 participant_discovery.discovered_participant_add_publications_writer(
-                    builtin_publication_writer.write_lock().rtps_writer.try_as_stateful_writer().unwrap(),
+                    sedp_builtin_publications_writer,
                 );
 
                 participant_discovery.discovered_participant_add_publications_reader(
-                    builtin_publication_reader.write_lock().rtps_reader.try_as_stateful_reader().unwrap(),
+                    sedp_builtin_publication_reader,
                 );
 
                 participant_discovery.discovered_participant_add_subscriptions_writer(
-                    builtin_subscription_writer.write_lock().rtps_writer.try_as_stateful_writer().unwrap(),
+                    sedp_builtin_subscriptions_writer,
                 );
 
                 participant_discovery.discovered_participant_add_subscriptions_reader(
-                    builtin_subscription_reader.write_lock().rtps_reader.try_as_stateful_reader().unwrap(),
+                    sedp_builtin_subscriptions_reader,
                 );
 
                 participant_discovery.discovered_participant_add_topics_writer(
-                    builtin_topic_writer.write_lock().rtps_writer.try_as_stateful_writer().unwrap()
+                    sedp_builtin_topics_writer
                 );
 
                 participant_discovery.discovered_participant_add_topics_reader(
-                    builtin_topic_reader.write_lock().rtps_reader.try_as_stateful_reader().unwrap()
+                    sedp_builtin_topics_reader
                 );
             }
         }
