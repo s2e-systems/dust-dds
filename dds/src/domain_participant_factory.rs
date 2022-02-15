@@ -346,7 +346,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
     {
         let sedp_topic_participant = domain_participant_proxy.create_topic::<SpdpDiscoveredParticipantData>(
             DCPS_PARTICIPANT, None, None, 0
-        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?; // is there a more suitable variant?
+        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
 
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
@@ -714,12 +714,12 @@ fn spin_tasks(domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStr
     let builtin_participant_data_writer = domain_participant
         .read_lock().builtin_publisher.as_ref()
         .ok_or(DDSError::PreconditionNotMet(
-            "The domain participant should have a builtin publisher at this point".to_string()
+            "No builtin publisher".to_string()
         ))?
         .read_lock().data_writer_list
         .iter().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_PARTICIPANT)
         .ok_or(DDSError::PreconditionNotMet(
-            "The domain participant should have a builtin participant data writer at this point".to_string()
+            "Mo builtin participant data writer".to_string()
         ))?
         .clone();
 
