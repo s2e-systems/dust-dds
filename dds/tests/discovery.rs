@@ -579,7 +579,7 @@ fn create_two_participants_with_different_domains() {
     println!("[P1 created a publisher] Matched {} writers", num_matched_writers(&participant1));
     
     // std::thread::sleep(std::time::Duration::new(5, 0));
-    // println!("[After 5 seconds] Matched: {} readers, {} writers", num_matched_readers(&participant1), num_matched_writers(&participant1));
+    // println!("[After 5 seconds] Matched {} writers", num_matched_writers(&participant1));
 
     assert!(participant1.get_builtin_subscriber().is_ok());
     assert!(participant2.get_builtin_subscriber().is_ok());

@@ -64,7 +64,7 @@ use crate::{
         spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy}, sedp_discovered_reader_data::SedpDiscoveredReaderData, sedp_discovered_topic_data::SedpDiscoveredTopicData,
     },
     udp_transport::UdpTransport,
-    tasks::{Executor, Spawner, spdp_task_discovery},
+    tasks::{Executor, Spawner, spdp_task_discovery, task_sedp_discovery},
 };
 
 pub struct RtpsStructureImpl;
@@ -646,36 +646,49 @@ domain_participant.read_lock().builtin_publisher.as_ref()
         );
     }
 
-    // let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
-    // let _user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
-    // spawner.spawn_enabled_periodic_task(
-    //     "sedp discovery",
-    //     move || {
-            // let user_defined_publisher_list_lock =
-            //     rtps_shared_write_lock(&user_defined_publisher_list_arc);
-            // for user_defined_publisher in user_defined_publisher_list_lock.iter() {
-            //     let _user_defined_publisher_lock =
-            //         rtps_shared_write_lock(&user_defined_publisher);
-            //     // user_defined_publisher_lock.process_discovery();
-            // }
-    //     },
-    //     std::time::Duration::from_millis(500),
-    // );
+    // {
+    //     let domain_participant = domain_participant.clone();
 
-    // let user_defined_publisher_list_arc = user_defined_publisher_list.clone();
-    // let user_defined_subscriber_list_arc = user_defined_subscriber_list.clone();
-    // let sedp_builtin_publications_dds_data_reader_arc =
-    // sedp_builtin_publications_dds_data_reader.clone();
-    // spawner.spawn_enabled_periodic_task(
-    //     "sedp discovery",
-    //     move || {
-    //         task_sedp_discovery(
-    //             &sedp_builtin_publications_dds_data_reader_arc,
-    //             &user_defined_subscriber_list_arc,
-    //         )
-    //     },
-    //     std::time::Duration::from_millis(500),
-    // );
+    //     spawner.spawn_enabled_periodic_task(
+    //         "sedp discovery",
+    //         move || {
+    //             let user_defined_publisher_list = domain_participant.write_lock().user_defined_publisher_list;
+    //             for user_defined_publisher in user_defined_publisher_list.iter() {
+    //                 user_defined_publisher.process_discovery();
+    //             }
+    //         },
+    //         std::time::Duration::from_millis(500),
+    //     );
+    // }
+
+    {
+        let domain_participant = domain_participant.clone();
+
+        let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+        let builtin_subscriber = SubscriberProxy::new(
+            participant_proxy.clone(),
+            domain_participant.read_lock()
+                .builtin_subscriber.as_ref().unwrap().downgrade()
+        );
+
+        let publication_topic  = participant_proxy.find_topic::<SedpDiscoveredWriterData>(
+            DCPS_PUBLICATION, Duration::new(0, 0)
+        ).unwrap();
+        let mut builtin_publication_reader =
+            builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)
+            .expect("(T_T) domain participant should have a publication data reader at this point");
+
+        spawner.spawn_enabled_periodic_task(
+            "sedp discovery",
+            move || {
+                task_sedp_discovery(
+                    &mut builtin_publication_reader,
+                    &domain_participant.read_lock().user_defined_subscriber_list,
+                )
+            },
+            std::time::Duration::from_millis(500),
+        );
+    }
 
     let spdp_discovered_participant_data =
         spdp_discovered_participant_data_from_domain_participant(&domain_participant.read_lock());
