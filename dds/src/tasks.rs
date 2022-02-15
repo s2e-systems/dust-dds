@@ -105,7 +105,7 @@ pub struct EnabledPeriodicTask {
     pub enabled: Arc<AtomicBool>,
 }
 
-pub fn spdp_task_discovery<T>(
+pub fn task_spdp_discovery<T>(
     spdp_builtin_participant_data_reader:
         &mut impl DataReader<SpdpDiscoveredParticipantData, Samples = T>,
     domain_id: u32,
@@ -206,13 +206,79 @@ pub fn task_sedp_discovery(
 #[cfg(test)]
 mod tests {
     use mockall::{mock, predicate};
-    use rust_dds_api::{subscription::{data_reader::DataReader, query_condition::QueryCondition}, dcps_psm::{SampleStateKind, ViewStateKind, InstanceStateKind, InstanceHandle, LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus, BuiltInTopicKey, Duration}, return_type::DDSResult, infrastructure::{sample_info::SampleInfo, read_condition::ReadCondition, qos_policy::{DurabilityQosPolicy, DurabilityServiceQosPolicy, DeadlineQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind, LifespanQosPolicy, UserDataQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, DestinationOrderQosPolicy, PresentationQosPolicy, PartitionQosPolicy, TopicDataQosPolicy, GroupDataQosPolicy}, qos::SubscriberQos}, builtin_topics::{PublicationBuiltinTopicData, ParticipantBuiltinTopicData}};
-    use rust_dds_rtps_implementation::{rtps_impl::{rtps_writer_proxy_impl::RtpsWriterProxyImpl, rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl, rtps_group_impl::RtpsGroupImpl}, dds_impl::{data_reader_proxy::Samples, subscriber_proxy::SubscriberAttributes}, utils::shared_object::{RtpsWeak, RtpsShared}};
-    use rust_rtps_pim::{structure::{types::{Guid, PROTOCOLVERSION, GuidPrefix, VENDOR_ID_S2E, ENTITYID_UNKNOWN, EntityId, BUILT_IN_READER_GROUP}, group::RtpsGroupConstructor}, behavior::{reader::{stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxyConstructor}, writer::{stateful_writer::RtpsStatefulWriterOperations, reader_proxy::RtpsReaderProxyConstructor}}, discovery::{types::{BuiltinEndpointSet, BuiltinEndpointQos}, sedp::builtin_endpoints::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER}}, messages::types::Count};
+    use rust_dds_api::{
+        subscription::{data_reader::DataReader, query_condition::QueryCondition},
+        dcps_psm::{
+            SampleStateKind, ViewStateKind, InstanceStateKind, InstanceHandle,
+            LivelinessChangedStatus, RequestedDeadlineMissedStatus,
+            RequestedIncompatibleQosStatus, SampleLostStatus,
+            SampleRejectedStatus, SubscriptionMatchedStatus, BuiltInTopicKey,
+            Duration
+        },
+        return_type::DDSResult,
+        infrastructure::{
+            sample_info::SampleInfo,
+            read_condition::ReadCondition,
+            qos_policy::{
+                DurabilityQosPolicy, DurabilityServiceQosPolicy,
+                DeadlineQosPolicy, LatencyBudgetQosPolicy,
+                LivelinessQosPolicy, ReliabilityQosPolicy,
+                ReliabilityQosPolicyKind, LifespanQosPolicy, UserDataQosPolicy,
+                OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+                DestinationOrderQosPolicy, PresentationQosPolicy,
+                PartitionQosPolicy, TopicDataQosPolicy, GroupDataQosPolicy
+            },
+            qos::SubscriberQos
+        },
+        builtin_topics::{PublicationBuiltinTopicData, ParticipantBuiltinTopicData}
+    };
+    use rust_dds_rtps_implementation::{
+        rtps_impl::{
+            rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+            rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
+            rtps_group_impl::RtpsGroupImpl
+        },
+        dds_impl::{data_reader_proxy::Samples, subscriber_proxy::SubscriberAttributes},
+        utils::shared_object::{RtpsWeak, RtpsShared}
+    };
+    use rust_rtps_pim::{
+        structure::{
+            types::{
+                Guid, PROTOCOLVERSION, GuidPrefix, VENDOR_ID_S2E,
+                ENTITYID_UNKNOWN, EntityId, BUILT_IN_READER_GROUP
+            },
+            group::RtpsGroupConstructor
+        },
+        behavior::{
+            reader::{
+                stateful_reader::RtpsStatefulReaderOperations,
+                writer_proxy::RtpsWriterProxyConstructor
+            },
+            writer::{
+                stateful_writer::RtpsStatefulWriterOperations,
+                reader_proxy::RtpsReaderProxyConstructor
+            }
+        },
+        discovery::{
+            types::{BuiltinEndpointSet, BuiltinEndpointQos},
+            sedp::builtin_endpoints::{
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+                ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
+            }
+        },
+        messages::types::Count
+    };
 
-    use crate::data_representation_builtin_endpoints::{spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy}, sedp_discovered_writer_data::{SedpDiscoveredWriterData, RtpsWriterProxy}};
+    use crate::data_representation_builtin_endpoints::{
+        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy},
+        sedp_discovered_writer_data::{SedpDiscoveredWriterData, RtpsWriterProxy}
+    };
 
-    use super::{spdp_task_discovery, task_sedp_discovery};
+    use super::{task_spdp_discovery, task_sedp_discovery};
 
     mock! {
         DdsDataReader<Foo: 'static>{}
@@ -570,7 +636,7 @@ mod tests {
             .once()
             .return_const(());
 
-        spdp_task_discovery(
+        task_spdp_discovery(
             &mut mock_spdp_data_reader,
             1,
             "",

@@ -49,7 +49,8 @@ use rust_rtps_pim::{
             SedpBuiltinSubscriptionsReader, SedpBuiltinSubscriptionsWriter,
             SedpBuiltinTopicsReader, SedpBuiltinTopicsWriter,
         },
-        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter}, types::{BuiltinEndpointSet, BuiltinEndpointQos},
+        spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
+        types::{BuiltinEndpointSet, BuiltinEndpointQos},
     },
     structure::{types::{
         EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
@@ -61,10 +62,12 @@ use crate::{
     communication::Communication,
     data_representation_builtin_endpoints::{
         sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy}, sedp_discovered_reader_data::SedpDiscoveredReaderData, sedp_discovered_topic_data::SedpDiscoveredTopicData,
+        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy},
+        sedp_discovered_reader_data::SedpDiscoveredReaderData,
+        sedp_discovered_topic_data::SedpDiscoveredTopicData,
     },
     udp_transport::UdpTransport,
-    tasks::{Executor, Spawner, spdp_task_discovery, task_sedp_discovery},
+    tasks::{Executor, Spawner, task_spdp_discovery, task_sedp_discovery},
 };
 
 pub struct RtpsStructureImpl;
@@ -591,6 +594,7 @@ domain_participant.read_lock().builtin_publisher.as_ref()
                 .unwrap().downgrade()
         );
 
+        // todo: move lookup in task
         let participant_topic  = participant_proxy.find_topic::<SpdpDiscoveredParticipantData>(
             DCPS_PARTICIPANT, Duration::new(0, 0)
         ).unwrap();
@@ -630,16 +634,22 @@ domain_participant.read_lock().builtin_publisher.as_ref()
         spawner.spawn_enabled_periodic_task(
             "spdp discovery",
             move || {
-                spdp_task_discovery(
+                task_spdp_discovery(
                     &mut builtin_participant_data_reader,
                     domain_id as u32,
                     &domain_tag,
-                    builtin_publication_writer.as_ref().upgrade().unwrap().write_lock().rtps_writer.try_as_stateful_writer().unwrap(),
-                    builtin_publication_reader.as_ref().upgrade().unwrap().write_lock().rtps_reader.try_as_stateful_reader().unwrap(),
-                    builtin_subscription_writer.as_ref().upgrade().unwrap().write_lock().rtps_writer.try_as_stateful_writer().unwrap(),
-                    builtin_subscription_reader.as_ref().upgrade().unwrap().write_lock().rtps_reader.try_as_stateful_reader().unwrap(),
-                    builtin_topic_writer.as_ref().upgrade().unwrap().write_lock().rtps_writer.try_as_stateful_writer().unwrap(),
-                    builtin_topic_reader.as_ref().upgrade().unwrap().write_lock().rtps_reader.try_as_stateful_reader().unwrap(),
+                    builtin_publication_writer.as_ref().upgrade().unwrap().write_lock()
+                        .rtps_writer.try_as_stateful_writer().unwrap(),
+                    builtin_publication_reader.as_ref().upgrade().unwrap().write_lock()
+                        .rtps_reader.try_as_stateful_reader().unwrap(),
+                    builtin_subscription_writer.as_ref().upgrade().unwrap().write_lock()
+                        .rtps_writer.try_as_stateful_writer().unwrap(),
+                    builtin_subscription_reader.as_ref().upgrade().unwrap().write_lock()
+                        .rtps_reader.try_as_stateful_reader().unwrap(),
+                    builtin_topic_writer.as_ref().upgrade().unwrap().write_lock()
+                        .rtps_writer.try_as_stateful_writer().unwrap(),
+                    builtin_topic_reader.as_ref().upgrade().unwrap().write_lock()
+                        .rtps_reader.try_as_stateful_reader().unwrap(),
                 );
             },
             std::time::Duration::from_millis(500),
@@ -714,11 +724,29 @@ domain_participant.read_lock().builtin_publisher.as_ref()
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{infrastructure::qos::DomainParticipantQos, dcps_psm::{DomainId, Duration}, domain::domain_participant::DomainParticipant, subscription::subscriber::SubscriberDataReaderFactory, publication::publisher::PublisherDataWriterFactory};
-    use rust_dds_rtps_implementation::{utils::shared_object::RtpsShared, dds_impl::{domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy}, subscriber_proxy::SubscriberProxy, publisher_proxy::PublisherProxy}};
+    use rust_dds_api::{
+        infrastructure::qos::DomainParticipantQos,
+        dcps_psm::{DomainId, Duration},
+        domain::domain_participant::DomainParticipant,
+        subscription::subscriber::SubscriberDataReaderFactory,
+        publication::publisher::PublisherDataWriterFactory
+    };
+    use rust_dds_rtps_implementation::{
+        utils::shared_object::RtpsShared,
+        dds_impl::{
+            domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
+            subscriber_proxy::SubscriberProxy,
+            publisher_proxy::PublisherProxy
+        }
+    };
     use rust_rtps_pim::structure::types::GuidPrefix;
 
-    use crate::data_representation_builtin_endpoints::{spdp_discovered_participant_data::SpdpDiscoveredParticipantData, sedp_discovered_writer_data::SedpDiscoveredWriterData, sedp_discovered_reader_data::SedpDiscoveredReaderData, sedp_discovered_topic_data::SedpDiscoveredTopicData};
+    use crate::data_representation_builtin_endpoints::{
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        sedp_discovered_writer_data::SedpDiscoveredWriterData,
+        sedp_discovered_reader_data::SedpDiscoveredReaderData,
+        sedp_discovered_topic_data::SedpDiscoveredTopicData
+    };
 
     use super::{create_builtins, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC};
 
