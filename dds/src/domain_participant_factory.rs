@@ -13,7 +13,7 @@ use rust_dds_api::{
         DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
         PublisherQos, SubscriberQos,
     },
-    return_type::DDSResult,
+    return_type::{DDSResult, DDSError},
     publication::{data_writer::DataWriter, publisher::PublisherDataWriterFactory},
     builtin_topics::ParticipantBuiltinTopicData, subscription::subscriber::SubscriberDataReaderFactory,
 };
@@ -164,7 +164,7 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<DomainParticipantProxy<RtpsStructureImpl>> {
+    ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let guid_prefix = GuidPrefix([3; 12]);
 
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
@@ -190,15 +190,15 @@ impl DomainParticipantFactory {
             vec![],
         ));
         
-        create_builtins(guid_prefix, domain_participant.clone());
-        spin_tasks(domain_participant.clone());
+        create_builtins(guid_prefix, domain_participant.clone())?;
+        spin_tasks(domain_participant.clone())?;
 
         self.participant_list
             .lock()
             .unwrap()
             .push(domain_participant.clone());
 
-        Some(DomainParticipantProxy::new(domain_participant.downgrade()))
+        Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
@@ -306,7 +306,8 @@ where
     }
 }
 
-fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>) {
+fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>)
+    -> DDSResult<()> {
     let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
     // ///////// Create the built-in publisher and subcriber
@@ -345,7 +346,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
     {
         let sedp_topic_participant = domain_participant_proxy.create_topic::<SpdpDiscoveredParticipantData>(
             DCPS_PARTICIPANT, None, None, 0
-        ).unwrap();
+        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
 
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
@@ -353,7 +354,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let spdp_builtin_participant_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
-            sedp_topic_participant.as_ref().upgrade().unwrap(),
+            sedp_topic_participant.as_ref().upgrade()?,
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -378,7 +379,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-            sedp_topic_participant.as_ref().upgrade().unwrap(),
+            sedp_topic_participant.as_ref().upgrade()?,
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
@@ -391,14 +392,14 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
     {
         let sedp_topic_publication = domain_participant_proxy.create_topic::<SedpDiscoveredWriterData>(
             DCPS_PUBLICATION, None, None, 0
-        ).unwrap();
+        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
 
         let sedp_builtin_publications_rtps_reader =
             SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_publications_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
-            sedp_topic_publication.as_ref().upgrade().unwrap(),
+            sedp_topic_publication.as_ref().upgrade()?,
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -411,7 +412,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-            sedp_topic_publication.as_ref().upgrade().unwrap(),
+            sedp_topic_publication.as_ref().upgrade()?,
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
@@ -424,14 +425,14 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
     {
         let sedp_topic_subscription = domain_participant_proxy.create_topic::<SedpDiscoveredReaderData>(
             DCPS_SUBSCRIPTION, None, None, 0
-        ).unwrap();
+        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
 
         let sedp_builtin_subscriptions_rtps_reader =
             SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
-            sedp_topic_subscription.as_ref().upgrade().unwrap(),
+            sedp_topic_subscription.as_ref().upgrade()?,
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -444,7 +445,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
-            sedp_topic_subscription.as_ref().upgrade().unwrap(),
+            sedp_topic_subscription.as_ref().upgrade()?,
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
@@ -457,14 +458,14 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
     {
         let sedp_topic_topic = domain_participant_proxy.create_topic::<SedpDiscoveredTopicData>(
             DCPS_TOPIC, None, None, 0
-        ).unwrap();
+        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
 
         let sedp_builtin_topics_rtps_reader =
             SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_topics_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
-            sedp_topic_topic.as_ref().upgrade().unwrap(),
+            sedp_topic_topic.as_ref().upgrade()?,
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -477,7 +478,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
-            sedp_topic_topic.as_ref().upgrade().unwrap(),
+            sedp_topic_topic.as_ref().upgrade()?,
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
@@ -485,9 +486,12 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
             .data_writer_list
             .push(sedp_builtin_topics_data_writer.clone());
     }
+
+    Ok(())
 }
 
-fn spin_tasks(domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>) {
+fn spin_tasks(domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>)
+    -> DDSResult<()> {
     let guid_prefix = domain_participant.read_lock().rtps_participant.guid().prefix;
     let domain_id = domain_participant.read_lock().domain_id;
     let domain_tag = domain_participant.read_lock().domain_tag.clone();
@@ -530,24 +534,17 @@ fn spin_tasks(domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStr
         spawner.spawn_enabled_periodic_task(
             "builtin communication",
             move || {
-                builtin_communication.send(
-                    core::slice::from_ref(
-                        domain_participant
-                        .read_lock()
-                        .builtin_publisher
-                        .as_ref()
-                        .unwrap()
-                    ),
-                );
-                builtin_communication.receive(
-                    core::slice::from_ref(
-                        domain_participant
-                        .read_lock()
-                        .builtin_subscriber
-                        .as_ref()
-                        .unwrap()
-                    ),
-                );
+                let builtin_publisher = &domain_participant.read_lock().builtin_publisher;
+                let builtin_subscriber = &domain_participant.read_lock().builtin_subscriber;
+
+                if let (Some(builtin_publisher), Some(builtin_subscriber)) = (builtin_publisher, builtin_subscriber) {
+                    builtin_communication.send(
+                        core::slice::from_ref(builtin_publisher),
+                    );
+                    builtin_communication.receive(
+                        core::slice::from_ref(builtin_subscriber),
+                    );
+                }
             },
             std::time::Duration::from_millis(500),
         );
@@ -583,74 +580,77 @@ fn spin_tasks(domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStr
     }
 
     {
-        let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
-        let builtin_subscriber = SubscriberProxy::new(
-            participant_proxy.clone(),
-            domain_participant.read_lock()
-                .builtin_subscriber.as_ref().unwrap().downgrade()
-        );
-        let builtin_publisher  = PublisherProxy::new(
-domain_participant.read_lock().builtin_publisher.as_ref()
-                .unwrap().downgrade()
-        );
+        let domain_participant = domain_participant.clone();
 
-        // todo: move lookup in task
-        let participant_topic  = participant_proxy.find_topic::<SpdpDiscoveredParticipantData>(
-            DCPS_PARTICIPANT, Duration::new(0, 0)
-        ).unwrap();
-        let publication_topic  = participant_proxy.find_topic::<SedpDiscoveredWriterData>(
-            DCPS_PUBLICATION, Duration::new(0, 0)
-        ).unwrap();
-        let subscription_topic = participant_proxy.find_topic::<SedpDiscoveredReaderData>(
-            DCPS_SUBSCRIPTION, Duration::new(0, 0)
-        ).unwrap();
-        let topic_topic        = participant_proxy.find_topic::<SedpDiscoveredTopicData>(
-            DCPS_TOPIC, Duration::new(0, 0)
-        ).unwrap();
+        let try_perform_task = move || -> Option<()> {
+            let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+            let builtin_subscriber = SubscriberProxy::new(
+                participant_proxy.clone(),
+                domain_participant.read_lock()
+                    .builtin_subscriber.as_ref()?.downgrade()
+            );
+            let builtin_publisher  = PublisherProxy::new(
+                domain_participant.read_lock()
+                    .builtin_publisher.as_ref()?.downgrade()
+            );
 
-        let mut builtin_participant_data_reader =
-            builtin_subscriber.datareader_factory_lookup_datareader(&participant_topic)
-            .expect("(T_T) domain participant should have a participant data reader at this point");
+            let participant_topic  = participant_proxy.find_topic::<SpdpDiscoveredParticipantData>(
+                DCPS_PARTICIPANT, Duration::new(0, 0)
+            )?;
+            let publication_topic  = participant_proxy.find_topic::<SedpDiscoveredWriterData>(
+                DCPS_PUBLICATION, Duration::new(0, 0)
+            )?;
+            let subscription_topic = participant_proxy.find_topic::<SedpDiscoveredReaderData>(
+                DCPS_SUBSCRIPTION, Duration::new(0, 0)
+            )?;
+            let topic_topic        = participant_proxy.find_topic::<SedpDiscoveredTopicData>(
+                DCPS_TOPIC, Duration::new(0, 0)
+            )?;
 
-        let builtin_publication_reader =
-            builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)
-            .expect("(T_T) domain participant should have a publication data reader at this point");
-        let builtin_subscription_reader =
-            builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic)
-            .expect("(T_T) domain participant should have a subscription data reader at this point");
-        let builtin_topic_reader =
-            builtin_subscriber.datareader_factory_lookup_datareader(&topic_topic)
-            .expect("(T_T) domain participant should have a topic data reader at this point");
-        let builtin_publication_writer =
-            builtin_publisher.datawriter_factory_lookup_datawriter(&publication_topic)
-            .expect("(T_T) domain participant should have a publication data writer at this point");
-        let builtin_subscription_writer =
-            builtin_publisher.datawriter_factory_lookup_datawriter(&subscription_topic)
-            .expect("(T_T) domain participant should have a subscription data writer at this point");
-        let builtin_topic_writer =
-            builtin_publisher.datawriter_factory_lookup_datawriter(&topic_topic)
-            .expect("(T_T) domain participant should have a topic data writer at this point");
+            let mut builtin_participant_data_reader =
+                builtin_subscriber.datareader_factory_lookup_datareader(&participant_topic)?;
+
+            let builtin_publication_reader =
+                builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
+            let builtin_subscription_reader =
+                builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic)?;
+            let builtin_topic_reader =
+                builtin_subscriber.datareader_factory_lookup_datareader(&topic_topic)?;
+            let builtin_publication_writer =
+                builtin_publisher.datawriter_factory_lookup_datawriter(&publication_topic)?;
+            let builtin_subscription_writer =
+                builtin_publisher.datawriter_factory_lookup_datawriter(&subscription_topic)?;
+            let builtin_topic_writer =
+                builtin_publisher.datawriter_factory_lookup_datawriter(&topic_topic)?;
+
+            task_spdp_discovery(
+                &mut builtin_participant_data_reader,
+                domain_id as u32,
+                &domain_tag,
+                builtin_publication_writer.as_ref().upgrade().ok()?.write_lock()
+                    .rtps_writer.try_as_stateful_writer().ok()?,
+                builtin_publication_reader.as_ref().upgrade().ok()?.write_lock()
+                    .rtps_reader.try_as_stateful_reader().ok()?,
+                builtin_subscription_writer.as_ref().upgrade().ok()?.write_lock()
+                    .rtps_writer.try_as_stateful_writer().ok()?,
+                builtin_subscription_reader.as_ref().upgrade().ok()?.write_lock()
+                    .rtps_reader.try_as_stateful_reader().ok()?,
+                builtin_topic_writer.as_ref().upgrade().ok()?.write_lock()
+                    .rtps_writer.try_as_stateful_writer().ok()?,
+                builtin_topic_reader.as_ref().upgrade().ok()?.write_lock()
+                    .rtps_reader.try_as_stateful_reader().ok()?,
+            );
+
+            Some(())
+        };
 
         spawner.spawn_enabled_periodic_task(
             "spdp discovery",
             move || {
-                task_spdp_discovery(
-                    &mut builtin_participant_data_reader,
-                    domain_id as u32,
-                    &domain_tag,
-                    builtin_publication_writer.as_ref().upgrade().unwrap().write_lock()
-                        .rtps_writer.try_as_stateful_writer().unwrap(),
-                    builtin_publication_reader.as_ref().upgrade().unwrap().write_lock()
-                        .rtps_reader.try_as_stateful_reader().unwrap(),
-                    builtin_subscription_writer.as_ref().upgrade().unwrap().write_lock()
-                        .rtps_writer.try_as_stateful_writer().unwrap(),
-                    builtin_subscription_reader.as_ref().upgrade().unwrap().write_lock()
-                        .rtps_reader.try_as_stateful_reader().unwrap(),
-                    builtin_topic_writer.as_ref().upgrade().unwrap().write_lock()
-                        .rtps_writer.try_as_stateful_writer().unwrap(),
-                    builtin_topic_reader.as_ref().upgrade().unwrap().write_lock()
-                        .rtps_reader.try_as_stateful_reader().unwrap(),
-                );
+                match try_perform_task() {
+                    Some(()) => (),
+                    None     => println!("spdp discovery failed (domain participant might not be fully constructed yet)")
+                }
             },
             std::time::Duration::from_millis(500),
         );
@@ -674,27 +674,35 @@ domain_participant.read_lock().builtin_publisher.as_ref()
     {
         let domain_participant = domain_participant.clone();
 
-        let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
-        let builtin_subscriber = SubscriberProxy::new(
-            participant_proxy.clone(),
-            domain_participant.read_lock()
-                .builtin_subscriber.as_ref().unwrap().downgrade()
-        );
+        let try_perform_task = move || -> Option<()> {
+            let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+            let builtin_subscriber = SubscriberProxy::new(
+                participant_proxy.clone(),
+                domain_participant.read_lock()
+                    .builtin_subscriber.as_ref()?.downgrade()
+            );
 
-        let publication_topic  = participant_proxy.find_topic::<SedpDiscoveredWriterData>(
-            DCPS_PUBLICATION, Duration::new(0, 0)
-        ).unwrap();
-        let mut builtin_publication_reader =
-            builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)
-            .expect("(T_T) domain participant should have a publication data reader at this point");
+            let publication_topic  = participant_proxy.find_topic::<SedpDiscoveredWriterData>(
+                DCPS_PUBLICATION, Duration::new(0, 0)
+            )?;
+            let mut builtin_publication_reader =
+                builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
+
+            task_sedp_discovery(
+                &mut builtin_publication_reader,
+                &domain_participant.read_lock().user_defined_subscriber_list,
+            );
+
+            Some(())
+        };
 
         spawner.spawn_enabled_periodic_task(
             "sedp discovery",
             move || {
-                task_sedp_discovery(
-                    &mut builtin_publication_reader,
-                    &domain_participant.read_lock().user_defined_subscriber_list,
-                )
+                match try_perform_task() {
+                    Some(()) => (),
+                    None     => println!("sedp discovery failed (domain participant might not be fully constructed yet)")
+                }
             },
             std::time::Duration::from_millis(500),
         );
@@ -705,10 +713,14 @@ domain_participant.read_lock().builtin_publisher.as_ref()
     
     let builtin_participant_data_writer = domain_participant
         .read_lock().builtin_publisher.as_ref()
-        .expect("(T_T) DomainParticipant should have a data writer by now")
+        .ok_or(DDSError::PreconditionNotMet(
+            "No builtin publisher".to_string()
+        ))?
         .read_lock().data_writer_list
         .iter().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_PARTICIPANT)
-        .expect("(T_T) DomainParticipant should have a participant data writer by now")
+        .ok_or(DDSError::PreconditionNotMet(
+            "Mo builtin participant data writer".to_string()
+        ))?
         .clone();
 
     DataWriterProxy::new(builtin_participant_data_writer.downgrade())
@@ -716,10 +728,12 @@ domain_participant.read_lock().builtin_publisher.as_ref()
             &spdp_discovered_participant_data,
             None,
             Time { sec: 0, nanosec: 0 },
-        ).unwrap();
+        )?;
 
     spawner.enable_tasks();
     executor.run();
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -761,7 +775,7 @@ mod tests {
             vec![], vec![], vec![], vec![],
         ));
         
-        create_builtins(guid_prefix, domain_participant.clone());
+        create_builtins(guid_prefix, domain_participant.clone()).unwrap();
 
         let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
         
