@@ -15,7 +15,7 @@ use rust_dds_rtps_implementation::{
         subscriber_proxy::SubscriberAttributes,
     },
     rtps_impl::rtps_writer_proxy_impl::RtpsWriterProxyImpl,
-    utils::shared_object::RtpsShared,
+    utils::shared_object::RtpsShared, data_representation_builtin_endpoints::{spdp_discovered_participant_data::SpdpDiscoveredParticipantData, sedp_discovered_writer_data::SedpDiscoveredWriterData},
 };
 use rust_rtps_pim::{
     behavior::{
@@ -29,13 +29,7 @@ use rust_rtps_pim::{
     discovery::participant_discovery::ParticipantDiscovery,
 };
 
-use crate::{
-    data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    },
-    domain_participant_factory::{RtpsStructureImpl},
-};
+use crate::domain_participant_factory::{RtpsStructureImpl};
 
 pub struct Executor {
     pub receiver: Receiver<EnabledPeriodicTask>,
@@ -239,7 +233,7 @@ mod tests {
             rtps_group_impl::RtpsGroupImpl
         },
         dds_impl::{data_reader_proxy::Samples, subscriber_proxy::{SubscriberAttributes, SubscriberProxy}, topic_proxy::{TopicAttributes, TopicProxy}, domain_participant_proxy::DomainParticipantProxy},
-        utils::shared_object::{RtpsWeak, RtpsShared}, dds_type::{DdsType, DdsDeserialize}
+        utils::shared_object::{RtpsWeak, RtpsShared}, dds_type::{DdsType, DdsDeserialize}, data_representation_builtin_endpoints::{spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy}, sedp_discovered_writer_data::{SedpDiscoveredWriterData, RtpsWriterProxy}}
     };
     use rust_rtps_pim::{
         structure::{
@@ -271,11 +265,6 @@ mod tests {
             }
         },
         messages::types::Count
-    };
-
-    use crate::data_representation_builtin_endpoints::{
-        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy},
-        sedp_discovered_writer_data::{SedpDiscoveredWriterData, RtpsWriterProxy}
     };
 
     use super::{task_spdp_discovery, task_sedp_discovery};

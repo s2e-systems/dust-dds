@@ -2,7 +2,8 @@ use std::io::Read;
 
 use byteorder::{ByteOrder, ReadBytesExt};
 use rust_dds_api::return_type::{DDSError, DDSResult};
-use rust_dds_rtps_implementation::dds_type::{BigEndian, LittleEndian, Endianness};
+
+use crate::dds_type::{LittleEndian, BigEndian, Endianness};
 
 use super::parameter_id_values::PID_SENTINEL;
 

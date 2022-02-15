@@ -18,6 +18,12 @@ use rust_dds_api::{
     builtin_topics::ParticipantBuiltinTopicData, subscription::subscriber::SubscriberDataReaderFactory,
 };
 use rust_dds_rtps_implementation::{
+    data_representation_builtin_endpoints::{
+        sedp_discovered_writer_data::SedpDiscoveredWriterData,
+        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy},
+        sedp_discovered_reader_data::SedpDiscoveredReaderData,
+        sedp_discovered_topic_data::SedpDiscoveredTopicData,
+    },
     dds_impl::{
         data_reader_proxy::{DataReaderAttributes, RtpsReader},
         data_writer_proxy::{DataWriterAttributes, RtpsWriter, DataWriterProxy},
@@ -60,12 +66,6 @@ use rust_rtps_pim::{
 
 use crate::{
     communication::Communication,
-    data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy},
-        sedp_discovered_reader_data::SedpDiscoveredReaderData,
-        sedp_discovered_topic_data::SedpDiscoveredTopicData,
-    },
     udp_transport::UdpTransport,
     tasks::{Executor, Spawner, task_spdp_discovery, task_sedp_discovery},
 };
@@ -751,16 +751,15 @@ mod tests {
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
             subscriber_proxy::SubscriberProxy,
             publisher_proxy::PublisherProxy
-        }
+        },
+        data_representation_builtin_endpoints::{
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+            sedp_discovered_writer_data::SedpDiscoveredWriterData,
+            sedp_discovered_reader_data::SedpDiscoveredReaderData,
+            sedp_discovered_topic_data::SedpDiscoveredTopicData
+        },
     };
     use rust_rtps_pim::structure::types::GuidPrefix;
-
-    use crate::data_representation_builtin_endpoints::{
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        sedp_discovered_reader_data::SedpDiscoveredReaderData,
-        sedp_discovered_topic_data::SedpDiscoveredTopicData
-    };
 
     use super::{create_builtins, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC};
 
