@@ -1,28 +1,50 @@
 use std::sync::atomic::{self, AtomicU8};
 
 use rust_dds_api::{
-    dcps_psm::{InstanceHandle, StatusMask},
+    dcps_psm::{InstanceHandle, StatusMask, BuiltInTopicKey, Duration},
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
-        qos_policy::ReliabilityQosPolicyKind,
+        qos_policy::{
+            ReliabilityQosPolicyKind,
+            DurabilityQosPolicy,
+            DeadlineQosPolicy,
+            LatencyBudgetQosPolicy,
+            DurabilityServiceQosPolicy,
+            LivelinessQosPolicy,
+            ReliabilityQosPolicy,
+            LifespanQosPolicy,
+            UserDataQosPolicy,
+            OwnershipQosPolicy,
+            OwnershipStrengthQosPolicy,
+            DestinationOrderQosPolicy,
+            PresentationQosPolicy,
+            PartitionQosPolicy,
+            TopicDataQosPolicy,
+            GroupDataQosPolicy
+        },
     },
     publication::{
+        data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::{DDSError, DDSResult}, builtin_topics::PublicationBuiltinTopicData,
 };
 
 use rust_rtps_pim::{
-    behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
+    behavior::writer::{
+        stateful_writer::RtpsStatefulWriterConstructor,
+        writer::{RtpsWriterOperations, RtpsWriterAttributes
+        }
+    },
     structure::{
         entity::RtpsEntityAttributes,
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
-        },
+        }, history_cache::RtpsHistoryCacheOperations,
     },
 };
 
@@ -31,6 +53,8 @@ use crate::{
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
+    }, data_representation_builtin_endpoints::sedp_discovered_writer_data::{
+        SedpDiscoveredWriterData, RtpsWriterProxy
     },
 };
 
@@ -104,14 +128,26 @@ where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
     Rtps: RtpsStructure,
     Rtps::Group: RtpsEntityAttributes,
-    Rtps::StatefulWriter: RtpsStatefulWriterConstructor,
+    Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes
+        + RtpsStatefulWriterConstructor,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataWriterType = DataWriterProxy<Foo, Rtps>;
 
     fn datawriter_factory_create_datawriter(
         &self,
-        a_topic: &Self::TopicType,
+        topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
         _a_listener: Option<&'static dyn DataWriterListener>,
         _mask: StatusMask,
@@ -119,7 +155,7 @@ where
         let publisher_shared = self.0.upgrade().ok()?;
         let mut publisher_shared_lock = publisher_shared.write_lock();
 
-        let topic_shared = a_topic.as_ref().upgrade().ok()?;
+        let topic_shared = topic.as_ref().upgrade().ok()?;
 
         let qos = qos.unwrap_or(publisher_shared_lock.default_datawriter_qos.clone());
         let user_defined_data_writer_counter = publisher_shared_lock
@@ -166,55 +202,56 @@ where
             data_max_size_serialized,
         ));
 
-        // if let Some(sedp_builtin_publications_announcer) = publisher_shared
-        //     .read()
-        //     .ok()?
-        //     .sedp_builtin_publications_announcer
-        // {
-        //     let topic_shared = a_topic.as_ref().upgrade().ok()?.read_lock();
-        //     let mut sedp_builtin_publications_announcer_proxy =
-        //         DataWriterProxy::new(sedp_builtin_publications_announcer.downgrade());
-        //     let sedp_discovered_writer_data = SedpDiscoveredWriterData {
-        //         writer_proxy: RtpsWriterProxyImpl {
-        //             remote_writer_guid: guid,
-        //             unicast_locator_list: vec![],
-        //             multicast_locator_list: vec![],
-        //             data_max_size_serialized: None,
-        //             remote_group_entity_id: EntityId::new([0; 3], 0),
-        //         },
-        //         publication_builtin_topic_data: PublicationBuiltinTopicData {
-        //             key: BuiltInTopicKey { value: guid.into() },
-        //             participant_key: BuiltInTopicKey { value: [1; 16] },
-        //             topic_name: topic_shared.topic_name.clone(),
-        //             type_name: Foo::type_name().to_string(),
-        //             durability: DurabilityQosPolicy::default(),
-        //             durability_service: DurabilityServiceQosPolicy::default(),
-        //             deadline: DeadlineQosPolicy::default(),
-        //             latency_budget: LatencyBudgetQosPolicy::default(),
-        //             liveliness: LivelinessQosPolicy::default(),
-        //             reliability: ReliabilityQosPolicy {
-        //                 kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-        //                 max_blocking_time: Duration::new(3, 0),
-        //             },
-        //             lifespan: LifespanQosPolicy::default(),
-        //             user_data: UserDataQosPolicy::default(),
-        //             ownership: OwnershipQosPolicy::default(),
-        //             ownership_strength: OwnershipStrengthQosPolicy::default(),
-        //             destination_order: DestinationOrderQosPolicy::default(),
-        //             presentation: PresentationQosPolicy::default(),
-        //             partition: PartitionQosPolicy::default(),
-        //             topic_data: TopicDataQosPolicy::default(),
-        //             group_data: GroupDataQosPolicy::default(),
-        //         },
-        //     };
-        //     sedp_builtin_publications_announcer_proxy
-        //         .write_w_timestamp(
-        //             &sedp_discovered_writer_data,
-        //             None,
-        //             Time { sec: 0, nanosec: 0 },
-        //         )
-        //         .unwrap();
-        // }
+        if let Some(sedp_builtin_publications_announcer) = publisher_shared_lock
+            .sedp_builtin_publications_announcer.clone()
+        {
+            let topic_shared = topic.as_ref().upgrade().ok()?;
+            let mut sedp_builtin_publications_announcer_proxy =
+                DataWriterProxy::new(sedp_builtin_publications_announcer.downgrade());
+
+            let sedp_discovered_writer_data = SedpDiscoveredWriterData {
+                writer_proxy: RtpsWriterProxy {
+                    remote_writer_guid: guid,
+                    unicast_locator_list: vec![],
+                    multicast_locator_list: vec![],
+                    data_max_size_serialized: None,
+                    remote_group_entity_id: EntityId::new([0; 3], 0),
+                },
+
+                publication_builtin_topic_data: PublicationBuiltinTopicData {
+                    key: BuiltInTopicKey { value: guid.into() },
+                    participant_key: BuiltInTopicKey { value: [1; 16] },
+                    topic_name: topic_shared.read_lock().topic_name.clone(),
+                    type_name: Foo::type_name().to_string(),
+                    durability: DurabilityQosPolicy::default(),
+                    durability_service: DurabilityServiceQosPolicy::default(),
+                    deadline: DeadlineQosPolicy::default(),
+                    latency_budget: LatencyBudgetQosPolicy::default(),
+                    liveliness: LivelinessQosPolicy::default(),
+                    reliability: ReliabilityQosPolicy {
+                        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                        max_blocking_time: Duration::new(3, 0),
+                    },
+                    lifespan: LifespanQosPolicy::default(),
+                    user_data: UserDataQosPolicy::default(),
+                    ownership: OwnershipQosPolicy::default(),
+                    ownership_strength: OwnershipStrengthQosPolicy::default(),
+                    destination_order: DestinationOrderQosPolicy::default(),
+                    presentation: PresentationQosPolicy::default(),
+                    partition: PartitionQosPolicy::default(),
+                    topic_data: TopicDataQosPolicy::default(),
+                    group_data: GroupDataQosPolicy::default(),
+                },
+            };
+
+            sedp_builtin_publications_announcer_proxy
+                .write_w_timestamp(
+                    &sedp_discovered_writer_data,
+                    None,
+                    rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+                )
+                .unwrap();
+        }
 
         // let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_shared = RtpsShared::new(DataWriterAttributes {
@@ -409,8 +446,8 @@ mod tests {
         return_type::{DDSError, DDSResult},
     };
     use rust_rtps_pim::{
-        behavior::{types::Duration, writer::stateful_writer::RtpsStatefulWriterConstructor},
-        structure::{types::{Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN}, entity::RtpsEntityAttributes},
+        behavior::{types::Duration, writer::{stateful_writer::RtpsStatefulWriterConstructor, writer::{RtpsWriterOperations, RtpsWriterAttributes}}},
+        structure::{types::{Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN, ChangeKind, InstanceHandle, SequenceNumber}, entity::RtpsEntityAttributes, history_cache::RtpsHistoryCacheOperations},
     };
 
     use crate::{
@@ -433,7 +470,48 @@ mod tests {
         }
     }
 
-    struct EmptyWriter {}
+    struct EmptyHistoryCache {}
+    impl RtpsHistoryCacheOperations for EmptyHistoryCache {
+        type CacheChangeType = ();
+        fn add_change(&mut self, _change: ()) {}
+        fn remove_change(&mut self, _seq_num: &SequenceNumber) {}
+        fn get_seq_num_min(&self) -> Option<SequenceNumber> { None }
+        fn get_seq_num_max(&self) -> Option<SequenceNumber> { None }
+    }
+
+    struct EmptyWriter {
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        last_change_sequence_number: SequenceNumber,
+        data_max_serialized: Option<i32>,
+        writer_cache: EmptyHistoryCache,
+    }
+    impl RtpsWriterOperations for EmptyWriter {
+        type DataType = Vec<u8>;
+        type ParameterListType = Vec<u8>;
+        type CacheChangeType = ();
+
+        fn new_change(
+            &mut self,
+            _kind: ChangeKind,
+            _data: Vec<u8>,
+            _inline_qos: Vec<u8>,
+            _handle: InstanceHandle,
+        ) -> () { () }
+    }
+    impl RtpsWriterAttributes for EmptyWriter {
+        type WriterHistoryCacheType = EmptyHistoryCache;
+
+        fn push_mode(&self) -> &bool { &self.push_mode }
+        fn heartbeat_period(&self) -> &Duration { &self.heartbeat_period }
+        fn nack_response_delay(&self) -> &Duration { &self.nack_response_delay }
+        fn nack_suppression_duration(&self) -> &Duration { &self.nack_suppression_duration }
+        fn last_change_sequence_number(&self) -> &SequenceNumber { &self.last_change_sequence_number }
+        fn data_max_size_serialized(&self) -> &Option<i32> { &self.data_max_serialized }
+        fn writer_cache(&mut self) -> &mut EmptyHistoryCache { &mut self.writer_cache }
+    }
 
     impl RtpsStatefulWriterConstructor for EmptyWriter {
         fn new(
@@ -448,7 +526,15 @@ mod tests {
             _nack_suppression_duration: Duration,
             _data_max_size_serialized: Option<i32>,
         ) -> Self {
-            EmptyWriter {}
+            EmptyWriter {
+                push_mode: false,
+                heartbeat_period: Duration::new(0, 0),
+                nack_response_delay: Duration::new(0, 0),
+                nack_suppression_duration: Duration::new(0, 0),
+                last_change_sequence_number: SequenceNumber::default(),
+                data_max_serialized: None,
+                writer_cache: EmptyHistoryCache {},
+            }
         }
     }
 
@@ -457,7 +543,7 @@ mod tests {
     impl RtpsStructure for EmptyRtps {
         type Group           = EmptyGroup;
         type Participant     = ();
-        type StatelessWriter = ();
+        type StatelessWriter = EmptyWriter;
         type StatefulWriter  = EmptyWriter;
         type StatelessReader = ();
         type StatefulReader  = ();
