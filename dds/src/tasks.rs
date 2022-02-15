@@ -570,17 +570,17 @@ mod tests {
             .once()
             .return_const(());
 
-        // spdp_task_discovery(
-        //     &mut mock_spdp_data_reader,
-        //     1,
-        //     "",
-        //     &mut mock_builtin_publications_writer,
-        //     &mut mock_builtin_publications_reader,
-        //     &mut mock_builtin_subscriptions_writer,
-        //     &mut mock_builtin_subscriptions_reader,
-        //     &mut mock_builtin_topics_writer,
-        //     &mut mock_builtin_topics_reader,
-        // );
+        spdp_task_discovery(
+            &mut mock_spdp_data_reader,
+            1,
+            "",
+            &mut mock_builtin_publications_writer,
+            &mut mock_builtin_publications_reader,
+            &mut mock_builtin_subscriptions_writer,
+            &mut mock_builtin_subscriptions_reader,
+            &mut mock_builtin_topics_writer,
+            &mut mock_builtin_topics_reader,
+        );
     }
 
     #[test]

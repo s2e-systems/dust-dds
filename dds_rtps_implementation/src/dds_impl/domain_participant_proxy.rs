@@ -242,6 +242,7 @@ where
                 {
                     Some(TopicProxy::new(topic_shared.downgrade()))
                 } else {
+                    println!("{} : {} != {} : {}", topic.topic_name, topic.type_name, topic_name, Foo::type_name());
                     None
                 }
             })
