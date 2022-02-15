@@ -207,7 +207,7 @@ pub fn task_sedp_discovery(
 mod tests {
     use mockall::{mock, predicate};
     use rust_dds_api::{
-        subscription::{data_reader::DataReader, query_condition::QueryCondition},
+        subscription::{data_reader::DataReader, query_condition::QueryCondition, subscriber::SubscriberDataReaderFactory},
         dcps_psm::{
             SampleStateKind, ViewStateKind, InstanceStateKind, InstanceHandle,
             LivelinessChangedStatus, RequestedDeadlineMissedStatus,
@@ -228,7 +228,7 @@ mod tests {
                 DestinationOrderQosPolicy, PresentationQosPolicy,
                 PartitionQosPolicy, TopicDataQosPolicy, GroupDataQosPolicy
             },
-            qos::SubscriberQos
+            qos::{SubscriberQos, TopicQos}
         },
         builtin_topics::{PublicationBuiltinTopicData, ParticipantBuiltinTopicData}
     };
@@ -238,8 +238,8 @@ mod tests {
             rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
             rtps_group_impl::RtpsGroupImpl
         },
-        dds_impl::{data_reader_proxy::Samples, subscriber_proxy::SubscriberAttributes},
-        utils::shared_object::{RtpsWeak, RtpsShared}
+        dds_impl::{data_reader_proxy::Samples, subscriber_proxy::{SubscriberAttributes, SubscriberProxy}, topic_proxy::{TopicAttributes, TopicProxy}, domain_participant_proxy::DomainParticipantProxy},
+        utils::shared_object::{RtpsWeak, RtpsShared}, dds_type::{DdsType, DdsDeserialize}
     };
     use rust_rtps_pim::{
         structure::{
@@ -649,8 +649,33 @@ mod tests {
         );
     }
 
+    struct MyType;
+
+    impl DdsType for MyType {
+        fn type_name() -> &'static str {
+            "MyType"
+        }
+
+        fn has_key() -> bool {
+            false
+        }
+    }
+
+    impl<'de> DdsDeserialize<'de> for MyType {
+        fn deserialize(_buf: &mut &'de [u8]) -> DDSResult<Self> {
+            Ok(MyType{})
+        }
+    }
+
     #[test]
     fn task_sedp_discovery_() {
+        let topic = RtpsShared::new(TopicAttributes {
+            _qos: TopicQos::default(),
+            type_name: MyType::type_name(),
+            topic_name: "MyTopic".to_string(),
+            parent_participant: RtpsWeak::new(),
+        });
+
         let mut mock_sedp_discovered_writer_data_reader = MockDdsDataReader::new();
         mock_sedp_discovered_writer_data_reader
             .expect_read()
@@ -671,7 +696,7 @@ mod tests {
                             key: BuiltInTopicKey { value: [1; 16] },
                             participant_key: BuiltInTopicKey { value: [1; 16] },
                             topic_name: "MyTopic".to_string(),
-                            type_name: "MyType".to_string(),
+                            type_name: MyType::type_name().to_string(),
                             durability: DurabilityQosPolicy::default(),
                             durability_service: DurabilityServiceQosPolicy::default(),
                             deadline: DeadlineQosPolicy::default(),
@@ -695,22 +720,40 @@ mod tests {
                 })
             });
 
-        let subscriber = SubscriberAttributes::new(
+        let subscriber = RtpsShared::new(SubscriberAttributes::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 GuidPrefix([0; 12]),
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
             RtpsWeak::new(),
+        ));
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(RtpsWeak::new()),
+            subscriber.downgrade()
         );
-        let subscriber_list = vec![RtpsShared::new(subscriber)];
+
+        let reader = subscriber_proxy.datareader_factory_create_datareader(
+            &TopicProxy::<MyType, _>::new(topic.downgrade()), None, None, 0
+        ).unwrap();
+
+        let subscriber_list = vec![subscriber];
 
         task_sedp_discovery(
             &mut mock_sedp_discovered_writer_data_reader,
             &subscriber_list,
         );
 
-        //todo: Add readers and chack that thet got configured with appropriate proxies as
-        // the returned from read() from the MockReader
+        let reader_shared = reader.as_ref().upgrade().unwrap();
+        let mut reader_lock = reader_shared.write_lock();
+        let stateful_reader = reader_lock.rtps_reader.try_as_stateful_reader().unwrap();
+
+        assert!(stateful_reader.matched_writer_lookup(
+                &Guid::new(
+                    GuidPrefix([1; 12]),
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                )
+            ).is_some()
+        );
     }
 }
