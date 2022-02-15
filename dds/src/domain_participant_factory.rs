@@ -346,7 +346,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
     {
         let sedp_topic_participant = domain_participant_proxy.create_topic::<SpdpDiscoveredParticipantData>(
             DCPS_PARTICIPANT, None, None, 0
-        ).ok_or(DDSError::Error)?; // is there a more suitable variant?
+        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?; // is there a more suitable variant?
 
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
@@ -392,7 +392,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
     {
         let sedp_topic_publication = domain_participant_proxy.create_topic::<SedpDiscoveredWriterData>(
             DCPS_PUBLICATION, None, None, 0
-        ).ok_or(DDSError::Error)?;
+        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
 
         let sedp_builtin_publications_rtps_reader =
             SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
@@ -425,7 +425,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
     {
         let sedp_topic_subscription = domain_participant_proxy.create_topic::<SedpDiscoveredReaderData>(
             DCPS_SUBSCRIPTION, None, None, 0
-        ).ok_or(DDSError::Error)?;
+        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
 
         let sedp_builtin_subscriptions_rtps_reader =
             SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
@@ -458,7 +458,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
     {
         let sedp_topic_topic = domain_participant_proxy.create_topic::<SedpDiscoveredTopicData>(
             DCPS_TOPIC, None, None, 0
-        ).ok_or(DDSError::Error)?;
+        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
 
         let sedp_builtin_topics_rtps_reader =
             SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
@@ -713,10 +713,14 @@ fn spin_tasks(domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStr
     
     let builtin_participant_data_writer = domain_participant
         .read_lock().builtin_publisher.as_ref()
-        .ok_or(DDSError::Error)?
+        .ok_or(DDSError::PreconditionNotMet(
+            "The domain participant should have a builtin publisher at this point".to_string()
+        ))?
         .read_lock().data_writer_list
         .iter().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_PARTICIPANT)
-        .ok_or(DDSError::Error)?
+        .ok_or(DDSError::PreconditionNotMet(
+            "The domain participant should have a builtin participant data writer at this point".to_string()
+        ))?
         .clone();
 
     DataWriterProxy::new(builtin_participant_data_writer.downgrade())
