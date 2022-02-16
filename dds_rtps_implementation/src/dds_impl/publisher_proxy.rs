@@ -66,7 +66,6 @@ where
     pub data_writer_list: Vec<RtpsShared<DataWriterAttributes<Rtps>>>,
     pub user_defined_data_writer_counter: AtomicU8,
     pub default_datawriter_qos: DataWriterQos,
-    // pub sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<Rtps>>>,
     pub parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
