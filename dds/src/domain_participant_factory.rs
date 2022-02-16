@@ -18,6 +18,12 @@ use rust_dds_api::{
     builtin_topics::ParticipantBuiltinTopicData, subscription::subscriber::SubscriberDataReaderFactory,
 };
 use rust_dds_rtps_implementation::{
+    data_representation_builtin_endpoints::{
+        sedp_discovered_writer_data::{SedpDiscoveredWriterData, DCPS_PUBLICATION},
+        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy, DCPS_PARTICIPANT},
+        sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
+        sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
+    },
     dds_impl::{
         data_reader_proxy::{DataReaderAttributes, RtpsReader},
         data_writer_proxy::{DataWriterAttributes, RtpsWriter, DataWriterProxy},
@@ -60,12 +66,6 @@ use rust_rtps_pim::{
 
 use crate::{
     communication::Communication,
-    data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy},
-        sedp_discovered_reader_data::SedpDiscoveredReaderData,
-        sedp_discovered_topic_data::SedpDiscoveredTopicData,
-    },
     udp_transport::UdpTransport,
     tasks::{Executor, Spawner, task_spdp_discovery, task_sedp_discovery},
 };
@@ -112,11 +112,6 @@ const _d1: u16 = 10;
 const _d2: u16 = 1;
 #[allow(non_upper_case_globals)]
 const d3: u16 = 11;
-
-const DCPS_PARTICIPANT: &'static str  = "DCPSParticipant";
-const DCPS_PUBLICATION: &'static str  = "DCPSPublication";
-const DCPS_SUBSCRIPTION: &'static str = "DCPSSubscription";
-const DCPS_TOPIC: &'static str        = "DCPSTopic";
 
 fn get_builtin_udp_socket(domain_id: u16) -> Option<UdpSocket> {
     for _participant_id in 0..120 {
@@ -330,7 +325,6 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
             guid_prefix,
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
-        None,
         domain_participant.downgrade(),
     ));
     domain_participant
@@ -751,16 +745,15 @@ mod tests {
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
             subscriber_proxy::SubscriberProxy,
             publisher_proxy::PublisherProxy
-        }
+        },
+        data_representation_builtin_endpoints::{
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+            sedp_discovered_writer_data::SedpDiscoveredWriterData,
+            sedp_discovered_reader_data::SedpDiscoveredReaderData,
+            sedp_discovered_topic_data::SedpDiscoveredTopicData
+        },
     };
     use rust_rtps_pim::structure::types::GuidPrefix;
-
-    use crate::data_representation_builtin_endpoints::{
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        sedp_discovered_reader_data::SedpDiscoveredReaderData,
-        sedp_discovered_topic_data::SedpDiscoveredTopicData
-    };
 
     use super::{create_builtins, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC};
 

@@ -2,10 +2,6 @@ use std::net::UdpSocket;
 
 use rust_dds::{
     communication::Communication,
-    data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
-        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
-    },
     domain_participant_factory::{RtpsStructureImpl, DomainParticipantFactory},
     infrastructure::{
         qos::{DataReaderQos, SubscriberQos, TopicQos},
@@ -39,6 +35,10 @@ use rust_dds_rtps_implementation::{
         topic_proxy::TopicAttributes, domain_participant_proxy::DomainParticipantProxy,
     },
     dds_type::DdsType,
+    data_representation_builtin_endpoints::{
+        sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
+        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
+    },
     rtps_impl::{
         rtps_group_impl::RtpsGroupImpl, rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
@@ -126,7 +126,6 @@ fn send_and_receive_discovery_data_happy_path() {
     let publisher = RtpsShared::new(PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(GUID_UNKNOWN),
-        None,
         RtpsWeak::new(),
     ));
 
@@ -276,7 +275,6 @@ fn process_discovery_data_happy_path() {
             GuidPrefix([4; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
-        None,
         RtpsWeak::new(),
     ));
 
