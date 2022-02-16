@@ -34,6 +34,8 @@ use super::{
     },
 };
 
+pub const DCPS_PARTICIPANT: &'static str  = "DCPSParticipant";
+
 #[derive(Debug, PartialEq)]
 pub struct ParticipantProxy {
     pub domain_id: DomainId,

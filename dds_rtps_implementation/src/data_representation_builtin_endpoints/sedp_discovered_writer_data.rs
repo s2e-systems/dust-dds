@@ -54,6 +54,8 @@ pub struct SedpDiscoveredWriterData {
     pub publication_builtin_topic_data: PublicationBuiltinTopicData,
 }
 
+pub const DCPS_PUBLICATION: &'static str = "DCPSPublication";
+
 impl DdsType for SedpDiscoveredWriterData {
     fn type_name() -> &'static str {
         "SedpDiscoveredWriterData"

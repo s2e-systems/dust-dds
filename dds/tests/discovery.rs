@@ -126,7 +126,6 @@ fn send_and_receive_discovery_data_happy_path() {
     let publisher = RtpsShared::new(PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(GUID_UNKNOWN),
-        None,
         RtpsWeak::new(),
     ));
 
@@ -276,7 +275,6 @@ fn process_discovery_data_happy_path() {
             GuidPrefix([4; 12]),
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
-        None,
         RtpsWeak::new(),
     ));
 

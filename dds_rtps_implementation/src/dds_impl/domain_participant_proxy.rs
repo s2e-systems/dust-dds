@@ -295,7 +295,6 @@ where
         let publisher_impl = PublisherAttributes::new(
             publisher_qos,
             rtps_group,
-            None,
             self.domain_participant.clone(),
         );
         let publisher_impl_shared = RtpsShared::new(publisher_impl);

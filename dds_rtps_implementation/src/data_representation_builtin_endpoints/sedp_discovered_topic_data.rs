@@ -29,6 +29,8 @@ use super::{
     },
 };
 
+pub const DCPS_TOPIC: &'static str = "DCPSTopic";
+
 #[derive(Debug, PartialEq)]
 pub struct SedpDiscoveredTopicData {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,

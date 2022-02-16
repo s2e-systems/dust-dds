@@ -19,10 +19,10 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_writer_data::SedpDiscoveredWriterData,
-        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy},
-        sedp_discovered_reader_data::SedpDiscoveredReaderData,
-        sedp_discovered_topic_data::SedpDiscoveredTopicData,
+        sedp_discovered_writer_data::{SedpDiscoveredWriterData, DCPS_PUBLICATION},
+        spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy, DCPS_PARTICIPANT},
+        sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
+        sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
     },
     dds_impl::{
         data_reader_proxy::{DataReaderAttributes, RtpsReader},
@@ -112,11 +112,6 @@ const _d1: u16 = 10;
 const _d2: u16 = 1;
 #[allow(non_upper_case_globals)]
 const d3: u16 = 11;
-
-const DCPS_PARTICIPANT: &'static str  = "DCPSParticipant";
-const DCPS_PUBLICATION: &'static str  = "DCPSPublication";
-const DCPS_SUBSCRIPTION: &'static str = "DCPSSubscription";
-const DCPS_TOPIC: &'static str        = "DCPSTopic";
 
 fn get_builtin_udp_socket(domain_id: u16) -> Option<UdpSocket> {
     for _participant_id in 0..120 {
@@ -330,7 +325,6 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
             guid_prefix,
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
-        None,
         domain_participant.downgrade(),
     ));
     domain_participant

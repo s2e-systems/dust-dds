@@ -30,6 +30,7 @@ use rust_dds_api::{
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
+    domain::domain_participant::DomainParticipantTopicFactory,
     return_type::{DDSError, DDSResult}, builtin_topics::PublicationBuiltinTopicData,
 };
 
@@ -54,7 +55,7 @@ use crate::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
     }, data_representation_builtin_endpoints::sedp_discovered_writer_data::{
-        SedpDiscoveredWriterData, RtpsWriterProxy
+        SedpDiscoveredWriterData, RtpsWriterProxy, DCPS_PUBLICATION
     },
 };
 
@@ -74,7 +75,7 @@ where
     pub data_writer_list: Vec<RtpsShared<DataWriterAttributes<Rtps>>>,
     pub user_defined_data_writer_counter: AtomicU8,
     pub default_datawriter_qos: DataWriterQos,
-    pub sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<Rtps>>>,
+    // pub sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<Rtps>>>,
     pub parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
@@ -85,7 +86,6 @@ where
     pub fn new(
         qos: PublisherQos,
         rtps_group: Rtps::Group,
-        sedp_builtin_publications_announcer: Option<RtpsShared<DataWriterAttributes<Rtps>>>,
         parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
         Self {
@@ -94,7 +94,6 @@ where
             data_writer_list: Vec::new(),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            sedp_builtin_publications_announcer,
             parent_participant,
         }
     }
@@ -153,12 +152,11 @@ where
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
-        let mut publisher_shared_lock = publisher_shared.write_lock();
 
         let topic_shared = topic.as_ref().upgrade().ok()?;
 
-        let qos = qos.unwrap_or(publisher_shared_lock.default_datawriter_qos.clone());
-        let user_defined_data_writer_counter = publisher_shared_lock
+        let qos = qos.unwrap_or(publisher_shared.read_lock().default_datawriter_qos.clone());
+        let user_defined_data_writer_counter = publisher_shared.write_lock()
             .user_defined_data_writer_counter
             .fetch_add(1, atomic::Ordering::SeqCst);
         let (entity_kind, topic_kind) = match Foo::has_key() {
@@ -167,7 +165,7 @@ where
         };
         let entity_id = EntityId::new(
             [
-                publisher_shared_lock
+                publisher_shared.read_lock()
                     .rtps_group
                     .guid()
                     .entity_id()
@@ -177,7 +175,7 @@ where
             ],
             entity_kind,
         );
-        let guid = Guid::new(*publisher_shared_lock.rtps_group.guid().prefix(), entity_id);
+        let guid = Guid::new(*publisher_shared.read_lock().rtps_group.guid().prefix(), entity_id);
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -202,13 +200,18 @@ where
             data_max_size_serialized,
         ));
 
-        if let Some(sedp_builtin_publications_announcer) = publisher_shared_lock
-            .sedp_builtin_publications_announcer.clone()
-        {
-            let topic_shared = topic.as_ref().upgrade().ok()?;
-            let mut sedp_builtin_publications_announcer_proxy =
-                DataWriterProxy::new(sedp_builtin_publications_announcer.downgrade());
+        let domain_participant = publisher_shared.read_lock().parent_participant.upgrade().ok()?;
+        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+        let builtin_publisher = domain_participant.read_lock().builtin_publisher.clone()?;
+        let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
+        
+        let publication_topic = domain_participant_proxy.topic_factory_find_topic(
+                DCPS_PUBLICATION, Duration::new(0, 0)
+        )?;
 
+        if let Some(mut sedp_builtin_publications_announcer)
+            = builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)
+        {
             let sedp_discovered_writer_data = SedpDiscoveredWriterData {
                 writer_proxy: RtpsWriterProxy {
                     remote_writer_guid: guid,
@@ -244,7 +247,7 @@ where
                 },
             };
 
-            sedp_builtin_publications_announcer_proxy
+            sedp_builtin_publications_announcer
                 .write_w_timestamp(
                     &sedp_discovered_writer_data,
                     None,
@@ -262,7 +265,7 @@ where
             publisher: publisher_shared.downgrade(),
         });
 
-        publisher_shared_lock
+        publisher_shared.write_lock()
             .data_writer_list
             .push(data_writer_shared.clone());
 
@@ -438,25 +441,25 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{io::Write, sync::atomic::AtomicU8};
+    use std::{io::Write, sync::atomic::AtomicU8, vec};
 
     use rust_dds_api::{
-        infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos},
-        publication::publisher::{Publisher, PublisherDataWriterFactory},
-        return_type::{DDSError, DDSResult},
+        infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos, DomainParticipantQos, SubscriberQos},
+        publication::publisher::PublisherDataWriterFactory,
+        return_type::{DDSError, DDSResult}, dcps_psm::DomainId,
     };
     use rust_rtps_pim::{
         behavior::{types::Duration, writer::{stateful_writer::RtpsStatefulWriterConstructor, writer::{RtpsWriterOperations, RtpsWriterAttributes}}},
-        structure::{types::{Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN, ChangeKind, InstanceHandle, SequenceNumber}, entity::RtpsEntityAttributes, history_cache::RtpsHistoryCacheOperations},
+        structure::{types::{Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN, ChangeKind, InstanceHandle, SequenceNumber}, entity::RtpsEntityAttributes, history_cache::RtpsHistoryCacheOperations}, messages::types::Count,
     };
 
     use crate::{
-        dds_impl::topic_proxy::{TopicAttributes, TopicProxy},
+        dds_impl::{topic_proxy::{TopicAttributes, TopicProxy}, domain_participant_proxy::DomainParticipantAttributes},
         dds_type::{DdsSerialize, DdsType, Endianness},
         utils::{
             rtps_structure::RtpsStructure,
             shared_object::{RtpsShared, RtpsWeak},
-        },
+        }, data_representation_builtin_endpoints::sedp_discovered_writer_data::{SedpDiscoveredWriterData, DCPS_PUBLICATION},
     };
 
     use super::{PublisherAttributes, PublisherProxy};
@@ -573,21 +576,62 @@ mod tests {
 
     make_empty_dds_type!(Foo);
 
-    impl<Rtps: RtpsStructure> Default for PublisherAttributes<Rtps>
+    fn make_publisher<Rtps: RtpsStructure>(parent: RtpsWeak<DomainParticipantAttributes<Rtps>>) -> RtpsShared<PublisherAttributes<Rtps>>
     where
         Rtps::Group: Default,
     {
-        fn default() -> Self {
-            PublisherAttributes {
-                _qos: PublisherQos::default(),
-                rtps_group: Rtps::Group::default(),
-                data_writer_list: Vec::new(),
-                user_defined_data_writer_counter: AtomicU8::new(0),
-                default_datawriter_qos: DataWriterQos::default(),
-                sedp_builtin_publications_announcer: None,
-                parent_participant: RtpsWeak::new(),
-            }
-        }
+        RtpsShared::new(PublisherAttributes {
+            _qos: PublisherQos::default(),
+            rtps_group: Rtps::Group::default(),
+            data_writer_list: Vec::new(),
+            user_defined_data_writer_counter: AtomicU8::new(0),
+            default_datawriter_qos: DataWriterQos::default(),
+            parent_participant: parent,
+        })
+    }
+
+    fn default_participant<Rtps: RtpsStructure>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
+    where
+        Rtps::Participant: Default,
+        Rtps::Group: Default
+    {
+        let sedp_topic_publication = TopicAttributes::new(
+            TopicQos::default(),
+            SedpDiscoveredWriterData::type_name(),
+            DCPS_PUBLICATION,
+            RtpsWeak::new(),
+        );
+
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes {
+            rtps_participant: Rtps::Participant::default(),
+            domain_id: DomainId::default(),
+            domain_tag: "".to_string(),
+            qos: DomainParticipantQos::default(),
+            builtin_publisher: None,
+            builtin_subscriber: None,
+            user_defined_subscriber_list: vec![],
+            user_defined_subscriber_counter: 0,
+            default_subscriber_qos: SubscriberQos::default(),
+            user_defined_publisher_list: vec![],
+            user_defined_publisher_counter: 0,
+            default_publisher_qos: PublisherQos::default(),
+            topic_list: vec![RtpsShared::new(sedp_topic_publication)],
+            default_topic_qos: TopicQos::default(),
+            manual_liveliness_count: Count(0),
+            lease_duration: rust_rtps_pim::behavior::types::Duration::new(0, 0),
+            metatraffic_unicast_locator_list: vec![],
+            metatraffic_multicast_locator_list: vec![],
+            enabled: false,
+        });
+
+        domain_participant.write_lock().builtin_publisher =
+            Some(RtpsShared::new(PublisherAttributes::new(
+                PublisherQos::default(),
+                Rtps::Group::default(),
+                domain_participant.downgrade(),
+            )));
+
+        domain_participant
     }
 
     fn make_topic<Rtps: RtpsStructure>(
@@ -598,21 +642,10 @@ mod tests {
     }
 
     #[test]
-    fn create_datawriter() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
-        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
-
-        let data_writer = publisher_proxy.create_datawriter(&topic_proxy, None, None, 0);
-
-        assert!(data_writer.is_some());
-    }
-
-    #[test]
     fn datawriter_factory_create_datawriter() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let domain_participant = default_participant::<EmptyRtps>();
+
+        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
@@ -627,7 +660,9 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let domain_participant = default_participant::<EmptyRtps>();
+
+        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
@@ -649,10 +684,12 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter_from_other_publisher() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let domain_participant = default_participant::<EmptyRtps>();
+
+        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let publisher2 = RtpsShared::new(PublisherAttributes::default());
+        let publisher2 = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
@@ -674,7 +711,9 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_no_datawriter() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let domain_participant = default_participant::<EmptyRtps>();
+
+        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
@@ -688,7 +727,9 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let domain_participant = default_participant::<EmptyRtps>();
+
+        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
@@ -711,7 +752,9 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_type() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let domain_participant = default_participant::<EmptyRtps>();
+
+        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic_foo = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
@@ -732,7 +775,9 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_topic() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let domain_participant = default_participant::<EmptyRtps>();
+
+        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic1 = RtpsShared::new(make_topic(Foo::type_name(), "topic1"));
@@ -753,7 +798,9 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_dawriters_with_different_types() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let domain_participant = default_participant::<EmptyRtps>();
+
+        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic_foo = RtpsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic"));
@@ -788,7 +835,9 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_datawriters_with_different_topics() {
-        let publisher = RtpsShared::new(PublisherAttributes::default());
+        let domain_participant = default_participant::<EmptyRtps>();
+
+        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic1 = RtpsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic1"));

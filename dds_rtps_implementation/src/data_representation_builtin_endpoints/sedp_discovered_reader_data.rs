@@ -35,6 +35,8 @@ use super::{
     },
 };
 
+pub const DCPS_SUBSCRIPTION: &'static str = "DCPSSubscription";
+
 #[derive(Debug, PartialEq)]
 pub struct  RtpsReaderProxy {
     remote_reader_guid: Guid,
