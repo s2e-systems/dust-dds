@@ -207,52 +207,51 @@ where
         let publication_topic = domain_participant_proxy
             .topic_factory_find_topic(DCPS_PUBLICATION, Duration::new(0, 0))?;
 
-        if let Some(mut sedp_builtin_publications_announcer) =
-            builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)
-        {
-            let sedp_discovered_writer_data = SedpDiscoveredWriterData {
-                writer_proxy: RtpsWriterProxy {
-                    remote_writer_guid: guid,
-                    unicast_locator_list: vec![],
-                    multicast_locator_list: vec![],
-                    data_max_size_serialized: None,
-                    remote_group_entity_id: EntityId::new([0; 3], 0),
-                },
+        let mut sedp_builtin_publications_announcer =
+            builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)?;
 
-                publication_builtin_topic_data: PublicationBuiltinTopicData {
-                    key: BuiltInTopicKey { value: guid.into() },
-                    participant_key: BuiltInTopicKey { value: [1; 16] },
-                    topic_name: topic_shared.read_lock().topic_name.clone(),
-                    type_name: Foo::type_name().to_string(),
-                    durability: DurabilityQosPolicy::default(),
-                    durability_service: DurabilityServiceQosPolicy::default(),
-                    deadline: DeadlineQosPolicy::default(),
-                    latency_budget: LatencyBudgetQosPolicy::default(),
-                    liveliness: LivelinessQosPolicy::default(),
-                    reliability: ReliabilityQosPolicy {
-                        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                        max_blocking_time: Duration::new(3, 0),
-                    },
-                    lifespan: LifespanQosPolicy::default(),
-                    user_data: UserDataQosPolicy::default(),
-                    ownership: OwnershipQosPolicy::default(),
-                    ownership_strength: OwnershipStrengthQosPolicy::default(),
-                    destination_order: DestinationOrderQosPolicy::default(),
-                    presentation: PresentationQosPolicy::default(),
-                    partition: PartitionQosPolicy::default(),
-                    topic_data: TopicDataQosPolicy::default(),
-                    group_data: GroupDataQosPolicy::default(),
-                },
-            };
+        let sedp_discovered_writer_data = SedpDiscoveredWriterData {
+            writer_proxy: RtpsWriterProxy {
+                remote_writer_guid: guid,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: None,
+                remote_group_entity_id: EntityId::new([0; 3], 0),
+            },
 
-            sedp_builtin_publications_announcer
-                .write_w_timestamp(
-                    &sedp_discovered_writer_data,
-                    None,
-                    rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-                )
-                .unwrap();
-        }
+            publication_builtin_topic_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey { value: guid.into() },
+                participant_key: BuiltInTopicKey { value: [1; 16] },
+                topic_name: topic_shared.read_lock().topic_name.clone(),
+                type_name: Foo::type_name().to_string(),
+                durability: DurabilityQosPolicy::default(),
+                durability_service: DurabilityServiceQosPolicy::default(),
+                deadline: DeadlineQosPolicy::default(),
+                latency_budget: LatencyBudgetQosPolicy::default(),
+                liveliness: LivelinessQosPolicy::default(),
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: Duration::new(3, 0),
+                },
+                lifespan: LifespanQosPolicy::default(),
+                user_data: UserDataQosPolicy::default(),
+                ownership: OwnershipQosPolicy::default(),
+                ownership_strength: OwnershipStrengthQosPolicy::default(),
+                destination_order: DestinationOrderQosPolicy::default(),
+                presentation: PresentationQosPolicy::default(),
+                partition: PartitionQosPolicy::default(),
+                topic_data: TopicDataQosPolicy::default(),
+                group_data: GroupDataQosPolicy::default(),
+            },
+        };
+
+        sedp_builtin_publications_announcer
+            .write_w_timestamp(
+                &sedp_discovered_writer_data,
+                None,
+                rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
 
         // let data_writer_impl = DataWriterImpl::new(qos, rtps_writer_impl);
         let data_writer_shared = RtpsShared::new(DataWriterAttributes {
@@ -462,7 +461,7 @@ mod tests {
                 ChangeKind, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind,
                 SequenceNumber, TopicKind, GUID_UNKNOWN,
             },
-        },
+        }, discovery::sedp::builtin_endpoints::SedpBuiltinPublicationsWriter,
     };
 
     use crate::{
@@ -471,7 +470,7 @@ mod tests {
         },
         dds_impl::{
             domain_participant_proxy::DomainParticipantAttributes,
-            topic_proxy::{TopicAttributes, TopicProxy},
+            topic_proxy::{TopicAttributes, TopicProxy}, data_writer_proxy::{DataWriterAttributes, RtpsWriter},
         },
         dds_type::{DdsSerialize, DdsType, Endianness},
         utils::{
@@ -645,8 +644,9 @@ mod tests {
         })
     }
 
-    fn default_participant<Rtps: RtpsStructure>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
+    fn default_participant<Rtps>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
     where
+        Rtps: RtpsStructure<StatefulWriter = EmptyWriter>,
         Rtps::Participant: Default + RtpsParticipantConstructor,
         Rtps::Group: Default,
     {
@@ -678,7 +678,20 @@ mod tests {
         domain_participant
             .write_lock()
             .topic_list
-            .push(sedp_topic_publication);
+            .push(sedp_topic_publication.clone());
+
+        let sedp_builtin_publications_rtps_writer =
+            SedpBuiltinPublicationsWriter::create::<EmptyWriter>(GuidPrefix([0;12]), &[], &[]);
+        let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
+            sedp_topic_publication.clone(),
+            domain_participant.read_lock().builtin_publisher.as_ref().unwrap().downgrade(),
+        ));
+        domain_participant.read_lock().builtin_publisher.as_ref().unwrap()
+            .write_lock()
+            .data_writer_list
+            .push(sedp_builtin_publications_data_writer.clone());
 
         domain_participant
     }
