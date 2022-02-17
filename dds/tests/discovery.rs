@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::UdpSocket;
 
 use rust_dds::{
     communication::Communication,
@@ -68,7 +68,6 @@ use rust_rtps_pim::{
         BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
     }, group::RtpsGroupConstructor},
 };
-use socket2::Socket;
 
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
@@ -163,9 +162,7 @@ fn send_and_receive_discovery_data_happy_path() {
         )
         .unwrap();
 
-    let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP))
-        .unwrap();
-    socket.bind(&"127.0.0.1:8000".parse::<SocketAddr>().unwrap().into()).unwrap();
+    let socket = UdpSocket::bind("127.0.0.1:8000").unwrap();
     socket.set_nonblocking(true).unwrap();
 
     let transport = UdpTransport::new(socket);
@@ -358,9 +355,7 @@ fn process_discovery_data_happy_path() {
         DataWriterProxy::new(weak_data_writer)
     };
 
-    let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP))
-        .unwrap();
-    socket.bind(&"127.0.0.1:8008".parse::<SocketAddr>().unwrap().into()).unwrap();
+    let socket = UdpSocket::bind("127.0.0.1:8008").unwrap();
     socket.set_nonblocking(true).unwrap();
 
     let transport = UdpTransport::new(socket);

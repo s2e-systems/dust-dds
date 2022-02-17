@@ -1,5 +1,5 @@
 use std::{
-    net::{Ipv4Addr, SocketAddr},
+    net::{Ipv4Addr, SocketAddr, UdpSocket},
     str::FromStr,
     sync::{
         Mutex,
@@ -114,7 +114,7 @@ const _d2: u16 = 1;
 #[allow(non_upper_case_globals)]
 const d3: u16 = 11;
 
-fn get_builtin_multicast_socket(domain_id: u16) -> Option<Socket> {
+fn get_builtin_multicast_socket(domain_id: u16) -> Option<UdpSocket> {
     let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + d0));
 
     let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).ok()?;
@@ -128,20 +128,20 @@ fn get_builtin_multicast_socket(domain_id: u16) -> Option<Socket> {
         ).ok()?;
     socket.set_multicast_loop_v4(true).ok()?;
 
-    Some(socket)
+    Some(socket.into())
 }
 
-fn _get_builtin_unicast_socket(domain_id: u16, participant_id: u16) -> Option<Socket> {
+fn _get_builtin_unicast_socket(domain_id: u16, participant_id: u16) -> Option<UdpSocket> {
     let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + _d1 + PG * participant_id));
 
     let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).ok()?;
     socket.set_nonblocking(true).ok()?;
     socket.bind(&socket_addr.into()).ok()?;
 
-    Some(socket)
+    Some(socket.into())
 }
 
-fn _get_user_defined_multicast_socket(domain_id: u16) -> Option<Socket> {
+fn _get_user_defined_multicast_socket(domain_id: u16) -> Option<UdpSocket> {
     let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + _d2));
 
     let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).ok()?;
@@ -155,17 +155,17 @@ fn _get_user_defined_multicast_socket(domain_id: u16) -> Option<Socket> {
         ).ok()?;
     socket.set_multicast_loop_v4(true).ok()?;
 
-    Some(socket)
+    Some(socket.into())
 }
 
-fn get_user_defined_unicast_socket(domain_id: u16, participant_id: u16) -> Option<Socket> {
+fn get_user_defined_unicast_socket(domain_id: u16, participant_id: u16) -> Option<UdpSocket> {
     let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + d3 + PG * participant_id));
 
     let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).ok()?;
     socket.set_nonblocking(true).ok()?;
     socket.bind(&socket_addr.into()).ok()?;
 
-    Some(socket)
+    Some(socket.into())
 }
 
 pub struct DomainParticipantFactory {
