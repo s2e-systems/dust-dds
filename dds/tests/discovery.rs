@@ -558,7 +558,7 @@ fn num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) 
 }
 
 #[test]
-fn create_two_participants_with_different_domains() {
+fn create_two_participants_with_same_domains() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory.create_participant(1, None, None, 0)
