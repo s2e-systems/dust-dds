@@ -5,6 +5,7 @@ use rust_rtps_udp_psm::{
     mapping_traits::{from_bytes, to_bytes},
     messages::overall_structure::{RtpsMessageRead, RtpsMessageWrite},
 };
+use socket2::Socket;
 
 use crate::transport::{TransportRead, TransportWrite};
 
@@ -63,9 +64,9 @@ impl From<SocketAddr> for UdpLocator {
 }
 
 impl UdpTransport {
-    pub fn new(socket: UdpSocket) -> Self {
+    pub fn new(socket: Socket) -> Self {
         Self {
-            socket,
+            socket: socket.into(),
             receive_buffer: [0; BUFFER_SIZE],
         }
     }

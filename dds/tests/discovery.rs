@@ -1,4 +1,4 @@
-use std::net::UdpSocket;
+use std::net::SocketAddr;
 
 use rust_dds::{
     communication::Communication,
@@ -68,6 +68,7 @@ use rust_rtps_pim::{
         BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
     }, group::RtpsGroupConstructor},
 };
+use socket2::Socket;
 
 #[test]
 fn send_and_receive_discovery_data_happy_path() {
@@ -162,8 +163,11 @@ fn send_and_receive_discovery_data_happy_path() {
         )
         .unwrap();
 
-    let socket = UdpSocket::bind("127.0.0.1:8000").unwrap();
+    let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP))
+        .unwrap();
+    socket.bind(&"127.0.0.1:8000".parse::<SocketAddr>().unwrap().into()).unwrap();
     socket.set_nonblocking(true).unwrap();
+
     let transport = UdpTransport::new(socket);
     let mut communication = Communication {
         version: PROTOCOLVERSION,
@@ -354,8 +358,11 @@ fn process_discovery_data_happy_path() {
         DataWriterProxy::new(weak_data_writer)
     };
 
-    let socket = UdpSocket::bind("127.0.0.1:8008").unwrap();
+    let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP))
+        .unwrap();
+    socket.bind(&"127.0.0.1:8008".parse::<SocketAddr>().unwrap().into()).unwrap();
     socket.set_nonblocking(true).unwrap();
+
     let transport = UdpTransport::new(socket);
     let mut communication = Communication {
         version: PROTOCOLVERSION,
@@ -567,7 +574,7 @@ fn create_two_participants_with_different_domains() {
     participant1.enable().unwrap();
     println!("[P1 enabled] Matched {} writers", num_matched_writers(&participant1));
 
-    let participant2 = participant_factory.create_participant(2, None, None, 0)
+    let participant2 = participant_factory.create_participant(1, None, None, 0)
         .unwrap();
     println!("[P2 created] Matched {} writers", num_matched_writers(&participant1));
     participant2.enable().unwrap();
