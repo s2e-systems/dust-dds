@@ -164,6 +164,7 @@ fn send_and_receive_discovery_data_happy_path() {
 
     let socket = UdpSocket::bind("127.0.0.1:8000").unwrap();
     socket.set_nonblocking(true).unwrap();
+
     let transport = UdpTransport::new(socket);
     let mut communication = Communication {
         version: PROTOCOLVERSION,
@@ -356,6 +357,7 @@ fn process_discovery_data_happy_path() {
 
     let socket = UdpSocket::bind("127.0.0.1:8008").unwrap();
     socket.set_nonblocking(true).unwrap();
+
     let transport = UdpTransport::new(socket);
     let mut communication = Communication {
         version: PROTOCOLVERSION,
@@ -556,7 +558,7 @@ fn num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) 
 }
 
 #[test]
-fn create_two_participants_with_different_domains() {
+fn create_two_participants_with_same_domains() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory.create_participant(1, None, None, 0)
@@ -567,7 +569,7 @@ fn create_two_participants_with_different_domains() {
     participant1.enable().unwrap();
     println!("[P1 enabled] Matched {} writers", num_matched_writers(&participant1));
 
-    let participant2 = participant_factory.create_participant(2, None, None, 0)
+    let participant2 = participant_factory.create_participant(1, None, None, 0)
         .unwrap();
     println!("[P2 created] Matched {} writers", num_matched_writers(&participant1));
     participant2.enable().unwrap();

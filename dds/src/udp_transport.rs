@@ -65,7 +65,7 @@ impl From<SocketAddr> for UdpLocator {
 impl UdpTransport {
     pub fn new(socket: UdpSocket) -> Self {
         Self {
-            socket,
+            socket: socket,
             receive_buffer: [0; BUFFER_SIZE],
         }
     }

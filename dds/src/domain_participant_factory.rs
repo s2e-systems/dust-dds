@@ -63,6 +63,7 @@ use rust_rtps_pim::{
         BUILT_IN_WRITER_GROUP, PROTOCOLVERSION, VENDOR_ID_S2E,
     }, group::RtpsGroupConstructor, participant::RtpsParticipantAttributes, entity::RtpsEntityAttributes},
 };
+use socket2::Socket;
 
 use crate::{
     communication::Communication,
@@ -113,27 +114,58 @@ const _d2: u16 = 1;
 #[allow(non_upper_case_globals)]
 const d3: u16 = 11;
 
-fn get_builtin_udp_socket(domain_id: u16) -> Option<UdpSocket> {
-    for _participant_id in 0..120 {
-        let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + d0));
-        if let Ok(socket) = UdpSocket::bind(socket_addr) {
-            return Some(socket);
-        }
-    }
-    None
+fn get_builtin_multicast_socket(domain_id: u16) -> Option<UdpSocket> {
+    let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + d0));
+
+    let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).ok()?;
+    socket.set_reuse_address(true).ok()?;
+    socket.set_nonblocking(true).ok()?;
+    socket.bind(&socket_addr.into()).ok()?;
+    socket
+        .join_multicast_v4(
+            &Ipv4Addr::from_str("239.255.0.1").unwrap(),
+            &Ipv4Addr::from_str("127.0.0.1").unwrap(),
+        ).ok()?;
+    socket.set_multicast_loop_v4(true).ok()?;
+
+    Some(socket.into())
 }
 
-fn get_user_defined_udp_socket(domain_id: u16) -> Option<UdpSocket> {
-    for participant_id in 0..120 {
-        let socket_addr = SocketAddr::from((
-            [127, 0, 0, 1],
-            PB + DG * domain_id + d3 + PG * participant_id,
-        ));
-        if let Ok(socket) = UdpSocket::bind(socket_addr) {
-            return Some(socket);
-        }
-    }
-    None
+fn _get_builtin_unicast_socket(domain_id: u16, participant_id: u16) -> Option<UdpSocket> {
+    let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + _d1 + PG * participant_id));
+
+    let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).ok()?;
+    socket.set_nonblocking(true).ok()?;
+    socket.bind(&socket_addr.into()).ok()?;
+
+    Some(socket.into())
+}
+
+fn _get_user_defined_multicast_socket(domain_id: u16) -> Option<UdpSocket> {
+    let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + _d2));
+
+    let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).ok()?;
+    socket.set_reuse_address(true).ok()?;
+    socket.set_nonblocking(true).ok()?;
+    socket.bind(&socket_addr.into()).ok()?;
+    socket
+        .join_multicast_v4(
+            &Ipv4Addr::from_str("239.255.0.1").unwrap(),
+            &Ipv4Addr::from_str("127.0.0.1").unwrap(),
+        ).ok()?;
+    socket.set_multicast_loop_v4(true).ok()?;
+
+    Some(socket.into())
+}
+
+fn get_user_defined_unicast_socket(domain_id: u16, participant_id: u16) -> Option<UdpSocket> {
+    let socket_addr = SocketAddr::from(([127, 0, 0, 1], PB + DG * domain_id + d3 + PG * participant_id));
+
+    let socket = Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).ok()?;
+    socket.set_nonblocking(true).ok()?;
+    socket.bind(&socket_addr.into()).ok()?;
+
+    Some(socket.into())
 }
 
 pub struct DomainParticipantFactory {
@@ -186,7 +218,7 @@ impl DomainParticipantFactory {
         ));
         
         create_builtins(guid_prefix, domain_participant.clone())?;
-        spin_tasks(domain_participant.clone())?;
+        self.spin_tasks(domain_participant.clone())?;
 
         self.participant_list
             .lock()
@@ -194,6 +226,249 @@ impl DomainParticipantFactory {
             .push(domain_participant.clone());
 
         Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
+    }
+
+    fn spin_tasks(&self, domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>)
+        -> DDSResult<()> {
+        let guid_prefix = domain_participant.read_lock().rtps_participant.guid().prefix;
+        let domain_id = domain_participant.read_lock().domain_id;
+        let domain_tag = domain_participant.read_lock().domain_tag.clone();
+        let participant_id = self.participant_list.lock().unwrap().len();
+
+        // ////////// Task creation
+        let (executor, spawner) = {
+            let (sender, receiver) = std::sync::mpsc::sync_channel(10);
+            (Executor { receiver }, Spawner::new(sender))
+        };
+
+        {
+            // /////// Create transports
+            let (default_transport, metatraffic_transport) = {
+                let socket = get_builtin_multicast_socket(domain_id as u16).unwrap();
+                let metatraffic_transport = UdpTransport::new(socket);
+
+                let socket = get_user_defined_unicast_socket(
+                    domain_id as u16, participant_id as u16
+                ).unwrap();
+                socket.set_nonblocking(true).unwrap();
+                let default_transport = UdpTransport::new(socket);
+
+                (default_transport, metatraffic_transport)
+            };
+
+            {
+                let mut builtin_communication = Communication {
+                    version: PROTOCOLVERSION,
+                    vendor_id: VENDOR_ID_S2E,
+                    guid_prefix,
+                    transport: metatraffic_transport,
+                };
+
+                let domain_participant = domain_participant.clone();
+                spawner.spawn_enabled_periodic_task(
+                    "builtin communication",
+                    move || {
+                        let builtin_publisher = &domain_participant.read_lock().builtin_publisher;
+                        let builtin_subscriber = &domain_participant.read_lock().builtin_subscriber;
+
+                        if let (Some(builtin_publisher), Some(builtin_subscriber)) = (builtin_publisher, builtin_subscriber) {
+                            builtin_communication.send(
+                                core::slice::from_ref(builtin_publisher),
+                            );
+                            builtin_communication.receive(
+                                core::slice::from_ref(builtin_subscriber),
+                            );
+                        }
+                    },
+                    std::time::Duration::from_millis(500),
+                );
+            }
+
+            {
+                let mut communication = Communication {
+                    version: PROTOCOLVERSION,
+                    vendor_id: VENDOR_ID_S2E,
+                    guid_prefix,
+                    transport: default_transport,
+                };
+
+                let domain_participant = domain_participant.clone();
+                spawner.spawn_enabled_periodic_task(
+                    "user-defined communication",
+                    move || {
+                        communication.send(
+                            domain_participant
+                                .read_lock()
+                                .user_defined_publisher_list
+                                .as_ref(),
+                        );
+                        communication.receive(
+                            domain_participant
+                                .read_lock()
+                                .user_defined_subscriber_list
+                                .as_ref(),
+                        );
+                    },
+                    std::time::Duration::from_millis(500),
+                );
+            }
+        }
+
+        {
+            let domain_participant = domain_participant.clone();
+
+            let try_perform_task = move || -> Option<()> {
+                let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+                let builtin_subscriber = SubscriberProxy::new(
+                    participant_proxy.clone(),
+                    domain_participant.read_lock()
+                        .builtin_subscriber.as_ref()?.downgrade()
+                );
+                let builtin_publisher  = PublisherProxy::new(
+                    domain_participant.read_lock()
+                        .builtin_publisher.as_ref()?.downgrade()
+                );
+
+                let participant_topic  = participant_proxy.find_topic::<SpdpDiscoveredParticipantData>(
+                    DCPS_PARTICIPANT, Duration::new(0, 0)
+                )?;
+                let publication_topic  = participant_proxy.find_topic::<SedpDiscoveredWriterData>(
+                    DCPS_PUBLICATION, Duration::new(0, 0)
+                )?;
+                let subscription_topic = participant_proxy.find_topic::<SedpDiscoveredReaderData>(
+                    DCPS_SUBSCRIPTION, Duration::new(0, 0)
+                )?;
+                let topic_topic        = participant_proxy.find_topic::<SedpDiscoveredTopicData>(
+                    DCPS_TOPIC, Duration::new(0, 0)
+                )?;
+
+                let mut builtin_participant_data_reader =
+                    builtin_subscriber.datareader_factory_lookup_datareader(&participant_topic)?;
+
+                let builtin_publication_reader =
+                    builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
+                let builtin_subscription_reader =
+                    builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic)?;
+                let builtin_topic_reader =
+                    builtin_subscriber.datareader_factory_lookup_datareader(&topic_topic)?;
+                let builtin_publication_writer =
+                    builtin_publisher.datawriter_factory_lookup_datawriter(&publication_topic)?;
+                let builtin_subscription_writer =
+                    builtin_publisher.datawriter_factory_lookup_datawriter(&subscription_topic)?;
+                let builtin_topic_writer =
+                    builtin_publisher.datawriter_factory_lookup_datawriter(&topic_topic)?;
+
+                task_spdp_discovery(
+                    &mut builtin_participant_data_reader,
+                    domain_id as u32,
+                    &domain_tag,
+                    builtin_publication_writer.as_ref().upgrade().ok()?.write_lock()
+                        .rtps_writer.try_as_stateful_writer().ok()?,
+                    builtin_publication_reader.as_ref().upgrade().ok()?.write_lock()
+                        .rtps_reader.try_as_stateful_reader().ok()?,
+                    builtin_subscription_writer.as_ref().upgrade().ok()?.write_lock()
+                        .rtps_writer.try_as_stateful_writer().ok()?,
+                    builtin_subscription_reader.as_ref().upgrade().ok()?.write_lock()
+                        .rtps_reader.try_as_stateful_reader().ok()?,
+                    builtin_topic_writer.as_ref().upgrade().ok()?.write_lock()
+                        .rtps_writer.try_as_stateful_writer().ok()?,
+                    builtin_topic_reader.as_ref().upgrade().ok()?.write_lock()
+                        .rtps_reader.try_as_stateful_reader().ok()?,
+                );
+
+                Some(())
+            };
+
+            spawner.spawn_enabled_periodic_task(
+                "spdp discovery",
+                move || {
+                    match try_perform_task() {
+                        Some(()) => (),
+                        None     => println!("spdp discovery failed (domain participant might not be fully constructed yet)")
+                    }
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // {
+        //     let domain_participant = domain_participant.clone();
+
+        //     spawner.spawn_enabled_periodic_task(
+        //         "sedp discovery",
+        //         move || {
+        //             let user_defined_publisher_list = domain_participant.write_lock().user_defined_publisher_list;
+        //             for user_defined_publisher in user_defined_publisher_list.iter() {
+        //                 user_defined_publisher.process_discovery();
+        //             }
+        //         },
+        //         std::time::Duration::from_millis(500),
+        //     );
+        // }
+
+        {
+            let domain_participant = domain_participant.clone();
+
+            let try_perform_task = move || -> Option<()> {
+                let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+                let builtin_subscriber = SubscriberProxy::new(
+                    participant_proxy.clone(),
+                    domain_participant.read_lock()
+                        .builtin_subscriber.as_ref()?.downgrade()
+                );
+
+                let publication_topic  = participant_proxy.find_topic::<SedpDiscoveredWriterData>(
+                    DCPS_PUBLICATION, Duration::new(0, 0)
+                )?;
+                let mut builtin_publication_reader =
+                    builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
+
+                task_sedp_discovery(
+                    &mut builtin_publication_reader,
+                    &domain_participant.read_lock().user_defined_subscriber_list,
+                );
+
+                Some(())
+            };
+
+            spawner.spawn_enabled_periodic_task(
+                "sedp discovery",
+                move || {
+                    match try_perform_task() {
+                        Some(()) => (),
+                        None     => println!("sedp discovery failed (domain participant might not be fully constructed yet)")
+                    }
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        let spdp_discovered_participant_data =
+            spdp_discovered_participant_data_from_domain_participant(&domain_participant.read_lock());
+        
+        let builtin_participant_data_writer = domain_participant
+            .read_lock().builtin_publisher.as_ref()
+            .ok_or(DDSError::PreconditionNotMet(
+                "No builtin publisher".to_string()
+            ))?
+            .read_lock().data_writer_list
+            .iter().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_PARTICIPANT)
+            .ok_or(DDSError::PreconditionNotMet(
+                "Mo builtin participant data writer".to_string()
+            ))?
+            .clone();
+
+        DataWriterProxy::new(builtin_participant_data_writer.downgrade())
+            .write_w_timestamp(
+                &spdp_discovered_participant_data,
+                None,
+                Time { sec: 0, nanosec: 0 },
+            )?;
+
+        spawner.enable_tasks();
+        executor.run();
+
+        Ok(())
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
@@ -480,252 +755,6 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
             .data_writer_list
             .push(sedp_builtin_topics_data_writer.clone());
     }
-
-    Ok(())
-}
-
-fn spin_tasks(domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>)
-    -> DDSResult<()> {
-    let guid_prefix = domain_participant.read_lock().rtps_participant.guid().prefix;
-    let domain_id = domain_participant.read_lock().domain_id;
-    let domain_tag = domain_participant.read_lock().domain_tag.clone();
-
-    // /////// Create transports
-    let (default_transport, metatraffic_transport) = {
-        let socket = get_builtin_udp_socket(domain_id as u16).unwrap();
-        socket.set_nonblocking(true).unwrap();
-        socket
-            .join_multicast_v4(
-                &Ipv4Addr::from_str("239.255.0.1").unwrap(),
-                &Ipv4Addr::from_str("127.0.0.1").unwrap(),
-            )
-            .unwrap();
-        socket.set_multicast_loop_v4(true).unwrap();
-        let metatraffic_transport = UdpTransport::new(socket);
-
-        let socket = get_user_defined_udp_socket(domain_id as u16).unwrap();
-        socket.set_nonblocking(true).unwrap();
-        let default_transport = UdpTransport::new(socket);
-
-        (default_transport, metatraffic_transport)
-    };
-
-    // ////////// Task creation
-    let (executor, spawner) = {
-        let (sender, receiver) = std::sync::mpsc::sync_channel(10);
-        (Executor { receiver }, Spawner::new(sender))
-    };
-
-    {
-        let mut builtin_communication = Communication {
-            version: PROTOCOLVERSION,
-            vendor_id: VENDOR_ID_S2E,
-            guid_prefix,
-            transport: metatraffic_transport,
-        };
-
-        let domain_participant = domain_participant.clone();
-        spawner.spawn_enabled_periodic_task(
-            "builtin communication",
-            move || {
-                let builtin_publisher = &domain_participant.read_lock().builtin_publisher;
-                let builtin_subscriber = &domain_participant.read_lock().builtin_subscriber;
-
-                if let (Some(builtin_publisher), Some(builtin_subscriber)) = (builtin_publisher, builtin_subscriber) {
-                    builtin_communication.send(
-                        core::slice::from_ref(builtin_publisher),
-                    );
-                    builtin_communication.receive(
-                        core::slice::from_ref(builtin_subscriber),
-                    );
-                }
-            },
-            std::time::Duration::from_millis(500),
-        );
-    }
-
-    {
-        let mut communication = Communication {
-            version: PROTOCOLVERSION,
-            vendor_id: VENDOR_ID_S2E,
-            guid_prefix,
-            transport: default_transport,
-        };
-
-        let domain_participant = domain_participant.clone();
-        spawner.spawn_enabled_periodic_task(
-            "user-defined communication",
-            move || {
-                communication.send(
-                    domain_participant
-                        .read_lock()
-                        .user_defined_publisher_list
-                        .as_ref(),
-                );
-                communication.receive(
-                    domain_participant
-                        .read_lock()
-                        .user_defined_subscriber_list
-                        .as_ref(),
-                );
-            },
-            std::time::Duration::from_millis(500),
-        );
-    }
-
-    {
-        let domain_participant = domain_participant.clone();
-
-        let try_perform_task = move || -> Option<()> {
-            let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
-            let builtin_subscriber = SubscriberProxy::new(
-                participant_proxy.clone(),
-                domain_participant.read_lock()
-                    .builtin_subscriber.as_ref()?.downgrade()
-            );
-            let builtin_publisher  = PublisherProxy::new(
-                domain_participant.read_lock()
-                    .builtin_publisher.as_ref()?.downgrade()
-            );
-
-            let participant_topic  = participant_proxy.find_topic::<SpdpDiscoveredParticipantData>(
-                DCPS_PARTICIPANT, Duration::new(0, 0)
-            )?;
-            let publication_topic  = participant_proxy.find_topic::<SedpDiscoveredWriterData>(
-                DCPS_PUBLICATION, Duration::new(0, 0)
-            )?;
-            let subscription_topic = participant_proxy.find_topic::<SedpDiscoveredReaderData>(
-                DCPS_SUBSCRIPTION, Duration::new(0, 0)
-            )?;
-            let topic_topic        = participant_proxy.find_topic::<SedpDiscoveredTopicData>(
-                DCPS_TOPIC, Duration::new(0, 0)
-            )?;
-
-            let mut builtin_participant_data_reader =
-                builtin_subscriber.datareader_factory_lookup_datareader(&participant_topic)?;
-
-            let builtin_publication_reader =
-                builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
-            let builtin_subscription_reader =
-                builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic)?;
-            let builtin_topic_reader =
-                builtin_subscriber.datareader_factory_lookup_datareader(&topic_topic)?;
-            let builtin_publication_writer =
-                builtin_publisher.datawriter_factory_lookup_datawriter(&publication_topic)?;
-            let builtin_subscription_writer =
-                builtin_publisher.datawriter_factory_lookup_datawriter(&subscription_topic)?;
-            let builtin_topic_writer =
-                builtin_publisher.datawriter_factory_lookup_datawriter(&topic_topic)?;
-
-            task_spdp_discovery(
-                &mut builtin_participant_data_reader,
-                domain_id as u32,
-                &domain_tag,
-                builtin_publication_writer.as_ref().upgrade().ok()?.write_lock()
-                    .rtps_writer.try_as_stateful_writer().ok()?,
-                builtin_publication_reader.as_ref().upgrade().ok()?.write_lock()
-                    .rtps_reader.try_as_stateful_reader().ok()?,
-                builtin_subscription_writer.as_ref().upgrade().ok()?.write_lock()
-                    .rtps_writer.try_as_stateful_writer().ok()?,
-                builtin_subscription_reader.as_ref().upgrade().ok()?.write_lock()
-                    .rtps_reader.try_as_stateful_reader().ok()?,
-                builtin_topic_writer.as_ref().upgrade().ok()?.write_lock()
-                    .rtps_writer.try_as_stateful_writer().ok()?,
-                builtin_topic_reader.as_ref().upgrade().ok()?.write_lock()
-                    .rtps_reader.try_as_stateful_reader().ok()?,
-            );
-
-            Some(())
-        };
-
-        spawner.spawn_enabled_periodic_task(
-            "spdp discovery",
-            move || {
-                match try_perform_task() {
-                    Some(()) => (),
-                    None     => println!("spdp discovery failed (domain participant might not be fully constructed yet)")
-                }
-            },
-            std::time::Duration::from_millis(500),
-        );
-    }
-
-    // {
-    //     let domain_participant = domain_participant.clone();
-
-    //     spawner.spawn_enabled_periodic_task(
-    //         "sedp discovery",
-    //         move || {
-    //             let user_defined_publisher_list = domain_participant.write_lock().user_defined_publisher_list;
-    //             for user_defined_publisher in user_defined_publisher_list.iter() {
-    //                 user_defined_publisher.process_discovery();
-    //             }
-    //         },
-    //         std::time::Duration::from_millis(500),
-    //     );
-    // }
-
-    {
-        let domain_participant = domain_participant.clone();
-
-        let try_perform_task = move || -> Option<()> {
-            let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
-            let builtin_subscriber = SubscriberProxy::new(
-                participant_proxy.clone(),
-                domain_participant.read_lock()
-                    .builtin_subscriber.as_ref()?.downgrade()
-            );
-
-            let publication_topic  = participant_proxy.find_topic::<SedpDiscoveredWriterData>(
-                DCPS_PUBLICATION, Duration::new(0, 0)
-            )?;
-            let mut builtin_publication_reader =
-                builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
-
-            task_sedp_discovery(
-                &mut builtin_publication_reader,
-                &domain_participant.read_lock().user_defined_subscriber_list,
-            );
-
-            Some(())
-        };
-
-        spawner.spawn_enabled_periodic_task(
-            "sedp discovery",
-            move || {
-                match try_perform_task() {
-                    Some(()) => (),
-                    None     => println!("sedp discovery failed (domain participant might not be fully constructed yet)")
-                }
-            },
-            std::time::Duration::from_millis(500),
-        );
-    }
-
-    let spdp_discovered_participant_data =
-        spdp_discovered_participant_data_from_domain_participant(&domain_participant.read_lock());
-    
-    let builtin_participant_data_writer = domain_participant
-        .read_lock().builtin_publisher.as_ref()
-        .ok_or(DDSError::PreconditionNotMet(
-            "No builtin publisher".to_string()
-        ))?
-        .read_lock().data_writer_list
-        .iter().find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_PARTICIPANT)
-        .ok_or(DDSError::PreconditionNotMet(
-            "Mo builtin participant data writer".to_string()
-        ))?
-        .clone();
-
-    DataWriterProxy::new(builtin_participant_data_writer.downgrade())
-        .write_w_timestamp(
-            &spdp_discovered_participant_data,
-            None,
-            Time { sec: 0, nanosec: 0 },
-        )?;
-
-    spawner.enable_tasks();
-    executor.run();
 
     Ok(())
 }
