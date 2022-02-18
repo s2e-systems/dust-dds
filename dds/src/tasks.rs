@@ -207,7 +207,7 @@ mod tests {
             LivelinessChangedStatus, RequestedDeadlineMissedStatus,
             RequestedIncompatibleQosStatus, SampleLostStatus,
             SampleRejectedStatus, SubscriptionMatchedStatus, BuiltInTopicKey,
-            Duration
+            Duration, DomainId
         },
         return_type::DDSResult,
         infrastructure::{
@@ -222,7 +222,7 @@ mod tests {
                 DestinationOrderQosPolicy, PresentationQosPolicy,
                 PartitionQosPolicy, TopicDataQosPolicy, GroupDataQosPolicy
             },
-            qos::{SubscriberQos, TopicQos}
+            qos::{SubscriberQos, TopicQos, DomainParticipantQos, PublisherQos, DataWriterQos}
         },
         builtin_topics::{PublicationBuiltinTopicData, ParticipantBuiltinTopicData}
     };
@@ -232,14 +232,14 @@ mod tests {
             rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
             rtps_group_impl::RtpsGroupImpl
         },
-        dds_impl::{data_reader_proxy::Samples, subscriber_proxy::{SubscriberAttributes, SubscriberProxy}, topic_proxy::{TopicAttributes, TopicProxy}, domain_participant_proxy::DomainParticipantProxy},
-        utils::shared_object::{RtpsWeak, RtpsShared}, dds_type::{DdsType, DdsDeserialize}, data_representation_builtin_endpoints::{spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy}, sedp_discovered_writer_data::{SedpDiscoveredWriterData, RtpsWriterProxy}}
+        dds_impl::{data_reader_proxy::Samples, subscriber_proxy::{SubscriberAttributes, SubscriberProxy}, topic_proxy::{TopicAttributes, TopicProxy}, domain_participant_proxy::{DomainParticipantProxy, DomainParticipantAttributes}, publisher_proxy::PublisherAttributes, data_writer_proxy::{DataWriterAttributes, RtpsWriter}},
+        utils::shared_object::{RtpsWeak, RtpsShared}, dds_type::{DdsType, DdsDeserialize}, data_representation_builtin_endpoints::{spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, ParticipantProxy}, sedp_discovered_writer_data::{SedpDiscoveredWriterData, RtpsWriterProxy}, sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION}}
     };
     use rust_rtps_pim::{
         structure::{
             types::{
                 Guid, PROTOCOLVERSION, GuidPrefix, VENDOR_ID_S2E,
-                ENTITYID_UNKNOWN, EntityId, BUILT_IN_READER_GROUP
+                ENTITYID_UNKNOWN, EntityId, BUILT_IN_READER_GROUP, GUID_UNKNOWN
             },
             group::RtpsGroupConstructor
         },
@@ -261,11 +261,13 @@ mod tests {
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER
+                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, SedpBuiltinSubscriptionsWriter
             }
         },
         messages::types::Count
     };
+
+    use crate::domain_participant_factory::RtpsStructureImpl;
 
     use super::{task_spdp_discovery, task_sedp_discovery};
 
@@ -638,6 +640,55 @@ mod tests {
         );
     }
 
+    fn make_participant() -> RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>
+    {
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+            GuidPrefix([0; 12]),
+            DomainId::default(),
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ));
+
+        domain_participant.write_lock().builtin_publisher =
+            Some(RtpsShared::new(PublisherAttributes::new(
+                PublisherQos::default(),
+                RtpsGroupImpl::new(GUID_UNKNOWN),
+                domain_participant.downgrade(),
+            )));
+
+        let sedp_topic_subscription = RtpsShared::new(TopicAttributes::new(
+            TopicQos::default(),
+            SedpDiscoveredReaderData::type_name(),
+            DCPS_SUBSCRIPTION,
+            RtpsWeak::new(),
+        ));
+
+        domain_participant
+            .write_lock()
+            .topic_list
+            .push(sedp_topic_subscription.clone());
+
+
+        let sedp_builtin_subscriptions_rtps_writer =
+            SedpBuiltinSubscriptionsWriter::create(GuidPrefix([0;12]), &[], &[]);
+        let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
+            sedp_topic_subscription.clone(),
+            domain_participant.read_lock().builtin_publisher.as_ref().unwrap().downgrade(),
+        ));
+        domain_participant.read_lock().builtin_publisher.as_ref().unwrap()
+            .write_lock()
+            .data_writer_list
+            .push(sedp_builtin_subscriptions_data_writer.clone());
+
+        domain_participant
+    }
+
     struct MyType;
 
     impl DdsType for MyType {
@@ -709,13 +760,15 @@ mod tests {
                 })
             });
 
+        let participant = make_participant();
+
         let subscriber = RtpsShared::new(SubscriberAttributes::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(Guid::new(
                 GuidPrefix([0; 12]),
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
-            RtpsWeak::new(),
+            participant.downgrade(),
         ));
         let subscriber_proxy = SubscriberProxy::new(
             DomainParticipantProxy::new(RtpsWeak::new()),
@@ -725,6 +778,7 @@ mod tests {
         let reader = subscriber_proxy.datareader_factory_create_datareader(
             &TopicProxy::<MyType, _>::new(topic.downgrade()), None, None, 0
         ).unwrap();
+
 
         let subscriber_list = vec![subscriber];
 
