@@ -13,7 +13,7 @@ use rust_dds::{
             ReliabilityQosPolicyKind, TopicDataQosPolicy,
         }, entity::Entity,
     },
-    publication::data_writer::DataWriter,
+    publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::data_reader::DataReader,
     types::Duration,
     udp_transport::UdpTransport, domain::domain_participant::DomainParticipant,
@@ -34,7 +34,7 @@ use rust_dds_rtps_implementation::{
         subscriber_proxy::SubscriberAttributes,
         topic_proxy::TopicAttributes, domain_participant_proxy::DomainParticipantProxy,
     },
-    dds_type::DdsType,
+    dds_type::{DdsType, DdsSerialize},
     data_representation_builtin_endpoints::{
         sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
@@ -557,29 +557,44 @@ fn num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) 
         .sum::<usize>()
 }
 
+struct MyType {}
+
+impl DdsType for MyType {
+    fn type_name() -> &'static str {
+        "MyType"
+    }
+
+    fn has_key() -> bool {
+        false
+    }
+}
+
+impl DdsSerialize for MyType {
+    fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(&self, _writer: W) -> rust_dds::DDSResult<()> {
+        Ok(())
+    }
+}
+
 #[test]
 fn create_two_participants_with_same_domains() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant1 = participant_factory.create_participant(1, None, None, 0)
+    let participant1 = participant_factory.create_participant(0, None, None, 0)
         .unwrap();
-
-    println!("[P1 created] Matched {} writers", num_matched_writers(&participant1));
-
     participant1.enable().unwrap();
-    println!("[P1 enabled] Matched {} writers", num_matched_writers(&participant1));
 
-    let participant2 = participant_factory.create_participant(1, None, None, 0)
+    let participant2 = participant_factory.create_participant(0, None, None, 0)
         .unwrap();
-    println!("[P2 created] Matched {} writers", num_matched_writers(&participant1));
     participant2.enable().unwrap();
-    println!("[P2 enabled] Matched {} writers", num_matched_writers(&participant1));
 
-    participant1.create_publisher(None, None, 0);
-    println!("[P1 created a publisher] Matched {} writers", num_matched_writers(&participant1));
+    let topic     = participant1.create_topic::<MyType>("MyTopic", None, None, 0).unwrap();
+    let publisher = participant1.create_publisher(None, None, 0).unwrap();
+    let _writer   = publisher.create_datawriter(&topic, None, None, 0);
+
+    println!("Matched {} writers", num_matched_writers(&participant2));
     
-    // std::thread::sleep(std::time::Duration::new(5, 0));
-    // println!("[After 5 seconds] Matched {} writers", num_matched_writers(&participant1));
+    std::thread::sleep(std::time::Duration::new(20, 0));
+    println!("[After 20 seconds] Matched {} writers", num_matched_writers(&participant2));
 
     assert!(participant1.get_builtin_subscriber().is_ok());
     assert!(participant2.get_builtin_subscriber().is_ok());

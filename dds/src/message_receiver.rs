@@ -87,7 +87,7 @@ impl MessageReceiver {
                                     }
                                 }
                                 RtpsReader::Stateful(stateful_rtps_reader) => {
-                                    for stateful_reader_behavior in stateful_rtps_reader.into_iter()
+                                    for stateful_reader_behavior in stateful_rtps_reader.behavior().into_iter()
                                     {
                                         match stateful_reader_behavior {
                                             StatefulReaderBehavior::BestEffort(_) => todo!(),
