@@ -1,12 +1,12 @@
 use rust_dds_api::{
     dcps_psm::{
         InstanceHandle, InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask,
-        ViewStateKind,
+        ViewStateKind, Duration, BuiltInTopicKey,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
-        qos_policy::ReliabilityQosPolicyKind,
+        qos_policy::{ReliabilityQosPolicyKind, DurabilityQosPolicy, DeadlineQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy, ReliabilityQosPolicy, DestinationOrderQosPolicy, UserDataQosPolicy, OwnershipQosPolicy, PresentationQosPolicy, PartitionQosPolicy, TopicDataQosPolicy, GroupDataQosPolicy, TimeBasedFilterQosPolicy},
     },
     return_type::{DDSError, DDSResult},
     subscription::{
@@ -14,17 +14,19 @@ use rust_dds_api::{
         data_reader_listener::DataReaderListener,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
         subscriber_listener::SubscriberListener,
-    },
+    }, domain::domain_participant::DomainParticipantTopicFactory,
+
+    publication::{publisher::PublisherDataWriterFactory, data_writer::DataWriter}, builtin_topics::SubscriptionBuiltinTopicData,
 };
 
 use rust_rtps_pim::{
-    behavior::reader::stateful_reader::RtpsStatefulReaderConstructor,
+    behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, writer::{writer::{RtpsWriterOperations, RtpsWriterAttributes}, stateful_writer::RtpsStatefulWriterConstructor}},
     structure::{
         entity::RtpsEntityAttributes,
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
-        },
+        }, history_cache::RtpsHistoryCacheOperations,
     },
 };
 
@@ -33,13 +35,13 @@ use crate::{
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
-    },
+    }, data_representation_builtin_endpoints::sedp_discovered_reader_data::{DCPS_SUBSCRIPTION, SedpDiscoveredReaderData, RtpsReaderProxy},
 };
 
 use super::{
     data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader},
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
-    topic_proxy::TopicProxy,
+    topic_proxy::TopicProxy, publisher_proxy::PublisherProxy,
 };
 
 pub struct SubscriberAttributes<Rtps>
@@ -113,76 +115,164 @@ where
     Rtps: RtpsStructure,
     Rtps::Group: RtpsEntityAttributes,
     Rtps::StatefulReader: RtpsStatefulReaderConstructor,
+    Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes,
+    Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
+        + RtpsWriterAttributes
+        + RtpsStatefulWriterConstructor,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+        RtpsHistoryCacheOperations<
+            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+        >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataReaderType = DataReaderProxy<Foo, Rtps>;
 
     fn datareader_factory_create_datareader(
         &self,
-        a_topic: &Self::TopicType,
+        topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
         _a_listener: Option<&'static dyn DataReaderListener>,
         _mask: StatusMask,
     ) -> Option<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade().ok()?;
-        let mut subscriber_shared_lock = subscriber_shared.write_lock();
 
-        let qos = qos.unwrap_or(subscriber_shared_lock.default_data_reader_qos.clone());
-        qos.is_consistent().ok()?;
+        let topic_shared = topic.as_ref().upgrade().ok()?;
 
-        let (entity_kind, topic_kind) = match Foo::has_key() {
-            true => (USER_DEFINED_WRITER_WITH_KEY, TopicKind::WithKey),
-            false => (USER_DEFINED_WRITER_NO_KEY, TopicKind::NoKey),
+        // /////// Build the GUID
+        let entity_id = {
+            let entity_kind = match Foo::has_key() {
+                true  => USER_DEFINED_WRITER_WITH_KEY,
+                false => USER_DEFINED_WRITER_NO_KEY,
+            };
+
+            EntityId::new(
+                [
+                    subscriber_shared.read_lock()
+                        .rtps_group
+                        .guid()
+                        .entity_id()
+                        .entity_key()[0],
+                    subscriber_shared.read_lock().user_defined_data_reader_counter,
+                    0,
+                ],
+                entity_kind,
+            )
         };
-        let entity_id = EntityId::new(
-            [
-                subscriber_shared_lock
-                    .rtps_group
-                    .guid()
-                    .entity_id()
-                    .entity_key()[0],
-                subscriber_shared_lock.user_defined_data_reader_counter,
-                0,
-            ],
-            entity_kind,
-        );
+
         let guid = Guid::new(
-            *subscriber_shared_lock.rtps_group.guid().prefix(),
+            *subscriber_shared.read_lock().rtps_group.guid().prefix(),
             entity_id,
         );
-        let reliability_level = match qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+
+        // /////// Create data reader
+        let data_reader_shared = {
+            let qos = qos.unwrap_or(subscriber_shared.read_lock().default_data_reader_qos.clone());
+            qos.is_consistent().ok()?;
+
+            let topic_kind = match Foo::has_key() {
+                true  => TopicKind::WithKey,
+                false => TopicKind::NoKey,
+            };
+
+            let reliability_level = match qos.reliability.kind {
+                ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+                ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+            }; 
+
+            let rtps_reader = RtpsReader::Stateful(Rtps::StatefulReader::new(
+                guid,
+                topic_kind,
+                reliability_level,
+                &[],
+                &[],
+                rust_rtps_pim::behavior::types::DURATION_ZERO,
+                rust_rtps_pim::behavior::types::DURATION_ZERO,
+                false,
+            ));
+
+            let data_reader = DataReaderAttributes {
+                rtps_reader,
+                _qos: qos,
+                topic: topic_shared.clone(),
+                _listener: None,
+                parent_subscriber: self.subscriber_impl.clone(),
+            };
+
+            let data_reader_shared = RtpsShared::new(data_reader);
+
+            subscriber_shared.write_lock()
+                .data_reader_list
+                .push(data_reader_shared.clone());
+            
+            data_reader_shared
         };
 
-        let heartbeat_response_delay = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let heartbeat_supression_duration = rust_rtps_pim::behavior::types::DURATION_ZERO;
-        let expects_inline_qos = false;
-        let rtps_reader = RtpsReader::Stateful(Rtps::StatefulReader::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            &[],
-            &[],
-            heartbeat_response_delay,
-            heartbeat_supression_duration,
-            expects_inline_qos,
-        ));
-        let reader_storage = DataReaderAttributes {
-            rtps_reader,
-            _qos: qos,
-            topic: a_topic.as_ref().upgrade().ok()?,
-            _listener: None,
-            parent_subscriber: self.subscriber_impl.clone(),
-        };
+        // /////// Announce the data reader creation
+        {
+            let domain_participant = subscriber_shared
+                .read_lock()
+                .parent_domain_participant
+                .upgrade().ok()?;
+            let domain_participant_proxy = DomainParticipantProxy::new(
+                domain_participant.downgrade()
+            );
+            let builtin_publisher = domain_participant.read_lock().builtin_publisher.clone()?;
+            let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
-        let reader_storage_shared = RtpsShared::new(reader_storage);
+            let subscription_topic = domain_participant_proxy
+                .topic_factory_find_topic(DCPS_SUBSCRIPTION, Duration::new(0, 0))?;
 
-        subscriber_shared_lock
-            .data_reader_list
-            .push(reader_storage_shared.clone());
+            let mut sedp_builtin_subscription_announcer =
+                builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&subscription_topic)?;
 
-        Some(DataReaderProxy::new(reader_storage_shared.downgrade()))
+            let sedp_discovered_reader_data = SedpDiscoveredReaderData {
+                reader_proxy: RtpsReaderProxy {
+                    remote_reader_guid: guid,
+                    remote_group_entity_id: entity_id,
+                    unicast_locator_list: vec![],
+                    multicast_locator_list: vec![],
+                    expects_inline_qos: false,
+                },
+
+                subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+                    key: BuiltInTopicKey { value: guid.into() },
+                    participant_key: BuiltInTopicKey { value: [1; 16] },
+                    topic_name: topic_shared.read_lock().topic_name.clone(),
+                    type_name: Foo::type_name().to_string(),
+                    durability: DurabilityQosPolicy::default(),
+                    deadline: DeadlineQosPolicy::default(),
+                    latency_budget: LatencyBudgetQosPolicy::default(),
+                    liveliness: LivelinessQosPolicy::default(),
+                    reliability: ReliabilityQosPolicy {
+                        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                        max_blocking_time: Duration::new(3, 0)
+                    },
+                    ownership: OwnershipQosPolicy::default(),
+                    destination_order: DestinationOrderQosPolicy::default(),
+                    user_data: UserDataQosPolicy::default(),
+                    time_based_filter: TimeBasedFilterQosPolicy::default(),
+                    presentation: PresentationQosPolicy::default(),
+                    partition: PartitionQosPolicy::default(),
+                    topic_data: TopicDataQosPolicy::default(),
+                    group_data: GroupDataQosPolicy::default(),
+                },
+            };
+
+            sedp_builtin_subscription_announcer
+                .write_w_timestamp(
+                    &sedp_discovered_reader_data,
+                    None,
+                    rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+                )
+                .unwrap();
+        }
+
+        Some(DataReaderProxy::new(data_reader_shared.downgrade()))
     }
 
     fn datareader_factory_delete_datareader(
@@ -347,42 +437,127 @@ where
 #[cfg(test)]
 mod tests {
     use rust_dds_api::{
-        dcps_psm::DomainId,
+        dcps_psm::{DomainId, InstanceHandle},
         infrastructure::qos::{
-            DataReaderQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos,
+            DataReaderQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos, DataWriterQos,
         },
         return_type::{DDSError, DDSResult},
         subscription::subscriber::{Subscriber, SubscriberDataReaderFactory},
     };
 
     use rust_rtps_pim::{
-        behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::Duration},
-        messages::types::Count,
+        behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::Duration, writer::{stateful_writer::RtpsStatefulWriterConstructor, writer::{RtpsWriterAttributes, RtpsWriterOperations}}},
         structure::{types::{
-            Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN,
-        }, entity::RtpsEntityAttributes},
+            Guid, Locator, ReliabilityKind, TopicKind, GUID_UNKNOWN, SequenceNumber, ChangeKind, GuidPrefix,
+        }, entity::RtpsEntityAttributes, history_cache::RtpsHistoryCacheOperations, participant::RtpsParticipantConstructor}, discovery::sedp::builtin_endpoints::{SedpBuiltinSubscriptionsWriter},
     };
 
     use crate::{
         dds_impl::{
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
-            topic_proxy::{TopicAttributes, TopicProxy},
+            topic_proxy::{TopicAttributes, TopicProxy}, data_writer_proxy::{RtpsWriter, DataWriterAttributes}, publisher_proxy::PublisherAttributes,
         },
         dds_type::{DdsDeserialize, DdsType},
         utils::{
             rtps_structure::RtpsStructure,
             shared_object::{RtpsShared, RtpsWeak},
-        },
+        }, data_representation_builtin_endpoints::{sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION}},
     };
 
     use super::{SubscriberAttributes, SubscriberProxy};
 
     #[derive(Default)]
     struct EmptyGroup {}
-
     impl RtpsEntityAttributes for EmptyGroup {
         fn guid(&self) -> &Guid {
             &GUID_UNKNOWN
+        }
+    }
+
+    struct EmptyHistoryCache {}
+    impl RtpsHistoryCacheOperations for EmptyHistoryCache {
+        type CacheChangeType = ();
+        fn add_change(&mut self, _change: ()) {}
+        fn remove_change(&mut self, _seq_num: &SequenceNumber) {}
+        fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+            None
+        }
+        fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+            None
+        }
+    }
+
+    struct EmptyWriter {
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        last_change_sequence_number: SequenceNumber,
+        data_max_serialized: Option<i32>,
+        writer_cache: EmptyHistoryCache,
+    }
+    impl RtpsWriterOperations for EmptyWriter {
+        type DataType = Vec<u8>;
+        type ParameterListType = Vec<u8>;
+        type CacheChangeType = ();
+
+        fn new_change(
+            &mut self,
+            _kind: ChangeKind,
+            _data: Vec<u8>,
+            _inline_qos: Vec<u8>,
+            _handle: InstanceHandle,
+        ) -> () {
+            ()
+        }
+    }
+    impl RtpsWriterAttributes for EmptyWriter {
+        type WriterHistoryCacheType = EmptyHistoryCache;
+
+        fn push_mode(&self) -> &bool {
+            &self.push_mode
+        }
+        fn heartbeat_period(&self) -> &Duration {
+            &self.heartbeat_period
+        }
+        fn nack_response_delay(&self) -> &Duration {
+            &self.nack_response_delay
+        }
+        fn nack_suppression_duration(&self) -> &Duration {
+            &self.nack_suppression_duration
+        }
+        fn last_change_sequence_number(&self) -> &SequenceNumber {
+            &self.last_change_sequence_number
+        }
+        fn data_max_size_serialized(&self) -> &Option<i32> {
+            &self.data_max_serialized
+        }
+        fn writer_cache(&mut self) -> &mut EmptyHistoryCache {
+            &mut self.writer_cache
+        }
+    }
+    impl RtpsStatefulWriterConstructor for EmptyWriter {
+        fn new(
+            _guid: Guid,
+            _topic_kind: TopicKind,
+            _reliability_level: ReliabilityKind,
+            _unicast_locator_list: &[Locator],
+            _multicast_locator_list: &[Locator],
+            _push_mode: bool,
+            _heartbeat_period: Duration,
+            _nack_response_delay: Duration,
+            _nack_suppression_duration: Duration,
+            _data_max_size_serialized: Option<i32>,
+        ) -> Self {
+            EmptyWriter {
+                push_mode: false,
+                heartbeat_period: Duration::new(0, 0),
+                nack_response_delay: Duration::new(0, 0),
+                nack_suppression_duration: Duration::new(0, 0),
+                last_change_sequence_number: SequenceNumber::default(),
+                data_max_serialized: None,
+                writer_cache: EmptyHistoryCache {},
+            }
         }
     }
 
@@ -403,15 +578,105 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct EmptyParticipant {}
+
+    impl RtpsParticipantConstructor for EmptyParticipant {
+        fn new(
+            _guid: Guid,
+            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
+            _vendor_id: rust_rtps_pim::structure::types::VendorId,
+            _default_unicast_locator_list: &[Locator],
+            _default_multicast_locator_list: &[Locator],
+        ) -> Self {
+            EmptyParticipant {}
+        }
+    }
+
     struct EmptyRtps {}
 
     impl RtpsStructure for EmptyRtps {
         type Group           = EmptyGroup;
-        type Participant     = ();
-        type StatelessWriter = ();
-        type StatefulWriter  = ();
+        type Participant     = EmptyParticipant;
+        type StatelessWriter = EmptyWriter;
+        type StatefulWriter  = EmptyWriter;
         type StatelessReader = ();
         type StatefulReader  = EmptyReader;
+    }
+
+    fn make_participant<Rtps>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
+    where
+        Rtps: RtpsStructure<StatefulWriter = EmptyWriter>,
+        Rtps::Participant: Default + RtpsParticipantConstructor,
+        Rtps::Group: Default,
+    {
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+            GuidPrefix([0; 12]),
+            DomainId::default(),
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ));
+
+        domain_participant.write_lock().builtin_publisher =
+            Some(RtpsShared::new(PublisherAttributes::new(
+                PublisherQos::default(),
+                Rtps::Group::default(),
+                domain_participant.downgrade(),
+            )));
+
+        let sedp_topic_subscription = RtpsShared::new(TopicAttributes::<Rtps>::new(
+            TopicQos::default(),
+            SedpDiscoveredReaderData::type_name(),
+            DCPS_SUBSCRIPTION,
+            RtpsWeak::new(),
+        ));
+
+        domain_participant
+            .write_lock()
+            .topic_list
+            .push(sedp_topic_subscription.clone());
+
+        let sedp_builtin_subscriptions_rtps_writer =
+            SedpBuiltinSubscriptionsWriter::create::<EmptyWriter>(GuidPrefix([0;12]), &[], &[]);
+        let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
+            sedp_topic_subscription.clone(),
+            domain_participant.read_lock().builtin_publisher.as_ref().unwrap().downgrade(),
+        ));
+        domain_participant.read_lock().builtin_publisher.as_ref().unwrap()
+            .write_lock()
+            .data_writer_list
+            .push(sedp_builtin_subscriptions_data_writer.clone());
+
+        domain_participant
+    }
+
+    fn make_subscriber<Rtps: RtpsStructure>(
+        parent: RtpsWeak<DomainParticipantAttributes<Rtps>>,
+    ) -> RtpsShared<SubscriberAttributes<Rtps>>
+    where
+        Rtps::Group: Default,
+    {
+        RtpsShared::new(SubscriberAttributes {
+            qos: SubscriberQos::default(),
+            rtps_group: Rtps::Group::default(),
+            data_reader_list: Vec::new(),
+            user_defined_data_reader_counter: 0,
+            default_data_reader_qos: DataReaderQos::default(),
+            parent_domain_participant: parent,
+        })
+    }
+
+    fn make_topic<Rtps: RtpsStructure>(
+        type_name: &'static str,
+        topic_name: &'static str,
+    ) -> TopicAttributes<Rtps> {
+        TopicAttributes::new(TopicQos::default(), type_name, topic_name, RtpsWeak::new())
     }
 
     macro_rules! make_empty_dds_type {
@@ -438,65 +703,15 @@ mod tests {
 
     make_empty_dds_type!(Foo);
 
-    impl<Rtps: RtpsStructure> Default for DomainParticipantAttributes<Rtps>
-    where
-        Rtps::Participant: Default,
-    {
-        fn default() -> Self {
-            DomainParticipantAttributes {
-                rtps_participant: Rtps::Participant::default(),
-                domain_id: DomainId::default(),
-                domain_tag: "".to_string(),
-                qos: DomainParticipantQos::default(),
-                builtin_subscriber: None,
-                builtin_publisher: None,
-                user_defined_subscriber_list: vec![],
-                user_defined_subscriber_counter: 0,
-                default_subscriber_qos: SubscriberQos::default(),
-                user_defined_publisher_list: vec![],
-                user_defined_publisher_counter: 0,
-                default_publisher_qos: PublisherQos::default(),
-                topic_list: vec![],
-                default_topic_qos: TopicQos::default(),
-                manual_liveliness_count: Count(0),
-                lease_duration: Duration::new(0, 0),
-                metatraffic_unicast_locator_list: vec![],
-                metatraffic_multicast_locator_list: vec![],
-                enabled: false,
-            }
-        }
-    }
-
-    impl<Rtps: RtpsStructure> Default for SubscriberAttributes<Rtps>
-    where
-        Rtps::Group: Default
-    {
-        fn default() -> Self {
-            SubscriberAttributes {
-                qos: SubscriberQos::default(),
-                rtps_group: Rtps::Group::default(),
-                data_reader_list: Vec::new(),
-                user_defined_data_reader_counter: 0,
-                default_data_reader_qos: DataReaderQos::default(),
-                parent_domain_participant: RtpsWeak::new(),
-            }
-        }
-    }
-
-    fn make_topic<Rtps: RtpsStructure>(
-        type_name: &'static str,
-        topic_name: &'static str,
-    ) -> TopicAttributes<Rtps> {
-        TopicAttributes::new(TopicQos::default(), type_name, topic_name, RtpsWeak::new())
-    }
-
     #[test]
     fn create_datareader() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
@@ -508,11 +723,13 @@ mod tests {
 
     #[test]
     fn datareader_factory_create_datareader() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
@@ -526,11 +743,13 @@ mod tests {
 
     #[test]
     fn datareader_factory_delete_datareader() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
@@ -550,16 +769,19 @@ mod tests {
 
     #[test]
     fn datareader_factory_delete_datareader_from_other_subscriber() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy =
-            SubscriberProxy::new(participant_proxy.clone(), subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
-        let subscriber2 = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber2_proxy =
-            SubscriberProxy::new(participant_proxy.clone(), subscriber2.downgrade());
+        let subscriber2 = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber2_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber2.downgrade()
+        );
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
@@ -580,11 +802,13 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_empty() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
@@ -597,11 +821,13 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_one_datareader() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
@@ -623,11 +849,13 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_type() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
         let topic_foo = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
@@ -647,11 +875,13 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_topic() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
         let topic1 = RtpsShared::new(make_topic(Foo::type_name(), "topic1"));
         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
@@ -671,11 +901,13 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_with_two_types() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
         let topic_foo = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
@@ -709,11 +941,13 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_with_two_topics() {
-        let participant = RtpsShared::new(DomainParticipantAttributes::default());
-        let participant_proxy = DomainParticipantProxy::new(participant.downgrade());
+        let domain_participant = make_participant::<EmptyRtps>();
 
-        let subscriber = RtpsShared::new(SubscriberAttributes::default());
-        let subscriber_proxy = SubscriberProxy::new(participant_proxy, subscriber.downgrade());
+        let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+        let subscriber_proxy = SubscriberProxy::new(
+            DomainParticipantProxy::new(domain_participant.downgrade()),
+            subscriber.downgrade()
+        );
 
         let topic1 = RtpsShared::new(make_topic(Foo::type_name(), "topic1"));
         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());

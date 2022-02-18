@@ -39,11 +39,11 @@ pub const DCPS_SUBSCRIPTION: &'static str = "DCPSSubscription";
 
 #[derive(Debug, PartialEq)]
 pub struct  RtpsReaderProxy {
-    remote_reader_guid: Guid,
-    remote_group_entity_id: EntityId,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
-    expects_inline_qos: bool,
+    pub remote_reader_guid: Guid,
+    pub remote_group_entity_id: EntityId,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+    pub expects_inline_qos: bool,
 }
 
 #[derive(Debug, PartialEq)]

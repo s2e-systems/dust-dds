@@ -619,23 +619,52 @@ where
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{domain::domain_participant::DomainParticipantTopicFactory, return_type::DDSError, dcps_psm::Duration};
+    use rust_dds_api::{domain::domain_participant::DomainParticipantTopicFactory, return_type::DDSError, dcps_psm::{Duration, DomainId}, infrastructure::qos::DomainParticipantQos};
+    use rust_rtps_pim::structure::{types::GuidPrefix, participant::RtpsParticipantConstructor};
 
     use crate::{utils::{shared_object::RtpsShared, rtps_structure::RtpsStructure}, dds_type::DdsType, dds_impl::topic_proxy::TopicProxy};
 
     use super::{DomainParticipantProxy, DomainParticipantAttributes};
 
-    struct EmptyRtps {}
+    struct EmptyParticipant {}
+    impl RtpsParticipantConstructor for EmptyParticipant {
+        fn new(
+            _guid: rust_rtps_pim::structure::types::Guid,
+            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
+            _vendor_id: rust_rtps_pim::structure::types::VendorId,
+            _default_unicast_locator_list: &[rust_rtps_pim::structure::types::Locator],
+            _default_multicast_locator_list: &[rust_rtps_pim::structure::types::Locator],
+        ) -> Self {
+            EmptyParticipant {}
+        }
+    }
 
+    struct EmptyRtps {}
     impl RtpsStructure for EmptyRtps {
         type Group           = ();
-        type Participant     = ();
+        type Participant     = EmptyParticipant;
         type StatelessWriter = ();
         type StatefulWriter  = ();
         type StatelessReader = ();
         type StatefulReader  = ();
     }
 
+    fn make_participant<Rtps>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
+    where
+        Rtps: RtpsStructure,
+        Rtps::Participant: RtpsParticipantConstructor,
+    {
+        RtpsShared::new(DomainParticipantAttributes::new(
+            GuidPrefix([0; 12]),
+            DomainId::default(),
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ))
+    }
     
     macro_rules! make_empty_dds_type {
         ($type_name:ident) => {
@@ -659,7 +688,7 @@ mod tests {
     fn topic_factory_create_topic() {
         type Topic = TopicProxy<Foo, EmptyRtps>;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let topic = domain_participant_proxy
@@ -674,7 +703,7 @@ mod tests {
     fn topic_factory_delete_topic() {
         type Topic = TopicProxy<Foo, EmptyRtps>;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let topic = domain_participant_proxy
@@ -695,10 +724,10 @@ mod tests {
     fn topic_factory_delete_topic_from_other_participant() {
         type Topic = TopicProxy<Foo, EmptyRtps>;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
-        let domain_participant2 = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant2 = make_participant();
         let domain_participant2_proxy = DomainParticipantProxy::new(domain_participant2.downgrade());
 
         let topic = domain_participant_proxy
@@ -719,7 +748,7 @@ mod tests {
     fn topic_factory_lookup_topic_with_no_topic() {
         type Topic = TopicProxy<Foo, EmptyRtps>;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         assert!(
@@ -733,7 +762,7 @@ mod tests {
     fn topic_factory_lookup_topic_with_one_topic() {
         type Topic = TopicProxy<Foo, EmptyRtps>;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let topic = domain_participant_proxy
@@ -757,7 +786,7 @@ mod tests {
         type TopicFoo = TopicProxy<Foo, EmptyRtps>;
         type TopicBar = TopicProxy<Bar, EmptyRtps>;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         domain_participant_proxy
@@ -775,7 +804,7 @@ mod tests {
     fn topic_factory_lookup_topic_with_one_topic_with_wrong_name() {
         type Topic = TopicProxy<Foo, EmptyRtps>;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         domain_participant_proxy
@@ -794,7 +823,7 @@ mod tests {
         type TopicFoo = TopicProxy<Foo, EmptyRtps>;
         type TopicBar = TopicProxy<Bar, EmptyRtps>;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let topic_foo = domain_participant_proxy
@@ -825,7 +854,7 @@ mod tests {
     fn topic_factory_lookup_topic_with_two_topics() {
         type Topic = TopicProxy<Foo, EmptyRtps>;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::<EmptyRtps>::default());
+        let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let topic1 = domain_participant_proxy
