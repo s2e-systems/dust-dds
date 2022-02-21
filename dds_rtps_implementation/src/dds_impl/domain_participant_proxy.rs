@@ -1,6 +1,6 @@
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time, BuiltInTopicKey},
+    dcps_psm::{BuiltInTopicKey, DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
         domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
         domain_participant_listener::DomainParticipantListener,
@@ -9,28 +9,42 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::{publisher::{Publisher, PublisherDataWriterFactory}, publisher_listener::PublisherListener, data_writer::DataWriter},
+    publication::{
+        data_writer::DataWriter,
+        publisher::{Publisher, PublisherDataWriterFactory},
+        publisher_listener::PublisherListener,
+    },
     return_type::{DDSError, DDSResult},
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
-    topic::{topic_description::TopicDescription, topic_listener::TopicListener},
+    topic::topic_listener::TopicListener,
 };
 use rust_rtps_pim::{
+    behavior::writer::{
+        stateful_writer::RtpsStatefulWriterConstructor,
+        writer::{RtpsWriterAttributes, RtpsWriterOperations},
+    },
     messages::types::Count,
     structure::{
+        entity::RtpsEntityAttributes,
+        group::RtpsGroupConstructor,
+        history_cache::RtpsHistoryCacheOperations,
         participant::RtpsParticipantConstructor,
         types::{
             EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
             USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
-        }, group::RtpsGroupConstructor, entity::RtpsEntityAttributes, history_cache::RtpsHistoryCacheOperations,
-    }, behavior::writer::{writer::{RtpsWriterOperations, RtpsWriterAttributes}, stateful_writer::RtpsStatefulWriterConstructor},
+        },
+    },
 };
 
 use crate::{
-    dds_type::{DdsType, DdsSerialize},
+    data_representation_builtin_endpoints::sedp_discovered_topic_data::{
+        SedpDiscoveredTopicData, DCPS_TOPIC,
+    },
+    dds_type::{DdsSerialize, DdsType},
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{RtpsShared, RtpsWeak},
-    }, data_representation_builtin_endpoints::sedp_discovered_topic_data::{DCPS_TOPIC, SedpDiscoveredTopicData},
+    },
 };
 
 use super::{
@@ -176,26 +190,29 @@ where
 
         // /////// Create topic
         let topic_shared = RtpsShared::new(TopicAttributes::new(
-            qos.clone(), Foo::type_name(), topic_name, participant_shared.downgrade()
+            qos.clone(),
+            Foo::type_name(),
+            topic_name,
+            participant_shared.downgrade(),
         ));
 
-        participant_shared.write_lock()
+        participant_shared
+            .write_lock()
             .topic_list
             .push(topic_shared.clone());
 
         // /////// Announce the topic creation
         {
-            let domain_participant_proxy = DomainParticipantProxy::new(
-                participant_shared.downgrade()
-            );
+            let domain_participant_proxy =
+                DomainParticipantProxy::new(participant_shared.downgrade());
             let builtin_publisher = participant_shared.read_lock().builtin_publisher.clone()?;
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
-            let topic_creation_topic = domain_participant_proxy
-                .topic_factory_find_topic(DCPS_TOPIC, Duration::new(0, 0))?;
+            let topic_creation_topic =
+                domain_participant_proxy.topic_factory_find_local_topic(DCPS_TOPIC)?;
 
-            let mut sedp_builtin_topic_announcer =
-                builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&topic_creation_topic)?;
+            let mut sedp_builtin_topic_announcer = builtin_publisher_proxy
+                .datawriter_factory_lookup_datawriter(&topic_creation_topic)?;
 
             let sedp_discovered_topic_data = SedpDiscoveredTopicData {
                 topic_builtin_topic_data: TopicBuiltinTopicData {
@@ -215,7 +232,7 @@ where
                     resource_limits: qos.resource_limits.clone(),
                     ownership: qos.ownership.clone(),
                     topic_data: qos.topic_data.clone(),
-                }
+                },
             };
 
             sedp_builtin_topic_announcer
@@ -234,16 +251,15 @@ where
         let domain_participant_shared = self.domain_participant.upgrade()?;
         let topic_shared = topic.as_ref().upgrade()?;
 
-        let topic_list = &mut domain_participant_shared
-            .write_lock()
-            .topic_list;
+        let topic_list = &mut domain_participant_shared.write_lock().topic_list;
 
         topic_list.remove(
-            topic_list.iter()
+            topic_list
+                .iter()
                 .position(|topic| topic == &topic_shared)
                 .ok_or(DDSError::PreconditionNotMet(
-                    "Topic can only be deleted from its parent publisher".to_string()
-                ))?
+                    "Topic can only be deleted from its parent publisher".to_string(),
+                ))?,
         );
 
         Ok(())
@@ -254,15 +270,34 @@ where
         topic_name: &str,
         _timeout: Duration,
     ) -> Option<Self::TopicType> {
-
-        self.domain_participant.upgrade().ok()?.read_lock()
-            .topic_list.iter()
+        self.domain_participant
+            .upgrade()
+            .ok()?
+            .read_lock()
+            .topic_list
+            .iter()
             .find_map(|topic_shared| {
                 let topic = topic_shared.read_lock();
-                
-                if topic.topic_name == topic_name &&
-                   topic.type_name  == Foo::type_name()
-                {
+
+                if topic.topic_name == topic_name && topic.type_name == Foo::type_name() {
+                    Some(TopicProxy::new(topic_shared.downgrade()))
+                } else {
+                    None
+                }
+            })
+    }
+
+    fn topic_factory_find_local_topic(&self, topic_name: &str) -> Option<Self::TopicType> {
+        self.domain_participant
+            .upgrade()
+            .ok()?
+            .read_lock()
+            .topic_list
+            .iter()
+            .find_map(|topic_shared| {
+                let topic = topic_shared.read_lock();
+
+                if topic.topic_name == topic_name && topic.type_name == Foo::type_name() {
                     Some(TopicProxy::new(topic_shared.downgrade()))
                 } else {
                     None
@@ -315,11 +350,8 @@ where
         // let sedp_builtin_publications_announcer =
         //     rtps_shared_read_lock(&domain_participant_attributes_lock.builtin_publisher)
         //         .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
-        let publisher_impl = PublisherAttributes::new(
-            publisher_qos,
-            rtps_group,
-            self.domain_participant.clone(),
-        );
+        let publisher_impl =
+            PublisherAttributes::new(publisher_qos, rtps_group, self.domain_participant.clone());
         let publisher_impl_shared = RtpsShared::new(publisher_impl);
         domain_participant_attributes_lock
             .user_defined_publisher_list
@@ -408,21 +440,14 @@ where
         }
     }
 
-    fn lookup_topicdescription<Foo>(
-        &self,
-        _name: &str,
-    ) -> Option<&dyn TopicDescription<DomainParticipant = Self>>
-    where
-        Self: Sized,
-    {
-        todo!()
-        // rtps_shared_read_lock(&domain_participant_lock).lookup_topicdescription(name)
-    }
-
     fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
         let domain_participant_lock = domain_participant_shared.read_lock();
-        let subscriber = domain_participant_lock.builtin_subscriber.as_ref().unwrap().clone();
+        let subscriber = domain_participant_lock
+            .builtin_subscriber
+            .as_ref()
+            .unwrap()
+            .clone();
         Ok(SubscriberProxy::new(self.clone(), subscriber.downgrade()))
     }
 
@@ -644,13 +669,47 @@ where
 mod tests {
     use std::io::Write;
 
-    use rust_dds_api::{domain::domain_participant::DomainParticipantTopicFactory, return_type::{DDSError, DDSResult}, dcps_psm::{DomainId, InstanceHandle, Duration}, infrastructure::qos::{DomainParticipantQos, PublisherQos, TopicQos, DataWriterQos}};
-    use rust_rtps_pim::{structure::{types::{GuidPrefix, GUID_UNKNOWN, Guid, SequenceNumber, TopicKind, ReliabilityKind, Locator, ChangeKind}, participant::RtpsParticipantConstructor, entity::RtpsEntityAttributes, history_cache::RtpsHistoryCacheOperations}, discovery::sedp::builtin_endpoints::SedpBuiltinTopicsWriter, behavior::{writer::{stateful_writer::RtpsStatefulWriterConstructor, writer::{RtpsWriterAttributes, RtpsWriterOperations}}}};
+    use rust_dds_api::{
+        dcps_psm::{DomainId, InstanceHandle},
+        domain::domain_participant::DomainParticipantTopicFactory,
+        infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, TopicQos},
+        return_type::{DDSError, DDSResult},
+    };
+    use rust_rtps_pim::{
+        behavior::writer::{
+            stateful_writer::RtpsStatefulWriterConstructor,
+            writer::{RtpsWriterAttributes, RtpsWriterOperations},
+        },
+        discovery::sedp::builtin_endpoints::SedpBuiltinTopicsWriter,
+        structure::{
+            entity::RtpsEntityAttributes,
+            history_cache::RtpsHistoryCacheOperations,
+            participant::RtpsParticipantConstructor,
+            types::{
+                ChangeKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+                GUID_UNKNOWN,
+            },
+        },
+    };
 
-    use crate::{utils::{shared_object::{RtpsShared, RtpsWeak}, rtps_structure::RtpsStructure}, dds_type::{DdsType, DdsSerialize, Endianness}, dds_impl::{topic_proxy::{TopicProxy, TopicAttributes}, publisher_proxy::PublisherAttributes, data_writer_proxy::{DataWriterAttributes, RtpsWriter}}, data_representation_builtin_endpoints::{sedp_discovered_topic_data::{DCPS_TOPIC, SedpDiscoveredTopicData}}};
+    use crate::{
+        data_representation_builtin_endpoints::sedp_discovered_topic_data::{
+            SedpDiscoveredTopicData, DCPS_TOPIC,
+        },
+        dds_impl::{
+            data_writer_proxy::{DataWriterAttributes, RtpsWriter},
+            publisher_proxy::PublisherAttributes,
+            topic_proxy::{TopicAttributes, TopicProxy},
+        },
+        dds_type::{DdsSerialize, DdsType, Endianness},
+        utils::{
+            rtps_structure::RtpsStructure,
+            shared_object::{RtpsShared, RtpsWeak},
+        },
+    };
 
-    use super::{DomainParticipantProxy, DomainParticipantAttributes};
-    
+    use super::{DomainParticipantAttributes, DomainParticipantProxy};
+
     #[derive(Default)]
     struct EmptyGroup;
 
@@ -763,12 +822,12 @@ mod tests {
 
     struct EmptyRtps {}
     impl RtpsStructure for EmptyRtps {
-        type Group           = EmptyGroup;
-        type Participant     = EmptyParticipant;
+        type Group = EmptyGroup;
+        type Participant = EmptyParticipant;
         type StatelessWriter = EmptyWriter;
-        type StatefulWriter  = EmptyWriter;
+        type StatefulWriter = EmptyWriter;
         type StatelessReader = ();
-        type StatefulReader  = ();
+        type StatefulReader = ();
     }
 
     fn make_participant<Rtps>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
@@ -808,14 +867,23 @@ mod tests {
             .push(sedp_topic_topic.clone());
 
         let sedp_builtin_topics_rtps_writer =
-            SedpBuiltinTopicsWriter::create::<EmptyWriter>(GuidPrefix([0;12]), &[], &[]);
+            SedpBuiltinTopicsWriter::create::<EmptyWriter>(GuidPrefix([0; 12]), &[], &[]);
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
             sedp_topic_topic.clone(),
-            domain_participant.read_lock().builtin_publisher.as_ref().unwrap().downgrade(),
+            domain_participant
+                .read_lock()
+                .builtin_publisher
+                .as_ref()
+                .unwrap()
+                .downgrade(),
         ));
-        domain_participant.read_lock().builtin_publisher.as_ref().unwrap()
+        domain_participant
+            .read_lock()
+            .builtin_publisher
+            .as_ref()
+            .unwrap()
             .write_lock()
             .data_writer_list
             .push(sedp_builtin_topics_data_writer.clone());
@@ -856,12 +924,14 @@ mod tests {
 
         let len_before = domain_participant.read_lock().topic_list.len();
 
-        let topic = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
+        let topic = domain_participant_proxy.topic_factory_create_topic("topic", None, None, 0)
             as Option<Topic>;
 
         assert!(topic.is_some());
-        assert_eq!(len_before + 1, domain_participant.read_lock().topic_list.len());
+        assert_eq!(
+            len_before + 1,
+            domain_participant.read_lock().topic_list.len()
+        );
     }
 
     #[test]
@@ -877,7 +947,10 @@ mod tests {
             .topic_factory_create_topic("topic", None, None, 0)
             .unwrap() as Topic;
 
-        assert_eq!(len_before + 1, domain_participant.read_lock().topic_list.len());
+        assert_eq!(
+            len_before + 1,
+            domain_participant.read_lock().topic_list.len()
+        );
 
         domain_participant_proxy
             .topic_factory_delete_topic(&topic)
@@ -895,7 +968,8 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let domain_participant2 = make_participant();
-        let domain_participant2_proxy = DomainParticipantProxy::new(domain_participant2.downgrade());
+        let domain_participant2_proxy =
+            DomainParticipantProxy::new(domain_participant2.downgrade());
 
         let len_before = domain_participant.read_lock().topic_list.len();
         let len_before2 = domain_participant2.read_lock().topic_list.len();
@@ -904,8 +978,14 @@ mod tests {
             .topic_factory_create_topic("topic", None, None, 0)
             .unwrap() as Topic;
 
-        assert_eq!(len_before + 1, domain_participant.read_lock().topic_list.len());
-        assert_eq!(len_before2, domain_participant2.read_lock().topic_list.len());
+        assert_eq!(
+            len_before + 1,
+            domain_participant.read_lock().topic_list.len()
+        );
+        assert_eq!(
+            len_before2,
+            domain_participant2.read_lock().topic_list.len()
+        );
 
         assert!(matches!(
             domain_participant2_proxy.topic_factory_delete_topic(&topic),
@@ -922,9 +1002,8 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
-                as Option<Topic>
-            ).is_none()
+            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<Topic>)
+                .is_none()
         );
     }
 
@@ -940,12 +1019,12 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
-             as Option<Topic>
-            ).unwrap().as_ref().upgrade().unwrap()
-            == 
-            topic
-                .as_ref().upgrade().unwrap()
+            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<Topic>)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == topic.as_ref().upgrade().unwrap()
         );
     }
 
@@ -964,9 +1043,8 @@ mod tests {
             .unwrap() as TopicBar;
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
-             as Option<TopicFoo>
-            ).is_none()
+            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<TopicFoo>)
+                .is_none()
         );
     }
 
@@ -982,9 +1060,8 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
-             as Option<Topic>
-            ).is_none()
+            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<Topic>)
+                .is_none()
         );
     }
 
@@ -1002,21 +1079,23 @@ mod tests {
         let topic_bar = domain_participant_proxy
             .topic_factory_create_topic("topic", None, None, 0)
             .unwrap() as TopicBar;
-            
+
         assert!(
-            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
-             as Option<TopicFoo>
-            ).unwrap().as_ref().upgrade().unwrap()
-            == 
-            topic_foo.as_ref().upgrade().unwrap()
+            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<TopicFoo>)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == topic_foo.as_ref().upgrade().unwrap()
         );
-        
+
         assert!(
-            (domain_participant_proxy.topic_factory_find_topic("topic", Duration::new(1, 0))
-                as Option<TopicBar>
-            ).unwrap().as_ref().upgrade().unwrap()
-            == 
-            topic_bar.as_ref().upgrade().unwrap()
+            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<TopicBar>)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == topic_bar.as_ref().upgrade().unwrap()
         );
     }
 
@@ -1035,19 +1114,21 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_topic("topic1", Duration::new(1, 0))
-             as Option<Topic>
-            ).unwrap().as_ref().upgrade().unwrap()
-            == 
-            topic1.as_ref().upgrade().unwrap()
+            (domain_participant_proxy.topic_factory_find_local_topic("topic1") as Option<Topic>)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == topic1.as_ref().upgrade().unwrap()
         );
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_topic("topic2", Duration::new(1, 0))
-             as Option<Topic>
-            ).unwrap().as_ref().upgrade().unwrap()
-            == 
-            topic2.as_ref().upgrade().unwrap()
+            (domain_participant_proxy.topic_factory_find_local_topic("topic2") as Option<Topic>)
+                .unwrap()
+                .as_ref()
+                .upgrade()
+                .unwrap()
+                == topic2.as_ref().upgrade().unwrap()
         );
     }
 }

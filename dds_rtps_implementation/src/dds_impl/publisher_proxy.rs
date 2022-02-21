@@ -142,7 +142,7 @@ where
         _mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade().ok()?;
-        
+
         let topic_shared = topic.as_ref().upgrade().ok()?;
 
         // /////// Build the GUID
@@ -151,9 +151,9 @@ where
                 .write_lock()
                 .user_defined_data_writer_counter
                 .fetch_add(1, atomic::Ordering::SeqCst);
-            
+
             let entity_kind = match Foo::has_key() {
-                true  => USER_DEFINED_WRITER_WITH_KEY,
+                true => USER_DEFINED_WRITER_WITH_KEY,
                 false => USER_DEFINED_WRITER_NO_KEY,
             };
 
@@ -181,7 +181,7 @@ where
             qos.is_consistent().ok()?;
 
             let topic_kind = match Foo::has_key() {
-                true  => TopicKind::WithKey,
+                true => TopicKind::WithKey,
                 false => TopicKind::NoKey,
             };
 
@@ -226,14 +226,13 @@ where
                 .parent_participant
                 .upgrade()
                 .ok()?;
-            let domain_participant_proxy = DomainParticipantProxy::new(
-                domain_participant.downgrade()
-            );
+            let domain_participant_proxy =
+                DomainParticipantProxy::new(domain_participant.downgrade());
             let builtin_publisher = domain_participant.read_lock().builtin_publisher.clone()?;
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
-            let publication_topic = domain_participant_proxy
-                .topic_factory_find_topic(DCPS_PUBLICATION, Duration::new(0, 0))?;
+            let publication_topic =
+                domain_participant_proxy.topic_factory_find_local_topic(DCPS_PUBLICATION)?;
 
             let mut sedp_builtin_publications_announcer =
                 builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)?;
@@ -468,6 +467,7 @@ mod tests {
                 writer::{RtpsWriterAttributes, RtpsWriterOperations},
             },
         },
+        discovery::sedp::builtin_endpoints::SedpBuiltinPublicationsWriter,
         structure::{
             entity::RtpsEntityAttributes,
             history_cache::RtpsHistoryCacheOperations,
@@ -476,7 +476,7 @@ mod tests {
                 ChangeKind, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind,
                 SequenceNumber, TopicKind, GUID_UNKNOWN,
             },
-        }, discovery::sedp::builtin_endpoints::SedpBuiltinPublicationsWriter,
+        },
     };
 
     use crate::{
@@ -484,8 +484,9 @@ mod tests {
             SedpDiscoveredWriterData, DCPS_PUBLICATION,
         },
         dds_impl::{
+            data_writer_proxy::{DataWriterAttributes, RtpsWriter},
             domain_participant_proxy::DomainParticipantAttributes,
-            topic_proxy::{TopicAttributes, TopicProxy}, data_writer_proxy::{DataWriterAttributes, RtpsWriter},
+            topic_proxy::{TopicAttributes, TopicProxy},
         },
         dds_type::{DdsSerialize, DdsType, Endianness},
         utils::{
@@ -655,14 +656,23 @@ mod tests {
             .push(sedp_topic_publication.clone());
 
         let sedp_builtin_publications_rtps_writer =
-            SedpBuiltinPublicationsWriter::create::<EmptyWriter>(GuidPrefix([0;12]), &[], &[]);
+            SedpBuiltinPublicationsWriter::create::<EmptyWriter>(GuidPrefix([0; 12]), &[], &[]);
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
             sedp_topic_publication.clone(),
-            domain_participant.read_lock().builtin_publisher.as_ref().unwrap().downgrade(),
+            domain_participant
+                .read_lock()
+                .builtin_publisher
+                .as_ref()
+                .unwrap()
+                .downgrade(),
         ));
-        domain_participant.read_lock().builtin_publisher.as_ref().unwrap()
+        domain_participant
+            .read_lock()
+            .builtin_publisher
+            .as_ref()
+            .unwrap()
             .write_lock()
             .data_writer_list
             .push(sedp_builtin_publications_data_writer.clone());
