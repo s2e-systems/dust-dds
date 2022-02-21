@@ -29,7 +29,7 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::reader::reader::RtpsReaderAttributes,
     structure::{
-        cache_change::RtpsCacheChangeAttributes, history_cache::RtpsHistoryCacheAttributes,
+        cache_change::RtpsCacheChangeAttributes, history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
     },
 };
 
@@ -161,9 +161,9 @@ where
     Rtps::StatelessReader: RtpsReaderAttributes,
     Rtps::StatefulReader: RtpsReaderAttributes,
     <Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
-        RtpsHistoryCacheAttributes,
+        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
     <Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
-        RtpsHistoryCacheAttributes,
+        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
     <<Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
     <<Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
 {
@@ -179,42 +179,72 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
-        let rtps_reader = &data_reader_shared
-            .read_lock()
+        let rtps_reader = &mut data_reader_shared
+            .write_lock()
             .rtps_reader;
 
         match rtps_reader {
             RtpsReader::Stateless(rtps_reader) => {
-                if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
-                    Ok(Samples {
-                        samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
-                    })
-                } else {
-                    Err(DDSError::NoData)
-                }
+                let mut data_value = rtps_reader.reader_cache().changes().first()
+                    .ok_or(DDSError::NoData)?
+                    .data_value();
+                
+                Ok(Samples {
+                    samples: vec![DdsDeserialize::deserialize(&mut data_value).unwrap()],
+                })
             }
             RtpsReader::Stateful(rtps_reader) => {
-                if let Some(cc) = rtps_reader.reader_cache().changes().iter().next() {
-                    Ok(Samples {
-                        samples: vec![DdsDeserialize::deserialize(&mut cc.data_value()).unwrap()],
-                    })
-                } else {
-                    Err(DDSError::NoData)
-                }
+                let mut data_value = rtps_reader.reader_cache().changes().first()
+                    .ok_or(DDSError::NoData)?
+                    .data_value();
+                
+                Ok(Samples {
+                    samples: vec![DdsDeserialize::deserialize(&mut data_value).unwrap()],
+                })
             }
         }
     }
 
     fn take(
-        &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
+        &mut self,
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()> {
-        todo!()
+    ) -> DDSResult<Self::Samples> {
+        let data_reader_shared = self.data_reader_impl.upgrade()?;
+        let rtps_reader = &mut data_reader_shared
+            .write_lock()
+            .rtps_reader;
+
+        match rtps_reader {
+            RtpsReader::Stateless(rtps_reader) => {
+                let (seq_num, sample) = {
+                    let reader_cache = rtps_reader.reader_cache();
+                    let seq_num = reader_cache.changes().first().ok_or(DDSError::NoData)?.sequence_number();
+                    let mut data_value = reader_cache.changes().first().ok_or(DDSError::NoData)?.data_value();
+
+                    (seq_num.clone(), DdsDeserialize::deserialize(&mut data_value).unwrap())
+                };
+                
+                rtps_reader.reader_cache().remove_change(&seq_num);
+
+                Ok(Samples { samples: vec![sample] })
+            }
+            RtpsReader::Stateful(rtps_reader) => {
+                let (seq_num, sample) = {
+                    let reader_cache = rtps_reader.reader_cache();
+                    let seq_num = reader_cache.changes().first().ok_or(DDSError::NoData)?.sequence_number();
+                    let mut data_value = reader_cache.changes().first().ok_or(DDSError::NoData)?.data_value();
+
+                    (seq_num.clone(), DdsDeserialize::deserialize(&mut data_value).unwrap())
+                };
+                
+                rtps_reader.reader_cache().remove_change(&seq_num);
+
+                Ok(Samples { samples: vec![sample] })
+            }
+        }
     }
 
     fn read_w_condition(

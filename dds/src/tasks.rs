@@ -166,7 +166,7 @@ pub fn task_sedp_discovery(
         &mut impl DataReader<SedpDiscoveredWriterData, Samples = Samples<SedpDiscoveredWriterData>>,
     subscriber_list: &Vec<RtpsShared<SubscriberAttributes<RtpsStructureImpl>>>,
 ) {
-    if let Ok(samples) = sedp_builtin_publications_data_reader.read(1, &[], &[], &[]) {
+    if let Ok(samples) = sedp_builtin_publications_data_reader.take(1, &[], &[], &[]) {
         if let Some(sample) = samples.into_iter().next() {
             let topic_name = &sample.publication_builtin_topic_data.topic_name;
             let type_name = &sample.publication_builtin_topic_data.type_name;
@@ -287,14 +287,12 @@ mod tests {
             ) -> DDSResult<Samples<Foo>>;
 
             fn take(
-                &self,
-                data_values: &mut [Foo],
-                sample_infos: &mut [SampleInfo],
+                &mut self,
                 max_samples: i32,
                 sample_states: &[SampleStateKind],
                 view_states: &[ViewStateKind],
                 instance_states: &[InstanceStateKind],
-            ) -> DDSResult<()>;
+            ) -> DDSResult<Samples<Foo>>;
 
             fn read_w_condition(
                 &self,
@@ -718,7 +716,7 @@ mod tests {
 
         let mut mock_sedp_discovered_writer_data_reader = MockDdsDataReader::new();
         mock_sedp_discovered_writer_data_reader
-            .expect_read()
+            .expect_take()
             .returning(|_, _, _, _| {
                 Ok(Samples {
                     samples: vec![SedpDiscoveredWriterData {

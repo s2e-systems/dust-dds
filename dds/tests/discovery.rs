@@ -593,8 +593,8 @@ fn create_two_participants_with_same_domains() {
 
     println!("Matched {} writers", num_matched_writers(&participant2));
     
-    // std::thread::sleep(std::time::Duration::new(20, 0));
-    // println!("[After 20 seconds] Matched {} writers", num_matched_writers(&participant2));
+    // std::thread::sleep(std::time::Duration::new(5, 0));
+    // println!("[After 5 seconds] Matched {} writers", num_matched_writers(&participant2));
 
     assert!(participant1.get_builtin_subscriber().is_ok());
     assert!(participant2.get_builtin_subscriber().is_ok());

@@ -1,19 +1,15 @@
 use rust_rtps_pim::{
-    behavior::{
-        types::Duration,
-        reader::reader::RtpsReaderAttributes,
-    },
+    behavior::{reader::reader::RtpsReaderAttributes, types::Duration},
     structure::{
-        entity::RtpsEntityAttributes,
-        types::{Guid, TopicKind, ReliabilityKind, Locator},
         endpoint::RtpsEndpointAttributes,
-        history_cache::RtpsHistoryCacheConstructor
+        entity::RtpsEntityAttributes,
+        history_cache::RtpsHistoryCacheConstructor,
+        types::{Guid, Locator, ReliabilityKind, TopicKind},
     },
 };
 
 use super::{
-    rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_reader_history_cache_impl::ReaderHistoryCache,
+    rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_history_cache_impl::ReaderHistoryCache,
 };
 
 pub struct RtpsReaderImpl {
@@ -76,8 +72,8 @@ impl RtpsReaderAttributes for RtpsReaderImpl {
         &self.heartbeat_supression_duration
     }
 
-    fn reader_cache(&self) -> &Self::ReaderHistoryCacheType {
-        &self.reader_cache
+    fn reader_cache(&mut self) -> &mut Self::ReaderHistoryCacheType {
+        &mut self.reader_cache
     }
 
     fn expects_inline_qos(&self) -> &bool {
