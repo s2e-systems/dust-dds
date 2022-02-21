@@ -490,6 +490,73 @@ mod tests {
         }
     }
 
+    fn make_participant() -> RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>
+    {
+        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+            GuidPrefix([0; 12]),
+            DomainId::default(),
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ));
+
+        domain_participant.write_lock().builtin_publisher =
+            Some(RtpsShared::new(PublisherAttributes::new(
+                PublisherQos::default(),
+                RtpsGroupImpl::new(GUID_UNKNOWN),
+                domain_participant.downgrade(),
+            )));
+
+        let sedp_topic_subscription = RtpsShared::new(TopicAttributes::new(
+            TopicQos::default(),
+            SedpDiscoveredReaderData::type_name(),
+            DCPS_SUBSCRIPTION,
+            RtpsWeak::new(),
+        ));
+
+        domain_participant
+            .write_lock()
+            .topic_list
+            .push(sedp_topic_subscription.clone());
+
+
+        let sedp_builtin_subscriptions_rtps_writer =
+            SedpBuiltinSubscriptionsWriter::create(GuidPrefix([0;12]), &[], &[]);
+        let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
+            sedp_topic_subscription.clone(),
+            domain_participant.read_lock().builtin_publisher.as_ref().unwrap().downgrade(),
+        ));
+        domain_participant.read_lock().builtin_publisher.as_ref().unwrap()
+            .write_lock()
+            .data_writer_list
+            .push(sedp_builtin_subscriptions_data_writer.clone());
+
+        domain_participant
+    }
+
+    struct MyType;
+
+    impl DdsType for MyType {
+        fn type_name() -> &'static str {
+            "MyType"
+        }
+
+        fn has_key() -> bool {
+            false
+        }
+    }
+
+    impl<'de> DdsDeserialize<'de> for MyType {
+        fn deserialize(_buf: &mut &'de [u8]) -> DDSResult<Self> {
+            Ok(MyType{})
+        }
+    }
+
     #[test]
     fn discovery_task_all_sedp_endpoints() {
         let mut mock_spdp_data_reader = MockDdsDataReader::new();
@@ -638,73 +705,6 @@ mod tests {
             &mut mock_builtin_topics_writer,
             &mut mock_builtin_topics_reader,
         );
-    }
-
-    fn make_participant() -> RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>
-    {
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
-            GuidPrefix([0; 12]),
-            DomainId::default(),
-            "".to_string(),
-            DomainParticipantQos::default(),
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-        ));
-
-        domain_participant.write_lock().builtin_publisher =
-            Some(RtpsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                RtpsGroupImpl::new(GUID_UNKNOWN),
-                domain_participant.downgrade(),
-            )));
-
-        let sedp_topic_subscription = RtpsShared::new(TopicAttributes::new(
-            TopicQos::default(),
-            SedpDiscoveredReaderData::type_name(),
-            DCPS_SUBSCRIPTION,
-            RtpsWeak::new(),
-        ));
-
-        domain_participant
-            .write_lock()
-            .topic_list
-            .push(sedp_topic_subscription.clone());
-
-
-        let sedp_builtin_subscriptions_rtps_writer =
-            SedpBuiltinSubscriptionsWriter::create(GuidPrefix([0;12]), &[], &[]);
-        let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
-            sedp_topic_subscription.clone(),
-            domain_participant.read_lock().builtin_publisher.as_ref().unwrap().downgrade(),
-        ));
-        domain_participant.read_lock().builtin_publisher.as_ref().unwrap()
-            .write_lock()
-            .data_writer_list
-            .push(sedp_builtin_subscriptions_data_writer.clone());
-
-        domain_participant
-    }
-
-    struct MyType;
-
-    impl DdsType for MyType {
-        fn type_name() -> &'static str {
-            "MyType"
-        }
-
-        fn has_key() -> bool {
-            false
-        }
-    }
-
-    impl<'de> DdsDeserialize<'de> for MyType {
-        fn deserialize(_buf: &mut &'de [u8]) -> DDSResult<Self> {
-            Ok(MyType{})
-        }
     }
 
     #[test]

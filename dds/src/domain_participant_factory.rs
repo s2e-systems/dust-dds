@@ -29,7 +29,7 @@ use rust_dds_rtps_implementation::{
         data_writer_proxy::{DataWriterAttributes, RtpsWriter, DataWriterProxy},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_proxy::{PublisherAttributes, PublisherProxy},
-        subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
+        subscriber_proxy::{SubscriberAttributes, SubscriberProxy}, topic_proxy::TopicAttributes,
     },
     rtps_impl::{
         rtps_group_impl::RtpsGroupImpl,
@@ -40,7 +40,7 @@ use rust_dds_rtps_implementation::{
         rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
         rtps_participant_impl::RtpsParticipantImpl,
     },
-    utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
+    utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared}, dds_type::DdsType,
 };
 use rust_rtps_pim::{
     behavior::{
@@ -578,8 +578,6 @@ where
 
 fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>)
     -> DDSResult<()> {
-    let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
-
     // ///////// Create the built-in publisher and subcriber
 
     let builtin_subscriber = RtpsShared::new(SubscriberAttributes::new(
@@ -613,9 +611,14 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
 
     // ////////// SPDP built-in topic, reader and writer
     {
-        let sedp_topic_participant = domain_participant_proxy.create_topic::<SpdpDiscoveredParticipantData>(
-            DCPS_PARTICIPANT, None, None, 0
-        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
+        let sedp_topic_participant = RtpsShared::new(TopicAttributes::new(
+            domain_participant.read_lock().default_topic_qos.clone(),
+            SpdpDiscoveredParticipantData::type_name(),
+            DCPS_PARTICIPANT,
+            domain_participant.downgrade(),
+        ));
+        domain_participant.write_lock().topic_list
+            .push(sedp_topic_participant.clone());
 
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
@@ -623,7 +626,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let spdp_builtin_participant_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
-            sedp_topic_participant.as_ref().upgrade()?,
+            sedp_topic_participant.clone(),
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -648,7 +651,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-            sedp_topic_participant.as_ref().upgrade()?,
+            sedp_topic_participant.clone(),
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
@@ -659,16 +662,21 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
 
     // ////////// SEDP built-in publication topic, reader and writer
     {
-        let sedp_topic_publication = domain_participant_proxy.create_topic::<SedpDiscoveredWriterData>(
-            DCPS_PUBLICATION, None, None, 0
-        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
+        let sedp_topic_publication = RtpsShared::new(TopicAttributes::new(
+            domain_participant.read_lock().default_topic_qos.clone(),
+            SedpDiscoveredWriterData::type_name(),
+            DCPS_PUBLICATION,
+            domain_participant.downgrade(),
+        ));
+        domain_participant.write_lock().topic_list
+            .push(sedp_topic_publication.clone());
 
         let sedp_builtin_publications_rtps_reader =
             SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_publications_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
-            sedp_topic_publication.as_ref().upgrade()?,
+            sedp_topic_publication.clone(),
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -681,7 +689,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-            sedp_topic_publication.as_ref().upgrade()?,
+            sedp_topic_publication.clone(),
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
@@ -692,16 +700,21 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
 
     // ////////// SEDP built-in subcriptions topic, reader and writer
     {
-        let sedp_topic_subscription = domain_participant_proxy.create_topic::<SedpDiscoveredReaderData>(
-            DCPS_SUBSCRIPTION, None, None, 0
-        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
+        let sedp_topic_subscription = RtpsShared::new(TopicAttributes::new(
+            domain_participant.read_lock().default_topic_qos.clone(),
+            SedpDiscoveredReaderData::type_name(),
+            DCPS_SUBSCRIPTION,
+            domain_participant.downgrade(),
+        ));
+        domain_participant.write_lock().topic_list
+            .push(sedp_topic_subscription.clone());
 
         let sedp_builtin_subscriptions_rtps_reader =
             SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
-            sedp_topic_subscription.as_ref().upgrade()?,
+            sedp_topic_subscription.clone(),
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -714,7 +727,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
-            sedp_topic_subscription.as_ref().upgrade()?,
+            sedp_topic_subscription.clone(),
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
@@ -725,16 +738,21 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
 
     // ////////// SEDP built-in topics topic, reader and writer
     {
-        let sedp_topic_topic = domain_participant_proxy.create_topic::<SedpDiscoveredTopicData>(
-            DCPS_TOPIC, None, None, 0
-        ).ok_or(DDSError::PreconditionNotMet("Unable to create topic".to_string()))?;
+        let sedp_topic_topic = RtpsShared::new(TopicAttributes::new(
+            domain_participant.read_lock().default_topic_qos.clone(),
+            SedpDiscoveredTopicData::type_name(),
+            DCPS_TOPIC,
+            domain_participant.downgrade(),
+        ));
+        domain_participant.write_lock().topic_list
+            .push(sedp_topic_topic.clone());
 
         let sedp_builtin_topics_rtps_reader =
             SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_topics_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
-            sedp_topic_topic.as_ref().upgrade()?,
+            sedp_topic_topic.clone(),
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -747,7 +765,7 @@ fn create_builtins(guid_prefix: GuidPrefix, domain_participant: RtpsShared<Domai
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
-            sedp_topic_topic.as_ref().upgrade()?,
+            sedp_topic_topic.clone(),
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
@@ -800,7 +818,7 @@ mod tests {
         create_builtins(guid_prefix, domain_participant.clone()).unwrap();
 
         let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
-        
+
         let participant_topic = participant_proxy.find_topic::<SpdpDiscoveredParticipantData>(
             DCPS_PARTICIPANT, Duration::new(0, 0)
         ).unwrap();
@@ -813,7 +831,7 @@ mod tests {
         let topic_topic = participant_proxy.find_topic::<SedpDiscoveredTopicData>(
             DCPS_TOPIC, Duration::new(0, 0)
         ).unwrap();
-        
+
         let builtin_subscriber = SubscriberProxy::new(
             participant_proxy,
             domain_participant.read_lock().builtin_subscriber.as_ref()
