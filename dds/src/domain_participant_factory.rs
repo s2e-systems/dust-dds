@@ -377,13 +377,13 @@ impl DomainParticipantFactory {
                 );
 
                 let participant_topic = participant_proxy
-                    .find_local_topic::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
+                    .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
                 let publication_topic = participant_proxy
-                    .find_local_topic::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)?;
+                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)?;
                 let subscription_topic = participant_proxy
-                    .find_local_topic::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
+                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
                 let topic_topic =
-                    participant_proxy.find_local_topic::<SedpDiscoveredTopicData>(DCPS_TOPIC)?;
+                    participant_proxy.lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC)?;
 
                 let mut builtin_participant_data_reader =
                     builtin_subscriber.datareader_factory_lookup_datareader(&participant_topic)?;
@@ -500,7 +500,7 @@ impl DomainParticipantFactory {
                 );
 
                 let publication_topic = participant_proxy
-                    .find_local_topic::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)?;
+                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)?;
                 let mut builtin_publication_reader =
                     builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
 
@@ -917,16 +917,16 @@ mod tests {
         let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let participant_topic = participant_proxy
-            .find_local_topic::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+            .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
             .unwrap();
         let publication_topic = participant_proxy
-            .find_local_topic::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)
+            .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)
             .unwrap();
         let subscription_topic = participant_proxy
-            .find_local_topic::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)
+            .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)
             .unwrap();
         let topic_topic = participant_proxy
-            .find_local_topic::<SedpDiscoveredTopicData>(DCPS_TOPIC)
+            .lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC)
             .unwrap();
 
         let builtin_subscriber = SubscriberProxy::new(

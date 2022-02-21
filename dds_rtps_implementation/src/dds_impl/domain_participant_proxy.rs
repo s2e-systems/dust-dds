@@ -209,7 +209,7 @@ where
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
             let topic_creation_topic =
-                domain_participant_proxy.topic_factory_find_local_topic(DCPS_TOPIC)?;
+                domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_TOPIC)?;
 
             let mut sedp_builtin_topic_announcer = builtin_publisher_proxy
                 .datawriter_factory_lookup_datawriter(&topic_creation_topic)?;
@@ -287,7 +287,7 @@ where
             })
     }
 
-    fn topic_factory_find_local_topic(&self, topic_name: &str) -> Option<Self::TopicType> {
+    fn topic_factory_lookup_topicdescription(&self, topic_name: &str) -> Option<Self::TopicType> {
         self.domain_participant
             .upgrade()
             .ok()?
@@ -1002,7 +1002,7 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<Topic>)
                 .is_none()
         );
     }
@@ -1019,7 +1019,7 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1043,7 +1043,7 @@ mod tests {
             .unwrap() as TopicBar;
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<TopicFoo>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<TopicFoo>)
                 .is_none()
         );
     }
@@ -1060,7 +1060,7 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<Topic>)
                 .is_none()
         );
     }
@@ -1081,7 +1081,7 @@ mod tests {
             .unwrap() as TopicBar;
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<TopicFoo>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<TopicFoo>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1090,7 +1090,7 @@ mod tests {
         );
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_local_topic("topic") as Option<TopicBar>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<TopicBar>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1114,7 +1114,7 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_local_topic("topic1") as Option<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic1") as Option<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1123,7 +1123,7 @@ mod tests {
         );
 
         assert!(
-            (domain_participant_proxy.topic_factory_find_local_topic("topic2") as Option<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic2") as Option<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()

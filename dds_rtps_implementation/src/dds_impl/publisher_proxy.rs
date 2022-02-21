@@ -232,7 +232,7 @@ where
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
             let publication_topic =
-                domain_participant_proxy.topic_factory_find_local_topic(DCPS_PUBLICATION)?;
+                domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_PUBLICATION)?;
 
             let mut sedp_builtin_publications_announcer =
                 builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)?;

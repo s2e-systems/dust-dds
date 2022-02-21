@@ -251,7 +251,7 @@ where
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
             let subscription_topic =
-                domain_participant_proxy.topic_factory_find_local_topic(DCPS_SUBSCRIPTION)?;
+                domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_SUBSCRIPTION)?;
 
             let mut sedp_builtin_subscription_announcer = builtin_publisher_proxy
                 .datawriter_factory_lookup_datawriter(&subscription_topic)?;
