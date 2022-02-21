@@ -871,6 +871,8 @@ fn create_builtins(
 
 #[cfg(test)]
 mod tests {
+    use std::net::SocketAddr;
+
     use rust_dds_api::{
         dcps_psm::DomainId,
         domain::domain_participant::DomainParticipant,
@@ -895,8 +897,34 @@ mod tests {
     use rust_rtps_pim::structure::types::GuidPrefix;
 
     use super::{
-        create_builtins, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
+        create_builtins, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC, get_builtin_multicast_socket, PB, d0,
     };
+
+    #[test]
+    fn multicast_socket_behaviour() {
+        let multicast_addr = SocketAddr::from(([239, 255, 0, 1], PB + d0));
+
+        let socket1 = get_builtin_multicast_socket(0).unwrap();
+        let socket2 = get_builtin_multicast_socket(0).unwrap();
+        let socket3 = get_builtin_multicast_socket(0).unwrap();
+
+        socket1.send_to(&[1, 2, 3, 4], multicast_addr)
+            .unwrap();
+        
+        // Everyone receives the data
+        let mut buf = [0; 4];
+        let (size, _) = socket1.recv_from(&mut buf).unwrap();
+        assert_eq!(4, size);
+        let (size, _) = socket2.recv_from(&mut buf).unwrap();
+        assert_eq!(4, size);
+        let (size, _) = socket3.recv_from(&mut buf).unwrap();
+        assert_eq!(4, size);
+
+        // Data is received only once
+        assert!(socket1.recv_from(&mut buf).is_err());
+        assert!(socket2.recv_from(&mut buf).is_err());
+        assert!(socket3.recv_from(&mut buf).is_err());
+    }
 
     #[test]
     fn create_builtins_adds_builtin_readers_and_writers() {
