@@ -125,14 +125,12 @@ pub trait DataReader<Foo> {
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn take(
-        &self,
-        data_values: &mut [Foo],
-        sample_infos: &mut [SampleInfo],
+        &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()>;
+    ) -> DDSResult<Self::Samples>;
 
     /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
     /// especially useful in combination with QueryCondition to filter data samples based on the content.

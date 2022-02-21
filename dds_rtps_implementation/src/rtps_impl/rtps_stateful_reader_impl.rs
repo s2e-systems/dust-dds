@@ -69,6 +69,10 @@ impl RtpsReaderAttributes for RtpsStatefulReaderImpl {
         &self.reader.reader_cache
     }
 
+    fn reader_cache_mut(&mut self) -> &mut Self::ReaderHistoryCacheType {
+        &mut self.reader.reader_cache
+    }
+
     fn expects_inline_qos(&self) -> &bool {
         &self.reader.expects_inline_qos
     }

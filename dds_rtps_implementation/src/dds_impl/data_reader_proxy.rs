@@ -206,15 +206,25 @@ where
     }
 
     fn take(
-        &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
+        &mut self,
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()> {
-        todo!()
+    ) -> DDSResult<Self::Samples> {
+        let samples = self.read(_max_samples, _sample_states, _view_states, _instance_states);
+
+        let data_reader_shared = self.data_reader_impl.upgrade()?;
+        let rtps_reader = &mut data_reader_shared.write_lock().rtps_reader;
+
+        match rtps_reader {
+            RtpsReader::Stateful(rtps_reader) =>
+                rtps_reader.reader_cache_mut().clear_changes(),
+            RtpsReader::Stateless(rtps_reader) =>
+                rtps_reader.reader_cache_mut().clear_changes(),
+        };
+
+        samples
     }
 
     fn read_w_condition(

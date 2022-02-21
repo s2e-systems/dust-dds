@@ -287,14 +287,12 @@ mod tests {
             ) -> DDSResult<Samples<Foo>>;
 
             fn take(
-                &self,
-                data_values: &mut [Foo],
-                sample_infos: &mut [SampleInfo],
+                &mut self,
                 max_samples: i32,
                 sample_states: &[SampleStateKind],
                 view_states: &[ViewStateKind],
                 instance_states: &[InstanceStateKind],
-            ) -> DDSResult<()>;
+            ) -> DDSResult<Samples<Foo>>;
 
             fn read_w_condition(
                 &self,
