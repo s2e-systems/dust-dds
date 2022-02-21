@@ -122,10 +122,6 @@ impl RtpsHistoryCacheAttributes for ReaderHistoryCache {
     fn changes(&self) -> &[Self::CacheChangeType] {
         &self.changes
     }
-
-    fn clear_changes(&mut self) {
-        self.changes.clear();
-    }
 }
 
 impl RtpsHistoryCacheOperations for ReaderHistoryCache {

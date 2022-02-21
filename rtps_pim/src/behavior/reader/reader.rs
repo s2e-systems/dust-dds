@@ -1,12 +1,14 @@
-use crate::{behavior::types::Duration, structure::types::{Guid, TopicKind, ReliabilityKind, Locator}};
+use crate::{
+    behavior::types::Duration,
+    structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
+};
 
 pub trait RtpsReaderAttributes {
     type ReaderHistoryCacheType;
 
     fn heartbeat_response_delay(&self) -> &Duration;
     fn heartbeat_supression_duration(&self) -> &Duration;
-    fn reader_cache(&self) -> &Self::ReaderHistoryCacheType;
-    fn reader_cache_mut(&mut self) -> &mut Self::ReaderHistoryCacheType;
+    fn reader_cache(&mut self) -> &mut Self::ReaderHistoryCacheType;
     fn expects_inline_qos(&self) -> &bool;
 }
 
