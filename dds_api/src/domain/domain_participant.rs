@@ -5,7 +5,7 @@ use crate::{
     publication::publisher_listener::PublisherListener,
     return_type::DDSResult,
     subscription::subscriber_listener::SubscriberListener,
-    topic::{topic_description::TopicDescription, topic_listener::TopicListener},
+    topic::topic_listener::TopicListener,
 };
 
 pub trait DomainParticipantTopicFactory<Foo> {
@@ -26,6 +26,8 @@ pub trait DomainParticipantTopicFactory<Foo> {
         topic_name: &str,
         timeout: Duration,
     ) -> Option<Self::TopicType>;
+
+    fn topic_factory_lookup_topicdescription(&self, topic_name: &str) -> Option<Self::TopicType>;
 }
 
 pub trait DomainParticipant {
@@ -145,12 +147,12 @@ pub trait DomainParticipant {
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription<T>(
-        &self,
-        _name: &str,
-    ) -> Option<&dyn TopicDescription<DomainParticipant = Self>>
+    fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> Option<Self::TopicType>
     where
-        Self: Sized;
+        Self: DomainParticipantTopicFactory<Foo> + Sized,
+    {
+        self.topic_factory_lookup_topicdescription(topic_name)
+    }
 
     /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
