@@ -14,7 +14,7 @@ use rust_dds::{
         }, entity::Entity,
     },
     publication::{data_writer::DataWriter, publisher::Publisher},
-    subscription::data_reader::DataReader,
+    subscription::{data_reader::DataReader, subscriber::Subscriber},
     types::Duration,
     udp_transport::UdpTransport, domain::domain_participant::DomainParticipant,
 };
@@ -34,7 +34,7 @@ use rust_dds_rtps_implementation::{
         subscriber_proxy::SubscriberAttributes,
         topic_proxy::TopicAttributes, domain_participant_proxy::DomainParticipantProxy,
     },
-    dds_type::{DdsType, DdsSerialize},
+    dds_type::{DdsType, DdsSerialize, DdsDeserialize},
     data_representation_builtin_endpoints::{
         sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
@@ -575,6 +575,12 @@ impl DdsSerialize for MyType {
     }
 }
 
+impl<'de> DdsDeserialize<'de> for MyType {
+    fn deserialize(_buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
+        Ok(MyType {})
+    }
+}
+
 #[test]
 fn create_two_participants_with_same_domains() {
     let participant_factory = DomainParticipantFactory::get_instance();
@@ -588,13 +594,17 @@ fn create_two_participants_with_same_domains() {
     participant2.enable().unwrap();
 
     let topic     = participant1.create_topic::<MyType>("MyTopic", None, None, 0).unwrap();
+
+    let subscriber = participant1.create_subscriber(None, None, 0).unwrap();
+    let _reader    = subscriber.create_datareader(&topic, None, None, 0).unwrap();
+
     let publisher = participant1.create_publisher(None, None, 0).unwrap();
-    let _writer   = publisher.create_datawriter(&topic, None, None, 0);
+    let _writer   = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
     println!("Matched {} writers", num_matched_writers(&participant2));
     
-    // std::thread::sleep(std::time::Duration::new(5, 0));
-    // println!("[After 5 seconds] Matched {} writers", num_matched_writers(&participant2));
+    std::thread::sleep(std::time::Duration::new(2, 0));
+    println!("[After 2 seconds] Matched {} writers", num_matched_writers(&participant2));
 
     assert!(participant1.get_builtin_subscriber().is_ok());
     assert!(participant2.get_builtin_subscriber().is_ok());

@@ -695,7 +695,7 @@ fn create_builtins(
 
     // ////////// SPDP built-in topic, reader and writer
     {
-        let sedp_topic_participant = RtpsShared::new(TopicAttributes::new(
+        let spdp_topic_participant = RtpsShared::new(TopicAttributes::new(
             domain_participant.read_lock().default_topic_qos.clone(),
             SpdpDiscoveredParticipantData::type_name(),
             DCPS_PARTICIPANT,
@@ -704,7 +704,7 @@ fn create_builtins(
         domain_participant
             .write_lock()
             .topic_list
-            .push(sedp_topic_participant.clone());
+            .push(spdp_topic_participant.clone());
 
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
@@ -712,7 +712,7 @@ fn create_builtins(
         let spdp_builtin_participant_data_reader = RtpsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
-            sedp_topic_participant.clone(),
+            spdp_topic_participant.clone(),
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -737,7 +737,7 @@ fn create_builtins(
         let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-            sedp_topic_participant.clone(),
+            spdp_topic_participant.clone(),
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
