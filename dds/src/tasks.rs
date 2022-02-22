@@ -558,7 +558,7 @@ mod tests {
     #[test]
     fn discovery_task_all_sedp_endpoints() {
         let mut mock_spdp_data_reader = MockDdsDataReader::new();
-        mock_spdp_data_reader.expect_read().returning(|_, _, _, _| {
+        mock_spdp_data_reader.expect_take().returning(|_, _, _, _| {
             Ok(Samples {
                 samples: vec![SpdpDiscoveredParticipantData {
                     dds_participant_data: ParticipantBuiltinTopicData {
