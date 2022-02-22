@@ -126,7 +126,7 @@ pub fn task_spdp_discovery<T>(
     T: Deref<Target = [SpdpDiscoveredParticipantData]>,
 {
 
-    if let Ok(samples) = spdp_builtin_participant_data_reader.read(1, &[], &[], &[]) {
+    if let Ok(samples) = spdp_builtin_participant_data_reader.take(1, &[], &[], &[]) {
         for discovered_participant in samples.into_iter() {
             if let Ok(participant_discovery) = ParticipantDiscovery::new(
                 &discovered_participant.participant_proxy,

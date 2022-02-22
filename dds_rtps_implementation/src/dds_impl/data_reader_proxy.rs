@@ -188,7 +188,7 @@ where
                 let mut data_value = rtps_reader.reader_cache().changes().first()
                     .ok_or(DDSError::NoData)?
                     .data_value();
-                
+
                 Ok(Samples {
                     samples: vec![DdsDeserialize::deserialize(&mut data_value).unwrap()],
                 })
@@ -197,7 +197,7 @@ where
                 let mut data_value = rtps_reader.reader_cache().changes().first()
                     .ok_or(DDSError::NoData)?
                     .data_value();
-                
+
                 Ok(Samples {
                     samples: vec![DdsDeserialize::deserialize(&mut data_value).unwrap()],
                 })
@@ -224,9 +224,9 @@ where
                     let seq_num = reader_cache.changes().first().ok_or(DDSError::NoData)?.sequence_number();
                     let mut data_value = reader_cache.changes().first().ok_or(DDSError::NoData)?.data_value();
 
-                    (seq_num.clone(), DdsDeserialize::deserialize(&mut data_value).unwrap())
+                    (seq_num.clone(), DdsDeserialize::deserialize(&mut data_value)?)
                 };
-                
+
                 rtps_reader.reader_cache().remove_change(&seq_num);
 
                 Ok(Samples { samples: vec![sample] })
@@ -237,9 +237,9 @@ where
                     let seq_num = reader_cache.changes().first().ok_or(DDSError::NoData)?.sequence_number();
                     let mut data_value = reader_cache.changes().first().ok_or(DDSError::NoData)?.data_value();
 
-                    (seq_num.clone(), DdsDeserialize::deserialize(&mut data_value).unwrap())
+                    (seq_num.clone(), DdsDeserialize::deserialize(&mut data_value)?)
                 };
-                
+
                 rtps_reader.reader_cache().remove_change(&seq_num);
 
                 Ok(Samples { samples: vec![sample] })
