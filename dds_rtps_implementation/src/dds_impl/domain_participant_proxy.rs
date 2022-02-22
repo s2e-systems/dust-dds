@@ -387,9 +387,6 @@ where
     ) -> Option<Self::SubscriberType> {
         let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
         let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
-        // let subscriber_shared = rtps_shared_read_lock(&domain_participant_lock)
-        // .create_subscriber(qos, a_listener, mask)?;
-
         let subscriber_qos = qos.unwrap_or(
             domain_participant_attributes_lock
                 .default_subscriber_qos
@@ -412,7 +409,7 @@ where
             entity_id,
         );
         let rtps_group = Rtps::Group::new(guid);
-        let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, RtpsWeak::new());
+        let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, self.domain_participant.clone());
         let subscriber_shared = RtpsShared::new(subscriber);
         domain_participant_attributes_lock
             .user_defined_subscriber_list
