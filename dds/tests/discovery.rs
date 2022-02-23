@@ -547,7 +547,7 @@ impl RtpsStructure for Rtps {
     type StatefulReader = RtpsStatefulReaderImpl;
 }
 
-fn _num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) -> usize {
+fn num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) -> usize {
     let subscriber = participant.get_builtin_subscriber().unwrap().as_ref().upgrade().unwrap();
     let data_readers = &subscriber.read_lock().data_reader_list;
     data_readers.iter()
@@ -599,12 +599,15 @@ fn create_two_participants_with_same_domains() {
     let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let mut reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
+    let _reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
 
     writer.write_w_timestamp(&MyType {}, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
     
     // std::thread::sleep(std::time::Duration::new(2, 0));
+
+    println!("P1 matched writers: {}", num_matched_writers(&participant1));
+    println!("P2 matched writers: {}", num_matched_writers(&participant2));
     
     // let samples = reader.read(1, &[], &[], &[]).unwrap();
     // assert!(samples.len() == 1);

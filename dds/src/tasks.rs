@@ -206,9 +206,9 @@ pub fn task_sedp_reader_discovery(
         if let Some(sample) = samples.into_iter().next() {
             let topic_name = &sample.subscription_builtin_topic_data.topic_name;
             let type_name = &sample.subscription_builtin_topic_data.type_name;
-            for subscriber in publisher_list {
-                let subscriber_lock = subscriber.read_lock();
-                for data_writer in subscriber_lock.data_writer_list.iter() {
+            for publisher in publisher_list {
+                let publisher_lock = publisher.read_lock();
+                for data_writer in publisher_lock.data_writer_list.iter() {
                     let mut data_writer_lock = data_writer.write_lock();
                     let writer_topic_name = &data_writer_lock.topic.read_lock().topic_name.clone();
                     let writer_type_name = data_writer_lock.topic.read_lock().type_name;
