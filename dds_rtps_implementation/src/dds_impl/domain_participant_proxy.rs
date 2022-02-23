@@ -212,7 +212,7 @@ where
                 domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_TOPIC)?;
 
             let mut sedp_builtin_topic_announcer = builtin_publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_creation_topic)?;
+                .datawriter_factory_lookup_datawriter(&topic_creation_topic).ok()?;
 
             let sedp_discovered_topic_data = SedpDiscoveredTopicData {
                 topic_builtin_topic_data: TopicBuiltinTopicData {

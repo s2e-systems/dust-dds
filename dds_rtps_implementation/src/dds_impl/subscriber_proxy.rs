@@ -254,7 +254,7 @@ where
                 domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_SUBSCRIPTION)?;
 
             let mut sedp_builtin_subscription_announcer = builtin_publisher_proxy
-                .datawriter_factory_lookup_datawriter(&subscription_topic)?;
+                .datawriter_factory_lookup_datawriter(&subscription_topic).ok()?;
 
             let sedp_discovered_reader_data = SedpDiscoveredReaderData {
                 reader_proxy: RtpsReaderProxy {

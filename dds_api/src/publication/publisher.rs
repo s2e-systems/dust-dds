@@ -16,7 +16,7 @@ pub trait PublisherDataWriterFactory<Foo> {
         qos: Option<DataWriterQos>,
         a_listener: Option<&'static dyn DataWriterListener>,
         mask: StatusMask,
-    ) -> Option<Self::DataWriterType>;
+    ) -> DDSResult<Self::DataWriterType>;
 
     fn datawriter_factory_delete_datawriter(
         &self,
@@ -26,7 +26,7 @@ pub trait PublisherDataWriterFactory<Foo> {
     fn datawriter_factory_lookup_datawriter(
         &self,
         topic: &Self::TopicType,
-    ) -> Option<Self::DataWriterType>;
+    ) -> DDSResult<Self::DataWriterType>;
 }
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
@@ -65,7 +65,7 @@ pub trait Publisher {
         qos: Option<DataWriterQos>,
         a_listener: Option<&'static dyn DataWriterListener>,
         mask: StatusMask,
-    ) -> Option<Self::DataWriterType>
+    ) -> DDSResult<Self::DataWriterType>
     where
         Self: PublisherDataWriterFactory<Foo> + Sized,
     {
@@ -91,7 +91,7 @@ pub trait Publisher {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    fn lookup_datawriter<'dw, T>(&self, topic: &Self::TopicType) -> Option<Self::DataWriterType>
+    fn lookup_datawriter<'dw, T>(&self, topic: &Self::TopicType) -> DDSResult<Self::DataWriterType>
     where
         Self: PublisherDataWriterFactory<T> + Sized,
     {

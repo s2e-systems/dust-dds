@@ -410,11 +410,11 @@ impl DomainParticipantFactory {
                 let builtin_topic_reader =
                     builtin_subscriber.datareader_factory_lookup_datareader(&topic_topic)?;
                 let builtin_publication_writer =
-                    builtin_publisher.datawriter_factory_lookup_datawriter(&publication_topic)?;
+                    builtin_publisher.datawriter_factory_lookup_datawriter(&publication_topic).ok()?;
                 let builtin_subscription_writer =
-                    builtin_publisher.datawriter_factory_lookup_datawriter(&subscription_topic)?;
+                    builtin_publisher.datawriter_factory_lookup_datawriter(&subscription_topic).ok()?;
                 let builtin_topic_writer =
-                    builtin_publisher.datawriter_factory_lookup_datawriter(&topic_topic)?;
+                    builtin_publisher.datawriter_factory_lookup_datawriter(&topic_topic).ok()?;
 
                 task_spdp_discovery(
                     &mut builtin_participant_data_reader,
@@ -1015,15 +1015,15 @@ mod tests {
 
         assert!(builtin_publisher
             .datawriter_factory_lookup_datawriter(&participant_topic)
-            .is_some());
+            .is_ok());
         assert!(builtin_publisher
             .datawriter_factory_lookup_datawriter(&publication_topic)
-            .is_some());
+            .is_ok());
         assert!(builtin_publisher
             .datawriter_factory_lookup_datawriter(&subscription_topic)
-            .is_some());
+            .is_ok());
         assert!(builtin_publisher
             .datawriter_factory_lookup_datawriter(&topic_topic)
-            .is_some());
+            .is_ok());
     }
 }
