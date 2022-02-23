@@ -78,6 +78,9 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
     }
 
     fn received_change_set(&mut self, _a_seq_num: &SequenceNumber) {
-        todo!()
+        // FIND change FROM this.changes_from_writer
+        //     SUCH-THAT change.sequenceNumber == a_seq_num;
+        // change.status := RECEIVED
+        println!("/!\\ RtpsWriterProxyImpl: received_change_set from RtpsWriterProxyOperations not implemented");
     }
 }
