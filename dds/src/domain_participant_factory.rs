@@ -75,7 +75,7 @@ use socket2::Socket;
 
 use crate::{
     communication::Communication,
-    tasks::{task_sedp_discovery, task_spdp_discovery, Executor, Spawner},
+    tasks::{task_sedp_writer_discovery, task_sedp_reader_discovery, task_spdp_discovery, Executor, Spawner},
     udp_transport::UdpTransport,
 };
 
@@ -504,9 +504,19 @@ impl DomainParticipantFactory {
                 let mut builtin_publication_reader =
                     builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
 
-                task_sedp_discovery(
+                let subscription_topic = participant_proxy
+                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
+                let mut builtin_subscription_reader =
+                    builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic)?;
+
+                task_sedp_writer_discovery(
                     &mut builtin_publication_reader,
                     &domain_participant.read_lock().user_defined_subscriber_list,
+                );
+
+                task_sedp_reader_discovery(
+                    &mut builtin_subscription_reader,
+                    &domain_participant.read_lock().user_defined_publisher_list,
                 );
 
                 Some(())

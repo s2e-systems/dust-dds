@@ -15,7 +15,7 @@ use rust_dds::{
     },
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
-    types::Duration,
+    types::{Duration, Time},
     udp_transport::UdpTransport, domain::domain_participant::DomainParticipant,
 };
 use rust_dds_api::{
@@ -547,7 +547,7 @@ impl RtpsStructure for Rtps {
     type StatefulReader = RtpsStatefulReaderImpl;
 }
 
-fn num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) -> usize {
+fn _num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) -> usize {
     let subscriber = participant.get_builtin_subscriber().unwrap().as_ref().upgrade().unwrap();
     let data_readers = &subscriber.read_lock().data_reader_list;
     data_readers.iter()
@@ -595,16 +595,19 @@ fn create_two_participants_with_same_domains() {
 
     let topic     = participant1.create_topic::<MyType>("MyTopic", None, None, 0).unwrap();
 
-    let subscriber = participant1.create_subscriber(None, None, 0).unwrap();
-    let _reader    = subscriber.create_datareader(&topic, None, None, 0).unwrap();
+    let publisher  = participant1.create_publisher(None, None, 0).unwrap();
+    let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
-    let publisher = participant1.create_publisher(None, None, 0).unwrap();
-    let _writer   = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
+    let mut reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
 
-    println!("Matched {} writers", num_matched_writers(&participant2));
+    writer.write_w_timestamp(&MyType {}, None, Time { sec: 0, nanosec: 0 })
+        .unwrap();
     
-    std::thread::sleep(std::time::Duration::new(2, 0));
-    println!("[After 2 seconds] Matched {} writers", num_matched_writers(&participant2));
+    // std::thread::sleep(std::time::Duration::new(2, 0));
+    
+    // let samples = reader.read(1, &[], &[], &[]).unwrap();
+    // assert!(samples.len() == 1);
 
     assert!(participant1.get_builtin_subscriber().is_ok());
     assert!(participant2.get_builtin_subscriber().is_ok());
