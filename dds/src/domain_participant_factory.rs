@@ -257,7 +257,7 @@ impl DomainParticipantFactory {
         create_builtins(guid_prefix, domain_participant.clone())?;
 
         if qos.entity_factory.autoenable_created_entities {
-            self.enable_created_entities(domain_participant.clone())?;
+            self.enable(domain_participant.clone())?;
         }
 
         self.participant_list
@@ -268,7 +268,7 @@ impl DomainParticipantFactory {
         Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
     }
 
-    pub fn enable_created_entities(
+    pub fn enable(
         &self,
         domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
     ) -> DDSResult<()> {
@@ -570,7 +570,7 @@ impl DomainParticipantFactory {
             .iter()
             .find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_PARTICIPANT)
             .ok_or(DDSError::PreconditionNotMet(
-                "Mo builtin participant data writer".to_string(),
+                "No builtin participant data writer".to_string(),
             ))?
             .clone();
 
