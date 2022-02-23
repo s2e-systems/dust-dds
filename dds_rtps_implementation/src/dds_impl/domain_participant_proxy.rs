@@ -183,8 +183,8 @@ where
         qos: Option<TopicQos>,
         _a_listener: Option<Box<dyn TopicListener>>,
         _mask: StatusMask,
-    ) -> Option<Self::TopicType> {
-        let participant_shared = self.domain_participant.upgrade().ok()?;
+    ) -> DDSResult<Self::TopicType> {
+        let participant_shared = self.domain_participant.upgrade()?;
 
         let qos = qos.unwrap_or(participant_shared.read_lock().default_topic_qos.clone());
 
@@ -205,14 +205,15 @@ where
         {
             let domain_participant_proxy =
                 DomainParticipantProxy::new(participant_shared.downgrade());
-            let builtin_publisher = participant_shared.read_lock().builtin_publisher.clone()?;
+            let builtin_publisher = participant_shared.read_lock().builtin_publisher.clone()
+                .ok_or(DDSError::PreconditionNotMet("No builtin publisher".to_string()))?;
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
             let topic_creation_topic =
                 domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_TOPIC)?;
 
             let mut sedp_builtin_topic_announcer = builtin_publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_creation_topic).ok()?;
+                .datawriter_factory_lookup_datawriter(&topic_creation_topic)?;
 
             let sedp_discovered_topic_data = SedpDiscoveredTopicData {
                 topic_builtin_topic_data: TopicBuiltinTopicData {
@@ -244,7 +245,7 @@ where
                 .unwrap();
         }
 
-        Some(TopicProxy::new(topic_shared.downgrade()))
+        Ok(TopicProxy::new(topic_shared.downgrade()))
     }
 
     fn topic_factory_delete_topic(&self, topic: &Self::TopicType) -> DDSResult<()> {
@@ -269,10 +270,9 @@ where
         &self,
         topic_name: &str,
         _timeout: Duration,
-    ) -> Option<Self::TopicType> {
+    ) -> DDSResult<Self::TopicType> {
         self.domain_participant
-            .upgrade()
-            .ok()?
+            .upgrade()?
             .read_lock()
             .topic_list
             .iter()
@@ -285,12 +285,12 @@ where
                     None
                 }
             })
+            .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
     }
 
-    fn topic_factory_lookup_topicdescription(&self, topic_name: &str) -> Option<Self::TopicType> {
+    fn topic_factory_lookup_topicdescription(&self, topic_name: &str) -> DDSResult<Self::TopicType> {
         self.domain_participant
-            .upgrade()
-            .ok()?
+            .upgrade()?
             .read_lock()
             .topic_list
             .iter()
@@ -302,7 +302,7 @@ where
                 } else {
                     None
                 }
-            })
+            }).ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -320,8 +320,8 @@ where
         qos: Option<PublisherQos>,
         _a_listener: Option<&'static dyn PublisherListener>,
         _mask: StatusMask,
-    ) -> Option<Self::PublisherType> {
-        let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
+    ) -> DDSResult<Self::PublisherType> {
+        let domain_participant_attributes = self.domain_participant.upgrade()?;
         let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let publisher_qos = qos.unwrap_or(
             domain_participant_attributes_lock
@@ -359,7 +359,7 @@ where
 
         let publisher_weak = publisher_impl_shared.downgrade();
 
-        Some(PublisherProxy::new(publisher_weak))
+        Ok(PublisherProxy::new(publisher_weak))
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
@@ -384,8 +384,8 @@ where
         qos: Option<SubscriberQos>,
         _a_listener: Option<&'static dyn SubscriberListener>,
         _mask: StatusMask,
-    ) -> Option<Self::SubscriberType> {
-        let domain_participant_attributes = self.domain_participant.upgrade().ok()?;
+    ) -> DDSResult<Self::SubscriberType> {
+        let domain_participant_attributes = self.domain_participant.upgrade()?;
         let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let subscriber_qos = qos.unwrap_or(
             domain_participant_attributes_lock
@@ -416,7 +416,7 @@ where
             .push(subscriber_shared.clone());
 
         let subscriber_weak = subscriber_shared.downgrade();
-        Some(SubscriberProxy::new(self.clone(), subscriber_weak))
+        Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
@@ -922,9 +922,9 @@ mod tests {
         let len_before = domain_participant.read_lock().topic_list.len();
 
         let topic = domain_participant_proxy.topic_factory_create_topic("topic", None, None, 0)
-            as Option<Topic>;
+            as DDSResult<Topic>;
 
-        assert!(topic.is_some());
+        assert!(topic.is_ok());
         assert_eq!(
             len_before + 1,
             domain_participant.read_lock().topic_list.len()
@@ -999,8 +999,8 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<Topic>)
-                .is_none()
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<Topic>)
+                .is_err()
         );
     }
 
@@ -1016,7 +1016,7 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1040,8 +1040,8 @@ mod tests {
             .unwrap() as TopicBar;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<TopicFoo>)
-                .is_none()
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<TopicFoo>)
+                .is_err()
         );
     }
 
@@ -1057,8 +1057,8 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<Topic>)
-                .is_none()
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<Topic>)
+                .is_err()
         );
     }
 
@@ -1078,7 +1078,7 @@ mod tests {
             .unwrap() as TopicBar;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<TopicFoo>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<TopicFoo>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1087,7 +1087,7 @@ mod tests {
         );
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as Option<TopicBar>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<TopicBar>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1111,7 +1111,7 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic1") as Option<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic1") as DDSResult<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1120,7 +1120,7 @@ mod tests {
         );
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic2") as Option<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic2") as DDSResult<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()

@@ -16,7 +16,7 @@ pub trait SubscriberDataReaderFactory<Foo> {
         qos: Option<DataReaderQos>,
         a_listener: Option<&'static dyn DataReaderListener>,
         mask: StatusMask,
-    ) -> Option<Self::DataReaderType>;
+    ) -> DDSResult<Self::DataReaderType>;
 
     fn datareader_factory_delete_datareader(
         &self,
@@ -26,7 +26,7 @@ pub trait SubscriberDataReaderFactory<Foo> {
     fn datareader_factory_lookup_datareader(
         &self,
         topic: &Self::TopicType,
-    ) -> Option<Self::DataReaderType>;
+    ) -> DDSResult<Self::DataReaderType>;
 }
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
@@ -73,7 +73,7 @@ pub trait Subscriber {
         qos: Option<DataReaderQos>,
         a_listener: Option<&'static dyn DataReaderListener>,
         mask: StatusMask,
-    ) -> Option<Self::DataReaderType>
+    ) -> DDSResult<Self::DataReaderType>
     where
         Self: SubscriberDataReaderFactory<Foo> + Sized,
     {
@@ -104,7 +104,7 @@ pub trait Subscriber {
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    fn lookup_datareader<Foo>(&self, topic: &Self::TopicType) -> Option<Self::DataReaderType>
+    fn lookup_datareader<Foo>(&self, topic: &Self::TopicType) -> DDSResult<Self::DataReaderType>
     where
         Self: SubscriberDataReaderFactory<Foo> + Sized,
     {

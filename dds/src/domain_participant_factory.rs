@@ -396,23 +396,23 @@ impl DomainParticipantFactory {
                 );
 
                 let participant_topic = participant_proxy
-                    .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
+                    .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT).ok()?;
                 let publication_topic = participant_proxy
-                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)?;
+                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION).ok()?;
                 let subscription_topic = participant_proxy
-                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
+                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION).ok()?;
                 let topic_topic =
-                    participant_proxy.lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC)?;
+                    participant_proxy.lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC).ok()?;
 
                 let mut builtin_participant_data_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&participant_topic)?;
+                    builtin_subscriber.datareader_factory_lookup_datareader(&participant_topic).ok()?;
 
                 let builtin_publication_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
+                    builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic).ok()?;
                 let builtin_subscription_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic)?;
+                    builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic).ok()?;
                 let builtin_topic_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&topic_topic)?;
+                    builtin_subscriber.datareader_factory_lookup_datareader(&topic_topic).ok()?;
                 let builtin_publication_writer =
                     builtin_publisher.datawriter_factory_lookup_datawriter(&publication_topic).ok()?;
                 let builtin_subscription_writer =
@@ -519,14 +519,14 @@ impl DomainParticipantFactory {
                 );
 
                 let publication_topic = participant_proxy
-                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)?;
+                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION).ok()?;
                 let mut builtin_publication_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
+                    builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic).ok()?;
 
                 let subscription_topic = participant_proxy
-                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
+                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION).ok()?;
                 let mut builtin_subscription_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic)?;
+                    builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic).ok()?;
 
                 task_sedp_writer_discovery(
                     &mut builtin_publication_reader,
@@ -1006,16 +1006,16 @@ mod tests {
 
         assert!(builtin_subscriber
             .datareader_factory_lookup_datareader(&participant_topic)
-            .is_some());
+            .is_ok());
         assert!(builtin_subscriber
             .datareader_factory_lookup_datareader(&publication_topic)
-            .is_some());
+            .is_ok());
         assert!(builtin_subscriber
             .datareader_factory_lookup_datareader(&subscription_topic)
-            .is_some());
+            .is_ok());
         assert!(builtin_subscriber
             .datareader_factory_lookup_datareader(&topic_topic)
-            .is_some());
+            .is_ok());
 
         assert!(builtin_publisher
             .datawriter_factory_lookup_datawriter(&participant_topic)
