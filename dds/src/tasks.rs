@@ -12,10 +12,10 @@ use rust_dds_api::{subscription::{data_reader::DataReader}};
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_reader_proxy::{RtpsReader, Samples},
-        subscriber_proxy::SubscriberAttributes,
+        subscriber_proxy::SubscriberAttributes, publisher_proxy::PublisherAttributes, data_writer_proxy::RtpsWriter,
     },
-    rtps_impl::rtps_writer_proxy_impl::RtpsWriterProxyImpl,
-    utils::shared_object::RtpsShared, data_representation_builtin_endpoints::{spdp_discovered_participant_data::SpdpDiscoveredParticipantData, sedp_discovered_writer_data::SedpDiscoveredWriterData},
+    rtps_impl::{rtps_writer_proxy_impl::RtpsWriterProxyImpl, rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl},
+    utils::shared_object::RtpsShared, data_representation_builtin_endpoints::{spdp_discovered_participant_data::SpdpDiscoveredParticipantData, sedp_discovered_writer_data::SedpDiscoveredWriterData, sedp_discovered_reader_data::{SedpDiscoveredReaderData}},
 };
 use rust_rtps_pim::{
     behavior::{
@@ -161,7 +161,7 @@ pub fn task_spdp_discovery<T>(
     }
 }
 
-pub fn task_sedp_discovery(
+pub fn task_sedp_writer_discovery(
     sedp_builtin_publications_data_reader:
         &mut impl DataReader<SedpDiscoveredWriterData, Samples = Samples<SedpDiscoveredWriterData>>,
     subscriber_list: &Vec<RtpsShared<SubscriberAttributes<RtpsStructureImpl>>>,
@@ -188,6 +188,43 @@ pub fn task_sedp_discovery(
                             RtpsReader::Stateless(_) => (),
                             RtpsReader::Stateful(rtps_stateful_reader) => {
                                 rtps_stateful_reader.matched_writer_add(writer_proxy)
+                            }
+                        };
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn task_sedp_reader_discovery(
+    sedp_builtin_subscriptions_data_reader:
+        &mut impl DataReader<SedpDiscoveredReaderData, Samples = Samples<SedpDiscoveredReaderData>>,
+    publisher_list: &Vec<RtpsShared<PublisherAttributes<RtpsStructureImpl>>>,
+) {
+    if let Ok(samples) = sedp_builtin_subscriptions_data_reader.take(1, &[], &[], &[]) {
+        if let Some(sample) = samples.into_iter().next() {
+            let topic_name = &sample.subscription_builtin_topic_data.topic_name;
+            let type_name = &sample.subscription_builtin_topic_data.type_name;
+            for publisher in publisher_list {
+                let publisher_lock = publisher.read_lock();
+                for data_writer in publisher_lock.data_writer_list.iter() {
+                    let mut data_writer_lock = data_writer.write_lock();
+                    let writer_topic_name = &data_writer_lock.topic.read_lock().topic_name.clone();
+                    let writer_type_name = data_writer_lock.topic.read_lock().type_name;
+                    if topic_name == writer_topic_name && type_name == writer_type_name {
+                        let reader_proxy = RtpsReaderProxyAttributesImpl::new(
+                            sample.reader_proxy.remote_reader_guid,
+                            sample.reader_proxy.remote_group_entity_id,
+                            sample.reader_proxy.unicast_locator_list.as_ref(),
+                            sample.reader_proxy.multicast_locator_list.as_ref(),
+                            sample.reader_proxy.expects_inline_qos,
+                            true, // ???
+                        );
+                        match &mut data_writer_lock.rtps_writer {
+                            RtpsWriter::Stateless(_) => (),
+                            RtpsWriter::Stateful(rtps_stateful_writer) => {
+                                rtps_stateful_writer.matched_reader_add(reader_proxy)
                             }
                         };
                     }
@@ -269,7 +306,7 @@ mod tests {
 
     use crate::domain_participant_factory::RtpsStructureImpl;
 
-    use super::{task_spdp_discovery, task_sedp_discovery};
+    use super::{task_spdp_discovery, task_sedp_writer_discovery};
 
     mock! {
         DdsDataReader<Foo: 'static>{}
@@ -780,7 +817,7 @@ mod tests {
 
         let subscriber_list = vec![subscriber];
 
-        task_sedp_discovery(
+        task_sedp_writer_discovery(
             &mut mock_sedp_discovered_writer_data_reader,
             &subscriber_list,
         );

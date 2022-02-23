@@ -75,7 +75,7 @@ use socket2::Socket;
 
 use crate::{
     communication::Communication,
-    tasks::{task_sedp_discovery, task_spdp_discovery, Executor, Spawner},
+    tasks::{task_sedp_writer_discovery, task_sedp_reader_discovery, task_spdp_discovery, Executor, Spawner},
     udp_transport::UdpTransport,
 };
 
@@ -145,7 +145,7 @@ fn get_builtin_multicast_socket(domain_id: u16) -> Option<UdpSocket> {
     Some(socket.into())
 }
 
-fn _get_builtin_unicast_socket(domain_id: u16, participant_id: u16) -> Option<UdpSocket> {
+fn get_builtin_unicast_socket(domain_id: u16, participant_id: u16) -> Option<UdpSocket> {
     let socket_addr = SocketAddr::from((
         [127, 0, 0, 1],
         PB + DG * domain_id + _d1 + PG * participant_id,
@@ -284,75 +284,90 @@ impl DomainParticipantFactory {
         };
 
         {
-            // /////// Create transports
-            let (default_transport, metatraffic_transport) = {
-                let socket = get_builtin_multicast_socket(domain_id as u16).unwrap();
-                let metatraffic_transport = UdpTransport::new(socket);
-
-                let socket =
-                    get_user_defined_unicast_socket(domain_id as u16, participant_id as u16)
-                        .unwrap();
-                socket.set_nonblocking(true).unwrap();
-                let default_transport = UdpTransport::new(socket);
-
-                (default_transport, metatraffic_transport)
+            let builtin_unicast_transport = UdpTransport::new(
+                get_builtin_unicast_socket(domain_id as u16, participant_id as u16).unwrap()
+            );
+            let mut communication = Communication {
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix,
+                transport: builtin_unicast_transport,
             };
 
-            {
-                let mut builtin_communication = Communication {
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix,
-                    transport: metatraffic_transport,
-                };
+            let domain_participant = domain_participant.clone();
+            spawner.spawn_enabled_periodic_task(
+                "builtin sedp communication",
+                move || {
+                    let builtin_publisher = &domain_participant.read_lock().builtin_publisher;
+                    let builtin_subscriber = &domain_participant.read_lock().builtin_subscriber;
 
-                let domain_participant = domain_participant.clone();
-                spawner.spawn_enabled_periodic_task(
-                    "builtin communication",
-                    move || {
-                        let builtin_publisher = &domain_participant.read_lock().builtin_publisher;
-                        let builtin_subscriber = &domain_participant.read_lock().builtin_subscriber;
+                    if let (Some(builtin_publisher), Some(builtin_subscriber)) =
+                        (builtin_publisher, builtin_subscriber)
+                    {
+                        communication.send(core::slice::from_ref(builtin_publisher));
+                        communication.receive(core::slice::from_ref(builtin_subscriber));
+                    }
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
 
-                        if let (Some(builtin_publisher), Some(builtin_subscriber)) =
-                            (builtin_publisher, builtin_subscriber)
-                        {
-                            builtin_communication.send(core::slice::from_ref(builtin_publisher));
-                            builtin_communication
-                                .receive(core::slice::from_ref(builtin_subscriber));
-                        }
-                    },
-                    std::time::Duration::from_millis(500),
-                );
-            }
+        {
+            let builtin_multicast_transport = UdpTransport::new(
+                get_builtin_multicast_socket(domain_id as u16).unwrap()
+            );
+            let mut communication = Communication {
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix,
+                transport: builtin_multicast_transport,
+            };
 
-            {
-                let mut communication = Communication {
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix,
-                    transport: default_transport,
-                };
+            let domain_participant = domain_participant.clone();
+            spawner.spawn_enabled_periodic_task(
+                "builtin spdp communication",
+                move || {
+                    let builtin_subscriber = &domain_participant.read_lock().builtin_subscriber;
 
-                let domain_participant = domain_participant.clone();
-                spawner.spawn_enabled_periodic_task(
-                    "user-defined communication",
-                    move || {
-                        communication.send(
-                            domain_participant
-                                .read_lock()
-                                .user_defined_publisher_list
-                                .as_ref(),
-                        );
-                        communication.receive(
-                            domain_participant
-                                .read_lock()
-                                .user_defined_subscriber_list
-                                .as_ref(),
-                        );
-                    },
-                    std::time::Duration::from_millis(500),
-                );
-            }
+                    if let Some(builtin_subscriber) = builtin_subscriber
+                    {
+                        communication.receive(core::slice::from_ref(builtin_subscriber));
+                    }
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        {
+            let user_unicast_transport = UdpTransport::new(
+                get_user_defined_unicast_socket(domain_id as u16, participant_id as u16).unwrap()
+            );
+            let mut communication = Communication {
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix,
+                transport: user_unicast_transport,
+            };
+
+            let domain_participant = domain_participant.clone();
+            spawner.spawn_enabled_periodic_task(
+                "user-defined communication",
+                move || {
+                    communication.send(
+                        domain_participant
+                            .read_lock()
+                            .user_defined_publisher_list
+                            .as_ref(),
+                    );
+                    communication.receive(
+                        domain_participant
+                            .read_lock()
+                            .user_defined_subscriber_list
+                            .as_ref(),
+                    );
+                },
+                std::time::Duration::from_millis(500),
+            );
         }
 
         {
@@ -504,9 +519,19 @@ impl DomainParticipantFactory {
                 let mut builtin_publication_reader =
                     builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic)?;
 
-                task_sedp_discovery(
+                let subscription_topic = participant_proxy
+                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
+                let mut builtin_subscription_reader =
+                    builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic)?;
+
+                task_sedp_writer_discovery(
                     &mut builtin_publication_reader,
                     &domain_participant.read_lock().user_defined_subscriber_list,
+                );
+
+                task_sedp_reader_discovery(
+                    &mut builtin_subscription_reader,
+                    &domain_participant.read_lock().user_defined_publisher_list,
                 );
 
                 Some(())
