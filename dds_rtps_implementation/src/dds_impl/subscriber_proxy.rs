@@ -155,10 +155,10 @@ where
         qos: Option<DataReaderQos>,
         _a_listener: Option<&'static dyn DataReaderListener>,
         _mask: StatusMask,
-    ) -> Option<Self::DataReaderType> {
-        let subscriber_shared = self.subscriber_impl.upgrade().ok()?;
+    ) -> DDSResult<Self::DataReaderType> {
+        let subscriber_shared = self.subscriber_impl.upgrade()?;
 
-        let topic_shared = topic.as_ref().upgrade().ok()?;
+        let topic_shared = topic.as_ref().upgrade()?;
 
         // /////// Build the GUID
         let entity_id = {
@@ -197,7 +197,7 @@ where
                     .default_data_reader_qos
                     .clone(),
             );
-            qos.is_consistent().ok()?;
+            qos.is_consistent()?;
 
             let topic_kind = match Foo::has_key() {
                 true => TopicKind::WithKey,
@@ -243,18 +243,18 @@ where
             let domain_participant = subscriber_shared
                 .read_lock()
                 .parent_domain_participant
-                .upgrade()
-                .ok()?;
+                .upgrade()?;
             let domain_participant_proxy =
                 DomainParticipantProxy::new(domain_participant.downgrade());
-            let builtin_publisher = domain_participant.read_lock().builtin_publisher.clone()?;
+            let builtin_publisher = domain_participant.read_lock().builtin_publisher.clone()
+                .ok_or(DDSError::PreconditionNotMet("No builtin publisher".to_string()))?;
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
             let subscription_topic =
                 domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_SUBSCRIPTION)?;
 
             let mut sedp_builtin_subscription_announcer = builtin_publisher_proxy
-                .datawriter_factory_lookup_datawriter(&subscription_topic).ok()?;
+                .datawriter_factory_lookup_datawriter(&subscription_topic)?;
 
             let sedp_discovered_reader_data = SedpDiscoveredReaderData {
                 reader_proxy: RtpsReaderProxy {
@@ -298,7 +298,7 @@ where
                 .unwrap();
         }
 
-        Some(DataReaderProxy::new(data_reader_shared.downgrade()))
+        Ok(DataReaderProxy::new(data_reader_shared.downgrade()))
     }
 
     fn datareader_factory_delete_datareader(
@@ -325,11 +325,11 @@ where
     fn datareader_factory_lookup_datareader(
         &self,
         topic: &Self::TopicType,
-    ) -> Option<Self::DataReaderType> {
-        let subscriber_shared = self.subscriber_impl.upgrade().ok()?;
+    ) -> DDSResult<Self::DataReaderType> {
+        let subscriber_shared = self.subscriber_impl.upgrade()?;
         let data_reader_list = &subscriber_shared.write_lock().data_reader_list;
 
-        let topic_shared = topic.as_ref().upgrade().ok()?;
+        let topic_shared = topic.as_ref().upgrade()?;
         let topic = topic_shared.read_lock();
 
         data_reader_list.iter().find_map(|data_reader_shared| {
@@ -343,7 +343,7 @@ where
             } else {
                 None
             }
-        })
+        }).ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -770,7 +770,7 @@ mod tests {
 
         let data_reader = subscriber_proxy.create_datareader(&topic_proxy, None, None, 0);
 
-        assert!(data_reader.is_some());
+        assert!(data_reader.is_ok());
     }
 
     #[test]
@@ -789,7 +789,7 @@ mod tests {
         let data_reader =
             subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0);
 
-        assert!(data_reader.is_some());
+        assert!(data_reader.is_ok());
         assert_eq!(1, subscriber.read_lock().data_reader_list.len());
     }
 
@@ -867,7 +867,7 @@ mod tests {
 
         assert!(subscriber_proxy
             .datareader_factory_lookup_datareader(&topic_proxy)
-            .is_none());
+            .is_err());
     }
 
     #[test]
@@ -922,7 +922,7 @@ mod tests {
 
         assert!(subscriber_proxy
             .datareader_factory_lookup_datareader(&topic_foo_proxy)
-            .is_none());
+            .is_err());
     }
 
     #[test]
@@ -947,7 +947,7 @@ mod tests {
 
         assert!(subscriber_proxy
             .datareader_factory_lookup_datareader(&topic1_proxy)
-            .is_none());
+            .is_err());
     }
 
     #[test]

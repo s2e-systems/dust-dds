@@ -17,7 +17,7 @@ pub trait DomainParticipantTopicFactory<Foo> {
         qos: Option<TopicQos>,
         a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
-    ) -> Option<Self::TopicType>;
+    ) -> DDSResult<Self::TopicType>;
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()>;
 
@@ -25,9 +25,10 @@ pub trait DomainParticipantTopicFactory<Foo> {
         &self,
         topic_name: &str,
         timeout: Duration,
-    ) -> Option<Self::TopicType>;
+    ) -> DDSResult<Self::TopicType>;
 
-    fn topic_factory_lookup_topicdescription(&self, topic_name: &str) -> Option<Self::TopicType>;
+    fn topic_factory_lookup_topicdescription(&self, topic_name: &str)
+        -> DDSResult<Self::TopicType>;
 }
 
 pub trait DomainParticipant {
@@ -46,7 +47,7 @@ pub trait DomainParticipant {
         qos: Option<PublisherQos>,
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
-    ) -> Option<Self::PublisherType>;
+    ) -> DDSResult<Self::PublisherType>;
 
     /// This operation deletes an existing Publisher.
     /// A Publisher cannot be deleted if it has any attached DataWriter objects. If delete_publisher is called on a Publisher with
@@ -70,7 +71,7 @@ pub trait DomainParticipant {
         qos: Option<SubscriberQos>,
         a_listener: Option<&'static dyn SubscriberListener>,
         mask: StatusMask,
-    ) -> Option<Self::SubscriberType>;
+    ) -> DDSResult<Self::SubscriberType>;
 
     /// This operation deletes an existing Subscriber.
     /// A Subscriber cannot be deleted if it has any attached DataReader objects. If the delete_subscriber operation is called on a
@@ -97,7 +98,7 @@ pub trait DomainParticipant {
         qos: Option<TopicQos>,
         a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
-    ) -> Option<Self::TopicType>
+    ) -> DDSResult<Self::TopicType>
     where
         Self: DomainParticipantTopicFactory<Foo> + Sized,
     {
@@ -129,7 +130,7 @@ pub trait DomainParticipant {
     /// of times using delete_topic.
     /// Regardless of whether the middleware chooses to propagate topics, the delete_topic operation deletes only the local proxy.
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
-    fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> Option<Self::TopicType>
+    fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DDSResult<Self::TopicType>
     where
         Self: DomainParticipantTopicFactory<Foo> + Sized,
     {
@@ -147,7 +148,7 @@ pub trait DomainParticipant {
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> Option<Self::TopicType>
+    fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> DDSResult<Self::TopicType>
     where
         Self: DomainParticipantTopicFactory<Foo> + Sized,
     {
