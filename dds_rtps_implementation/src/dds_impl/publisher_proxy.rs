@@ -140,10 +140,10 @@ where
         qos: Option<DataWriterQos>,
         _a_listener: Option<&'static dyn DataWriterListener>,
         _mask: StatusMask,
-    ) -> Option<Self::DataWriterType> {
-        let publisher_shared = self.0.upgrade().ok()?;
+    ) -> DDSResult<Self::DataWriterType> {
+        let publisher_shared = self.0.upgrade()?;
 
-        let topic_shared = topic.as_ref().upgrade().ok()?;
+        let topic_shared = topic.as_ref().upgrade()?;
 
         // /////// Build the GUID
         let guid = {
@@ -178,7 +178,7 @@ where
         // /////// Create data writer
         let data_writer_shared = {
             let qos = qos.unwrap_or(publisher_shared.read_lock().default_datawriter_qos.clone());
-            qos.is_consistent().ok()?;
+            qos.is_consistent()?;
 
             let topic_kind = match Foo::has_key() {
                 true => TopicKind::WithKey,
@@ -224,15 +224,16 @@ where
             let domain_participant = publisher_shared
                 .read_lock()
                 .parent_participant
-                .upgrade()
-                .ok()?;
+                .upgrade()?;
             let domain_participant_proxy =
                 DomainParticipantProxy::new(domain_participant.downgrade());
-            let builtin_publisher = domain_participant.read_lock().builtin_publisher.clone()?;
+            let builtin_publisher = domain_participant.read_lock().builtin_publisher.clone()
+                .ok_or(DDSError::PreconditionNotMet("No builtin publisher".to_string()))?;
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
             let publication_topic =
-                domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_PUBLICATION)?;
+                domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_PUBLICATION)
+                    .ok_or(DDSError::PreconditionNotMet("No publication topic".to_string()))?;
 
             let mut sedp_builtin_publications_announcer =
                 builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)?;
@@ -281,7 +282,7 @@ where
                 .unwrap();
         }
 
-        Some(DataWriterProxy::new(data_writer_shared.downgrade()))
+        Ok(DataWriterProxy::new(data_writer_shared.downgrade()))
     }
 
     fn datawriter_factory_delete_datawriter(
@@ -308,11 +309,11 @@ where
     fn datawriter_factory_lookup_datawriter(
         &self,
         topic: &Self::TopicType,
-    ) -> Option<Self::DataWriterType> {
-        let publisher_shared = self.0.upgrade().ok()?;
+    ) -> DDSResult<Self::DataWriterType> {
+        let publisher_shared = self.0.upgrade()?;
         let data_writer_list = &publisher_shared.write_lock().data_writer_list;
 
-        let topic_shared = topic.as_ref().upgrade().ok()?;
+        let topic_shared = topic.as_ref().upgrade()?;
         let topic = topic_shared.read_lock();
 
         data_writer_list.iter().find_map(|data_writer_shared| {
@@ -326,7 +327,7 @@ where
             } else {
                 None
             }
-        })
+        }).ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -740,7 +741,7 @@ mod tests {
         let data_writer =
             publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
 
-        assert!(data_writer.is_some());
+        assert!(data_writer.is_ok());
         assert_eq!(1, publisher.read_lock().data_writer_list.len());
     }
 
@@ -807,7 +808,7 @@ mod tests {
 
         assert!(publisher_proxy
             .datawriter_factory_lookup_datawriter(&topic_proxy)
-            .is_none());
+            .is_err());
     }
 
     #[test]
@@ -856,7 +857,7 @@ mod tests {
 
         assert!(publisher_proxy
             .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
-            .is_none());
+            .is_err());
     }
 
     #[test]
@@ -878,7 +879,7 @@ mod tests {
 
         assert!(publisher_proxy
             .datawriter_factory_lookup_datawriter(&topic1_proxy)
-            .is_none());
+            .is_err());
     }
 
     #[test]

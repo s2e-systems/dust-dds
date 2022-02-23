@@ -2,8 +2,10 @@ use std::net::UdpSocket;
 
 use rust_dds::{
     communication::Communication,
-    domain_participant_factory::{RtpsStructureImpl, DomainParticipantFactory},
+    domain::domain_participant::DomainParticipant,
+    domain_participant_factory::{DomainParticipantFactory, RtpsStructureImpl},
     infrastructure::{
+        entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
@@ -11,12 +13,12 @@ use rust_dds::{
             LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
             PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
             ReliabilityQosPolicyKind, TopicDataQosPolicy,
-        }, entity::Entity,
+        },
     },
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
     types::{Duration, Time},
-    udp_transport::UdpTransport, domain::domain_participant::DomainParticipant,
+    udp_transport::UdpTransport,
 };
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, PublicationBuiltinTopicData},
@@ -27,26 +29,31 @@ use rust_dds_api::{
     },
 };
 use rust_dds_rtps_implementation::{
-    dds_impl::{
-        data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader, Samples},
-        data_writer_proxy::{DataWriterAttributes, DataWriterProxy, RtpsWriter},
-        publisher_proxy::PublisherAttributes,
-        subscriber_proxy::SubscriberAttributes,
-        topic_proxy::TopicAttributes, domain_participant_proxy::DomainParticipantProxy,
-    },
-    dds_type::{DdsType, DdsSerialize, DdsDeserialize},
     data_representation_builtin_endpoints::{
         sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData},
         spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
+    dds_impl::{
+        data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader, Samples},
+        data_writer_proxy::{DataWriterAttributes, DataWriterProxy, RtpsWriter},
+        domain_participant_proxy::DomainParticipantProxy,
+        publisher_proxy::PublisherAttributes,
+        subscriber_proxy::SubscriberAttributes,
+        topic_proxy::TopicAttributes,
+    },
+    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
     rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
+        rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
+        rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
         rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
         rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
         rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl, rtps_participant_impl::RtpsParticipantImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
     },
-    utils::{shared_object::{RtpsShared, RtpsWeak}, rtps_structure::RtpsStructure},
+    utils::{
+        rtps_structure::RtpsStructure,
+        shared_object::{RtpsShared, RtpsWeak},
+    },
 };
 use rust_rtps_pim::{
     behavior::{
@@ -63,10 +70,13 @@ use rust_rtps_pim::{
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     messages::types::Count,
-    structure::{types::{
-        EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator,
-        BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
-    }, group::RtpsGroupConstructor},
+    structure::{
+        group::RtpsGroupConstructor,
+        types::{
+            EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator, BUILT_IN_READER_GROUP,
+            BUILT_IN_WRITER_GROUP, GUID_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
+        },
+    },
 };
 
 #[test]
@@ -548,12 +558,22 @@ impl RtpsStructure for Rtps {
 }
 
 fn num_matched_writers(participant: &DomainParticipantProxy<RtpsStructureImpl>) -> usize {
-    let subscriber = participant.get_builtin_subscriber().unwrap().as_ref().upgrade().unwrap();
+    let subscriber = participant
+        .get_builtin_subscriber()
+        .unwrap()
+        .as_ref()
+        .upgrade()
+        .unwrap();
     let data_readers = &subscriber.read_lock().data_reader_list;
-    data_readers.iter()
-        .filter_map(|w| w.write_lock().rtps_reader.try_as_stateful_reader().ok()
-            .map(|w| w.matched_writers.len())
-        )
+    data_readers
+        .iter()
+        .filter_map(|w| {
+            w.write_lock()
+                .rtps_reader
+                .try_as_stateful_reader()
+                .ok()
+                .map(|w| w.matched_writers.len())
+        })
         .sum::<usize>()
 }
 
@@ -570,7 +590,10 @@ impl DdsType for MyType {
 }
 
 impl DdsSerialize for MyType {
-    fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(&self, _writer: W) -> rust_dds::DDSResult<()> {
+    fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+        &self,
+        _writer: W,
+    ) -> rust_dds::DDSResult<()> {
         Ok(())
     }
 }
@@ -585,30 +608,62 @@ impl<'de> DdsDeserialize<'de> for MyType {
 fn create_two_participants_with_same_domains() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant1 = participant_factory.create_participant(0, None, None, 0)
+    let participant1 = participant_factory
+        .create_participant(0, None, None, 0)
         .unwrap();
     participant1.enable().unwrap();
 
-    let participant2 = participant_factory.create_participant(0, None, None, 0)
+    let participant2 = participant_factory
+        .create_participant(0, None, None, 0)
         .unwrap();
     participant2.enable().unwrap();
 
-    let topic     = participant1.create_topic::<MyType>("MyTopic", None, None, 0).unwrap();
+    let topic = participant1
+        .create_topic::<MyType>("MyTopic", None, None, 0)
+        .unwrap();
 
-    let publisher  = participant1.create_publisher(None, None, 0).unwrap();
+    let publisher = participant1.create_publisher(None, None, 0).unwrap();
     let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let _reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
+    let reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
 
-    writer.write_w_timestamp(&MyType {}, None, Time { sec: 0, nanosec: 0 })
+    writer
+        .write_w_timestamp(&MyType {}, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
-    
-    // std::thread::sleep(std::time::Duration::new(2, 0));
+
+    // std::thread::sleep(std::time::Duration::new(5, 0));
 
     println!("P1 matched writers: {}", num_matched_writers(&participant1));
     println!("P2 matched writers: {}", num_matched_writers(&participant2));
-    
+
+    println!(
+        "User reader matched writers: {}",
+        reader
+            .as_ref()
+            .upgrade()
+            .unwrap()
+            .write_lock()
+            .rtps_reader
+            .try_as_stateful_reader()
+            .unwrap()
+            .matched_writers
+            .len()
+    );
+    println!(
+        "User writer matched readers: {}",
+        writer
+            .as_ref()
+            .upgrade()
+            .unwrap()
+            .write_lock()
+            .rtps_writer
+            .try_as_stateful_writer()
+            .unwrap()
+            .matched_readers
+            .len()
+    );
+
     // let samples = reader.read(1, &[], &[], &[]).unwrap();
     // assert!(samples.len() == 1);
 
