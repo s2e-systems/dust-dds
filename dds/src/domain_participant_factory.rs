@@ -116,7 +116,7 @@ const PG: u16 = 2;
 #[allow(non_upper_case_globals)]
 const d0: u16 = 0;
 #[allow(non_upper_case_globals)]
-const _d1: u16 = 10;
+const d1: u16 = 10;
 #[allow(non_upper_case_globals)]
 const _d2: u16 = 1;
 #[allow(non_upper_case_globals)]
@@ -148,7 +148,7 @@ fn get_builtin_multicast_socket(domain_id: u16) -> Option<UdpSocket> {
 fn get_builtin_unicast_socket(domain_id: u16, participant_id: u16) -> Option<UdpSocket> {
     let socket_addr = SocketAddr::from((
         [127, 0, 0, 1],
-        PB + DG * domain_id + _d1 + PG * participant_id,
+        PB + DG * domain_id + d1 + PG * participant_id,
     ));
 
     let socket = Socket::new(
@@ -229,12 +229,13 @@ impl DomainParticipantFactory {
         _mask: StatusMask,
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let guid_prefix = GuidPrefix([3; 12]);
+        let qos = qos.unwrap_or_default();
 
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             guid_prefix,
             domain_id,
             "".to_string(),
-            qos.unwrap_or_default(),
+            qos.clone(),
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 7400,
@@ -254,7 +255,10 @@ impl DomainParticipantFactory {
         ));
 
         create_builtins(guid_prefix, domain_participant.clone())?;
-        self.spin_tasks(domain_participant.clone())?;
+
+        if qos.entity_factory.autoenable_created_entities {
+            self.enable_created_entities(domain_participant.clone())?;
+        }
 
         self.participant_list
             .lock()
@@ -264,7 +268,7 @@ impl DomainParticipantFactory {
         Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
     }
 
-    fn spin_tasks(
+    pub fn enable_created_entities(
         &self,
         domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
     ) -> DDSResult<()> {
