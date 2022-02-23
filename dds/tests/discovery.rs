@@ -605,7 +605,7 @@ impl<'de> DdsDeserialize<'de> for MyType {
 }
 
 #[test]
-fn create_two_participants_with_same_domains() {
+fn participant_discovery() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory
