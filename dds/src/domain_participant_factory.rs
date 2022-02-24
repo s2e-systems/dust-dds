@@ -259,10 +259,7 @@ impl DomainParticipantFactory {
 
         create_builtins(guid_prefix, domain_participant.clone())?;
 
-        if qos
-            .entity_factory
-            .autoenable_created_entities
-        {
+        if qos.entity_factory.autoenable_created_entities {
             self.enable(domain_participant.clone())?;
         }
 
@@ -316,7 +313,7 @@ impl DomainParticipantFactory {
                     {
                         communication.send(builtin_participant_announcer);
                     } else {
-                        println!("/!\\ Failed to announce participant");
+                        println!("/!\\ Participant has no builtin participant announcer");
                     }
                 },
                 std::time::Duration::from_millis(500),
@@ -343,7 +340,7 @@ impl DomainParticipantFactory {
                     {
                         communication.receive(builtin_participant_reader);
                     } else {
-                        println!("/!\\ Failed to listen for participant announcement");
+                        println!("/!\\ Participant has no builtin participant reader");
                     }
                 },
                 std::time::Duration::from_millis(500),
@@ -479,31 +476,58 @@ impl DomainParticipantFactory {
 
         // //////////// SEDP Communication
 
+        let builtin_unicast_socket = get_builtin_unicast_socket(domain_id as u16, participant_id as u16).unwrap();
+
+        // ////////////// Send endpoint data
         {
-            let builtin_unicast_transport = UdpTransport::new(
-                get_builtin_unicast_socket(domain_id as u16, participant_id as u16).unwrap(),
-            );
             let mut communication = Communication {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: builtin_unicast_transport,
+                transport: UdpTransport::new(
+                    builtin_unicast_socket.try_clone().unwrap(),
+                ),
             };
 
             let domain_participant = domain_participant.clone();
             spawner.spawn_enabled_periodic_task(
-                "builtin sedp communication",
+                "builtin sedp communication (send endpoint data)",
                 move || {
-                    let builtin_publisher = &domain_participant.read_lock().builtin_publisher;
-                    let builtin_subscriber = &domain_participant.read_lock().builtin_subscriber;
-
-                    if let (Some(builtin_publisher), Some(builtin_subscriber)) =
-                        (builtin_publisher, builtin_subscriber)
+                    if let Some(builtin_publisher) =
+                        &domain_participant.read_lock().builtin_publisher
                     {
                         communication
                             .send_with_publishers(core::slice::from_ref(builtin_publisher));
+                    } else {
+                        println!("/!\\ Participant has no builtin publisher");
+                    }
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // ////////////// Receive endpoint data
+        {
+            let mut communication = Communication {
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix,
+                transport: UdpTransport::new(
+                    builtin_unicast_socket.try_clone().unwrap(),
+                ),
+            };
+
+            let domain_participant = domain_participant.clone();
+            spawner.spawn_enabled_periodic_task(
+                "builtin sedp communication (receive endpoint data)",
+                move || {
+                    if let Some(builtin_subscriber) =
+                        &domain_participant.read_lock().builtin_subscriber
+                    {
                         communication
                             .receive_with_subscribers(core::slice::from_ref(builtin_subscriber));
+                    } else {
+                        println!("/!\\ Participant has no builtin subscriber");
                     }
                 },
                 std::time::Duration::from_millis(500),
@@ -565,20 +589,23 @@ impl DomainParticipantFactory {
         }
 
         // //////////// User-defined Communication
+
+        let user_unicast_socket = get_user_defined_unicast_socket(domain_id as u16, participant_id as u16).unwrap();
+
+        // ////////////// User-defined writing
         {
-            let user_unicast_transport = UdpTransport::new(
-                get_user_defined_unicast_socket(domain_id as u16, participant_id as u16).unwrap(),
-            );
             let mut communication = Communication {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: user_unicast_transport,
+                transport: UdpTransport::new(
+                    user_unicast_socket.try_clone().unwrap(),
+                ),
             };
 
             let domain_participant = domain_participant.clone();
             spawner.spawn_enabled_periodic_task(
-                "user-defined communication",
+                "user-defined writing",
                 move || {
                     communication.send_with_publishers(
                         domain_participant
@@ -586,6 +613,26 @@ impl DomainParticipantFactory {
                             .user_defined_publisher_list
                             .as_ref(),
                     );
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // ////////////// User-defined reading
+        {
+            let mut communication = Communication {
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix,
+                transport: UdpTransport::new(
+                    user_unicast_socket.try_clone().unwrap(),
+                ),
+            };
+
+            let domain_participant = domain_participant.clone();
+            spawner.spawn_enabled_periodic_task(
+                "user-defined reading",
+                move || {
                     communication.receive_with_subscribers(
                         domain_participant
                             .read_lock()
@@ -953,8 +1000,7 @@ mod tests {
     use std::net::SocketAddr;
 
     use rust_dds_api::{
-        dcps_psm::DomainId,
-        domain::domain_participant::DomainParticipant,
+        dcps_psm::DomainId, domain::domain_participant::DomainParticipant,
         infrastructure::qos::DomainParticipantQos,
         publication::publisher::PublisherDataWriterFactory,
         subscription::subscriber::SubscriberDataReaderFactory,
@@ -972,15 +1018,11 @@ mod tests {
         },
         utils::shared_object::RtpsShared,
     };
-    use rust_rtps_pim::{
-        structure::types::{
-            GuidPrefix,
-        },
-    };
+    use rust_rtps_pim::structure::types::GuidPrefix;
 
     use super::{
-        create_builtins, d0, get_builtin_multicast_socket,
-        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC, PB,
+        create_builtins, d0, get_builtin_multicast_socket, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
+        DCPS_TOPIC, PB,
     };
 
     #[test]
@@ -1053,9 +1095,15 @@ mod tests {
                 .unwrap()
                 .downgrade(),
         );
-        
-        assert!(domain_participant.read_lock().builtin_participant_announcer.is_some());
-        assert!(domain_participant.read_lock().builtin_participant_reader.is_some());
+
+        assert!(domain_participant
+            .read_lock()
+            .builtin_participant_announcer
+            .is_some());
+        assert!(domain_participant
+            .read_lock()
+            .builtin_participant_reader
+            .is_some());
 
         assert!(builtin_subscriber
             .datareader_factory_lookup_datareader(&publication_topic)
