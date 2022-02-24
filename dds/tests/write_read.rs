@@ -114,8 +114,8 @@ fn user_defined_write_read() {
         .unwrap();
 
     let mut user_communication = user_unicast_communication();
-    user_communication.send_with_publishers(&[publisher.as_ref().upgrade().unwrap()]);
-    user_communication.receive_with_subscribers(&[subscriber.as_ref().upgrade().unwrap()]);
+    user_communication.send(&[publisher.as_ref().upgrade().unwrap()]);
+    user_communication.receive(&[subscriber.as_ref().upgrade().unwrap()]);
 
     let samples = reader.read(1, &[], &[], &[]).unwrap();
     assert!(samples.len() == 1);

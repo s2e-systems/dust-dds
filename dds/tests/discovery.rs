@@ -223,7 +223,7 @@ fn process_discovery_data_happy_path() {
         guid_prefix,
         transport,
     };
-    communication.send_with_publishers(core::slice::from_ref(&publisher));
+    communication.send(core::slice::from_ref(&publisher));
 
     // Reception
 
@@ -263,7 +263,7 @@ fn process_discovery_data_happy_path() {
         DataReaderProxy::new(weak_data_reader)
     };
 
-    communication.receive_with_subscribers(core::slice::from_ref(&subscriber));
+    communication.receive(core::slice::from_ref(&subscriber));
 
     let discovered_participant: Samples<SpdpDiscoveredParticipantData> =
         spdp_builtin_participant_data_reader_proxy
@@ -387,7 +387,7 @@ fn process_discovery_data_happy_path() {
     // );
 
     for _i in 1..14 {
-        communication.send_with_publishers(core::slice::from_ref(&publisher));
+        communication.send(core::slice::from_ref(&publisher));
 
         std::thread::sleep(std::time::Duration::from_millis(50));
     }

@@ -292,34 +292,6 @@ impl DomainParticipantFactory {
 
         // //////////// SPDP Communication
 
-        // ////////////// SPDP participant announcement
-        {
-            let mut communication = Communication {
-                version: PROTOCOLVERSION,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix,
-                transport: UdpTransport::new(
-                    get_builtin_multicast_socket(domain_id as u16).unwrap(),
-                ),
-            };
-
-            let domain_participant = domain_participant.clone();
-            spawner.spawn_enabled_periodic_task(
-                "builtin spdp participant announcement",
-                move || {
-                    if let Some(builtin_participant_announcer) = &mut domain_participant
-                        .write_lock()
-                        .builtin_participant_announcer
-                    {
-                        communication.send(builtin_participant_announcer);
-                    } else {
-                        println!("/!\\ Participant has no builtin participant announcer");
-                    }
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
-
         // ////////////// SPDP participant discovery
         {
             let mut communication = Communication {
@@ -336,11 +308,11 @@ impl DomainParticipantFactory {
                 "builtin spdp participant discovery",
                 move || {
                     if let Some(builtin_participant_reader) =
-                        &domain_participant.read_lock().builtin_participant_reader
+                        &domain_participant.read_lock().builtin_subscriber
                     {
-                        communication.receive(builtin_participant_reader);
+                        communication.receive(core::slice::from_ref(builtin_participant_reader));
                     } else {
-                        println!("/!\\ Participant has no builtin participant reader");
+                        println!("/!\\ Participant has no builtin subscriber");
                     }
                 },
                 std::time::Duration::from_millis(500),
@@ -476,7 +448,8 @@ impl DomainParticipantFactory {
 
         // //////////// SEDP Communication
 
-        let builtin_unicast_socket = get_builtin_unicast_socket(domain_id as u16, participant_id as u16).unwrap();
+        let builtin_unicast_socket =
+            get_builtin_unicast_socket(domain_id as u16, participant_id as u16).unwrap();
 
         // ////////////// Send endpoint data
         {
@@ -484,9 +457,7 @@ impl DomainParticipantFactory {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: UdpTransport::new(
-                    builtin_unicast_socket.try_clone().unwrap(),
-                ),
+                transport: UdpTransport::new(builtin_unicast_socket.try_clone().unwrap()),
             };
 
             let domain_participant = domain_participant.clone();
@@ -496,8 +467,7 @@ impl DomainParticipantFactory {
                     if let Some(builtin_publisher) =
                         &domain_participant.read_lock().builtin_publisher
                     {
-                        communication
-                            .send_with_publishers(core::slice::from_ref(builtin_publisher));
+                        communication.send(core::slice::from_ref(builtin_publisher));
                     } else {
                         println!("/!\\ Participant has no builtin publisher");
                     }
@@ -512,9 +482,7 @@ impl DomainParticipantFactory {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: UdpTransport::new(
-                    builtin_unicast_socket.try_clone().unwrap(),
-                ),
+                transport: UdpTransport::new(builtin_unicast_socket.try_clone().unwrap()),
             };
 
             let domain_participant = domain_participant.clone();
@@ -524,8 +492,7 @@ impl DomainParticipantFactory {
                     if let Some(builtin_subscriber) =
                         &domain_participant.read_lock().builtin_subscriber
                     {
-                        communication
-                            .receive_with_subscribers(core::slice::from_ref(builtin_subscriber));
+                        communication.receive(core::slice::from_ref(builtin_subscriber));
                     } else {
                         println!("/!\\ Participant has no builtin subscriber");
                     }
@@ -590,7 +557,8 @@ impl DomainParticipantFactory {
 
         // //////////// User-defined Communication
 
-        let user_unicast_socket = get_user_defined_unicast_socket(domain_id as u16, participant_id as u16).unwrap();
+        let user_unicast_socket =
+            get_user_defined_unicast_socket(domain_id as u16, participant_id as u16).unwrap();
 
         // ////////////// User-defined writing
         {
@@ -598,16 +566,14 @@ impl DomainParticipantFactory {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: UdpTransport::new(
-                    user_unicast_socket.try_clone().unwrap(),
-                ),
+                transport: UdpTransport::new(user_unicast_socket.try_clone().unwrap()),
             };
 
             let domain_participant = domain_participant.clone();
             spawner.spawn_enabled_periodic_task(
                 "user-defined writing",
                 move || {
-                    communication.send_with_publishers(
+                    communication.send(
                         domain_participant
                             .read_lock()
                             .user_defined_publisher_list
@@ -624,16 +590,14 @@ impl DomainParticipantFactory {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: UdpTransport::new(
-                    user_unicast_socket.try_clone().unwrap(),
-                ),
+                transport: UdpTransport::new(user_unicast_socket.try_clone().unwrap()),
             };
 
             let domain_participant = domain_participant.clone();
             spawner.spawn_enabled_periodic_task(
                 "user-defined reading",
                 move || {
-                    communication.receive_with_subscribers(
+                    communication.receive(
                         domain_participant
                             .read_lock()
                             .user_defined_subscriber_list
@@ -660,20 +624,28 @@ impl DomainParticipantFactory {
         // }
 
         // //////////// Announce participant
+        let builtin_participant_data_writer = domain_participant
+            .read_lock()
+            .builtin_publisher
+            .as_ref()
+            .ok_or(DDSError::PreconditionNotMet(
+                "No builtin publisher".to_string(),
+            ))?
+            .read_lock()
+            .data_writer_list
+            .iter()
+            .find(|w| w.read_lock().topic.read_lock().topic_name == DCPS_PARTICIPANT)
+            .ok_or(DDSError::PreconditionNotMet(
+                "No builtin participant data writer".to_string(),
+            ))?
+            .clone();
+
         let spdp_discovered_participant_data =
             spdp_discovered_participant_data_from_domain_participant(
                 &domain_participant.read_lock(),
             );
 
-        let builtin_participant_announcer = domain_participant
-            .read_lock()
-            .builtin_participant_announcer
-            .clone()
-            .ok_or(DDSError::PreconditionNotMet(
-                "No builtin participant announcer".to_string(),
-            ))?;
-
-        DataWriterProxy::new(builtin_participant_announcer.downgrade()).write_w_timestamp(
+        DataWriterProxy::new(builtin_participant_data_writer.downgrade()).write_w_timestamp(
             &spdp_discovered_participant_data,
             None,
             Time { sec: 0, nanosec: 0 },
@@ -844,8 +816,10 @@ fn create_builtins(
             spdp_topic_participant.clone(),
             builtin_subscriber.downgrade(),
         ));
-        domain_participant.write_lock().builtin_participant_reader =
-            Some(spdp_builtin_participant_data_reader);
+        builtin_subscriber
+            .write_lock()
+            .data_reader_list
+            .push(spdp_builtin_participant_data_reader);
 
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
@@ -867,9 +841,10 @@ fn create_builtins(
             spdp_topic_participant.clone(),
             builtin_publisher.downgrade(),
         ));
-        domain_participant
+        builtin_publisher
             .write_lock()
-            .builtin_participant_announcer = Some(spdp_builtin_participant_data_writer);
+            .data_writer_list
+            .push(spdp_builtin_participant_data_writer);
     }
 
     // ////////// SEDP built-in publication topic, reader and writer
@@ -1009,7 +984,7 @@ mod tests {
         data_representation_builtin_endpoints::{
             sedp_discovered_reader_data::SedpDiscoveredReaderData,
             sedp_discovered_topic_data::SedpDiscoveredTopicData,
-            sedp_discovered_writer_data::SedpDiscoveredWriterData,
+            sedp_discovered_writer_data::SedpDiscoveredWriterData, spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         dds_impl::{
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
@@ -1068,6 +1043,9 @@ mod tests {
 
         let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
+        let participant_topic = participant_proxy
+            .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+            .unwrap();
         let publication_topic = participant_proxy
             .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)
             .unwrap();
@@ -1096,15 +1074,9 @@ mod tests {
                 .downgrade(),
         );
 
-        assert!(domain_participant
-            .read_lock()
-            .builtin_participant_announcer
-            .is_some());
-        assert!(domain_participant
-            .read_lock()
-            .builtin_participant_reader
-            .is_some());
-
+        assert!(builtin_subscriber
+            .datareader_factory_lookup_datareader(&participant_topic)
+            .is_ok());
         assert!(builtin_subscriber
             .datareader_factory_lookup_datareader(&publication_topic)
             .is_ok());
@@ -1115,6 +1087,9 @@ mod tests {
             .datareader_factory_lookup_datareader(&topic_topic)
             .is_ok());
 
+        assert!(builtin_publisher
+            .datawriter_factory_lookup_datawriter(&participant_topic)
+            .is_ok());
         assert!(builtin_publisher
             .datawriter_factory_lookup_datawriter(&publication_topic)
             .is_ok());
