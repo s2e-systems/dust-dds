@@ -459,7 +459,7 @@ impl DomainParticipantFactory {
 
             let domain_participant = domain_participant.clone();
             spawner.spawn_enabled_periodic_task(
-                "builtin sedp communication (send endpoint data)",
+                "builtin sedp communication",
                 move || {
                     if let Some(builtin_publisher) =
                         &domain_participant.read_lock().builtin_publisher
