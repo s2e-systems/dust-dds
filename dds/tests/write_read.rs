@@ -1,6 +1,6 @@
 use std::net::{UdpSocket, SocketAddr};
 
-use rust_dds::{domain_participant_factory::DomainParticipantFactory, infrastructure::{qos::{DomainParticipantQos, DataReaderQos}, entity::Entity, qos_policy::{ReliabilityQosPolicyKind}}, domain::domain_participant::DomainParticipant, publication::{publisher::Publisher, data_writer::DataWriter}, subscription::{subscriber::Subscriber, data_reader::DataReader}, types::Time, udp_transport::UdpTransport, communication::Communication};
+use rust_dds::{domain_participant_factory::{DomainParticipantFactory, port_user_unicast}, infrastructure::{qos::{DomainParticipantQos, DataReaderQos}, entity::Entity, qos_policy::{ReliabilityQosPolicyKind}}, domain::domain_participant::DomainParticipant, publication::{publisher::Publisher, data_writer::DataWriter}, subscription::{subscriber::Subscriber, data_reader::DataReader}, types::Time, udp_transport::UdpTransport, communication::Communication};
 use rust_dds_rtps_implementation::{dds_type::{DdsSerialize, DdsType, DdsDeserialize}, rtps_impl::{rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl}};
 use rust_rtps_pim::{structure::{types::{PROTOCOLVERSION, VENDOR_ID_S2E, GuidPrefix, Locator, LOCATOR_KIND_UDPv4}, entity::RtpsEntityAttributes, endpoint::RtpsEndpointAttributes}, behavior::{reader::{writer_proxy::RtpsWriterProxyConstructor
     , reader::RtpsReaderAttributes, stateful_reader::RtpsStatefulReaderOperations}, writer::{writer::RtpsWriterAttributes, stateful_writer::RtpsStatefulWriterOperations}}};
@@ -30,17 +30,6 @@ impl DdsSerialize for MyType {
 impl<'de> DdsDeserialize<'de> for MyType {
     fn deserialize(_buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
         Ok(MyType {})
-    }
-}
-
-fn user_unicast_communication() -> Communication<UdpTransport> {
-    let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], 7410))).unwrap();
-
-    Communication {
-        version: PROTOCOLVERSION,
-        vendor_id: VENDOR_ID_S2E,
-        guid_prefix: GuidPrefix([3; 12]),
-        transport: UdpTransport::new(socket),
     }
 }
 
@@ -81,7 +70,7 @@ fn user_defined_write_read() {
             stateful_writer.guid().clone(),
             &[Locator::new(
                 LOCATOR_KIND_UDPv4,
-                7410,
+                port_user_unicast(0, 0) as u32,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
             )],
             stateful_writer.multicast_locator_list(),
@@ -97,7 +86,7 @@ fn user_defined_write_read() {
             stateful_reader.guid().entity_id,
             &[Locator::new(
                 LOCATOR_KIND_UDPv4,
-                7410,
+                port_user_unicast(0, 1) as u32,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
             )],
             stateful_reader.multicast_locator_list(),
@@ -112,10 +101,34 @@ fn user_defined_write_read() {
     writer
         .write_w_timestamp(&MyType {}, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
+        
+    let mut communication1 = Communication {
+        version: PROTOCOLVERSION,
+        vendor_id: VENDOR_ID_S2E,
+        guid_prefix: GuidPrefix([3; 12]),
+        transport: UdpTransport::new(UdpSocket::bind(
+            SocketAddr::from((
+                [127, 0, 0, 1],
+                port_user_unicast(0, 0)
+            ))
+        ).unwrap()),
+    };
 
-    let mut user_communication = user_unicast_communication();
-    user_communication.send(&[publisher.as_ref().upgrade().unwrap()]);
-    user_communication.receive(&[subscriber.as_ref().upgrade().unwrap()]);
+    let mut communication2 = Communication {
+        version: PROTOCOLVERSION,
+        vendor_id: VENDOR_ID_S2E,
+        guid_prefix: GuidPrefix([3; 12]),
+        transport: UdpTransport::new(
+            UdpSocket::bind(
+                SocketAddr::from((
+                    [127, 0, 0, 1],
+                    port_user_unicast(0, 1)
+                ))
+            ).unwrap()),
+    };
+
+    communication1.send(&[publisher.as_ref().upgrade().unwrap()]);
+    communication2.receive(&[subscriber.as_ref().upgrade().unwrap()]);
 
     let samples = reader.read(1, &[], &[], &[]).unwrap();
     assert!(samples.len() == 1);

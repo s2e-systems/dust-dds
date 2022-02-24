@@ -559,6 +559,7 @@ mod tests {
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             GuidPrefix([0; 12]),
             DomainId::default(),
+            0,
             "".to_string(),
             DomainParticipantQos::default(),
             vec![],
