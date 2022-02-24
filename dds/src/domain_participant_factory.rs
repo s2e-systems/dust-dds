@@ -307,10 +307,10 @@ impl DomainParticipantFactory {
             spawner.spawn_enabled_periodic_task(
                 "builtin spdp participant discovery",
                 move || {
-                    if let Some(builtin_participant_reader) =
+                    if let Some(builtin_participant_subscriber) =
                         &domain_participant.read_lock().builtin_subscriber
                     {
-                        communication.receive(core::slice::from_ref(builtin_participant_reader));
+                        communication.receive(core::slice::from_ref(builtin_participant_subscriber));
                     } else {
                         println!("/!\\ Participant has no builtin subscriber");
                     }
