@@ -305,12 +305,13 @@ impl DomainParticipantFactory {
 
             let domain_participant = domain_participant.clone();
             spawner.spawn_enabled_periodic_task(
-                "builtin spdp participant discovery",
+                "builtin multicast communication",
                 move || {
                     if let Some(builtin_participant_subscriber) =
                         &domain_participant.read_lock().builtin_subscriber
                     {
-                        communication.receive(core::slice::from_ref(builtin_participant_subscriber));
+                        communication
+                            .receive(core::slice::from_ref(builtin_participant_subscriber));
                     } else {
                         println!("/!\\ Participant has no builtin subscriber");
                     }
@@ -446,7 +447,7 @@ impl DomainParticipantFactory {
             );
         }
 
-        // //////////// SEDP Communication
+        // //////////// Unicast Communication
         {
             let mut communication = Communication {
                 version: PROTOCOLVERSION,
@@ -459,7 +460,7 @@ impl DomainParticipantFactory {
 
             let domain_participant = domain_participant.clone();
             spawner.spawn_enabled_periodic_task(
-                "builtin sedp communication",
+                "builtin unicast communication",
                 move || {
                     if let Some(builtin_publisher) =
                         &domain_participant.read_lock().builtin_publisher
@@ -536,22 +537,20 @@ impl DomainParticipantFactory {
         }
 
         // //////////// User-defined Communication
-
-        let user_unicast_socket =
-            get_user_defined_unicast_socket(domain_id as u16, participant_id as u16).unwrap();
-
-        // ////////////// User-defined writing
         {
             let mut communication = Communication {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: UdpTransport::new(user_unicast_socket.try_clone().unwrap()),
+                transport: UdpTransport::new(
+                    get_user_defined_unicast_socket(domain_id as u16, participant_id as u16)
+                        .unwrap(),
+                ),
             };
 
             let domain_participant = domain_participant.clone();
             spawner.spawn_enabled_periodic_task(
-                "user-defined writing",
+                "user-defined communication",
                 move || {
                     communication.send(
                         domain_participant
@@ -559,24 +558,7 @@ impl DomainParticipantFactory {
                             .user_defined_publisher_list
                             .as_ref(),
                     );
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
 
-        // ////////////// User-defined reading
-        {
-            let mut communication = Communication {
-                version: PROTOCOLVERSION,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix,
-                transport: UdpTransport::new(user_unicast_socket.try_clone().unwrap()),
-            };
-
-            let domain_participant = domain_participant.clone();
-            spawner.spawn_enabled_periodic_task(
-                "user-defined reading",
-                move || {
                     communication.receive(
                         domain_participant
                             .read_lock()
