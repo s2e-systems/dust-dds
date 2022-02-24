@@ -447,17 +447,14 @@ impl DomainParticipantFactory {
         }
 
         // //////////// SEDP Communication
-
-        let builtin_unicast_socket =
-            get_builtin_unicast_socket(domain_id as u16, participant_id as u16).unwrap();
-
-        // ////////////// Send endpoint data
         {
             let mut communication = Communication {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: UdpTransport::new(builtin_unicast_socket.try_clone().unwrap()),
+                transport: UdpTransport::new(
+                    get_builtin_unicast_socket(domain_id as u16, participant_id as u16).unwrap(),
+                ),
             };
 
             let domain_participant = domain_participant.clone();
@@ -471,24 +468,7 @@ impl DomainParticipantFactory {
                     } else {
                         println!("/!\\ Participant has no builtin publisher");
                     }
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
 
-        // ////////////// Receive endpoint data
-        {
-            let mut communication = Communication {
-                version: PROTOCOLVERSION,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix,
-                transport: UdpTransport::new(builtin_unicast_socket.try_clone().unwrap()),
-            };
-
-            let domain_participant = domain_participant.clone();
-            spawner.spawn_enabled_periodic_task(
-                "builtin sedp communication (receive endpoint data)",
-                move || {
                     if let Some(builtin_subscriber) =
                         &domain_participant.read_lock().builtin_subscriber
                     {
@@ -984,7 +964,8 @@ mod tests {
         data_representation_builtin_endpoints::{
             sedp_discovered_reader_data::SedpDiscoveredReaderData,
             sedp_discovered_topic_data::SedpDiscoveredTopicData,
-            sedp_discovered_writer_data::SedpDiscoveredWriterData, spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
+            sedp_discovered_writer_data::SedpDiscoveredWriterData,
+            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         dds_impl::{
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},

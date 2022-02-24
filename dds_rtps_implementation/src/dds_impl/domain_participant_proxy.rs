@@ -50,7 +50,7 @@ use crate::{
 use super::{
     publisher_proxy::{PublisherAttributes, PublisherProxy},
     subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
-    topic_proxy::{TopicAttributes, TopicProxy}, data_writer_proxy::DataWriterAttributes, data_reader_proxy::DataReaderAttributes,
+    topic_proxy::{TopicAttributes, TopicProxy},
 };
 
 pub struct DomainParticipantAttributes<Rtps>
