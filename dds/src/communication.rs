@@ -2,7 +2,8 @@ use std::cell::RefCell;
 
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
+        data_writer_proxy::RtpsWriter,
+        publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
     utils::shared_object::RtpsShared,
@@ -12,7 +13,7 @@ use rust_rtps_pim::{
         stateful_writer_behavior::StatefulWriterBehavior,
         stateless_writer_behavior::StatelessWriterBehavior,
         writer::{
-            reader_proxy::RtpsReaderProxyAttributes, reader_locator::RtpsReaderLocatorAttributes,
+            reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
         },
     },
     messages::overall_structure::RtpsMessageHeader,
@@ -26,8 +27,9 @@ use rust_rtps_udp_psm::messages::{
 };
 
 use crate::{
-    domain_participant_factory::RtpsStructureImpl, message_receiver::MessageReceiver,
-    transport::{TransportWrite, TransportRead},
+    domain_participant_factory::RtpsStructureImpl,
+    message_receiver::MessageReceiver,
+    transport::{TransportRead, TransportWrite},
 };
 
 pub struct Communication<T> {
@@ -45,16 +47,16 @@ where
         for publisher in list {
             let mut publisher_lock = publisher.write_lock();
 
-            let message_header = RtpsMessageHeader {
-                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                version: PROTOCOLVERSION,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix: GUIDPREFIX_UNKNOWN,
-            };
-
             for any_data_writer in &mut publisher_lock.data_writer_list {
                 let mut rtps_writer_lock = any_data_writer.write_lock();
                 let rtps_writer = &mut rtps_writer_lock.rtps_writer;
+
+                let message_header = RtpsMessageHeader {
+                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                    version: PROTOCOLVERSION,
+                    vendor_id: VENDOR_ID_S2E,
+                    guid_prefix: GUIDPREFIX_UNKNOWN,
+                };
 
                 match rtps_writer {
                     RtpsWriter::Stateless(stateless_rtps_writer) => {
@@ -126,7 +128,7 @@ where
 
                                     if !submessages.is_empty() {
                                         let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes =
-                                                    reliable_behavior.reader_proxy.reader_proxy_attributes;
+                                            reliable_behavior.reader_proxy.reader_proxy_attributes;
                                         destined_submessages
                                             .push((reader_proxy_attributes, submessages));
                                     }
@@ -146,11 +148,15 @@ where
         }
     }
 }
+
 impl<T> Communication<T>
 where
     T: TransportRead,
 {
-    pub fn receive(&mut self, list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
+    pub fn receive(
+        &mut self,
+        list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>],
+    ) {
         if let Some((source_locator, message)) = self.transport.read() {
             MessageReceiver::new().process_message(
                 self.guid_prefix,

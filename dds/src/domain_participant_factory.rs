@@ -75,7 +75,10 @@ use socket2::Socket;
 
 use crate::{
     communication::Communication,
-    tasks::{task_sedp_writer_discovery, task_sedp_reader_discovery, task_spdp_discovery, Executor, Spawner},
+    tasks::{
+        task_sedp_reader_discovery, task_sedp_writer_discovery, task_spdp_discovery, Executor,
+        Spawner,
+    },
     udp_transport::UdpTransport,
 };
 
@@ -287,93 +290,37 @@ impl DomainParticipantFactory {
             (Executor { receiver }, Spawner::new(sender))
         };
 
+        // //////////// SPDP Communication
+
+        // ////////////// SPDP participant discovery
         {
-            let builtin_unicast_transport = UdpTransport::new(
-                get_builtin_unicast_socket(domain_id as u16, participant_id as u16).unwrap()
-            );
             let mut communication = Communication {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: builtin_unicast_transport,
+                transport: UdpTransport::new(
+                    get_builtin_multicast_socket(domain_id as u16).unwrap(),
+                ),
             };
 
             let domain_participant = domain_participant.clone();
             spawner.spawn_enabled_periodic_task(
-                "builtin sedp communication",
+                "builtin multicast communication",
                 move || {
-                    let builtin_publisher = &domain_participant.read_lock().builtin_publisher;
-                    let builtin_subscriber = &domain_participant.read_lock().builtin_subscriber;
-
-                    if let (Some(builtin_publisher), Some(builtin_subscriber)) =
-                        (builtin_publisher, builtin_subscriber)
+                    if let Some(builtin_participant_subscriber) =
+                        &domain_participant.read_lock().builtin_subscriber
                     {
-                        communication.send(core::slice::from_ref(builtin_publisher));
-                        communication.receive(core::slice::from_ref(builtin_subscriber));
+                        communication
+                            .receive(core::slice::from_ref(builtin_participant_subscriber));
+                    } else {
+                        println!("/!\\ Participant has no builtin subscriber");
                     }
                 },
                 std::time::Duration::from_millis(500),
             );
         }
 
-        {
-            let builtin_multicast_transport = UdpTransport::new(
-                get_builtin_multicast_socket(domain_id as u16).unwrap()
-            );
-            let mut communication = Communication {
-                version: PROTOCOLVERSION,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix,
-                transport: builtin_multicast_transport,
-            };
-
-            let domain_participant = domain_participant.clone();
-            spawner.spawn_enabled_periodic_task(
-                "builtin spdp communication",
-                move || {
-                    let builtin_subscriber = &domain_participant.read_lock().builtin_subscriber;
-
-                    if let Some(builtin_subscriber) = builtin_subscriber
-                    {
-                        communication.receive(core::slice::from_ref(builtin_subscriber));
-                    }
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
-
-        {
-            let user_unicast_transport = UdpTransport::new(
-                get_user_defined_unicast_socket(domain_id as u16, participant_id as u16).unwrap()
-            );
-            let mut communication = Communication {
-                version: PROTOCOLVERSION,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix,
-                transport: user_unicast_transport,
-            };
-
-            let domain_participant = domain_participant.clone();
-            spawner.spawn_enabled_periodic_task(
-                "user-defined communication",
-                move || {
-                    communication.send(
-                        domain_participant
-                            .read_lock()
-                            .user_defined_publisher_list
-                            .as_ref(),
-                    );
-                    communication.receive(
-                        domain_participant
-                            .read_lock()
-                            .user_defined_subscriber_list
-                            .as_ref(),
-                    );
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
-
+        // ////////////// SPDP builtin endpoint configuration
         {
             let domain_participant = domain_participant.clone();
 
@@ -396,29 +343,40 @@ impl DomainParticipantFactory {
                 );
 
                 let participant_topic = participant_proxy
-                    .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT).ok()?;
+                    .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+                    .ok()?;
                 let publication_topic = participant_proxy
-                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION).ok()?;
+                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)
+                    .ok()?;
                 let subscription_topic = participant_proxy
-                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION).ok()?;
-                let topic_topic =
-                    participant_proxy.lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC).ok()?;
+                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)
+                    .ok()?;
+                let topic_topic = participant_proxy
+                    .lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC)
+                    .ok()?;
 
-                let mut builtin_participant_data_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&participant_topic).ok()?;
+                let mut builtin_participant_data_reader = builtin_subscriber
+                    .datareader_factory_lookup_datareader(&participant_topic)
+                    .ok()?;
 
-                let builtin_publication_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic).ok()?;
-                let builtin_subscription_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic).ok()?;
-                let builtin_topic_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&topic_topic).ok()?;
-                let builtin_publication_writer =
-                    builtin_publisher.datawriter_factory_lookup_datawriter(&publication_topic).ok()?;
-                let builtin_subscription_writer =
-                    builtin_publisher.datawriter_factory_lookup_datawriter(&subscription_topic).ok()?;
-                let builtin_topic_writer =
-                    builtin_publisher.datawriter_factory_lookup_datawriter(&topic_topic).ok()?;
+                let builtin_publication_reader = builtin_subscriber
+                    .datareader_factory_lookup_datareader(&publication_topic)
+                    .ok()?;
+                let builtin_subscription_reader = builtin_subscriber
+                    .datareader_factory_lookup_datareader(&subscription_topic)
+                    .ok()?;
+                let builtin_topic_reader = builtin_subscriber
+                    .datareader_factory_lookup_datareader(&topic_topic)
+                    .ok()?;
+                let builtin_publication_writer = builtin_publisher
+                    .datawriter_factory_lookup_datawriter(&publication_topic)
+                    .ok()?;
+                let builtin_subscription_writer = builtin_publisher
+                    .datawriter_factory_lookup_datawriter(&subscription_topic)
+                    .ok()?;
+                let builtin_topic_writer = builtin_publisher
+                    .datawriter_factory_lookup_datawriter(&topic_topic)
+                    .ok()?;
 
                 task_spdp_discovery(
                     &mut builtin_participant_data_reader,
@@ -478,12 +436,135 @@ impl DomainParticipantFactory {
             };
 
             spawner.spawn_enabled_periodic_task(
-                "spdp discovery",
+                "spdp endpoint configuration",
                 move || {
                     match try_perform_task() {
                         Some(()) => (),
                         None     => println!("spdp discovery failed (domain participant might not be fully constructed yet)")
                     }
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // //////////// Unicast Communication
+        {
+            let mut communication = Communication {
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix,
+                transport: UdpTransport::new(
+                    get_builtin_unicast_socket(domain_id as u16, participant_id as u16).unwrap(),
+                ),
+            };
+
+            let domain_participant = domain_participant.clone();
+            spawner.spawn_enabled_periodic_task(
+                "builtin unicast communication",
+                move || {
+                    if let Some(builtin_publisher) =
+                        &domain_participant.read_lock().builtin_publisher
+                    {
+                        communication.send(core::slice::from_ref(builtin_publisher));
+                    } else {
+                        println!("/!\\ Participant has no builtin publisher");
+                    }
+
+                    if let Some(builtin_subscriber) =
+                        &domain_participant.read_lock().builtin_subscriber
+                    {
+                        communication.receive(core::slice::from_ref(builtin_subscriber));
+                    } else {
+                        println!("/!\\ Participant has no builtin subscriber");
+                    }
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // ////////////// SEDP user-defined endpoint configuration
+        {
+            let domain_participant = domain_participant.clone();
+
+            let try_perform_task = move || -> Option<()> {
+                let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
+                let builtin_subscriber = SubscriberProxy::new(
+                    participant_proxy.clone(),
+                    domain_participant
+                        .read_lock()
+                        .builtin_subscriber
+                        .as_ref()?
+                        .downgrade(),
+                );
+
+                let publication_topic = participant_proxy
+                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)
+                    .ok()?;
+                let mut builtin_publication_reader = builtin_subscriber
+                    .datareader_factory_lookup_datareader(&publication_topic)
+                    .ok()?;
+
+                let subscription_topic = participant_proxy
+                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)
+                    .ok()?;
+                let mut builtin_subscription_reader = builtin_subscriber
+                    .datareader_factory_lookup_datareader(&subscription_topic)
+                    .ok()?;
+
+                task_sedp_writer_discovery(
+                    &mut builtin_publication_reader,
+                    &domain_participant.read_lock().user_defined_subscriber_list,
+                );
+
+                task_sedp_reader_discovery(
+                    &mut builtin_subscription_reader,
+                    &domain_participant.read_lock().user_defined_publisher_list,
+                );
+
+                Some(())
+            };
+
+            spawner.spawn_enabled_periodic_task(
+                "sedp user endpoint configuration",
+                move || {
+                    match try_perform_task() {
+                        Some(()) => (),
+                        None     => println!("sedp discovery failed (domain participant might not be fully constructed yet)")
+                    }
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // //////////// User-defined Communication
+        {
+            let mut communication = Communication {
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix,
+                transport: UdpTransport::new(
+                    get_user_defined_unicast_socket(domain_id as u16, participant_id as u16)
+                        .unwrap(),
+                ),
+            };
+
+            let domain_participant = domain_participant.clone();
+            spawner.spawn_enabled_periodic_task(
+                "user-defined communication",
+                move || {
+                    communication.send(
+                        domain_participant
+                            .read_lock()
+                            .user_defined_publisher_list
+                            .as_ref(),
+                    );
+
+                    communication.receive(
+                        domain_participant
+                            .read_lock()
+                            .user_defined_subscriber_list
+                            .as_ref(),
+                    );
                 },
                 std::time::Duration::from_millis(500),
             );
@@ -504,60 +585,7 @@ impl DomainParticipantFactory {
         //     );
         // }
 
-        {
-            let domain_participant = domain_participant.clone();
-
-            let try_perform_task = move || -> Option<()> {
-                let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
-                let builtin_subscriber = SubscriberProxy::new(
-                    participant_proxy.clone(),
-                    domain_participant
-                        .read_lock()
-                        .builtin_subscriber
-                        .as_ref()?
-                        .downgrade(),
-                );
-
-                let publication_topic = participant_proxy
-                    .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION).ok()?;
-                let mut builtin_publication_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&publication_topic).ok()?;
-
-                let subscription_topic = participant_proxy
-                    .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION).ok()?;
-                let mut builtin_subscription_reader =
-                    builtin_subscriber.datareader_factory_lookup_datareader(&subscription_topic).ok()?;
-
-                task_sedp_writer_discovery(
-                    &mut builtin_publication_reader,
-                    &domain_participant.read_lock().user_defined_subscriber_list,
-                );
-
-                task_sedp_reader_discovery(
-                    &mut builtin_subscription_reader,
-                    &domain_participant.read_lock().user_defined_publisher_list,
-                );
-
-                Some(())
-            };
-
-            spawner.spawn_enabled_periodic_task(
-                "sedp discovery",
-                move || {
-                    match try_perform_task() {
-                        Some(()) => (),
-                        None     => println!("sedp discovery failed (domain participant might not be fully constructed yet)")
-                    }
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
-
-        let spdp_discovered_participant_data =
-            spdp_discovered_participant_data_from_domain_participant(
-                &domain_participant.read_lock(),
-            );
-
+        // //////////// Announce participant
         let builtin_participant_data_writer = domain_participant
             .read_lock()
             .builtin_publisher
@@ -574,12 +602,18 @@ impl DomainParticipantFactory {
             ))?
             .clone();
 
+        let spdp_discovered_participant_data =
+            spdp_discovered_participant_data_from_domain_participant(
+                &domain_participant.read_lock(),
+            );
+
         DataWriterProxy::new(builtin_participant_data_writer.downgrade()).write_w_timestamp(
             &spdp_discovered_participant_data,
             None,
             Time { sec: 0, nanosec: 0 },
         )?;
 
+        // //////////// Start running tasks
         spawner.enable_tasks();
         executor.run();
 
@@ -747,7 +781,7 @@ fn create_builtins(
         builtin_subscriber
             .write_lock()
             .data_reader_list
-            .push(spdp_builtin_participant_data_reader.clone());
+            .push(spdp_builtin_participant_data_reader);
 
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
@@ -772,7 +806,7 @@ fn create_builtins(
         builtin_publisher
             .write_lock()
             .data_writer_list
-            .push(spdp_builtin_participant_data_writer.clone());
+            .push(spdp_builtin_participant_data_writer);
     }
 
     // ////////// SEDP built-in publication topic, reader and writer
@@ -903,8 +937,7 @@ mod tests {
     use std::net::SocketAddr;
 
     use rust_dds_api::{
-        dcps_psm::DomainId,
-        domain::domain_participant::DomainParticipant,
+        dcps_psm::DomainId, domain::domain_participant::DomainParticipant,
         infrastructure::qos::DomainParticipantQos,
         publication::publisher::PublisherDataWriterFactory,
         subscription::subscriber::SubscriberDataReaderFactory,
@@ -914,7 +947,7 @@ mod tests {
             sedp_discovered_reader_data::SedpDiscoveredReaderData,
             sedp_discovered_topic_data::SedpDiscoveredTopicData,
             sedp_discovered_writer_data::SedpDiscoveredWriterData,
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         dds_impl::{
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
@@ -926,7 +959,8 @@ mod tests {
     use rust_rtps_pim::structure::types::GuidPrefix;
 
     use super::{
-        create_builtins, DCPS_PARTICIPANT, DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC, get_builtin_multicast_socket, PB, d0,
+        create_builtins, d0, get_builtin_multicast_socket, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
+        DCPS_TOPIC, PB,
     };
 
     #[test]
@@ -937,9 +971,8 @@ mod tests {
         let socket2 = get_builtin_multicast_socket(0).unwrap();
         let socket3 = get_builtin_multicast_socket(0).unwrap();
 
-        socket1.send_to(&[1, 2, 3, 4], multicast_addr)
-            .unwrap();
-        
+        socket1.send_to(&[1, 2, 3, 4], multicast_addr).unwrap();
+
         // Everyone receives the data
         let mut buf = [0; 4];
         let (size, _) = socket1.recv_from(&mut buf).unwrap();
