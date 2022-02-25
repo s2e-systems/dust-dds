@@ -917,7 +917,7 @@ mod tests {
         domain::domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
         infrastructure::qos::DomainParticipantQos,
         publication::{data_writer::DataWriter, publisher::PublisherDataWriterFactory},
-        subscription::subscriber::SubscriberDataReaderFactory,
+        subscription::{data_reader::DataReader, subscriber::SubscriberDataReaderFactory},
     };
     use rust_dds_rtps_implementation::{
         data_representation_builtin_endpoints::{
@@ -935,16 +935,19 @@ mod tests {
         utils::shared_object::RtpsShared,
     };
     use rust_rtps_pim::structure::{
-        participant,
         types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E},
     };
 
-    use crate::{domain_participant_factory::{get_multicast_socket, port_builtin_multicast}, communication::Communication, udp_transport::UdpTransport};
+    use crate::{
+        communication::Communication,
+        domain_participant_factory::{get_multicast_socket, port_builtin_multicast},
+        udp_transport::UdpTransport,
+    };
 
     use super::{
-        create_builtins, d0, port_builtin_unicast,
+        create_builtins, d0, get_unicast_socket, port_builtin_unicast,
         spdp_discovered_participant_data_from_domain_participant, RtpsStructureImpl,
-        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC, MULTICAST_ADDRESS, PB, UNICAST_ADDRESS, get_unicast_socket,
+        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC, MULTICAST_ADDRESS, PB, UNICAST_ADDRESS,
     };
 
     #[test]
@@ -1051,9 +1054,11 @@ mod tests {
 
     #[test]
     fn test_spdp_send_receive() {
+        let guid_prefix = GuidPrefix([3; 12]);
+
         // ////////// Create 2 participants
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            GuidPrefix([3; 12]),
+            guid_prefix,
             0,
             0,
             "".to_string(),
@@ -1075,7 +1080,7 @@ mod tests {
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            GuidPrefix([3; 12]),
+            guid_prefix,
             0,
             1,
             "".to_string(),
@@ -1095,6 +1100,25 @@ mod tests {
         ));
         create_builtins(participant2.clone()).unwrap();
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
+        
+        // ////////// Create communications
+        let mut communication_p1 = Communication {
+            version: PROTOCOLVERSION,
+            vendor_id: VENDOR_ID_S2E,
+            guid_prefix: guid_prefix,
+            transport: UdpTransport::new(
+                get_unicast_socket(port_builtin_unicast(0, 0)).unwrap(),
+            ),
+        };
+
+        let mut communication_p2 = Communication {
+            version: PROTOCOLVERSION,
+            vendor_id: VENDOR_ID_S2E,
+            guid_prefix,
+            transport: UdpTransport::new(
+                get_multicast_socket(port_builtin_multicast(0)).unwrap(),
+            ),
+        };
 
         // ////////// Participant 1 sends discovered participant data
         {
@@ -1128,15 +1152,40 @@ mod tests {
                 )
                 .unwrap();
 
-            let mut communication = Communication {
-                version: PROTOCOLVERSION,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix: GuidPrefix([3; 12]),
-                transport: UdpTransport::new(
-                    get_unicast_socket(port_builtin_unicast(0, 0)).unwrap(),
-                ),
-            };
-            communication.send(&[publisher.as_ref().upgrade().unwrap()]);
+            communication_p1.send(&[publisher.as_ref().upgrade().unwrap()]);
         }
+
+        // ////////// Participant 2 receives discovered participant data
+        let spdp_discovered_participant_data = {
+            let subscriber = SubscriberProxy::new(
+                participant2_proxy.clone(),
+                participant2
+                    .read_lock()
+                    .builtin_subscriber
+                    .as_ref()
+                    .unwrap()
+                    .downgrade(),
+            );
+
+            communication_p2.receive(&[subscriber.as_ref().upgrade().unwrap()]);
+
+            let participant_topic: TopicProxy<SpdpDiscoveredParticipantData, _> =
+                participant2_proxy
+                    .topic_factory_lookup_topicdescription(DCPS_PARTICIPANT)
+                    .unwrap();
+            let mut participant2_builtin_participant_data_reader = subscriber
+                .datareader_factory_lookup_datareader(&participant_topic)
+                .unwrap();
+
+            &participant2_builtin_participant_data_reader
+                .read(1, &[], &[], &[])
+                .unwrap()[0]
+        };
+
+        // ////////// Check that the received data is correct
+        assert_eq!(
+            spdp_discovered_participant_data,
+            &spdp_discovered_participant_data_from_domain_participant(&participant1.read_lock()),
+        );
     }
 }
