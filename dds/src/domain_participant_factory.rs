@@ -216,11 +216,7 @@ impl DomainParticipantFactory {
                 port_builtin_multicast(domain_id as u16) as u32,
                 MULTICAST_ADDRESS,
             )],
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_builtin_unicast(domain_id as u16, participant_id as u16) as u32,
-                UNICAST_ADDRESS,
-            )],
+            vec![],
             vec![],
         ));
 
