@@ -1054,18 +1054,19 @@ mod tests {
 
     #[test]
     fn test_spdp_send_receive() {
+        let domain_id = 8;
         let guid_prefix = GuidPrefix([3; 12]);
 
         // ////////// Create 2 participants
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             guid_prefix,
-            0,
+            domain_id,
             0,
             "".to_string(),
             DomainParticipantQos::default(),
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
-                port_builtin_unicast(0, 0) as u32,
+                port_builtin_unicast(domain_id as u16, 0) as u32,
                 UNICAST_ADDRESS,
             )],
             vec![Locator::new(
@@ -1081,13 +1082,13 @@ mod tests {
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             guid_prefix,
-            0,
+            domain_id,
             1,
             "".to_string(),
             DomainParticipantQos::default(),
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
-                port_builtin_unicast(0, 1) as u32,
+                port_builtin_unicast(domain_id as u16, 1) as u32,
                 UNICAST_ADDRESS,
             )],
             vec![Locator::new(
@@ -1101,13 +1102,12 @@ mod tests {
         create_builtins(participant2.clone()).unwrap();
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
         
-        // ////////// Create communications
         let mut communication_p1 = Communication {
             version: PROTOCOLVERSION,
             vendor_id: VENDOR_ID_S2E,
             guid_prefix: guid_prefix,
             transport: UdpTransport::new(
-                get_unicast_socket(port_builtin_unicast(0, 0)).unwrap(),
+                get_unicast_socket(port_builtin_unicast(domain_id as u16, 0)).unwrap(),
             ),
         };
 
@@ -1116,7 +1116,7 @@ mod tests {
             vendor_id: VENDOR_ID_S2E,
             guid_prefix,
             transport: UdpTransport::new(
-                get_multicast_socket(port_builtin_multicast(0)).unwrap(),
+                get_multicast_socket(port_builtin_multicast(domain_id as u16)).unwrap(),
             ),
         };
 
@@ -1182,7 +1182,6 @@ mod tests {
                 .unwrap()[0]
         };
 
-        // ////////// Check that the received data is correct
         assert_eq!(
             spdp_discovered_participant_data,
             &spdp_discovered_participant_data_from_domain_participant(&participant1.read_lock()),
