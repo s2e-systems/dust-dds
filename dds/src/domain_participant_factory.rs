@@ -220,7 +220,7 @@ impl DomainParticipantFactory {
             vec![],
         ));
 
-        create_builtins(guid_prefix, domain_participant.clone())?;
+        create_builtins(domain_participant.clone())?;
 
         if qos.entity_factory.autoenable_created_entities {
             self.enable(domain_participant.clone())?;
@@ -695,9 +695,14 @@ where
 }
 
 fn create_builtins(
-    guid_prefix: GuidPrefix,
     domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
 ) -> DDSResult<()> {
+    let guid_prefix = domain_participant
+        .read_lock()
+        .rtps_participant
+        .guid()
+        .prefix;
+
     // ///////// Create the built-in publisher and subcriber
 
     let builtin_subscriber = RtpsShared::new(SubscriberAttributes::new(
@@ -904,9 +909,10 @@ mod tests {
     use std::net::SocketAddr;
 
     use rust_dds_api::{
-        dcps_psm::DomainId, domain::domain_participant::DomainParticipant,
+        dcps_psm::{DomainId, Time},
+        domain::domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
         infrastructure::qos::DomainParticipantQos,
-        publication::publisher::PublisherDataWriterFactory,
+        publication::{data_writer::DataWriter, publisher::PublisherDataWriterFactory},
         subscription::subscriber::SubscriberDataReaderFactory,
     };
     use rust_dds_rtps_implementation::{
@@ -920,16 +926,21 @@ mod tests {
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
             publisher_proxy::PublisherProxy,
             subscriber_proxy::SubscriberProxy,
+            topic_proxy::TopicProxy,
         },
         utils::shared_object::RtpsShared,
     };
-    use rust_rtps_pim::structure::types::GuidPrefix;
+    use rust_rtps_pim::structure::{
+        participant,
+        types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E},
+    };
 
-    use crate::domain_participant_factory::{port_builtin_multicast, get_multicast_socket};
+    use crate::{domain_participant_factory::{get_multicast_socket, port_builtin_multicast}, communication::Communication, udp_transport::UdpTransport};
 
     use super::{
-        create_builtins, d0, DCPS_PUBLICATION, DCPS_SUBSCRIPTION,
-        DCPS_TOPIC, PB,
+        create_builtins, d0, port_builtin_unicast,
+        spdp_discovered_participant_data_from_domain_participant, RtpsStructureImpl,
+        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC, MULTICAST_ADDRESS, PB, UNICAST_ADDRESS, get_unicast_socket,
     };
 
     #[test]
@@ -972,7 +983,7 @@ mod tests {
             vec![],
         ));
 
-        create_builtins(guid_prefix, domain_participant.clone()).unwrap();
+        create_builtins(domain_participant.clone()).unwrap();
 
         let participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
@@ -1032,5 +1043,96 @@ mod tests {
         assert!(builtin_publisher
             .datawriter_factory_lookup_datawriter(&topic_topic)
             .is_ok());
+    }
+
+    #[test]
+    fn test_spdp_send_receive() {
+        // ////////// Create 2 participants
+        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            GuidPrefix([3; 12]),
+            0,
+            0,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_builtin_unicast(0, 0) as u32,
+                UNICAST_ADDRESS,
+            )],
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_builtin_multicast(0) as u32,
+                MULTICAST_ADDRESS,
+            )],
+            vec![],
+            vec![],
+        ));
+        create_builtins(participant1.clone()).unwrap();
+        let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
+
+        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            GuidPrefix([3; 12]),
+            0,
+            1,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_builtin_unicast(0, 1) as u32,
+                UNICAST_ADDRESS,
+            )],
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_builtin_multicast(0) as u32,
+                MULTICAST_ADDRESS,
+            )],
+            vec![],
+            vec![],
+        ));
+        create_builtins(participant2.clone()).unwrap();
+        let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
+
+        // ////////// Participant 1 sends discovered participant data
+        {
+            let publisher = PublisherProxy::new(
+                participant1
+                    .read_lock()
+                    .builtin_publisher
+                    .as_ref()
+                    .unwrap()
+                    .downgrade(),
+            );
+
+            let mut participant1_builtin_participant_writer = {
+                let participant_topic: TopicProxy<SpdpDiscoveredParticipantData, _> =
+                    participant1_proxy
+                        .topic_factory_lookup_topicdescription(DCPS_PARTICIPANT)
+                        .unwrap();
+
+                publisher
+                    .datawriter_factory_lookup_datawriter(&participant_topic)
+                    .unwrap()
+            };
+
+            participant1_builtin_participant_writer
+                .write_w_timestamp(
+                    &spdp_discovered_participant_data_from_domain_participant(
+                        &participant1.read_lock(),
+                    ),
+                    None,
+                    Time { sec: 0, nanosec: 0 },
+                )
+                .unwrap();
+
+            let mut communication = Communication {
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix: GuidPrefix([3; 12]),
+                transport: UdpTransport::new(
+                    get_unicast_socket(port_builtin_unicast(0, 0)).unwrap(),
+                ),
+            };
+            communication.send(&[publisher.as_ref().upgrade().unwrap()]);
+        }
     }
 }
