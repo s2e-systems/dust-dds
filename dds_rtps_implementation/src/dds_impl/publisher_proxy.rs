@@ -221,14 +221,16 @@ where
 
         // /////// Announce the data writer creation
         {
-            let domain_participant = publisher_shared
-                .read_lock()
-                .parent_participant
-                .upgrade()?;
+            let domain_participant = publisher_shared.read_lock().parent_participant.upgrade()?;
             let domain_participant_proxy =
                 DomainParticipantProxy::new(domain_participant.downgrade());
-            let builtin_publisher = domain_participant.read_lock().builtin_publisher.clone()
-                .ok_or(DDSError::PreconditionNotMet("No builtin publisher".to_string()))?;
+            let builtin_publisher = domain_participant
+                .read_lock()
+                .builtin_publisher
+                .clone()
+                .ok_or(DDSError::PreconditionNotMet(
+                    "No builtin publisher".to_string(),
+                ))?;
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
             let publication_topic =
@@ -237,6 +239,8 @@ where
             let mut sedp_builtin_publications_announcer =
                 builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)?;
 
+            // let domain_id = domain_participant.read_lock().domain_id;
+            // let participant_id = domain_participant.read_lock().participant_id;
             let sedp_discovered_writer_data = SedpDiscoveredWriterData {
                 writer_proxy: RtpsWriterProxy {
                     remote_writer_guid: guid,
@@ -315,18 +319,21 @@ where
         let topic_shared = topic.as_ref().upgrade()?;
         let topic = topic_shared.read_lock();
 
-        data_writer_list.iter().find_map(|data_writer_shared| {
-            let data_writer_lock = data_writer_shared.read_lock();
-            let data_writer_topic = data_writer_lock.topic.read_lock();
+        data_writer_list
+            .iter()
+            .find_map(|data_writer_shared| {
+                let data_writer_lock = data_writer_shared.read_lock();
+                let data_writer_topic = data_writer_lock.topic.read_lock();
 
-            if data_writer_topic.topic_name == topic.topic_name
-                && data_writer_topic.type_name == Foo::type_name()
-            {
-                Some(DataWriterProxy::new(data_writer_shared.downgrade()))
-            } else {
-                None
-            }
-        }).ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
+                if data_writer_topic.topic_name == topic.topic_name
+                    && data_writer_topic.type_name == Foo::type_name()
+                {
+                    Some(DataWriterProxy::new(data_writer_shared.downgrade()))
+                } else {
+                    None
+                }
+            })
+            .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -628,6 +635,7 @@ mod tests {
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             GuidPrefix([0; 12]),
             DomainId::default(),
+            0,
             "".to_string(),
             DomainParticipantQos::default(),
             vec![],

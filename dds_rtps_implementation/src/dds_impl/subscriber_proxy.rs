@@ -256,6 +256,8 @@ where
             let mut sedp_builtin_subscription_announcer = builtin_publisher_proxy
                 .datawriter_factory_lookup_datawriter(&subscription_topic)?;
 
+            // let domain_id = domain_participant.read_lock().domain_id;
+            // let participant_id = domain_participant.read_lock().participant_id;
             let sedp_discovered_reader_data = SedpDiscoveredReaderData {
                 reader_proxy: RtpsReaderProxy {
                     remote_reader_guid: guid,
@@ -656,6 +658,7 @@ mod tests {
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             GuidPrefix([0; 12]),
             DomainId::default(),
+            0,
             "".to_string(),
             DomainParticipantQos::default(),
             vec![],
