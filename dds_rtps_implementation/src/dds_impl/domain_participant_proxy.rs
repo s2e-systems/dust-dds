@@ -28,7 +28,7 @@ use rust_rtps_pim::{
         entity::RtpsEntityAttributes,
         group::RtpsGroupConstructor,
         history_cache::RtpsHistoryCacheOperations,
-        participant::RtpsParticipantConstructor,
+        participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
         types::{
             EntityId, Guid, GuidPrefix, Locator, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
             USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
@@ -164,6 +164,7 @@ where
 
     Rtps: RtpsStructure,
     Rtps::Group: RtpsEntityAttributes,
+    Rtps::Participant: RtpsParticipantAttributes,
     Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes,
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
@@ -208,8 +209,13 @@ where
         {
             let domain_participant_proxy =
                 DomainParticipantProxy::new(participant_shared.downgrade());
-            let builtin_publisher = participant_shared.read_lock().builtin_publisher.clone()
-                .ok_or(DDSError::PreconditionNotMet("No builtin publisher".to_string()))?;
+            let builtin_publisher = participant_shared
+                .read_lock()
+                .builtin_publisher
+                .clone()
+                .ok_or(DDSError::PreconditionNotMet(
+                    "No builtin publisher".to_string(),
+                ))?;
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
             let topic_creation_topic =
@@ -291,7 +297,10 @@ where
             .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
     }
 
-    fn topic_factory_lookup_topicdescription(&self, topic_name: &str) -> DDSResult<Self::TopicType> {
+    fn topic_factory_lookup_topicdescription(
+        &self,
+        topic_name: &str,
+    ) -> DDSResult<Self::TopicType> {
         self.domain_participant
             .upgrade()?
             .read_lock()
@@ -305,7 +314,8 @@ where
                 } else {
                     None
                 }
-            }).ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
+            })
+            .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -412,7 +422,8 @@ where
             entity_id,
         );
         let rtps_group = Rtps::Group::new(guid);
-        let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, self.domain_participant.clone());
+        let subscriber =
+            SubscriberAttributes::new(subscriber_qos, rtps_group, self.domain_participant.clone());
         let subscriber_shared = RtpsShared::new(subscriber);
         domain_participant_attributes_lock
             .user_defined_subscriber_list
@@ -684,7 +695,7 @@ mod tests {
         structure::{
             entity::RtpsEntityAttributes,
             history_cache::RtpsHistoryCacheOperations,
-            participant::RtpsParticipantConstructor,
+            participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
             types::{
                 ChangeKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind,
                 GUID_UNKNOWN,
@@ -719,6 +730,7 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Copy)]
     struct EmptyHistoryCache {}
     impl RtpsHistoryCacheOperations for EmptyHistoryCache {
         type CacheChangeType = ();
@@ -746,14 +758,32 @@ mod tests {
         }
     }
 
+    impl RtpsEntityAttributes for EmptyParticipant {
+        fn guid(&self) -> &Guid {
+            todo!()
+        }
+    }
+
+    impl RtpsParticipantAttributes for EmptyParticipant {
+        fn protocol_version(&self) -> &rust_rtps_pim::structure::types::ProtocolVersion {
+            todo!()
+        }
+
+        fn vendor_id(&self) -> &rust_rtps_pim::structure::types::VendorId {
+            todo!()
+        }
+
+        fn default_unicast_locator_list(&self) -> &[Locator] {
+            &[]
+        }
+
+        fn default_multicast_locator_list(&self) -> &[Locator] {
+            todo!()
+        }
+    }
+
     struct EmptyWriter {
-        push_mode: bool,
-        heartbeat_period: rust_rtps_pim::behavior::types::Duration,
-        nack_response_delay: rust_rtps_pim::behavior::types::Duration,
-        nack_suppression_duration: rust_rtps_pim::behavior::types::Duration,
-        last_change_sequence_number: SequenceNumber,
-        data_max_serialized: Option<i32>,
-        writer_cache: EmptyHistoryCache,
+        history_cache: EmptyHistoryCache,
     }
     impl RtpsWriterOperations for EmptyWriter {
         type DataType = Vec<u8>;
@@ -774,25 +804,31 @@ mod tests {
         type WriterHistoryCacheType = EmptyHistoryCache;
 
         fn push_mode(&self) -> &bool {
-            &self.push_mode
+            todo!()
         }
+
         fn heartbeat_period(&self) -> &rust_rtps_pim::behavior::types::Duration {
-            &self.heartbeat_period
+            todo!()
         }
+
         fn nack_response_delay(&self) -> &rust_rtps_pim::behavior::types::Duration {
-            &self.nack_response_delay
+            todo!()
         }
+
         fn nack_suppression_duration(&self) -> &rust_rtps_pim::behavior::types::Duration {
-            &self.nack_suppression_duration
+            todo!()
         }
+
         fn last_change_sequence_number(&self) -> &SequenceNumber {
-            &self.last_change_sequence_number
+            todo!()
         }
+
         fn data_max_size_serialized(&self) -> &Option<i32> {
-            &self.data_max_serialized
+            todo!()
         }
-        fn writer_cache(&mut self) -> &mut EmptyHistoryCache {
-            &mut self.writer_cache
+
+        fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType {
+            &mut self.history_cache
         }
     }
     impl RtpsStatefulWriterConstructor for EmptyWriter {
@@ -809,13 +845,7 @@ mod tests {
             _data_max_size_serialized: Option<i32>,
         ) -> Self {
             EmptyWriter {
-                push_mode: false,
-                heartbeat_period: rust_rtps_pim::behavior::types::Duration::new(0, 0),
-                nack_response_delay: rust_rtps_pim::behavior::types::Duration::new(0, 0),
-                nack_suppression_duration: rust_rtps_pim::behavior::types::Duration::new(0, 0),
-                last_change_sequence_number: SequenceNumber::default(),
-                data_max_serialized: None,
-                writer_cache: EmptyHistoryCache {},
+                history_cache: EmptyHistoryCache {},
             }
         }
     }
@@ -1003,7 +1033,8 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
+                as DDSResult<Topic>)
                 .is_err()
         );
     }
@@ -1020,7 +1051,8 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
+                as DDSResult<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1044,7 +1076,8 @@ mod tests {
             .unwrap() as TopicBar;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<TopicFoo>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
+                as DDSResult<TopicFoo>)
                 .is_err()
         );
     }
@@ -1061,7 +1094,8 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
+                as DDSResult<Topic>)
                 .is_err()
         );
     }
@@ -1082,7 +1116,8 @@ mod tests {
             .unwrap() as TopicBar;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<TopicFoo>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
+                as DDSResult<TopicFoo>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1091,7 +1126,8 @@ mod tests {
         );
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic") as DDSResult<TopicBar>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
+                as DDSResult<TopicBar>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1115,7 +1151,8 @@ mod tests {
             .unwrap() as Topic;
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic1") as DDSResult<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic1")
+                as DDSResult<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -1124,7 +1161,8 @@ mod tests {
         );
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic2") as DDSResult<Topic>)
+            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic2")
+                as DDSResult<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
