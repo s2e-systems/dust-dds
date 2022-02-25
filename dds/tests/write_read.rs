@@ -1,10 +1,39 @@
-use std::net::{UdpSocket, SocketAddr};
+use std::net::{SocketAddr, UdpSocket};
 
-use rust_dds::{domain_participant_factory::{DomainParticipantFactory, port_user_unicast}, infrastructure::{qos::{DomainParticipantQos, DataReaderQos}, entity::Entity, qos_policy::{ReliabilityQosPolicyKind}}, domain::domain_participant::DomainParticipant, publication::{publisher::Publisher, data_writer::DataWriter}, subscription::{subscriber::Subscriber, data_reader::DataReader}, types::Time, udp_transport::UdpTransport, communication::Communication};
-use rust_dds_rtps_implementation::{dds_type::{DdsSerialize, DdsType, DdsDeserialize}, rtps_impl::{rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl}};
-use rust_rtps_pim::{structure::{types::{PROTOCOLVERSION, VENDOR_ID_S2E, GuidPrefix, Locator, LOCATOR_KIND_UDPv4}, entity::RtpsEntityAttributes, endpoint::RtpsEndpointAttributes}, behavior::{reader::{writer_proxy::RtpsWriterProxyConstructor
-    , reader::RtpsReaderAttributes, stateful_reader::RtpsStatefulReaderOperations}, writer::{writer::RtpsWriterAttributes, stateful_writer::RtpsStatefulWriterOperations}}};
+use rust_dds::{
+    communication::Communication,
+    domain::domain_participant::DomainParticipant,
+    domain_participant_factory::{port_user_unicast, DomainParticipantFactory},
+    infrastructure::{
+        qos::{DataReaderQos, DomainParticipantQos},
+        qos_policy::ReliabilityQosPolicyKind,
+    },
+    publication::{data_writer::DataWriter, publisher::Publisher},
+    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    types::Time,
+    udp_transport::UdpTransport,
+};
+use rust_dds_rtps_implementation::{
+    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
+    rtps_impl::{
+        rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
+        rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    },
+};
 use rust_rtps_pim::behavior::writer::reader_proxy::RtpsReaderProxyConstructor;
+use rust_rtps_pim::{
+    behavior::{
+        reader::{
+            reader::RtpsReaderAttributes, stateful_reader::RtpsStatefulReaderOperations,
+            writer_proxy::RtpsWriterProxyConstructor,
+        },
+        writer::{stateful_writer::RtpsStatefulWriterOperations, writer::RtpsWriterAttributes},
+    },
+    structure::{
+        entity::RtpsEntityAttributes,
+        types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E},
+    },
+};
 
 struct MyType {}
 
@@ -58,7 +87,9 @@ fn user_defined_write_read() {
     let mut reader_qos = DataReaderQos::default();
     reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let mut reader = subscriber.create_datareader(&topic, Some(reader_qos), None, 0).unwrap();
+    let mut reader = subscriber
+        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .unwrap();
 
     {
         let rtps_writer_shared = writer.as_ref().upgrade().unwrap();
@@ -99,17 +130,14 @@ fn user_defined_write_read() {
     writer
         .write_w_timestamp(&MyType {}, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
-        
+
     let mut communication1 = Communication {
         version: PROTOCOLVERSION,
         vendor_id: VENDOR_ID_S2E,
         guid_prefix: GuidPrefix([3; 12]),
-        transport: UdpTransport::new(UdpSocket::bind(
-            SocketAddr::from((
-                [127, 0, 0, 1],
-                port_user_unicast(0, 0)
-            ))
-        ).unwrap()),
+        transport: UdpTransport::new(
+            UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], port_user_unicast(0, 0)))).unwrap(),
+        ),
     };
 
     let mut communication2 = Communication {
@@ -117,12 +145,8 @@ fn user_defined_write_read() {
         vendor_id: VENDOR_ID_S2E,
         guid_prefix: GuidPrefix([3; 12]),
         transport: UdpTransport::new(
-            UdpSocket::bind(
-                SocketAddr::from((
-                    [127, 0, 0, 1],
-                    port_user_unicast(0, 1)
-                ))
-            ).unwrap()),
+            UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], port_user_unicast(0, 1)))).unwrap(),
+        ),
     };
 
     communication1.send(&[publisher.as_ref().upgrade().unwrap()]);
