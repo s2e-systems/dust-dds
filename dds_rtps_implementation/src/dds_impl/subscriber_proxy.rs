@@ -38,7 +38,7 @@ use rust_rtps_pim::{
         history_cache::RtpsHistoryCacheOperations,
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-            USER_DEFINED_WRITER_WITH_KEY, Locator, LOCATOR_KIND_UDPv4,
+            USER_DEFINED_WRITER_WITH_KEY,
         },
     },
 };
@@ -57,7 +57,7 @@ use crate::{
 use super::{
     data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader},
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
-    publisher_proxy::{PublisherProxy, port_user_unicast},
+    publisher_proxy::PublisherProxy,
     topic_proxy::TopicProxy,
 };
 
@@ -256,17 +256,13 @@ where
             let mut sedp_builtin_subscription_announcer = builtin_publisher_proxy
                 .datawriter_factory_lookup_datawriter(&subscription_topic)?;
 
-            let domain_id = domain_participant.read_lock().domain_id;
-            let participant_id = domain_participant.read_lock().participant_id;
+            // let domain_id = domain_participant.read_lock().domain_id;
+            // let participant_id = domain_participant.read_lock().participant_id;
             let sedp_discovered_reader_data = SedpDiscoveredReaderData {
                 reader_proxy: RtpsReaderProxy {
                     remote_reader_guid: guid,
                     remote_group_entity_id: entity_id,
-                    unicast_locator_list: vec![Locator::new(
-                        LOCATOR_KIND_UDPv4,
-                        port_user_unicast(domain_id as u16, participant_id as u16) as u32,
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-                    )],
+                    unicast_locator_list: vec![],
                     multicast_locator_list: vec![],
                     expects_inline_qos: false,
                 },
