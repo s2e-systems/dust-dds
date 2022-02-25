@@ -43,12 +43,10 @@ fn user_defined_write_read() {
     let participant1 = participant_factory
         .create_participant(0, Some(qos.clone()), None, 0)
         .unwrap();
-    participant1.enable().unwrap();
 
     let participant2 = participant_factory
         .create_participant(0, Some(qos.clone()), None, 0)
         .unwrap();
-    participant2.enable().unwrap();
 
     let topic = participant1
         .create_topic::<MyType>("MyTopic", None, None, 0)
@@ -73,7 +71,7 @@ fn user_defined_write_read() {
                 port_user_unicast(0, 0) as u32,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
             )],
-            stateful_writer.multicast_locator_list(),
+            &[],
             stateful_writer.data_max_size_serialized().clone(),
             stateful_writer.guid().entity_id,
         );
@@ -89,7 +87,7 @@ fn user_defined_write_read() {
                 port_user_unicast(0, 1) as u32,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
             )],
-            stateful_reader.multicast_locator_list(),
+            &[],
             *stateful_reader.expects_inline_qos(),
             true,
         );
