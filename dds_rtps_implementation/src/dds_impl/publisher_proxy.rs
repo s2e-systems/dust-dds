@@ -32,6 +32,7 @@ use rust_rtps_pim::{
     structure::{
         entity::RtpsEntityAttributes,
         history_cache::RtpsHistoryCacheOperations,
+        participant::RtpsParticipantAttributes,
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
@@ -117,6 +118,7 @@ where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
     Rtps: RtpsStructure,
     Rtps::Group: RtpsEntityAttributes,
+    Rtps::Participant: RtpsParticipantAttributes,
     Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes,
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
@@ -239,12 +241,14 @@ where
             let mut sedp_builtin_publications_announcer =
                 builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)?;
 
-            // let domain_id = domain_participant.read_lock().domain_id;
-            // let participant_id = domain_participant.read_lock().participant_id;
             let sedp_discovered_writer_data = SedpDiscoveredWriterData {
                 writer_proxy: RtpsWriterProxy {
                     remote_writer_guid: guid,
-                    unicast_locator_list: vec![],
+                    unicast_locator_list: domain_participant
+                        .read_lock()
+                        .rtps_participant
+                        .default_unicast_locator_list()
+                        .to_vec(),
                     multicast_locator_list: vec![],
                     data_max_size_serialized: None,
                     remote_group_entity_id: EntityId::new([0; 3], 0),
@@ -478,7 +482,7 @@ mod tests {
         structure::{
             entity::RtpsEntityAttributes,
             history_cache::RtpsHistoryCacheOperations,
-            participant::RtpsParticipantConstructor,
+            participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
             types::{
                 ChangeKind, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind,
                 SequenceNumber, TopicKind, GUID_UNKNOWN,
@@ -612,6 +616,30 @@ mod tests {
             _default_multicast_locator_list: &[Locator],
         ) -> Self {
             EmptyParticipant {}
+        }
+    }
+
+    impl RtpsEntityAttributes for EmptyParticipant {
+        fn guid(&self) -> &Guid {
+            todo!()
+        }
+    }
+
+    impl RtpsParticipantAttributes for EmptyParticipant {
+        fn protocol_version(&self) -> &rust_rtps_pim::structure::types::ProtocolVersion {
+            todo!()
+        }
+
+        fn vendor_id(&self) -> &rust_rtps_pim::structure::types::VendorId {
+            todo!()
+        }
+
+        fn default_unicast_locator_list(&self) -> &[Locator] {
+            &[]
+        }
+
+        fn default_multicast_locator_list(&self) -> &[Locator] {
+            todo!()
         }
     }
 

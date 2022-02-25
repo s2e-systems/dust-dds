@@ -36,6 +36,7 @@ use rust_rtps_pim::{
     structure::{
         entity::RtpsEntityAttributes,
         history_cache::RtpsHistoryCacheOperations,
+        participant::RtpsParticipantAttributes,
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
@@ -131,6 +132,7 @@ where
     Foo: DdsType + for<'a> DdsDeserialize<'a> + Send + Sync + 'static,
     Rtps: RtpsStructure,
     Rtps::Group: RtpsEntityAttributes,
+    Rtps::Participant: RtpsParticipantAttributes,
     Rtps::StatefulReader: RtpsStatefulReaderConstructor,
     Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes,
@@ -246,12 +248,17 @@ where
                 .upgrade()?;
             let domain_participant_proxy =
                 DomainParticipantProxy::new(domain_participant.downgrade());
-            let builtin_publisher = domain_participant.read_lock().builtin_publisher.clone()
-                .ok_or(DDSError::PreconditionNotMet("No builtin publisher".to_string()))?;
+            let builtin_publisher = domain_participant
+                .read_lock()
+                .builtin_publisher
+                .clone()
+                .ok_or(DDSError::PreconditionNotMet(
+                    "No builtin publisher".to_string(),
+                ))?;
             let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
 
-            let subscription_topic =
-                domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_SUBSCRIPTION)?;
+            let subscription_topic = domain_participant_proxy
+                .topic_factory_lookup_topicdescription(DCPS_SUBSCRIPTION)?;
 
             let mut sedp_builtin_subscription_announcer = builtin_publisher_proxy
                 .datawriter_factory_lookup_datawriter(&subscription_topic)?;
@@ -262,7 +269,11 @@ where
                 reader_proxy: RtpsReaderProxy {
                     remote_reader_guid: guid,
                     remote_group_entity_id: entity_id,
-                    unicast_locator_list: vec![],
+                    unicast_locator_list: domain_participant
+                        .read_lock()
+                        .rtps_participant
+                        .default_unicast_locator_list()
+                        .to_vec(),
                     multicast_locator_list: vec![],
                     expects_inline_qos: false,
                 },
@@ -334,18 +345,21 @@ where
         let topic_shared = topic.as_ref().upgrade()?;
         let topic = topic_shared.read_lock();
 
-        data_reader_list.iter().find_map(|data_reader_shared| {
-            let data_reader_lock = data_reader_shared.read_lock();
-            let data_reader_topic = data_reader_lock.topic.read_lock();
+        data_reader_list
+            .iter()
+            .find_map(|data_reader_shared| {
+                let data_reader_lock = data_reader_shared.read_lock();
+                let data_reader_topic = data_reader_lock.topic.read_lock();
 
-            if data_reader_topic.topic_name == topic.topic_name
-                && data_reader_topic.type_name == Foo::type_name()
-            {
-                Some(DataReaderProxy::new(data_reader_shared.downgrade()))
-            } else {
-                None
-            }
-        }).ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
+                if data_reader_topic.topic_name == topic.topic_name
+                    && data_reader_topic.type_name == Foo::type_name()
+                {
+                    Some(DataReaderProxy::new(data_reader_shared.downgrade()))
+                } else {
+                    None
+                }
+            })
+            .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -484,7 +498,7 @@ mod tests {
         structure::{
             entity::RtpsEntityAttributes,
             history_cache::RtpsHistoryCacheOperations,
-            participant::RtpsParticipantConstructor,
+            participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
             types::{
                 ChangeKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind,
                 GUID_UNKNOWN,
@@ -635,6 +649,30 @@ mod tests {
             _default_multicast_locator_list: &[Locator],
         ) -> Self {
             EmptyParticipant {}
+        }
+    }
+
+    impl RtpsEntityAttributes for EmptyParticipant {
+        fn guid(&self) -> &Guid {
+            todo!()
+        }
+    }
+
+    impl RtpsParticipantAttributes for EmptyParticipant {
+        fn protocol_version(&self) -> &rust_rtps_pim::structure::types::ProtocolVersion {
+            todo!()
+        }
+
+        fn vendor_id(&self) -> &rust_rtps_pim::structure::types::VendorId {
+            todo!()
+        }
+
+        fn default_unicast_locator_list(&self) -> &[Locator] {
+            &[]
+        }
+
+        fn default_multicast_locator_list(&self) -> &[Locator] {
+            todo!()
         }
     }
 
