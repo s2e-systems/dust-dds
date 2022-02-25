@@ -33,8 +33,8 @@ use rust_rtps_pim::{
         entity::RtpsEntityAttributes,
         history_cache::RtpsHistoryCacheOperations,
         types::{
-            EntityId, Guid, Locator, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-            USER_DEFINED_WRITER_WITH_KEY, LOCATOR_KIND_UDPv4,
+            EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
         },
     },
 };
@@ -56,29 +56,6 @@ use super::{
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
     topic_proxy::TopicProxy,
 };
-
-// this probably should go in another file
-const PB: u16 = 7400;
-const DG: u16 = 250;
-const PG: u16 = 2;
-#[allow(non_upper_case_globals)]
-const d0: u16 = 0;
-#[allow(non_upper_case_globals)]
-const d1: u16 = 10;
-#[allow(non_upper_case_globals)]
-const d3: u16 = 11;
-
-pub fn port_builtin_multicast(domain_id: u16) -> u16 {
-    PB + DG * domain_id + d0
-}
-
-pub fn port_builtin_unicast(domain_id: u16, participant_id: u16) -> u16 {
-    PB + DG * domain_id + d1 + PG * participant_id
-}
-
-pub fn port_user_unicast(domain_id: u16, participant_id: u16) -> u16 {
-    PB + DG * domain_id + d3 + PG * participant_id
-}
 
 pub struct PublisherAttributes<Rtps>
 where
@@ -262,16 +239,12 @@ where
             let mut sedp_builtin_publications_announcer =
                 builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)?;
 
-            let domain_id = domain_participant.read_lock().domain_id;
-            let participant_id = domain_participant.read_lock().participant_id;
+            // let domain_id = domain_participant.read_lock().domain_id;
+            // let participant_id = domain_participant.read_lock().participant_id;
             let sedp_discovered_writer_data = SedpDiscoveredWriterData {
                 writer_proxy: RtpsWriterProxy {
                     remote_writer_guid: guid,
-                    unicast_locator_list: vec![Locator::new(
-                        LOCATOR_KIND_UDPv4,
-                        port_user_unicast(domain_id as u16, participant_id as u16) as u32,
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-                    )],
+                    unicast_locator_list: vec![],
                     multicast_locator_list: vec![],
                     data_max_size_serialized: None,
                     remote_group_entity_id: EntityId::new([0; 3], 0),

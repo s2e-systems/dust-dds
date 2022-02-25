@@ -113,6 +113,9 @@ impl RtpsStructure for RtpsStructureImpl {
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
 
+const UNICAST_ADDRESS: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1];
+const MULTICAST_ADDRESS: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
+
 const PB: u16 = 7400;
 const DG: u16 = 250;
 const PG: u16 = 2;
@@ -205,19 +208,15 @@ impl DomainParticipantFactory {
             qos.clone(),
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
-                port_builtin_multicast(domain_id as u16) as u32,
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-            )],
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_builtin_multicast(domain_id as u16) as u32,
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
-            )],
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, participant_id as u16) as u32,
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+                UNICAST_ADDRESS,
             )],
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_builtin_multicast(domain_id as u16) as u32,
+                MULTICAST_ADDRESS,
+            )],
+            vec![],
             vec![],
         ));
 
@@ -758,7 +757,7 @@ fn create_builtins(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_participant.read_lock().domain_id as u16) as u32,
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+                MULTICAST_ADDRESS,
             ),
             false,
         );
