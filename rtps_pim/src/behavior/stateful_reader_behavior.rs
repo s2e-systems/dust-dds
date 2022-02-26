@@ -250,7 +250,7 @@ mod tests {
         }
 
         impl EntityIdSubmessageElementAttributes for MockEntityId {
-            fn value(&self) -> EntityId{
+            fn value(&self) -> EntityId {
                 self.value
             }
         }

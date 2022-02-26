@@ -1,4 +1,4 @@
-use crate::structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId};
+use crate::structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId, Locator};
 
 use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
 
@@ -80,14 +80,12 @@ pub trait SequenceNumberSubmessageElementAttributes {
 }
 
 pub trait SequenceNumberSetSubmessageElementConstructor {
-    type SequenceNumberSetType: ?Sized;
-    fn new(base: SequenceNumber, set: &Self::SequenceNumberSetType) -> Self;
+    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self;
 }
 
 pub trait SequenceNumberSetSubmessageElementAttributes {
-    type SequenceNumberSetType: ?Sized;
     fn base(&self) -> SequenceNumber;
-    fn set(&self) -> &Self::SequenceNumberSetType;
+    fn set(&self) -> &[SequenceNumber];
 }
 
 pub trait FragmentNumberSubmessageElementConstructor {
@@ -99,16 +97,12 @@ pub trait FragmentNumberSubmessageElementAttributes {
 }
 
 pub trait FragmentNumberSetSubmessageElementConstructor {
-    type FragmentNumberSetType: ?Sized;
-
-    fn new(base: FragmentNumber, set: &Self::FragmentNumberSetType) -> Self;
+    fn new(base: FragmentNumber, set: &[FragmentNumber]) -> Self;
 }
 
 pub trait FragmentNumberSetSubmessageElementAttributes {
-    type FragmentNumberSetType: ?Sized;
-
     fn base(&self) -> FragmentNumber;
-    fn set(&self) -> &Self::FragmentNumberSetType;
+    fn set(&self) -> &[FragmentNumber];
 }
 
 pub trait TimestampSubmessageElementConstructor {
@@ -152,13 +146,11 @@ pub trait CountSubmessageElementAttributes {
 }
 
 pub trait LocatorListSubmessageElementConstructor {
-    type LocatorListType: ?Sized;
-    fn new(value: &Self::LocatorListType) -> Self;
+    fn new(value: &[Locator]) -> Self;
 }
 
 pub trait LocatorListSubmessageElementAttributes {
-    type LocatorListType: ?Sized;
-    fn value(&self) -> &Self::LocatorListType;
+    fn value(&self) -> &[Locator];
 }
 
 pub trait SerializedDataSubmessageElementConstructor {

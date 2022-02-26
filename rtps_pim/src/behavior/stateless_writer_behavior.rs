@@ -58,8 +58,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         CacheChange: RtpsCacheChangeAttributes + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor,
         SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
-        SequenceNumberSetElement:
-            SequenceNumberSetSubmessageElementConstructor<SequenceNumberSetType = [SequenceNumber]>,
+        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -148,8 +147,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes + 'a,
         SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
-        SequenceNumberSetElement:
-            SequenceNumberSetSubmessageElementConstructor<SequenceNumberSetType = [SequenceNumber]>,
+        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -248,9 +246,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     pub fn process_acknack<S>(
         &mut self,
         acknack: &impl AckNackSubmessageAttributes<
-            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes<
-                SequenceNumberSetType = [SequenceNumber],
-            >,
+            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes,
         >,
     ) where
         R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
@@ -285,8 +281,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes + 'a,
         SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
-        SequenceNumberSetElement:
-            SequenceNumberSetSubmessageElementConstructor<SequenceNumberSetType = [SequenceNumber]>,
+        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,

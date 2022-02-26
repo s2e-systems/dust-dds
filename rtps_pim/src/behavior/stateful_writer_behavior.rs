@@ -58,11 +58,8 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         CacheChange: RtpsCacheChangeAttributes + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor,
-        SequenceNumberElement:
-            SequenceNumberSubmessageElementConstructor,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
-            SequenceNumberSetType = [SequenceNumber],
-        >,
+        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
+        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -154,11 +151,8 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes + 'a,
-        SequenceNumberElement:
-            SequenceNumberSubmessageElementConstructor,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
-            SequenceNumberSetType = [SequenceNumber],
-        >,
+        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
+        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
@@ -184,7 +178,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 };
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                    // EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
+                // EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = SequenceNumberElement::new(*change.sequence_number());
                 let inline_qos = change.inline_qos();
@@ -228,8 +222,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor,
         CountElement: CountSubmessageElementConstructor,
-        SequenceNumberElement:
-            SequenceNumberSubmessageElementConstructor,
+        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
     {
         if self.after_heartbeat_period {
             let endianness_flag = true;
@@ -260,9 +253,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     pub fn process_acknack<S>(
         &mut self,
         acknack: &impl AckNackSubmessageAttributes<
-            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes<
-                SequenceNumberSetType = [SequenceNumber],
-            >,
+            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes,
         >,
     ) where
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
@@ -297,11 +288,8 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         >,
         EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes + 'a,
-        SequenceNumberElement:
-            SequenceNumberSubmessageElementConstructor,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
-            SequenceNumberSetType = [SequenceNumber],
-        >,
+        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
+        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor,
         Gap: GapSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,

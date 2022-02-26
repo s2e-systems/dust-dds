@@ -1,8 +1,5 @@
 use rust_dds_rtps_implementation::{
-    dds_impl::{
-        data_reader_proxy::RtpsReader,
-        subscriber_proxy::SubscriberAttributes,
-    },
+    dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{

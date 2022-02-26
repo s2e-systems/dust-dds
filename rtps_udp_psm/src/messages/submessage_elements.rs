@@ -114,7 +114,7 @@ pub struct SequenceNumberSubmessageElementPsm {
 
 impl SequenceNumberSubmessageElementConstructor for SequenceNumberSubmessageElementPsm {
     fn new(value: SequenceNumber) -> Self {
-        Self { value}
+        Self { value }
     }
 }
 
@@ -165,9 +165,7 @@ pub struct SequenceNumberSetSubmessageElementPsm {
 }
 
 impl SequenceNumberSetSubmessageElementConstructor for SequenceNumberSetSubmessageElementPsm {
-    type SequenceNumberSetType = [SequenceNumber];
-
-    fn new(base: SequenceNumber, set: &Self::SequenceNumberSetType) -> Self {
+    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
         Self {
             base,
             set: set.to_vec(),
