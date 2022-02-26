@@ -114,17 +114,13 @@ pub trait TimestampSubmessageElementAttributes {
 }
 
 pub trait ParameterConstructor {
-    type ParameterValueType: ?Sized;
-
-    fn new(parameter_id: ParameterId, length: &i16, value: &Self::ParameterValueType) -> Self;
+    fn new(parameter_id: ParameterId, length: &i16, value: &[u8]) -> Self;
 }
 
 pub trait ParameterAttributes {
-    type ParameterValueType: ?Sized;
-
     fn parameter_id(&self) -> ParameterId;
     fn length(&self) -> &i16;
-    fn value(&self) -> &Self::ParameterValueType;
+    fn value(&self) -> &[u8];
 }
 
 pub trait ParameterListSubmessageElementConstructor {
