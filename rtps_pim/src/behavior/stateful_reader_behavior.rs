@@ -57,9 +57,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
         data: &impl DataSubmessageAttributes<
             EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
-                SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::DataType,
-            >,
+            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
                 ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::ParameterListType
             >,
@@ -67,7 +65,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheOperations,
-        H::CacheChangeType: RtpsCacheChangeConstructor<'a> + RtpsCacheChangeAttributes,
+        H::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8]> + RtpsCacheChangeAttributes,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
         if &writer_guid == self.writer_proxy.remote_writer_guid() {
@@ -175,7 +173,7 @@ mod tests {
         }
 
         impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
-            type DataType = ();
+            type DataType = [u8];
             type ParameterListType = ();
 
             fn new(
@@ -277,9 +275,8 @@ mod tests {
         struct MockSerializedData;
 
         impl SerializedDataSubmessageElementAttributes for MockSerializedData {
-            type SerializedDataType = ();
-            fn value(&self) -> &Self::SerializedDataType {
-                &()
+            fn value(&self) -> &[u8] {
+                &[]
             }
         }
 

@@ -25,16 +25,14 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
         data: &impl DataSubmessageAttributes<
             EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
-                SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::DataType,
-            >,
+            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
                 ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::ParameterListType
             >,
         >,
     ) where
         H: RtpsHistoryCacheOperations,
-        H::CacheChangeType: RtpsCacheChangeConstructor<'a>,
+        H::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8]>,
     {
         let reader_id = data.reader_id().value();
         if reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
@@ -108,9 +106,8 @@ mod tests {
     struct MockSerializedData;
 
     impl SerializedDataSubmessageElementAttributes for MockSerializedData {
-        type SerializedDataType = ();
-        fn value(&self) -> &Self::SerializedDataType {
-            &()
+        fn value(&self) -> &[u8] {
+            &[]
         }
     }
 
@@ -174,7 +171,7 @@ mod tests {
     struct MockCacheChange;
 
     impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
-        type DataType = ();
+        type DataType = [u8];
         type ParameterListType = ();
 
         fn new(

@@ -152,9 +152,8 @@ pub struct SerializedDataSubmessageElementPsm<'a> {
 }
 
 impl<'a> SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElementPsm<'a> {
-    type SerializedDataType = [u8];
-    fn value(&self) -> &Self::SerializedDataType {
-        &self.value
+    fn value(&self) -> &[u8] {
+        self.value
     }
 }
 

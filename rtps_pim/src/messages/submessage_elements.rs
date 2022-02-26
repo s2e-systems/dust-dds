@@ -150,23 +150,19 @@ pub trait LocatorListSubmessageElementAttributes {
 }
 
 pub trait SerializedDataSubmessageElementConstructor {
-    type SerializedDataType: ?Sized;
-    fn new(value: &Self::SerializedDataType) -> Self;
+    fn new(value: &[u8]) -> Self;
 }
 
 pub trait SerializedDataSubmessageElementAttributes {
-    type SerializedDataType: ?Sized;
-    fn value(&self) -> &Self::SerializedDataType;
+    fn value(&self) -> &[u8];
 }
 
 pub trait SerializedDataFragmentSubmessageElementConstructor {
-    type SerializedDataFragmentType: ?Sized;
-    fn new(value: &Self::SerializedDataFragmentType) -> Self;
+    fn new(value: &[u8]) -> Self;
 }
 
 pub trait SerializedDataFragmentSubmessageElementAttributes {
-    type SerializedDataFragmentType: ?Sized;
-    fn value(&self) -> &Self::SerializedDataFragmentType;
+    fn value(&self) -> &[u8];
 }
 
 pub trait GroupDigestSubmessageElementConstructor {
