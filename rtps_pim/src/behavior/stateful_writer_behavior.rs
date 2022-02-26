@@ -16,7 +16,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -57,11 +57,10 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
         >,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         CacheChange: RtpsCacheChangeAttributes + 'a,
-        EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
+        EntityIdElement: EntityIdSubmessageElementConstructor,
         SequenceNumberElement:
-            SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
+            SequenceNumberSubmessageElementConstructor,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
-            SequenceNumberType = SequenceNumber,
             SequenceNumberSetType = [SequenceNumber],
         >,
         Gap: GapSubmessageConstructor<
@@ -91,7 +90,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
                 let reader_id =
                     EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = SequenceNumberElement::new(change.sequence_number());
+                let writer_sn = SequenceNumberElement::new(*change.sequence_number());
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
@@ -109,10 +108,10 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
-                let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-                let gap_start = SequenceNumberElement::new(&seq_num);
-                let gap_list = SequenceNumberSetElement::new(&seq_num, &[]);
+                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+                let writer_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+                let gap_start = SequenceNumberElement::new(seq_num);
+                let gap_list = SequenceNumberSetElement::new(seq_num, &[]);
                 let gap_submessage =
                     Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
                 send_gap(gap_submessage)
@@ -153,12 +152,11 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
-        EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
+        EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes + 'a,
         SequenceNumberElement:
-            SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
+            SequenceNumberSubmessageElementConstructor,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
-            SequenceNumberType = SequenceNumber,
             SequenceNumberSetType = [SequenceNumber],
         >,
         Gap: GapSubmessageConstructor<
@@ -185,10 +183,10 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
+                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
                     // EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = SequenceNumberElement::new(change.sequence_number());
+                let writer_sn = SequenceNumberElement::new(*change.sequence_number());
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
@@ -206,10 +204,10 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
-                let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-                let gap_start = SequenceNumberElement::new(&seq_num);
-                let gap_list = SequenceNumberSetElement::new(&seq_num, &[]);
+                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+                let writer_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+                let gap_start = SequenceNumberElement::new(seq_num);
+                let gap_list = SequenceNumberSetElement::new(seq_num, &[]);
                 let gap_submessage =
                     Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
                 send_gap(gap_submessage)
@@ -228,22 +226,22 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             SequenceNumberSubmessageElementType = SequenceNumberElement,
             CountSubmessageElementType = CountElement,
         >,
-        EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
-        CountElement: CountSubmessageElementConstructor<CountType = Count>,
+        EntityIdElement: EntityIdSubmessageElementConstructor,
+        CountElement: CountSubmessageElementConstructor,
         SequenceNumberElement:
-            SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
+            SequenceNumberSubmessageElementConstructor,
     {
         if self.after_heartbeat_period {
             let endianness_flag = true;
             let final_flag = false;
             let liveliness_flag = false;
-            let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-            let writer_id = EntityIdElement::new(&self.writer_guid.entity_id);
+            let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+            let writer_id = EntityIdElement::new(self.writer_guid.entity_id);
             let first_sn =
-                SequenceNumberElement::new(&self.writer_cache.get_seq_num_min().unwrap_or(0));
+                SequenceNumberElement::new(self.writer_cache.get_seq_num_min().unwrap_or(0));
             let last_sn =
-                SequenceNumberElement::new(&self.writer_cache.get_seq_num_min().unwrap_or(0));
-            let count = CountElement::new(self.heartbeat_count);
+                SequenceNumberElement::new(self.writer_cache.get_seq_num_min().unwrap_or(0));
+            let count = CountElement::new(*self.heartbeat_count);
             let heartbeat_submessage = Heartbeat::new(
                 endianness_flag,
                 final_flag,
@@ -263,7 +261,6 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         &mut self,
         acknack: &impl AckNackSubmessageAttributes<
             SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes<
-                SequenceNumberType = SequenceNumber,
                 SequenceNumberSetType = [SequenceNumber],
             >,
         >,
@@ -298,12 +295,11 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
-        EntityIdElement: EntityIdSubmessageElementConstructor<EntityIdType = EntityId>,
+        EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes + 'a,
         SequenceNumberElement:
-            SequenceNumberSubmessageElementConstructor<SequenceNumberType = SequenceNumber>,
+            SequenceNumberSubmessageElementConstructor,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<
-            SequenceNumberType = SequenceNumber,
             SequenceNumberSetType = [SequenceNumber],
         >,
         Gap: GapSubmessageConstructor<
@@ -330,9 +326,9 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
+                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = SequenceNumberElement::new(change.sequence_number());
+                let writer_sn = SequenceNumberElement::new(*change.sequence_number());
                 let inline_qos = change.inline_qos();
                 let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
@@ -350,10 +346,10 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
-                let reader_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(&ENTITYID_UNKNOWN);
-                let gap_start = SequenceNumberElement::new(&seq_num);
-                let gap_list = SequenceNumberSetElement::new(&seq_num, &[]);
+                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+                let writer_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+                let gap_start = SequenceNumberElement::new(seq_num);
+                let gap_list = SequenceNumberSetElement::new(seq_num, &[]);
                 let gap_submessage =
                     Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
                 send_gap(gap_submessage)

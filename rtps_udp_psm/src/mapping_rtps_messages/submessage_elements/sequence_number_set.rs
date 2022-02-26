@@ -81,7 +81,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number_max_gap() {
-        let sequence_number_set = SequenceNumberSetSubmessageElementPsm::new(&2, &[2, 257]);
+        let sequence_number_set = SequenceNumberSetSubmessageElementPsm::new(2, &[2, 257]);
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&sequence_number_set).unwrap(), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
-        let expected = SequenceNumberSetSubmessageElementPsm::new(&2, &[2, 257]);
+        let expected = SequenceNumberSetSubmessageElementPsm::new(2, &[2, 257]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0, 0, 0, 0, // bitmapBase: high (long)

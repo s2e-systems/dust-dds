@@ -187,7 +187,7 @@ where
         };
 
         let guid = Guid::new(
-            *subscriber_shared.read_lock().rtps_group.guid().prefix(),
+            subscriber_shared.read_lock().rtps_group.guid().prefix(),
             entity_id,
         );
 

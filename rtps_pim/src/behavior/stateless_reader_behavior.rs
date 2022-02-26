@@ -9,7 +9,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
     },
 };
 
@@ -23,10 +23,8 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
-            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes<
-                EntityIdType = EntityId,
-            >,
-            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes<SequenceNumberType = SequenceNumber>,
+            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
+            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
                 SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::DataType,
             >,
@@ -39,13 +37,13 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
         H::CacheChangeType: RtpsCacheChangeConstructor<'a>,
     {
         let reader_id = data.reader_id().value();
-        if reader_id == self.reader_guid.entity_id() || reader_id == &ENTITYID_UNKNOWN {
+        if reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
             let kind = match (data.data_flag(), data.key_flag()) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
                 _ => todo!(),
             };
-            let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
+            let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
             let instance_handle = 0;
             let sequence_number = data.writer_sn().value();
             let data_value = data.serialized_payload().value();
@@ -54,7 +52,7 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
                 &kind,
                 &writer_guid,
                 &instance_handle,
-                sequence_number,
+                &sequence_number,
                 data_value,
                 inline_qos,
             );
@@ -83,9 +81,8 @@ mod tests {
     }
 
     impl EntityIdSubmessageElementAttributes for MockEntityId {
-        type EntityIdType = EntityId;
-        fn value(&self) -> &Self::EntityIdType {
-            &self.value
+        fn value(&self) -> EntityId {
+            self.value
         }
     }
 
@@ -94,9 +91,8 @@ mod tests {
     }
 
     impl SequenceNumberSubmessageElementAttributes for MockSequenceNumber {
-        type SequenceNumberType = SequenceNumber;
-        fn value(&self) -> &Self::SequenceNumberType {
-            &self.value
+        fn value(&self) -> SequenceNumber {
+            self.value
         }
     }
 

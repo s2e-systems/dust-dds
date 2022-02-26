@@ -1,154 +1,134 @@
+use crate::structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId};
+
+use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
 
 pub trait UShortSubmessageElementConstructor {
-    fn new(value: &u16) -> Self;
+    fn new(value: u16) -> Self;
 }
 
 pub trait UShortSubmessageElementAttributes {
-    fn value(&self) -> &u16;
+    fn value(&self) -> u16;
 }
 
 pub trait ShortSubmessageElementConstructor {
-    fn new(value: &i16) -> Self;
+    fn new(value: i16) -> Self;
 }
 
 pub trait ShortSubmessageElementAttributes {
-    fn value(&self) -> &i16;
+    fn value(&self) -> i16;
 }
 
 pub trait ULongSubmessageElementConstructor {
-    fn new(value: &u32) -> Self;
+    fn new(value: u32) -> Self;
 }
 
 pub trait ULongSubmessageElementAttributes {
-    fn value(&self) -> &u32;
+    fn value(&self) -> u32;
 }
 
 pub trait LongSubmessageElementConstructor {
-    fn new(value: &i32) -> Self;
+    fn new(value: i32) -> Self;
 }
 
 pub trait LongSubmessageElementAttributes {
-    fn value(&self) -> &i32;
+    fn value(&self) -> i32;
 }
 
 pub trait GuidPrefixSubmessageElementConstructor {
-    type GuidPrefixType: ?Sized;
-    fn new(value: &Self::GuidPrefixType) -> Self;
+    fn new(value: GuidPrefix) -> Self;
 }
 
 pub trait GuidPrefixSubmessageElementAttributes {
-    type GuidPrefixType: ?Sized;
-    fn value(&self) -> &Self::GuidPrefixType;
+    fn value(&self) -> GuidPrefix;
 }
 
 pub trait EntityIdSubmessageElementConstructor {
-    type EntityIdType: ?Sized;
-    fn new(value: &Self::EntityIdType) -> Self;
+    fn new(value: EntityId) -> Self;
 }
 
 pub trait EntityIdSubmessageElementAttributes {
-    type EntityIdType: ?Sized;
-    fn value(&self) -> &Self::EntityIdType;
+    fn value(&self) -> EntityId;
 }
 
 pub trait VendorIdSubmessageElementConstructor {
-    type VendorIdType: ?Sized;
-    fn new(value: &Self::VendorIdType) -> Self;
+    fn new(value: VendorId) -> Self;
 }
 
 pub trait VendorIdSubmessageElementAttributes {
-    type VendorIdType: ?Sized;
-    fn value(&self) -> &Self::VendorIdType;
+    fn value(&self) -> VendorId;
 }
 
 pub trait ProtocolVersionSubmessageElementConstructor {
-    type ProtocolVersionType: ?Sized;
-    fn new(value: &Self::ProtocolVersionType) -> Self;
+    fn new(value: ProtocolVersion) -> Self;
 }
 
 pub trait ProtocolVersionSubmessageElementAttributes {
-    type ProtocolVersionType: ?Sized;
-    fn value(&self) -> &Self::ProtocolVersionType;
+    fn value(&self) -> ProtocolVersion;
 }
 
 pub trait SequenceNumberSubmessageElementConstructor {
-    type SequenceNumberType: ?Sized;
-    fn new(value: &Self::SequenceNumberType) -> Self;
+    fn new(value: SequenceNumber) -> Self;
 }
 
 pub trait SequenceNumberSubmessageElementAttributes {
-    type SequenceNumberType: ?Sized;
-    fn value(&self) -> &Self::SequenceNumberType;
+    fn value(&self) -> SequenceNumber;
 }
 
 pub trait SequenceNumberSetSubmessageElementConstructor {
-    type SequenceNumberType: ?Sized;
     type SequenceNumberSetType: ?Sized;
-    fn new(base: &Self::SequenceNumberType, set: &Self::SequenceNumberSetType) -> Self;
+    fn new(base: SequenceNumber, set: &Self::SequenceNumberSetType) -> Self;
 }
 
 pub trait SequenceNumberSetSubmessageElementAttributes {
-    type SequenceNumberType: ?Sized;
     type SequenceNumberSetType: ?Sized;
-    fn base(&self) -> &Self::SequenceNumberType;
+    fn base(&self) -> SequenceNumber;
     fn set(&self) -> &Self::SequenceNumberSetType;
 }
 
 pub trait FragmentNumberSubmessageElementConstructor {
-    type FragmentNumberType: ?Sized;
-    fn new(value: &Self::FragmentNumberType) -> Self;
+    fn new(value: FragmentNumber) -> Self;
 }
 
 pub trait FragmentNumberSubmessageElementAttributes {
-    type FragmentNumberType: ?Sized;
-    fn new(&self) -> &Self::FragmentNumberType;
+    fn new(&self) -> FragmentNumber;
 }
 
 pub trait FragmentNumberSetSubmessageElementConstructor {
-    type FragmentNumberType: ?Sized;
     type FragmentNumberSetType: ?Sized;
 
-    fn new(base: &Self::FragmentNumberType, set: &Self::FragmentNumberSetType) -> Self;
+    fn new(base: FragmentNumber, set: &Self::FragmentNumberSetType) -> Self;
 }
 
 pub trait FragmentNumberSetSubmessageElementAttributes {
-    type FragmentNumberType: ?Sized;
     type FragmentNumberSetType: ?Sized;
 
-    fn base(&self) -> &Self::FragmentNumberType;
+    fn base(&self) -> FragmentNumber;
     fn set(&self) -> &Self::FragmentNumberSetType;
 }
 
 pub trait TimestampSubmessageElementConstructor {
-    type TimeType: ?Sized;
-    fn new(value: &Self::TimeType) -> Self;
+    fn new(value: Time) -> Self;
 }
 
 pub trait TimestampSubmessageElementAttributes {
-    type TimeType: ?Sized;
-    fn value(&self) -> &Self::TimeType;
+    fn value(&self) -> Time;
 }
 
 pub trait ParameterConstructor {
-    type ParameterIdType: ?Sized;
     type ParameterValueType: ?Sized;
 
-    fn new(
-        parameter_id: &Self::ParameterIdType,
-        length: &i16,
-        value: &Self::ParameterValueType,
-    ) -> Self;
+    fn new(parameter_id: ParameterId, length: &i16, value: &Self::ParameterValueType) -> Self;
 }
 
 pub trait ParameterAttributes {
-    type ParameterIdType: ?Sized;
     type ParameterValueType: ?Sized;
 
-    fn parameter_id(&self) -> &Self::ParameterIdType;
+    fn parameter_id(&self) -> ParameterId;
     fn length(&self) -> &i16;
     fn value(&self) -> &Self::ParameterValueType;
 }
@@ -164,13 +144,11 @@ pub trait ParameterListSubmessageElementAttributes {
 }
 
 pub trait CountSubmessageElementConstructor {
-    type CountType: ?Sized;
-    fn new(value: &Self::CountType) -> Self;
+    fn new(value: Count) -> Self;
 }
 
 pub trait CountSubmessageElementAttributes {
-    type CountType: ?Sized;
-    fn value(&self) -> &Self::CountType;
+    fn value(&self) -> Count;
 }
 
 pub trait LocatorListSubmessageElementConstructor {
@@ -204,11 +182,9 @@ pub trait SerializedDataFragmentSubmessageElementAttributes {
 }
 
 pub trait GroupDigestSubmessageElementConstructor {
-    type GroupDigestType: ?Sized;
-    fn new(value: &Self::GroupDigestType) -> Self;
+    fn new(value: GroupDigest) -> Self;
 }
 
 pub trait GroupDigestSubmessageElementAttributes {
-    type GroupDigestType: ?Sized;
-    fn value(&self) -> &Self::GroupDigestType;
+    fn value(&self) -> GroupDigest;
 }

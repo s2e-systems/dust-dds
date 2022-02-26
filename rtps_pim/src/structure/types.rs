@@ -25,12 +25,12 @@ impl Guid {
         Self { prefix, entity_id }
     }
 
-    pub fn prefix(&self) -> &GuidPrefix {
-        &self.prefix
+    pub fn prefix(&self) -> GuidPrefix {
+        self.prefix
     }
 
-    pub fn entity_id(&self) -> &EntityId {
-        &self.entity_id
+    pub fn entity_id(&self) -> EntityId {
+        self.entity_id
     }
 }
 
@@ -99,13 +99,13 @@ impl EntityId {
     }
 
     /// Get a reference to the entity id's entity key.
-    pub fn entity_key(&self) -> &EntityKey {
-        &self.entity_key
+    pub fn entity_key(&self) -> EntityKey {
+        self.entity_key
     }
 
     /// Get a reference to the entity id's entity kind.
-    pub fn entity_kind(&self) -> &EntityKind {
-        &self.entity_kind
+    pub fn entity_kind(&self) -> EntityKind {
+        self.entity_kind
     }
 }
 

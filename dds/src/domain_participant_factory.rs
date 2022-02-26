@@ -704,7 +704,7 @@ where
             domain_id: participant.domain_id as u32,
             domain_tag: participant.domain_tag.clone(),
             protocol_version: *participant.rtps_participant.protocol_version(),
-            guid_prefix: *participant.rtps_participant.guid().prefix(),
+            guid_prefix: participant.rtps_participant.guid().prefix(),
             vendor_id: *participant.rtps_participant.vendor_id(),
             expects_inline_qos: false,
             metatraffic_unicast_locator_list: participant.metatraffic_unicast_locator_list.clone(),

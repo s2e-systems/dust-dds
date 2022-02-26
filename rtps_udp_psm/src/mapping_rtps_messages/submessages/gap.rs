@@ -81,14 +81,14 @@ mod tests {
     #[test]
     fn serialize_gap() {
         let endianness_flag = true;
-        let reader_id = EntityIdSubmessageElementPsm::new(&EntityId::new(
+        let reader_id = EntityIdSubmessageElementPsm::new(EntityId::new(
             [1, 2, 3],
             USER_DEFINED_READER_NO_KEY,
         ));
         let writer_id =
-            EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
+            EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let gap_start = SequenceNumberSubmessageElementPsm { value: 5 };
-        let gap_list = SequenceNumberSetSubmessageElementPsm::new(&10, &[]);
+        let gap_list = SequenceNumberSetSubmessageElementPsm::new(10, &[]);
         let submessage =
             GapSubmessageWrite::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]
@@ -115,7 +115,7 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumberSubmessageElementPsm { value: 5 };
-        let gap_list = SequenceNumberSetSubmessageElementPsm::new(&10, &[]);
+        let gap_list = SequenceNumberSetSubmessageElementPsm::new(10, &[]);
         let expected =
             GapSubmessageRead::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]

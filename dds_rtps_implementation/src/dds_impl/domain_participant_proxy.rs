@@ -351,7 +351,7 @@ where
         );
         domain_participant_attributes_lock.user_defined_publisher_counter += 1;
         let guid = Guid::new(
-            *domain_participant_attributes_lock
+            domain_participant_attributes_lock
                 .rtps_participant
                 .guid()
                 .prefix(),
@@ -415,7 +415,7 @@ where
         );
         domain_participant_attributes_lock.user_defined_subscriber_counter += 1;
         let guid = Guid::new(
-            *domain_participant_attributes_lock
+            domain_participant_attributes_lock
                 .rtps_participant
                 .guid()
                 .prefix(),

@@ -9,7 +9,7 @@ use crate::{
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
+        types::{ChangeKind, Guid, GuidPrefix},
     },
 };
 
@@ -32,15 +32,13 @@ impl BestEffortStatefulReaderBehavior {
         >,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
-            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes<
-                EntityIdType = EntityId,
-            >,
+            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
         >,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value()); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value()); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
         if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
             let _expected_seq_nem = writer_proxy.available_changes_max(); // expected_seq_num := writer_proxy.available_changes_max() + 1;
         }
@@ -57,10 +55,8 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
-            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes<
-                EntityIdType = EntityId,
-            >,
-            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes<SequenceNumberType = SequenceNumber>,
+            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
+            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
                 SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::DataType,
             >,
@@ -73,7 +69,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
         H: RtpsHistoryCacheOperations,
         H::CacheChangeType: RtpsCacheChangeConstructor<'a> + RtpsCacheChangeAttributes,
     {
-        let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
         if &writer_guid == self.writer_proxy.remote_writer_guid() {
             let kind = match (data.data_flag(), data.key_flag()) {
                 (true, false) => ChangeKind::Alive,
@@ -88,7 +84,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
                 &kind,
                 &writer_guid,
                 &instance_handle,
-                sequence_number,
+                &sequence_number,
                 data_value,
                 inline_qos,
             );
@@ -254,9 +250,8 @@ mod tests {
         }
 
         impl EntityIdSubmessageElementAttributes for MockEntityId {
-            type EntityIdType = EntityId;
-            fn value(&self) -> &Self::EntityIdType {
-                &self.value
+            fn value(&self) -> EntityId{
+                self.value
             }
         }
 
@@ -265,9 +260,8 @@ mod tests {
         }
 
         impl SequenceNumberSubmessageElementAttributes for MockSequenceNumber {
-            type SequenceNumberType = SequenceNumber;
-            fn value(&self) -> &Self::SequenceNumberType {
-                &self.value
+            fn value(&self) -> SequenceNumber {
+                self.value
             }
         }
 
