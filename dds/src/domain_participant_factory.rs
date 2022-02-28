@@ -144,16 +144,13 @@ pub fn port_user_unicast(domain_id: u16, participant_id: u16) -> u16 {
     PB + DG * domain_id + d3 + PG * participant_id
 }
 
-pub fn get_multicast_socket(port: u16) -> Option<UdpSocket> {
-    let socket_addr = SocketAddr::from((
-        [
-            UNICAST_LOCATOR_ADDRESS[12],
-            UNICAST_LOCATOR_ADDRESS[13],
-            UNICAST_LOCATOR_ADDRESS[14],
-            UNICAST_LOCATOR_ADDRESS[15],
-        ],
-        port,
-    ));
+pub fn get_multicast_socket(
+    address: Ipv4Addr,
+    multicast_address: Ipv4Addr,
+    port: u16,
+) -> Option<UdpSocket> {
+    println!("multicast");
+    let socket_addr = SocketAddr::from((address, port));
 
     let socket = Socket::new(
         socket2::Domain::IPV4,
@@ -165,36 +162,15 @@ pub fn get_multicast_socket(port: u16) -> Option<UdpSocket> {
     socket.set_nonblocking(true).ok()?;
     socket.bind(&socket_addr.into()).ok()?;
     socket
-        .join_multicast_v4(
-            &Ipv4Addr::from([
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS[12],
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS[13],
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS[14],
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS[15],
-            ]),
-            &Ipv4Addr::from([
-                UNICAST_LOCATOR_ADDRESS[12],
-                UNICAST_LOCATOR_ADDRESS[13],
-                UNICAST_LOCATOR_ADDRESS[14],
-                UNICAST_LOCATOR_ADDRESS[15],
-            ]),
-        )
+        .join_multicast_v4(&multicast_address, &address)
         .ok()?;
     socket.set_multicast_loop_v4(true).ok()?;
 
     Some(socket.into())
 }
 
-fn get_unicast_socket(port: u16) -> Option<UdpSocket> {
-    let socket_addr = SocketAddr::from((
-        [
-            UNICAST_LOCATOR_ADDRESS[12],
-            UNICAST_LOCATOR_ADDRESS[13],
-            UNICAST_LOCATOR_ADDRESS[14],
-            UNICAST_LOCATOR_ADDRESS[15],
-        ],
-        port,
-    ));
+pub fn get_unicast_socket(address: Ipv4Addr, port: u16) -> Option<UdpSocket> {
+    let socket_addr = SocketAddr::from((address, port));
 
     let socket = UdpSocket::bind(socket_addr).ok()?;
     socket.set_nonblocking(true).ok()?;
@@ -296,7 +272,24 @@ impl DomainParticipantFactory {
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
                 transport: UdpTransport::new(
-                    get_multicast_socket(port_builtin_multicast(domain_id as u16)).unwrap(),
+                    get_multicast_socket(
+                        [
+                            UNICAST_LOCATOR_ADDRESS[12],
+                            UNICAST_LOCATOR_ADDRESS[13],
+                            UNICAST_LOCATOR_ADDRESS[14],
+                            UNICAST_LOCATOR_ADDRESS[15],
+                        ]
+                        .into(),
+                        [
+                            DEFAULT_MULTICAST_LOCATOR_ADDRESS[12],
+                            DEFAULT_MULTICAST_LOCATOR_ADDRESS[13],
+                            DEFAULT_MULTICAST_LOCATOR_ADDRESS[14],
+                            DEFAULT_MULTICAST_LOCATOR_ADDRESS[15],
+                        ]
+                        .into(),
+                        port_builtin_multicast(domain_id as u16),
+                    )
+                    .unwrap(),
                 ),
             };
 
@@ -451,10 +444,16 @@ impl DomainParticipantFactory {
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
                 transport: UdpTransport::new(
-                    get_unicast_socket(port_builtin_unicast(
-                        domain_id as u16,
-                        participant_id as u16,
-                    ))
+                    get_unicast_socket(
+                        [
+                            UNICAST_LOCATOR_ADDRESS[12],
+                            UNICAST_LOCATOR_ADDRESS[13],
+                            UNICAST_LOCATOR_ADDRESS[14],
+                            UNICAST_LOCATOR_ADDRESS[15],
+                        ]
+                        .into(),
+                        port_builtin_unicast(domain_id as u16, participant_id as u16),
+                    )
                     .unwrap(),
                 ),
             };
@@ -544,8 +543,17 @@ impl DomainParticipantFactory {
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
                 transport: UdpTransport::new(
-                    get_unicast_socket(port_user_unicast(domain_id as u16, participant_id as u16))
-                        .unwrap(),
+                    get_unicast_socket(
+                        [
+                            UNICAST_LOCATOR_ADDRESS[12],
+                            UNICAST_LOCATOR_ADDRESS[13],
+                            UNICAST_LOCATOR_ADDRESS[14],
+                            UNICAST_LOCATOR_ADDRESS[15],
+                        ]
+                        .into(),
+                        port_user_unicast(domain_id as u16, participant_id as u16),
+                    )
+                    .unwrap(),
                 ),
             };
 
@@ -792,16 +800,14 @@ fn create_builtins(
         let mut spdp_builtin_participant_rtps_writer =
             SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
 
-        let spdp_discovery_locator = RtpsReaderLocatorAttributesImpl::new(
-            Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_builtin_multicast(domain_participant.read_lock().domain_id as u16) as u32,
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            ),
-            false,
-        );
-
-        spdp_builtin_participant_rtps_writer.reader_locator_add(spdp_discovery_locator);
+        for locator in domain_participant
+            .read_lock()
+            .metatraffic_multicast_locator_list
+            .iter()
+        {
+            spdp_builtin_participant_rtps_writer
+                .reader_locator_add(RtpsReaderLocatorAttributesImpl::new(locator.clone(), false));
+        }
 
         let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
@@ -1029,17 +1035,22 @@ mod tests {
     use super::{
         create_builtins, get_unicast_socket, port_builtin_unicast,
         spdp_discovered_participant_data_from_domain_participant, RtpsStructureImpl,
-        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC, DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        UNICAST_LOCATOR_ADDRESS,
+        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     };
 
-    #[test]
+    //#[test]
     fn multicast_socket_behaviour() {
-        let multicast_addr = SocketAddr::from(([239, 255, 0, 1], 6666));
+        let port = 6000;
+        let interface_addr = [192, 168, 13, 161];
+        let multicast_ip = [239, 127, 0, 1];
+        let multicast_addr = SocketAddr::from((multicast_ip, port));
 
-        let socket1 = get_multicast_socket(6666).unwrap();
-        let socket2 = get_multicast_socket(6666).unwrap();
-        let socket3 = get_multicast_socket(6666).unwrap();
+        let socket1 =
+            get_multicast_socket(interface_addr.into(), multicast_ip.into(), port).unwrap();
+        let socket2 =
+            get_multicast_socket(interface_addr.into(), multicast_ip.into(), port).unwrap();
+        let socket3 =
+            get_multicast_socket(interface_addr.into(), multicast_ip.into(), port).unwrap();
 
         socket1.send_to(&[1, 2, 3, 4], multicast_addr).unwrap();
 
@@ -1135,10 +1146,16 @@ mod tests {
             .is_ok());
     }
 
-    #[test]
+    //#[test]
     fn test_spdp_send_receive() {
-        let domain_id = 10;
+        let domain_id = 14;
         let guid_prefix = GuidPrefix([3; 12]);
+        let interface_address = [127, 0, 0, 1];
+        let interface_locator_address =
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, interface_address[0], interface_address[1], interface_address[2], interface_address[3]];
+        let multicast_ip = [239, 200, 0, 1];
+        let multicast_locator_address =
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, multicast_ip[0], multicast_ip[1], multicast_ip[2], multicast_ip[3]];
 
         // ////////// Create 2 participants
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
@@ -1150,12 +1167,12 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 0) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                interface_locator_address,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_id as u16) as u32,
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+                multicast_locator_address,
             )],
             vec![],
             vec![],
@@ -1172,12 +1189,12 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 1) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                interface_locator_address,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_id as u16) as u32,
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+                multicast_locator_address,
             )],
             vec![],
             vec![],
@@ -1190,7 +1207,11 @@ mod tests {
             vendor_id: VENDOR_ID_S2E,
             guid_prefix: guid_prefix,
             transport: UdpTransport::new(
-                get_unicast_socket(port_builtin_unicast(domain_id as u16, 0)).unwrap(),
+                get_unicast_socket(
+                    interface_address.into(),
+                    port_builtin_unicast(domain_id as u16, 0),
+                )
+                .unwrap(),
             ),
         };
 
@@ -1199,7 +1220,12 @@ mod tests {
             vendor_id: VENDOR_ID_S2E,
             guid_prefix,
             transport: UdpTransport::new(
-                get_multicast_socket(port_builtin_multicast(domain_id as u16)).unwrap(),
+                get_multicast_socket(
+                    interface_address.into(),
+                    multicast_ip.into(),
+                    port_builtin_multicast(domain_id as u16),
+                )
+                .unwrap(),
             ),
         };
 
@@ -1300,7 +1326,11 @@ mod tests {
 
     #[test]
     fn test_sedp_send_receive() {
-        let domain_id = 14;
+        let domain_id = 10;
+        let unicast_address = [127, 0, 0, 1];
+        #[rustfmt::skip]
+        let unicast_locator_address =
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, unicast_address[0], unicast_address[1], unicast_address[2], unicast_address[3]];
 
         // ////////// Create 2 participants
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
@@ -1312,17 +1342,13 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 0) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                unicast_locator_address,
             )],
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_builtin_multicast(domain_id as u16) as u32,
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            )],
+            vec![],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 0) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                unicast_locator_address,
             )],
             vec![],
         ));
@@ -1338,17 +1364,13 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 1) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                unicast_locator_address,
             )],
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_builtin_multicast(domain_id as u16) as u32,
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            )],
+            vec![],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 1) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                unicast_locator_address,
             )],
             vec![],
         ));
@@ -1644,7 +1666,11 @@ mod tests {
             vendor_id: VENDOR_ID_S2E,
             guid_prefix: guid1.prefix,
             transport: UdpTransport::new(
-                get_unicast_socket(port_builtin_unicast(domain_id as u16, 0)).unwrap(),
+                get_unicast_socket(
+                    unicast_address.into(),
+                    port_builtin_unicast(domain_id as u16, 0),
+                )
+                .unwrap(),
             ),
         };
 
@@ -1653,7 +1679,11 @@ mod tests {
             vendor_id: VENDOR_ID_S2E,
             guid_prefix: guid2.prefix,
             transport: UdpTransport::new(
-                get_unicast_socket(port_builtin_unicast(domain_id as u16, 1)).unwrap(),
+                get_unicast_socket(
+                    unicast_address.into(),
+                    port_builtin_unicast(domain_id as u16, 1),
+                )
+                .unwrap(),
             ),
         };
 
@@ -1684,7 +1714,8 @@ mod tests {
 
     #[test]
     fn test_sedp_send_receive_with_factory() {
-        let domain_id = 14;
+        let domain_id = 12;
+        let unicast_address = [127, 0, 0, 1];
 
         // ////////// Create 2 participants
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
@@ -1696,17 +1727,47 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 0) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    unicast_address[0],
+                    unicast_address[1],
+                    unicast_address[2],
+                    unicast_address[3],
+                ],
             )],
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_builtin_multicast(domain_id as u16) as u32,
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            )],
+            vec![],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 0) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    unicast_address[0],
+                    unicast_address[1],
+                    unicast_address[2],
+                    unicast_address[3],
+                ],
             )],
             vec![],
         ));
@@ -1722,17 +1783,47 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 1) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    unicast_address[0],
+                    unicast_address[1],
+                    unicast_address[2],
+                    unicast_address[3],
+                ],
             )],
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_builtin_multicast(domain_id as u16) as u32,
-                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-            )],
+            vec![],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 1) as u32,
-                UNICAST_LOCATOR_ADDRESS,
+                [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    unicast_address[0],
+                    unicast_address[1],
+                    unicast_address[2],
+                    unicast_address[3],
+                ],
             )],
             vec![],
         ));
@@ -1922,7 +2013,11 @@ mod tests {
             vendor_id: VENDOR_ID_S2E,
             guid_prefix: guid1.prefix,
             transport: UdpTransport::new(
-                get_unicast_socket(port_builtin_unicast(domain_id as u16, 0)).unwrap(),
+                get_unicast_socket(
+                    unicast_address.into(),
+                    port_builtin_unicast(domain_id as u16, 0),
+                )
+                .unwrap(),
             ),
         };
 
@@ -1931,7 +2026,11 @@ mod tests {
             vendor_id: VENDOR_ID_S2E,
             guid_prefix: guid2.prefix,
             transport: UdpTransport::new(
-                get_unicast_socket(port_builtin_unicast(domain_id as u16, 1)).unwrap(),
+                get_unicast_socket(
+                    unicast_address.into(),
+                    port_builtin_unicast(domain_id as u16, 1),
+                )
+                .unwrap(),
             ),
         };
 
