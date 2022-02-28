@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use rust_dds::{
     communication::Communication,
     domain::domain_participant::DomainParticipant,
@@ -33,7 +35,7 @@ use rust_rtps_pim::{
     },
 };
 
-struct MyType {}
+struct MyType { value: u8 }
 
 impl DdsType for MyType {
     fn type_name() -> &'static str {
@@ -48,15 +50,16 @@ impl DdsType for MyType {
 impl DdsSerialize for MyType {
     fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
         &self,
-        _writer: W,
+        mut writer: W,
     ) -> rust_dds::DDSResult<()> {
+        writer.write(&[self.value]).unwrap();
         Ok(())
     }
 }
 
 impl<'de> DdsDeserialize<'de> for MyType {
-    fn deserialize(_buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
-        Ok(MyType {})
+    fn deserialize(buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
+        Ok(MyType { value: buf[0] })
     }
 }
 
@@ -127,7 +130,7 @@ fn user_defined_write_read() {
     }
 
     writer
-        .write_w_timestamp(&MyType {}, None, Time { sec: 0, nanosec: 0 })
+        .write_w_timestamp(&MyType {value: 8}, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
 
     let mut communication1 = Communication {
@@ -150,6 +153,43 @@ fn user_defined_write_read() {
 
     communication1.send(&[publisher.as_ref().upgrade().unwrap()]);
     communication2.receive(&[subscriber.as_ref().upgrade().unwrap()]);
+
+    let samples = reader.read(1, &[], &[], &[]).unwrap();
+    assert!(samples.len() == 1);
+}
+
+
+#[test]
+fn user_defined_write_read_auto_enable() {
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+
+    let participant2 = participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+
+    let topic = participant1
+        .create_topic::<MyType>("MyTopic", None, None, 0)
+        .unwrap();
+
+    let publisher = participant1.create_publisher(None, None, 0).unwrap();
+    let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+
+    let mut reader_qos = DataReaderQos::default();
+    reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
+    let mut reader = subscriber
+        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .unwrap();
+
+    writer
+        .write_w_timestamp(&MyType {value: 8}, None, Time { sec: 0, nanosec: 0 })
+        .unwrap();
+
+    std::thread::sleep(Duration::new(5, 0));
 
     let samples = reader.read(1, &[], &[], &[]).unwrap();
     assert!(samples.len() == 1);

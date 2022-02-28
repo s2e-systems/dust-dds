@@ -18,7 +18,7 @@ use rust_rtps_pim::{
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::types::{
-        GuidPrefix, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
+        GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E, GUIDPREFIX_UNKNOWN,
     },
 };
 use rust_rtps_udp_psm::messages::{

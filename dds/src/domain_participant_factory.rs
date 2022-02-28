@@ -149,7 +149,6 @@ pub fn get_multicast_socket(
     multicast_address: Ipv4Addr,
     port: u16,
 ) -> Option<UdpSocket> {
-    println!("multicast");
     let socket_addr = SocketAddr::from((address, port));
 
     let socket = Socket::new(
@@ -202,10 +201,10 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
-        let guid_prefix = GuidPrefix([3; 12]);
+        let participant_id = self.participant_list.lock().unwrap().len();
+        let guid_prefix = GuidPrefix([participant_id as u8; 12]);
         let qos = qos.unwrap_or_default();
 
-        let participant_id = self.participant_list.lock().unwrap().len();
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             guid_prefix,
             domain_id,
@@ -244,7 +243,7 @@ impl DomainParticipantFactory {
         Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
     }
 
-    pub fn enable(
+    fn enable(
         &self,
         domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
     ) -> DDSResult<()> {

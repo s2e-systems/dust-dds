@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_reader_proxy::RtpsReader,
@@ -75,6 +77,10 @@ impl MessageReceiver {
             match submessage {
                 RtpsSubmessageTypeRead::AckNack(_) => todo!(),
                 RtpsSubmessageTypeRead::Data(data) => {
+                    if source_locator.port == 7411 {
+                        std::thread::sleep(Duration::new(0, 0));
+                        // println!("\n{:?}\n", message);
+                    }
                     for subscriber in list {
                         let subscriber_lock = subscriber.read_lock();
                         for data_reader in &subscriber_lock.data_reader_list {

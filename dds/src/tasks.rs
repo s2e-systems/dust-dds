@@ -177,6 +177,10 @@ pub fn task_sedp_writer_discovery(
     >,
     subscriber_list: &Vec<RtpsShared<SubscriberAttributes<RtpsStructureImpl>>>,
 ) {
+    if subscriber_list.is_empty() {
+        return
+    }
+
     if let Ok(samples) = sedp_builtin_publications_data_reader.take(1, &[], &[], &[]) {
         if let Some(sample) = samples.into_iter().next() {
             let topic_name = &sample.publication_builtin_topic_data.topic_name;
@@ -198,6 +202,7 @@ pub fn task_sedp_writer_discovery(
                         match &mut data_reader_lock.rtps_reader {
                             RtpsReader::Stateless(_) => (),
                             RtpsReader::Stateful(rtps_stateful_reader) => {
+                                println!("adding matched writer");
                                 rtps_stateful_reader.matched_writer_add(writer_proxy)
                             }
                         };
@@ -215,6 +220,10 @@ pub fn task_sedp_reader_discovery(
     >,
     publisher_list: &Vec<RtpsShared<PublisherAttributes<RtpsStructureImpl>>>,
 ) {
+    if publisher_list.is_empty() {
+        return
+    }
+
     if let Ok(samples) = sedp_builtin_subscriptions_data_reader.take(1, &[], &[], &[]) {
         if let Some(sample) = samples.into_iter().next() {
             let topic_name = &sample.subscription_builtin_topic_data.topic_name;
