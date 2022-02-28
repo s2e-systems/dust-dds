@@ -1041,7 +1041,7 @@ mod tests {
     //#[test]
     fn multicast_socket_behaviour() {
         let port = 6000;
-        let interface_addr = [192, 168, 13, 161];
+        let interface_addr = [127, 0, 0, 1];
         let multicast_ip = [239, 127, 0, 1];
         let multicast_addr = SocketAddr::from((multicast_ip, port));
 
