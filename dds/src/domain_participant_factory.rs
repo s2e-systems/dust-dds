@@ -1,6 +1,5 @@
 use std::{
     net::{Ipv4Addr, SocketAddr, UdpSocket},
-    str::FromStr,
     sync::Mutex,
 };
 
@@ -113,8 +112,13 @@ impl RtpsStructure for RtpsStructureImpl {
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
 
-const UNICAST_ADDRESS: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1];
-const MULTICAST_ADDRESS: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
+// Note: the unicast address need to be configurable by the user later, and
+// must also be retrieved dynamically (e.g. the IPv4 from the first network interface)
+const UNICAST_LOCATOR_ADDRESS: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1];
+
+// As of 9.6.1.4.1  Default multicast address
+const DEFAULT_MULTICAST_LOCATOR_ADDRESS: [u8; 16] =
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
 
 const PB: u16 = 7400;
 const DG: u16 = 250;
@@ -141,7 +145,15 @@ pub fn port_user_unicast(domain_id: u16, participant_id: u16) -> u16 {
 }
 
 pub fn get_multicast_socket(port: u16) -> Option<UdpSocket> {
-    let socket_addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let socket_addr = SocketAddr::from((
+        [
+            UNICAST_LOCATOR_ADDRESS[12],
+            UNICAST_LOCATOR_ADDRESS[13],
+            UNICAST_LOCATOR_ADDRESS[14],
+            UNICAST_LOCATOR_ADDRESS[15],
+        ],
+        port,
+    ));
 
     let socket = Socket::new(
         socket2::Domain::IPV4,
@@ -154,8 +166,18 @@ pub fn get_multicast_socket(port: u16) -> Option<UdpSocket> {
     socket.bind(&socket_addr.into()).ok()?;
     socket
         .join_multicast_v4(
-            &Ipv4Addr::from_str("239.255.0.1").unwrap(),
-            &Ipv4Addr::from_str("127.0.0.1").unwrap(),
+            &Ipv4Addr::from([
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS[12],
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS[13],
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS[14],
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS[15],
+            ]),
+            &Ipv4Addr::from([
+                UNICAST_LOCATOR_ADDRESS[12],
+                UNICAST_LOCATOR_ADDRESS[13],
+                UNICAST_LOCATOR_ADDRESS[14],
+                UNICAST_LOCATOR_ADDRESS[15],
+            ]),
         )
         .ok()?;
     socket.set_multicast_loop_v4(true).ok()?;
@@ -164,7 +186,15 @@ pub fn get_multicast_socket(port: u16) -> Option<UdpSocket> {
 }
 
 fn get_unicast_socket(port: u16) -> Option<UdpSocket> {
-    let socket_addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let socket_addr = SocketAddr::from((
+        [
+            UNICAST_LOCATOR_ADDRESS[12],
+            UNICAST_LOCATOR_ADDRESS[13],
+            UNICAST_LOCATOR_ADDRESS[14],
+            UNICAST_LOCATOR_ADDRESS[15],
+        ],
+        port,
+    ));
 
     let socket = UdpSocket::bind(socket_addr).ok()?;
     socket.set_nonblocking(true).ok()?;
@@ -209,17 +239,17 @@ impl DomainParticipantFactory {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, participant_id as u16) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_id as u16) as u32,
-                MULTICAST_ADDRESS,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, participant_id as u16) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![],
         ));
@@ -766,7 +796,7 @@ fn create_builtins(
             Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_participant.read_lock().domain_id as u16) as u32,
-                MULTICAST_ADDRESS,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             ),
             false,
         );
@@ -999,7 +1029,8 @@ mod tests {
     use super::{
         create_builtins, get_unicast_socket, port_builtin_unicast,
         spdp_discovered_participant_data_from_domain_participant, RtpsStructureImpl,
-        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC, MULTICAST_ADDRESS, UNICAST_ADDRESS,
+        DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC, DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        UNICAST_LOCATOR_ADDRESS,
     };
 
     #[test]
@@ -1119,12 +1150,12 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 0) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_id as u16) as u32,
-                MULTICAST_ADDRESS,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             )],
             vec![],
             vec![],
@@ -1141,12 +1172,12 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 1) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_id as u16) as u32,
-                MULTICAST_ADDRESS,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             )],
             vec![],
             vec![],
@@ -1281,17 +1312,17 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 0) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_id as u16) as u32,
-                MULTICAST_ADDRESS,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 0) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![],
         ));
@@ -1307,17 +1338,17 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 1) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_id as u16) as u32,
-                MULTICAST_ADDRESS,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 1) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![],
         ));
@@ -1665,17 +1696,17 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 0) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_id as u16) as u32,
-                MULTICAST_ADDRESS,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 0) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![],
         ));
@@ -1691,17 +1722,17 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 1) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_multicast(domain_id as u16) as u32,
-                MULTICAST_ADDRESS,
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
             )],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 1) as u32,
-                UNICAST_ADDRESS,
+                UNICAST_LOCATOR_ADDRESS,
             )],
             vec![],
         ));
