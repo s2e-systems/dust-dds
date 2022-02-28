@@ -157,7 +157,7 @@ where
         &mut self,
         list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>],
     ) {
-        if let Some((source_locator, message)) = self.transport.read() {
+        while let Some((source_locator, message)) = self.transport.read() {
             MessageReceiver::new().process_message(
                 self.guid_prefix,
                 list,
