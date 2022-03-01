@@ -1,9 +1,7 @@
-use std::net::{SocketAddr, UdpSocket};
-
 use rust_dds::{
     communication::Communication,
     domain::domain_participant::DomainParticipant,
-    domain_participant_factory::{port_user_unicast, DomainParticipantFactory},
+    domain_participant_factory::{port_user_unicast, DomainParticipantFactory, get_unicast_socket},
     infrastructure::{
         qos::{DataReaderQos, DomainParticipantQos},
         qos_policy::ReliabilityQosPolicyKind,
@@ -64,6 +62,7 @@ impl<'de> DdsDeserialize<'de> for MyType {
 
 #[test]
 fn user_defined_write_read() {
+    let unicast_address = [127, 0, 0, 1];
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let mut qos = DomainParticipantQos::default();
@@ -136,7 +135,7 @@ fn user_defined_write_read() {
         vendor_id: VENDOR_ID_S2E,
         guid_prefix: GuidPrefix([3; 12]),
         transport: UdpTransport::new(
-            UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], port_user_unicast(0, 0)))).unwrap(),
+            get_unicast_socket(unicast_address.into(), port_user_unicast(0, 0)).unwrap(),
         ),
     };
 
@@ -145,7 +144,7 @@ fn user_defined_write_read() {
         vendor_id: VENDOR_ID_S2E,
         guid_prefix: GuidPrefix([3; 12]),
         transport: UdpTransport::new(
-            UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], port_user_unicast(0, 1)))).unwrap(),
+            get_unicast_socket(unicast_address.into(), port_user_unicast(0, 1)).unwrap(),
         ),
     };
 
