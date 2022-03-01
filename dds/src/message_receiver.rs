@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use rust_dds_rtps_implementation::{
     dds_impl::{
         data_reader_proxy::RtpsReader,

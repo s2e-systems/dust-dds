@@ -9,6 +9,7 @@ pub trait RtpsHistoryCacheAttributes {
     type CacheChangeType;
 
     fn changes(&self) -> &[Self::CacheChangeType];
+    fn pop_change(&mut self) -> Option<Self::CacheChangeType>;
 }
 
 pub trait RtpsHistoryCacheOperations {

@@ -29,7 +29,8 @@ use rust_dds_api::{
 use rust_rtps_pim::{
     behavior::reader::reader::RtpsReaderAttributes,
     structure::{
-        cache_change::RtpsCacheChangeAttributes, history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
+        cache_change::RtpsCacheChangeAttributes,
+        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
     },
 };
 
@@ -219,15 +220,9 @@ where
 
         match rtps_reader {
             RtpsReader::Stateless(rtps_reader) => {
-                let (seq_num, sample) = {
-                    let reader_cache = rtps_reader.reader_cache();
-                    let seq_num = reader_cache.changes().first().ok_or(DDSError::NoData)?.sequence_number();
-                    let mut data_value = reader_cache.changes().first().ok_or(DDSError::NoData)?.data_value();
-
-                    (seq_num.clone(), DdsDeserialize::deserialize(&mut data_value)?)
-                };
-
-                rtps_reader.reader_cache().remove_change(&seq_num);
+                let change = rtps_reader.reader_cache().pop_change().ok_or(DDSError::NoData)?;
+                let mut data_value = change.data_value();
+                let sample = DdsDeserialize::deserialize(&mut data_value)?;
 
                 Ok(Samples { samples: vec![sample] })
             }

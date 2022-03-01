@@ -178,7 +178,7 @@ pub fn task_sedp_writer_discovery(
     subscriber_list: &Vec<RtpsShared<SubscriberAttributes<RtpsStructureImpl>>>,
 ) {
     if subscriber_list.is_empty() {
-        return
+        return;
     }
 
     if let Ok(samples) = sedp_builtin_publications_data_reader.take(1, &[], &[], &[]) {
@@ -202,7 +202,6 @@ pub fn task_sedp_writer_discovery(
                         match &mut data_reader_lock.rtps_reader {
                             RtpsReader::Stateless(_) => (),
                             RtpsReader::Stateful(rtps_stateful_reader) => {
-                                println!("adding matched writer");
                                 rtps_stateful_reader.matched_writer_add(writer_proxy)
                             }
                         };
@@ -221,7 +220,7 @@ pub fn task_sedp_reader_discovery(
     publisher_list: &Vec<RtpsShared<PublisherAttributes<RtpsStructureImpl>>>,
 ) {
     if publisher_list.is_empty() {
-        return
+        return;
     }
 
     if let Ok(samples) = sedp_builtin_subscriptions_data_reader.take(1, &[], &[], &[]) {
@@ -265,9 +264,9 @@ mod tests {
         },
         dcps_psm::{
             BuiltInTopicKey, DomainId, Duration, InstanceHandle, InstanceStateKind,
-            LivelinessChangedStatus, RequestedDeadlineMissedStatus,
-            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleStateKind, SubscriptionMatchedStatus, ViewStateKind,
+            LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+            SampleLostStatus, SampleRejectedStatus, SampleStateKind, SubscriptionMatchedStatus,
+            ViewStateKind,
         },
         infrastructure::{
             qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
@@ -294,7 +293,9 @@ mod tests {
             sedp_discovered_reader_data::{
                 RtpsReaderProxy, SedpDiscoveredReaderData, DCPS_SUBSCRIPTION,
             },
-            sedp_discovered_writer_data::{RtpsWriterProxy, SedpDiscoveredWriterData, DCPS_PUBLICATION},
+            sedp_discovered_writer_data::{
+                RtpsWriterProxy, SedpDiscoveredWriterData, DCPS_PUBLICATION,
+            },
             spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
         },
         dds_impl::{
@@ -305,7 +306,7 @@ mod tests {
             subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
             topic_proxy::{TopicAttributes, TopicProxy},
         },
-        dds_type::{DdsDeserialize, DdsType, DdsSerialize},
+        dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         rtps_impl::{
             rtps_group_impl::RtpsGroupImpl, rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
             rtps_writer_proxy_impl::RtpsWriterProxyImpl,
@@ -325,11 +326,12 @@ mod tests {
         },
         discovery::{
             sedp::builtin_endpoints::{
-                SedpBuiltinSubscriptionsWriter, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                SedpBuiltinPublicationsWriter, SedpBuiltinSubscriptionsWriter,
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, SedpBuiltinPublicationsWriter,
+                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             },
             types::{BuiltinEndpointQos, BuiltinEndpointSet},
         },
@@ -338,7 +340,8 @@ mod tests {
             group::RtpsGroupConstructor,
             types::{
                 EntityId, Guid, GuidPrefix, BUILT_IN_READER_GROUP, ENTITYID_UNKNOWN, GUID_UNKNOWN,
-                PROTOCOLVERSION, VENDOR_ID_S2E, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_WITH_KEY,
+                PROTOCOLVERSION, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_WRITER_WITH_KEY,
+                VENDOR_ID_S2E,
             },
         },
     };
@@ -629,7 +632,7 @@ mod tests {
             .write_lock()
             .data_writer_list
             .push(sedp_builtin_subscriptions_data_writer.clone());
-            
+
         let sedp_builtin_publications_rtps_writer =
             SedpBuiltinPublicationsWriter::create(GuidPrefix([0; 12]), &[], &[]);
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
@@ -668,7 +671,10 @@ mod tests {
     }
 
     impl DdsSerialize for MyType {
-        fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(&self, _writer: W) -> DDSResult<()> {
+        fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+            &self,
+            _writer: W,
+        ) -> DDSResult<()> {
             Ok(())
         }
     }
@@ -848,8 +854,8 @@ mod tests {
                             remote_writer_guid: Guid::new(
                                 GuidPrefix([1; 12]),
                                 EntityId {
-                                    entity_key: [1,2,3],
-                                    entity_kind: USER_DEFINED_WRITER_WITH_KEY
+                                    entity_key: [1, 2, 3],
+                                    entity_kind: USER_DEFINED_WRITER_WITH_KEY,
                                 },
                             ),
                             unicast_locator_list: vec![],
@@ -924,7 +930,7 @@ mod tests {
             .matched_writer_lookup(&Guid::new(
                 GuidPrefix([1; 12]),
                 EntityId {
-                    entity_key: [1,2,3],
+                    entity_key: [1, 2, 3],
                     entity_kind: USER_DEFINED_WRITER_WITH_KEY
                 },
             ))
@@ -950,8 +956,8 @@ mod tests {
                             remote_reader_guid: Guid::new(
                                 GuidPrefix([1; 12]),
                                 EntityId {
-                                    entity_key: [1,2,3],
-                                    entity_kind: USER_DEFINED_READER_WITH_KEY
+                                    entity_key: [1, 2, 3],
+                                    entity_kind: USER_DEFINED_READER_WITH_KEY,
                                 },
                             ),
                             unicast_locator_list: vec![],
@@ -1008,10 +1014,7 @@ mod tests {
 
         let publisher_list = vec![publisher];
 
-        task_sedp_reader_discovery(
-            &mut mock_sedp_builtin_subscription_reader,
-            &publisher_list,
-        );
+        task_sedp_reader_discovery(&mut mock_sedp_builtin_subscription_reader, &publisher_list);
 
         let writer_shared = writer.as_ref().upgrade().unwrap();
         let mut writer_lock = writer_shared.write_lock();
@@ -1021,7 +1024,7 @@ mod tests {
             .matched_reader_lookup(&Guid::new(
                 GuidPrefix([1; 12]),
                 EntityId {
-                    entity_key: [1,2,3],
+                    entity_key: [1, 2, 3],
                     entity_kind: USER_DEFINED_READER_WITH_KEY
                 },
             ))

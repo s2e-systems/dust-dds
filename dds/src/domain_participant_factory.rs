@@ -1038,10 +1038,10 @@ mod tests {
     };
 
     //#[test]
-    fn multicast_socket_behaviour() {
+    fn _multicast_socket_behaviour() {
         let port = 6000;
         let interface_addr = [127, 0, 0, 1];
-        let multicast_ip = [239, 127, 0, 1];
+        let multicast_ip = [239, 255, 0, 1];
         let multicast_addr = SocketAddr::from((multicast_ip, port));
 
         let socket1 =
@@ -1146,13 +1146,13 @@ mod tests {
     }
 
     //#[test]
-    fn test_spdp_send_receive() {
+    fn _test_spdp_send_receive() {
         let domain_id = 14;
         let guid_prefix = GuidPrefix([3; 12]);
         let interface_address = [127, 0, 0, 1];
         let interface_locator_address =
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, interface_address[0], interface_address[1], interface_address[2], interface_address[3]];
-        let multicast_ip = [239, 200, 0, 1];
+        let multicast_ip = [239, 255, 0, 1];
         let multicast_locator_address =
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, multicast_ip[0], multicast_ip[1], multicast_ip[2], multicast_ip[3]];
 
@@ -1173,7 +1173,11 @@ mod tests {
                 port_builtin_multicast(domain_id as u16) as u32,
                 multicast_locator_address,
             )],
-            vec![],
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_user_unicast(domain_id as u16, 0) as u32,
+                interface_locator_address,
+            )],
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
