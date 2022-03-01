@@ -189,7 +189,7 @@ fn user_defined_write_read_auto_enable() {
         .write_w_timestamp(&MyType {value: 8}, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
 
-    std::thread::sleep(Duration::new(5, 0));
+    std::thread::sleep(Duration::new(1, 0));
 
     let samples = reader.read(1, &[], &[], &[]).unwrap();
     assert!(samples.len() == 1);

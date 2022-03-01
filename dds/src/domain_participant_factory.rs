@@ -202,7 +202,7 @@ impl DomainParticipantFactory {
         _mask: StatusMask,
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let participant_id = self.participant_list.lock().unwrap().len();
-        let guid_prefix = GuidPrefix([participant_id as u8; 12]);
+        let guid_prefix = GuidPrefix([3; 12]);
         let qos = qos.unwrap_or_default();
 
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
