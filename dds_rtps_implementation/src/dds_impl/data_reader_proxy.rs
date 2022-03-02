@@ -220,24 +220,34 @@ where
 
         match rtps_reader {
             RtpsReader::Stateless(rtps_reader) => {
-                let change = rtps_reader.reader_cache().pop_change().ok_or(DDSError::NoData)?;
-                let mut data_value = change.data_value();
-                let sample = DdsDeserialize::deserialize(&mut data_value)?;
+                let seq_num = *rtps_reader.reader_cache().changes().first().ok_or(DDSError::NoData)?.sequence_number();
 
-                Ok(Samples { samples: vec![sample] })
-            }
-            RtpsReader::Stateful(rtps_reader) => {
-                let (seq_num, sample) = {
-                    let reader_cache = rtps_reader.reader_cache();
-                    let seq_num = reader_cache.changes().first().ok_or(DDSError::NoData)?.sequence_number();
-                    let mut data_value = reader_cache.changes().first().ok_or(DDSError::NoData)?.data_value();
-
-                    (seq_num.clone(), DdsDeserialize::deserialize(&mut data_value)?)
-                };
+                let samples = rtps_reader.reader_cache().changes().iter()
+                    .filter(|change| change.sequence_number() == &seq_num)
+                    .map(|change| {
+                        let mut data_value = change.data_value();
+                        DdsDeserialize::deserialize(&mut data_value)
+                    })
+                    .collect::<DDSResult<Vec<_>>>()?;
 
                 rtps_reader.reader_cache().remove_change(&seq_num);
+                
+                Ok(Samples {samples})
+            }
+            RtpsReader::Stateful(rtps_reader) => {
+                let seq_num = *rtps_reader.reader_cache().changes().first().ok_or(DDSError::NoData)?.sequence_number();
 
-                Ok(Samples { samples: vec![sample] })
+                let samples = rtps_reader.reader_cache().changes().iter()
+                    .filter(|change| change.sequence_number() == &seq_num)
+                    .map(|change| {
+                        let mut data_value = change.data_value();
+                        DdsDeserialize::deserialize(&mut data_value)
+                    })
+                    .collect::<DDSResult<Vec<_>>>()?;
+
+                rtps_reader.reader_cache().remove_change(&seq_num);
+                
+                Ok(Samples {samples})
             }
         }
     }
