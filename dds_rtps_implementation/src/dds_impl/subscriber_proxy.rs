@@ -211,12 +211,22 @@ where
                 ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
             };
 
+            let domain_participant = subscriber_shared
+                .read_lock()
+                .parent_domain_participant
+                .upgrade()?;
             let rtps_reader = RtpsReader::Stateful(Rtps::StatefulReader::new(
                 guid,
                 topic_kind,
                 reliability_level,
-                &[],
-                &[],
+                &domain_participant
+                    .read_lock()
+                    .rtps_participant
+                    .default_unicast_locator_list(),
+                &domain_participant
+                    .read_lock()
+                    .rtps_participant
+                    .default_multicast_locator_list(),
                 rust_rtps_pim::behavior::types::DURATION_ZERO,
                 rust_rtps_pim::behavior::types::DURATION_ZERO,
                 false,
@@ -263,8 +273,6 @@ where
             let mut sedp_builtin_subscription_announcer = builtin_publisher_proxy
                 .datawriter_factory_lookup_datawriter(&subscription_topic)?;
 
-            // let domain_id = domain_participant.read_lock().domain_id;
-            // let participant_id = domain_participant.read_lock().participant_id;
             let sedp_discovered_reader_data = SedpDiscoveredReaderData {
                 reader_proxy: RtpsReaderProxy {
                     remote_reader_guid: guid,
@@ -274,7 +282,11 @@ where
                         .rtps_participant
                         .default_unicast_locator_list()
                         .to_vec(),
-                    multicast_locator_list: vec![],
+                    multicast_locator_list: domain_participant
+                        .read_lock()
+                        .rtps_participant
+                        .default_multicast_locator_list()
+                        .to_vec(),
                     expects_inline_qos: false,
                 },
 
@@ -672,7 +684,7 @@ mod tests {
         }
 
         fn default_multicast_locator_list(&self) -> &[Locator] {
-            todo!()
+            &[]
         }
     }
 

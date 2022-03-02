@@ -158,7 +158,8 @@ pub fn get_multicast_socket(
     )
     .ok()?;
     socket.set_reuse_address(true).ok()?;
-    socket.set_nonblocking(true).ok()?;
+    //socket.set_nonblocking(true).ok()?;
+    socket.set_read_timeout(Some(std::time::Duration::from_millis(50))).ok()?;
     socket.bind(&socket_addr.into()).ok()?;
     socket
         .join_multicast_v4(&multicast_address, &address)
@@ -201,10 +202,10 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
+        let participant_id = self.participant_list.lock().unwrap().len();
         let guid_prefix = GuidPrefix([3; 12]);
         let qos = qos.unwrap_or_default();
 
-        let participant_id = self.participant_list.lock().unwrap().len();
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             guid_prefix,
             domain_id,
@@ -243,7 +244,7 @@ impl DomainParticipantFactory {
         Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
     }
 
-    pub fn enable(
+    fn enable(
         &self,
         domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
     ) -> DDSResult<()> {
@@ -1037,11 +1038,11 @@ mod tests {
         DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     };
 
-    //#[test]
+    #[test]
     fn multicast_socket_behaviour() {
         let port = 6000;
         let interface_addr = [127, 0, 0, 1];
-        let multicast_ip = [239, 127, 0, 1];
+        let multicast_ip = [239, 255, 0, 1];
         let multicast_addr = SocketAddr::from((multicast_ip, port));
 
         let socket1 =
@@ -1145,14 +1146,14 @@ mod tests {
             .is_ok());
     }
 
-    //#[test]
+    #[test]
     fn test_spdp_send_receive() {
         let domain_id = 14;
         let guid_prefix = GuidPrefix([3; 12]);
         let interface_address = [127, 0, 0, 1];
         let interface_locator_address =
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, interface_address[0], interface_address[1], interface_address[2], interface_address[3]];
-        let multicast_ip = [239, 200, 0, 1];
+        let multicast_ip = [239, 255, 0, 1];
         let multicast_locator_address =
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, multicast_ip[0], multicast_ip[1], multicast_ip[2], multicast_ip[3]];
 
@@ -1173,7 +1174,11 @@ mod tests {
                 port_builtin_multicast(domain_id as u16) as u32,
                 multicast_locator_address,
             )],
-            vec![],
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_user_unicast(domain_id as u16, 0) as u32,
+                interface_locator_address,
+            )],
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
@@ -1713,8 +1718,11 @@ mod tests {
 
     #[test]
     fn test_sedp_send_receive_with_factory() {
-        let domain_id = 12;
+        let domain_id = 1;
         let unicast_address = [127, 0, 0, 1];
+        #[rustfmt::skip]
+        let unicast_locator_address =
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, unicast_address[0], unicast_address[1], unicast_address[2], unicast_address[3]];
 
         // ////////// Create 2 participants
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
@@ -1726,47 +1734,13 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 0) as u32,
-                [
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    unicast_address[0],
-                    unicast_address[1],
-                    unicast_address[2],
-                    unicast_address[3],
-                ],
+                unicast_locator_address,
             )],
             vec![],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 0) as u32,
-                [
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    unicast_address[0],
-                    unicast_address[1],
-                    unicast_address[2],
-                    unicast_address[3],
-                ],
+                unicast_locator_address,
             )],
             vec![],
         ));
@@ -1782,47 +1756,13 @@ mod tests {
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_builtin_unicast(domain_id as u16, 1) as u32,
-                [
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    unicast_address[0],
-                    unicast_address[1],
-                    unicast_address[2],
-                    unicast_address[3],
-                ],
+                unicast_locator_address,
             )],
             vec![],
             vec![Locator::new(
                 LOCATOR_KIND_UDPv4,
                 port_user_unicast(domain_id as u16, 1) as u32,
-                [
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    unicast_address[0],
-                    unicast_address[1],
-                    unicast_address[2],
-                    unicast_address[3],
-                ],
+                unicast_locator_address,
             )],
             vec![],
         ));

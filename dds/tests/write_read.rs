@@ -1,7 +1,7 @@
 use rust_dds::{
     communication::Communication,
     domain::domain_participant::DomainParticipant,
-    domain_participant_factory::{port_user_unicast, DomainParticipantFactory, get_unicast_socket},
+    domain_participant_factory::{get_unicast_socket, port_user_unicast, DomainParticipantFactory},
     infrastructure::{
         qos::{DataReaderQos, DomainParticipantQos},
         qos_policy::ReliabilityQosPolicyKind,
@@ -10,6 +10,7 @@ use rust_dds::{
     subscription::{data_reader::DataReader, subscriber::Subscriber},
     types::Time,
     udp_transport::UdpTransport,
+    DDSError,
 };
 use rust_dds_rtps_implementation::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
@@ -33,7 +34,10 @@ use rust_rtps_pim::{
     },
 };
 
-struct MyType {}
+#[derive(Debug, PartialEq)]
+struct MyType {
+    value: u8,
+}
 
 impl DdsType for MyType {
     fn type_name() -> &'static str {
@@ -48,20 +52,22 @@ impl DdsType for MyType {
 impl DdsSerialize for MyType {
     fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
         &self,
-        _writer: W,
+        mut writer: W,
     ) -> rust_dds::DDSResult<()> {
+        writer.write(&[self.value]).unwrap();
         Ok(())
     }
 }
 
 impl<'de> DdsDeserialize<'de> for MyType {
-    fn deserialize(_buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
-        Ok(MyType {})
+    fn deserialize(buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
+        Ok(MyType { value: buf[0] })
     }
 }
 
 #[test]
 fn user_defined_write_read() {
+    let domain_id = 3;
     let unicast_address = [127, 0, 0, 1];
     let participant_factory = DomainParticipantFactory::get_instance();
 
@@ -69,11 +75,11 @@ fn user_defined_write_read() {
     qos.entity_factory.autoenable_created_entities = false;
 
     let participant1 = participant_factory
-        .create_participant(0, Some(qos.clone()), None, 0)
+        .create_participant(domain_id, Some(qos.clone()), None, 0)
         .unwrap();
 
     let participant2 = participant_factory
-        .create_participant(0, Some(qos.clone()), None, 0)
+        .create_participant(domain_id, Some(qos.clone()), None, 0)
         .unwrap();
 
     let topic = participant1
@@ -98,7 +104,7 @@ fn user_defined_write_read() {
             stateful_writer.guid().clone(),
             &[Locator::new(
                 LOCATOR_KIND_UDPv4,
-                port_user_unicast(0, 0) as u32,
+                port_user_unicast(domain_id as u16, 0) as u32,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
             )],
             &[],
@@ -114,7 +120,7 @@ fn user_defined_write_read() {
             stateful_reader.guid().entity_id,
             &[Locator::new(
                 LOCATOR_KIND_UDPv4,
-                port_user_unicast(0, 1) as u32,
+                port_user_unicast(domain_id as u16, 1) as u32,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
             )],
             &[],
@@ -127,7 +133,7 @@ fn user_defined_write_read() {
     }
 
     writer
-        .write_w_timestamp(&MyType {}, None, Time { sec: 0, nanosec: 0 })
+        .write_w_timestamp(&MyType { value: 8 }, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
 
     let mut communication1 = Communication {
@@ -135,7 +141,11 @@ fn user_defined_write_read() {
         vendor_id: VENDOR_ID_S2E,
         guid_prefix: GuidPrefix([3; 12]),
         transport: UdpTransport::new(
-            get_unicast_socket(unicast_address.into(), port_user_unicast(0, 0)).unwrap(),
+            get_unicast_socket(
+                unicast_address.into(),
+                port_user_unicast(domain_id as u16, 0),
+            )
+            .unwrap(),
         ),
     };
 
@@ -144,7 +154,11 @@ fn user_defined_write_read() {
         vendor_id: VENDOR_ID_S2E,
         guid_prefix: GuidPrefix([3; 12]),
         transport: UdpTransport::new(
-            get_unicast_socket(unicast_address.into(), port_user_unicast(0, 1)).unwrap(),
+            get_unicast_socket(
+                unicast_address.into(),
+                port_user_unicast(domain_id as u16, 1),
+            )
+            .unwrap(),
         ),
     };
 
@@ -153,4 +167,60 @@ fn user_defined_write_read() {
 
     let samples = reader.read(1, &[], &[], &[]).unwrap();
     assert!(samples.len() == 1);
+}
+
+#[test]
+fn user_defined_write_read_auto_enable() {
+    let domain_id = 2;
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
+
+    let participant2 = participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
+
+    let topic = participant1
+        .create_topic::<MyType>("MyTopic", None, None, 0)
+        .unwrap();
+
+    let publisher = participant1.create_publisher(None, None, 0).unwrap();
+    let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+
+    let mut reader_qos = DataReaderQos::default();
+    reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
+    let mut reader = subscriber
+        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .unwrap();
+
+    // Wait for reader to be aware of the user writer
+    while reader
+        .as_ref()
+        .upgrade()
+        .unwrap()
+        .write_lock()
+        .rtps_reader
+        .try_as_stateful_reader()
+        .unwrap()
+        .matched_writers
+        .len()
+        == 0
+    {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    writer
+        .write_w_timestamp(&MyType { value: 8 }, None, Time { sec: 0, nanosec: 0 })
+        .unwrap();
+
+    let mut samples = reader.read(1, &[], &[], &[]);
+    while let Err(DDSError::NoData) = samples {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        samples = reader.read(1, &[], &[], &[])
+    }
+
+    assert_eq!(samples.unwrap().samples, vec![MyType { value: 8 }]);
 }

@@ -105,6 +105,10 @@ impl RtpsHistoryCacheAttributes for WriterHistoryCache {
     fn changes(&self) -> &[Self::CacheChangeType] {
         &self.changes
     }
+
+    fn pop_change(&mut self) -> Option<Self::CacheChangeType> {
+        self.changes.pop()
+    }
 }
 
 impl RtpsHistoryCacheOperations for WriterHistoryCache {

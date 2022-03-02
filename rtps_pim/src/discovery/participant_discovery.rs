@@ -129,7 +129,7 @@ where
             let proxy = W::new(
                 remote_writer_guid,
                 self.participant_data.metatraffic_unicast_locator_list(),
-                self.participant_data.metatraffic_unicast_locator_list(),
+                self.participant_data.metatraffic_multicast_locator_list(),
                 data_max_size_serialized,
                 remote_group_entity_id,
             );
@@ -187,12 +187,8 @@ where
 
             let proxy = W::new(
                 remote_writer_guid,
-                self.participant_data
-                    .metatraffic_unicast_locator_list()
-                    .clone(),
-                self.participant_data
-                    .metatraffic_unicast_locator_list()
-                    .clone(),
+                self.participant_data.metatraffic_unicast_locator_list(),
+                self.participant_data.metatraffic_multicast_locator_list(),
                 data_max_size_serialized,
                 remote_group_entity_id,
             );
@@ -250,7 +246,7 @@ where
             let proxy = W::new(
                 remote_writer_guid,
                 self.participant_data.metatraffic_unicast_locator_list(),
-                self.participant_data.metatraffic_unicast_locator_list(),
+                self.participant_data.metatraffic_multicast_locator_list(),
                 data_max_size_serialized,
                 remote_group_entity_id,
             );

@@ -192,12 +192,19 @@ where
                 ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
             };
 
+            let domain_participant = publisher_shared.read_lock().parent_participant.upgrade()?;
             let rtps_writer_impl = RtpsWriter::Stateful(Rtps::StatefulWriter::new(
                 guid,
                 topic_kind,
                 reliability_level,
-                &[],
-                &[],
+                &domain_participant
+                    .read_lock()
+                    .rtps_participant
+                    .default_unicast_locator_list(),
+                &domain_participant
+                    .read_lock()
+                    .rtps_participant
+                    .default_multicast_locator_list(),
                 true,
                 rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000),
                 rust_rtps_pim::behavior::types::DURATION_ZERO,
@@ -249,7 +256,11 @@ where
                         .rtps_participant
                         .default_unicast_locator_list()
                         .to_vec(),
-                    multicast_locator_list: vec![],
+                    multicast_locator_list: domain_participant
+                        .read_lock()
+                        .rtps_participant
+                        .default_unicast_locator_list()
+                        .to_vec(),
                     data_max_size_serialized: None,
                     remote_group_entity_id: EntityId::new([0; 3], 0),
                 },
@@ -639,7 +650,7 @@ mod tests {
         }
 
         fn default_multicast_locator_list(&self) -> &[Locator] {
-            todo!()
+            &[]
         }
     }
 
