@@ -51,7 +51,7 @@ pub struct ReliableStatefulReaderBehavior<'a, W, H> {
 }
 
 impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
-    pub fn receive_data(
+    pub fn receive_data<P>(
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
@@ -59,13 +59,14 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
-                ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::ParameterListType
+                ParameterType = P,
             >,
         >,
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheOperations,
-        H::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8]> + RtpsCacheChangeAttributes,
+        H::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8], ParameterType = P>
+            + RtpsCacheChangeAttributes,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
         if &writer_guid == self.writer_proxy.remote_writer_guid() {
@@ -174,7 +175,7 @@ mod tests {
 
         impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
             type DataType = [u8];
-            type ParameterListType = ();
+            type ParameterType = ();
 
             fn new(
                 _kind: &ChangeKind,
@@ -182,7 +183,7 @@ mod tests {
                 _instance_handle: &InstanceHandle,
                 sequence_number: &SequenceNumber,
                 _data_value: &Self::DataType,
-                _inline_qos: &Self::ParameterListType,
+                _inline_qos: &[Self::ParameterType],
             ) -> Self {
                 Self {
                     sequence_number: *sequence_number,
@@ -266,9 +267,10 @@ mod tests {
         struct MockParameterList;
 
         impl ParameterListSubmessageElementAttributes for MockParameterList {
-            type ParameterListType = ();
-            fn parameter(&self) -> &() {
-                &()
+            type ParameterType = ();
+
+            fn parameter(&self) -> &[Self::ParameterType] {
+                &[]
             }
         }
 

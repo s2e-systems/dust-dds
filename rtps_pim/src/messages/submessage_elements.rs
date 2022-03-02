@@ -123,14 +123,14 @@ pub trait ParameterAttributes {
     fn value(&self) -> &[u8];
 }
 
-pub trait ParameterListSubmessageElementConstructor {
-    type ParameterListType: ?Sized;
-    fn new(parameter: &Self::ParameterListType) -> Self;
+pub trait ParameterListSubmessageElementConstructor<'a> {
+    type ParameterType;
+    fn new(parameter: &'a [Self::ParameterType]) -> Self;
 }
 
 pub trait ParameterListSubmessageElementAttributes {
-    type ParameterListType: ?Sized;
-    fn parameter(&self) -> &Self::ParameterListType;
+    type ParameterType;
+    fn parameter(&self) -> &[Self::ParameterType];
 }
 
 pub trait CountSubmessageElementConstructor {

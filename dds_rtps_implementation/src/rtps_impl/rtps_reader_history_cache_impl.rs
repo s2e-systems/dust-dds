@@ -55,7 +55,7 @@ impl RtpsCacheChangeAttributes for ReaderCacheChange {
 
 impl<'b> RtpsCacheChangeConstructor<'b> for ReaderCacheChange {
     type DataType = [u8];
-    type ParameterListType = [Parameter<'b>];
+    type ParameterType = Parameter<'b>;
 
     fn new(
         kind: &ChangeKind,
@@ -63,7 +63,7 @@ impl<'b> RtpsCacheChangeConstructor<'b> for ReaderCacheChange {
         instance_handle: &InstanceHandle,
         sequence_number: &SequenceNumber,
         data_value: &Self::DataType,
-        _inline_qos: &Self::ParameterListType,
+        _inline_qos: &[Self::ParameterType],
     ) -> Self {
         let instance_state_kind = match kind {
             ChangeKind::Alive => InstanceStateKind::Alive,

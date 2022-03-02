@@ -52,13 +52,10 @@ impl<'a> Parameter<'a> {
 pub struct ParameterListSubmessageElementWrite<'a> {
     pub parameter: &'a [ParameterOwned],
 }
-impl<'a> ParameterListSubmessageElementConstructor for ParameterListSubmessageElementWrite<'a> {
-    type ParameterListType = &'a [ParameterOwned];
+impl<'a> ParameterListSubmessageElementConstructor<'a> for ParameterListSubmessageElementWrite<'a> {
+    type ParameterType = ParameterOwned;
 
-    fn new(parameter: &Self::ParameterListType) -> Self
-    where
-        Self: 'a,
-    {
+    fn new(parameter: &'a [Self::ParameterType]) -> Self {
         Self { parameter }
     }
 }
@@ -68,9 +65,9 @@ pub struct ParameterListSubmessageElementRead<'a> {
     pub parameter: Vec<Parameter<'a>>,
 }
 impl<'a> ParameterListSubmessageElementAttributes for ParameterListSubmessageElementRead<'a> {
-    type ParameterListType = [Parameter<'a>];
+    type ParameterType = Parameter<'a>;
 
-    fn parameter(&self) -> &Self::ParameterListType {
+    fn parameter(&self) -> &[Self::ParameterType] {
         &self.parameter
     }
 }

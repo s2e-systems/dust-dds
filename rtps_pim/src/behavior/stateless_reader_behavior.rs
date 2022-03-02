@@ -19,7 +19,7 @@ pub struct BestEffortStatelessReaderBehavior<'a, H> {
 }
 
 impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
-    pub fn receive_data(
+    pub fn receive_data<P>(
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
@@ -27,12 +27,12 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
             ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
-                ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::ParameterListType
+                ParameterType = P,
             >,
         >,
     ) where
         H: RtpsHistoryCacheOperations,
-        H::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8]>,
+        H::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8], ParameterType = P>,
     {
         let reader_id = data.reader_id().value();
         if reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
@@ -97,9 +97,10 @@ mod tests {
     struct MockParameterList;
 
     impl ParameterListSubmessageElementAttributes for MockParameterList {
-        type ParameterListType = ();
-        fn parameter(&self) -> &Self::ParameterListType {
-            &()
+        type ParameterType = ();
+
+        fn parameter(&self) -> &[Self::ParameterType] {
+            &[]
         }
     }
 
@@ -172,7 +173,7 @@ mod tests {
 
     impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
         type DataType = [u8];
-        type ParameterListType = ();
+        type ParameterType = ();
 
         fn new(
             _kind: &ChangeKind,
@@ -180,7 +181,7 @@ mod tests {
             _instance_handle: &crate::structure::types::InstanceHandle,
             _sequence_number: &SequenceNumber,
             _data_value: &Self::DataType,
-            _inline_qos: &Self::ParameterListType,
+            _inline_qos: &[Self::ParameterType],
         ) -> Self {
             Self
         }

@@ -25,7 +25,7 @@ pub struct WriterCacheChange {
 
 impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
     type DataType = [u8];
-    type ParameterListType = [Parameter<'a>];
+    type ParameterType = Parameter<'a>;
 
     fn new(
         kind: &ChangeKind,
@@ -33,7 +33,7 @@ impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
         instance_handle: &InstanceHandle,
         sequence_number: &SequenceNumber,
         data_value: &Self::DataType,
-        _inline_qos: &Self::ParameterListType,
+        _inline_qos: &[Self::ParameterType],
     ) -> Self {
         Self {
             kind: *kind,
