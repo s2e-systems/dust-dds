@@ -66,7 +66,7 @@ where
 {
     pub _qos: DataWriterQos,
     pub rtps_writer: RtpsWriter<Rtps>,
-    pub _listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
+    pub listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub publisher: RtpsWeak<PublisherAttributes<Rtps>>,
 }
@@ -84,7 +84,7 @@ where
         Self {
             _qos: qos,
             rtps_writer,
-            _listener: None,
+            listener: None,
             topic,
             publisher,
         }

@@ -89,7 +89,7 @@ where
     pub rtps_reader: RtpsReader<Rtps>,
     pub _qos: DataReaderQos,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
-    pub _listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
+    pub listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
     pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
 }
 
@@ -107,7 +107,7 @@ where
             rtps_reader,
             _qos: qos,
             topic,
-            _listener: None,
+            listener: None,
             parent_subscriber,
         }
     }
