@@ -220,7 +220,7 @@ where
 
         match rtps_reader {
             RtpsReader::Stateless(rtps_reader) => {
-                let seq_num = *rtps_reader.reader_cache().changes().first().ok_or(DDSError::NoData)?.sequence_number();
+                let seq_num = rtps_reader.reader_cache().get_seq_num_min().ok_or(DDSError::NoData)?;
 
                 let samples = rtps_reader.reader_cache().changes().iter()
                     .filter(|change| change.sequence_number() == &seq_num)
@@ -235,7 +235,7 @@ where
                 Ok(Samples {samples})
             }
             RtpsReader::Stateful(rtps_reader) => {
-                let seq_num = *rtps_reader.reader_cache().changes().first().ok_or(DDSError::NoData)?.sequence_number();
+                let seq_num = rtps_reader.reader_cache().get_seq_num_min().ok_or(DDSError::NoData)?;
 
                 let samples = rtps_reader.reader_cache().changes().iter()
                     .filter(|change| change.sequence_number() == &seq_num)
