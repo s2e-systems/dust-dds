@@ -158,7 +158,8 @@ pub fn get_multicast_socket(
     )
     .ok()?;
     socket.set_reuse_address(true).ok()?;
-    socket.set_nonblocking(true).ok()?;
+    //socket.set_nonblocking(true).ok()?;
+    socket.set_read_timeout(Some(std::time::Duration::from_millis(50))).ok()?;
     socket.bind(&socket_addr.into()).ok()?;
     socket
         .join_multicast_v4(&multicast_address, &address)
@@ -1037,8 +1038,8 @@ mod tests {
         DCPS_PUBLICATION, DCPS_SUBSCRIPTION, DCPS_TOPIC,
     };
 
-    //#[test]
-    fn _multicast_socket_behaviour() {
+    #[test]
+    fn multicast_socket_behaviour() {
         let port = 6000;
         let interface_addr = [127, 0, 0, 1];
         let multicast_ip = [239, 255, 0, 1];
@@ -1145,8 +1146,8 @@ mod tests {
             .is_ok());
     }
 
-    //#[test]
-    fn _test_spdp_send_receive() {
+    #[test]
+    fn test_spdp_send_receive() {
         let domain_id = 14;
         let guid_prefix = GuidPrefix([3; 12]);
         let interface_address = [127, 0, 0, 1];
@@ -1327,7 +1328,7 @@ mod tests {
         }
     }
 
-    //#[test]
+    #[test]
     fn test_sedp_send_receive() {
         let domain_id = 10;
         let unicast_address = [127, 0, 0, 1];
@@ -1717,7 +1718,7 @@ mod tests {
 
     #[test]
     fn test_sedp_send_receive_with_factory() {
-        let domain_id = 4;
+        let domain_id = 1;
         let unicast_address = [127, 0, 0, 1];
         #[rustfmt::skip]
         let unicast_locator_address =
