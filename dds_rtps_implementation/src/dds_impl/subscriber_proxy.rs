@@ -684,7 +684,7 @@ mod tests {
         }
 
         fn default_multicast_locator_list(&self) -> &[Locator] {
-            todo!()
+            &[]
         }
     }
 
