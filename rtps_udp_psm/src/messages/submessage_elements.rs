@@ -160,8 +160,8 @@ pub struct SequenceNumberSetSubmessageElementPsm {
     pub set: Vec<SequenceNumber>,
 }
 
-impl SequenceNumberSetSubmessageElementConstructor for SequenceNumberSetSubmessageElementPsm {
-    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self {
+impl<'a> SequenceNumberSetSubmessageElementConstructor<'a> for SequenceNumberSetSubmessageElementPsm {
+    fn new(base: SequenceNumber, set: &'a [SequenceNumber]) -> Self {
         Self {
             base,
             set: set.to_vec(),

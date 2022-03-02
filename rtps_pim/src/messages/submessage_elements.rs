@@ -79,8 +79,8 @@ pub trait SequenceNumberSubmessageElementAttributes {
     fn value(&self) -> SequenceNumber;
 }
 
-pub trait SequenceNumberSetSubmessageElementConstructor {
-    fn new(base: SequenceNumber, set: &[SequenceNumber]) -> Self;
+pub trait SequenceNumberSetSubmessageElementConstructor<'a> {
+    fn new(base: SequenceNumber, set: &'a [SequenceNumber]) -> Self;
 }
 
 pub trait SequenceNumberSetSubmessageElementAttributes {
@@ -96,8 +96,8 @@ pub trait FragmentNumberSubmessageElementAttributes {
     fn new(&self) -> FragmentNumber;
 }
 
-pub trait FragmentNumberSetSubmessageElementConstructor {
-    fn new(base: FragmentNumber, set: &[FragmentNumber]) -> Self;
+pub trait FragmentNumberSetSubmessageElementConstructor<'a> {
+    fn new(base: FragmentNumber, set: &'a [FragmentNumber]) -> Self;
 }
 
 pub trait FragmentNumberSetSubmessageElementAttributes {
@@ -113,13 +113,13 @@ pub trait TimestampSubmessageElementAttributes {
     fn value(&self) -> Time;
 }
 
-pub trait ParameterConstructor {
-    fn new(parameter_id: ParameterId, length: &i16, value: &[u8]) -> Self;
+pub trait ParameterConstructor<'a> {
+    fn new(parameter_id: ParameterId, length: i16, value: &'a [u8]) -> Self;
 }
 
 pub trait ParameterAttributes {
     fn parameter_id(&self) -> ParameterId;
-    fn length(&self) -> &i16;
+    fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }
 
@@ -141,24 +141,24 @@ pub trait CountSubmessageElementAttributes {
     fn value(&self) -> Count;
 }
 
-pub trait LocatorListSubmessageElementConstructor {
-    fn new(value: &[Locator]) -> Self;
+pub trait LocatorListSubmessageElementConstructor<'a> {
+    fn new(value: &'a [Locator]) -> Self;
 }
 
 pub trait LocatorListSubmessageElementAttributes {
     fn value(&self) -> &[Locator];
 }
 
-pub trait SerializedDataSubmessageElementConstructor {
-    fn new(value: &[u8]) -> Self;
+pub trait SerializedDataSubmessageElementConstructor<'a> {
+    fn new(value: &'a [u8]) -> Self;
 }
 
 pub trait SerializedDataSubmessageElementAttributes {
     fn value(&self) -> &[u8];
 }
 
-pub trait SerializedDataFragmentSubmessageElementConstructor {
-    fn new(value: &[u8]) -> Self;
+pub trait SerializedDataFragmentSubmessageElementConstructor<'a> {
+    fn new(value: &'a [u8]) -> Self;
 }
 
 pub trait SerializedDataFragmentSubmessageElementAttributes {
