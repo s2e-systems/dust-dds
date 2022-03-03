@@ -8,15 +8,13 @@ use rust_rtps_pim::{
     },
 };
 
-use super::{
-    rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_history_cache_impl::ReaderHistoryCache,
-};
+use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_history_cache_impl::RtpsHistoryCacheImpl};
 
 pub struct RtpsReaderImpl {
     pub endpoint: RtpsEndpointImpl,
     pub heartbeat_response_delay: Duration,
     pub heartbeat_supression_duration: Duration,
-    pub reader_cache: ReaderHistoryCache,
+    pub reader_cache: RtpsHistoryCacheImpl,
     pub expects_inline_qos: bool,
 }
 
@@ -31,7 +29,7 @@ impl RtpsReaderImpl {
             endpoint,
             heartbeat_response_delay,
             heartbeat_supression_duration,
-            reader_cache: ReaderHistoryCache::new(),
+            reader_cache: RtpsHistoryCacheImpl::new(),
             expects_inline_qos,
         }
     }
@@ -62,7 +60,7 @@ impl RtpsEndpointAttributes for RtpsReaderImpl {
 }
 
 impl RtpsReaderAttributes for RtpsReaderImpl {
-    type ReaderHistoryCacheType = ReaderHistoryCache;
+    type ReaderHistoryCacheType = RtpsHistoryCacheImpl;
 
     fn heartbeat_response_delay(&self) -> &Duration {
         &self.heartbeat_response_delay

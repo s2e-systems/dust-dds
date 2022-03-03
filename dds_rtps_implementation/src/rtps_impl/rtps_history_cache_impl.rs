@@ -57,7 +57,7 @@ impl RtpsParameter {
     }
 }
 
-pub struct WriterCacheChange {
+pub struct RtpsCacheChangeImpl {
     pub kind: ChangeKind,
     pub writer_guid: Guid,
     pub sequence_number: SequenceNumber,
@@ -67,7 +67,7 @@ pub struct WriterCacheChange {
 }
 
 
-impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
+impl<'a> RtpsCacheChangeConstructor<'a> for RtpsCacheChangeImpl {
     type DataType = [u8];
     type ParameterListType = [Parameter<'a>];
 
@@ -90,7 +90,7 @@ impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
     }
 }
 
-impl RtpsCacheChangeAttributes<'_> for WriterCacheChange {
+impl RtpsCacheChangeAttributes<'_> for RtpsCacheChangeImpl {
     type DataType = [u8];
     type ParameterListType = RtpsParameterList;
 
@@ -119,11 +119,11 @@ impl RtpsCacheChangeAttributes<'_> for WriterCacheChange {
     }
 }
 
-pub struct WriterHistoryCache {
-    changes: Vec<WriterCacheChange>,
+pub struct RtpsHistoryCacheImpl {
+    changes: Vec<RtpsCacheChangeImpl>,
 }
 
-impl RtpsHistoryCacheConstructor for WriterHistoryCache {
+impl RtpsHistoryCacheConstructor for RtpsHistoryCacheImpl {
     fn new() -> Self {
         Self {
             changes: Vec::new(),
@@ -131,16 +131,16 @@ impl RtpsHistoryCacheConstructor for WriterHistoryCache {
     }
 }
 
-impl RtpsHistoryCacheAttributes for WriterHistoryCache {
-    type CacheChangeType = WriterCacheChange;
+impl RtpsHistoryCacheAttributes for RtpsHistoryCacheImpl {
+    type CacheChangeType = RtpsCacheChangeImpl;
 
     fn changes(&self) -> &[Self::CacheChangeType] {
         &self.changes
     }
 }
 
-impl RtpsHistoryCacheOperations for WriterHistoryCache {
-    type CacheChangeType = WriterCacheChange;
+impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
+    type CacheChangeType = RtpsCacheChangeImpl;
 
     fn add_change(&mut self, change: Self::CacheChangeType) {
         self.changes.push(change)
@@ -175,8 +175,8 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let mut hc = WriterHistoryCache::new();
-        let change = WriterCacheChange::new(
+        let mut hc = RtpsHistoryCacheImpl::new();
+        let change = RtpsCacheChangeImpl::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,
             &0,
@@ -191,8 +191,8 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc = WriterHistoryCache::new();
-        let change1 = WriterCacheChange::new(
+        let mut hc = RtpsHistoryCacheImpl::new();
+        let change1 = RtpsCacheChangeImpl::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,
             &0,
@@ -200,7 +200,7 @@ mod tests {
             &vec![],
             &vec![],
         );
-        let change2 = WriterCacheChange::new(
+        let change2 = RtpsCacheChangeImpl::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,
             &0,
@@ -215,8 +215,8 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc = WriterHistoryCache::new();
-        let change1 = WriterCacheChange::new(
+        let mut hc = RtpsHistoryCacheImpl::new();
+        let change1 = RtpsCacheChangeImpl::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,
             &0,
@@ -224,7 +224,7 @@ mod tests {
             &vec![],
             &vec![],
         );
-        let change2 = WriterCacheChange::new(
+        let change2 = RtpsCacheChangeImpl::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
             &GUID_UNKNOWN,
             &0,

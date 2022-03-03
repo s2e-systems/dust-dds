@@ -1,17 +1,15 @@
 use rust_rtps_pim::{
     behavior::{
         stateful_writer_behavior::{
-            BestEffortStatefulWriterBehavior,
-            ReliableStatefulWriterBehavior,
+            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
             StatefulWriterBehavior,
         },
         types::Duration,
         writer::{
             reader_proxy::RtpsReaderProxyAttributes,
             stateful_writer::{
-                RtpsStatefulWriterConstructor,
+                RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor,
                 RtpsStatefulWriterOperations,
-                RtpsStatefulWriterAttributes
             },
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
@@ -29,9 +27,10 @@ use rust_rtps_pim::{
 use crate::utils::clock::{StdTimer, Timer};
 
 use super::{
+    rtps_endpoint_impl::RtpsEndpointImpl,
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
     rtps_reader_proxy_impl::{RtpsReaderProxyAttributesImpl, RtpsReaderProxyOperationsImpl},
-    rtps_writer_history_cache_impl::{WriterCacheChange, WriterHistoryCache},
-    rtps_endpoint_impl::RtpsEndpointImpl, rtps_writer_impl::RtpsWriterImpl,
+    rtps_writer_impl::RtpsWriterImpl,
 };
 
 pub struct RtpsStatefulWriterImpl {
@@ -66,7 +65,7 @@ impl RtpsEndpointAttributes for RtpsStatefulWriterImpl {
 }
 
 impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
-    type WriterHistoryCacheType = WriterHistoryCache;
+    type WriterHistoryCacheType = RtpsHistoryCacheImpl;
 
     fn push_mode(&self) -> &bool {
         &self.writer.push_mode
@@ -166,7 +165,7 @@ impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
 impl RtpsWriterOperations for RtpsStatefulWriterImpl {
     type DataType = Vec<u8>;
     type ParameterListType = Vec<u8>;
-    type CacheChangeType = WriterCacheChange;
+    type CacheChangeType = RtpsCacheChangeImpl;
     fn new_change(
         &mut self,
         kind: ChangeKind,
@@ -180,7 +179,7 @@ impl RtpsWriterOperations for RtpsStatefulWriterImpl {
 
 pub struct RtpsReaderProxyIterator<'a> {
     reader_proxy_iterator: std::slice::IterMut<'a, RtpsReaderProxyAttributesImpl>,
-    writer_cache: &'a WriterHistoryCache,
+    writer_cache: &'a RtpsHistoryCacheImpl,
     last_change_sequence_number: &'a SequenceNumber,
     reliability_level: &'a ReliabilityKind,
     writer_guid: &'a Guid,
@@ -189,7 +188,7 @@ pub struct RtpsReaderProxyIterator<'a> {
 }
 
 impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, WriterHistoryCache>;
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, RtpsHistoryCacheImpl>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let reader_proxy_attributes = self.reader_proxy_iterator.next()?;
@@ -218,7 +217,7 @@ impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, WriterHistoryCache>;
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, RtpsHistoryCacheImpl>;
     type IntoIter = RtpsReaderProxyIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
