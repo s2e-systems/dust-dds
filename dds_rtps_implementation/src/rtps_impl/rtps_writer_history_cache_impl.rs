@@ -1,3 +1,5 @@
+use std::iter::FromIterator;
+
 use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
     messages::{
@@ -47,6 +49,15 @@ impl<'a> IntoIterator for &'a RtpsParameterList {
             })
             .collect();
         v.into_iter()
+    }
+}
+impl<'a> FromIterator<&'a Parameter<'a>> for RtpsParameterList {
+    fn from_iter<T: IntoIterator<Item = &'a Parameter<'a>>>(iter: T) -> Self {
+        Self(iter.into_iter().map(|p| RtpsParameter {
+            parameter_id: p.parameter_id,
+            length: p.length,
+            value: p.value.to_vec(),
+        }).collect())
     }
 }
 
