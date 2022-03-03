@@ -8,27 +8,10 @@ use rust_rtps_pim::{
             SequenceNumberSubmessageElementAttributes, SequenceNumberSubmessageElementConstructor,
             SerializedDataSubmessageElementAttributes, TimestampSubmessageElementAttributes, Parameter,
         },
-        types::{Count, FragmentNumber, GroupDigest, ParameterId, Time},
+        types::{Count, FragmentNumber, GroupDigest, Time},
     },
     structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
 };
-
-#[derive(Debug, PartialEq)]
-pub struct ParameterOwned {
-    pub parameter_id: ParameterId,
-    pub length: i16,
-    pub value: Vec<u8>,
-}
-impl ParameterOwned {
-    pub fn new(parameter_id: ParameterId, value: &[u8]) -> Self {
-        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
-        Self {
-            parameter_id,
-            length,
-            value: value.to_vec(),
-        }
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElementWrite<'a> {

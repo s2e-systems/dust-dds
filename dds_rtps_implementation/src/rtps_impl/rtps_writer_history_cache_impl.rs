@@ -1,8 +1,9 @@
-use std::borrow::Borrow;
-
 use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
-    messages::{types::{ParameterId, Time}, submessage_elements::Parameter},
+    messages::{
+        submessage_elements::Parameter,
+        types::{ParameterId, Time},
+    },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -29,25 +30,6 @@ pub struct RtpsParameter {
     pub length: i16,
     pub value: Vec<u8>,
 }
-impl<'a> AsRef<Parameter<'a>> for RtpsParameter {
-    fn as_ref(&self) -> &Parameter<'a> {
-        todo!()
-    }
-}
-impl<'a> Borrow<Parameter<'a>> for RtpsParameter {
-    fn borrow(&self) -> &Parameter<'a> {
-        todo!()
-    }
-}
-impl<'a> From<&'a RtpsParameter> for Parameter<'a> {
-    fn from(v: &'a RtpsParameter) -> Self {
-        Parameter {
-            parameter_id: v.parameter_id,
-            length: v.length,
-            value: v.value.as_ref(),
-        }
-    }
-}
 
 pub struct RtpsParameterList(pub Vec<RtpsParameter>);
 impl<'a> IntoIterator for &'a RtpsParameterList {
@@ -55,7 +37,15 @@ impl<'a> IntoIterator for &'a RtpsParameterList {
     type IntoIter = std::vec::IntoIter<Parameter<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let v: Vec<Parameter> = self.0.iter().map(|i|i.into()).collect();
+        let v: Vec<Parameter> = self
+            .0
+            .iter()
+            .map(|p| Parameter {
+                parameter_id: p.parameter_id,
+                length: p.length,
+                value: p.value.as_ref(),
+            })
+            .collect();
         v.into_iter()
     }
 }

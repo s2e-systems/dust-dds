@@ -6,7 +6,7 @@ use rust_rtps_pim::messages::{submessage_elements::Parameter, types::ParameterId
 use crate::{
     mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
     messages::submessage_elements::{
-        ParameterListSubmessageElementRead, ParameterListSubmessageElementWrite, ParameterOwned,
+        ParameterListSubmessageElementRead, ParameterListSubmessageElementWrite,
     },
 };
 
@@ -16,31 +16,6 @@ const SENTINEL: Parameter = Parameter {
     length: 0,
     value: &[],
 };
-
-impl NumberOfBytes for ParameterOwned {
-    fn number_of_bytes(&self) -> usize {
-        4 /* parameter_id and length */ + self.length as usize
-    }
-}
-
-impl MappingWriteByteOrdered for ParameterOwned {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
-        &self,
-        mut writer: W,
-    ) -> Result<(), Error> {
-        writer.write_u16::<B>(self.parameter_id.0)?;
-        writer.write_i16::<B>(self.length)?;
-        writer.write_all(self.value.as_ref())?;
-        let padding: &[u8] = match self.value.len() % 4 {
-            1 => &[0; 3],
-            2 => &[0; 2],
-            3 => &[0; 1],
-            _ => &[],
-        };
-        writer.write_all(padding)?;
-        Ok(())
-    }
-}
 
 impl<'a> MappingWriteByteOrdered for ParameterListSubmessageElementWrite<'a> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
