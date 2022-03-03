@@ -23,7 +23,6 @@ pub struct WriterCacheChange {
 #[derive(Debug, PartialEq)]
 pub struct RtpsParameter {
     pub parameter_id: ParameterId,
-    pub length: i16,
     pub value: Vec<u8>,
 }
 
@@ -38,7 +37,7 @@ impl<'a> IntoIterator for &'a RtpsParameterList {
             .iter()
             .map(|p| Parameter {
                 parameter_id: p.parameter_id,
-                length: p.length,
+                length: p.value.len() as i16,
                 value: p.value.as_ref(),
             })
             .collect();
@@ -51,7 +50,6 @@ impl<'a> FromIterator<&'a Parameter<'a>> for RtpsParameterList {
             iter.into_iter()
                 .map(|p| RtpsParameter {
                     parameter_id: p.parameter_id,
-                    length: p.length,
                     value: p.value.to_vec(),
                 })
                 .collect(),
@@ -61,10 +59,8 @@ impl<'a> FromIterator<&'a Parameter<'a>> for RtpsParameterList {
 
 impl RtpsParameter {
     pub fn new(parameter_id: ParameterId, value: &[u8]) -> Self {
-        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
         Self {
             parameter_id,
-            length,
             value: value.to_vec(),
         }
     }
