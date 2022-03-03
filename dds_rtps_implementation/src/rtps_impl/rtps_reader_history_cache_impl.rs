@@ -1,6 +1,5 @@
-use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
 use rust_rtps_pim::{
-    messages::{types::Time, submessage_elements::Parameter},
+    messages::{submessage_elements::Parameter, types::Time},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -61,21 +60,6 @@ impl<'b> RtpsCacheChangeConstructor<'b> for ReaderCacheChange {
         data_value: &Self::DataType,
         inline_qos: &Self::ParameterListType,
     ) -> Self {
-        let instance_state_kind = match kind {
-            ChangeKind::Alive => InstanceStateKind::Alive,
-            ChangeKind::AliveFiltered => InstanceStateKind::Alive,
-            ChangeKind::NotAliveDisposed => InstanceStateKind::NotAliveDisposed,
-            ChangeKind::NotAliveUnregistered => todo!(),
-        };
-
-        let current_time = std::time::SystemTime::now();
-        let reception_timestamp = Time(
-            current_time
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-        );
-
         ReaderCacheChange {
             kind: *kind,
             writer_guid: *writer_guid,

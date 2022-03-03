@@ -1,11 +1,7 @@
 use std::iter::FromIterator;
 
-use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
-    messages::{
-        submessage_elements::Parameter,
-        types::{ParameterId, Time},
-    },
+    messages::{submessage_elements::Parameter, types::ParameterId},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -14,15 +10,13 @@ use rust_rtps_pim::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
+
 pub struct WriterCacheChange {
     pub kind: ChangeKind,
     pub writer_guid: Guid,
     pub sequence_number: SequenceNumber,
     pub instance_handle: InstanceHandle,
     pub data: Vec<u8>,
-    pub _source_timestamp: Option<Time>,
-    pub _view_state_kind: ViewStateKind,
-    pub _instance_state_kind: InstanceStateKind,
     pub inline_qos: RtpsParameterList,
 }
 
@@ -53,11 +47,15 @@ impl<'a> IntoIterator for &'a RtpsParameterList {
 }
 impl<'a> FromIterator<&'a Parameter<'a>> for RtpsParameterList {
     fn from_iter<T: IntoIterator<Item = &'a Parameter<'a>>>(iter: T) -> Self {
-        Self(iter.into_iter().map(|p| RtpsParameter {
-            parameter_id: p.parameter_id,
-            length: p.length,
-            value: p.value.to_vec(),
-        }).collect())
+        Self(
+            iter.into_iter()
+                .map(|p| RtpsParameter {
+                    parameter_id: p.parameter_id,
+                    length: p.length,
+                    value: p.value.to_vec(),
+                })
+                .collect(),
+        )
     }
 }
 
@@ -90,9 +88,6 @@ impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
             sequence_number: *sequence_number,
             instance_handle: *instance_handle,
             data: data_value.to_vec(),
-            _source_timestamp: None,
-            _view_state_kind: ViewStateKind::New,
-            _instance_state_kind: InstanceStateKind::Alive,
             inline_qos: RtpsParameterList(vec![]),
         }
     }
@@ -129,21 +124,12 @@ impl RtpsCacheChangeAttributes<'_> for WriterCacheChange {
 
 pub struct WriterHistoryCache {
     changes: Vec<WriterCacheChange>,
-    source_timestamp: Option<Time>,
-}
-
-impl WriterHistoryCache {
-    /// Set the Rtps history cache impl's info.
-    pub fn set_source_timestamp(&mut self, info: Option<Time>) {
-        self.source_timestamp = info;
-    }
 }
 
 impl RtpsHistoryCacheConstructor for WriterHistoryCache {
     fn new() -> Self {
         Self {
             changes: Vec::new(),
-            source_timestamp: None,
         }
     }
 }
