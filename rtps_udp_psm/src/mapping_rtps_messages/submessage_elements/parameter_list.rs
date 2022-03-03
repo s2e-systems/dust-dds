@@ -1,13 +1,13 @@
 use std::io::{Error, Write};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
-use rust_rtps_pim::messages::types::ParameterId;
+use rust_rtps_pim::messages::{submessage_elements::Parameter, types::ParameterId};
 
 use crate::{
     mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
     messages::submessage_elements::{
-        Parameter, ParameterListSubmessageElementRead, ParameterListSubmessageElementWrite,
-        ParameterOwned,
+        ParameterListSubmessageElementRead, ParameterListSubmessageElementWrite, ParameterOwned,
+        RtpsParameterBorrowed,
     },
 };
 
@@ -18,7 +18,7 @@ const SENTINEL: Parameter = Parameter {
     value: &[],
 };
 
-impl<'a> MappingWriteByteOrdered for Parameter<'a> {
+impl<'a> MappingWriteByteOrdered for RtpsParameterBorrowed<'a> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -37,7 +37,7 @@ impl<'a> MappingWriteByteOrdered for Parameter<'a> {
     }
 }
 
-impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<'a> {
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for RtpsParameterBorrowed<'a> {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let parameter_id = ParameterId(buf.read_u16::<B>()?);
         let length = buf.read_i16::<B>()?;
@@ -51,7 +51,7 @@ impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<'a> {
     }
 }
 
-impl<'a> NumberOfBytes for Parameter<'a> {
+impl<'a> NumberOfBytes for RtpsParameterBorrowed<'a> {
     fn number_of_bytes(&self) -> usize {
         4 /* parameter_id and length */ + self.length as usize
     }
@@ -87,7 +87,7 @@ impl<'a> MappingWriteByteOrdered for ParameterListSubmessageElementWrite<'a> {
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        for parameter in self.parameter {
+        for parameter in &self.parameter {
             parameter.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         SENTINEL.mapping_write_byte_ordered::<_, B>(&mut writer)
@@ -107,10 +107,49 @@ impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElement
             if parameter_i == SENTINEL {
                 break;
             } else {
-                parameter.push(Parameter::from(parameter_i));
+                parameter.push(parameter_i);
             }
         }
         Ok(Self { parameter })
+    }
+}
+
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<'a> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let parameter_id = ParameterId(buf.read_u16::<B>()?);
+        let length = buf.read_i16::<B>()?;
+        let (value, following) = buf.split_at(length as usize);
+        *buf = following;
+        Ok(Self {
+            parameter_id,
+            length,
+            value: value,
+        })
+    }
+}
+
+impl<'a> MappingWriteByteOrdered for Parameter<'a> {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
+        writer.write_u16::<B>(self.parameter_id.0)?;
+        writer.write_i16::<B>(self.length)?;
+        writer.write_all(self.value.as_ref())?;
+        let padding: &[u8] = match self.value.len() % 4 {
+            1 => &[0; 3],
+            2 => &[0; 2],
+            3 => &[0; 1],
+            _ => &[],
+        };
+        writer.write_all(padding)?;
+        Ok(())
+    }
+}
+
+impl<'a> NumberOfBytes for Parameter<'a> {
+    fn number_of_bytes(&self) -> usize {
+        4 /* parameter_id and length */ + self.length as usize
     }
 }
 
@@ -128,12 +167,16 @@ impl<'a> NumberOfBytes for ParameterListSubmessageElementRead<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rust_rtps_pim::messages::submessage_elements::{
+        Parameter, ParameterListSubmessageElementConstructor,
+    };
+
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(ParameterId(2), &[5, 6, 7, 8][..]);
+        let parameter = RtpsParameterBorrowed::new(ParameterId(2), &[5, 6, 7, 8][..]);
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -144,7 +187,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
-        let parameter = Parameter::new(ParameterId(2), &[5, 6, 7][..]);
+        let parameter = RtpsParameterBorrowed::new(ParameterId(2), &[5, 6, 7][..]);
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -155,7 +198,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_zero_size() {
-        let parameter = Parameter::new(ParameterId(2), &[][..]);
+        let parameter = RtpsParameterBorrowed::new(ParameterId(2), &[][..]);
         assert_eq!(
             to_bytes_le(&parameter).unwrap(),
             vec![
@@ -167,7 +210,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
-        let expected = Parameter::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 0]);
+        let expected = RtpsParameterBorrowed::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 0]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -179,7 +222,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = Parameter::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 12]);
+        let expected = RtpsParameterBorrowed::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 12]);
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -191,11 +234,18 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let parameter = &[
-            ParameterOwned::new(ParameterId(2), &[51, 61, 71, 81]),
-            ParameterOwned::new(ParameterId(3), &[52, 62]),
-        ];
-        let parameter_list_submessage_element = ParameterListSubmessageElementWrite { parameter };
+        let parameter_1 = Parameter {
+            parameter_id: ParameterId(2),
+            length: 4,
+            value: &[51, 61, 71, 81],
+        };
+        let parameter_2 = Parameter {
+            parameter_id: ParameterId(3),
+            length: 4,
+            value: &[52, 62, 0, 0],
+        };
+        let parameter_list_submessage_element =
+            ParameterListSubmessageElementWrite::new(vec![parameter_1, parameter_2]);
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter_list_submessage_element).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
@@ -209,7 +259,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list_empty() {
-        let parameter = ParameterListSubmessageElementWrite { parameter: &[] };
+        let parameter = ParameterListSubmessageElementWrite { parameter: vec![] };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
@@ -221,8 +271,16 @@ mod tests {
     fn deserialize_parameter_list() {
         let expected = ParameterListSubmessageElementRead {
             parameter: vec![
-                Parameter::new(ParameterId(0x02), &[15, 16, 17, 18]),
-                Parameter::new(ParameterId(0x03), &[25, 26, 27, 28]),
+                Parameter {
+                    parameter_id: ParameterId(0x02),
+                    length: 4,
+                    value: &[15, 16, 17, 18],
+                },
+                Parameter {
+                    parameter_id: ParameterId(0x03),
+                    length: 4,
+                    value: &[25, 26, 27, 28],
+                },
             ],
         };
         #[rustfmt::skip]
@@ -249,7 +307,11 @@ mod tests {
         ];
 
         let expected = ParameterListSubmessageElementRead {
-            parameter: vec![Parameter::new(ParameterId(0x32), parameter_value_expected)],
+            parameter: vec![Parameter {
+                parameter_id: ParameterId(0x32),
+                length: 24,
+                value: parameter_value_expected,
+            }],
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
@@ -276,15 +338,28 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
             0x01, 0x01, 0x01, 0x01,
         ];
+        #[rustfmt::skip]
         let parameter_value_expected2 = &[
-            0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
-            0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+            0x01, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,
+            0x02, 0x02, 0x02, 0x02,
+            0x02, 0x02, 0x02, 0x02,
+            0x02, 0x02, 0x02, 0x02,
+            0x02, 0x02, 0x02, 0x02,
         ];
 
         let expected = ParameterListSubmessageElementRead {
             parameter: vec![
-                Parameter::new(ParameterId(0x32), parameter_value_expected1),
-                Parameter::new(ParameterId(0x32), parameter_value_expected2),
+                Parameter {
+                    parameter_id: ParameterId(0x32),
+                    length: 24,
+                    value: parameter_value_expected1,
+                },
+                Parameter {
+                    parameter_id: ParameterId(0x32),
+                    length: 24,
+                    value: parameter_value_expected2,
+                },
             ],
         };
         #[rustfmt::skip]

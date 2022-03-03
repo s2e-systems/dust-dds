@@ -6,7 +6,7 @@ use rust_rtps_pim::{
             ParameterListSubmessageElementConstructor,
             SequenceNumberSetSubmessageElementConstructor,
             SequenceNumberSubmessageElementAttributes, SequenceNumberSubmessageElementConstructor,
-            SerializedDataSubmessageElementAttributes, TimestampSubmessageElementAttributes,
+            SerializedDataSubmessageElementAttributes, TimestampSubmessageElementAttributes, Parameter,
         },
         types::{Count, FragmentNumber, GroupDigest, ParameterId, Time},
     },
@@ -14,7 +14,7 @@ use rust_rtps_pim::{
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Parameter<'a> {
+pub struct RtpsParameterBorrowed<'a> {
     pub parameter_id: ParameterId,
     pub length: i16,
     pub value: &'a [u8],
@@ -37,7 +37,7 @@ impl ParameterOwned {
     }
 }
 
-impl<'a> Parameter<'a> {
+impl<'a> RtpsParameterBorrowed<'a> {
     pub fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
         let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
         Self {
@@ -50,13 +50,13 @@ impl<'a> Parameter<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElementWrite<'a> {
-    pub parameter: &'a [ParameterOwned],
+    pub parameter: Vec<Parameter<'a>>,
 }
 impl<'a> ParameterListSubmessageElementConstructor<'a> for ParameterListSubmessageElementWrite<'a> {
-    type ParameterType = ParameterOwned;
-
-    fn new(parameter: &'a [Self::ParameterType]) -> Self {
-        Self { parameter }
+    fn new<P: IntoIterator<Item = Parameter<'a>>>(parameter: P) -> Self {
+        Self {
+            parameter: parameter.into_iter().collect(),
+        }
     }
 }
 
@@ -65,10 +65,8 @@ pub struct ParameterListSubmessageElementRead<'a> {
     pub parameter: Vec<Parameter<'a>>,
 }
 impl<'a> ParameterListSubmessageElementAttributes for ParameterListSubmessageElementRead<'a> {
-    type ParameterType = Parameter<'a>;
-
-    fn parameter(&self) -> &[Self::ParameterType] {
-        &self.parameter
+    fn parameter(&self) -> &[Parameter<'_>] {
+        self.parameter.as_ref()
     }
 }
 

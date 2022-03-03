@@ -5,7 +5,7 @@ use crate::{
             CountSubmessageElementConstructor, EntityIdSubmessageElementConstructor,
             SequenceNumberSetSubmessageElementAttributes,
             SequenceNumberSetSubmessageElementConstructor,
-            SequenceNumberSubmessageElementConstructor,
+            SequenceNumberSubmessageElementConstructor, ParameterListSubmessageElementConstructor, Parameter,
         },
         submessages::{
             AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
@@ -42,6 +42,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         SequenceNumberElement,
         Gap,
         SequenceNumberSetElement,
+        ParameterListElement,
     >(
         &mut self,
         mut send_data: impl FnMut(Data),
@@ -51,11 +52,13 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
-            ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
+            ParameterListSubmessageElementType = ParameterListElement,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
+        ParameterListElement: ParameterListSubmessageElementConstructor<'a>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        CacheChange: RtpsCacheChangeAttributes + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: IntoIterator<Item = Parameter<'a>> + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor,
         SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
@@ -86,7 +89,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = SequenceNumberElement::new(*change.sequence_number());
-                let inline_qos = change.inline_qos();
+                let inline_qos = ParameterListElement::new(change.inline_qos());
                 let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
                     endianness_flag,
@@ -131,6 +134,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         CacheChange,
         Gap,
         SequenceNumberSetElement,
+        ParameterListElement
     >(
         &mut self,
         mut send_data: impl FnMut(Data),
@@ -141,11 +145,13 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
-            ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
+            ParameterListSubmessageElementType = ParameterListElement,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
+        ParameterListElement: ParameterListSubmessageElementConstructor<'a>,
         EntityIdElement: EntityIdSubmessageElementConstructor,
-        CacheChange: RtpsCacheChangeAttributes + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: IntoIterator<Item = Parameter<'a>> + 'a,
         SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
         Gap: GapSubmessageConstructor<
@@ -176,7 +182,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let writer_id =
                     EntityIdSubmessageElementConstructor::new(change.writer_guid().entity_id());
                 let writer_sn = SequenceNumberElement::new(*change.sequence_number());
-                let inline_qos = change.inline_qos();
+                let inline_qos = ParameterListElement::new(change.inline_qos());
                 let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
                     endianness_flag,
@@ -265,6 +271,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         CacheChange,
         Gap,
         SequenceNumberSetElement,
+        ParameterListElement
     >(
         &mut self,
         mut send_data: impl FnMut(Data),
@@ -275,11 +282,13 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         Data: DataSubmessageConstructor<
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
-            ParameterListSubmessageElementType = &'a CacheChange::ParameterListType,
+            ParameterListSubmessageElementType = ParameterListElement,
             SerializedDataSubmessageElementType = &'a CacheChange::DataType,
         >,
+        ParameterListElement: ParameterListSubmessageElementConstructor<'a>,
         EntityIdElement: EntityIdSubmessageElementConstructor,
-        CacheChange: RtpsCacheChangeAttributes + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: IntoIterator<Item = Parameter<'a>> + 'a,
         SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
         Gap: GapSubmessageConstructor<
@@ -309,7 +318,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = SequenceNumberElement::new(*change.sequence_number());
-                let inline_qos = change.inline_qos();
+                let inline_qos = ParameterListElement::new(change.inline_qos());
                 let serialized_payload = change.data_value();
                 let data_submessage = Data::new(
                     endianness_flag,

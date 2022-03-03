@@ -1,4 +1,6 @@
-use crate::structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId, Locator};
+use crate::structure::types::{
+    EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId,
+};
 
 use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
 
@@ -113,24 +115,29 @@ pub trait TimestampSubmessageElementAttributes {
     fn value(&self) -> Time;
 }
 
-pub trait ParameterConstructor<'a> {
-    fn new(parameter_id: ParameterId, length: i16, value: &'a [u8]) -> Self;
-}
+// pub trait ParameterConstructor<'a> {
+//     fn new(parameter_id: ParameterId, length: i16, value: &'a [u8]) -> Self;
+// }
 
-pub trait ParameterAttributes {
-    fn parameter_id(&self) -> ParameterId;
-    fn length(&self) -> i16;
-    fn value(&self) -> &[u8];
+// pub trait ParameterAttributes {
+//     fn parameter_id(&self) -> ParameterId;
+//     fn length(&self) -> i16;
+//     fn value(&self) -> &[u8];
+// }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Parameter<'a> {
+    pub parameter_id: ParameterId,
+    pub length: i16,
+    pub value: &'a [u8],
 }
 
 pub trait ParameterListSubmessageElementConstructor<'a> {
-    type ParameterType;
-    fn new(parameter: &'a [Self::ParameterType]) -> Self;
+    fn new<P: IntoIterator<Item = Parameter<'a>>>(parameter: P) -> Self;
 }
 
 pub trait ParameterListSubmessageElementAttributes {
-    type ParameterType;
-    fn parameter(&self) -> &[Self::ParameterType];
+    fn parameter(&self) -> &[Parameter<'_>];
 }
 
 pub trait CountSubmessageElementConstructor {

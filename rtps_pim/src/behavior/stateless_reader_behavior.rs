@@ -2,7 +2,7 @@ use crate::{
     messages::{
         submessage_elements::{
             EntityIdSubmessageElementAttributes, ParameterListSubmessageElementAttributes,
-            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
+            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes, Parameter,
         },
         submessages::DataSubmessageAttributes,
     },
@@ -19,20 +19,18 @@ pub struct BestEffortStatelessReaderBehavior<'a, H> {
 }
 
 impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
-    pub fn receive_data<P>(
+    pub fn receive_data(
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
             EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
-            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
-                ParameterType = P,
-            >,
+            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
         >,
     ) where
         H: RtpsHistoryCacheOperations,
-        H::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8], ParameterType = P>,
+        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = [u8], ParameterListType = [Parameter<'b>]>,
     {
         let reader_id = data.reader_id().value();
         if reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
@@ -68,7 +66,7 @@ mod tests {
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
             },
         },
-        messages::types::SubmessageFlag,
+        messages::{types::SubmessageFlag, submessage_elements::Parameter},
         structure::types::{EntityId, SequenceNumber},
     };
 
@@ -97,9 +95,7 @@ mod tests {
     struct MockParameterList;
 
     impl ParameterListSubmessageElementAttributes for MockParameterList {
-        type ParameterType = ();
-
-        fn parameter(&self) -> &[Self::ParameterType] {
+        fn parameter(&self) -> &[Parameter<'_>] {
             &[]
         }
     }
@@ -173,7 +169,7 @@ mod tests {
 
     impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
         type DataType = [u8];
-        type ParameterType = ();
+        type ParameterListType = [Parameter<'a>];
 
         fn new(
             _kind: &ChangeKind,
@@ -181,7 +177,7 @@ mod tests {
             _instance_handle: &crate::structure::types::InstanceHandle,
             _sequence_number: &SequenceNumber,
             _data_value: &Self::DataType,
-            _inline_qos: &[Self::ParameterType],
+            _inline_qos: &Self::ParameterListType,
         ) -> Self {
             Self
         }

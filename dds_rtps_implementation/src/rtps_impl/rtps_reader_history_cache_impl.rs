@@ -1,6 +1,6 @@
 use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
 use rust_rtps_pim::{
-    messages::types::Time,
+    messages::{types::Time, submessage_elements::Parameter},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -9,8 +9,6 @@ use rust_rtps_pim::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
-use rust_rtps_udp_psm::messages::submessage_elements::Parameter;
-
 pub struct ReaderCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
@@ -24,7 +22,7 @@ pub struct ReaderCacheChange {
     _instance_state_kind: InstanceStateKind,
 }
 
-impl RtpsCacheChangeAttributes for ReaderCacheChange {
+impl RtpsCacheChangeAttributes<'_> for ReaderCacheChange {
     type DataType = [u8];
     type ParameterListType = ();
 
@@ -55,7 +53,7 @@ impl RtpsCacheChangeAttributes for ReaderCacheChange {
 
 impl<'b> RtpsCacheChangeConstructor<'b> for ReaderCacheChange {
     type DataType = [u8];
-    type ParameterType = Parameter<'b>;
+    type ParameterListType = [Parameter<'b>];
 
     fn new(
         kind: &ChangeKind,
@@ -63,7 +61,7 @@ impl<'b> RtpsCacheChangeConstructor<'b> for ReaderCacheChange {
         instance_handle: &InstanceHandle,
         sequence_number: &SequenceNumber,
         data_value: &Self::DataType,
-        _inline_qos: &[Self::ParameterType],
+        _inline_qos: &Self::ParameterListType,
     ) -> Self {
         let instance_state_kind = match kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
@@ -207,7 +205,7 @@ mod tests {
             &0,
             &1,
             &vec![],
-            &vec![],
+            &[],
         );
         let change2 = ReaderCacheChange::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
@@ -215,7 +213,7 @@ mod tests {
             &0,
             &2,
             &vec![],
-            &vec![],
+            &[],
         );
         hc.add_change(change1);
         hc.add_change(change2);

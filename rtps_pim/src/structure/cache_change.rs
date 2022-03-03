@@ -2,7 +2,7 @@ use super::types::{ChangeKind, Guid, InstanceHandle, SequenceNumber};
 
 pub trait RtpsCacheChangeConstructor<'a> {
     type DataType: ?Sized;
-    type ParameterType;
+    type ParameterListType: ?Sized;
 
     fn new(
         kind: &ChangeKind,
@@ -10,11 +10,11 @@ pub trait RtpsCacheChangeConstructor<'a> {
         instance_handle: &InstanceHandle,
         sequence_number: &SequenceNumber,
         data_value: &Self::DataType,
-        inline_qos: &[Self::ParameterType],
+        inline_qos: &Self::ParameterListType,
     ) -> Self;
 }
 
-pub trait RtpsCacheChangeAttributes {
+pub trait RtpsCacheChangeAttributes<'a> {
     type DataType: ?Sized;
     type ParameterListType: ?Sized;
 

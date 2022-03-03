@@ -10,7 +10,6 @@ edition = "2018"
 [dependencies]
 rust-dds-api = {path="../dds_api"}
 rust-rtps-pim = {path="../rtps_pim"}
-rust-rtps-udp-psm = {path="../rtps_udp_psm"}
 
 byteorder = "1.4.3"
 cdr = "0.2.4"

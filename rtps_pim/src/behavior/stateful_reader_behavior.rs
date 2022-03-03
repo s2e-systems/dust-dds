@@ -1,8 +1,9 @@
 use crate::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementAttributes, ParameterListSubmessageElementAttributes,
-            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
+            EntityIdSubmessageElementAttributes, Parameter,
+            ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
+            SerializedDataSubmessageElementAttributes,
         },
         submessages::DataSubmessageAttributes,
     },
@@ -51,22 +52,20 @@ pub struct ReliableStatefulReaderBehavior<'a, W, H> {
 }
 
 impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
-    pub fn receive_data<P>(
+    pub fn receive_data(
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
             EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
-            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
-                ParameterType = P,
-            >,
+            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
         >,
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheOperations,
-        H::CacheChangeType: RtpsCacheChangeConstructor<'a, DataType = [u8], ParameterType = P>
-            + RtpsCacheChangeAttributes,
+        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = [u8], ParameterListType = [Parameter<'b>]>
+            + RtpsCacheChangeAttributes<'b>,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
         if &writer_guid == self.writer_proxy.remote_writer_guid() {
@@ -109,7 +108,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        messages::types::SubmessageFlag,
+        messages::{submessage_elements::Parameter, types::SubmessageFlag},
         structure::types::{EntityId, InstanceHandle, SequenceNumber},
     };
 
@@ -175,7 +174,7 @@ mod tests {
 
         impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
             type DataType = [u8];
-            type ParameterType = ();
+            type ParameterListType = [Parameter<'a>];
 
             fn new(
                 _kind: &ChangeKind,
@@ -183,7 +182,7 @@ mod tests {
                 _instance_handle: &InstanceHandle,
                 sequence_number: &SequenceNumber,
                 _data_value: &Self::DataType,
-                _inline_qos: &[Self::ParameterType],
+                _inline_qos: &Self::ParameterListType,
             ) -> Self {
                 Self {
                     sequence_number: *sequence_number,
@@ -191,9 +190,9 @@ mod tests {
             }
         }
 
-        impl<'a> RtpsCacheChangeAttributes for MockCacheChange {
+        impl<'a> RtpsCacheChangeAttributes<'a> for MockCacheChange {
             type DataType = ();
-            type ParameterListType = ();
+            type ParameterListType = [Parameter<'a>];
 
             fn kind(&self) -> &ChangeKind {
                 todo!()
@@ -267,9 +266,7 @@ mod tests {
         struct MockParameterList;
 
         impl ParameterListSubmessageElementAttributes for MockParameterList {
-            type ParameterType = ();
-
-            fn parameter(&self) -> &[Self::ParameterType] {
+            fn parameter(&self) -> &[Parameter<'_>] {
                 &[]
             }
         }
