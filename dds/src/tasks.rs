@@ -8,7 +8,10 @@ use std::{
 };
 
 use async_std::prelude::StreamExt;
-use rust_dds_api::subscription::data_reader::DataReader;
+use rust_dds_api::{
+    dcps_psm::{PublicationMatchedStatus, SubscriptionMatchedStatus},
+    subscription::data_reader::DataReader,
+};
 use rust_dds_rtps_implementation::{
     data_representation_builtin_endpoints::{
         sedp_discovered_reader_data::SedpDiscoveredReaderData,
@@ -202,7 +205,17 @@ pub fn task_sedp_writer_discovery(
                         match &mut data_reader_lock.rtps_reader {
                             RtpsReader::Stateless(_) => (),
                             RtpsReader::Stateful(rtps_stateful_reader) => {
-                                rtps_stateful_reader.matched_writer_add(writer_proxy)
+                                rtps_stateful_reader.matched_writer_add(writer_proxy);
+                                let count = rtps_stateful_reader.matched_writers.len() as i32;
+                                data_reader_lock.listener.as_ref().map(|l| {
+                                    l.on_subscription_matched(SubscriptionMatchedStatus {
+                                        total_count: count, // ?
+                                        total_count_change: 1, // ?
+                                        last_publication_handle: 0, // ????
+                                        current_count: count,
+                                        current_count_change: 1,
+                                    })
+                                });
                             }
                         };
                     }
@@ -245,7 +258,17 @@ pub fn task_sedp_reader_discovery(
                         match &mut data_writer_lock.rtps_writer {
                             RtpsWriter::Stateless(_) => (),
                             RtpsWriter::Stateful(rtps_stateful_writer) => {
-                                rtps_stateful_writer.matched_reader_add(reader_proxy)
+                                rtps_stateful_writer.matched_reader_add(reader_proxy);
+                                let count = rtps_stateful_writer.matched_readers.len() as i32;
+                                data_writer_lock.listener.as_ref().map(|l| {
+                                    l.on_publication_matched(PublicationMatchedStatus {
+                                        total_count: count, // ?
+                                        total_count_change: 1, // ?
+                                        last_subscription_handle: 0, // ????
+                                        current_count: count,
+                                        current_count_change: 1,
+                                    })
+                                });
                             }
                         };
                     }

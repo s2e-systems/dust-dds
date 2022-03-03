@@ -140,7 +140,7 @@ where
         &self,
         topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
-        _a_listener: Option<&'static dyn DataWriterListener>,
+        listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
         _mask: StatusMask,
     ) -> DDSResult<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade()?;
@@ -215,7 +215,7 @@ where
             let data_writer_shared = RtpsShared::new(DataWriterAttributes {
                 _qos: qos,
                 rtps_writer: rtps_writer_impl,
-                _listener: None,
+                listener,
                 topic: topic_shared.clone(),
                 publisher: publisher_shared.downgrade(),
             });

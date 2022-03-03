@@ -155,7 +155,7 @@ where
         &self,
         topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
-        _a_listener: Option<&'static dyn DataReaderListener>,
+        listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
         _mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade()?;
@@ -236,7 +236,7 @@ where
                 rtps_reader,
                 _qos: qos,
                 topic: topic_shared.clone(),
-                _listener: None,
+                listener,
                 parent_subscriber: self.subscriber_impl.clone(),
             };
 
