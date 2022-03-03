@@ -205,7 +205,6 @@ pub fn task_sedp_writer_discovery(
                         match &mut data_reader_lock.rtps_reader {
                             RtpsReader::Stateless(_) => (),
                             RtpsReader::Stateful(rtps_stateful_reader) => {
-                                println!("Matched writer");
                                 rtps_stateful_reader.matched_writer_add(writer_proxy);
                                 let count = rtps_stateful_reader.matched_writers.len() as i32;
                                 data_reader_lock.listener.as_ref().map(|l| {
@@ -259,7 +258,6 @@ pub fn task_sedp_reader_discovery(
                         match &mut data_writer_lock.rtps_writer {
                             RtpsWriter::Stateless(_) => (),
                             RtpsWriter::Stateful(rtps_stateful_writer) => {
-                                println!("Matched reader");
                                 rtps_stateful_writer.matched_reader_add(reader_proxy);
                                 let count = rtps_stateful_writer.matched_readers.len() as i32;
                                 data_writer_lock.listener.as_ref().map(|l| {
