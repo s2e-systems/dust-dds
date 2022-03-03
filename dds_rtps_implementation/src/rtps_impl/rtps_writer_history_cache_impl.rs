@@ -11,15 +11,6 @@ use rust_rtps_pim::{
     },
 };
 
-pub struct WriterCacheChange {
-    pub kind: ChangeKind,
-    pub writer_guid: Guid,
-    pub sequence_number: SequenceNumber,
-    pub instance_handle: InstanceHandle,
-    pub data: Vec<u8>,
-    pub inline_qos: RtpsParameterList,
-}
-
 #[derive(Debug, PartialEq)]
 pub struct RtpsParameter {
     pub parameter_id: ParameterId,
@@ -65,6 +56,16 @@ impl RtpsParameter {
         }
     }
 }
+
+pub struct WriterCacheChange {
+    pub kind: ChangeKind,
+    pub writer_guid: Guid,
+    pub sequence_number: SequenceNumber,
+    pub instance_handle: InstanceHandle,
+    pub data: Vec<u8>,
+    pub inline_qos: RtpsParameterList,
+}
+
 
 impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
     type DataType = [u8];
