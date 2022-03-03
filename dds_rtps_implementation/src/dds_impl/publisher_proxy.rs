@@ -160,7 +160,7 @@ where
             };
 
             Guid::new(
-                *publisher_shared.read_lock().rtps_group.guid().prefix(),
+                publisher_shared.read_lock().rtps_group.guid().prefix(),
                 EntityId::new(
                     [
                         publisher_shared

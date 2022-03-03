@@ -3,7 +3,7 @@ use rust_rtps_pim::{behavior::{types::Duration, writer::writer::{RtpsWriterAttri
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_writer_history_cache_impl::{WriterHistoryCache, WriterCacheChange}
+    rtps_writer_history_cache_impl::{WriterHistoryCache, WriterCacheChange, RtpsParameterList}
 };
 
 pub struct RtpsWriterImpl {
@@ -121,7 +121,7 @@ impl RtpsWriterOperations for RtpsWriterImpl {
             _source_timestamp: None,
             _view_state_kind: ViewStateKind::New,
             _instance_state_kind: InstanceStateKind::Alive,
-            inline_qos: vec![],
+            inline_qos: RtpsParameterList(vec![]),
         }
     }
 }

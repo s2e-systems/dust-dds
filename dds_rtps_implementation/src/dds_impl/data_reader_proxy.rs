@@ -165,8 +165,8 @@ where
         RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
     <Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType:
         RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
-    <<Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
-    <<Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<DataType = [u8]>,
+    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::ReaderHistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
 {
     type Samples = Samples<Foo>;
     type Subscriber = SubscriberProxy<Rtps>;

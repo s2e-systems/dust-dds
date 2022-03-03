@@ -1,8 +1,5 @@
 use rust_dds_rtps_implementation::{
-    dds_impl::{
-        data_reader_proxy::RtpsReader,
-        subscriber_proxy::SubscriberAttributes,
-    },
+    dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
@@ -125,12 +122,12 @@ impl MessageReceiver {
     fn process_info_timestamp_submessage(
         &mut self,
         info_timestamp: &impl InfoTimestampSubmessageAttributes<
-            TimestampSubmessageElementType = impl TimestampSubmessageElementAttributes<TimeType = Time>,
+            TimestampSubmessageElementType = impl TimestampSubmessageElementAttributes,
         >,
     ) {
         if info_timestamp.invalidate_flag() == &false {
             self.have_timestamp = true;
-            self.timestamp = *info_timestamp.timestamp().value();
+            self.timestamp = info_timestamp.timestamp().value();
         } else {
             self.have_timestamp = false;
             self.timestamp = TIME_INVALID;

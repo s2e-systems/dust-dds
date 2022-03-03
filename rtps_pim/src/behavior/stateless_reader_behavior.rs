@@ -2,14 +2,14 @@ use crate::{
     messages::{
         submessage_elements::{
             EntityIdSubmessageElementAttributes, ParameterListSubmessageElementAttributes,
-            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes,
+            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes, Parameter,
         },
         submessages::DataSubmessageAttributes,
     },
     structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
     },
 };
 
@@ -23,29 +23,23 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
         &mut self,
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
-            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes<
-                EntityIdType = EntityId,
-            >,
-            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes<SequenceNumberType = SequenceNumber>,
-            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes<
-                SerializedDataType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::DataType,
-            >,
-            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes<
-                ParameterListType = <H::CacheChangeType as RtpsCacheChangeConstructor<'a>>::ParameterListType
-            >,
+            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
+            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
+            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
+            ParameterListSubmessageElementType = impl ParameterListSubmessageElementAttributes,
         >,
     ) where
         H: RtpsHistoryCacheOperations,
-        H::CacheChangeType: RtpsCacheChangeConstructor<'a>,
+        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = [u8], ParameterListType = [Parameter<'b>]>,
     {
         let reader_id = data.reader_id().value();
-        if reader_id == self.reader_guid.entity_id() || reader_id == &ENTITYID_UNKNOWN {
+        if reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
             let kind = match (data.data_flag(), data.key_flag()) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
                 _ => todo!(),
             };
-            let writer_guid = Guid::new(source_guid_prefix, *data.writer_id().value());
+            let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
             let instance_handle = 0;
             let sequence_number = data.writer_sn().value();
             let data_value = data.serialized_payload().value();
@@ -54,7 +48,7 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
                 &kind,
                 &writer_guid,
                 &instance_handle,
-                sequence_number,
+                &sequence_number,
                 data_value,
                 inline_qos,
             );
@@ -72,7 +66,7 @@ mod tests {
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
             },
         },
-        messages::types::SubmessageFlag,
+        messages::{types::SubmessageFlag, submessage_elements::Parameter},
         structure::types::{EntityId, SequenceNumber},
     };
 
@@ -83,9 +77,8 @@ mod tests {
     }
 
     impl EntityIdSubmessageElementAttributes for MockEntityId {
-        type EntityIdType = EntityId;
-        fn value(&self) -> &Self::EntityIdType {
-            &self.value
+        fn value(&self) -> EntityId {
+            self.value
         }
     }
 
@@ -94,27 +87,24 @@ mod tests {
     }
 
     impl SequenceNumberSubmessageElementAttributes for MockSequenceNumber {
-        type SequenceNumberType = SequenceNumber;
-        fn value(&self) -> &Self::SequenceNumberType {
-            &self.value
+        fn value(&self) -> SequenceNumber {
+            self.value
         }
     }
 
     struct MockParameterList;
 
     impl ParameterListSubmessageElementAttributes for MockParameterList {
-        type ParameterListType = ();
-        fn parameter(&self) -> &Self::ParameterListType {
-            &()
+        fn parameter(&self) -> &[Parameter<'_>] {
+            &[]
         }
     }
 
     struct MockSerializedData;
 
     impl SerializedDataSubmessageElementAttributes for MockSerializedData {
-        type SerializedDataType = ();
-        fn value(&self) -> &Self::SerializedDataType {
-            &()
+        fn value(&self) -> &[u8] {
+            &[]
         }
     }
 
@@ -178,8 +168,8 @@ mod tests {
     struct MockCacheChange;
 
     impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
-        type DataType = ();
-        type ParameterListType = ();
+        type DataType = [u8];
+        type ParameterListType = [Parameter<'a>];
 
         fn new(
             _kind: &ChangeKind,

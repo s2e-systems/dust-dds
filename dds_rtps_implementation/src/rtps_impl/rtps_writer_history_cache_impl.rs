@@ -1,6 +1,11 @@
+use std::iter::FromIterator;
+
 use rust_dds_api::dcps_psm::{InstanceStateKind, ViewStateKind};
 use rust_rtps_pim::{
-    messages::types::Time,
+    messages::{
+        submessage_elements::Parameter,
+        types::{ParameterId, Time},
+    },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -9,8 +14,6 @@ use rust_rtps_pim::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
-use rust_rtps_udp_psm::messages::submessage_elements::{Parameter, ParameterOwned};
-
 pub struct WriterCacheChange {
     pub kind: ChangeKind,
     pub writer_guid: Guid,
@@ -20,7 +23,53 @@ pub struct WriterCacheChange {
     pub _source_timestamp: Option<Time>,
     pub _view_state_kind: ViewStateKind,
     pub _instance_state_kind: InstanceStateKind,
-    pub inline_qos: Vec<ParameterOwned>,
+    pub inline_qos: RtpsParameterList,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct RtpsParameter {
+    pub parameter_id: ParameterId,
+    pub length: i16,
+    pub value: Vec<u8>,
+}
+
+pub struct RtpsParameterList(pub Vec<RtpsParameter>);
+impl<'a> IntoIterator for &'a RtpsParameterList {
+    type Item = Parameter<'a>;
+    type IntoIter = std::vec::IntoIter<Parameter<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let v: Vec<Parameter> = self
+            .0
+            .iter()
+            .map(|p| Parameter {
+                parameter_id: p.parameter_id,
+                length: p.length,
+                value: p.value.as_ref(),
+            })
+            .collect();
+        v.into_iter()
+    }
+}
+impl<'a> FromIterator<&'a Parameter<'a>> for RtpsParameterList {
+    fn from_iter<T: IntoIterator<Item = &'a Parameter<'a>>>(iter: T) -> Self {
+        Self(iter.into_iter().map(|p| RtpsParameter {
+            parameter_id: p.parameter_id,
+            length: p.length,
+            value: p.value.to_vec(),
+        }).collect())
+    }
+}
+
+impl RtpsParameter {
+    pub fn new(parameter_id: ParameterId, value: &[u8]) -> Self {
+        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
+        Self {
+            parameter_id,
+            length,
+            value: value.to_vec(),
+        }
+    }
 }
 
 impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
@@ -44,14 +93,14 @@ impl<'a> RtpsCacheChangeConstructor<'a> for WriterCacheChange {
             _source_timestamp: None,
             _view_state_kind: ViewStateKind::New,
             _instance_state_kind: InstanceStateKind::Alive,
-            inline_qos: vec![],
+            inline_qos: RtpsParameterList(vec![]),
         }
     }
 }
 
-impl RtpsCacheChangeAttributes for WriterCacheChange {
+impl RtpsCacheChangeAttributes<'_> for WriterCacheChange {
     type DataType = [u8];
-    type ParameterListType = [ParameterOwned];
+    type ParameterListType = RtpsParameterList;
 
     fn kind(&self) -> &ChangeKind {
         &self.kind
@@ -74,7 +123,7 @@ impl RtpsCacheChangeAttributes for WriterCacheChange {
     }
 
     fn inline_qos(&self) -> &Self::ParameterListType {
-        self.inline_qos.as_ref()
+        &self.inline_qos
     }
 }
 

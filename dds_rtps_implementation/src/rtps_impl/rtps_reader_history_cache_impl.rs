@@ -1,6 +1,6 @@
 use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
 use rust_rtps_pim::{
-    messages::types::Time,
+    messages::{types::Time, submessage_elements::Parameter},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -9,24 +9,20 @@ use rust_rtps_pim::{
         types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
     },
 };
-use rust_rtps_udp_psm::messages::submessage_elements::Parameter;
 
+use super::rtps_writer_history_cache_impl::RtpsParameterList;
 pub struct ReaderCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     data: Vec<u8>,
-    _source_timestamp: Option<Time>,
-    _reception_timestamp: Option<Time>,
-    _sample_state_kind: SampleStateKind,
-    _view_state_kind: ViewStateKind,
-    _instance_state_kind: InstanceStateKind,
+    inline_qos: RtpsParameterList,
 }
 
-impl RtpsCacheChangeAttributes for ReaderCacheChange {
+impl RtpsCacheChangeAttributes<'_> for ReaderCacheChange {
     type DataType = [u8];
-    type ParameterListType = ();
+    type ParameterListType = RtpsParameterList;
 
     fn kind(&self) -> &ChangeKind {
         &self.kind
@@ -49,7 +45,7 @@ impl RtpsCacheChangeAttributes for ReaderCacheChange {
     }
 
     fn inline_qos(&self) -> &Self::ParameterListType {
-        todo!()
+        &self.inline_qos
     }
 }
 
@@ -63,7 +59,7 @@ impl<'b> RtpsCacheChangeConstructor<'b> for ReaderCacheChange {
         instance_handle: &InstanceHandle,
         sequence_number: &SequenceNumber,
         data_value: &Self::DataType,
-        _inline_qos: &Self::ParameterListType,
+        inline_qos: &Self::ParameterListType,
     ) -> Self {
         let instance_state_kind = match kind {
             ChangeKind::Alive => InstanceStateKind::Alive,
@@ -86,11 +82,7 @@ impl<'b> RtpsCacheChangeConstructor<'b> for ReaderCacheChange {
             sequence_number: *sequence_number,
             instance_handle: *instance_handle,
             data: data_value.to_vec(),
-            _source_timestamp: None,
-            _reception_timestamp: Some(reception_timestamp),
-            _sample_state_kind: SampleStateKind::NotRead,
-            _view_state_kind: ViewStateKind::New,
-            _instance_state_kind: instance_state_kind,
+            inline_qos: inline_qos.iter().collect(),
         }
     }
 }
@@ -207,7 +199,7 @@ mod tests {
             &0,
             &1,
             &vec![],
-            &vec![],
+            &[],
         );
         let change2 = ReaderCacheChange::new(
             &rust_rtps_pim::structure::types::ChangeKind::Alive,
@@ -215,7 +207,7 @@ mod tests {
             &0,
             &2,
             &vec![],
-            &vec![],
+            &[],
         );
         hc.add_change(change1);
         hc.add_change(change2);
