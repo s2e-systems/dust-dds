@@ -7,7 +7,6 @@ use crate::{
     mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
     messages::submessage_elements::{
         ParameterListSubmessageElementRead, ParameterListSubmessageElementWrite, ParameterOwned,
-        RtpsParameterBorrowed,
     },
 };
 
@@ -17,45 +16,6 @@ const SENTINEL: Parameter = Parameter {
     length: 0,
     value: &[],
 };
-
-impl<'a> MappingWriteByteOrdered for RtpsParameterBorrowed<'a> {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
-        &self,
-        mut writer: W,
-    ) -> Result<(), Error> {
-        writer.write_u16::<B>(self.parameter_id.0)?;
-        writer.write_i16::<B>(self.length)?;
-        writer.write_all(self.value.as_ref())?;
-        let padding: &[u8] = match self.value.as_ref().len() % 4 {
-            1 => &[0; 3],
-            2 => &[0; 2],
-            3 => &[0; 1],
-            _ => &[],
-        };
-        writer.write_all(padding)?;
-        Ok(())
-    }
-}
-
-impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for RtpsParameterBorrowed<'a> {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let parameter_id = ParameterId(buf.read_u16::<B>()?);
-        let length = buf.read_i16::<B>()?;
-        let (value, following) = buf.split_at(length as usize);
-        *buf = following;
-        Ok(Self {
-            parameter_id,
-            length,
-            value: value,
-        })
-    }
-}
-
-impl<'a> NumberOfBytes for RtpsParameterBorrowed<'a> {
-    fn number_of_bytes(&self) -> usize {
-        4 /* parameter_id and length */ + self.length as usize
-    }
-}
 
 impl NumberOfBytes for ParameterOwned {
     fn number_of_bytes(&self) -> usize {
@@ -176,7 +136,11 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = RtpsParameterBorrowed::new(ParameterId(2), &[5, 6, 7, 8][..]);
+        let parameter = Parameter {
+            parameter_id: ParameterId(2),
+            length: 4,
+            value: &[5, 6, 7, 8],
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -187,7 +151,11 @@ mod tests {
 
     #[test]
     fn serialize_parameter_non_multiple_4() {
-        let parameter = RtpsParameterBorrowed::new(ParameterId(2), &[5, 6, 7][..]);
+        let parameter = Parameter {
+            parameter_id: ParameterId(2),
+            length: 4,
+            value: &[5, 6, 7, 0],
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter | length
@@ -198,7 +166,11 @@ mod tests {
 
     #[test]
     fn serialize_parameter_zero_size() {
-        let parameter = RtpsParameterBorrowed::new(ParameterId(2), &[][..]);
+        let parameter = Parameter {
+            parameter_id: ParameterId(2),
+            length: 0,
+            value: &[][..],
+        };
         assert_eq!(
             to_bytes_le(&parameter).unwrap(),
             vec![
@@ -210,7 +182,11 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
-        let expected = RtpsParameterBorrowed::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 0]);
+        let expected = Parameter {
+            parameter_id: ParameterId(2),
+            length: 8,
+            value: &[5, 6, 7, 8, 9, 10, 11, 0],
+        };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length
@@ -222,7 +198,11 @@ mod tests {
 
     #[test]
     fn deserialize_parameter() {
-        let expected = RtpsParameterBorrowed::new(ParameterId(2), &[5, 6, 7, 8, 9, 10, 11, 12]);
+        let expected = Parameter {
+            parameter_id: ParameterId(2),
+            length: 8,
+            value: &[5, 6, 7, 8, 9, 10, 11, 12],
+        };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0x02, 0x00, 8, 0, // Parameter | length

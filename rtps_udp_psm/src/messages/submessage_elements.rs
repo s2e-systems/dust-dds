@@ -13,13 +13,6 @@ use rust_rtps_pim::{
     structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
 };
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct RtpsParameterBorrowed<'a> {
-    pub parameter_id: ParameterId,
-    pub length: i16,
-    pub value: &'a [u8],
-}
-
 #[derive(Debug, PartialEq)]
 pub struct ParameterOwned {
     pub parameter_id: ParameterId,
@@ -33,17 +26,6 @@ impl ParameterOwned {
             parameter_id,
             length,
             value: value.to_vec(),
-        }
-    }
-}
-
-impl<'a> RtpsParameterBorrowed<'a> {
-    pub fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
-        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
-        Self {
-            parameter_id,
-            length,
-            value,
         }
     }
 }
