@@ -1,4 +1,10 @@
-use super::{types::SubmessageFlag, submessage_elements::{SequenceNumberSetSubmessageElement, ParameterListSubmessageElement}};
+use super::{
+    submessage_elements::{
+        EntityIdSubmessageElement, ParameterListSubmessageElement,
+        SequenceNumberSetSubmessageElement,
+    },
+    types::SubmessageFlag,
+};
 
 pub trait AckNackSubmessageConstructor {
     type EntityIdSubmessageElementType;
@@ -29,7 +35,6 @@ pub trait AckNackSubmessageAttributes {
 }
 
 pub trait DataSubmessageConstructor<P> {
-    type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type SerializedDataSubmessageElementType;
 
@@ -39,8 +44,8 @@ pub trait DataSubmessageConstructor<P> {
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
         writer_sn: Self::SequenceNumberSubmessageElementType,
         inline_qos: ParameterListSubmessageElement<P>,
         serialized_payload: Self::SerializedDataSubmessageElementType,
@@ -48,7 +53,6 @@ pub trait DataSubmessageConstructor<P> {
 }
 
 pub trait DataSubmessageAttributes<P> {
-    type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type SerializedDataSubmessageElementType;
 
@@ -57,8 +61,8 @@ pub trait DataSubmessageAttributes<P> {
     fn data_flag(&self) -> SubmessageFlag;
     fn key_flag(&self) -> SubmessageFlag;
     fn non_standard_payload_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn reader_id(&self) -> &EntityIdSubmessageElement;
+    fn writer_id(&self) -> &EntityIdSubmessageElement;
     fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
     fn inline_qos(&self) -> &ParameterListSubmessageElement<P>;
     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;

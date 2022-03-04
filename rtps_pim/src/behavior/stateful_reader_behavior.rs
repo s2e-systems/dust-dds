@@ -34,12 +34,11 @@ impl BestEffortStatefulReaderBehavior {
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
             P,
-            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
         >,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value()); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
         if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(writer_guid) {
             let _expected_seq_nem = writer_proxy.available_changes_max(); // expected_seq_num := writer_proxy.available_changes_max() + 1;
         }
@@ -57,7 +56,6 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
         source_guid_prefix: GuidPrefix,
         data: &impl DataSubmessageAttributes<
             P,
-            EntityIdSubmessageElementType = impl EntityIdSubmessageElementAttributes,
             SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
         >,
@@ -71,7 +69,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
             > + RtpsCacheChangeAttributes<'b>,
         P: AsRef<[Parameter<'a>]>,
     {
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value);
         if writer_guid == self.writer_proxy.remote_writer_guid() {
             let kind = match (data.data_flag(), data.key_flag()) {
                 (true, false) => ChangeKind::Alive,

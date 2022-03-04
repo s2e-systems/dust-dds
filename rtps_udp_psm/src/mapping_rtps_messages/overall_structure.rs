@@ -97,8 +97,9 @@ mod tests {
     use crate::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::{
-        EntityIdSubmessageElementConstructor, Parameter, ParameterListSubmessageElement,
-        ParameterListSubmessageElementConstructor, SerializedDataSubmessageElementConstructor,
+        EntityIdSubmessageElement, EntityIdSubmessageElementConstructor, Parameter,
+        ParameterListSubmessageElement, ParameterListSubmessageElementConstructor,
+        SerializedDataSubmessageElementConstructor,
     };
 
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementConstructor;
@@ -142,10 +143,12 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id =
-            EntityIdSubmessageElementPsm::new(EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY));
-        let writer_id =
-            EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
+        let reader_id = EntityIdSubmessageElement {
+            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+        };
         let writer_sn = SequenceNumberSubmessageElementPsm::new(5);
         let parameter_1 = Parameter {
             parameter_id: ParameterId(6),
@@ -230,10 +233,10 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElementPsm {
+        let reader_id = EntityIdSubmessageElement {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElementPsm {
+        let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElementPsm { value: 5 };
@@ -300,10 +303,10 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElementPsm {
+        let reader_id = EntityIdSubmessageElement {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElementPsm {
+        let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElementPsm { value: 5 };

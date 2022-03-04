@@ -4,9 +4,10 @@ use core::iter::FromIterator;
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElementConstructor, EntityIdSubmessageElementConstructor, Parameter,
-            ParameterListSubmessageElement, ParameterListSubmessageElementConstructor,
-            SequenceNumberSetSubmessageElement, SequenceNumberSetSubmessageElementAttributes,
+            CountSubmessageElementConstructor, EntityIdSubmessageElement,
+            EntityIdSubmessageElementConstructor, Parameter, ParameterListSubmessageElement,
+            ParameterListSubmessageElementConstructor, SequenceNumberSetSubmessageElement,
+            SequenceNumberSetSubmessageElementAttributes,
             SequenceNumberSetSubmessageElementConstructor,
             SequenceNumberSubmessageElementConstructor, SerializedDataSubmessageElementConstructor,
         },
@@ -58,7 +59,6 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
             + RtpsReaderProxyAttributes,
         Data: DataSubmessageConstructor<
             P,
-            EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
             SerializedDataSubmessageElementType = SerializedDataElement,
         >,
@@ -97,9 +97,12 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id =
-                    EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
-                let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
+                let reader_id = EntityIdSubmessageElement {
+                    value: self.reader_proxy.remote_reader_guid().entity_id(),
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: change.writer_guid().entity_id(),
+                };
                 let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = ParameterListSubmessageElement {
                     parameter: change.inline_qos().into_iter().collect(),
@@ -165,7 +168,6 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             P,
-            EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
             SerializedDataSubmessageElementType = SerializedDataElement,
         >,
@@ -201,9 +203,13 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
                 // EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
-                let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
+                let writer_id = EntityIdSubmessageElement {
+                    value: change.writer_guid().entity_id(),
+                };
                 let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = ParameterListSubmessageElement {
                     parameter: change.inline_qos().into_iter().collect(),
@@ -315,7 +321,6 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<
             P,
-            EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
             SerializedDataSubmessageElementType = SerializedDataElement,
         >,
@@ -353,8 +358,12 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     _ => todo!(),
                 };
                 let non_standard_payload_flag = false;
-                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: change.writer_guid().entity_id(),
+                };
                 let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = ParameterListSubmessageElement {
                     parameter: change.inline_qos().into_iter().collect(),

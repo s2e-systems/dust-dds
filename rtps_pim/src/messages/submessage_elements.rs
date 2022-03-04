@@ -49,10 +49,14 @@ pub trait GuidPrefixSubmessageElementAttributes {
     fn value(&self) -> GuidPrefix;
 }
 
+#[derive(Debug, PartialEq)]
+pub struct EntityIdSubmessageElement {
+    pub value: EntityId,
+}
+
 pub trait EntityIdSubmessageElementConstructor {
     fn new(value: EntityId) -> Self;
 }
-
 
 pub trait EntityIdSubmessageElementAttributes {
     fn value(&self) -> EntityId;

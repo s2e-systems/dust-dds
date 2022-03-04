@@ -1,7 +1,8 @@
 use rust_rtps_pim::{
     messages::{
         submessage_elements::{
-            Parameter, ParameterListSubmessageElement, SequenceNumberSetSubmessageElement,
+            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+            SequenceNumberSetSubmessageElement,
         },
         submessages::{
             DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
@@ -58,15 +59,14 @@ pub struct DataSubmessageWrite<'a> {
     pub data_flag: SubmessageFlag,
     pub key_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElementPsm,
     pub inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
     pub serialized_payload: SerializedDataSubmessageElementPsm<'a>,
 }
 
 impl<'a> DataSubmessageConstructor<Vec<Parameter<'a>>> for DataSubmessageWrite<'a> {
-    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
     type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
 
@@ -76,8 +76,8 @@ impl<'a> DataSubmessageConstructor<Vec<Parameter<'a>>> for DataSubmessageWrite<'
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
         writer_sn: Self::SequenceNumberSubmessageElementType,
         inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
         serialized_payload: Self::SerializedDataSubmessageElementType,
@@ -104,8 +104,8 @@ pub struct DataSubmessageRead<'a> {
     pub data_flag: SubmessageFlag,
     pub key_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElementPsm,
     pub inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
     pub serialized_payload: SerializedDataSubmessageElementPsm<'a>,
@@ -118,8 +118,8 @@ impl<'a> DataSubmessageRead<'a> {
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElementPsm,
-        writer_id: EntityIdSubmessageElementPsm,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
         writer_sn: SequenceNumberSubmessageElementPsm,
         inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
         serialized_payload: SerializedDataSubmessageElementPsm<'a>,
@@ -140,7 +140,6 @@ impl<'a> DataSubmessageRead<'a> {
 }
 
 impl<'a> DataSubmessageAttributes<Vec<Parameter<'a>>> for DataSubmessageRead<'a> {
-    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
     type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
 
@@ -164,11 +163,11 @@ impl<'a> DataSubmessageAttributes<Vec<Parameter<'a>>> for DataSubmessageRead<'a>
         self.non_standard_payload_flag
     }
 
-    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
+    fn reader_id(&self) -> &EntityIdSubmessageElement {
         &self.reader_id
     }
 
-    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
+    fn writer_id(&self) -> &EntityIdSubmessageElement {
         &self.writer_id
     }
 
