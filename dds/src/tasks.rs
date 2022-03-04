@@ -209,8 +209,8 @@ pub fn task_sedp_writer_discovery(
                                 let count = rtps_stateful_reader.matched_writers.len() as i32;
                                 data_reader_lock.listener.as_ref().map(|l| {
                                     l.on_subscription_matched(SubscriptionMatchedStatus {
-                                        total_count: count, // ?
-                                        total_count_change: 1, // ?
+                                        total_count: count,         // ?
+                                        total_count_change: 1,      // ?
                                         last_publication_handle: 0, // ????
                                         current_count: count,
                                         current_count_change: 1,
@@ -262,8 +262,8 @@ pub fn task_sedp_reader_discovery(
                                 let count = rtps_stateful_writer.matched_readers.len() as i32;
                                 data_writer_lock.listener.as_ref().map(|l| {
                                     l.on_publication_matched(PublicationMatchedStatus {
-                                        total_count: count, // ?
-                                        total_count_change: 1, // ?
+                                        total_count: count,          // ?
+                                        total_count_change: 1,       // ?
                                         last_subscription_handle: 0, // ????
                                         current_count: count,
                                         current_count_change: 1,
@@ -568,25 +568,56 @@ mod tests {
     }
 
     mock! {
-        StatefulReader {}
+        StatefulReader {
+            fn matched_writer_add_(&mut self, a_writer_proxy: RtpsWriterProxyImpl);
+        }
+    }
 
-        impl RtpsStatefulReaderOperations for StatefulReader {
-            type WriterProxyType = RtpsWriterProxyImpl;
-            fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxyImpl);
-            fn matched_writer_remove(&mut self, writer_proxy_guid: Guid);
-            fn matched_writer_lookup(&self, a_writer_guid: Guid) -> Option<&'static RtpsWriterProxyImpl>;
+    impl RtpsStatefulReaderOperations for MockStatefulReader {
+        type WriterProxyType = RtpsWriterProxyImpl;
+
+        fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType) {
+            self.matched_writer_add_(a_writer_proxy)
+        }
+
+        fn matched_writer_remove<F>(&mut self, _f: F)
+        where
+            F: FnMut(&Self::WriterProxyType) -> bool,
+        {
+            todo!()
+        }
+
+        fn matched_writer_lookup(&self, _a_writer_guid: Guid) -> Option<&Self::WriterProxyType> {
+            todo!()
         }
     }
 
     mock! {
-        StatefulWriter {}
+        StatefulWriter {
+            fn matched_reader_add_(&mut self, a_reader_proxy: RtpsReaderProxyAttributesImpl);
+        }
+    }
 
-        impl RtpsStatefulWriterOperations for StatefulWriter {
-            type ReaderProxyType = RtpsReaderProxyAttributesImpl;
-            fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxyAttributesImpl);
-            fn matched_reader_remove(&mut self, reader_proxy_guid: Guid);
-            fn matched_reader_lookup(&self, a_reader_guid: Guid) -> Option<&'static RtpsReaderProxyAttributesImpl>;
-            fn is_acked_by_all(&self) -> bool;
+    impl RtpsStatefulWriterOperations for MockStatefulWriter {
+        type ReaderProxyType = RtpsReaderProxyAttributesImpl;
+
+        fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType) {
+            self.matched_reader_add_(a_reader_proxy)
+        }
+
+        fn matched_reader_remove<F>(&mut self, _f: F)
+        where
+            F: FnMut(&Self::ReaderProxyType) -> bool,
+        {
+            todo!()
+        }
+
+        fn matched_reader_lookup(&self, _a_reader_guid: Guid) -> Option<&Self::ReaderProxyType> {
+            todo!()
+        }
+
+        fn is_acked_by_all(&self) -> bool {
+            todo!()
         }
     }
 
@@ -754,7 +785,7 @@ mod tests {
 
         let mut mock_builtin_publications_writer = MockStatefulWriter::new();
         mock_builtin_publications_writer
-            .expect_matched_reader_add()
+            .expect_matched_reader_add_()
             .with(predicate::eq(RtpsReaderProxyAttributesImpl::new(
                 Guid::new(
                     GuidPrefix([5; 12]),
@@ -771,7 +802,7 @@ mod tests {
 
         let mut mock_builtin_publications_reader = MockStatefulReader::new();
         mock_builtin_publications_reader
-            .expect_matched_writer_add()
+            .expect_matched_writer_add_()
             .with(predicate::eq(RtpsWriterProxyImpl::new(
                 Guid::new(
                     GuidPrefix([5; 12]),
@@ -787,7 +818,7 @@ mod tests {
 
         let mut mock_builtin_subscriptions_writer = MockStatefulWriter::new();
         mock_builtin_subscriptions_writer
-            .expect_matched_reader_add()
+            .expect_matched_reader_add_()
             .with(predicate::eq(RtpsReaderProxyAttributesImpl::new(
                 Guid::new(
                     GuidPrefix([5; 12]),
@@ -804,7 +835,7 @@ mod tests {
 
         let mut mock_builtin_subscriptions_reader = MockStatefulReader::new();
         mock_builtin_subscriptions_reader
-            .expect_matched_writer_add()
+            .expect_matched_writer_add_()
             .with(predicate::eq(RtpsWriterProxyImpl::new(
                 Guid::new(
                     GuidPrefix([5; 12]),
@@ -820,7 +851,7 @@ mod tests {
 
         let mut mock_builtin_topics_writer = MockStatefulWriter::new();
         mock_builtin_topics_writer
-            .expect_matched_reader_add()
+            .expect_matched_reader_add_()
             .with(predicate::eq(RtpsReaderProxyAttributesImpl::new(
                 Guid::new(GuidPrefix([5; 12]), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
                 ENTITYID_UNKNOWN,
@@ -834,7 +865,7 @@ mod tests {
 
         let mut mock_builtin_topics_reader = MockStatefulReader::new();
         mock_builtin_topics_reader
-            .expect_matched_writer_add()
+            .expect_matched_writer_add_()
             .with(predicate::eq(RtpsWriterProxyImpl::new(
                 Guid::new(GuidPrefix([5; 12]), ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
                 &[],

@@ -30,7 +30,9 @@ pub trait RtpsStatefulWriterOperations {
     type ReaderProxyType;
 
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType);
-    fn matched_reader_remove(&mut self, reader_proxy_guid: Guid);
+    fn matched_reader_remove<F>(&mut self, f: F)
+    where
+        F: FnMut(&Self::ReaderProxyType) -> bool;
     fn matched_reader_lookup(&self, a_reader_guid: Guid) -> Option<&Self::ReaderProxyType>;
     fn is_acked_by_all(&self) -> bool;
 }

@@ -146,9 +146,11 @@ impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
         self.matched_readers.push(a_reader_proxy)
     }
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: Guid) {
-        self.matched_readers
-            .retain(|x| x.remote_reader_guid() != reader_proxy_guid);
+    fn matched_reader_remove<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&Self::ReaderProxyType) -> bool,
+    {
+        self.matched_readers.retain(|x| !f(x));
     }
 
     fn matched_reader_lookup(&self, a_reader_guid: Guid) -> Option<&Self::ReaderProxyType> {

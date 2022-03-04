@@ -28,6 +28,8 @@ pub trait RtpsStatelessWriterOperations {
     type ReaderLocatorType;
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType);
-    fn reader_locator_remove(&mut self, a_locator: Locator);
+    fn reader_locator_remove<F>(&mut self, f: F)
+    where
+        F: FnMut(&Self::ReaderLocatorType) -> bool;
     fn unsent_changes_reset(&mut self);
 }

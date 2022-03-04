@@ -6,7 +6,6 @@ use rust_rtps_pim::{
         },
         types::Duration,
         writer::{
-            reader_locator::RtpsReaderLocatorAttributes,
             stateless_writer::{
                 RtpsStatelessWriterConstructor,
                 RtpsStatelessWriterOperations,
@@ -139,8 +138,10 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
         self.reader_locators.push(a_locator);
     }
 
-    fn reader_locator_remove(&mut self, a_locator: Locator) {
-        self.reader_locators.retain(|x| x.locator() != a_locator)
+    fn reader_locator_remove<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&Self::ReaderLocatorType) -> bool {
+            self.reader_locators.retain(|x| !f(x))
     }
 
     fn unsent_changes_reset(&mut self) {

@@ -22,8 +22,8 @@ use rust_rtps_pim::{
 };
 
 use super::{
-    rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_impl::RtpsReaderImpl,
-    rtps_writer_proxy_impl::RtpsWriterProxyImpl, rtps_history_cache_impl::RtpsHistoryCacheImpl,
+    rtps_endpoint_impl::RtpsEndpointImpl, rtps_history_cache_impl::RtpsHistoryCacheImpl,
+    rtps_reader_impl::RtpsReaderImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 
 pub struct RtpsStatefulReaderImpl {
@@ -119,9 +119,11 @@ impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
         self.matched_writers.push(a_writer_proxy);
     }
 
-    fn matched_writer_remove(&mut self, writer_proxy_guid: Guid) {
-        self.matched_writers
-            .retain(|x| x.remote_writer_guid() != writer_proxy_guid)
+    fn matched_writer_remove<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&Self::WriterProxyType) -> bool,
+    {
+        self.matched_writers.retain(|x| !f(x))
     }
 
     fn matched_writer_lookup(&self, a_writer_guid: Guid) -> Option<&Self::WriterProxyType> {
