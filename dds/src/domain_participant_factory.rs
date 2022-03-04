@@ -1109,20 +1109,17 @@ mod tests {
     }
 
     impl<'de> DdsDeserialize<'de> for UserData {
-        fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-            Ok(UserData(buf[0]))
+        fn deserialize(_buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+            unimplemented!()
         }
     }
 
     impl DdsSerialize for UserData {
         fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
             &self,
-            mut writer: W,
+            mut _writer: W,
         ) -> rust_dds_api::return_type::DDSResult<()> {
-            writer
-                .write(&[self.0])
-                .map(|_| ())
-                .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
+            unimplemented!()
         }
     }
 
