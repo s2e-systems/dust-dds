@@ -12,12 +12,13 @@ pub trait RtpsReaderProxyConstructor {
 }
 
 pub trait RtpsReaderProxyAttributes {
-    fn remote_reader_guid(&self) -> &Guid;
-    fn remote_group_entity_id(&self) -> &EntityId;
+    fn remote_reader_guid(&self) -> Guid;
+    fn remote_group_entity_id(&self) -> EntityId;
     fn unicast_locator_list(&self) -> &[Locator];
     fn multicast_locator_list(&self) -> &[Locator];
-    fn expects_inline_qos(&self) -> &bool;
-    fn is_active(&self) -> &bool;
+    // changes_for_reader() moved to RtpsReaderProxyOperations
+    fn expects_inline_qos(&self) -> bool;
+    fn is_active(&self) -> bool;
 }
 
 pub trait RtpsReaderProxyOperations {

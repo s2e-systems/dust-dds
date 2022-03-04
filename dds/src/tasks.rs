@@ -573,8 +573,8 @@ mod tests {
         impl RtpsStatefulReaderOperations for StatefulReader {
             type WriterProxyType = RtpsWriterProxyImpl;
             fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxyImpl);
-            fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid);
-            fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&'static RtpsWriterProxyImpl>;
+            fn matched_writer_remove(&mut self, writer_proxy_guid: Guid);
+            fn matched_writer_lookup(&self, a_writer_guid: Guid) -> Option<&'static RtpsWriterProxyImpl>;
         }
     }
 
@@ -584,8 +584,8 @@ mod tests {
         impl RtpsStatefulWriterOperations for StatefulWriter {
             type ReaderProxyType = RtpsReaderProxyAttributesImpl;
             fn matched_reader_add(&mut self, a_reader_proxy: RtpsReaderProxyAttributesImpl);
-            fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid);
-            fn matched_reader_lookup(&self, a_reader_guid: &Guid) -> Option<&'static RtpsReaderProxyAttributesImpl>;
+            fn matched_reader_remove(&mut self, reader_proxy_guid: Guid);
+            fn matched_reader_lookup(&self, a_reader_guid: Guid) -> Option<&'static RtpsReaderProxyAttributesImpl>;
             fn is_acked_by_all(&self) -> bool;
         }
     }
@@ -950,7 +950,7 @@ mod tests {
         let stateful_reader = reader_lock.rtps_reader.try_as_stateful_reader().unwrap();
 
         assert!(stateful_reader
-            .matched_writer_lookup(&Guid::new(
+            .matched_writer_lookup(Guid::new(
                 GuidPrefix([1; 12]),
                 EntityId {
                     entity_key: [1, 2, 3],
@@ -1044,7 +1044,7 @@ mod tests {
         let stateful_writer = writer_lock.rtps_writer.try_as_stateful_writer().unwrap();
 
         assert!(stateful_writer
-            .matched_reader_lookup(&Guid::new(
+            .matched_reader_lookup(Guid::new(
                 GuidPrefix([1; 12]),
                 EntityId {
                     entity_key: [1, 2, 3],

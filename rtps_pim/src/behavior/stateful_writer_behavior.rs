@@ -31,7 +31,7 @@ pub enum StatefulWriterBehavior<'a, R, C> {
 pub struct BestEffortStatefulWriterBehavior<'a, R, C> {
     pub reader_proxy: R,
     pub writer_cache: &'a C,
-    pub last_change_sequence_number: &'a SequenceNumber,
+    pub last_change_sequence_number: SequenceNumber,
 }
 
 impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
@@ -78,7 +78,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
                 .writer_cache
                 .changes()
                 .iter()
-                .filter(|cc| cc.sequence_number() == &seq_num)
+                .filter(|cc| cc.sequence_number() == seq_num)
                 .next();
             if let Some(change) = change {
                 let endianness_flag = true;
@@ -94,7 +94,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
                 let reader_id =
                     EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = SequenceNumberElement::new(*change.sequence_number());
+                let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = ParameterListElement::new(change.inline_qos());
                 let serialized_payload = SerializedDataElement::new(change.data_value());
                 let data_submessage = Data::new(
@@ -128,9 +128,9 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
 pub struct ReliableStatefulWriterBehavior<'a, R, C> {
     pub reader_proxy: R,
     pub writer_cache: &'a C,
-    pub last_change_sequence_number: &'a SequenceNumber,
-    pub writer_guid: &'a Guid,
-    pub heartbeat_count: &'a Count,
+    pub last_change_sequence_number: SequenceNumber,
+    pub writer_guid: Guid,
+    pub heartbeat_count: Count,
     pub after_heartbeat_period: bool,
 }
 
@@ -177,7 +177,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 .writer_cache
                 .changes()
                 .iter()
-                .filter(|cc| cc.sequence_number() == &seq_num)
+                .filter(|cc| cc.sequence_number() == seq_num)
                 .next();
             if let Some(change) = change {
                 let endianness_flag = true;
@@ -193,7 +193,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
                 // EntityIdElement::new(self.reader_proxy.remote_reader_guid().entity_id());
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = SequenceNumberElement::new(*change.sequence_number());
+                let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = ParameterListElement::new(change.inline_qos());
                 let serialized_payload = SerializedDataElement::new(change.data_value());
                 let data_submessage = Data::new(
@@ -247,7 +247,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 SequenceNumberElement::new(self.writer_cache.get_seq_num_min().unwrap_or(0));
             let last_sn =
                 SequenceNumberElement::new(self.writer_cache.get_seq_num_min().unwrap_or(0));
-            let count = CountElement::new(*self.heartbeat_count);
+            let count = CountElement::new(self.heartbeat_count);
             let heartbeat_submessage = Heartbeat::new(
                 endianness_flag,
                 final_flag,
@@ -320,7 +320,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 .writer_cache
                 .changes()
                 .iter()
-                .filter(|cc| cc.sequence_number() == &seq_num)
+                .filter(|cc| cc.sequence_number() == seq_num)
                 .next();
             if let Some(change) = change {
                 let endianness_flag = true;
@@ -335,7 +335,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = SequenceNumberElement::new(*change.sequence_number());
+                let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = ParameterListElement::new(change.inline_qos());
                 let serialized_payload = SerializedDataElement::new(change.data_value());
                 let data_submessage = Data::new(

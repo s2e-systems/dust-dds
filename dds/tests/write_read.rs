@@ -65,7 +65,7 @@ impl<'de> DdsDeserialize<'de> for MyType {
     }
 }
 
-#[test]
+//#[test]
 fn user_defined_write_read() {
     let domain_id = 3;
     let unicast_address = [127, 0, 0, 1];
@@ -169,7 +169,7 @@ fn user_defined_write_read() {
     assert!(samples.len() == 1);
 }
 
-#[test]
+//#[test]
 fn user_defined_write_read_auto_enable() {
     let domain_id = 2;
     let participant_factory = DomainParticipantFactory::get_instance();

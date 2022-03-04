@@ -223,14 +223,14 @@ where
                 let seq_num = rtps_reader.reader_cache().get_seq_num_min().ok_or(DDSError::NoData)?;
 
                 let samples = rtps_reader.reader_cache().changes().iter()
-                    .filter(|change| change.sequence_number() == &seq_num)
+                    .filter(|change| change.sequence_number() == seq_num)
                     .map(|change| {
                         let mut data_value = change.data_value();
                         DdsDeserialize::deserialize(&mut data_value)
                     })
                     .collect::<DDSResult<Vec<_>>>()?;
 
-                rtps_reader.reader_cache().remove_change(&seq_num);
+                rtps_reader.reader_cache().remove_change(seq_num);
 
                 Ok(Samples {samples})
             }
@@ -238,14 +238,14 @@ where
                 let seq_num = rtps_reader.reader_cache().get_seq_num_min().ok_or(DDSError::NoData)?;
 
                 let samples = rtps_reader.reader_cache().changes().iter()
-                    .filter(|change| change.sequence_number() == &seq_num)
+                    .filter(|change| change.sequence_number() == seq_num)
                     .map(|change| {
                         let mut data_value = change.data_value();
                         DdsDeserialize::deserialize(&mut data_value)
                     })
                     .collect::<DDSResult<Vec<_>>>()?;
 
-                rtps_reader.reader_cache().remove_change(&seq_num);
+                rtps_reader.reader_cache().remove_change(seq_num);
 
                 Ok(Samples {samples})
             }

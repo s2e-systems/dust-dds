@@ -384,7 +384,7 @@ mod test {
         impl RtpsHistoryCacheOperations for WriterHistoryCacheType {
             type CacheChangeType = ();
             fn add_change(&mut self, change: ());
-            fn remove_change(&mut self, seq_num: &SequenceNumber);
+            fn remove_change(&mut self, seq_num: SequenceNumber);
             fn get_seq_num_max(&self) -> Option<SequenceNumber>;
             fn get_seq_num_min(&self) -> Option<SequenceNumber>;
         }
@@ -410,12 +410,12 @@ mod test {
         impl RtpsWriterAttributes for Writer {
             type WriterHistoryCacheType = MockWriterHistoryCacheType;
 
-            fn push_mode(&self) -> &bool;
-            fn heartbeat_period(&self) -> &Duration;
-            fn nack_response_delay(&self) -> &Duration;
-            fn nack_suppression_duration(&self) -> &Duration;
-            fn last_change_sequence_number(&self) -> &SequenceNumber;
-            fn data_max_size_serialized(&self) -> &Option<i32>;
+            fn push_mode(&self) -> bool;
+            fn heartbeat_period(&self) -> Duration;
+            fn nack_response_delay(&self) -> Duration;
+            fn nack_suppression_duration(&self) -> Duration;
+            fn last_change_sequence_number(&self) -> SequenceNumber;
+            fn data_max_size_serialized(&self) -> Option<i32>;
             fn writer_cache(&mut self) -> &mut MockWriterHistoryCacheType;
         }
     }

@@ -72,18 +72,18 @@ impl<'a> RtpsCacheChangeConstructor<'a> for RtpsCacheChangeImpl {
     type ParameterListType = [Parameter<'a>];
 
     fn new(
-        kind: &ChangeKind,
-        writer_guid: &Guid,
-        instance_handle: &InstanceHandle,
-        sequence_number: &SequenceNumber,
+        kind: ChangeKind,
+        writer_guid: Guid,
+        instance_handle: InstanceHandle,
+        sequence_number: SequenceNumber,
         data_value: &Self::DataType,
         _inline_qos: &Self::ParameterListType,
     ) -> Self {
         Self {
-            kind: *kind,
-            writer_guid: *writer_guid,
-            sequence_number: *sequence_number,
-            instance_handle: *instance_handle,
+            kind,
+            writer_guid,
+            sequence_number,
+            instance_handle,
             data: data_value.to_vec(),
             inline_qos: RtpsParameterList(vec![]),
         }
@@ -94,20 +94,20 @@ impl RtpsCacheChangeAttributes<'_> for RtpsCacheChangeImpl {
     type DataType = [u8];
     type ParameterListType = RtpsParameterList;
 
-    fn kind(&self) -> &ChangeKind {
-        &self.kind
+    fn kind(&self) -> ChangeKind {
+        self.kind
     }
 
-    fn writer_guid(&self) -> &Guid {
-        &self.writer_guid
+    fn writer_guid(&self) -> Guid {
+        self.writer_guid
     }
 
-    fn instance_handle(&self) -> &InstanceHandle {
-        &self.instance_handle
+    fn instance_handle(&self) -> InstanceHandle {
+        self.instance_handle
     }
 
-    fn sequence_number(&self) -> &SequenceNumber {
-        &self.sequence_number
+    fn sequence_number(&self) -> SequenceNumber {
+        self.sequence_number
     }
 
     fn data_value(&self) -> &Self::DataType {
@@ -146,8 +146,8 @@ impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
         self.changes.push(change)
     }
 
-    fn remove_change(&mut self, seq_num: &SequenceNumber) {
-        self.changes.retain(|cc| &cc.sequence_number != seq_num)
+    fn remove_change(&mut self, seq_num: SequenceNumber) {
+        self.changes.retain(|cc| cc.sequence_number != seq_num)
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
@@ -177,15 +177,15 @@ mod tests {
     fn remove_change() {
         let mut hc = RtpsHistoryCacheImpl::new();
         let change = RtpsCacheChangeImpl::new(
-            &rust_rtps_pim::structure::types::ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &1,
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            1,
             &vec![],
             &vec![],
         );
         hc.add_change(change);
-        hc.remove_change(&1);
+        hc.remove_change(1);
         assert!(hc.changes().is_empty());
     }
 
@@ -193,18 +193,18 @@ mod tests {
     fn get_seq_num_min() {
         let mut hc = RtpsHistoryCacheImpl::new();
         let change1 = RtpsCacheChangeImpl::new(
-            &rust_rtps_pim::structure::types::ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &1,
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            1,
             &vec![],
             &vec![],
         );
         let change2 = RtpsCacheChangeImpl::new(
-            &rust_rtps_pim::structure::types::ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &2,
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            2,
             &vec![],
             &vec![],
         );
@@ -217,18 +217,18 @@ mod tests {
     fn get_seq_num_max() {
         let mut hc = RtpsHistoryCacheImpl::new();
         let change1 = RtpsCacheChangeImpl::new(
-            &rust_rtps_pim::structure::types::ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &1,
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            1,
             &vec![],
             &vec![],
         );
         let change2 = RtpsCacheChangeImpl::new(
-            &rust_rtps_pim::structure::types::ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &2,
+            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            2,
             &vec![],
             &vec![],
         );

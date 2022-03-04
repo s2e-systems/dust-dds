@@ -56,18 +56,18 @@ impl RtpsWriterImpl {
 }
 
 impl RtpsEntityAttributes for RtpsWriterImpl {
-    fn guid(&self) -> &Guid {
-        &self.endpoint.entity.guid
+    fn guid(&self) -> Guid {
+        self.endpoint.entity.guid
     }
 }
 
 impl RtpsEndpointAttributes for RtpsWriterImpl {
-    fn topic_kind(&self) -> &TopicKind {
-        &self.endpoint.topic_kind
+    fn topic_kind(&self) -> TopicKind {
+        self.endpoint.topic_kind
     }
 
-    fn reliability_level(&self) -> &ReliabilityKind {
-        &self.endpoint.reliability_level
+    fn reliability_level(&self) -> ReliabilityKind {
+        self.endpoint.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
@@ -82,28 +82,28 @@ impl RtpsEndpointAttributes for RtpsWriterImpl {
 impl RtpsWriterAttributes for RtpsWriterImpl {
     type WriterHistoryCacheType = RtpsHistoryCacheImpl;
 
-    fn push_mode(&self) -> &bool {
-        &self.push_mode
+    fn push_mode(&self) -> bool {
+        self.push_mode
     }
 
-    fn heartbeat_period(&self) -> &Duration {
-        &self.heartbeat_period
+    fn heartbeat_period(&self) -> Duration {
+        self.heartbeat_period
     }
 
-    fn nack_response_delay(&self) -> &Duration {
-        &self.nack_response_delay
+    fn nack_response_delay(&self) -> Duration {
+        self.nack_response_delay
     }
 
-    fn nack_suppression_duration(&self) -> &Duration {
-        &self.nack_suppression_duration
+    fn nack_suppression_duration(&self) -> Duration {
+        self.nack_suppression_duration
     }
 
-    fn last_change_sequence_number(&self) -> &SequenceNumber {
-        &self.last_change_sequence_number
+    fn last_change_sequence_number(&self) -> SequenceNumber {
+        self.last_change_sequence_number
     }
 
-    fn data_max_size_serialized(&self) -> &Option<i32> {
-        &self.data_max_size_serialized
+    fn data_max_size_serialized(&self) -> Option<i32> {
+        self.data_max_size_serialized
     }
 
     fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType {

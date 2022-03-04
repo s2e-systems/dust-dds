@@ -15,18 +15,18 @@ pub struct RtpsParticipantImpl {
 }
 
 impl RtpsEntityAttributes for RtpsParticipantImpl {
-    fn guid(&self) -> &Guid {
-        &self.entity.guid
+    fn guid(&self) -> Guid {
+        self.entity.guid
     }
 }
 
 impl RtpsParticipantAttributes for RtpsParticipantImpl {
-    fn protocol_version(&self) -> &ProtocolVersion {
-        &self.protocol_version
+    fn protocol_version(&self) -> ProtocolVersion {
+        self.protocol_version
     }
 
-    fn vendor_id(&self) -> &VendorId {
-        &self.vendor_id
+    fn vendor_id(&self) -> VendorId {
+        self.vendor_id
     }
 
     fn default_unicast_locator_list(&self) -> &[Locator] {

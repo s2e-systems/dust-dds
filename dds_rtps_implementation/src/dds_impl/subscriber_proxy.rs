@@ -540,8 +540,8 @@ mod tests {
     #[derive(Default)]
     struct EmptyGroup {}
     impl RtpsEntityAttributes for EmptyGroup {
-        fn guid(&self) -> &Guid {
-            &GUID_UNKNOWN
+        fn guid(&self) -> Guid {
+            GUID_UNKNOWN
         }
     }
 
@@ -549,7 +549,7 @@ mod tests {
     impl RtpsHistoryCacheOperations for EmptyHistoryCache {
         type CacheChangeType = ();
         fn add_change(&mut self, _change: ()) {}
-        fn remove_change(&mut self, _seq_num: &SequenceNumber) {}
+        fn remove_change(&mut self, _seq_num: SequenceNumber) {}
         fn get_seq_num_min(&self) -> Option<SequenceNumber> {
             None
         }
@@ -585,23 +585,23 @@ mod tests {
     impl RtpsWriterAttributes for EmptyWriter {
         type WriterHistoryCacheType = EmptyHistoryCache;
 
-        fn push_mode(&self) -> &bool {
-            &self.push_mode
+        fn push_mode(&self) -> bool {
+            self.push_mode
         }
-        fn heartbeat_period(&self) -> &Duration {
-            &self.heartbeat_period
+        fn heartbeat_period(&self) -> Duration {
+            self.heartbeat_period
         }
-        fn nack_response_delay(&self) -> &Duration {
-            &self.nack_response_delay
+        fn nack_response_delay(&self) -> Duration {
+            self.nack_response_delay
         }
-        fn nack_suppression_duration(&self) -> &Duration {
-            &self.nack_suppression_duration
+        fn nack_suppression_duration(&self) -> Duration {
+            self.nack_suppression_duration
         }
-        fn last_change_sequence_number(&self) -> &SequenceNumber {
-            &self.last_change_sequence_number
+        fn last_change_sequence_number(&self) -> SequenceNumber {
+            self.last_change_sequence_number
         }
-        fn data_max_size_serialized(&self) -> &Option<i32> {
-            &self.data_max_serialized
+        fn data_max_size_serialized(&self) -> Option<i32> {
+            self.data_max_serialized
         }
         fn writer_cache(&mut self) -> &mut EmptyHistoryCache {
             &mut self.writer_cache
@@ -665,17 +665,17 @@ mod tests {
     }
 
     impl RtpsEntityAttributes for EmptyParticipant {
-        fn guid(&self) -> &Guid {
+        fn guid(&self) -> Guid {
             todo!()
         }
     }
 
     impl RtpsParticipantAttributes for EmptyParticipant {
-        fn protocol_version(&self) -> &rust_rtps_pim::structure::types::ProtocolVersion {
+        fn protocol_version(&self) -> rust_rtps_pim::structure::types::ProtocolVersion {
             todo!()
         }
 
-        fn vendor_id(&self) -> &rust_rtps_pim::structure::types::VendorId {
+        fn vendor_id(&self) -> rust_rtps_pim::structure::types::VendorId {
             todo!()
         }
 

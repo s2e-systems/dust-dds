@@ -47,12 +47,12 @@ impl RtpsReaderProxyConstructor for RtpsReaderProxyAttributesImpl {
 }
 
 impl RtpsReaderProxyAttributes for RtpsReaderProxyAttributesImpl {
-    fn remote_reader_guid(&self) -> &Guid {
-        &self.remote_reader_guid
+    fn remote_reader_guid(&self) -> Guid {
+        self.remote_reader_guid
     }
 
-    fn remote_group_entity_id(&self) -> &EntityId {
-        &self.remote_group_entity_id
+    fn remote_group_entity_id(&self) -> EntityId {
+        self.remote_group_entity_id
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
@@ -63,12 +63,12 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyAttributesImpl {
         self.multicast_locator_list.as_slice()
     }
 
-    fn expects_inline_qos(&self) -> &bool {
-        &self.expects_inline_qos
+    fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
     }
 
-    fn is_active(&self) -> &bool {
-        &self.is_active
+    fn is_active(&self) -> bool {
+        self.is_active
     }
 }
 
@@ -90,12 +90,12 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
 }
 
 impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
-    fn remote_reader_guid(&self) -> &Guid {
-        &self.reader_proxy_attributes.remote_reader_guid
+    fn remote_reader_guid(&self) -> Guid {
+        self.reader_proxy_attributes.remote_reader_guid
     }
 
-    fn remote_group_entity_id(&self) -> &EntityId {
-        &self.reader_proxy_attributes.remote_group_entity_id
+    fn remote_group_entity_id(&self) -> EntityId {
+        self.reader_proxy_attributes.remote_group_entity_id
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
@@ -108,12 +108,12 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
             .as_slice()
     }
 
-    fn expects_inline_qos(&self) -> &bool {
-        &self.reader_proxy_attributes.expects_inline_qos
+    fn expects_inline_qos(&self) -> bool {
+        self.reader_proxy_attributes.expects_inline_qos
     }
 
-    fn is_active(&self) -> &bool {
-        &self.reader_proxy_attributes.is_active
+    fn is_active(&self) -> bool {
+        self.reader_proxy_attributes.is_active
     }
 }
 
@@ -239,10 +239,10 @@ mod tests {
 
     fn add_new_change(writer_cache: &mut RtpsHistoryCacheImpl, sequence_number: SequenceNumber) {
         writer_cache.add_change(RtpsCacheChangeImpl::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &sequence_number,
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            sequence_number,
             &[],
             &[],
         ));

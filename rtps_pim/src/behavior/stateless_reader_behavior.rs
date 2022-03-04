@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub struct BestEffortStatelessReaderBehavior<'a, H> {
-    pub reader_guid: &'a Guid,
+    pub reader_guid: Guid,
     pub reader_cache: &'a mut H,
 }
 
@@ -45,10 +45,10 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
             let data_value = data.serialized_payload().value();
             let inline_qos = data.inline_qos().parameter();
             let a_change = H::CacheChangeType::new(
-                &kind,
-                &writer_guid,
-                &instance_handle,
-                &sequence_number,
+                kind,
+                writer_guid,
+                instance_handle,
+                sequence_number,
                 data_value,
                 inline_qos,
             );
@@ -124,23 +124,23 @@ mod tests {
         type ParameterListSubmessageElementType = MockParameterList;
         type SerializedDataSubmessageElementType = MockSerializedData;
 
-        fn endianness_flag(&self) -> &SubmessageFlag {
+        fn endianness_flag(&self) -> SubmessageFlag {
             todo!()
         }
 
-        fn inline_qos_flag(&self) -> &SubmessageFlag {
+        fn inline_qos_flag(&self) -> SubmessageFlag {
             todo!()
         }
 
-        fn data_flag(&self) -> &SubmessageFlag {
-            &self.data_flag
+        fn data_flag(&self) -> SubmessageFlag {
+            self.data_flag
         }
 
-        fn key_flag(&self) -> &SubmessageFlag {
-            &self.key_flag
+        fn key_flag(&self) -> SubmessageFlag {
+            self.key_flag
         }
 
-        fn non_standard_payload_flag(&self) -> &SubmessageFlag {
+        fn non_standard_payload_flag(&self) -> SubmessageFlag {
             todo!()
         }
 
@@ -172,10 +172,10 @@ mod tests {
         type ParameterListType = [Parameter<'a>];
 
         fn new(
-            _kind: &ChangeKind,
-            _writer_guid: &Guid,
-            _instance_handle: &crate::structure::types::InstanceHandle,
-            _sequence_number: &SequenceNumber,
+            _kind: ChangeKind,
+            _writer_guid: Guid,
+            _instance_handle: crate::structure::types::InstanceHandle,
+            _sequence_number: SequenceNumber,
             _data_value: &Self::DataType,
             _inline_qos: &Self::ParameterListType,
         ) -> Self {
@@ -193,7 +193,7 @@ mod tests {
                 self.0 = true;
             }
 
-            fn remove_change(&mut self, _seq_num: &SequenceNumber) {
+            fn remove_change(&mut self, _seq_num: SequenceNumber) {
                 todo!()
             }
 
@@ -207,7 +207,7 @@ mod tests {
         }
         let mut history_cache = MockHistoryCache(false);
         let mut stateless_reader_behavior = BestEffortStatelessReaderBehavior {
-            reader_guid: &Guid::new(
+            reader_guid: Guid::new(
                 GuidPrefix([1; 12]),
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             ),
@@ -259,7 +259,7 @@ mod tests {
                 self.0 = true;
             }
 
-            fn remove_change(&mut self, _seq_num: &SequenceNumber) {
+            fn remove_change(&mut self, _seq_num: SequenceNumber) {
                 todo!()
             }
 
@@ -273,7 +273,7 @@ mod tests {
         }
         let mut history_cache = MockHistoryCache(false);
         let mut stateless_reader_behavior = BestEffortStatelessReaderBehavior {
-            reader_guid: &Guid::new(
+            reader_guid: Guid::new(
                 GuidPrefix([1; 12]),
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             ),
@@ -325,7 +325,7 @@ mod tests {
                 self.0 = true;
             }
 
-            fn remove_change(&mut self, _seq_num: &SequenceNumber) {
+            fn remove_change(&mut self, _seq_num: SequenceNumber) {
                 todo!()
             }
 
@@ -339,7 +339,7 @@ mod tests {
         }
         let mut history_cache = MockHistoryCache(false);
         let mut stateless_reader_behavior = BestEffortStatelessReaderBehavior {
-            reader_guid: &Guid::new(
+            reader_guid: Guid::new(
                 GuidPrefix([1; 12]),
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             ),

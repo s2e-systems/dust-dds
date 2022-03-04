@@ -140,24 +140,24 @@ impl<'a> DataSubmessageAttributes for DataSubmessageRead<'a> {
     type ParameterListSubmessageElementType = ParameterListSubmessageElementRead<'a>;
     type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
 
-    fn endianness_flag(&self) -> &SubmessageFlag {
-        &self.endianness_flag
+    fn endianness_flag(&self) -> SubmessageFlag {
+        self.endianness_flag
     }
 
-    fn inline_qos_flag(&self) -> &SubmessageFlag {
-        &self.inline_qos_flag
+    fn inline_qos_flag(&self) -> SubmessageFlag {
+        self.inline_qos_flag
     }
 
-    fn data_flag(&self) -> &SubmessageFlag {
-        &self.data_flag
+    fn data_flag(&self) -> SubmessageFlag {
+        self.data_flag
     }
 
-    fn key_flag(&self) -> &SubmessageFlag {
-        &self.key_flag
+    fn key_flag(&self) -> SubmessageFlag {
+        self.key_flag
     }
 
-    fn non_standard_payload_flag(&self) -> &SubmessageFlag {
-        &self.non_standard_payload_flag
+    fn non_standard_payload_flag(&self) -> SubmessageFlag {
+        self.non_standard_payload_flag
     }
 
     fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
@@ -485,12 +485,12 @@ pub struct InfoTimestampSubmessageRead {
 impl InfoTimestampSubmessageAttributes for InfoTimestampSubmessageRead {
     type TimestampSubmessageElementType = TimestampSubmessageElementPsm;
 
-    fn endianness_flag(&self) -> &SubmessageFlag {
-        &self.endianness_flag
+    fn endianness_flag(&self) -> SubmessageFlag {
+        self.endianness_flag
     }
 
-    fn invalidate_flag(&self) -> &SubmessageFlag {
-        &self.invalidate_flag
+    fn invalidate_flag(&self) -> SubmessageFlag {
+        self.invalidate_flag
     }
 
     fn timestamp(&self) -> &Self::TimestampSubmessageElementType {
