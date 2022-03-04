@@ -109,7 +109,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
 mod tests {
     use crate::{
         messages::{submessage_elements::Parameter, types::SubmessageFlag},
-        structure::types::{EntityId, InstanceHandle, SequenceNumber},
+        structure::types::{EntityId, InstanceHandle, SequenceNumber, Locator},
     };
 
     use super::*;
@@ -123,11 +123,11 @@ mod tests {
                 self.0
             }
 
-            fn unicast_locator_list(&self) -> &[crate::structure::types::Locator] {
+            fn unicast_locator_list(&self) -> &[Locator] {
                 todo!()
             }
 
-            fn multicast_locator_list(&self) -> &[crate::structure::types::Locator] {
+            fn multicast_locator_list(&self) -> &[Locator] {
                 todo!()
             }
 
@@ -141,7 +141,6 @@ mod tests {
         }
 
         impl RtpsWriterProxyOperations for MockWriterProxy {
-            type SequenceNumberVector = ();
 
             fn available_changes_max(&self) -> SequenceNumber {
                 todo!()
@@ -155,7 +154,7 @@ mod tests {
                 todo!()
             }
 
-            fn missing_changes(&self) -> Self::SequenceNumberVector {
+            fn missing_changes(&self) -> &[SequenceNumber] {
                 todo!()
             }
 
