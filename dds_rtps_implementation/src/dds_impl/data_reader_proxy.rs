@@ -91,7 +91,6 @@ where
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
     pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
-    pub status_changed: bool,
 }
 
 impl<Rtps> DataReaderAttributes<Rtps>
@@ -110,7 +109,6 @@ where
             topic,
             listener: None,
             parent_subscriber,
-            status_changed: false,
         }
     }
 }
@@ -183,8 +181,6 @@ where
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        self.as_ref().upgrade()?.write_lock().status_changed = false;
-
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let rtps_reader = &mut data_reader_shared
             .write_lock()
@@ -219,8 +215,6 @@ where
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
-        self.as_ref().upgrade()?.write_lock().status_changed = false;
-
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let rtps_reader = &mut data_reader_shared
             .write_lock()

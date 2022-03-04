@@ -79,7 +79,7 @@ impl MessageReceiver {
                         for data_reader in &subscriber_lock.data_reader_list {
                             let mut data_reader_lock = data_reader.write_lock();
 
-                            let mut status_changed = data_reader_lock.status_changed;
+                            let mut status_changed = false;
 
                             {
                                 let rtps_reader = &mut data_reader_lock.rtps_reader;
@@ -131,12 +131,11 @@ impl MessageReceiver {
                                 }
                             }
 
-                            if data_reader_lock.status_changed != status_changed {
+                            if status_changed {
                                 data_reader_lock
                                     .listener
                                     .as_ref()
                                     .map(|l| l.on_data_available());
-                                data_reader_lock.status_changed = false;
                             }
                         }
                     }
