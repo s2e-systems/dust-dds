@@ -10,7 +10,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
+        types::{ChangeKind, Guid, GuidPrefix},
     },
 };
 
@@ -31,31 +31,31 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
         >,
     ) where
         H: RtpsHistoryCacheOperations,
-        for<'b> H::CacheChangeType:
-            RtpsCacheChangeConstructor<'b, DataType = &'b [u8], ParameterListType = &'b [Parameter<'b>]>,
+        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<
+            'b,
+            DataType = &'b [u8],
+            ParameterListType = &'b [Parameter<'b>],
+        >,
     {
-        let reader_id = data.reader_id().value();
-        if reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
-            let kind = match (data.data_flag(), data.key_flag()) {
-                (true, false) => ChangeKind::Alive,
-                (false, true) => ChangeKind::NotAliveDisposed,
-                _ => todo!(),
-            };
-            let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
-            let instance_handle = 0;
-            let sequence_number = data.writer_sn().value();
-            let data_value = data.serialized_payload().value();
-            let inline_qos = data.inline_qos().parameter();
-            let a_change = H::CacheChangeType::new(
-                kind,
-                writer_guid,
-                instance_handle,
-                sequence_number,
-                data_value,
-                inline_qos,
-            );
-            self.reader_cache.add_change(a_change);
-        }
+        let kind = match (data.data_flag(), data.key_flag()) {
+            (true, false) => ChangeKind::Alive,
+            (false, true) => ChangeKind::NotAliveDisposed,
+            _ => todo!(),
+        };
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
+        let instance_handle = 0;
+        let sequence_number = data.writer_sn().value();
+        let data_value = data.serialized_payload().value();
+        let inline_qos = data.inline_qos().parameter();
+        let a_change = H::CacheChangeType::new(
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data_value,
+            inline_qos,
+        );
+        self.reader_cache.add_change(a_change);
     }
 }
 
@@ -63,13 +63,12 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
 mod tests {
     use crate::{
         discovery::{
-            sedp::builtin_endpoints::ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             spdp::builtin_endpoints::{
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+                ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             },
         },
         messages::{submessage_elements::Parameter, types::SubmessageFlag},
-        structure::types::{EntityId, SequenceNumber},
+        structure::types::{EntityId, SequenceNumber, ENTITYID_UNKNOWN},
     };
 
     use super::*;
@@ -323,72 +322,72 @@ mod tests {
         assert_eq!(history_cache.0, true);
     }
 
-    #[test]
-    fn best_effort_stateless_reader_receive_data_reader_id_other_than_receiver() {
-        struct MockHistoryCache(bool);
+    // #[test]
+    // fn best_effort_stateless_reader_receive_data_reader_id_other_than_receiver() {
+    //     struct MockHistoryCache(bool);
 
-        impl RtpsHistoryCacheOperations for MockHistoryCache {
-            type CacheChangeType = MockCacheChange;
-            fn add_change(&mut self, _change: Self::CacheChangeType) {
-                self.0 = true;
-            }
+    //     impl RtpsHistoryCacheOperations for MockHistoryCache {
+    //         type CacheChangeType = MockCacheChange;
+    //         fn add_change(&mut self, _change: Self::CacheChangeType) {
+    //             self.0 = true;
+    //         }
 
-            fn remove_change<F>(&mut self, _f: F)
-            where
-                F: FnMut(&Self::CacheChangeType) -> bool,
-            {
-                todo!()
-            }
+    //         fn remove_change<F>(&mut self, _f: F)
+    //         where
+    //             F: FnMut(&Self::CacheChangeType) -> bool,
+    //         {
+    //             todo!()
+    //         }
 
-            fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-                todo!()
-            }
+    //         fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+    //             todo!()
+    //         }
 
-            fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-                todo!()
-            }
-        }
-        let mut history_cache = MockHistoryCache(false);
-        let mut stateless_reader_behavior = BestEffortStatelessReaderBehavior {
-            reader_guid: Guid::new(
-                GuidPrefix([1; 12]),
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-            ),
-            reader_cache: &mut history_cache,
-        };
-        // let data_submessage = DataSubmessage {
-        //     endianness_flag: true,
-        //     inline_qos_flag: true,
-        //     data_flag: true,
-        //     key_flag: false,
-        //     non_standard_payload_flag: false,
-        //     reader_id: EntityIdSubmessageElement {
-        //         value: ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-        //     },
-        //     writer_id: EntityIdSubmessageElement {
-        //         value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-        //     },
-        //     writer_sn: SequenceNumberSubmessageElement { value: 1 },
-        //     inline_qos: ParameterListSubmessageElement { parameter: () },
-        //     serialized_payload: SerializedDataSubmessageElement { value: () },
-        // };
-        stateless_reader_behavior.receive_data(
-            GuidPrefix([2; 12]),
-            &MockDataSubmessage {
-                data_flag: true,
-                key_flag: false,
-                reader_id: MockEntityId {
-                    value: ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-                },
-                writer_id: MockEntityId {
-                    value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-                },
-                writer_sn: MockSequenceNumber { value: 1 },
-                inline_qos: MockParameterList,
-                serialized_payload: MockSerializedData,
-            },
-        );
+    //         fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+    //             todo!()
+    //         }
+    //     }
+    //     let mut history_cache = MockHistoryCache(false);
+    //     let mut stateless_reader_behavior = BestEffortStatelessReaderBehavior {
+    //         reader_guid: Guid::new(
+    //             GuidPrefix([1; 12]),
+    //             ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+    //         ),
+    //         reader_cache: &mut history_cache,
+    //     };
+    //     // let data_submessage = DataSubmessage {
+    //     //     endianness_flag: true,
+    //     //     inline_qos_flag: true,
+    //     //     data_flag: true,
+    //     //     key_flag: false,
+    //     //     non_standard_payload_flag: false,
+    //     //     reader_id: EntityIdSubmessageElement {
+    //     //         value: ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+    //     //     },
+    //     //     writer_id: EntityIdSubmessageElement {
+    //     //         value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+    //     //     },
+    //     //     writer_sn: SequenceNumberSubmessageElement { value: 1 },
+    //     //     inline_qos: ParameterListSubmessageElement { parameter: () },
+    //     //     serialized_payload: SerializedDataSubmessageElement { value: () },
+    //     // };
+    //     stateless_reader_behavior.receive_data(
+    //         GuidPrefix([2; 12]),
+    //         &MockDataSubmessage {
+    //             data_flag: true,
+    //             key_flag: false,
+    //             reader_id: MockEntityId {
+    //                 value: ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+    //             },
+    //             writer_id: MockEntityId {
+    //                 value: ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+    //             },
+    //             writer_sn: MockSequenceNumber { value: 1 },
+    //             inline_qos: MockParameterList,
+    //             serialized_payload: MockSerializedData,
+    //         },
+    //     );
 
-        assert_eq!(history_cache.0, false);
-    }
+    //     assert_eq!(history_cache.0, false);
+    // }
 }

@@ -3,15 +3,17 @@ use rust_dds_rtps_implementation::{
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
-    behavior::stateful_reader_behavior::StatefulReaderBehavior,
+    behavior::{stateful_reader_behavior::StatefulReaderBehavior, reader::writer_proxy::RtpsWriterProxyAttributes},
     messages::{
-        submessage_elements::TimestampSubmessageElementAttributes,
-        submessages::InfoTimestampSubmessageAttributes,
+        submessage_elements::{
+            EntityIdSubmessageElementAttributes, TimestampSubmessageElementAttributes,
+        },
+        submessages::{DataSubmessageAttributes, InfoTimestampSubmessageAttributes},
         types::{Time, TIME_INVALID},
     },
     structure::types::{
-        GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
-        LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+        GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,
+        LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN, Guid,
     },
 };
 use rust_rtps_udp_psm::messages::{
@@ -76,29 +78,65 @@ impl MessageReceiver {
                         let subscriber_lock = subscriber.read_lock();
                         for data_reader in &subscriber_lock.data_reader_list {
                             let mut data_reader_lock = data_reader.write_lock();
-                            let rtps_reader = &mut data_reader_lock.rtps_reader;
-                            match rtps_reader {
-                                RtpsReader::Stateless(stateless_rtps_reader) => {
-                                    for mut stateless_reader_behavior in
-                                        stateless_rtps_reader.into_iter()
-                                    {
-                                        stateless_reader_behavior
-                                            .receive_data(self.source_guid_prefix, data)
+
+                            let mut status_changed = data_reader_lock.status_changed;
+
+                            {
+                                let rtps_reader = &mut data_reader_lock.rtps_reader;
+                                match rtps_reader {
+                                    RtpsReader::Stateless(stateless_rtps_reader) => {
+                                        for mut stateless_reader_behavior in
+                                            stateless_rtps_reader.into_iter()
+                                        {
+                                            if data.reader_id().value() == ENTITYID_UNKNOWN
+                                                || data.reader_id().value()
+                                                    == stateless_reader_behavior
+                                                        .reader_guid
+                                                        .entity_id()
+                                            {
+                                                stateless_reader_behavior
+                                                    .receive_data(self.source_guid_prefix, data);
+                                                status_changed = true;
+                                            }
+                                        }
                                     }
-                                }
-                                RtpsReader::Stateful(stateful_rtps_reader) => {
-                                    for stateful_reader_behavior in
-                                        stateful_rtps_reader.behavior().into_iter()
-                                    {
-                                        match stateful_reader_behavior {
-                                            StatefulReaderBehavior::BestEffort(_) => todo!(),
-                                            StatefulReaderBehavior::Reliable(
-                                                mut reliable_stateful_reader,
-                                            ) => reliable_stateful_reader
-                                                .receive_data(self.source_guid_prefix, data),
+                                    RtpsReader::Stateful(stateful_rtps_reader) => {
+                                        for stateful_reader_behavior in
+                                            stateful_rtps_reader.behavior().into_iter()
+                                        {
+                                            match stateful_reader_behavior {
+                                                StatefulReaderBehavior::BestEffort(_) => todo!(),
+                                                StatefulReaderBehavior::Reliable(
+                                                    mut reliable_stateful_reader,
+                                                ) => {
+                                                    let writer_guid = Guid::new(
+                                                        self.source_guid_prefix,
+                                                        data.writer_id().value(),
+                                                    );
+                                                    if writer_guid
+                                                        == reliable_stateful_reader
+                                                            .writer_proxy
+                                                            .remote_writer_guid()
+                                                    {
+                                                        reliable_stateful_reader.receive_data(
+                                                            self.source_guid_prefix,
+                                                            data,
+                                                        );
+                                                        status_changed = true;
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
+                            }
+
+                            if data_reader_lock.status_changed != status_changed {
+                                data_reader_lock
+                                    .listener
+                                    .as_ref()
+                                    .map(|l| l.on_data_available());
+                                data_reader_lock.status_changed = false;
                             }
                         }
                     }

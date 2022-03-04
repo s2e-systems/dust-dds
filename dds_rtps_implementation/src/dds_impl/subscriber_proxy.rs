@@ -139,14 +139,12 @@ where
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes
         + RtpsStatefulWriterConstructor,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataReaderType = DataReaderProxy<Foo, Rtps>;
@@ -232,13 +230,13 @@ where
                 false,
             ));
 
-            let data_reader = DataReaderAttributes {
+            let mut data_reader = DataReaderAttributes::new(
+                qos,
                 rtps_reader,
-                _qos: qos,
-                topic: topic_shared.clone(),
-                listener,
-                parent_subscriber: self.subscriber_impl.clone(),
-            };
+                topic_shared.clone(),
+                self.subscriber_impl.clone(),
+            );
+            data_reader.listener = listener;
 
             let data_reader_shared = RtpsShared::new(data_reader);
 

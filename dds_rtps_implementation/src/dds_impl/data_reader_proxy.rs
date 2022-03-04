@@ -91,6 +91,7 @@ where
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
     pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
+    pub status_changed: bool,
 }
 
 impl<Rtps> DataReaderAttributes<Rtps>
@@ -109,6 +110,7 @@ where
             topic,
             listener: None,
             parent_subscriber,
+            status_changed: false,
         }
     }
 }
@@ -181,6 +183,8 @@ where
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
+        self.as_ref().upgrade()?.write_lock().status_changed = false;
+
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let rtps_reader = &mut data_reader_shared
             .write_lock()
@@ -215,6 +219,8 @@ where
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Self::Samples> {
+        self.as_ref().upgrade()?.write_lock().status_changed = false;
+
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let rtps_reader = &mut data_reader_shared
             .write_lock()
@@ -476,7 +482,7 @@ where
     Rtps: RtpsStructure,
 {
     type Qos = DataReaderQos;
-    type Listener = Box<dyn DataReaderListener>;
+    type Listener = Box<dyn DataReaderListener + Send + Sync>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)
@@ -490,12 +496,11 @@ where
 
     fn set_listener(
         &self,
-        _a_listener: Option<Self::Listener>,
+        listener: Option<Self::Listener>,
         _mask: StatusMask,
     ) -> DDSResult<()> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?)
-        // .set_listener(a_listener, mask)
-        todo!()
+        self.as_ref().upgrade()?.write_lock().listener = listener;
+        Ok(())
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {

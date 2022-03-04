@@ -64,32 +64,33 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheOperations,
-        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = &'b [u8], ParameterListType = &'b [Parameter<'b>]>
-            + RtpsCacheChangeAttributes<'b>,
+        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<
+                'b,
+                DataType = &'b [u8],
+                ParameterListType = &'b [Parameter<'b>],
+            > + RtpsCacheChangeAttributes<'b>,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
-        if writer_guid == self.writer_proxy.remote_writer_guid() {
-            let kind = match (data.data_flag(), data.key_flag()) {
-                (true, false) => ChangeKind::Alive,
-                (false, true) => ChangeKind::NotAliveDisposed,
-                _ => todo!(),
-            };
-            let instance_handle = 0;
-            let sequence_number = data.writer_sn().value();
-            let data_value = data.serialized_payload().value();
-            let inline_qos = data.inline_qos().parameter();
-            let a_change = H::CacheChangeType::new(
-                kind,
-                writer_guid,
-                instance_handle,
-                sequence_number,
-                data_value,
-                inline_qos,
-            );
-            self.writer_proxy
-                .received_change_set(a_change.sequence_number());
-            self.reader_cache.add_change(a_change);
-        }
+        let kind = match (data.data_flag(), data.key_flag()) {
+            (true, false) => ChangeKind::Alive,
+            (false, true) => ChangeKind::NotAliveDisposed,
+            _ => todo!(),
+        };
+        let instance_handle = 0;
+        let sequence_number = data.writer_sn().value();
+        let data_value = data.serialized_payload().value();
+        let inline_qos = data.inline_qos().parameter();
+        let a_change = H::CacheChangeType::new(
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data_value,
+            inline_qos,
+        );
+        self.writer_proxy
+            .received_change_set(a_change.sequence_number());
+        self.reader_cache.add_change(a_change);
     }
 
     pub fn send_ack_nack(&mut self) {
@@ -184,9 +185,7 @@ mod tests {
                 _data_value: Self::DataType,
                 _inline_qos: Self::ParameterListType,
             ) -> Self {
-                Self {
-                    sequence_number,
-                }
+                Self { sequence_number }
             }
         }
 
