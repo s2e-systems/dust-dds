@@ -63,7 +63,7 @@ impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
     type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
     type ParameterListSubmessageElementType = ParameterListSubmessageElementWrite<'a>;
-    type SerializedDataSubmessageElementType = &'a [u8];
+    type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -87,9 +87,7 @@ impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
             writer_id,
             writer_sn,
             inline_qos,
-            serialized_payload: SerializedDataSubmessageElementPsm {
-                value: serialized_payload,
-            },
+            serialized_payload,
         }
     }
 }

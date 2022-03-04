@@ -2,10 +2,11 @@
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElementConstructor, EntityIdSubmessageElementConstructor,
+            CountSubmessageElementConstructor, EntityIdSubmessageElementConstructor, Parameter,
+            ParameterListSubmessageElementConstructor,
             SequenceNumberSetSubmessageElementAttributes,
             SequenceNumberSetSubmessageElementConstructor,
-            SequenceNumberSubmessageElementConstructor, ParameterListSubmessageElementConstructor, Parameter,
+            SequenceNumberSubmessageElementConstructor, SerializedDataSubmessageElementConstructor,
         },
         submessages::{
             AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
@@ -43,6 +44,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         Gap,
         SequenceNumberSetElement,
         ParameterListElement,
+        SerializedDataElement,
     >(
         &mut self,
         mut send_data: impl FnMut(Data),
@@ -53,12 +55,14 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
             ParameterListSubmessageElementType = ParameterListElement,
-            SerializedDataSubmessageElementType = &'a CacheChange::DataType,
+            SerializedDataSubmessageElementType = SerializedDataElement,
         >,
         ParameterListElement: ParameterListSubmessageElementConstructor<'a>,
+        SerializedDataElement: SerializedDataSubmessageElementConstructor<'a>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: IntoIterator<Item = Parameter<'a>> + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
+            IntoIterator<Item = Parameter<'a>> + 'a,
         EntityIdElement: EntityIdSubmessageElementConstructor,
         SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
@@ -90,7 +94,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = SequenceNumberElement::new(*change.sequence_number());
                 let inline_qos = ParameterListElement::new(change.inline_qos());
-                let serialized_payload = change.data_value();
+                let serialized_payload = SerializedDataElement::new(change.data_value());
                 let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,
@@ -134,7 +138,8 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         CacheChange,
         Gap,
         SequenceNumberSetElement,
-        ParameterListElement
+        ParameterListElement,
+        SerializedDataElement,
     >(
         &mut self,
         mut send_data: impl FnMut(Data),
@@ -146,12 +151,14 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
             ParameterListSubmessageElementType = ParameterListElement,
-            SerializedDataSubmessageElementType = &'a CacheChange::DataType,
+            SerializedDataSubmessageElementType = SerializedDataElement,
         >,
         ParameterListElement: ParameterListSubmessageElementConstructor<'a>,
+        SerializedDataElement: SerializedDataSubmessageElementConstructor<'a>,
         EntityIdElement: EntityIdSubmessageElementConstructor,
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: IntoIterator<Item = Parameter<'a>> + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
+            IntoIterator<Item = Parameter<'a>> + 'a,
         SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
         Gap: GapSubmessageConstructor<
@@ -183,7 +190,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                     EntityIdSubmessageElementConstructor::new(change.writer_guid().entity_id());
                 let writer_sn = SequenceNumberElement::new(*change.sequence_number());
                 let inline_qos = ParameterListElement::new(change.inline_qos());
-                let serialized_payload = change.data_value();
+                let serialized_payload = SerializedDataElement::new(change.data_value());
                 let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,
@@ -271,7 +278,8 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         CacheChange,
         Gap,
         SequenceNumberSetElement,
-        ParameterListElement
+        ParameterListElement,
+        SerializedDataElement,
     >(
         &mut self,
         mut send_data: impl FnMut(Data),
@@ -283,12 +291,14 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
             EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumberElement,
             ParameterListSubmessageElementType = ParameterListElement,
-            SerializedDataSubmessageElementType = &'a CacheChange::DataType,
+            SerializedDataSubmessageElementType = SerializedDataElement,
         >,
         ParameterListElement: ParameterListSubmessageElementConstructor<'a>,
+        SerializedDataElement: SerializedDataSubmessageElementConstructor<'a>,
         EntityIdElement: EntityIdSubmessageElementConstructor,
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: IntoIterator<Item = Parameter<'a>> + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
+            IntoIterator<Item = Parameter<'a>> + 'a,
         SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
         SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
         Gap: GapSubmessageConstructor<
@@ -319,7 +329,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
                 let writer_sn = SequenceNumberElement::new(*change.sequence_number());
                 let inline_qos = ParameterListElement::new(change.inline_qos());
-                let serialized_payload = change.data_value();
+                let serialized_payload = SerializedDataElement::new(change.data_value());
                 let data_submessage = Data::new(
                     endianness_flag,
                     inline_qos_flag,
