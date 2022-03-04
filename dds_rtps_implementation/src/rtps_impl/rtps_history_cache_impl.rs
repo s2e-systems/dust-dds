@@ -145,10 +145,6 @@ impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
         self.changes.push(change)
     }
 
-    // fn remove_change(&mut self, seq_num: &SequenceNumber) {
-    //
-    // }
-
     fn remove_change<F>(&mut self, mut f: F)
     where
         F: FnMut(&Self::CacheChangeType) -> bool,
