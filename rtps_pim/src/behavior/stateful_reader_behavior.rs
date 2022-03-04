@@ -141,7 +141,7 @@ mod tests {
         }
 
         impl RtpsWriterProxyOperations for MockWriterProxy {
-            type SequenceNumberVector = ();
+            type SequenceNumberListType = ();
 
             fn available_changes_max(&self) -> SequenceNumber {
                 todo!()
@@ -155,7 +155,7 @@ mod tests {
                 todo!()
             }
 
-            fn missing_changes(&self) -> Self::SequenceNumberVector {
+            fn missing_changes(&self) -> Self::SequenceNumberListType {
                 todo!()
             }
 

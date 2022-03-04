@@ -15,20 +15,6 @@ pub trait RtpsWriterAttributes {
     fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType;
 }
 
-pub trait RtpsWriterOperations {
-    type DataType;
-    type ParameterListType;
-    type CacheChangeType;
-
-    fn new_change(
-        &mut self,
-        kind: ChangeKind,
-        data: Self::DataType,
-        inline_qos: Self::ParameterListType,
-        handle: InstanceHandle,
-    ) -> Self::CacheChangeType;
-}
-
 pub trait RtpsWriterConstructor {
     fn new(
         guid: Guid,
@@ -42,4 +28,18 @@ pub trait RtpsWriterConstructor {
         nack_suppression_duration: Duration,
         data_max_size_serialized: Option<i32>,
     ) -> Self;
+}
+
+pub trait RtpsWriterOperations {
+    type DataType;
+    type ParameterListType;
+    type CacheChangeType;
+
+    fn new_change(
+        &mut self,
+        kind: ChangeKind,
+        data: Self::DataType,
+        inline_qos: Self::ParameterListType,
+        handle: InstanceHandle,
+    ) -> Self::CacheChangeType;
 }

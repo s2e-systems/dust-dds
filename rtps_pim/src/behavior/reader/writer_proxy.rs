@@ -19,12 +19,12 @@ pub trait RtpsWriterProxyAttributes {
 }
 
 pub trait RtpsWriterProxyOperations {
-    type SequenceNumberVector;
+    type SequenceNumberListType;
 
     fn available_changes_max(&self) -> SequenceNumber;
     fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber);
     fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber);
-    fn missing_changes(&self) -> Self::SequenceNumberVector;
+    fn missing_changes(&self) -> Self::SequenceNumberListType;
     fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber);
     fn received_change_set(&mut self, a_seq_num: SequenceNumber);
 }

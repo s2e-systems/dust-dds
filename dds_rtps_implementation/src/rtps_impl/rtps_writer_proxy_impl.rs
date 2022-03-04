@@ -55,7 +55,7 @@ impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
 }
 
 impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
-    type SequenceNumberVector = Vec<SequenceNumber>;
+    type SequenceNumberListType = Vec<SequenceNumber>;
 
     fn available_changes_max(&self) -> SequenceNumber {
         todo!()
@@ -69,7 +69,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         todo!()
     }
 
-    fn missing_changes(&self) -> Self::SequenceNumberVector {
+    fn missing_changes(&self) -> Self::SequenceNumberListType {
         todo!()
     }
 
