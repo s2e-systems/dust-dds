@@ -65,7 +65,7 @@ impl RtpsEndpointAttributes for RtpsStatefulWriterImpl {
 }
 
 impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
-    type WriterHistoryCacheType = RtpsHistoryCacheImpl;
+    type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn push_mode(&self) -> bool {
         self.writer.push_mode
@@ -91,7 +91,7 @@ impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
         self.writer.data_max_size_serialized
     }
 
-    fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType {
+    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
         &mut self.writer.writer_cache
     }
 }

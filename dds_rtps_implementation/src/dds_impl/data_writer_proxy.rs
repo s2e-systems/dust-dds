@@ -141,11 +141,11 @@ where
         + RtpsWriterAttributes,
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType:
         RtpsHistoryCacheOperations<
             CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
         >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType:
         RtpsHistoryCacheOperations<
             CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
         >,
@@ -408,7 +408,7 @@ mod test {
         }
 
         impl RtpsWriterAttributes for Writer {
-            type WriterHistoryCacheType = MockWriterHistoryCacheType;
+            type HistoryCacheType = MockWriterHistoryCacheType;
 
             fn push_mode(&self) -> bool;
             fn heartbeat_period(&self) -> Duration;

@@ -4,7 +4,7 @@ use crate::{
 };
 
 pub trait RtpsWriterAttributes {
-    type WriterHistoryCacheType;
+    type HistoryCacheType;
 
     fn push_mode(&self) -> bool;
     fn heartbeat_period(&self) -> Duration;
@@ -12,7 +12,7 @@ pub trait RtpsWriterAttributes {
     fn nack_suppression_duration(&self) -> Duration;
     fn last_change_sequence_number(&self) -> SequenceNumber;
     fn data_max_size_serialized(&self) -> Option<i32>;
-    fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType;
+    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType;
 }
 
 pub trait RtpsWriterConstructor {
