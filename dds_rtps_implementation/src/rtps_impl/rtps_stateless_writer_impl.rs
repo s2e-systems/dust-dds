@@ -26,7 +26,7 @@ use rust_rtps_pim::{
 
 use super::{
     rtps_reader_locator_impl::{RtpsReaderLocatorAttributesImpl, RtpsReaderLocatorOperationsImpl},
-    rtps_writer_history_cache_impl::{WriterCacheChange, WriterHistoryCache},
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
     rtps_endpoint_impl::RtpsEndpointImpl, rtps_writer_impl::RtpsWriterImpl,
 };
 
@@ -60,7 +60,7 @@ impl RtpsEndpointAttributes for RtpsStatelessWriterImpl {
 }
 
 impl RtpsWriterAttributes for RtpsStatelessWriterImpl {
-    type WriterHistoryCacheType = WriterHistoryCache;
+    type WriterHistoryCacheType = RtpsHistoryCacheImpl;
 
     fn push_mode(&self) -> &bool {
         &self.writer.push_mode
@@ -152,14 +152,14 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
 
 pub struct RtpsReaderLocatorIterator<'a> {
     reader_locator_attributes_iterator: std::slice::IterMut<'a, RtpsReaderLocatorAttributesImpl>,
-    writer_cache: &'a WriterHistoryCache,
+    writer_cache: &'a RtpsHistoryCacheImpl,
     reliability_level: &'a ReliabilityKind,
     writer_guid: &'a Guid,
 }
 
 impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
     type Item =
-        StatelessWriterBehavior<'a, RtpsReaderLocatorOperationsImpl<'a>, WriterHistoryCache>;
+        StatelessWriterBehavior<'a, RtpsReaderLocatorOperationsImpl<'a>, RtpsHistoryCacheImpl>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let reader_locator_attributes = self.reader_locator_attributes_iterator.next()?;
@@ -185,7 +185,7 @@ impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
 
 impl<'a> IntoIterator for &'a mut RtpsStatelessWriterImpl {
     type Item =
-        StatelessWriterBehavior<'a, RtpsReaderLocatorOperationsImpl<'a>, WriterHistoryCache>;
+        StatelessWriterBehavior<'a, RtpsReaderLocatorOperationsImpl<'a>, RtpsHistoryCacheImpl>;
 
     type IntoIter = RtpsReaderLocatorIterator<'a>;
 
@@ -202,7 +202,7 @@ impl<'a> IntoIterator for &'a mut RtpsStatelessWriterImpl {
 impl RtpsWriterOperations for RtpsStatelessWriterImpl {
     type DataType = Vec<u8>;
     type ParameterListType = Vec<u8>;
-    type CacheChangeType = WriterCacheChange;
+    type CacheChangeType = RtpsCacheChangeImpl;
     fn new_change(
         &mut self,
         kind: ChangeKind,

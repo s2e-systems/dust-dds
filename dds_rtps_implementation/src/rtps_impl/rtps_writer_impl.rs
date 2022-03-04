@@ -1,9 +1,21 @@
-use rust_dds_api::dcps_psm::{ViewStateKind, InstanceStateKind};
-use rust_rtps_pim::{behavior::{types::Duration, writer::writer::{RtpsWriterAttributes, RtpsWriterOperations}}, structure::{types::{SequenceNumber, Guid, TopicKind, ReliabilityKind, Locator, ChangeKind, InstanceHandle}, endpoint::RtpsEndpointAttributes, entity::RtpsEntityAttributes, history_cache::RtpsHistoryCacheConstructor}};
+use rust_rtps_pim::{
+    behavior::{
+        types::Duration,
+        writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
+    },
+    structure::{
+        endpoint::RtpsEndpointAttributes,
+        entity::RtpsEntityAttributes,
+        history_cache::RtpsHistoryCacheConstructor,
+        types::{
+            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+        },
+    },
+};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_writer_history_cache_impl::{WriterHistoryCache, WriterCacheChange, RtpsParameterList}
+    rtps_history_cache_impl::{RtpsParameterList, RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
 };
 
 pub struct RtpsWriterImpl {
@@ -14,7 +26,7 @@ pub struct RtpsWriterImpl {
     pub nack_suppression_duration: Duration,
     pub last_change_sequence_number: SequenceNumber,
     pub data_max_size_serialized: Option<i32>,
-    pub writer_cache: WriterHistoryCache,
+    pub writer_cache: RtpsHistoryCacheImpl,
 }
 
 impl RtpsWriterImpl {
@@ -25,7 +37,6 @@ impl RtpsWriterImpl {
         nack_response_delay: Duration,
         nack_suppression_duration: Duration,
         data_max_size_serialized: Option<i32>,
-
     ) -> Self {
         Self {
             endpoint,
@@ -35,11 +46,11 @@ impl RtpsWriterImpl {
             nack_suppression_duration,
             last_change_sequence_number: 0,
             data_max_size_serialized,
-            writer_cache: WriterHistoryCache::new(),
+            writer_cache: RtpsHistoryCacheImpl::new(),
         }
     }
 
-    pub fn const_writer_cache(&self) -> &WriterHistoryCache {
+    pub fn const_writer_cache(&self) -> &RtpsHistoryCacheImpl {
         &self.writer_cache
     }
 }
@@ -69,7 +80,7 @@ impl RtpsEndpointAttributes for RtpsWriterImpl {
 }
 
 impl RtpsWriterAttributes for RtpsWriterImpl {
-    type WriterHistoryCacheType = WriterHistoryCache;
+    type WriterHistoryCacheType = RtpsHistoryCacheImpl;
 
     fn push_mode(&self) -> &bool {
         &self.push_mode
@@ -103,7 +114,7 @@ impl RtpsWriterAttributes for RtpsWriterImpl {
 impl RtpsWriterOperations for RtpsWriterImpl {
     type DataType = Vec<u8>;
     type ParameterListType = Vec<u8>;
-    type CacheChangeType = WriterCacheChange;
+    type CacheChangeType = RtpsCacheChangeImpl;
     fn new_change(
         &mut self,
         kind: ChangeKind,
@@ -112,15 +123,12 @@ impl RtpsWriterOperations for RtpsWriterImpl {
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
-        WriterCacheChange {
+        RtpsCacheChangeImpl {
             kind,
             writer_guid: self.endpoint.entity.guid,
             sequence_number: self.last_change_sequence_number,
             instance_handle: handle,
             data,
-            _source_timestamp: None,
-            _view_state_kind: ViewStateKind::New,
-            _instance_state_kind: InstanceStateKind::Alive,
             inline_qos: RtpsParameterList(vec![]),
         }
     }
