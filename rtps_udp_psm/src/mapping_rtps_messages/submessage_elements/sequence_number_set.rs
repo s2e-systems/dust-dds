@@ -4,7 +4,7 @@ use std::{
 };
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::structure::types::SequenceNumber;
+use rust_rtps_pim::{structure::types::SequenceNumber, messages::submessage_elements::SequenceNumberSetSubmessageElement};
 
 use crate::{
     mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
@@ -69,6 +69,45 @@ impl NumberOfBytes for SequenceNumberSetSubmessageElementPsm {
         } as usize;
         let number_of_bitmap_elements = (num_bits + 31) / 32; // aka "M"
         12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */
+    }
+}
+
+impl NumberOfBytes for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
+    fn number_of_bytes(&self) -> usize {
+        let num_bits = if let Some(&max) = (&self.set).into_iter().max() {
+            max - self.base + 1
+        } else {
+            0
+        } as usize;
+        let number_of_bitmap_elements = (num_bits + 31) / 32; // aka "M"
+        12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */
+    }
+}
+
+
+impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
+        let mut bitmap = [0; 8];
+        let mut num_bits = 0;
+        for sequence_number in &self.set {
+            let delta_n = (sequence_number - self.base) as u32;
+            let bitmap_num = delta_n / 32;
+            bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
+            if delta_n + 1 > num_bits {
+                num_bits = delta_n + 1;
+            }
+        }
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
+
+        self.base.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        num_bits.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        for i in 0..number_of_bitmap_elements {
+            bitmap[i].mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        }
+        Ok(())
     }
 }
 

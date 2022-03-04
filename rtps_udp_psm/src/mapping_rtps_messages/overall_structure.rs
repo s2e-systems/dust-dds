@@ -97,8 +97,8 @@ mod tests {
     use crate::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::{
-        EntityIdSubmessageElementConstructor, Parameter, ParameterListSubmessageElementConstructor,
-        SerializedDataSubmessageElementConstructor,
+        EntityIdSubmessageElementConstructor, Parameter, ParameterListSubmessageElement,
+        ParameterListSubmessageElementConstructor, SerializedDataSubmessageElementConstructor,
     };
 
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementConstructor;
@@ -157,7 +157,9 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElementWrite::new(vec![parameter_1, parameter_2]);
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: vec![parameter_1, parameter_2],
+        };
         let serialized_payload = SerializedDataSubmessageElementPsm::new(&[][..]);
 
         let submessage = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
@@ -245,7 +247,7 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElementRead {
+        let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
         let serialized_payload = SerializedDataSubmessageElementPsm { value: &[][..] };
@@ -315,7 +317,7 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElementRead {
+        let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
         let serialized_payload = SerializedDataSubmessageElementPsm { value: &[][..] };

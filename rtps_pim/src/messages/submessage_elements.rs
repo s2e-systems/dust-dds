@@ -53,6 +53,7 @@ pub trait EntityIdSubmessageElementConstructor {
     fn new(value: EntityId) -> Self;
 }
 
+
 pub trait EntityIdSubmessageElementAttributes {
     fn value(&self) -> EntityId;
 }
@@ -79,6 +80,12 @@ pub trait SequenceNumberSubmessageElementConstructor {
 
 pub trait SequenceNumberSubmessageElementAttributes {
     fn value(&self) -> SequenceNumber;
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SequenceNumberSetSubmessageElement<S> {
+    pub base: SequenceNumber,
+    pub set: S,
 }
 
 pub trait SequenceNumberSetSubmessageElementConstructor<'a> {
@@ -130,6 +137,11 @@ pub struct Parameter<'a> {
     pub parameter_id: ParameterId,
     pub length: i16,
     pub value: &'a [u8],
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ParameterListSubmessageElement<P> {
+    pub parameter: P,
 }
 
 pub trait ParameterListSubmessageElementConstructor<'a> {

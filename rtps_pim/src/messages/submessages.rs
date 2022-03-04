@@ -1,4 +1,4 @@
-use super::types::SubmessageFlag;
+use super::{types::SubmessageFlag, submessage_elements::{SequenceNumberSetSubmessageElement, ParameterListSubmessageElement}};
 
 pub trait AckNackSubmessageConstructor {
     type EntityIdSubmessageElementType;
@@ -28,10 +28,9 @@ pub trait AckNackSubmessageAttributes {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait DataSubmessageConstructor {
+pub trait DataSubmessageConstructor<P> {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
-    type ParameterListSubmessageElementType;
     type SerializedDataSubmessageElementType;
 
     fn new(
@@ -43,15 +42,14 @@ pub trait DataSubmessageConstructor {
         reader_id: Self::EntityIdSubmessageElementType,
         writer_id: Self::EntityIdSubmessageElementType,
         writer_sn: Self::SequenceNumberSubmessageElementType,
-        inline_qos: Self::ParameterListSubmessageElementType,
+        inline_qos: ParameterListSubmessageElement<P>,
         serialized_payload: Self::SerializedDataSubmessageElementType,
     ) -> Self;
 }
 
-pub trait DataSubmessageAttributes {
+pub trait DataSubmessageAttributes<P> {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
-    type ParameterListSubmessageElementType;
     type SerializedDataSubmessageElementType;
 
     fn endianness_flag(&self) -> SubmessageFlag;
@@ -62,7 +60,7 @@ pub trait DataSubmessageAttributes {
     fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
     fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
     fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
-    fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType;
+    fn inline_qos(&self) -> &ParameterListSubmessageElement<P>;
     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
 }
 
@@ -116,30 +114,28 @@ pub trait DataFragSubmessageAttributes {
     fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
 }
 
-pub trait GapSubmessageConstructor {
+pub trait GapSubmessageConstructor<S> {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
-    type SequenceNumberSetSubmessageElementType;
 
     fn new(
         endianness_flag: SubmessageFlag,
         reader_id: Self::EntityIdSubmessageElementType,
         writer_id: Self::EntityIdSubmessageElementType,
         gap_start: Self::SequenceNumberSubmessageElementType,
-        gap_list: Self::SequenceNumberSetSubmessageElementType,
+        gap_list: SequenceNumberSetSubmessageElement<S>,
     ) -> Self;
 }
 
-pub trait GapSubmessageAttributes {
+pub trait GapSubmessageAttributes<S> {
     type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
-    type SequenceNumberSetSubmessageElementType;
 
     fn endianness_flag(&self) -> SubmessageFlag;
     fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
     fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
     fn gap_start(&self) -> &Self::SequenceNumberSubmessageElementType;
-    fn gap_list(&self) -> &Self::SequenceNumberSetSubmessageElementType;
+    fn gap_list(&self) -> &SequenceNumberSetSubmessageElement<S>;
 }
 
 pub trait HeartbeatSubmessageConstructor {

@@ -1,7 +1,10 @@
 use std::io::{Error, Write};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
-use rust_rtps_pim::messages::{submessage_elements::Parameter, types::ParameterId};
+use rust_rtps_pim::messages::{
+    submessage_elements::{Parameter, ParameterListSubmessageElement},
+    types::ParameterId,
+};
 
 use crate::{
     mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
@@ -97,6 +100,44 @@ impl<'a> NumberOfBytes for ParameterListSubmessageElementWrite<'a> {
 impl<'a> NumberOfBytes for ParameterListSubmessageElementRead<'a> {
     fn number_of_bytes(&self) -> usize {
         self.parameter.number_of_bytes() + 4 /* Sentinel */
+    }
+}
+
+impl<'a> NumberOfBytes for ParameterListSubmessageElement<Vec<Parameter<'a>>> {
+    fn number_of_bytes(&self) -> usize {
+        self.parameter.number_of_bytes() + 4 /* Sentinel */
+    }
+}
+
+impl<'a> MappingWriteByteOrdered for ParameterListSubmessageElement<Vec<Parameter<'a>>> {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
+        for parameter in &self.parameter {
+            parameter.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        }
+        SENTINEL.mapping_write_byte_ordered::<_, B>(&mut writer)
+    }
+}
+
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElement<Vec<Parameter<'a>>> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        const MAX_PARAMETERS: usize = 2_usize.pow(16);
+
+        let mut parameter = vec![];
+
+        for _ in 0..MAX_PARAMETERS {
+            let parameter_i: Parameter =
+                MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+
+            if parameter_i == SENTINEL {
+                break;
+            } else {
+                parameter.push(parameter_i);
+            }
+        }
+        Ok(Self { parameter })
     }
 }
 
