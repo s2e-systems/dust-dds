@@ -5,7 +5,7 @@ pub struct RtpsEntityImpl {
 }
 
 impl RtpsEntityAttributes for RtpsEntityImpl {
-    fn guid(&self) -> &Guid {
-        &self.guid
+    fn guid(&self) -> Guid {
+        self.guid
     }
 }

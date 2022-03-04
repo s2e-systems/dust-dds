@@ -139,11 +139,11 @@ where
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes
         + RtpsStatefulWriterConstructor,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType:
         RtpsHistoryCacheOperations<
             CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
         >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::WriterHistoryCacheType:
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType:
         RtpsHistoryCacheOperations<
             CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
         >,
@@ -540,8 +540,8 @@ mod tests {
     #[derive(Default)]
     struct EmptyGroup {}
     impl RtpsEntityAttributes for EmptyGroup {
-        fn guid(&self) -> &Guid {
-            &GUID_UNKNOWN
+        fn guid(&self) -> Guid {
+            GUID_UNKNOWN
         }
     }
 
@@ -590,25 +590,25 @@ mod tests {
         }
     }
     impl RtpsWriterAttributes for EmptyWriter {
-        type WriterHistoryCacheType = EmptyHistoryCache;
+        type HistoryCacheType = EmptyHistoryCache;
 
-        fn push_mode(&self) -> &bool {
-            &self.push_mode
+        fn push_mode(&self) -> bool {
+            self.push_mode
         }
-        fn heartbeat_period(&self) -> &Duration {
-            &self.heartbeat_period
+        fn heartbeat_period(&self) -> Duration {
+            self.heartbeat_period
         }
-        fn nack_response_delay(&self) -> &Duration {
-            &self.nack_response_delay
+        fn nack_response_delay(&self) -> Duration {
+            self.nack_response_delay
         }
-        fn nack_suppression_duration(&self) -> &Duration {
-            &self.nack_suppression_duration
+        fn nack_suppression_duration(&self) -> Duration {
+            self.nack_suppression_duration
         }
-        fn last_change_sequence_number(&self) -> &SequenceNumber {
-            &self.last_change_sequence_number
+        fn last_change_sequence_number(&self) -> SequenceNumber {
+            self.last_change_sequence_number
         }
-        fn data_max_size_serialized(&self) -> &Option<i32> {
-            &self.data_max_serialized
+        fn data_max_size_serialized(&self) -> Option<i32> {
+            self.data_max_serialized
         }
         fn writer_cache(&mut self) -> &mut EmptyHistoryCache {
             &mut self.writer_cache
@@ -662,27 +662,27 @@ mod tests {
     impl RtpsParticipantConstructor for EmptyParticipant {
         fn new(
             _guid: Guid,
-            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
-            _vendor_id: rust_rtps_pim::structure::types::VendorId,
             _default_unicast_locator_list: &[Locator],
             _default_multicast_locator_list: &[Locator],
+            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
+            _vendor_id: rust_rtps_pim::structure::types::VendorId,
         ) -> Self {
             EmptyParticipant {}
         }
     }
 
     impl RtpsEntityAttributes for EmptyParticipant {
-        fn guid(&self) -> &Guid {
+        fn guid(&self) -> Guid {
             todo!()
         }
     }
 
     impl RtpsParticipantAttributes for EmptyParticipant {
-        fn protocol_version(&self) -> &rust_rtps_pim::structure::types::ProtocolVersion {
+        fn protocol_version(&self) -> rust_rtps_pim::structure::types::ProtocolVersion {
             todo!()
         }
 
-        fn vendor_id(&self) -> &rust_rtps_pim::structure::types::VendorId {
+        fn vendor_id(&self) -> rust_rtps_pim::structure::types::VendorId {
             todo!()
         }
 

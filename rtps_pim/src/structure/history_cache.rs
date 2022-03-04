@@ -1,14 +1,14 @@
 use super::types::SequenceNumber;
 
-pub trait RtpsHistoryCacheConstructor {
-    /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
-    fn new() -> Self;
-}
-
 pub trait RtpsHistoryCacheAttributes {
     type CacheChangeType;
 
     fn changes(&self) -> &[Self::CacheChangeType];
+}
+
+pub trait RtpsHistoryCacheConstructor {
+    /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
+    fn new() -> Self;
 }
 
 pub trait RtpsHistoryCacheOperations {

@@ -1,16 +1,16 @@
 use crate::structure::types::{Locator, SequenceNumber};
 
-pub trait RtpsReaderLocatorConstructor {
-    type CacheChangeType;
-    fn new(locator: Locator, expects_inline_qos: bool) -> Self;
-}
-
 pub trait RtpsReaderLocatorAttributes {
     // unsent_changes() and requested_changes() functions are not present
     // in Attributes since it's already present in Operations and requires a link to the history cache
 
-    fn locator(&self) -> &Locator;
-    fn expects_inline_qos(&self) -> &bool;
+    fn locator(&self) -> Locator;
+    fn expects_inline_qos(&self) -> bool;
+}
+
+pub trait RtpsReaderLocatorConstructor {
+    type CacheChangeType;
+    fn new(locator: Locator, expects_inline_qos: bool) -> Self;
 }
 
 pub trait RtpsReaderLocatorOperations {

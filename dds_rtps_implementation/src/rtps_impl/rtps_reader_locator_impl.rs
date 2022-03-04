@@ -37,11 +37,11 @@ impl RtpsReaderLocatorConstructor for RtpsReaderLocatorAttributesImpl {
 }
 
 impl RtpsReaderLocatorAttributes for RtpsReaderLocatorAttributesImpl {
-    fn locator(&self) -> &Locator {
-        &self.locator
+    fn locator(&self) -> Locator {
+        self.locator
     }
-    fn expects_inline_qos(&self) -> &bool {
-        &self.expects_inline_qos
+    fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
     }
 }
 
@@ -120,18 +120,18 @@ mod tests {
     fn reader_locator_next_unsent_change() {
         let mut hc = RtpsHistoryCacheImpl::new();
         hc.add_change(RtpsCacheChangeImpl::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &1,
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            1,
             &[],
             &[],
         ));
         hc.add_change(RtpsCacheChangeImpl::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &2,
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            2,
             &[],
             &[],
         ));
@@ -170,26 +170,26 @@ mod tests {
     fn reader_locator_unsent_changes() {
         let mut hc = RtpsHistoryCacheImpl::new();
         hc.add_change(RtpsCacheChangeImpl::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &2,
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            2,
             &[],
             &[],
         ));
         hc.add_change(RtpsCacheChangeImpl::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &4,
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            4,
             &[],
             &[],
         ));
         hc.add_change(RtpsCacheChangeImpl::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &6,
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            6,
             &[],
             &[],
         ));

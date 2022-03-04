@@ -13,7 +13,7 @@ pub trait RtpsStatelessReaderConstructor {
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
         heartbeat_response_delay: Duration,
-        heartbeat_supression_duration: Duration,
+        heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self;
 }

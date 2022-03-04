@@ -77,7 +77,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 .writer_cache
                 .changes()
                 .iter()
-                .filter(|cc| cc.sequence_number() == &seq_num)
+                .filter(|cc| cc.sequence_number() == seq_num)
                 .next();
             if let Some(change) = change {
                 let endianness_flag = true;
@@ -92,7 +92,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = SequenceNumberElement::new(*change.sequence_number());
+                let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = ParameterListElement::new(change.inline_qos());
                 let serialized_payload = SerializedDataElement::new(change.data_value());
                 let data_submessage = Data::new(
@@ -126,7 +126,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
 pub struct ReliableStatelessWriterBehavior<'a, R, C> {
     pub reader_locator: R,
     pub writer_cache: &'a C,
-    pub writer_guid: &'a Guid,
+    pub writer_guid: Guid,
 }
 
 impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
@@ -172,7 +172,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 .writer_cache
                 .changes()
                 .iter()
-                .filter(|cc| cc.sequence_number() == &seq_num)
+                .filter(|cc| cc.sequence_number() == seq_num)
                 .next();
             if let Some(change) = change {
                 let endianness_flag = true;
@@ -188,7 +188,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let reader_id = EntityIdSubmessageElementConstructor::new(ENTITYID_UNKNOWN);
                 let writer_id =
                     EntityIdSubmessageElementConstructor::new(change.writer_guid().entity_id());
-                let writer_sn = SequenceNumberElement::new(*change.sequence_number());
+                let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = ParameterListElement::new(change.inline_qos());
                 let serialized_payload = SerializedDataElement::new(change.data_value());
                 let data_submessage = Data::new(
@@ -312,7 +312,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 .writer_cache
                 .changes()
                 .iter()
-                .filter(|cc| cc.sequence_number() == &seq_num)
+                .filter(|cc| cc.sequence_number() == seq_num)
                 .next();
             if let Some(change) = change {
                 let endianness_flag = true;
@@ -327,7 +327,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let non_standard_payload_flag = false;
                 let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
                 let writer_id = EntityIdElement::new(change.writer_guid().entity_id());
-                let writer_sn = SequenceNumberElement::new(*change.sequence_number());
+                let writer_sn = SequenceNumberElement::new(change.sequence_number());
                 let inline_qos = ParameterListElement::new(change.inline_qos());
                 let serialized_payload = SerializedDataElement::new(change.data_value());
                 let data_submessage = Data::new(
