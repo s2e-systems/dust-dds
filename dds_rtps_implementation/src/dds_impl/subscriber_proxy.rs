@@ -655,10 +655,10 @@ mod tests {
     impl RtpsParticipantConstructor for EmptyParticipant {
         fn new(
             _guid: Guid,
-            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
-            _vendor_id: rust_rtps_pim::structure::types::VendorId,
             _default_unicast_locator_list: &[Locator],
             _default_multicast_locator_list: &[Locator],
+            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
+            _vendor_id: rust_rtps_pim::structure::types::VendorId,
         ) -> Self {
             EmptyParticipant {}
         }

@@ -41,10 +41,10 @@ impl RtpsParticipantAttributes for RtpsParticipantImpl {
 impl RtpsParticipantConstructor for RtpsParticipantImpl {
     fn new(
         guid: Guid,
-        protocol_version: ProtocolVersion,
-        vendor_id: VendorId,
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
+        protocol_version: ProtocolVersion,
+        vendor_id: VendorId,
     ) -> Self {
         Self {
             entity: RtpsEntityImpl{ guid },

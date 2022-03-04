@@ -702,7 +702,7 @@ pub fn spdp_discovered_participant_data_from_domain_participant<Rtps>(
 ) -> SpdpDiscoveredParticipantData
 where
     Rtps: RtpsStructure,
-    Rtps::Participant: RtpsParticipantAttributes,
+    Rtps::Participant: RtpsParticipantAttributes + RtpsEntityAttributes,
 {
     SpdpDiscoveredParticipantData {
         dds_participant_data: ParticipantBuiltinTopicData {

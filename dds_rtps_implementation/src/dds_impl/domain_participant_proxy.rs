@@ -100,10 +100,10 @@ where
         let vendor_id = VENDOR_ID_S2E;
         let rtps_participant = Rtps::Participant::new(
             Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
-            protocol_version,
-            vendor_id,
             &default_unicast_locator_list,
             &default_multicast_locator_list,
+            protocol_version,
+            vendor_id,
         );
 
         Self {
@@ -749,10 +749,10 @@ mod tests {
     impl RtpsParticipantConstructor for EmptyParticipant {
         fn new(
             _guid: rust_rtps_pim::structure::types::Guid,
-            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
-            _vendor_id: rust_rtps_pim::structure::types::VendorId,
             _default_unicast_locator_list: &[rust_rtps_pim::structure::types::Locator],
             _default_multicast_locator_list: &[rust_rtps_pim::structure::types::Locator],
+            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
+            _vendor_id: rust_rtps_pim::structure::types::VendorId,
         ) -> Self {
             EmptyParticipant {}
         }
