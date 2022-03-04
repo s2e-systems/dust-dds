@@ -48,6 +48,12 @@ impl<'a> FromIterator<&'a Parameter<'a>> for RtpsParameterList {
     }
 }
 
+impl<'a> From<&'a [Parameter<'a>]> for RtpsParameterList {
+    fn from(p: &'a [Parameter<'a>]) -> Self {
+        p.into_iter().collect()
+    }
+}
+
 impl RtpsParameter {
     pub fn new(parameter_id: ParameterId, value: &[u8]) -> Self {
         Self {
@@ -68,16 +74,16 @@ pub struct RtpsCacheChangeImpl {
 
 
 impl<'a> RtpsCacheChangeConstructor<'a> for RtpsCacheChangeImpl {
-    type DataType = [u8];
-    type ParameterListType = [Parameter<'a>];
+    type DataType = &'a [u8];
+    type ParameterListType = &'a [Parameter<'a>];
 
     fn new(
         kind: ChangeKind,
         writer_guid: Guid,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        data_value: &Self::DataType,
-        _inline_qos: &Self::ParameterListType,
+        data_value: Self::DataType,
+        inline_qos: Self::ParameterListType,
     ) -> Self {
         Self {
             kind,
@@ -85,7 +91,7 @@ impl<'a> RtpsCacheChangeConstructor<'a> for RtpsCacheChangeImpl {
             sequence_number,
             instance_handle,
             data: data_value.to_vec(),
-            inline_qos: RtpsParameterList(vec![]),
+            inline_qos: inline_qos.into(),
         }
     }
 }
@@ -197,7 +203,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            &vec![],
+            &[][..],
             &vec![],
         );
         let change2 = RtpsCacheChangeImpl::new(
@@ -205,7 +211,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             2,
-            &vec![],
+            &[][..],
             &vec![],
         );
         hc.add_change(change1);
@@ -221,7 +227,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            &vec![],
+            &[][..],
             &vec![],
         );
         let change2 = RtpsCacheChangeImpl::new(
@@ -229,7 +235,7 @@ mod tests {
             GUID_UNKNOWN,
             0,
             2,
-            &vec![],
+            &[][..],
             &vec![],
         );
         hc.add_change(change1);

@@ -13,15 +13,15 @@ pub trait RtpsCacheChangeAttributes<'a> {
 }
 
 pub trait RtpsCacheChangeConstructor<'a> {
-    type DataType: ?Sized;
-    type ParameterListType: ?Sized;
+    type DataType;
+    type ParameterListType;
 
     fn new(
         kind: ChangeKind,
         writer_guid: Guid,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        data_value: &Self::DataType,
-        inline_qos: &Self::ParameterListType,
+        data_value: Self::DataType,
+        inline_qos: Self::ParameterListType,
     ) -> Self;
 }

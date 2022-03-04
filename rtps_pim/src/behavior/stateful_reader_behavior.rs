@@ -64,7 +64,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheOperations,
-        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = [u8], ParameterListType = [Parameter<'b>]>
+        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = &'b [u8], ParameterListType = &'b [Parameter<'b>]>
             + RtpsCacheChangeAttributes<'b>,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
@@ -173,16 +173,16 @@ mod tests {
         }
 
         impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
-            type DataType = [u8];
-            type ParameterListType = [Parameter<'a>];
+            type DataType = &'a [u8];
+            type ParameterListType = &'a [Parameter<'a>];
 
             fn new(
                 _kind: ChangeKind,
                 _writer_guid: Guid,
                 _instance_handle: InstanceHandle,
                 sequence_number: SequenceNumber,
-                _data_value: &Self::DataType,
-                _inline_qos: &Self::ParameterListType,
+                _data_value: Self::DataType,
+                _inline_qos: Self::ParameterListType,
             ) -> Self {
                 Self {
                     sequence_number,
