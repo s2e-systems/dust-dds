@@ -1110,7 +1110,7 @@ mod tests {
 
     impl<'de> DdsDeserialize<'de> for UserData {
         fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-            Ok(UserData(buf[1]))
+            Ok(UserData(buf[0]))
         }
     }
 
