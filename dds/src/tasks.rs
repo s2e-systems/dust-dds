@@ -414,23 +414,23 @@ pub fn task_announce_participant(
     let discovered_participant_data = SpdpDiscoveredParticipantData {
         dds_participant_data: ParticipantBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: (*domain_participant.read_lock().rtps_participant.guid()).into(),
+                value: domain_participant.read_lock().rtps_participant.guid().into(),
             },
             user_data: domain_participant.read_lock().qos.user_data.clone(),
         },
         participant_proxy: ParticipantProxy {
             domain_id: domain_participant.read_lock().domain_id as u32,
             domain_tag: domain_participant.read_lock().domain_tag.clone(),
-            protocol_version: *domain_participant
+            protocol_version: domain_participant
                 .read_lock()
                 .rtps_participant
                 .protocol_version(),
-            guid_prefix: *domain_participant
+            guid_prefix: domain_participant
                 .read_lock()
                 .rtps_participant
                 .guid()
                 .prefix(),
-            vendor_id: *domain_participant.read_lock().rtps_participant.vendor_id(),
+            vendor_id: domain_participant.read_lock().rtps_participant.vendor_id(),
             expects_inline_qos: false,
             metatraffic_unicast_locator_list: domain_participant
                 .read_lock()

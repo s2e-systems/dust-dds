@@ -33,8 +33,8 @@ impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
 }
 
 impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
-    fn remote_writer_guid(&self) -> &Guid {
-        &self.remote_writer_guid
+    fn remote_writer_guid(&self) -> Guid {
+        self.remote_writer_guid
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
@@ -45,39 +45,39 @@ impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
         todo!()
     }
 
-    fn data_max_size_serialized(&self) -> &Option<i32> {
+    fn data_max_size_serialized(&self) -> Option<i32> {
         todo!()
     }
 
-    fn remote_group_entity_id(&self) -> &EntityId {
+    fn remote_group_entity_id(&self) -> EntityId {
         todo!()
     }
 }
 
 impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
-    type SequenceNumberVector = Vec<SequenceNumber>;
+    type SequenceNumberListType = Vec<SequenceNumber>;
 
-    fn available_changes_max(&self) -> &SequenceNumber {
+    fn available_changes_max(&self) -> SequenceNumber {
         todo!()
     }
 
-    fn irrelevant_change_set(&mut self, _a_seq_num: &SequenceNumber) {
+    fn irrelevant_change_set(&mut self, _a_seq_num: SequenceNumber) {
         todo!()
     }
 
-    fn lost_changes_update(&mut self, _first_available_seq_num: &SequenceNumber) {
+    fn lost_changes_update(&mut self, _first_available_seq_num: SequenceNumber) {
         todo!()
     }
 
-    fn missing_changes(&self) -> Self::SequenceNumberVector {
+    fn missing_changes(&self) -> Self::SequenceNumberListType {
         todo!()
     }
 
-    fn missing_changes_update(&mut self, _last_available_seq_num: &SequenceNumber) {
+    fn missing_changes_update(&mut self, _last_available_seq_num: SequenceNumber) {
         todo!()
     }
 
-    fn received_change_set(&mut self, _a_seq_num: &SequenceNumber) {
+    fn received_change_set(&mut self, _a_seq_num: SequenceNumber) {
         // FIND change FROM this.changes_from_writer
         //     SUCH-THAT change.sequenceNumber == a_seq_num;
         // change.status := RECEIVED

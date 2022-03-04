@@ -1053,7 +1053,7 @@ mod tests {
         {
             assert_eq!(
                 BuiltInTopicKey {
-                    value: (*participant1.read_lock().rtps_participant.guid()).into()
+                    value: participant1.read_lock().rtps_participant.guid().into()
                 },
                 spdp_discovered_participant_data.dds_participant_data.key,
             );
@@ -1348,7 +1348,7 @@ mod tests {
                 .try_as_stateful_writer()
                 .unwrap()
                 .guid(),
-            &discovered_writer_data.writer_proxy.remote_writer_guid,
+            discovered_writer_data.writer_proxy.remote_writer_guid,
         );
 
         let discovered_reader_data = &participant2_subscription_datareader
@@ -1364,7 +1364,7 @@ mod tests {
                 .try_as_stateful_reader()
                 .unwrap()
                 .guid(),
-            &discovered_reader_data.reader_proxy.remote_reader_guid,
+            discovered_reader_data.reader_proxy.remote_reader_guid,
         );
     }
 

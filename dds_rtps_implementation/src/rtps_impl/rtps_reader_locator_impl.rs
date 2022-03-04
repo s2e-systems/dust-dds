@@ -8,7 +8,7 @@ use rust_rtps_pim::{
     },
 };
 
-use super::rtps_writer_history_cache_impl::WriterHistoryCache;
+use super::rtps_history_cache_impl::RtpsHistoryCacheImpl;
 pub struct RtpsReaderLocatorAttributesImpl {
     requested_changes: Vec<SequenceNumber>,
     unsent_changes: Vec<SequenceNumber>,
@@ -37,23 +37,23 @@ impl RtpsReaderLocatorConstructor for RtpsReaderLocatorAttributesImpl {
 }
 
 impl RtpsReaderLocatorAttributes for RtpsReaderLocatorAttributesImpl {
-    fn locator(&self) -> &Locator {
-        &self.locator
+    fn locator(&self) -> Locator {
+        self.locator
     }
-    fn expects_inline_qos(&self) -> &bool {
-        &self.expects_inline_qos
+    fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
     }
 }
 
 pub struct RtpsReaderLocatorOperationsImpl<'a> {
     pub reader_locator_attributes: &'a mut RtpsReaderLocatorAttributesImpl,
-    writer_cache: &'a WriterHistoryCache,
+    writer_cache: &'a RtpsHistoryCacheImpl,
 }
 
 impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
     pub fn new(
         reader_locator_attributes: &'a mut RtpsReaderLocatorAttributesImpl,
-        writer_cache: &'a WriterHistoryCache,
+        writer_cache: &'a RtpsHistoryCacheImpl,
     ) -> Self {
         Self {
             reader_locator_attributes,
@@ -112,26 +112,26 @@ mod tests {
         types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
     };
 
-    use crate::rtps_impl::rtps_writer_history_cache_impl::WriterCacheChange;
+    use crate::rtps_impl::rtps_history_cache_impl::RtpsCacheChangeImpl;
 
     use super::*;
 
     #[test]
     fn reader_locator_next_unsent_change() {
-        let mut hc = WriterHistoryCache::new();
-        hc.add_change(WriterCacheChange::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &1,
+        let mut hc = RtpsHistoryCacheImpl::new();
+        hc.add_change(RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            1,
             &[],
             &[],
         ));
-        hc.add_change(WriterCacheChange::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &2,
+        hc.add_change(RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            2,
             &[],
             &[],
         ));
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn reader_locator_requested_changes_set() {
-        let hc = WriterHistoryCache::new();
+        let hc = RtpsHistoryCacheImpl::new();
         let mut reader_locator_attributes =
             RtpsReaderLocatorAttributesImpl::new(LOCATOR_INVALID, false);
         let mut reader_locator_operations = RtpsReaderLocatorOperationsImpl {
@@ -168,28 +168,28 @@ mod tests {
 
     #[test]
     fn reader_locator_unsent_changes() {
-        let mut hc = WriterHistoryCache::new();
-        hc.add_change(WriterCacheChange::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &2,
+        let mut hc = RtpsHistoryCacheImpl::new();
+        hc.add_change(RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            2,
             &[],
             &[],
         ));
-        hc.add_change(WriterCacheChange::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &4,
+        hc.add_change(RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            4,
             &[],
             &[],
         ));
-        hc.add_change(WriterCacheChange::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &6,
+        hc.add_change(RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            6,
             &[],
             &[],
         ));

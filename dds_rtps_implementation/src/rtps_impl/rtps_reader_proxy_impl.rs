@@ -8,7 +8,7 @@ use rust_rtps_pim::{
     },
 };
 
-use super::rtps_writer_history_cache_impl::WriterHistoryCache;
+use super::rtps_history_cache_impl::RtpsHistoryCacheImpl;
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxyAttributesImpl {
@@ -47,12 +47,12 @@ impl RtpsReaderProxyConstructor for RtpsReaderProxyAttributesImpl {
 }
 
 impl RtpsReaderProxyAttributes for RtpsReaderProxyAttributesImpl {
-    fn remote_reader_guid(&self) -> &Guid {
-        &self.remote_reader_guid
+    fn remote_reader_guid(&self) -> Guid {
+        self.remote_reader_guid
     }
 
-    fn remote_group_entity_id(&self) -> &EntityId {
-        &self.remote_group_entity_id
+    fn remote_group_entity_id(&self) -> EntityId {
+        self.remote_group_entity_id
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
@@ -63,24 +63,24 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyAttributesImpl {
         self.multicast_locator_list.as_slice()
     }
 
-    fn expects_inline_qos(&self) -> &bool {
-        &self.expects_inline_qos
+    fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
     }
 
-    fn is_active(&self) -> &bool {
-        &self.is_active
+    fn is_active(&self) -> bool {
+        self.is_active
     }
 }
 
 pub struct RtpsReaderProxyOperationsImpl<'a> {
     pub reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
-    writer_cache: &'a WriterHistoryCache,
+    writer_cache: &'a RtpsHistoryCacheImpl,
 }
 
 impl<'a> RtpsReaderProxyOperationsImpl<'a> {
     pub fn new(
         reader_proxy_attributes: &'a mut RtpsReaderProxyAttributesImpl,
-        writer_cache: &'a WriterHistoryCache,
+        writer_cache: &'a RtpsHistoryCacheImpl,
     ) -> Self {
         Self {
             reader_proxy_attributes,
@@ -90,12 +90,12 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
 }
 
 impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
-    fn remote_reader_guid(&self) -> &Guid {
-        &self.reader_proxy_attributes.remote_reader_guid
+    fn remote_reader_guid(&self) -> Guid {
+        self.reader_proxy_attributes.remote_reader_guid
     }
 
-    fn remote_group_entity_id(&self) -> &EntityId {
-        &self.reader_proxy_attributes.remote_group_entity_id
+    fn remote_group_entity_id(&self) -> EntityId {
+        self.reader_proxy_attributes.remote_group_entity_id
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
@@ -108,12 +108,12 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
             .as_slice()
     }
 
-    fn expects_inline_qos(&self) -> &bool {
-        &self.reader_proxy_attributes.expects_inline_qos
+    fn expects_inline_qos(&self) -> bool {
+        self.reader_proxy_attributes.expects_inline_qos
     }
 
-    fn is_active(&self) -> &bool {
-        &self.reader_proxy_attributes.is_active
+    fn is_active(&self) -> bool {
+        self.reader_proxy_attributes.is_active
     }
 }
 
@@ -233,16 +233,16 @@ mod tests {
         types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
     };
 
-    use crate::rtps_impl::rtps_writer_history_cache_impl::WriterCacheChange;
+    use crate::rtps_impl::rtps_history_cache_impl::RtpsCacheChangeImpl;
 
     use super::*;
 
-    fn add_new_change(writer_cache: &mut WriterHistoryCache, sequence_number: SequenceNumber) {
-        writer_cache.add_change(WriterCacheChange::new(
-            &ChangeKind::Alive,
-            &GUID_UNKNOWN,
-            &0,
-            &sequence_number,
+    fn add_new_change(writer_cache: &mut RtpsHistoryCacheImpl, sequence_number: SequenceNumber) {
+        writer_cache.add_change(RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            sequence_number,
             &[],
             &[],
         ));
@@ -258,7 +258,7 @@ mod tests {
             false,
             true,
         );
-        let mut writer_cache = WriterHistoryCache::new();
+        let mut writer_cache = RtpsHistoryCacheImpl::new();
         add_new_change(&mut writer_cache, 1);
         add_new_change(&mut writer_cache, 2);
         add_new_change(&mut writer_cache, 4);
@@ -284,7 +284,7 @@ mod tests {
             false,
             true,
         );
-        let mut writer_cache = WriterHistoryCache::new();
+        let mut writer_cache = RtpsHistoryCacheImpl::new();
         add_new_change(&mut writer_cache, 1);
         add_new_change(&mut writer_cache, 3);
         add_new_change(&mut writer_cache, 4);
@@ -306,7 +306,7 @@ mod tests {
             false,
             true,
         );
-        let mut writer_cache = WriterHistoryCache::new();
+        let mut writer_cache = RtpsHistoryCacheImpl::new();
         add_new_change(&mut writer_cache, 1);
         add_new_change(&mut writer_cache, 2);
 
@@ -327,7 +327,7 @@ mod tests {
             false,
             true,
         );
-        let mut writer_cache = WriterHistoryCache::new();
+        let mut writer_cache = RtpsHistoryCacheImpl::new();
         add_new_change(&mut writer_cache, 1);
         add_new_change(&mut writer_cache, 2);
         add_new_change(&mut writer_cache, 4);

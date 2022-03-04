@@ -7,10 +7,10 @@ use rust_rtps_pim::messages::{
 };
 
 use super::submessage_elements::{
-    CountSubmessageElementPsm, EntityIdSubmessageElementPsm,
-    ParameterListSubmessageElementWrite,
-    SequenceNumberSetSubmessageElementPsm, SequenceNumberSubmessageElementPsm,
-    SerializedDataSubmessageElementPsm, TimestampSubmessageElementPsm, ParameterListSubmessageElementRead, ParameterOwned,
+    CountSubmessageElementPsm, EntityIdSubmessageElementPsm, ParameterListSubmessageElementRead,
+    ParameterListSubmessageElementWrite, SequenceNumberSetSubmessageElementPsm,
+    SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
+    TimestampSubmessageElementPsm,
 };
 
 #[derive(Debug, PartialEq)]
@@ -62,8 +62,8 @@ pub struct DataSubmessageWrite<'a> {
 impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
     type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type ParameterListSubmessageElementType = &'a [ParameterOwned];
-    type SerializedDataSubmessageElementType = &'a [u8];
+    type ParameterListSubmessageElementType = ParameterListSubmessageElementWrite<'a>;
+    type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -86,12 +86,8 @@ impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
             reader_id,
             writer_id,
             writer_sn,
-            inline_qos: ParameterListSubmessageElementWrite {
-                parameter: inline_qos,
-            },
-            serialized_payload: SerializedDataSubmessageElementPsm {
-                value: serialized_payload,
-            },
+            inline_qos,
+            serialized_payload,
         }
     }
 }
@@ -144,24 +140,24 @@ impl<'a> DataSubmessageAttributes for DataSubmessageRead<'a> {
     type ParameterListSubmessageElementType = ParameterListSubmessageElementRead<'a>;
     type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
 
-    fn endianness_flag(&self) -> &SubmessageFlag {
-        &self.endianness_flag
+    fn endianness_flag(&self) -> SubmessageFlag {
+        self.endianness_flag
     }
 
-    fn inline_qos_flag(&self) -> &SubmessageFlag {
-        &self.inline_qos_flag
+    fn inline_qos_flag(&self) -> SubmessageFlag {
+        self.inline_qos_flag
     }
 
-    fn data_flag(&self) -> &SubmessageFlag {
-        &self.data_flag
+    fn data_flag(&self) -> SubmessageFlag {
+        self.data_flag
     }
 
-    fn key_flag(&self) -> &SubmessageFlag {
-        &self.key_flag
+    fn key_flag(&self) -> SubmessageFlag {
+        self.key_flag
     }
 
-    fn non_standard_payload_flag(&self) -> &SubmessageFlag {
-        &self.non_standard_payload_flag
+    fn non_standard_payload_flag(&self) -> SubmessageFlag {
+        self.non_standard_payload_flag
     }
 
     fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
@@ -489,12 +485,12 @@ pub struct InfoTimestampSubmessageRead {
 impl InfoTimestampSubmessageAttributes for InfoTimestampSubmessageRead {
     type TimestampSubmessageElementType = TimestampSubmessageElementPsm;
 
-    fn endianness_flag(&self) -> &SubmessageFlag {
-        &self.endianness_flag
+    fn endianness_flag(&self) -> SubmessageFlag {
+        self.endianness_flag
     }
 
-    fn invalidate_flag(&self) -> &SubmessageFlag {
-        &self.invalidate_flag
+    fn invalidate_flag(&self) -> SubmessageFlag {
+        self.invalidate_flag
     }
 
     fn timestamp(&self) -> &Self::TimestampSubmessageElementType {

@@ -90,12 +90,16 @@ mod tests {
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};
     use crate::messages::submessage_elements::{
-        EntityIdSubmessageElementPsm, Parameter, ParameterListSubmessageElementRead,
-        ParameterOwned, SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
+        EntityIdSubmessageElementPsm, ParameterListSubmessageElementRead,
+        ParameterListSubmessageElementWrite, SequenceNumberSubmessageElementPsm,
+        SerializedDataSubmessageElementPsm,
     };
     use crate::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
-    use rust_rtps_pim::messages::submessage_elements::EntityIdSubmessageElementConstructor;
+    use rust_rtps_pim::messages::submessage_elements::{
+        EntityIdSubmessageElementConstructor, Parameter, ParameterListSubmessageElementConstructor,
+        SerializedDataSubmessageElementConstructor,
+    };
 
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementConstructor;
     use rust_rtps_pim::messages::submessages::DataSubmessageConstructor;
@@ -138,18 +142,23 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElementPsm::new(&EntityId::new(
-            [1, 2, 3],
-            USER_DEFINED_READER_NO_KEY,
-        ));
+        let reader_id =
+            EntityIdSubmessageElementPsm::new(EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY));
         let writer_id =
-            EntityIdSubmessageElementPsm::new(&EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
-        let writer_sn = SequenceNumberSubmessageElementPsm::new(&5);
-        let parameter_1 = ParameterOwned::new(ParameterId(6), &[10, 11, 12, 13]);
-        let parameter_2 = ParameterOwned::new(ParameterId(7), &[20, 21, 22, 23]);
-        let parameter_list = &vec![parameter_1, parameter_2];
-        let inline_qos = parameter_list;
-        let serialized_payload = &[][..];
+            EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
+        let writer_sn = SequenceNumberSubmessageElementPsm::new(5);
+        let parameter_1 = Parameter {
+            parameter_id: ParameterId(6),
+            length: 4,
+            value: &[10, 11, 12, 13],
+        };
+        let parameter_2 = Parameter {
+            parameter_id: ParameterId(7),
+            length: 4,
+            value: &[20, 21, 22, 23],
+        };
+        let inline_qos = ParameterListSubmessageElementWrite::new(vec![parameter_1, parameter_2]);
+        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[][..]);
 
         let submessage = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
             endianness_flag,
@@ -226,8 +235,16 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElementPsm { value: 5 };
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_1 = Parameter {
+            parameter_id: ParameterId(6),
+            length: 4,
+            value: &[10, 11, 12, 13],
+        };
+        let parameter_2 = Parameter {
+            parameter_id: ParameterId(7),
+            length: 4,
+            value: &[20, 21, 22, 23],
+        };
         let inline_qos = ParameterListSubmessageElementRead {
             parameter: vec![parameter_1, parameter_2],
         };
@@ -288,8 +305,16 @@ mod tests {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElementPsm { value: 5 };
-        let parameter_1 = Parameter::new(ParameterId(6), &[10, 11, 12, 13]);
-        let parameter_2 = Parameter::new(ParameterId(7), &[20, 21, 22, 23]);
+        let parameter_1 = Parameter {
+            parameter_id: ParameterId(6),
+            length: 4,
+            value: &[10, 11, 12, 13],
+        };
+        let parameter_2 = Parameter {
+            parameter_id: ParameterId(7),
+            length: 4,
+            value: &[20, 21, 22, 23],
+        };
         let inline_qos = ParameterListSubmessageElementRead {
             parameter: vec![parameter_1, parameter_2],
         };

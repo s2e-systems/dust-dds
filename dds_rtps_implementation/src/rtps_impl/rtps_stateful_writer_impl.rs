@@ -1,17 +1,15 @@
 use rust_rtps_pim::{
     behavior::{
         stateful_writer_behavior::{
-            BestEffortStatefulWriterBehavior,
-            ReliableStatefulWriterBehavior,
+            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
             StatefulWriterBehavior,
         },
         types::Duration,
         writer::{
             reader_proxy::RtpsReaderProxyAttributes,
             stateful_writer::{
-                RtpsStatefulWriterConstructor,
+                RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor,
                 RtpsStatefulWriterOperations,
-                RtpsStatefulWriterAttributes
             },
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
@@ -29,9 +27,10 @@ use rust_rtps_pim::{
 use crate::utils::clock::{StdTimer, Timer};
 
 use super::{
+    rtps_endpoint_impl::RtpsEndpointImpl,
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
     rtps_reader_proxy_impl::{RtpsReaderProxyAttributesImpl, RtpsReaderProxyOperationsImpl},
-    rtps_writer_history_cache_impl::{WriterCacheChange, WriterHistoryCache},
-    rtps_endpoint_impl::RtpsEndpointImpl, rtps_writer_impl::RtpsWriterImpl,
+    rtps_writer_impl::RtpsWriterImpl,
 };
 
 pub struct RtpsStatefulWriterImpl {
@@ -42,18 +41,18 @@ pub struct RtpsStatefulWriterImpl {
 }
 
 impl RtpsEntityAttributes for RtpsStatefulWriterImpl {
-    fn guid(&self) -> &Guid {
-        &self.writer.endpoint.entity.guid
+    fn guid(&self) -> Guid {
+        self.writer.endpoint.entity.guid
     }
 }
 
 impl RtpsEndpointAttributes for RtpsStatefulWriterImpl {
-    fn topic_kind(&self) -> &TopicKind {
-        &self.writer.endpoint.topic_kind
+    fn topic_kind(&self) -> TopicKind {
+        self.writer.endpoint.topic_kind
     }
 
-    fn reliability_level(&self) -> &ReliabilityKind {
-        &self.writer.endpoint.reliability_level
+    fn reliability_level(&self) -> ReliabilityKind {
+        self.writer.endpoint.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
@@ -66,33 +65,33 @@ impl RtpsEndpointAttributes for RtpsStatefulWriterImpl {
 }
 
 impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
-    type WriterHistoryCacheType = WriterHistoryCache;
+    type HistoryCacheType = RtpsHistoryCacheImpl;
 
-    fn push_mode(&self) -> &bool {
-        &self.writer.push_mode
+    fn push_mode(&self) -> bool {
+        self.writer.push_mode
     }
 
-    fn heartbeat_period(&self) -> &Duration {
-        &self.writer.heartbeat_period
+    fn heartbeat_period(&self) -> Duration {
+        self.writer.heartbeat_period
     }
 
-    fn nack_response_delay(&self) -> &Duration {
-        &self.writer.nack_response_delay
+    fn nack_response_delay(&self) -> Duration {
+        self.writer.nack_response_delay
     }
 
-    fn nack_suppression_duration(&self) -> &Duration {
-        &self.writer.nack_suppression_duration
+    fn nack_suppression_duration(&self) -> Duration {
+        self.writer.nack_suppression_duration
     }
 
-    fn last_change_sequence_number(&self) -> &SequenceNumber {
-        &self.writer.last_change_sequence_number
+    fn last_change_sequence_number(&self) -> SequenceNumber {
+        self.writer.last_change_sequence_number
     }
 
-    fn data_max_size_serialized(&self) -> &Option<i32> {
-        &self.writer.data_max_size_serialized
+    fn data_max_size_serialized(&self) -> Option<i32> {
+        self.writer.data_max_size_serialized
     }
 
-    fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType {
+    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
         &mut self.writer.writer_cache
     }
 }
@@ -147,12 +146,12 @@ impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
         self.matched_readers.push(a_reader_proxy)
     }
 
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &Guid) {
+    fn matched_reader_remove(&mut self, reader_proxy_guid: Guid) {
         self.matched_readers
             .retain(|x| x.remote_reader_guid() != reader_proxy_guid);
     }
 
-    fn matched_reader_lookup(&self, a_reader_guid: &Guid) -> Option<&Self::ReaderProxyType> {
+    fn matched_reader_lookup(&self, a_reader_guid: Guid) -> Option<&Self::ReaderProxyType> {
         self.matched_readers
             .iter()
             .find(|&x| x.remote_reader_guid() == a_reader_guid)
@@ -166,7 +165,7 @@ impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
 impl RtpsWriterOperations for RtpsStatefulWriterImpl {
     type DataType = Vec<u8>;
     type ParameterListType = Vec<u8>;
-    type CacheChangeType = WriterCacheChange;
+    type CacheChangeType = RtpsCacheChangeImpl;
     fn new_change(
         &mut self,
         kind: ChangeKind,
@@ -180,16 +179,16 @@ impl RtpsWriterOperations for RtpsStatefulWriterImpl {
 
 pub struct RtpsReaderProxyIterator<'a> {
     reader_proxy_iterator: std::slice::IterMut<'a, RtpsReaderProxyAttributesImpl>,
-    writer_cache: &'a WriterHistoryCache,
-    last_change_sequence_number: &'a SequenceNumber,
-    reliability_level: &'a ReliabilityKind,
-    writer_guid: &'a Guid,
-    heartbeat_count: &'a Count,
+    writer_cache: &'a RtpsHistoryCacheImpl,
+    last_change_sequence_number: SequenceNumber,
+    reliability_level: ReliabilityKind,
+    writer_guid: Guid,
+    heartbeat_count: Count,
     after_heartbeat_period: bool,
 }
 
 impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, WriterHistoryCache>;
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, RtpsHistoryCacheImpl>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let reader_proxy_attributes = self.reader_proxy_iterator.next()?;
@@ -218,7 +217,7 @@ impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
 }
 
 impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, WriterHistoryCache>;
+    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, RtpsHistoryCacheImpl>;
     type IntoIter = RtpsReaderProxyIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -241,7 +240,7 @@ impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
             last_change_sequence_number: self.writer.last_change_sequence_number(),
             reliability_level: self.writer.reliability_level(),
             writer_guid: self.writer.guid(),
-            heartbeat_count: &self.heartbeat_count,
+            heartbeat_count: self.heartbeat_count,
             after_heartbeat_period,
         }
     }

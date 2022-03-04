@@ -2,61 +2,26 @@ use rust_rtps_pim::{
     messages::{
         submessage_elements::{
             CountSubmessageElementConstructor, EntityIdSubmessageElementAttributes,
-            EntityIdSubmessageElementConstructor, ParameterListSubmessageElementAttributes,
+            EntityIdSubmessageElementConstructor, Parameter,
+            ParameterListSubmessageElementAttributes, ParameterListSubmessageElementConstructor,
             SequenceNumberSetSubmessageElementConstructor,
             SequenceNumberSubmessageElementAttributes, SequenceNumberSubmessageElementConstructor,
-            SerializedDataSubmessageElementAttributes, TimestampSubmessageElementAttributes, ParameterListSubmessageElementConstructor,
+            SerializedDataSubmessageElementAttributes, SerializedDataSubmessageElementConstructor,
+            TimestampSubmessageElementAttributes,
         },
-        types::{Count, FragmentNumber, GroupDigest, ParameterId, Time},
+        types::{Count, FragmentNumber, GroupDigest, Time},
     },
     structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId},
 };
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Parameter<'a> {
-    pub parameter_id: ParameterId,
-    pub length: i16,
-    pub value: &'a [u8],
-}
-
-#[derive(Debug, PartialEq)]
-pub struct ParameterOwned {
-    pub parameter_id: ParameterId,
-    pub length: i16,
-    pub value: Vec<u8>,
-}
-impl ParameterOwned {
-    pub fn new(parameter_id: ParameterId, value: &[u8]) -> Self {
-        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
-        Self {
-            parameter_id,
-            length,
-            value: value.to_vec(),
-        }
-    }
-}
-
-impl<'a> Parameter<'a> {
-    pub fn new(parameter_id: ParameterId, value: &'a [u8]) -> Self {
-        let length = ((value.len() + 3) & !0b11) as i16; //ceil to multiple of 4;
-        Self {
-            parameter_id,
-            length,
-            value,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub struct ParameterListSubmessageElementWrite<'a> {
-    pub parameter: &'a [ParameterOwned],
+    pub parameter: Vec<Parameter<'a>>,
 }
-impl<'a> ParameterListSubmessageElementConstructor for ParameterListSubmessageElementWrite<'a> {
-    type ParameterListType = &'a [ParameterOwned];
-
-    fn new(parameter: &Self::ParameterListType) -> Self where Self: 'a{
+impl<'a> ParameterListSubmessageElementConstructor<'a> for ParameterListSubmessageElementWrite<'a> {
+    fn new<P: IntoIterator<Item = Parameter<'a>>>(parameter: P) -> Self {
         Self {
-            parameter,
+            parameter: parameter.into_iter().collect(),
         }
     }
 }
@@ -66,10 +31,8 @@ pub struct ParameterListSubmessageElementRead<'a> {
     pub parameter: Vec<Parameter<'a>>,
 }
 impl<'a> ParameterListSubmessageElementAttributes for ParameterListSubmessageElementRead<'a> {
-    type ParameterListType = [Parameter<'a>];
-
-    fn parameter(&self) -> &Self::ParameterListType {
-        &self.parameter
+    fn parameter(&self) -> &[Parameter<'_>] {
+        self.parameter.as_ref()
     }
 }
 
@@ -84,18 +47,14 @@ pub struct EntityIdSubmessageElementPsm {
 }
 
 impl EntityIdSubmessageElementConstructor for EntityIdSubmessageElementPsm {
-    type EntityIdType = EntityId;
-
-    fn new(value: &Self::EntityIdType) -> Self {
-        Self { value: *value }
+    fn new(value: EntityId) -> Self {
+        Self { value }
     }
 }
 
 impl EntityIdSubmessageElementAttributes for EntityIdSubmessageElementPsm {
-    type EntityIdType = EntityId;
-
-    fn value(&self) -> &Self::EntityIdType {
-        &self.value
+    fn value(&self) -> EntityId {
+        self.value
     }
 }
 
@@ -115,19 +74,15 @@ pub struct SequenceNumberSubmessageElementPsm {
 }
 
 impl SequenceNumberSubmessageElementConstructor for SequenceNumberSubmessageElementPsm {
-    type SequenceNumberType = SequenceNumber;
-
-    fn new(value: &Self::SequenceNumberType) -> Self {
-        Self { value: *value }
+    fn new(value: SequenceNumber) -> Self {
+        Self { value }
     }
 }
 
 impl SequenceNumberSubmessageElementAttributes for SequenceNumberSubmessageElementPsm {
-    fn value(&self) -> &SequenceNumber {
-        &self.value
+    fn value(&self) -> SequenceNumber {
+        self.value
     }
-
-    type SequenceNumberType = SequenceNumber;
 }
 
 #[derive(Debug, PartialEq)]
@@ -147,10 +102,8 @@ pub struct TimestampSubmessageElementPsm {
 }
 
 impl TimestampSubmessageElementAttributes for TimestampSubmessageElementPsm {
-    type TimeType = Time;
-
-    fn value(&self) -> &Self::TimeType {
-        &self.value
+    fn value(&self) -> Time {
+        self.value
     }
 }
 
@@ -159,13 +112,17 @@ pub struct SerializedDataSubmessageElementPsm<'a> {
     pub value: &'a [u8],
 }
 
-impl<'a> SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElementPsm<'a> {
-    type SerializedDataType = [u8];
-    fn value(&self) -> &Self::SerializedDataType {
-        &self.value
+impl<'a> SerializedDataSubmessageElementConstructor<'a> for SerializedDataSubmessageElementPsm<'a> {
+    fn new(value: &'a [u8]) -> Self {
+        Self { value }
     }
 }
 
+impl<'a> SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElementPsm<'a> {
+    fn value(&self) -> &[u8] {
+        self.value
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct SequenceNumberSetSubmessageElementPsm {
@@ -173,13 +130,12 @@ pub struct SequenceNumberSetSubmessageElementPsm {
     pub set: Vec<SequenceNumber>,
 }
 
-impl SequenceNumberSetSubmessageElementConstructor for SequenceNumberSetSubmessageElementPsm {
-    type SequenceNumberType = SequenceNumber;
-    type SequenceNumberSetType = [SequenceNumber];
-
-    fn new(base: &Self::SequenceNumberType, set: &Self::SequenceNumberSetType) -> Self {
+impl<'a> SequenceNumberSetSubmessageElementConstructor<'a>
+    for SequenceNumberSetSubmessageElementPsm
+{
+    fn new(base: SequenceNumber, set: &'a [SequenceNumber]) -> Self {
         Self {
-            base: *base,
+            base,
             set: set.to_vec(),
         }
     }
@@ -196,10 +152,8 @@ pub struct CountSubmessageElementPsm {
 }
 
 impl CountSubmessageElementConstructor for CountSubmessageElementPsm {
-    type CountType = Count;
-
-    fn new(value: &Self::CountType) -> Self {
-        Self { value: *value }
+    fn new(value: Count) -> Self {
+        Self { value }
     }
 }
 

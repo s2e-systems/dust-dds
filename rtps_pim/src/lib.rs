@@ -22,12 +22,16 @@
 /// Mapping rules:
 /// - If types are used in those traits that are not _t types an associated type shall be used.
 ///     The name shall be <TypeName>Type
-/// - The attributes trait shall return the attributes in the individual methods are references.
-///     That guarantees that the attributes have to be implements as attributes, i.e. as struct fields
-/// - The constructor shall use move semantics for its parameters
+/// - The Rtps<TypeName>Attributes trait shall return the attributes in the individual methods as references.
+///      - That guarantees that the attributes have to be implements as attributes, i.e. as struct fields
+///      - Exception (very common): _t types shall be returned as copy
+/// - The Rtps<TypeName>Constructor shall use move semantics for its parameters
 ///     - Lists are an exception: a slice reference shall be used.
 ///     - That is because the arguments are to be owned by the struct implementing the trait
-
+/// - Rtps<TypeName>Operations shall additionally define an associated type is a list needs to be returned
+///     - for _t types and other types
+///     - the name of the associated type shall be <TypeName>ListType
+///
 pub mod behavior;
 pub mod messages;
 pub mod structure;

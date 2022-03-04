@@ -22,8 +22,8 @@ use rust_rtps_pim::{
 };
 
 use super::{
-    rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_history_cache_impl::ReaderHistoryCache,
-    rtps_reader_impl::RtpsReaderImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_impl::RtpsReaderImpl,
+    rtps_writer_proxy_impl::RtpsWriterProxyImpl, rtps_history_cache_impl::RtpsHistoryCacheImpl,
 };
 
 pub struct RtpsStatefulReaderImpl {
@@ -32,18 +32,18 @@ pub struct RtpsStatefulReaderImpl {
 }
 
 impl RtpsEntityAttributes for RtpsStatefulReaderImpl {
-    fn guid(&self) -> &Guid {
-        &self.reader.endpoint.entity.guid
+    fn guid(&self) -> Guid {
+        self.reader.endpoint.entity.guid
     }
 }
 
 impl RtpsEndpointAttributes for RtpsStatefulReaderImpl {
-    fn topic_kind(&self) -> &TopicKind {
-        &self.reader.endpoint.topic_kind
+    fn topic_kind(&self) -> TopicKind {
+        self.reader.endpoint.topic_kind
     }
 
-    fn reliability_level(&self) -> &ReliabilityKind {
-        &self.reader.endpoint.reliability_level
+    fn reliability_level(&self) -> ReliabilityKind {
+        self.reader.endpoint.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
@@ -56,22 +56,22 @@ impl RtpsEndpointAttributes for RtpsStatefulReaderImpl {
 }
 
 impl RtpsReaderAttributes for RtpsStatefulReaderImpl {
-    type ReaderHistoryCacheType = ReaderHistoryCache;
+    type HistoryCacheType = RtpsHistoryCacheImpl;
 
-    fn heartbeat_response_delay(&self) -> &Duration {
-        &self.reader.heartbeat_response_delay
+    fn heartbeat_response_delay(&self) -> Duration {
+        self.reader.heartbeat_response_delay
     }
 
-    fn heartbeat_supression_duration(&self) -> &Duration {
-        &self.reader.heartbeat_supression_duration
+    fn heartbeat_suppression_duration(&self) -> Duration {
+        self.reader.heartbeat_suppression_duration
     }
 
-    fn reader_cache(&mut self) -> &mut Self::ReaderHistoryCacheType {
+    fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
         &mut self.reader.reader_cache
     }
 
-    fn expects_inline_qos(&self) -> &bool {
-        &self.reader.expects_inline_qos
+    fn expects_inline_qos(&self) -> bool {
+        self.reader.expects_inline_qos
     }
 }
 
@@ -91,7 +91,7 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
         heartbeat_response_delay: Duration,
-        heartbeat_supression_duration: Duration,
+        heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self {
         Self {
@@ -104,7 +104,7 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
                     multicast_locator_list,
                 ),
                 heartbeat_response_delay,
-                heartbeat_supression_duration,
+                heartbeat_suppression_duration,
                 expects_inline_qos,
             ),
             matched_writers: Vec::new(),
@@ -119,22 +119,22 @@ impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
         self.matched_writers.push(a_writer_proxy);
     }
 
-    fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid) {
+    fn matched_writer_remove(&mut self, writer_proxy_guid: Guid) {
         self.matched_writers
             .retain(|x| x.remote_writer_guid() != writer_proxy_guid)
     }
 
-    fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&Self::WriterProxyType> {
+    fn matched_writer_lookup(&self, a_writer_guid: Guid) -> Option<&Self::WriterProxyType> {
         self.matched_writers
             .iter()
-            .find(|&x| x.remote_writer_guid() == a_writer_guid)
+            .find(|x| x.remote_writer_guid() == a_writer_guid)
     }
 }
 
 impl RtpsStatefulReaderImpl {
     pub fn behavior<'a>(
         &'a mut self,
-    ) -> Option<StatefulReaderBehavior<'a, RtpsWriterProxyImpl, ReaderHistoryCache>> {
+    ) -> Option<StatefulReaderBehavior<'a, RtpsWriterProxyImpl, RtpsHistoryCacheImpl>> {
         match self.reliability_level() {
             ReliabilityKind::BestEffort => Some(StatefulReaderBehavior::BestEffort(
                 BestEffortStatefulReaderBehavior,
@@ -143,9 +143,9 @@ impl RtpsStatefulReaderImpl {
             ReliabilityKind::Reliable => Some(StatefulReaderBehavior::<
                 'a,
                 RtpsWriterProxyImpl,
-                ReaderHistoryCache,
+                RtpsHistoryCacheImpl,
             >::Reliable(
-                ReliableStatefulReaderBehavior::<'a, RtpsWriterProxyImpl, ReaderHistoryCache> {
+                ReliableStatefulReaderBehavior::<'a, RtpsWriterProxyImpl, RtpsHistoryCacheImpl> {
                     writer_proxy: self.matched_writers.iter_mut().next()?,
                     reader_cache: &mut self.reader.reader_cache,
                 },

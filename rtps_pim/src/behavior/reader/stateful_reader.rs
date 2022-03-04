@@ -16,7 +16,7 @@ pub trait RtpsStatefulReaderConstructor {
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
         heartbeat_response_delay: Duration,
-        heartbeat_supression_duration: Duration,
+        heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self;
 }
@@ -25,6 +25,7 @@ pub trait RtpsStatefulReaderOperations {
     type WriterProxyType;
 
     fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType);
-    fn matched_writer_remove(&mut self, writer_proxy_guid: &Guid);
-    fn matched_writer_lookup(&self, a_writer_guid: &Guid) -> Option<&Self::WriterProxyType>;
+    // Note: Guid instead of Self::WriterProxyType
+    fn matched_writer_remove(&mut self, writer_proxy_guid: Guid);
+    fn matched_writer_lookup(&self, a_writer_guid: Guid) -> Option<&Self::WriterProxyType>;
 }
