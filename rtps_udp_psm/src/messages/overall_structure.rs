@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::overall_structure::{RtpsMessage, RtpsMessageHeader};
+use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
 
 use super::submessages::{
     AckNackSubmessageRead, AckNackSubmessageWrite, DataFragSubmessageRead, DataFragSubmessageWrite,
@@ -43,41 +43,31 @@ pub enum RtpsSubmessageTypeRead<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct RtpsMessageWrite<'a>(RtpsMessage<Vec<RtpsSubmessageTypeWrite<'a>>>);
+pub struct RtpsMessageWrite<'a> {
+    pub header: RtpsMessageHeader,
+    pub submessages: Vec<RtpsSubmessageTypeWrite<'a>>,
+}
 
 impl<'a> RtpsMessageWrite<'a> {
     pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageTypeWrite<'a>>) -> Self {
-        Self(RtpsMessage {
+        Self {
             header,
             submessages,
-        })
-    }
-}
-
-impl<'a> std::ops::Deref for RtpsMessageWrite<'a> {
-    type Target = RtpsMessage<Vec<RtpsSubmessageTypeWrite<'a>>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        }
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct RtpsMessageRead<'a>(RtpsMessage<Vec<RtpsSubmessageTypeRead<'a>>>);
+pub struct RtpsMessageRead<'a> {
+    pub header: RtpsMessageHeader,
+    pub submessages: Vec<RtpsSubmessageTypeRead<'a>>,
+}
 
 impl<'a> RtpsMessageRead<'a> {
     pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageTypeRead<'a>>) -> Self {
-        Self(RtpsMessage {
+        Self {
             header,
             submessages,
-        })
-    }
-}
-
-impl<'a> std::ops::Deref for RtpsMessageRead<'a> {
-    type Target = RtpsMessage<Vec<RtpsSubmessageTypeRead<'a>>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        }
     }
 }
