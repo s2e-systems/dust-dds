@@ -124,7 +124,7 @@ fn user_defined_write_read() {
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
             )],
             &[],
-            *stateful_reader.expects_inline_qos(),
+            stateful_reader.expects_inline_qos(),
             true,
         );
 

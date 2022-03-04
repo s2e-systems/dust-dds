@@ -13,7 +13,7 @@ use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_history_cache_impl::RtpsH
 pub struct RtpsReaderImpl {
     pub endpoint: RtpsEndpointImpl,
     pub heartbeat_response_delay: Duration,
-    pub heartbeat_supression_duration: Duration,
+    pub heartbeat_suppression_duration: Duration,
     pub reader_cache: RtpsHistoryCacheImpl,
     pub expects_inline_qos: bool,
 }
@@ -22,13 +22,13 @@ impl RtpsReaderImpl {
     pub fn new(
         endpoint: RtpsEndpointImpl,
         heartbeat_response_delay: Duration,
-        heartbeat_supression_duration: Duration,
+        heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self {
         Self {
             endpoint,
             heartbeat_response_delay,
-            heartbeat_supression_duration,
+            heartbeat_suppression_duration,
             reader_cache: RtpsHistoryCacheImpl::new(),
             expects_inline_qos,
         }
@@ -60,21 +60,21 @@ impl RtpsEndpointAttributes for RtpsReaderImpl {
 }
 
 impl RtpsReaderAttributes for RtpsReaderImpl {
-    type ReaderHistoryCacheType = RtpsHistoryCacheImpl;
+    type HistoryCacheType = RtpsHistoryCacheImpl;
 
-    fn heartbeat_response_delay(&self) -> &Duration {
-        &self.heartbeat_response_delay
+    fn heartbeat_response_delay(&self) -> Duration {
+        self.heartbeat_response_delay
     }
 
-    fn heartbeat_supression_duration(&self) -> &Duration {
-        &self.heartbeat_supression_duration
+    fn heartbeat_suppression_duration(&self) -> Duration {
+        self.heartbeat_suppression_duration
     }
 
-    fn reader_cache(&mut self) -> &mut Self::ReaderHistoryCacheType {
+    fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
         &mut self.reader_cache
     }
 
-    fn expects_inline_qos(&self) -> &bool {
-        &self.expects_inline_qos
+    fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
     }
 }

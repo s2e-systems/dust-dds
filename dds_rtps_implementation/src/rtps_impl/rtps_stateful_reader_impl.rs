@@ -56,22 +56,22 @@ impl RtpsEndpointAttributes for RtpsStatefulReaderImpl {
 }
 
 impl RtpsReaderAttributes for RtpsStatefulReaderImpl {
-    type ReaderHistoryCacheType = RtpsHistoryCacheImpl;
+    type HistoryCacheType = RtpsHistoryCacheImpl;
 
-    fn heartbeat_response_delay(&self) -> &Duration {
-        &self.reader.heartbeat_response_delay
+    fn heartbeat_response_delay(&self) -> Duration {
+        self.reader.heartbeat_response_delay
     }
 
-    fn heartbeat_supression_duration(&self) -> &Duration {
-        &self.reader.heartbeat_supression_duration
+    fn heartbeat_suppression_duration(&self) -> Duration {
+        self.reader.heartbeat_suppression_duration
     }
 
-    fn reader_cache(&mut self) -> &mut Self::ReaderHistoryCacheType {
+    fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
         &mut self.reader.reader_cache
     }
 
-    fn expects_inline_qos(&self) -> &bool {
-        &self.reader.expects_inline_qos
+    fn expects_inline_qos(&self) -> bool {
+        self.reader.expects_inline_qos
     }
 }
 
@@ -91,7 +91,7 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
         heartbeat_response_delay: Duration,
-        heartbeat_supression_duration: Duration,
+        heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self {
         Self {
@@ -104,7 +104,7 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
                     multicast_locator_list,
                 ),
                 heartbeat_response_delay,
-                heartbeat_supression_duration,
+                heartbeat_suppression_duration,
                 expects_inline_qos,
             ),
             matched_writers: Vec::new(),
