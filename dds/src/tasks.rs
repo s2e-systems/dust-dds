@@ -568,13 +568,27 @@ mod tests {
     }
 
     mock! {
-        StatefulReader {}
+        StatefulReader {
+            fn matched_writer_add_(&mut self, a_writer_proxy: RtpsWriterProxyImpl);
+        }
+    }
 
-        impl RtpsStatefulReaderOperations for StatefulReader {
-            type WriterProxyType = RtpsWriterProxyImpl;
-            fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxyImpl);
-            fn matched_writer_remove(&mut self, writer_proxy_guid: Guid);
-            fn matched_writer_lookup(&self, a_writer_guid: Guid) -> Option<&'static RtpsWriterProxyImpl>;
+    impl RtpsStatefulReaderOperations for MockStatefulReader {
+        type WriterProxyType = RtpsWriterProxyImpl;
+
+        fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType) {
+            self.matched_writer_add_(a_writer_proxy)
+        }
+
+        fn matched_writer_remove<F>(&mut self, _f: F)
+        where
+            F: FnMut(&Self::WriterProxyType) -> bool,
+        {
+            todo!()
+        }
+
+        fn matched_writer_lookup(&self, _a_writer_guid: Guid) -> Option<&Self::WriterProxyType> {
+            todo!()
         }
     }
 
@@ -788,7 +802,7 @@ mod tests {
 
         let mut mock_builtin_publications_reader = MockStatefulReader::new();
         mock_builtin_publications_reader
-            .expect_matched_writer_add()
+            .expect_matched_writer_add_()
             .with(predicate::eq(RtpsWriterProxyImpl::new(
                 Guid::new(
                     GuidPrefix([5; 12]),
@@ -821,7 +835,7 @@ mod tests {
 
         let mut mock_builtin_subscriptions_reader = MockStatefulReader::new();
         mock_builtin_subscriptions_reader
-            .expect_matched_writer_add()
+            .expect_matched_writer_add_()
             .with(predicate::eq(RtpsWriterProxyImpl::new(
                 Guid::new(
                     GuidPrefix([5; 12]),
@@ -851,7 +865,7 @@ mod tests {
 
         let mut mock_builtin_topics_reader = MockStatefulReader::new();
         mock_builtin_topics_reader
-            .expect_matched_writer_add()
+            .expect_matched_writer_add_()
             .with(predicate::eq(RtpsWriterProxyImpl::new(
                 Guid::new(GuidPrefix([5; 12]), ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
                 &[],
