@@ -43,12 +43,6 @@ pub enum RtpsSubmessageTypeRead<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct RtpsMessage<M> {
-    pub header: RtpsMessageHeader,
-    pub submessages: M,
-}
-
-#[derive(Debug, PartialEq)]
 pub struct RtpsMessageWrite<'a> {
     pub header: RtpsMessageHeader,
     pub submessages: Vec<RtpsSubmessageTypeWrite<'a>>,
