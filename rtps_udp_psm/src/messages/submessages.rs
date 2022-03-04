@@ -2,7 +2,7 @@ use rust_rtps_pim::{
     messages::{
         submessage_elements::{
             EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-            SequenceNumberSetSubmessageElement,
+            SequenceNumberSetSubmessageElement, SerializedDataSubmessageElement,
         },
         submessages::{
             DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
@@ -14,8 +14,7 @@ use rust_rtps_pim::{
 };
 
 use super::submessage_elements::{
-    CountSubmessageElementPsm, EntityIdSubmessageElementPsm, ParameterListSubmessageElementRead,
-    ParameterListSubmessageElementWrite, SequenceNumberSetSubmessageElementPsm,
+    CountSubmessageElementPsm, EntityIdSubmessageElementPsm, SequenceNumberSetSubmessageElementPsm,
     SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
     TimestampSubmessageElementPsm,
 };
@@ -63,12 +62,11 @@ pub struct DataSubmessageWrite<'a> {
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElementPsm,
     pub inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
-    pub serialized_payload: SerializedDataSubmessageElementPsm<'a>,
+    pub serialized_payload: SerializedDataSubmessageElement<'a>,
 }
 
-impl<'a> DataSubmessageConstructor<Vec<Parameter<'a>>> for DataSubmessageWrite<'a> {
+impl<'a> DataSubmessageConstructor<'a, Vec<Parameter<'a>>> for DataSubmessageWrite<'a> {
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -80,7 +78,7 @@ impl<'a> DataSubmessageConstructor<Vec<Parameter<'a>>> for DataSubmessageWrite<'
         writer_id: EntityIdSubmessageElement,
         writer_sn: Self::SequenceNumberSubmessageElementType,
         inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
-        serialized_payload: Self::SerializedDataSubmessageElementType,
+        serialized_payload: SerializedDataSubmessageElement<'a>,
     ) -> Self {
         Self {
             endianness_flag,

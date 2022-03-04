@@ -90,16 +90,12 @@ mod tests {
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};
     use crate::messages::submessage_elements::{
-        EntityIdSubmessageElementPsm, ParameterListSubmessageElementRead,
-        ParameterListSubmessageElementWrite, SequenceNumberSubmessageElementPsm,
-        SerializedDataSubmessageElementPsm,
+        SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
     };
     use crate::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::{
-        EntityIdSubmessageElement, EntityIdSubmessageElementConstructor, Parameter,
-        ParameterListSubmessageElement, ParameterListSubmessageElementConstructor,
-        SerializedDataSubmessageElementConstructor,
+        EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
     };
 
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementConstructor;
@@ -163,7 +159,10 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[][..]);
+        let serialized_payload =
+            rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElement {
+                value: &[][..],
+            };
 
         let submessage = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
             endianness_flag,

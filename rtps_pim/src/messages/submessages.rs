@@ -1,7 +1,7 @@
 use super::{
     submessage_elements::{
         EntityIdSubmessageElement, ParameterListSubmessageElement,
-        SequenceNumberSetSubmessageElement,
+        SequenceNumberSetSubmessageElement, SerializedDataSubmessageElement,
     },
     types::SubmessageFlag,
 };
@@ -34,9 +34,8 @@ pub trait AckNackSubmessageAttributes {
     fn count(&self) -> &Self::CountSubmessageElementType;
 }
 
-pub trait DataSubmessageConstructor<P> {
+pub trait DataSubmessageConstructor<'a, P> {
     type SequenceNumberSubmessageElementType;
-    type SerializedDataSubmessageElementType;
 
     fn new(
         endianness_flag: SubmessageFlag,
@@ -48,7 +47,7 @@ pub trait DataSubmessageConstructor<P> {
         writer_id: EntityIdSubmessageElement,
         writer_sn: Self::SequenceNumberSubmessageElementType,
         inline_qos: ParameterListSubmessageElement<P>,
-        serialized_payload: Self::SerializedDataSubmessageElementType,
+        serialized_payload: SerializedDataSubmessageElement<'a>,
     ) -> Self;
 }
 

@@ -9,9 +9,7 @@ use rust_rtps_pim::messages::{
 use crate::{
     mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
     messages::{
-        submessage_elements::{
-            ParameterListSubmessageElementRead, SerializedDataSubmessageElementPsm,
-        },
+        submessage_elements::SerializedDataSubmessageElementPsm,
         submessages::{DataSubmessageRead, DataSubmessageWrite},
     },
 };
@@ -136,20 +134,15 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessageRead<'a> {
 mod tests {
     use crate::{
         mapping_traits::{from_bytes, to_bytes},
-        messages::submessage_elements::{
-            EntityIdSubmessageElementPsm, ParameterListSubmessageElementWrite,
-            SequenceNumberSubmessageElementPsm,
-        },
+        messages::submessage_elements::SequenceNumberSubmessageElementPsm,
     };
 
     use super::*;
     use rust_rtps_pim::{
         messages::{
             submessage_elements::{
-                EntityIdSubmessageElement, EntityIdSubmessageElementConstructor, Parameter,
-                ParameterListSubmessageElement, ParameterListSubmessageElementConstructor,
-                SequenceNumberSubmessageElementConstructor,
-                SerializedDataSubmessageElementConstructor,
+                EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElementConstructor, SerializedDataSubmessageElement,
             },
             submessages::DataSubmessageConstructor,
             types::ParameterId,
@@ -172,7 +165,7 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElementPsm::new(5);
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
-        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[][..]);
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
@@ -224,7 +217,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[][..]);
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
@@ -270,7 +263,9 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElementPsm::new(5);
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
-        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[1_u8, 2, 3, 4][..]);
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: &[1_u8, 2, 3, 4][..],
+        };
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
@@ -311,7 +306,9 @@ mod tests {
         };
         let writer_sn = SequenceNumberSubmessageElementPsm::new(5);
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
-        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[1_u8, 2, 3][..]);
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: &[1_u8, 2, 3][..],
+        };
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,

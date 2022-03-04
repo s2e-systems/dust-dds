@@ -1,8 +1,7 @@
 use crate::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementAttributes, Parameter,
-            ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
+            Parameter, SequenceNumberSubmessageElementAttributes,
             SerializedDataSubmessageElementAttributes,
         },
         submessages::DataSubmessageAttributes,

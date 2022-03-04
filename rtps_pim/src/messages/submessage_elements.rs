@@ -175,6 +175,10 @@ pub trait LocatorListSubmessageElementAttributes {
     fn value(&self) -> &[Locator];
 }
 
+#[derive(Debug, PartialEq)]
+pub struct SerializedDataSubmessageElement<'a> {
+    pub value: &'a [u8],
+}
 pub trait SerializedDataSubmessageElementConstructor<'a> {
     fn new(value: &'a [u8]) -> Self;
 }
