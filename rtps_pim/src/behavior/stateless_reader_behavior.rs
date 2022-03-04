@@ -1,8 +1,9 @@
 use crate::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElementAttributes, ParameterListSubmessageElementAttributes,
-            SequenceNumberSubmessageElementAttributes, SerializedDataSubmessageElementAttributes, Parameter,
+            EntityIdSubmessageElementAttributes, Parameter,
+            ParameterListSubmessageElementAttributes, SequenceNumberSubmessageElementAttributes,
+            SerializedDataSubmessageElementAttributes,
         },
         submessages::DataSubmessageAttributes,
     },
@@ -30,7 +31,8 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
         >,
     ) where
         H: RtpsHistoryCacheOperations,
-        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = &'b [u8], ParameterListType = &'b [Parameter<'b>]>,
+        for<'b> H::CacheChangeType:
+            RtpsCacheChangeConstructor<'b, DataType = &'b [u8], ParameterListType = &'b [Parameter<'b>]>,
     {
         let reader_id = data.reader_id().value();
         if reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
@@ -66,7 +68,7 @@ mod tests {
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
             },
         },
-        messages::{types::SubmessageFlag, submessage_elements::Parameter},
+        messages::{submessage_elements::Parameter, types::SubmessageFlag},
         structure::types::{EntityId, SequenceNumber},
     };
 
@@ -193,7 +195,10 @@ mod tests {
                 self.0 = true;
             }
 
-            fn remove_change(&mut self, _seq_num: SequenceNumber) {
+            fn remove_change<F>(&mut self, _f: F)
+            where
+                F: FnMut(&Self::CacheChangeType) -> bool,
+            {
                 todo!()
             }
 
@@ -259,7 +264,10 @@ mod tests {
                 self.0 = true;
             }
 
-            fn remove_change(&mut self, _seq_num: SequenceNumber) {
+            fn remove_change<F>(&mut self, _f: F)
+            where
+                F: FnMut(&Self::CacheChangeType) -> bool,
+            {
                 todo!()
             }
 
@@ -325,7 +333,10 @@ mod tests {
                 self.0 = true;
             }
 
-            fn remove_change(&mut self, _seq_num: SequenceNumber) {
+            fn remove_change<F>(&mut self, _f: F)
+            where
+                F: FnMut(&Self::CacheChangeType) -> bool,
+            {
                 todo!()
             }
 

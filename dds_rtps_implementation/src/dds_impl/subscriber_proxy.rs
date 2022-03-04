@@ -549,10 +549,17 @@ mod tests {
     impl RtpsHistoryCacheOperations for EmptyHistoryCache {
         type CacheChangeType = ();
         fn add_change(&mut self, _change: ()) {}
-        fn remove_change(&mut self, _seq_num: SequenceNumber) {}
+
+        fn remove_change<F>(&mut self, _f: F)
+        where
+            F: FnMut(&Self::CacheChangeType) -> bool,
+        {
+            todo!()
+        }
         fn get_seq_num_min(&self) -> Option<SequenceNumber> {
             None
         }
+
         fn get_seq_num_max(&self) -> Option<SequenceNumber> {
             None
         }

@@ -230,7 +230,10 @@ mod tests {
                 self.add_change_called = true;
             }
 
-            fn remove_change(&mut self, _seq_num: SequenceNumber) {
+            fn remove_change<F>(&mut self, _f: F)
+            where
+                F: FnMut(&Self::CacheChangeType) -> bool,
+            {
                 todo!()
             }
 

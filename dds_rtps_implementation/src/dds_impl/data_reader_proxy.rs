@@ -167,6 +167,8 @@ where
         RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
     for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
     for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
 {
     type Samples = Samples<Foo>;
     type Subscriber = SubscriberProxy<Rtps>;
@@ -230,7 +232,7 @@ where
                     })
                     .collect::<DDSResult<Vec<_>>>()?;
 
-                rtps_reader.reader_cache().remove_change(seq_num);
+                rtps_reader.reader_cache().remove_change(|cc| cc.sequence_number() == seq_num);
 
                 Ok(Samples {samples})
             }
@@ -245,7 +247,7 @@ where
                     })
                     .collect::<DDSResult<Vec<_>>>()?;
 
-                rtps_reader.reader_cache().remove_change(seq_num);
+                rtps_reader.reader_cache().remove_change(|cc| cc.sequence_number() == seq_num);
 
                 Ok(Samples {samples})
             }

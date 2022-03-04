@@ -72,7 +72,6 @@ pub struct RtpsCacheChangeImpl {
     pub inline_qos: RtpsParameterList,
 }
 
-
 impl<'a> RtpsCacheChangeConstructor<'a> for RtpsCacheChangeImpl {
     type DataType = &'a [u8];
     type ParameterListType = &'a [Parameter<'a>];
@@ -152,8 +151,11 @@ impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
         self.changes.push(change)
     }
 
-    fn remove_change(&mut self, seq_num: SequenceNumber) {
-        self.changes.retain(|cc| cc.sequence_number != seq_num)
+    fn remove_change<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&Self::CacheChangeType) -> bool,
+    {
+        self.changes.retain(|cc| !f(cc))
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
@@ -191,7 +193,7 @@ mod tests {
             &vec![],
         );
         hc.add_change(change);
-        hc.remove_change(1);
+        hc.remove_change(|cc| cc.sequence_number() == 1);
         assert!(hc.changes().is_empty());
     }
 

@@ -214,9 +214,7 @@ where
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 
         let data_writer_shared = self.data_writer_impl.upgrade()?;
-        let rtps_writer = &mut data_writer_shared
-            .write_lock()
-            .rtps_writer;
+        let rtps_writer = &mut data_writer_shared.write_lock().rtps_writer;
 
         match rtps_writer {
             RtpsWriter::Stateless(rtps_writer) => {
@@ -379,14 +377,32 @@ mod test {
     use super::{DataWriterAttributes, DataWriterProxy, RtpsWriter};
 
     mock! {
-        WriterHistoryCacheType {}
+        WriterHistoryCacheType {
+            fn add_change_(&mut self, change: ());
+            fn get_seq_num_max_(&self) -> Option<SequenceNumber>;
+            fn get_seq_num_min_(&self) -> Option<SequenceNumber>;
+        }
+    }
 
-        impl RtpsHistoryCacheOperations for WriterHistoryCacheType {
-            type CacheChangeType = ();
-            fn add_change(&mut self, change: ());
-            fn remove_change(&mut self, seq_num: SequenceNumber);
-            fn get_seq_num_max(&self) -> Option<SequenceNumber>;
-            fn get_seq_num_min(&self) -> Option<SequenceNumber>;
+    impl RtpsHistoryCacheOperations for MockWriterHistoryCacheType {
+        type CacheChangeType = ();
+        fn add_change(&mut self, change: ()) {
+            self.add_change_(change)
+        }
+
+        fn remove_change<F>(&mut self, _f: F)
+        where
+            F: FnMut(&Self::CacheChangeType) -> bool,
+        {
+            todo!()
+        }
+
+        fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+            self.get_seq_num_min_()
+        }
+
+        fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+            self.get_seq_num_max_()
         }
     }
 
@@ -473,7 +489,7 @@ mod test {
     fn write_w_timestamp_stateless() {
         let mut mock_writer_history_cache = MockWriterHistoryCacheType::new();
         mock_writer_history_cache
-            .expect_add_change()
+            .expect_add_change_()
             .once()
             .return_const(());
 
@@ -511,7 +527,7 @@ mod test {
     fn write_w_timestamp_stateful() {
         let mut mock_writer_history_cache = MockWriterHistoryCacheType::new();
         mock_writer_history_cache
-            .expect_add_change()
+            .expect_add_change_()
             .once()
             .return_const(());
 
