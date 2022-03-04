@@ -133,6 +133,9 @@ pub struct Parameter<'a> {
 }
 
 pub trait ParameterListSubmessageElementConstructor<'a> {
+    // Use IntoIterator instead of &'a [Parameter<'a>] since
+    // it would not be possible to create such slice from an
+    // owning list of owning Parameters (e.g. Vec<ParameterOwning> where ParameterOwning{value: Vec<u8>})
     fn new<P: IntoIterator<Item = Parameter<'a>>>(parameter: P) -> Self;
 }
 
