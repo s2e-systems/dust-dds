@@ -17,7 +17,7 @@ use super::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     },
-    spdp::participant_proxy::RtpsSpdpDiscoveredParticipantDataAttributes,
+    spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
     types::{BuiltinEndpointSet, DomainId},
 };
 

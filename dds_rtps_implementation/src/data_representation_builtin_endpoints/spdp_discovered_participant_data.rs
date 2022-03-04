@@ -3,7 +3,7 @@ use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltI
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
-        spdp::participant_proxy::RtpsSpdpDiscoveredParticipantDataAttributes,
+        spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
         types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
     },
     messages::types::Count,
