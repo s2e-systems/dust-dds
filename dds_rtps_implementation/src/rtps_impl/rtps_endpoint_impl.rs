@@ -33,18 +33,18 @@ impl RtpsEndpointImpl {
 }
 
 impl RtpsEntityAttributes for RtpsEndpointImpl {
-    fn guid(&self) -> &Guid {
-        &self.entity.guid
+    fn guid(&self) -> Guid {
+        self.entity.guid
     }
 }
 
 impl RtpsEndpointAttributes for RtpsEndpointImpl {
-    fn topic_kind(&self) -> &TopicKind {
-        &self.topic_kind
+    fn topic_kind(&self) -> TopicKind {
+        self.topic_kind
     }
 
-    fn reliability_level(&self) -> &ReliabilityKind {
-        &self.reliability_level
+    fn reliability_level(&self) -> ReliabilityKind {
+        self.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {

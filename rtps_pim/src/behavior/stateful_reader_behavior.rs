@@ -40,7 +40,7 @@ impl BestEffortStatefulReaderBehavior {
         >,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value()); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
-        if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
+        if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(writer_guid) {
             let _expected_seq_nem = writer_proxy.available_changes_max(); // expected_seq_num := writer_proxy.available_changes_max() + 1;
         }
     }
@@ -64,11 +64,11 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheOperations,
-        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = [u8], ParameterListType = [Parameter<'b>]>
+        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<'b, DataType = &'b [u8], ParameterListType = &'b [Parameter<'b>]>
             + RtpsCacheChangeAttributes<'b>,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value());
-        if &writer_guid == self.writer_proxy.remote_writer_guid() {
+        if writer_guid == self.writer_proxy.remote_writer_guid() {
             let kind = match (data.data_flag(), data.key_flag()) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
@@ -79,10 +79,10 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
             let data_value = data.serialized_payload().value();
             let inline_qos = data.inline_qos().parameter();
             let a_change = H::CacheChangeType::new(
-                &kind,
-                &writer_guid,
-                &instance_handle,
-                &sequence_number,
+                kind,
+                writer_guid,
+                instance_handle,
+                sequence_number,
                 data_value,
                 inline_qos,
             );
@@ -119,8 +119,8 @@ mod tests {
         struct MockWriterProxy(Guid);
 
         impl RtpsWriterProxyAttributes for MockWriterProxy {
-            fn remote_writer_guid(&self) -> &Guid {
-                &self.0
+            fn remote_writer_guid(&self) -> Guid {
+                self.0
             }
 
             fn unicast_locator_list(&self) -> &[crate::structure::types::Locator] {
@@ -131,40 +131,40 @@ mod tests {
                 todo!()
             }
 
-            fn data_max_size_serialized(&self) -> &Option<i32> {
+            fn data_max_size_serialized(&self) -> Option<i32> {
                 todo!()
             }
 
-            fn remote_group_entity_id(&self) -> &EntityId {
+            fn remote_group_entity_id(&self) -> EntityId {
                 todo!()
             }
         }
 
         impl RtpsWriterProxyOperations for MockWriterProxy {
-            type SequenceNumberVector = ();
+            type SequenceNumberListType = ();
 
-            fn available_changes_max(&self) -> &SequenceNumber {
+            fn available_changes_max(&self) -> SequenceNumber {
                 todo!()
             }
 
-            fn irrelevant_change_set(&mut self, _a_seq_num: &SequenceNumber) {
+            fn irrelevant_change_set(&mut self, _a_seq_num: SequenceNumber) {
                 todo!()
             }
 
-            fn lost_changes_update(&mut self, _first_available_seq_num: &SequenceNumber) {
+            fn lost_changes_update(&mut self, _first_available_seq_num: SequenceNumber) {
                 todo!()
             }
 
-            fn missing_changes(&self) -> Self::SequenceNumberVector {
+            fn missing_changes(&self) -> Self::SequenceNumberListType {
                 todo!()
             }
 
-            fn missing_changes_update(&mut self, _last_available_seq_num: &SequenceNumber) {
+            fn missing_changes_update(&mut self, _last_available_seq_num: SequenceNumber) {
                 todo!()
             }
 
-            fn received_change_set(&mut self, a_seq_num: &SequenceNumber) {
-                assert_eq!(a_seq_num, &1)
+            fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
+                assert_eq!(a_seq_num, 1)
             }
         }
 
@@ -173,19 +173,19 @@ mod tests {
         }
 
         impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
-            type DataType = [u8];
-            type ParameterListType = [Parameter<'a>];
+            type DataType = &'a [u8];
+            type ParameterListType = &'a [Parameter<'a>];
 
             fn new(
-                _kind: &ChangeKind,
-                _writer_guid: &Guid,
-                _instance_handle: &InstanceHandle,
-                sequence_number: &SequenceNumber,
-                _data_value: &Self::DataType,
-                _inline_qos: &Self::ParameterListType,
+                _kind: ChangeKind,
+                _writer_guid: Guid,
+                _instance_handle: InstanceHandle,
+                sequence_number: SequenceNumber,
+                _data_value: Self::DataType,
+                _inline_qos: Self::ParameterListType,
             ) -> Self {
                 Self {
-                    sequence_number: *sequence_number,
+                    sequence_number,
                 }
             }
         }
@@ -194,20 +194,20 @@ mod tests {
             type DataType = ();
             type ParameterListType = [Parameter<'a>];
 
-            fn kind(&self) -> &ChangeKind {
+            fn kind(&self) -> ChangeKind {
                 todo!()
             }
 
-            fn writer_guid(&self) -> &Guid {
+            fn writer_guid(&self) -> Guid {
                 todo!()
             }
 
-            fn instance_handle(&self) -> &InstanceHandle {
+            fn instance_handle(&self) -> InstanceHandle {
                 todo!()
             }
 
-            fn sequence_number(&self) -> &SequenceNumber {
-                &self.sequence_number
+            fn sequence_number(&self) -> SequenceNumber {
+                self.sequence_number
             }
 
             fn data_value(&self) -> &Self::DataType {
@@ -230,7 +230,7 @@ mod tests {
                 self.add_change_called = true;
             }
 
-            fn remove_change(&mut self, _seq_num: &SequenceNumber) {
+            fn remove_change(&mut self, _seq_num: SequenceNumber) {
                 todo!()
             }
 
@@ -294,23 +294,23 @@ mod tests {
             type ParameterListSubmessageElementType = MockParameterList;
             type SerializedDataSubmessageElementType = MockSerializedData;
 
-            fn endianness_flag(&self) -> &SubmessageFlag {
+            fn endianness_flag(&self) -> SubmessageFlag {
                 todo!()
             }
 
-            fn inline_qos_flag(&self) -> &SubmessageFlag {
+            fn inline_qos_flag(&self) -> SubmessageFlag {
                 todo!()
             }
 
-            fn data_flag(&self) -> &SubmessageFlag {
-                &self.data_flag
+            fn data_flag(&self) -> SubmessageFlag {
+                self.data_flag
             }
 
-            fn key_flag(&self) -> &SubmessageFlag {
-                &self.key_flag
+            fn key_flag(&self) -> SubmessageFlag {
+                self.key_flag
             }
 
-            fn non_standard_payload_flag(&self) -> &SubmessageFlag {
+            fn non_standard_payload_flag(&self) -> SubmessageFlag {
                 todo!()
             }
 

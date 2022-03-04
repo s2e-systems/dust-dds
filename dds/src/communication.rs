@@ -140,7 +140,7 @@ where
                             message_header.guid_prefix = reader_proxy.remote_reader_guid().prefix;
                             let message = RtpsMessageWrite::new(message_header, submessage);
                             self.transport
-                                .write(&message, &reader_proxy.unicast_locator_list()[0]);
+                                .write(&message, reader_proxy.unicast_locator_list()[0]);
                         }
                     }
                 }

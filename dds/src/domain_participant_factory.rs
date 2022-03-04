@@ -702,21 +702,21 @@ pub fn spdp_discovered_participant_data_from_domain_participant<Rtps>(
 ) -> SpdpDiscoveredParticipantData
 where
     Rtps: RtpsStructure,
-    Rtps::Participant: RtpsParticipantAttributes,
+    Rtps::Participant: RtpsParticipantAttributes + RtpsEntityAttributes,
 {
     SpdpDiscoveredParticipantData {
         dds_participant_data: ParticipantBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: (*participant.rtps_participant.guid()).into(),
+                value: (participant.rtps_participant.guid()).into(),
             },
             user_data: participant.qos.user_data.clone(),
         },
         participant_proxy: ParticipantProxy {
             domain_id: participant.domain_id as u32,
             domain_tag: participant.domain_tag.clone(),
-            protocol_version: *participant.rtps_participant.protocol_version(),
+            protocol_version: participant.rtps_participant.protocol_version(),
             guid_prefix: participant.rtps_participant.guid().prefix(),
-            vendor_id: *participant.rtps_participant.vendor_id(),
+            vendor_id: participant.rtps_participant.vendor_id(),
             expects_inline_qos: false,
             metatraffic_unicast_locator_list: participant.metatraffic_unicast_locator_list.clone(),
             metatraffic_multicast_locator_list: participant
@@ -2044,7 +2044,7 @@ mod tests {
                 .try_as_stateful_writer()
                 .unwrap()
                 .guid(),
-            &discovered_writer_data.writer_proxy.remote_writer_guid,
+            discovered_writer_data.writer_proxy.remote_writer_guid,
         );
 
         let discovered_reader_data = &participant2_subscription_datareader
@@ -2060,7 +2060,7 @@ mod tests {
                 .try_as_stateful_reader()
                 .unwrap()
                 .guid(),
-            &discovered_reader_data.reader_proxy.remote_reader_guid,
+            discovered_reader_data.reader_proxy.remote_reader_guid,
         );
     }
 
@@ -2229,7 +2229,7 @@ mod tests {
                 ENTITYID_UNKNOWN,
             ));
 
-            
+
         let participant2_publication_datawriter = participant2_publisher
             .lookup_datawriter(&sedp_topic_publication)
             .unwrap();

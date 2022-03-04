@@ -125,7 +125,7 @@ impl MessageReceiver {
             TimestampSubmessageElementType = impl TimestampSubmessageElementAttributes,
         >,
     ) {
-        if info_timestamp.invalidate_flag() == &false {
+        if info_timestamp.invalidate_flag() == false {
             self.have_timestamp = true;
             self.timestamp = info_timestamp.timestamp().value();
         } else {

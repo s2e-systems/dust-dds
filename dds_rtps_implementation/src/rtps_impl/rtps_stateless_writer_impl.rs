@@ -36,18 +36,18 @@ pub struct RtpsStatelessWriterImpl {
 }
 
 impl RtpsEntityAttributes for RtpsStatelessWriterImpl {
-    fn guid(&self) -> &Guid {
+    fn guid(&self) -> Guid {
         self.writer.guid()
     }
 }
 
 impl RtpsEndpointAttributes for RtpsStatelessWriterImpl {
-    fn topic_kind(&self) -> &TopicKind {
-        &self.writer.endpoint.topic_kind
+    fn topic_kind(&self) -> TopicKind {
+        self.writer.endpoint.topic_kind
     }
 
-    fn reliability_level(&self) -> &ReliabilityKind {
-        &self.writer.endpoint.reliability_level
+    fn reliability_level(&self) -> ReliabilityKind {
+        self.writer.endpoint.reliability_level
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
@@ -60,33 +60,33 @@ impl RtpsEndpointAttributes for RtpsStatelessWriterImpl {
 }
 
 impl RtpsWriterAttributes for RtpsStatelessWriterImpl {
-    type WriterHistoryCacheType = RtpsHistoryCacheImpl;
+    type HistoryCacheType = RtpsHistoryCacheImpl;
 
-    fn push_mode(&self) -> &bool {
-        &self.writer.push_mode
+    fn push_mode(&self) -> bool {
+        self.writer.push_mode
     }
 
-    fn heartbeat_period(&self) -> &Duration {
-        &self.writer.heartbeat_period
+    fn heartbeat_period(&self) -> Duration {
+        self.writer.heartbeat_period
     }
 
-    fn nack_response_delay(&self) -> &Duration {
-        &self.writer.nack_response_delay
+    fn nack_response_delay(&self) -> Duration {
+        self.writer.nack_response_delay
     }
 
-    fn nack_suppression_duration(&self) -> &Duration {
-        &self.writer.nack_suppression_duration
+    fn nack_suppression_duration(&self) -> Duration {
+        self.writer.nack_suppression_duration
     }
 
-    fn last_change_sequence_number(&self) -> &SequenceNumber {
-        &self.writer.last_change_sequence_number
+    fn last_change_sequence_number(&self) -> SequenceNumber {
+        self.writer.last_change_sequence_number
     }
 
-    fn data_max_size_serialized(&self) -> &Option<i32> {
-        &self.writer.data_max_size_serialized
+    fn data_max_size_serialized(&self) -> Option<i32> {
+        self.writer.data_max_size_serialized
     }
 
-    fn writer_cache(&mut self) -> &mut Self::WriterHistoryCacheType {
+    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
         &mut self.writer.writer_cache
     }
 }
@@ -139,7 +139,7 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
         self.reader_locators.push(a_locator);
     }
 
-    fn reader_locator_remove(&mut self, a_locator: &Locator) {
+    fn reader_locator_remove(&mut self, a_locator: Locator) {
         self.reader_locators.retain(|x| x.locator() != a_locator)
     }
 
@@ -153,8 +153,8 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
 pub struct RtpsReaderLocatorIterator<'a> {
     reader_locator_attributes_iterator: std::slice::IterMut<'a, RtpsReaderLocatorAttributesImpl>,
     writer_cache: &'a RtpsHistoryCacheImpl,
-    reliability_level: &'a ReliabilityKind,
-    writer_guid: &'a Guid,
+    reliability_level: ReliabilityKind,
+    writer_guid: Guid,
 }
 
 impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {

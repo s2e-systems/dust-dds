@@ -1,14 +1,14 @@
 use super::types::SequenceNumber;
 
-pub trait RtpsHistoryCacheConstructor {
-    /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
-    fn new() -> Self;
-}
-
 pub trait RtpsHistoryCacheAttributes {
     type CacheChangeType;
 
     fn changes(&self) -> &[Self::CacheChangeType];
+}
+
+pub trait RtpsHistoryCacheConstructor {
+    /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
+    fn new() -> Self;
 }
 
 pub trait RtpsHistoryCacheOperations {
@@ -23,7 +23,7 @@ pub trait RtpsHistoryCacheOperations {
     /// This operation indicates that a previously-added CacheChange has become irrelevant and the details regarding the CacheChange need
     /// not be maintained in the HistoryCache. The determination of irrelevance is made based on the QoS associated with the related DDS
     /// entity and on the acknowledgment status of the CacheChange. This is described in 8.4.1.
-    fn remove_change(&mut self, seq_num: &SequenceNumber);
+    fn remove_change(&mut self, seq_num: SequenceNumber);
 
     /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
     fn get_seq_num_min(&self) -> Option<SequenceNumber>;

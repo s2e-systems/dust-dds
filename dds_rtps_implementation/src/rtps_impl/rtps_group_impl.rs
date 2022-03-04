@@ -17,8 +17,8 @@ impl RtpsGroupConstructor for RtpsGroupImpl {
 }
 
 impl RtpsEntityAttributes for RtpsGroupImpl {
-    fn guid(&self) -> &Guid {
-        &self.entity.guid
+    fn guid(&self) -> Guid {
+        self.entity.guid
     }
 }
 
