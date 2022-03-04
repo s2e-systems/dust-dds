@@ -98,6 +98,7 @@ mod tests {
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::{
         EntityIdSubmessageElementConstructor, Parameter, ParameterListSubmessageElementConstructor,
+        SerializedDataSubmessageElementConstructor,
     };
 
     use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementConstructor;
@@ -157,7 +158,7 @@ mod tests {
             value: &[20, 21, 22, 23],
         };
         let inline_qos = ParameterListSubmessageElementWrite::new(vec![parameter_1, parameter_2]);
-        let serialized_payload = &[][..];
+        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[][..]);
 
         let submessage = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
             endianness_flag,

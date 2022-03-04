@@ -2,11 +2,12 @@ use rust_rtps_pim::{
     messages::{
         submessage_elements::{
             CountSubmessageElementConstructor, EntityIdSubmessageElementAttributes,
-            EntityIdSubmessageElementConstructor, ParameterListSubmessageElementAttributes,
-            ParameterListSubmessageElementConstructor,
+            EntityIdSubmessageElementConstructor, Parameter,
+            ParameterListSubmessageElementAttributes, ParameterListSubmessageElementConstructor,
             SequenceNumberSetSubmessageElementConstructor,
             SequenceNumberSubmessageElementAttributes, SequenceNumberSubmessageElementConstructor,
-            SerializedDataSubmessageElementAttributes, TimestampSubmessageElementAttributes, Parameter,
+            SerializedDataSubmessageElementAttributes, SerializedDataSubmessageElementConstructor,
+            TimestampSubmessageElementAttributes,
         },
         types::{Count, FragmentNumber, GroupDigest, Time},
     },
@@ -111,6 +112,12 @@ pub struct SerializedDataSubmessageElementPsm<'a> {
     pub value: &'a [u8],
 }
 
+impl<'a> SerializedDataSubmessageElementConstructor<'a> for SerializedDataSubmessageElementPsm<'a> {
+    fn new(value: &'a [u8]) -> Self {
+        Self { value }
+    }
+}
+
 impl<'a> SerializedDataSubmessageElementAttributes for SerializedDataSubmessageElementPsm<'a> {
     fn value(&self) -> &[u8] {
         self.value
@@ -123,7 +130,9 @@ pub struct SequenceNumberSetSubmessageElementPsm {
     pub set: Vec<SequenceNumber>,
 }
 
-impl<'a> SequenceNumberSetSubmessageElementConstructor<'a> for SequenceNumberSetSubmessageElementPsm {
+impl<'a> SequenceNumberSetSubmessageElementConstructor<'a>
+    for SequenceNumberSetSubmessageElementPsm
+{
     fn new(base: SequenceNumber, set: &'a [SequenceNumber]) -> Self {
         Self {
             base,

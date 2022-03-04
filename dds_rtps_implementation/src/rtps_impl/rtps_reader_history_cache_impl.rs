@@ -1,6 +1,6 @@
 use rust_dds_api::dcps_psm::{InstanceStateKind, SampleStateKind, ViewStateKind};
 use rust_rtps_pim::{
-    messages::{types::Time, submessage_elements::Parameter},
+    messages::{submessage_elements::Parameter, types::Time},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{

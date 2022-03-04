@@ -146,6 +146,7 @@ mod tests {
                 EntityIdSubmessageElementConstructor, Parameter,
                 ParameterListSubmessageElementConstructor,
                 SequenceNumberSubmessageElementConstructor,
+                SerializedDataSubmessageElementConstructor,
             },
             submessages::DataSubmessageConstructor,
             types::ParameterId,
@@ -166,7 +167,7 @@ mod tests {
             EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = SequenceNumberSubmessageElementPsm::new(5);
         let inline_qos = ParameterListSubmessageElementWrite::new(vec![]);
-        let serialized_payload = &[][..];
+        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[][..]);
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
@@ -214,7 +215,7 @@ mod tests {
             value: &[20, 21, 22, 23],
         };
         let inline_qos = ParameterListSubmessageElementWrite::new(vec![parameter_1, parameter_2]);
-        let serialized_payload = &[][..];
+        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[][..]);
 
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
@@ -258,7 +259,7 @@ mod tests {
             EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = SequenceNumberSubmessageElementPsm::new(5);
         let inline_qos = ParameterListSubmessageElementWrite::new(vec![]);
-        let serialized_payload = &[1_u8, 2, 3, 4][..];
+        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[1_u8, 2, 3, 4][..]);
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
@@ -297,7 +298,7 @@ mod tests {
             EntityIdSubmessageElementPsm::new(EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP));
         let writer_sn = SequenceNumberSubmessageElementPsm::new(5);
         let inline_qos = ParameterListSubmessageElementWrite::new(vec![]);
-        let serialized_payload = &[1_u8, 2, 3][..];
+        let serialized_payload = SerializedDataSubmessageElementPsm::new(&[1_u8, 2, 3][..]);
         let submessage = DataSubmessageWrite::new(
             endianness_flag,
             inline_qos_flag,
