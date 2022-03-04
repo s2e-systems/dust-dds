@@ -1,9 +1,9 @@
+use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
-use crate::dds_type::{DdsSerialize, DdsType, Endianness, DdsDeserialize};
 use rust_rtps_pim::{
     behavior::types::Duration,
     discovery::{
-        spdp::participant_proxy::ParticipantProxyAttributes,
+        spdp::participant_proxy::RtpsSpdpDiscoveredParticipantDataAttributes,
         types::{BuiltinEndpointQos, BuiltinEndpointSet, DomainId},
     },
     messages::types::Count,
@@ -15,10 +15,10 @@ use rust_rtps_pim::{
 use super::{
     parameter_id_values::{
         PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-        PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_EXPECTS_INLINE_QOS,
+        PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
         PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
         PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-        PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID, PID_DOMAIN_TAG,
+        PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
     },
     parameter_list_deserializer::ParameterListDeserializer,
     parameter_list_serializer::ParameterListSerializer,
@@ -34,7 +34,7 @@ use super::{
     },
 };
 
-pub const DCPS_PARTICIPANT: &'static str  = "DCPSParticipant";
+pub const DCPS_PARTICIPANT: &'static str = "DCPSParticipant";
 
 #[derive(Debug, PartialEq)]
 pub struct ParticipantProxy {
@@ -53,65 +53,69 @@ pub struct ParticipantProxy {
     pub builtin_endpoint_qos: BuiltinEndpointQos,
 }
 
-impl ParticipantProxyAttributes for ParticipantProxy {
-    fn domain_id(&self) -> &DomainId {
-        &self.domain_id
-    }
-
-    fn domain_tag(&self) -> &str {
-        &self.domain_tag
-    }
-
-    fn protocol_version(&self) -> &ProtocolVersion {
-        &self.protocol_version
-    }
-
-    fn guid_prefix(&self) -> &GuidPrefix {
-        &self.guid_prefix
-    }
-
-    fn vendor_id(&self) -> &VendorId {
-        &self.vendor_id
-    }
-
-    fn expects_inline_qos(&self) -> &bool {
-        &self.expects_inline_qos
-    }
-
-    fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        &self.metatraffic_unicast_locator_list
-    }
-
-    fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        &self.metatraffic_multicast_locator_list
-    }
-
-    fn default_unicast_locator_list(&self) -> &[Locator] {
-        &self.default_unicast_locator_list
-    }
-
-    fn default_multicast_locator_list(&self) -> &[Locator] {
-        &self.default_multicast_locator_list
-    }
-
-    fn available_builtin_endpoints(&self) -> &BuiltinEndpointSet {
-        &self.available_builtin_endpoints
-    }
-
-    fn manual_liveliness_count(&self) -> &Count {
-        &self.manual_liveliness_count
-    }
-
-    fn builtin_endpoint_qos(&self) -> &BuiltinEndpointQos {
-        &self.builtin_endpoint_qos
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub struct SpdpDiscoveredParticipantData {
     pub dds_participant_data: ParticipantBuiltinTopicData,
     pub participant_proxy: ParticipantProxy,
     pub lease_duration: Duration,
+}
+
+impl RtpsSpdpDiscoveredParticipantDataAttributes for SpdpDiscoveredParticipantData {
+    fn domain_id(&self) -> DomainId {
+        self.participant_proxy.domain_id
+    }
+
+    fn domain_tag(&self) -> &str {
+        &self.participant_proxy.domain_tag
+    }
+
+    fn protocol_version(&self) -> ProtocolVersion {
+        self.participant_proxy.protocol_version
+    }
+
+    fn guid_prefix(&self) -> GuidPrefix {
+        self.participant_proxy.guid_prefix
+    }
+
+    fn vendor_id(&self) -> VendorId {
+        self.participant_proxy.vendor_id
+    }
+
+    fn expects_inline_qos(&self) -> bool {
+        self.participant_proxy.expects_inline_qos
+    }
+
+    fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
+        &self.participant_proxy.metatraffic_unicast_locator_list
+    }
+
+    fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
+        &self.participant_proxy.metatraffic_multicast_locator_list
+    }
+
+    fn default_unicast_locator_list(&self) -> &[Locator] {
+        &self.participant_proxy.default_unicast_locator_list
+    }
+
+    fn default_multicast_locator_list(&self) -> &[Locator] {
+        &self.participant_proxy.default_multicast_locator_list
+    }
+
+    fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
+        self.participant_proxy.available_builtin_endpoints
+    }
+
+    fn lease_duration(&self) -> Duration {
+        self.lease_duration
+    }
+
+    fn manual_liveliness_count(&self) -> Count {
+        self.participant_proxy.manual_liveliness_count
+    }
+
+    fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
+        self.participant_proxy.builtin_endpoint_qos
+    }
 }
 
 impl DdsType for SpdpDiscoveredParticipantData {
@@ -257,8 +261,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
     use crate::dds_type::LittleEndian;
+    use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
     use rust_rtps_pim::{
         discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,

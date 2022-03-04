@@ -173,8 +173,8 @@ pub fn task_spdp_discovery(
     if let Ok(samples) = spdp_builtin_participant_data_reader.take(1, &[], &[], &[]) {
         for discovered_participant in samples.into_iter() {
             if let Ok(participant_discovery) = ParticipantDiscovery::new(
-                &discovered_participant.participant_proxy,
-                &(domain_participant.read_lock().domain_id as u32),
+                discovered_participant,
+                domain_participant.read_lock().domain_id as u32,
                 &domain_participant.read_lock().domain_tag,
             ) {
                 participant_discovery.discovered_participant_add_publications_writer(
@@ -414,7 +414,11 @@ pub fn task_announce_participant(
     let discovered_participant_data = SpdpDiscoveredParticipantData {
         dds_participant_data: ParticipantBuiltinTopicData {
             key: BuiltInTopicKey {
-                value: domain_participant.read_lock().rtps_participant.guid().into(),
+                value: domain_participant
+                    .read_lock()
+                    .rtps_participant
+                    .guid()
+                    .into(),
             },
             user_data: domain_participant.read_lock().qos.user_data.clone(),
         },

@@ -17,50 +17,21 @@ use super::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     },
-    spdp::participant_proxy::ParticipantProxyAttributes,
+    spdp::participant_proxy::RtpsSpdpDiscoveredParticipantDataAttributes,
     types::{BuiltinEndpointSet, DomainId},
 };
 
-// pub trait ParticipantDiscovery<S, L> {
-//     fn discovered_participant_add(&mut self, participant_data: &ParticipantProxy<S, L>);
-//     fn discovered_participant_remove(&mut self, a_guid: &Guid);
-// }
-
-// impl<Participant, S, L> ParticipantDiscovery<S, L> for Participant
-// where
-//     for<'a> &'a L: IntoIterator<Item = &'a Locator>,
-//     S: for<'a> PartialEq<&'a str>,
-//     Participant: SedpParticipant,
-//     Participant::BuiltinPublicationsWriter: RtpsStatefulWriterOperations + RtpsStatefulWriter,
-//     <Participant::BuiltinPublicationsWriter as RtpsStatefulWriter>::ReaderProxyType:
-//         RtpsReaderProxyOperations,
-//     Participant::BuiltinPublicationsReader: RtpsStatefulReaderOperations + RtpsStatefulReader,
-//     <Participant::BuiltinPublicationsReader as RtpsStatefulReader>::WriterProxyType:
-//         RtpsWriterProxyOperations,
-//     Participant::BuiltinSubscriptionsWriter: RtpsStatefulWriterOperations + RtpsStatefulWriter,
-//     <Participant::BuiltinSubscriptionsWriter as RtpsStatefulWriter>::ReaderProxyType:
-//         RtpsReaderProxyOperations,
-//     Participant::BuiltinSubscriptionsReader: RtpsStatefulReaderOperations + RtpsStatefulReader,
-//     <Participant::BuiltinSubscriptionsReader as RtpsStatefulReader>::WriterProxyType:
-//         RtpsWriterProxyOperations,
-//     Participant::BuiltinTopicsWriter: RtpsStatefulWriterOperations + RtpsStatefulWriter,
-//     <Participant::BuiltinTopicsWriter as RtpsStatefulWriter>::ReaderProxyType:
-//         RtpsReaderProxyOperations,
-//     Participant::BuiltinTopicsReader: RtpsStatefulReaderOperations + RtpsStatefulReader,
-//     <Participant::BuiltinTopicsReader as RtpsStatefulReader>::WriterProxyType:
-//         RtpsWriterProxyOperations,
-// {
 pub struct ParticipantDiscovery<'a, P> {
     participant_data: &'a P,
 }
 
 impl<'a, P> ParticipantDiscovery<'a, P>
 where
-    P: ParticipantProxyAttributes,
+    P: RtpsSpdpDiscoveredParticipantDataAttributes,
 {
     pub fn new(
         participant_data: &'a P,
-        local_participant_domain_id: &DomainId,
+        local_participant_domain_id: DomainId,
         local_participant_domain_tag: &'a str,
     ) -> core::result::Result<Self, ()> {
         // Check that the domainId of the discovered participant equals the local one.
@@ -91,7 +62,7 @@ where
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
         {
             let remote_reader_guid = Guid::new(
-                *self.participant_data.guid_prefix(),
+                self.participant_data.guid_prefix(),
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -120,7 +91,7 @@ where
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                *self.participant_data.guid_prefix(),
+                self.participant_data.guid_prefix(),
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -150,7 +121,7 @@ where
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
         {
             let remote_reader_guid = Guid::new(
-                *self.participant_data.guid_prefix(),
+                self.participant_data.guid_prefix(),
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -179,7 +150,7 @@ where
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                *self.participant_data.guid_prefix(),
+                self.participant_data.guid_prefix(),
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -208,7 +179,7 @@ where
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
         {
             let remote_reader_guid = Guid::new(
-                *self.participant_data.guid_prefix(),
+                self.participant_data.guid_prefix(),
                 ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -237,7 +208,7 @@ where
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                *self.participant_data.guid_prefix(),
+                self.participant_data.guid_prefix(),
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
