@@ -775,7 +775,6 @@ mod tests {
             data_writer_listener::DataWriterListener,
             publisher::{Publisher, PublisherDataWriterFactory},
         },
-        return_type::DDSError,
         subscription::{
             data_reader::DataReader,
             data_reader_listener::DataReaderListener,
