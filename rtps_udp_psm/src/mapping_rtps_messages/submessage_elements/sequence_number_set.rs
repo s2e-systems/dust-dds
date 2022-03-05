@@ -4,14 +4,26 @@ use std::{
 };
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::structure::types::SequenceNumber;
-
-use crate::{
-    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
-    messages::submessage_elements::SequenceNumberSetSubmessageElementPsm,
+use rust_rtps_pim::{
+    messages::submessage_elements::SequenceNumberSetSubmessageElement,
+    structure::types::SequenceNumber,
 };
 
-impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElementPsm {
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
+
+impl NumberOfBytes for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
+    fn number_of_bytes(&self) -> usize {
+        let num_bits = if let Some(&max) = (&self.set).into_iter().max() {
+            max - self.base + 1
+        } else {
+            0
+        } as usize;
+        let number_of_bitmap_elements = (num_bits + 31) / 32; // aka "M"
+        12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */
+    }
+}
+
+impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -37,7 +49,7 @@ impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElementPsm {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSetSubmessageElementPsm {
+impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let base: SequenceNumber = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let num_bits: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
@@ -60,28 +72,17 @@ impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSetSubmessageElementPsm 
     }
 }
 
-impl NumberOfBytes for SequenceNumberSetSubmessageElementPsm {
-    fn number_of_bytes(&self) -> usize {
-        let num_bits = if let Some(&max) = (&self.set).into_iter().max() {
-            max - self.base + 1
-        } else {
-            0
-        } as usize;
-        let number_of_bitmap_elements = (num_bits + 31) / 32; // aka "M"
-        12 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementConstructor;
-
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_sequence_number_max_gap() {
-        let sequence_number_set = SequenceNumberSetSubmessageElementPsm::new(2, &[2, 257]);
+        let sequence_number_set = SequenceNumberSetSubmessageElement {
+            base: 2,
+            set: vec![2, 257],
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&sequence_number_set).unwrap(), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -100,7 +101,10 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
-        let expected = SequenceNumberSetSubmessageElementPsm::new(2, &[2, 257]);
+        let expected = SequenceNumberSetSubmessageElement {
+            base: 2,
+            set: vec![2, 257],
+        };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -120,7 +124,7 @@ mod tests {
 
     #[test]
     fn number_of_bytes_max_numbers() {
-        let sequence_number_set = SequenceNumberSetSubmessageElementPsm {
+        let sequence_number_set = SequenceNumberSetSubmessageElement {
             base: 2,
             set: vec![2, 257],
         };
@@ -129,7 +133,7 @@ mod tests {
 
     #[test]
     fn number_of_bytes_empty() {
-        let sequence_number_set = SequenceNumberSetSubmessageElementPsm {
+        let sequence_number_set = SequenceNumberSetSubmessageElement {
             base: 2,
             set: vec![],
         };
@@ -138,7 +142,7 @@ mod tests {
 
     #[test]
     fn number_of_bytes_one() {
-        let sequence_number_set = SequenceNumberSetSubmessageElementPsm {
+        let sequence_number_set = SequenceNumberSetSubmessageElement {
             base: 2,
             set: vec![257],
         };

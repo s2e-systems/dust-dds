@@ -1,14 +1,12 @@
 use std::io::{Error, Write};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
-use rust_rtps_pim::messages::{submessage_elements::Parameter, types::ParameterId};
-
-use crate::{
-    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
-    messages::submessage_elements::{
-        ParameterListSubmessageElementRead, ParameterListSubmessageElementWrite,
-    },
+use rust_rtps_pim::messages::{
+    submessage_elements::{Parameter, ParameterListSubmessageElement},
+    types::ParameterId,
 };
+
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 const PID_SENTINEL: ParameterId = ParameterId(1);
 const SENTINEL: Parameter = Parameter {
@@ -17,7 +15,7 @@ const SENTINEL: Parameter = Parameter {
     value: &[],
 };
 
-impl<'a> MappingWriteByteOrdered for ParameterListSubmessageElementWrite<'a> {
+impl<'a> MappingWriteByteOrdered for ParameterListSubmessageElement<Vec<Parameter<'a>>> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -29,7 +27,9 @@ impl<'a> MappingWriteByteOrdered for ParameterListSubmessageElementWrite<'a> {
     }
 }
 
-impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElementRead<'a> {
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de>
+    for ParameterListSubmessageElement<Vec<Parameter<'a>>>
+{
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
@@ -88,13 +88,7 @@ impl<'a> NumberOfBytes for Parameter<'a> {
     }
 }
 
-impl<'a> NumberOfBytes for ParameterListSubmessageElementWrite<'a> {
-    fn number_of_bytes(&self) -> usize {
-        self.parameter.number_of_bytes() + 4 /* Sentinel */
-    }
-}
-
-impl<'a> NumberOfBytes for ParameterListSubmessageElementRead<'a> {
+impl<'a> NumberOfBytes for ParameterListSubmessageElement<Vec<Parameter<'a>>> {
     fn number_of_bytes(&self) -> usize {
         self.parameter.number_of_bytes() + 4 /* Sentinel */
     }
@@ -102,9 +96,7 @@ impl<'a> NumberOfBytes for ParameterListSubmessageElementRead<'a> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::messages::submessage_elements::{
-        Parameter, ParameterListSubmessageElementConstructor,
-    };
+    use rust_rtps_pim::messages::submessage_elements::Parameter;
 
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};
@@ -199,8 +191,9 @@ mod tests {
             length: 4,
             value: &[52, 62, 0, 0],
         };
-        let parameter_list_submessage_element =
-            ParameterListSubmessageElementWrite::new(vec![parameter_1, parameter_2]);
+        let parameter_list_submessage_element = ParameterListSubmessageElement {
+            parameter: vec![parameter_1, parameter_2],
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter_list_submessage_element).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length
@@ -214,7 +207,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list_empty() {
-        let parameter = ParameterListSubmessageElementWrite { parameter: vec![] };
+        let parameter = ParameterListSubmessageElement { parameter: vec![] };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
@@ -224,7 +217,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_list() {
-        let expected = ParameterListSubmessageElementRead {
+        let expected = ParameterListSubmessageElement {
             parameter: vec![
                 Parameter {
                     parameter_id: ParameterId(0x02),
@@ -261,7 +254,7 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
         ];
 
-        let expected = ParameterListSubmessageElementRead {
+        let expected = ParameterListSubmessageElement {
             parameter: vec![Parameter {
                 parameter_id: ParameterId(0x32),
                 length: 24,
@@ -303,7 +296,7 @@ mod tests {
             0x02, 0x02, 0x02, 0x02,
         ];
 
-        let expected = ParameterListSubmessageElementRead {
+        let expected = ParameterListSubmessageElement {
             parameter: vec![
                 Parameter {
                     parameter_id: ParameterId(0x32),

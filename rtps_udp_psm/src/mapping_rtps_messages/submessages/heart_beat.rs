@@ -70,17 +70,16 @@ impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessageRead {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        mapping_traits::{from_bytes, to_bytes},
-        messages::submessage_elements::{
-            CountSubmessageElementPsm, EntityIdSubmessageElementPsm,
-            SequenceNumberSubmessageElementPsm,
-        },
-    };
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
     use rust_rtps_pim::{
-        messages::types::Count,
+        messages::{
+            submessage_elements::{
+                CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+            },
+            types::Count,
+        },
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -89,15 +88,15 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = true;
-        let reader_id = EntityIdSubmessageElementPsm {
+        let reader_id = EntityIdSubmessageElement {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElementPsm {
+        let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let first_sn = SequenceNumberSubmessageElementPsm { value: 5 };
-        let last_sn = SequenceNumberSubmessageElementPsm { value: 7 };
-        let count = CountSubmessageElementPsm { value: Count(2) };
+        let first_sn = SequenceNumberSubmessageElement { value: 5 };
+        let last_sn = SequenceNumberSubmessageElement { value: 7 };
+        let count = CountSubmessageElement { value: Count(2) };
         let submessage = HeartbeatSubmessageWrite::new(
             endianness_flag,
             final_flag,
@@ -127,15 +126,15 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = true;
-        let reader_id = EntityIdSubmessageElementPsm {
+        let reader_id = EntityIdSubmessageElement {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElementPsm {
+        let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let first_sn = SequenceNumberSubmessageElementPsm { value: 5 };
-        let last_sn = SequenceNumberSubmessageElementPsm { value: 7 };
-        let count = CountSubmessageElementPsm { value: Count(2) };
+        let first_sn = SequenceNumberSubmessageElement { value: 5 };
+        let last_sn = SequenceNumberSubmessageElement { value: 7 };
+        let count = CountSubmessageElement { value: Count(2) };
         let expected = HeartbeatSubmessageRead::new(
             endianness_flag,
             final_flag,

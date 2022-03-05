@@ -5,7 +5,6 @@ use rust_dds_rtps_implementation::{
 use rust_rtps_pim::{
     behavior::stateful_reader_behavior::StatefulReaderBehavior,
     messages::{
-        submessage_elements::TimestampSubmessageElementAttributes,
         submessages::InfoTimestampSubmessageAttributes,
         types::{Time, TIME_INVALID},
     },
@@ -121,13 +120,11 @@ impl MessageReceiver {
 
     fn process_info_timestamp_submessage(
         &mut self,
-        info_timestamp: &impl InfoTimestampSubmessageAttributes<
-            TimestampSubmessageElementType = impl TimestampSubmessageElementAttributes,
-        >,
+        info_timestamp: &impl InfoTimestampSubmessageAttributes,
     ) {
         if info_timestamp.invalidate_flag() == false {
             self.have_timestamp = true;
-            self.timestamp = info_timestamp.timestamp().value();
+            self.timestamp = info_timestamp.timestamp().value;
         } else {
             self.have_timestamp = false;
             self.timestamp = TIME_INVALID;
@@ -154,10 +151,8 @@ pub trait ProcessAckNackSubmessage {
 #[cfg(test)]
 mod tests {
 
-    use rust_rtps_udp_psm::messages::{
-        submessage_elements::TimestampSubmessageElementPsm,
-        submessages::InfoTimestampSubmessageRead,
-    };
+    use rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
+    use rust_rtps_udp_psm::messages::submessages::InfoTimestampSubmessageRead;
 
     use super::*;
 
@@ -167,7 +162,7 @@ mod tests {
         let info_timestamp = InfoTimestampSubmessageRead::new(
             true,
             false,
-            TimestampSubmessageElementPsm { value: Time(100) },
+            TimestampSubmessageElement { value: Time(100) },
         );
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
@@ -181,7 +176,7 @@ mod tests {
         let info_timestamp = InfoTimestampSubmessageRead::new(
             true,
             true,
-            TimestampSubmessageElementPsm { value: Time(100) },
+            TimestampSubmessageElement { value: Time(100) },
         );
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 

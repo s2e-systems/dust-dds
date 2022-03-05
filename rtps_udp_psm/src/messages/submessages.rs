@@ -1,26 +1,28 @@
-use rust_rtps_pim::messages::{
-    submessages::{
-        DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
-        HeartbeatSubmessageConstructor, InfoTimestampSubmessageAttributes,
+use rust_rtps_pim::{
+    messages::{
+        submessage_elements::{
+            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
+            ParameterListSubmessageElement, SequenceNumberSetSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            TimestampSubmessageElement,
+        },
+        submessages::{
+            DataSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
+            HeartbeatSubmessageConstructor, InfoTimestampSubmessageAttributes,
+        },
+        types::SubmessageFlag,
     },
-    types::SubmessageFlag,
-};
-
-use super::submessage_elements::{
-    CountSubmessageElementPsm, EntityIdSubmessageElementPsm, ParameterListSubmessageElementRead,
-    ParameterListSubmessageElementWrite, SequenceNumberSetSubmessageElementPsm,
-    SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
-    TimestampSubmessageElementPsm,
+    structure::types::SequenceNumber,
 };
 
 #[derive(Debug, PartialEq)]
 pub struct AckNackSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub reader_sn_state: SequenceNumberSetSubmessageElementPsm,
-    pub count: CountSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub reader_sn_state: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
+    pub count: CountSubmessageElement,
 }
 
 impl AckNackSubmessageWrite {
@@ -33,10 +35,10 @@ impl AckNackSubmessageWrite {
 pub struct AckNackSubmessageRead {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub reader_sn_state: SequenceNumberSetSubmessageElementPsm,
-    pub count: CountSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub reader_sn_state: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
+    pub count: CountSubmessageElement,
 }
 
 impl AckNackSubmessageRead {
@@ -52,30 +54,25 @@ pub struct DataSubmessageWrite<'a> {
     pub data_flag: SubmessageFlag,
     pub key_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub writer_sn: SequenceNumberSubmessageElementPsm,
-    pub inline_qos: ParameterListSubmessageElementWrite<'a>,
-    pub serialized_payload: SerializedDataSubmessageElementPsm<'a>,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
+    pub serialized_payload: SerializedDataSubmessageElement<'a>,
 }
 
-impl<'a> DataSubmessageConstructor for DataSubmessageWrite<'a> {
-    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
-    type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type ParameterListSubmessageElementType = ParameterListSubmessageElementWrite<'a>;
-    type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
-
+impl<'a> DataSubmessageConstructor<'a, Vec<Parameter<'a>>> for DataSubmessageWrite<'a> {
     fn new(
         endianness_flag: SubmessageFlag,
         inline_qos_flag: SubmessageFlag,
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        writer_sn: Self::SequenceNumberSubmessageElementType,
-        inline_qos: Self::ParameterListSubmessageElementType,
-        serialized_payload: Self::SerializedDataSubmessageElementType,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        writer_sn: SequenceNumberSubmessageElement,
+        inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
+        serialized_payload: SerializedDataSubmessageElement<'a>,
     ) -> Self {
         Self {
             endianness_flag,
@@ -99,11 +96,11 @@ pub struct DataSubmessageRead<'a> {
     pub data_flag: SubmessageFlag,
     pub key_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub writer_sn: SequenceNumberSubmessageElementPsm,
-    pub inline_qos: ParameterListSubmessageElementRead<'a>,
-    pub serialized_payload: SerializedDataSubmessageElementPsm<'a>,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
+    pub serialized_payload: SerializedDataSubmessageElement<'a>,
 }
 
 impl<'a> DataSubmessageRead<'a> {
@@ -113,11 +110,11 @@ impl<'a> DataSubmessageRead<'a> {
         data_flag: SubmessageFlag,
         key_flag: SubmessageFlag,
         non_standard_payload_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElementPsm,
-        writer_id: EntityIdSubmessageElementPsm,
-        writer_sn: SequenceNumberSubmessageElementPsm,
-        inline_qos: ParameterListSubmessageElementRead<'a>,
-        serialized_payload: SerializedDataSubmessageElementPsm<'a>,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        writer_sn: SequenceNumberSubmessageElement,
+        inline_qos: ParameterListSubmessageElement<Vec<Parameter<'a>>>,
+        serialized_payload: SerializedDataSubmessageElement<'a>,
     ) -> Self {
         Self {
             endianness_flag,
@@ -134,12 +131,7 @@ impl<'a> DataSubmessageRead<'a> {
     }
 }
 
-impl<'a> DataSubmessageAttributes for DataSubmessageRead<'a> {
-    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
-    type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type ParameterListSubmessageElementType = ParameterListSubmessageElementRead<'a>;
-    type SerializedDataSubmessageElementType = SerializedDataSubmessageElementPsm<'a>;
-
+impl<'a> DataSubmessageAttributes<Vec<Parameter<'a>>> for DataSubmessageRead<'a> {
     fn endianness_flag(&self) -> SubmessageFlag {
         self.endianness_flag
     }
@@ -160,23 +152,23 @@ impl<'a> DataSubmessageAttributes for DataSubmessageRead<'a> {
         self.non_standard_payload_flag
     }
 
-    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType {
+    fn reader_id(&self) -> &EntityIdSubmessageElement {
         &self.reader_id
     }
 
-    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType {
+    fn writer_id(&self) -> &EntityIdSubmessageElement {
         &self.writer_id
     }
 
-    fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType {
+    fn writer_sn(&self) -> &SequenceNumberSubmessageElement {
         &self.writer_sn
     }
 
-    fn inline_qos(&self) -> &Self::ParameterListSubmessageElementType {
+    fn inline_qos(&self) -> &ParameterListSubmessageElement<Vec<Parameter<'a>>> {
         &self.inline_qos
     }
 
-    fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType {
+    fn serialized_payload(&self) -> &SerializedDataSubmessageElement<'_> {
         &self.serialized_payload
     }
 }
@@ -207,25 +199,21 @@ pub struct DataFragSubmessageRead();
 #[derive(Debug, PartialEq)]
 pub struct GapSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub gap_start: SequenceNumberSubmessageElementPsm,
-    pub gap_list: SequenceNumberSetSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub gap_start: SequenceNumberSubmessageElement,
+    pub gap_list: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
     // gap_start_gsn: submessage_elements::SequenceNumber,
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
 
-impl GapSubmessageConstructor for GapSubmessageWrite {
-    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
-    type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type SequenceNumberSetSubmessageElementType = SequenceNumberSetSubmessageElementPsm;
-
+impl GapSubmessageConstructor<Vec<SequenceNumber>> for GapSubmessageWrite {
     fn new(
         endianness_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        gap_start: Self::SequenceNumberSubmessageElementType,
-        gap_list: Self::SequenceNumberSetSubmessageElementType,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        gap_start: SequenceNumberSubmessageElement,
+        gap_list: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
     ) -> Self {
         Self {
             endianness_flag,
@@ -240,10 +228,10 @@ impl GapSubmessageConstructor for GapSubmessageWrite {
 #[derive(Debug, PartialEq)]
 pub struct GapSubmessageRead {
     pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub gap_start: SequenceNumberSubmessageElementPsm,
-    pub gap_list: SequenceNumberSetSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub gap_start: SequenceNumberSubmessageElement,
+    pub gap_list: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
     // gap_start_gsn: submessage_elements::SequenceNumber,
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
@@ -251,10 +239,10 @@ pub struct GapSubmessageRead {
 impl GapSubmessageRead {
     pub fn new(
         endianness_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElementPsm,
-        writer_id: EntityIdSubmessageElementPsm,
-        gap_start: SequenceNumberSubmessageElementPsm,
-        gap_list: SequenceNumberSetSubmessageElementPsm,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        gap_start: SequenceNumberSubmessageElement,
+        gap_list: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
     ) -> Self {
         Self {
             endianness_flag,
@@ -266,16 +254,16 @@ impl GapSubmessageRead {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct HeartbeatSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
     pub liveliness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub first_sn: SequenceNumberSubmessageElementPsm,
-    pub last_sn: SequenceNumberSubmessageElementPsm,
-    pub count: CountSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub first_sn: SequenceNumberSubmessageElement,
+    pub last_sn: SequenceNumberSubmessageElement,
+    pub count: CountSubmessageElement,
     // current_gsn: submessage_elements::SequenceNumber,
     // first_gsn: submessage_elements::SequenceNumber,
     // last_gsn: submessage_elements::SequenceNumber,
@@ -288,11 +276,11 @@ pub struct HeartbeatSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
     pub liveliness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub first_sn: SequenceNumberSubmessageElementPsm,
-    pub last_sn: SequenceNumberSubmessageElementPsm,
-    pub count: CountSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub first_sn: SequenceNumberSubmessageElement,
+    pub last_sn: SequenceNumberSubmessageElement,
+    pub count: CountSubmessageElement,
     // current_gsn: submessage_elements::SequenceNumber,
     // first_gsn: submessage_elements::SequenceNumber,
     // last_gsn: submessage_elements::SequenceNumber,
@@ -305,11 +293,11 @@ impl HeartbeatSubmessageWrite {
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElementPsm,
-        writer_id: EntityIdSubmessageElementPsm,
-        first_sn: SequenceNumberSubmessageElementPsm,
-        last_sn: SequenceNumberSubmessageElementPsm,
-        count: CountSubmessageElementPsm,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        first_sn: SequenceNumberSubmessageElement,
+        last_sn: SequenceNumberSubmessageElement,
+        count: CountSubmessageElement,
     ) -> Self {
         Self {
             endianness_flag,
@@ -325,19 +313,15 @@ impl HeartbeatSubmessageWrite {
 }
 
 impl HeartbeatSubmessageConstructor for HeartbeatSubmessageWrite {
-    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
-    type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-    type CountSubmessageElementType = CountSubmessageElementPsm;
-
     fn new(
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        first_sn: Self::SequenceNumberSubmessageElementType,
-        last_sn: Self::SequenceNumberSubmessageElementType,
-        count: Self::CountSubmessageElementType,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        first_sn: SequenceNumberSubmessageElement,
+        last_sn: SequenceNumberSubmessageElement,
+        count: CountSubmessageElement,
     ) -> Self {
         Self {
             endianness_flag,
@@ -357,11 +341,11 @@ pub struct HeartbeatSubmessageRead {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
     pub liveliness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub first_sn: SequenceNumberSubmessageElementPsm,
-    pub last_sn: SequenceNumberSubmessageElementPsm,
-    pub count: CountSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub first_sn: SequenceNumberSubmessageElement,
+    pub last_sn: SequenceNumberSubmessageElement,
+    pub count: CountSubmessageElement,
     // current_gsn: submessage_elements::SequenceNumber,
     // first_gsn: submessage_elements::SequenceNumber,
     // last_gsn: submessage_elements::SequenceNumber,
@@ -374,11 +358,11 @@ impl HeartbeatSubmessageRead {
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElementPsm,
-        writer_id: EntityIdSubmessageElementPsm,
-        first_sn: SequenceNumberSubmessageElementPsm,
-        last_sn: SequenceNumberSubmessageElementPsm,
-        count: CountSubmessageElementPsm,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        first_sn: SequenceNumberSubmessageElement,
+        last_sn: SequenceNumberSubmessageElement,
+        count: CountSubmessageElement,
     ) -> Self {
         Self {
             endianness_flag,
@@ -479,12 +463,10 @@ impl InfoTimestampSubmessageWrite {
 pub struct InfoTimestampSubmessageRead {
     endianness_flag: SubmessageFlag,
     invalidate_flag: SubmessageFlag,
-    timestamp: TimestampSubmessageElementPsm,
+    timestamp: TimestampSubmessageElement,
 }
 
 impl InfoTimestampSubmessageAttributes for InfoTimestampSubmessageRead {
-    type TimestampSubmessageElementType = TimestampSubmessageElementPsm;
-
     fn endianness_flag(&self) -> SubmessageFlag {
         self.endianness_flag
     }
@@ -493,7 +475,7 @@ impl InfoTimestampSubmessageAttributes for InfoTimestampSubmessageRead {
         self.invalidate_flag
     }
 
-    fn timestamp(&self) -> &Self::TimestampSubmessageElementType {
+    fn timestamp(&self) -> &TimestampSubmessageElement {
         &self.timestamp
     }
 }
@@ -502,7 +484,7 @@ impl InfoTimestampSubmessageRead {
     pub fn new(
         endianness_flag: SubmessageFlag,
         invalidate_flag: SubmessageFlag,
-        timestamp: TimestampSubmessageElementPsm,
+        timestamp: TimestampSubmessageElement,
     ) -> Self {
         Self {
             endianness_flag,
