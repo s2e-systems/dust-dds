@@ -1,4 +1,5 @@
-#![no_std]
+// Enable std crate for testing only
+#![cfg_attr(not(test), no_std)]
 
 /// This crate implements the chapter
 /// "8 Platform Independent Model (PIM)" from
@@ -36,5 +37,3 @@ pub mod behavior;
 pub mod messages;
 pub mod structure;
 pub mod discovery;
-
-

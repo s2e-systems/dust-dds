@@ -8,10 +8,6 @@ use rust_rtps_pim::{
             },
             writer_proxy::RtpsWriterProxyAttributes,
         },
-        stateful_reader_behavior::{
-            BestEffortStatefulReaderBehavior, ReliableStatefulReaderBehavior,
-            StatefulReaderBehavior,
-        },
         types::Duration,
     },
     structure::{
@@ -126,73 +122,9 @@ impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
         self.matched_writers.retain(|x| !f(x))
     }
 
-    fn matched_writer_lookup(&self, a_writer_guid: Guid) -> Option<&Self::WriterProxyType> {
+    fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut Self::WriterProxyType> {
         self.matched_writers
-            .iter()
+            .iter_mut()
             .find(|x| x.remote_writer_guid() == a_writer_guid)
     }
 }
-
-impl RtpsStatefulReaderImpl {
-    pub fn behavior<'a>(
-        &'a mut self,
-    ) -> Option<StatefulReaderBehavior<'a, RtpsWriterProxyImpl, RtpsHistoryCacheImpl>> {
-        match self.reliability_level() {
-            ReliabilityKind::BestEffort => Some(StatefulReaderBehavior::BestEffort(
-                BestEffortStatefulReaderBehavior,
-            )),
-
-            ReliabilityKind::Reliable => Some(StatefulReaderBehavior::<
-                'a,
-                RtpsWriterProxyImpl,
-                RtpsHistoryCacheImpl,
-            >::Reliable(
-                ReliableStatefulReaderBehavior::<'a, RtpsWriterProxyImpl, RtpsHistoryCacheImpl> {
-                    writer_proxy: self.matched_writers.iter_mut().next()?,
-                    reader_cache: &mut self.reader.reader_cache,
-                },
-            )),
-        }
-    }
-}
-
-// impl<'a> IntoIterator for &'a mut RtpsStatefulReaderImpl {
-//     type Item = StatefulReaderBehavior<'a, RtpsWriterProxyImpl, ReaderHistoryCache>;
-//     type IntoIter = StatefulReaderIterator<'a>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         StatefulReaderIterator {
-//             reliability_level: self.reader.endpoint.reliability_level.clone(),
-//             writer_proxy: self.matched_writers.as_slice().iter_mut(),
-//             reader_cache: &mut self.reader.reader_cache,
-//         }
-//     }
-// }
-
-// pub struct StatefulReaderIterator<'a> {
-//     reliability_level: ReliabilityKind,
-//     writer_proxy: core::slice::IterMut<'a, RtpsWriterProxyImpl>,
-//     reader_cache: &'a mut ReaderHistoryCache,
-// }
-
-// impl<'a> Iterator for StatefulReaderIterator<'a> {
-//     type Item = StatefulReaderBehavior<'a, RtpsWriterProxyImpl, ReaderHistoryCache>;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         match self.reliability_level {
-//             ReliabilityKind::BestEffort => {
-//                 Some(StatefulReaderBehavior::BestEffort(
-//                     BestEffortStatefulReaderBehavior
-//                 ))
-//             }
-//             ReliabilityKind::Reliable => {
-//                 Some(StatefulReaderBehavior::<'a, RtpsWriterProxyImpl, ReaderHistoryCache>::Reliable(
-//                     ReliableStatefulReaderBehavior::<'a, RtpsWriterProxyImpl, ReaderHistoryCache> {
-//                         writer_proxy: self.writer_proxy.next()?,
-//                         reader_cache: self.reader_cache,
-//                     }
-//                 ))
-//             },
-//         }
-//     }
-// }
