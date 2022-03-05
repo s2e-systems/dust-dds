@@ -7,7 +7,7 @@ use crate::{
             CountSubmessageElementConstructor, EntityIdSubmessageElement,
             EntityIdSubmessageElementConstructor, Parameter, ParameterListSubmessageElement,
             SequenceNumberSetSubmessageElement, SequenceNumberSetSubmessageElementAttributes,
-            SequenceNumberSetSubmessageElementConstructor,
+            SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
             SequenceNumberSubmessageElementConstructor, SerializedDataSubmessageElement,
         },
         submessages::{
@@ -52,11 +52,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         mut send_gap: impl FnMut(Gap),
     ) where
         R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
-        Data: DataSubmessageConstructor<
-            'a,
-            P,
-            SequenceNumberSubmessageElementType = SequenceNumberElement,
-        >,
+        Data: DataSubmessageConstructor<'a, P>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
@@ -95,7 +91,9 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 let writer_id = EntityIdSubmessageElement {
                     value: change.writer_guid().entity_id(),
                 };
-                let writer_sn = SequenceNumberElement::new(change.sequence_number());
+                let writer_sn = SequenceNumberSubmessageElement {
+                    value: change.sequence_number(),
+                };
                 let inline_qos = ParameterListSubmessageElement {
                     parameter: change.inline_qos().into_iter().collect(),
                 };
@@ -157,11 +155,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     ) where
         R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        Data: DataSubmessageConstructor<
-            'a,
-            P,
-            SequenceNumberSubmessageElementType = SequenceNumberElement,
-        >,
+        Data: DataSubmessageConstructor<'a, P>,
         EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
@@ -200,7 +194,9 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let writer_id = EntityIdSubmessageElement {
                     value: change.writer_guid().entity_id(),
                 };
-                let writer_sn = SequenceNumberElement::new(change.sequence_number());
+                let writer_sn = SequenceNumberSubmessageElement {
+                    value: change.sequence_number(),
+                };
                 let inline_qos = ParameterListSubmessageElement {
                     parameter: change.inline_qos().into_iter().collect(),
                 };
@@ -305,11 +301,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     ) where
         R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        Data: DataSubmessageConstructor<
-            'a,
-            P,
-            SequenceNumberSubmessageElementType = SequenceNumberElement,
-        >,
+        Data: DataSubmessageConstructor<'a, P>,
         EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
@@ -348,7 +340,9 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 let writer_id = EntityIdSubmessageElement {
                     value: change.writer_guid().entity_id(),
                 };
-                let writer_sn = SequenceNumberElement::new(change.sequence_number());
+                let writer_sn = SequenceNumberSubmessageElement {
+                    value: change.sequence_number(),
+                };
                 let inline_qos = ParameterListSubmessageElement {
                     parameter: change.inline_qos().into_iter().collect(),
                 };

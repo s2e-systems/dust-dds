@@ -1,11 +1,5 @@
 use crate::{
-    messages::{
-        submessage_elements::{
-            Parameter, SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementAttributes,
-        },
-        submessages::DataSubmessageAttributes,
-    },
+    messages::{submessage_elements::Parameter, submessages::DataSubmessageAttributes},
     structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::RtpsHistoryCacheOperations,
@@ -22,11 +16,7 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
     pub fn receive_data<P>(
         &mut self,
         source_guid_prefix: GuidPrefix,
-        data: &impl DataSubmessageAttributes<
-            P,
-            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
-        >,
+        data: &impl DataSubmessageAttributes<P>,
     ) where
         H: RtpsHistoryCacheOperations,
         for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<
@@ -45,8 +35,8 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
             };
             let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value);
             let instance_handle = 0;
-            let sequence_number = data.writer_sn().value();
-            let data_value = data.serialized_payload().value();
+            let sequence_number = data.writer_sn().value;
+            let data_value = data.serialized_payload().value;
             let inline_qos = data.inline_qos().parameter.as_ref();
             let a_change = H::CacheChangeType::new(
                 kind,

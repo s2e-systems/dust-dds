@@ -1,11 +1,5 @@
 use crate::{
-    messages::{
-        submessage_elements::{
-            Parameter, SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementAttributes,
-        },
-        submessages::DataSubmessageAttributes,
-    },
+    messages::{submessage_elements::Parameter, submessages::DataSubmessageAttributes},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::RtpsHistoryCacheOperations,
@@ -31,11 +25,7 @@ impl BestEffortStatefulReaderBehavior {
             WriterProxyType = impl RtpsWriterProxyOperations,
         >,
         source_guid_prefix: GuidPrefix,
-        data: &impl DataSubmessageAttributes<
-            P,
-            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
-        >,
+        data: &impl DataSubmessageAttributes<P>,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
         if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(writer_guid) {
@@ -53,11 +43,7 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
     pub fn receive_data<P>(
         &mut self,
         source_guid_prefix: GuidPrefix,
-        data: &impl DataSubmessageAttributes<
-            P,
-            SequenceNumberSubmessageElementType = impl SequenceNumberSubmessageElementAttributes,
-            SerializedDataSubmessageElementType = impl SerializedDataSubmessageElementAttributes,
-        >,
+        data: &impl DataSubmessageAttributes<P>,
     ) where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheOperations,
@@ -76,8 +62,8 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
                 _ => todo!(),
             };
             let instance_handle = 0;
-            let sequence_number = data.writer_sn().value();
-            let data_value = data.serialized_payload().value();
+            let sequence_number = data.writer_sn().value;
+            let data_value = data.serialized_payload().value;
             let inline_qos = data.inline_qos().parameter.as_ref();
             let a_change = H::CacheChangeType::new(
                 kind,

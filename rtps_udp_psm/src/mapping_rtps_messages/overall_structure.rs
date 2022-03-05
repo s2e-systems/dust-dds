@@ -89,16 +89,13 @@ mod tests {
 
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};
-    use crate::messages::submessage_elements::{
-        SequenceNumberSubmessageElementPsm, SerializedDataSubmessageElementPsm,
-    };
     use crate::messages::submessages::{DataSubmessageRead, DataSubmessageWrite};
     use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
     use rust_rtps_pim::messages::submessage_elements::{
         EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     };
 
-    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSubmessageElementConstructor;
     use rust_rtps_pim::messages::submessages::DataSubmessageConstructor;
     use rust_rtps_pim::messages::types::ParameterId;
     use rust_rtps_pim::messages::types::ProtocolId;
@@ -145,7 +142,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElementPsm::new(5);
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter {
             parameter_id: ParameterId(6),
             length: 4,
@@ -159,10 +156,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload =
-            rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElement {
-                value: &[][..],
-            };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = RtpsSubmessageTypeWrite::Data(DataSubmessageWrite::new(
             endianness_flag,
@@ -238,7 +232,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElementPsm { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter {
             parameter_id: ParameterId(6),
             length: 4,
@@ -252,7 +246,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElementPsm { value: &[][..] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = RtpsSubmessageTypeRead::Data(DataSubmessageRead::new(
             endianness_flag,
@@ -308,7 +302,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElementPsm { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter {
             parameter_id: ParameterId(6),
             length: 4,
@@ -322,7 +316,7 @@ mod tests {
         let inline_qos = ParameterListSubmessageElement {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElementPsm { value: &[][..] };
+        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
 
         let submessage = RtpsSubmessageTypeRead::Data(DataSubmessageRead::new(
             endianness_flag,

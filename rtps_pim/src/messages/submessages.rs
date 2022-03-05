@@ -1,7 +1,7 @@
 use super::{
     submessage_elements::{
         EntityIdSubmessageElement, ParameterListSubmessageElement,
-        SequenceNumberSetSubmessageElement, SerializedDataSubmessageElement,
+        SequenceNumberSetSubmessageElement, SerializedDataSubmessageElement, SequenceNumberSubmessageElement,
     },
     types::SubmessageFlag,
 };
@@ -35,8 +35,6 @@ pub trait AckNackSubmessageAttributes {
 }
 
 pub trait DataSubmessageConstructor<'a, P> {
-    type SequenceNumberSubmessageElementType;
-
     fn new(
         endianness_flag: SubmessageFlag,
         inline_qos_flag: SubmessageFlag,
@@ -45,16 +43,13 @@ pub trait DataSubmessageConstructor<'a, P> {
         non_standard_payload_flag: SubmessageFlag,
         reader_id: EntityIdSubmessageElement,
         writer_id: EntityIdSubmessageElement,
-        writer_sn: Self::SequenceNumberSubmessageElementType,
+        writer_sn: SequenceNumberSubmessageElement,
         inline_qos: ParameterListSubmessageElement<P>,
         serialized_payload: SerializedDataSubmessageElement<'a>,
     ) -> Self;
 }
 
 pub trait DataSubmessageAttributes<P> {
-    type SequenceNumberSubmessageElementType;
-    type SerializedDataSubmessageElementType;
-
     fn endianness_flag(&self) -> SubmessageFlag;
     fn inline_qos_flag(&self) -> SubmessageFlag;
     fn data_flag(&self) -> SubmessageFlag;
@@ -62,9 +57,9 @@ pub trait DataSubmessageAttributes<P> {
     fn non_standard_payload_flag(&self) -> SubmessageFlag;
     fn reader_id(&self) -> &EntityIdSubmessageElement;
     fn writer_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
+    fn writer_sn(&self) -> &SequenceNumberSubmessageElement;
     fn inline_qos(&self) -> &ParameterListSubmessageElement<P>;
-    fn serialized_payload(&self) -> &Self::SerializedDataSubmessageElementType;
+    fn serialized_payload(&self) -> &SerializedDataSubmessageElement<'_>;
 }
 
 pub trait DataFragSubmessageConstructor {

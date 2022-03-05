@@ -78,6 +78,11 @@ pub trait ProtocolVersionSubmessageElementAttributes {
     fn value(&self) -> ProtocolVersion;
 }
 
+#[derive(Debug, PartialEq)]
+pub struct SequenceNumberSubmessageElement {
+    pub value: SequenceNumber,
+}
+
 pub trait SequenceNumberSubmessageElementConstructor {
     fn new(value: SequenceNumber) -> Self;
 }
