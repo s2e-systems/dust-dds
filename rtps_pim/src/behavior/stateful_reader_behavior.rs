@@ -1,5 +1,3 @@
-use core::iter::FromIterator;
-
 use crate::{
     messages::{
         submessage_elements::{
@@ -120,13 +118,14 @@ impl ReliableStatefulReaderBehavior {
 
     // 8.4.12.2.5 Transition T5
     pub fn send_ack_nack<S>(
-        writer_proxy: &mut (impl RtpsWriterProxyOperations + RtpsWriterProxyAttributes),
+        // Might be a bit too restrictive to oblige the missing changes and the AckNack to be the same type S.
+        // However this will generally be S=Vec<SequenceNumber> so it stays like this for now for easy implementation
+        writer_proxy: &mut (impl RtpsWriterProxyOperations<SequenceNumberListType = S>
+                  + RtpsWriterProxyAttributes),
         reader_id: EntityId,
         acknack_count: Count,
         mut send_acknack: impl FnMut(AckNackSubmessage<S>),
-    ) where
-        S: FromIterator<SequenceNumber>,
-    {
+    ) {
         let endianness_flag = true;
         let final_flag = true;
         let reader_id = EntityIdSubmessageElement { value: reader_id };
@@ -134,12 +133,9 @@ impl ReliableStatefulReaderBehavior {
             value: writer_proxy.remote_writer_guid().entity_id,
         };
 
-        // FOREACH change IN the_writer_proxy.missing_changes() DO ADD change.sequenceNumber TO missing_seq_num_set.set;
-        let _missing_changes = writer_proxy.missing_changes();
-
         let reader_sn_state = SequenceNumberSetSubmessageElement {
             base: writer_proxy.available_changes_max() + 1,
-            set: core::iter::empty().collect(),
+            set: writer_proxy.missing_changes(),
         };
         let count = CountSubmessageElement {
             value: acknack_count,
@@ -267,15 +263,15 @@ mod tests {
         where
             F: FnMut(&Self::CacheChangeType) -> bool,
         {
-            todo!()
+            unimplemented!()
         }
 
         fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-            todo!()
+            unimplemented!()
         }
 
         fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-            todo!()
+            unimplemented!()
         }
     }
 
@@ -599,7 +595,7 @@ mod tests {
         let writer_id = EntityId::new([1; 3], 2);
         let acknack_count = Count(2);
         let writer_available_changes_max = 5;
-        let missing_changes = vec![1,2];
+        let missing_changes = vec![1, 2];
 
         let expected_acknack = AckNackSubmessage {
             endianness_flag: true,
