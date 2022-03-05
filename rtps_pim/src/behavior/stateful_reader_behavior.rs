@@ -18,26 +18,21 @@ use crate::{
 
 use super::reader::writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations};
 
-pub enum StatefulReaderBehavior {
-    BestEffort(BestEffortStatefulReaderBehavior),
-    Reliable(ReliableStatefulReaderBehavior),
-}
-
 pub struct BestEffortStatefulReaderBehavior;
 
 impl BestEffortStatefulReaderBehavior {
-    pub fn receive_data<C, P>(
+    pub fn receive_data<'a, C, P>(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
         reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
         source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<'_, P>,
+        data: &'a DataSubmessage<'_, P>,
     ) where
-        for<'a> C: RtpsCacheChangeConstructor<
+        C: RtpsCacheChangeConstructor<
                 'a,
                 DataType = &'a [u8],
                 ParameterListType = &'a [Parameter<'a>],
             > + RtpsCacheChangeAttributes<'a>,
-        for<'a> P: AsRef<[Parameter<'a>]>,
+        P: AsRef<[Parameter<'a>]>,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
         let kind = match (data.data_flag, data.key_flag) {
@@ -84,18 +79,18 @@ impl BestEffortStatefulReaderBehavior {
 pub struct ReliableStatefulReaderBehavior;
 
 impl ReliableStatefulReaderBehavior {
-    pub fn receive_data<C, P>(
+    pub fn receive_data<'a, C, P>(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
         reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
         source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<'_, P>,
+        data: &'a DataSubmessage<'_, P>,
     ) where
-        for<'a> C: RtpsCacheChangeConstructor<
+        C: RtpsCacheChangeConstructor<
                 'a,
                 DataType = &'a [u8],
                 ParameterListType = &'a [Parameter<'a>],
             > + RtpsCacheChangeAttributes<'a>,
-        for<'a> P: AsRef<[Parameter<'a>]>,
+        P: AsRef<[Parameter<'a>]>,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
 

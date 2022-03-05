@@ -3,15 +3,21 @@ use rust_dds_rtps_implementation::{
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
-    behavior::stateful_reader_behavior::StatefulReaderBehavior,
+    behavior::{
+        reader::writer_proxy::RtpsWriterProxyAttributes,
+        stateful_reader_behavior::{
+            BestEffortStatefulReaderBehavior, ReliableStatefulReaderBehavior,
+        },
+    },
     messages::{
         submessage_elements::Parameter,
         submessages::{AckNackSubmessage, DataSubmessage, InfoTimestampSubmessage},
         types::{Time, TIME_INVALID},
     },
     structure::types::{
-        GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
-        LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+        Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber, VendorId,
+        GUIDPREFIX_UNKNOWN, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION,
+        VENDOR_ID_UNKNOWN,
     },
 };
 use rust_rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
@@ -48,7 +54,7 @@ impl MessageReceiver {
         participant_guid_prefix: GuidPrefix,
         list: &'a [RtpsShared<SubscriberAttributes<RtpsStructureImpl>>],
         source_locator: Locator,
-        message: &'a RtpsMessage,
+        message: &'a RtpsMessage<'a>,
     ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
@@ -84,16 +90,32 @@ impl MessageReceiver {
                                     }
                                 }
                                 RtpsReader::Stateful(stateful_rtps_reader) => {
-                                    for stateful_reader_behavior in
-                                        stateful_rtps_reader.behavior().into_iter()
+                                    let writer_guid =
+                                        Guid::new(self.source_guid_prefix, data.writer_id.value);
+                                    if let Some(writer_proxy) = stateful_rtps_reader
+                                        .matched_writers
+                                        .iter_mut()
+                                        .find(|x| x.remote_writer_guid() == writer_guid)
                                     {
-                                        // match stateful_reader_behavior {
-                                        //     StatefulReaderBehavior::BestEffort(_) => todo!(),
-                                        //     StatefulReaderBehavior::Reliable(
-                                        //         mut reliable_stateful_reader,
-                                        //     ) => reliable_stateful_reader
-                                        //         .receive_data(self.source_guid_prefix, data),
-                                        // }
+                                        match stateful_rtps_reader.reader.endpoint.reliability_level
+                                        {
+                                            ReliabilityKind::BestEffort => {
+                                                BestEffortStatefulReaderBehavior::receive_data(
+                                                    writer_proxy,
+                                                    &mut stateful_rtps_reader.reader.reader_cache,
+                                                    self.source_guid_prefix,
+                                                    data,
+                                                )
+                                            }
+                                            ReliabilityKind::Reliable => {
+                                                ReliableStatefulReaderBehavior::receive_data(
+                                                    writer_proxy,
+                                                    &mut stateful_rtps_reader.reader.reader_cache,
+                                                    self.source_guid_prefix,
+                                                    data,
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
