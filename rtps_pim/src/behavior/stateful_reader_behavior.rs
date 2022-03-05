@@ -1,20 +1,26 @@
+use core::iter::FromIterator;
+
 use crate::{
     messages::{
-        submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage},
+        submessage_elements::{
+            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
+            SequenceNumberSetSubmessageElement,
+        },
+        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        types::Count,
     },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, Guid, GuidPrefix, SequenceNumber},
+        types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
     },
 };
 
 use super::reader::writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations};
 
-pub enum StatefulReaderBehavior<'a, W, H> {
+pub enum StatefulReaderBehavior {
     BestEffort(BestEffortStatefulReaderBehavior),
-    Reliable(ReliableStatefulReaderBehavior<'a, W, H>),
+    Reliable(ReliableStatefulReaderBehavior),
 }
 
 pub struct BestEffortStatefulReaderBehavior;
@@ -75,58 +81,97 @@ impl BestEffortStatefulReaderBehavior {
     }
 }
 
-pub struct ReliableStatefulReaderBehavior<'a, W, H> {
-    pub writer_proxy: &'a mut W,
-    pub reader_cache: &'a mut H,
-}
+pub struct ReliableStatefulReaderBehavior;
 
-impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
-    pub fn receive_data<P>(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<'_, P>)
-    where
-        W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
-        H: RtpsHistoryCacheOperations,
-        for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<
-                'b,
-                DataType = &'b [u8],
-                ParameterListType = &'b [Parameter<'b>],
-            > + RtpsCacheChangeAttributes<'b>,
-        P: AsRef<[Parameter<'a>]>,
+impl ReliableStatefulReaderBehavior {
+    pub fn receive_data<C, P>(
+        writer_proxy: &mut impl RtpsWriterProxyOperations,
+        reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessage<'_, P>,
+    ) where
+        for<'a> C: RtpsCacheChangeConstructor<
+                'a,
+                DataType = &'a [u8],
+                ParameterListType = &'a [Parameter<'a>],
+            > + RtpsCacheChangeAttributes<'a>,
+        for<'a> P: AsRef<[Parameter<'a>]>,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
-        if writer_guid == self.writer_proxy.remote_writer_guid() {
-            let kind = match (data.data_flag, data.key_flag) {
-                (true, false) => ChangeKind::Alive,
-                (false, true) => ChangeKind::NotAliveDisposed,
-                _ => todo!(),
-            };
-            let instance_handle = 0;
-            let sequence_number = data.writer_sn.value;
-            let data_value = data.serialized_payload.value;
-            let inline_qos = data.inline_qos.parameter.as_ref();
-            let a_change = H::CacheChangeType::new(
-                kind,
-                writer_guid,
-                instance_handle,
-                sequence_number,
-                data_value,
-                inline_qos,
-            );
-            self.writer_proxy
-                .received_change_set(a_change.sequence_number());
-            self.reader_cache.add_change(a_change);
+
+        let kind = match (data.data_flag, data.key_flag) {
+            (true, false) => ChangeKind::Alive,
+            (false, true) => ChangeKind::NotAliveDisposed,
+            _ => todo!(),
+        };
+        let instance_handle = 0;
+        let sequence_number = data.writer_sn.value;
+        let data_value = data.serialized_payload.value;
+        let inline_qos = data.inline_qos.parameter.as_ref();
+        let a_change = C::new(
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data_value,
+            inline_qos,
+        );
+        writer_proxy.received_change_set(a_change.sequence_number());
+        reader_cache.add_change(a_change);
+    }
+
+    pub fn send_ack_nack<S>(
+        writer_proxy: &mut (impl RtpsWriterProxyOperations + RtpsWriterProxyAttributes),
+        reader_id: EntityId,
+        acknack_count: Count,
+        mut send_acknack: impl FnMut(AckNackSubmessage<S>),
+    ) where
+        S: FromIterator<SequenceNumber>,
+    {
+        let endianness_flag = true;
+        let final_flag = false;
+        let reader_id = EntityIdSubmessageElement { value: reader_id };
+        let writer_id = EntityIdSubmessageElement {
+            value: writer_proxy.remote_writer_guid().entity_id,
+        };
+        let reader_sn_state = SequenceNumberSetSubmessageElement {
+            base: writer_proxy.available_changes_max() + 1,
+            set: core::iter::empty().collect(), // FOREACH change IN the_writer_proxy.missing_changes() DO ADD change.sequenceNumber TO missing_seq_num_set.set;
+        };
+        let count = CountSubmessageElement {
+            value: acknack_count,
+        };
+
+        let acknack_submessage = AckNackSubmessage {
+            endianness_flag,
+            final_flag,
+            reader_id,
+            writer_id,
+            reader_sn_state,
+            count,
+        };
+
+        send_acknack(acknack_submessage);
+    }
+
+    pub fn receive_heartbeat(
+        writer_proxy: &mut impl RtpsWriterProxyOperations,
+        heartbeat: HeartbeatSubmessage,
+    ) {
+        writer_proxy.missing_changes_update(heartbeat.last_sn.value);
+        writer_proxy.lost_changes_update(heartbeat.first_sn.value);
+    }
+
+    pub fn receive_gap<S>(writer_proxy: &mut impl RtpsWriterProxyOperations, gap: GapSubmessage<S>)
+    where
+        S: IntoIterator<Item = SequenceNumber>,
+    {
+        for seq_num in gap.gap_start.value..gap.gap_list.base - 1 {
+            writer_proxy.irrelevant_change_set(seq_num);
         }
-    }
-
-    pub fn send_ack_nack(&mut self) {
-        todo!("ReliableStatefulReaderBehavior send AckNack");
-    }
-
-    pub fn receive_heartbeat(&mut self) {
-        todo!("ReliableStatefulReaderBehavior send AckNack");
-    }
-
-    pub fn receive_gap(&mut self) {
-        todo!("ReliableStatefulReaderBehavior receive Gap");
+        for seq_num in gap.gap_list.set {
+            writer_proxy.irrelevant_change_set(seq_num);
+        }
     }
 }
 

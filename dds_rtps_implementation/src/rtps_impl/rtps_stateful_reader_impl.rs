@@ -134,23 +134,14 @@ impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
 }
 
 impl RtpsStatefulReaderImpl {
-    pub fn behavior<'a>(
-        &'a mut self,
-    ) -> Option<StatefulReaderBehavior<'a, RtpsWriterProxyImpl, RtpsHistoryCacheImpl>> {
+    pub fn behavior<'a>(&'a mut self) -> Option<StatefulReaderBehavior> {
         match self.reliability_level() {
             ReliabilityKind::BestEffort => Some(StatefulReaderBehavior::BestEffort(
                 BestEffortStatefulReaderBehavior,
             )),
 
-            ReliabilityKind::Reliable => Some(StatefulReaderBehavior::<
-                'a,
-                RtpsWriterProxyImpl,
-                RtpsHistoryCacheImpl,
-            >::Reliable(
-                ReliableStatefulReaderBehavior::<'a, RtpsWriterProxyImpl, RtpsHistoryCacheImpl> {
-                    writer_proxy: self.matched_writers.iter_mut().next()?,
-                    reader_cache: &mut self.reader.reader_cache,
-                },
+            ReliabilityKind::Reliable => Some(StatefulReaderBehavior::Reliable(
+                ReliableStatefulReaderBehavior,
             )),
         }
     }

@@ -87,13 +87,13 @@ impl MessageReceiver {
                                     for stateful_reader_behavior in
                                         stateful_rtps_reader.behavior().into_iter()
                                     {
-                                        match stateful_reader_behavior {
-                                            StatefulReaderBehavior::BestEffort(_) => todo!(),
-                                            StatefulReaderBehavior::Reliable(
-                                                mut reliable_stateful_reader,
-                                            ) => reliable_stateful_reader
-                                                .receive_data(self.source_guid_prefix, data),
-                                        }
+                                        // match stateful_reader_behavior {
+                                        //     StatefulReaderBehavior::BestEffort(_) => todo!(),
+                                        //     StatefulReaderBehavior::Reliable(
+                                        //         mut reliable_stateful_reader,
+                                        //     ) => reliable_stateful_reader
+                                        //         .receive_data(self.source_guid_prefix, data),
+                                        // }
                                     }
                                 }
                             }
