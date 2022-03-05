@@ -54,14 +54,6 @@ pub struct EntityIdSubmessageElement {
     pub value: EntityId,
 }
 
-pub trait EntityIdSubmessageElementConstructor {
-    fn new(value: EntityId) -> Self;
-}
-
-pub trait EntityIdSubmessageElementAttributes {
-    fn value(&self) -> EntityId;
-}
-
 pub trait VendorIdSubmessageElementConstructor {
     fn new(value: VendorId) -> Self;
 }

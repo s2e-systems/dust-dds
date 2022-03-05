@@ -80,7 +80,7 @@ mod tests {
 
     use super::*;
     use rust_rtps_pim::{
-        messages::types::Count,
+        messages::{types::Count, submessage_elements::EntityIdSubmessageElement},
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -89,10 +89,10 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = true;
-        let reader_id = EntityIdSubmessageElementPsm {
+        let reader_id = EntityIdSubmessageElement {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElementPsm {
+        let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let first_sn = SequenceNumberSubmessageElementPsm { value: 5 };

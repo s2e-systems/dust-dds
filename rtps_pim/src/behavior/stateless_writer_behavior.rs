@@ -4,11 +4,10 @@ use core::iter::FromIterator;
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElementConstructor, EntityIdSubmessageElement,
-            EntityIdSubmessageElementConstructor, Parameter, ParameterListSubmessageElement,
-            SequenceNumberSetSubmessageElement, SequenceNumberSetSubmessageElementAttributes,
-            SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
-            SequenceNumberSubmessageElementConstructor, SerializedDataSubmessageElement,
+            CountSubmessageElementConstructor, EntityIdSubmessageElement, Parameter,
+            ParameterListSubmessageElement, SequenceNumberSetSubmessageElement,
+            SequenceNumberSetSubmessageElementAttributes, SequenceNumberSubmessageElement,
+            SerializedDataSubmessageElement,
         },
         submessages::{
             AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
@@ -38,15 +37,7 @@ pub struct BestEffortStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<
-        Data,
-        CacheChange,
-        EntityIdElement,
-        SequenceNumberElement,
-        Gap,
-        S,
-        P,
-    >(
+    pub fn send_unsent_changes<Data, CacheChange, Gap, S, P>(
         &mut self,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
@@ -57,13 +48,7 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
             IntoIterator<Item = Parameter<'a>> + 'a,
-        EntityIdElement: EntityIdSubmessageElementConstructor,
-        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
-        Gap: GapSubmessageConstructor<
-            S,
-            EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumberElement,
-        >,
+        Gap: GapSubmessageConstructor<S>,
         S: FromIterator<SequenceNumber>,
         P: FromIterator<Parameter<'a>>,
     {
@@ -115,9 +100,13 @@ impl<'a, R, C> BestEffortStatelessWriterBehavior<'a, R, C> {
                 send_data(data_submessage);
             } else {
                 let endianness_flag = true;
-                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let gap_start = SequenceNumberElement::new(seq_num);
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let gap_start = SequenceNumberSubmessageElement { value: seq_num };
                 let gap_list = SequenceNumberSetSubmessageElement {
                     base: seq_num,
                     set: core::iter::empty().collect(),
@@ -139,16 +128,7 @@ pub struct ReliableStatelessWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.2.4 Transition T4
-    pub fn send_unsent_changes<
-        Data,
-        EntityIdElement,
-        SequenceNumberElement,
-        CacheChange,
-        Gap,
-        SequenceNumberSetElement,
-        S,
-        P,
-    >(
+    pub fn send_unsent_changes<Data, CacheChange, Gap, S, P>(
         &mut self,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
@@ -156,17 +136,10 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<'a, P>,
-        EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
             IntoIterator<Item = Parameter<'a>> + 'a,
-        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
-        Gap: GapSubmessageConstructor<
-            S,
-            EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumberElement,
-        >,
+        Gap: GapSubmessageConstructor<S>,
         S: FromIterator<SequenceNumber>,
         P: FromIterator<Parameter<'a>>,
     {
@@ -218,9 +191,13 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 send_data(data_submessage);
             } else {
                 let endianness_flag = true;
-                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let gap_start = SequenceNumberElement::new(seq_num);
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let gap_start = SequenceNumberSubmessageElement { value: seq_num };
                 let gap_list = SequenceNumberSetSubmessageElement {
                     base: seq_num,
                     set: core::iter::empty().collect(),
@@ -233,25 +210,27 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     }
 
     /// Implement 8.4.8.2.5 Transition T5
-    pub fn send_heartbeat<Heartbeat, EntityIdElement, CountElement>(
+    pub fn send_heartbeat<Heartbeat, CountElement>(
         &mut self,
         heartbeat_count: Count,
         mut send_heartbeat: impl FnMut(Heartbeat),
     ) where
         C: RtpsHistoryCacheOperations,
         Heartbeat: HeartbeatSubmessageConstructor<
-            EntityIdSubmessageElementType = EntityIdElement,
             SequenceNumberSubmessageElementType = SequenceNumber,
             CountSubmessageElementType = CountElement,
         >,
-        EntityIdElement: EntityIdSubmessageElementConstructor,
         CountElement: CountSubmessageElementConstructor,
     {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
-        let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-        let writer_id = EntityIdElement::new(self.writer_guid.entity_id);
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: self.writer_guid.entity_id,
+        };
         let first_sn = self.writer_cache.get_seq_num_min().unwrap_or(0);
         let last_sn = self.writer_cache.get_seq_num_min().unwrap_or(0);
         let count = CountElement::new(heartbeat_count);
@@ -285,16 +264,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     }
 
     /// Implement 8.4.9.2.12 Transition T10
-    pub fn send_requested_changes<
-        P,
-        Data,
-        EntityIdElement,
-        SequenceNumberElement,
-        CacheChange,
-        Gap,
-        SequenceNumberSetElement,
-        S,
-    >(
+    pub fn send_requested_changes<P, Data, CacheChange, Gap, S>(
         &mut self,
         mut send_data: impl FnMut(Data),
         mut send_gap: impl FnMut(Gap),
@@ -302,17 +272,11 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         Data: DataSubmessageConstructor<'a, P>,
-        EntityIdElement: EntityIdSubmessageElementConstructor,
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
             IntoIterator<Item = Parameter<'a>> + 'a,
-        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
-        Gap: GapSubmessageConstructor<
-            S,
-            EntityIdSubmessageElementType = EntityIdElement,
-            SequenceNumberSubmessageElementType = SequenceNumberElement,
-        >,
+
+        Gap: GapSubmessageConstructor<S>,
         S: FromIterator<SequenceNumber>,
         P: FromIterator<Parameter<'a>>,
     {
@@ -364,9 +328,13 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
-                let reader_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let writer_id = EntityIdElement::new(ENTITYID_UNKNOWN);
-                let gap_start = SequenceNumberElement::new(seq_num);
+                let reader_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let writer_id = EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                };
+                let gap_start = SequenceNumberSubmessageElement { value: seq_num };
                 let gap_list = SequenceNumberSetSubmessageElement {
                     base: seq_num,
                     set: core::iter::empty().collect(),

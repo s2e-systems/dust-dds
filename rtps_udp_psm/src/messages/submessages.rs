@@ -203,23 +203,20 @@ pub struct DataFragSubmessageRead();
 #[derive(Debug, PartialEq)]
 pub struct GapSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
-    pub gap_start: SequenceNumberSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub gap_start: SequenceNumberSubmessageElement,
     pub gap_list: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
     // gap_start_gsn: submessage_elements::SequenceNumber,
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
 
 impl GapSubmessageConstructor<Vec<SequenceNumber>> for GapSubmessageWrite {
-    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
-    type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
-
     fn new(
         endianness_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        gap_start: Self::SequenceNumberSubmessageElementType,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        gap_start: SequenceNumberSubmessageElement,
         gap_list: SequenceNumberSetSubmessageElement<Vec<SequenceNumber>>,
     ) -> Self {
         Self {
@@ -283,8 +280,8 @@ pub struct HeartbeatSubmessageWrite {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
     pub liveliness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElementPsm,
-    pub writer_id: EntityIdSubmessageElementPsm,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
     pub first_sn: SequenceNumberSubmessageElementPsm,
     pub last_sn: SequenceNumberSubmessageElementPsm,
     pub count: CountSubmessageElementPsm,
@@ -300,8 +297,8 @@ impl HeartbeatSubmessageWrite {
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElementPsm,
-        writer_id: EntityIdSubmessageElementPsm,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
         first_sn: SequenceNumberSubmessageElementPsm,
         last_sn: SequenceNumberSubmessageElementPsm,
         count: CountSubmessageElementPsm,
@@ -320,7 +317,6 @@ impl HeartbeatSubmessageWrite {
 }
 
 impl HeartbeatSubmessageConstructor for HeartbeatSubmessageWrite {
-    type EntityIdSubmessageElementType = EntityIdSubmessageElementPsm;
     type SequenceNumberSubmessageElementType = SequenceNumberSubmessageElementPsm;
     type CountSubmessageElementType = CountSubmessageElementPsm;
 
@@ -328,8 +324,8 @@ impl HeartbeatSubmessageConstructor for HeartbeatSubmessageWrite {
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
         first_sn: Self::SequenceNumberSubmessageElementType,
         last_sn: Self::SequenceNumberSubmessageElementType,
         count: Self::CountSubmessageElementType,

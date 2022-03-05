@@ -1,7 +1,8 @@
 use super::{
     submessage_elements::{
         EntityIdSubmessageElement, ParameterListSubmessageElement,
-        SequenceNumberSetSubmessageElement, SerializedDataSubmessageElement, SequenceNumberSubmessageElement,
+        SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
+        SerializedDataSubmessageElement,
     },
     types::SubmessageFlag,
 };
@@ -113,31 +114,24 @@ pub trait DataFragSubmessageAttributes {
 }
 
 pub trait GapSubmessageConstructor<S> {
-    type EntityIdSubmessageElementType;
-    type SequenceNumberSubmessageElementType;
-
     fn new(
         endianness_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
-        gap_start: Self::SequenceNumberSubmessageElementType,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
+        gap_start: SequenceNumberSubmessageElement,
         gap_list: SequenceNumberSetSubmessageElement<S>,
     ) -> Self;
 }
 
 pub trait GapSubmessageAttributes<S> {
-    type EntityIdSubmessageElementType;
-    type SequenceNumberSubmessageElementType;
-
     fn endianness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn gap_start(&self) -> &Self::SequenceNumberSubmessageElementType;
+    fn reader_id(&self) -> &EntityIdSubmessageElement;
+    fn writer_id(&self) -> &EntityIdSubmessageElement;
+    fn gap_start(&self) -> &SequenceNumberSubmessageElement;
     fn gap_list(&self) -> &SequenceNumberSetSubmessageElement<S>;
 }
 
 pub trait HeartbeatSubmessageConstructor {
-    type EntityIdSubmessageElementType;
     type SequenceNumberSubmessageElementType;
     type CountSubmessageElementType;
 
@@ -145,8 +139,8 @@ pub trait HeartbeatSubmessageConstructor {
         endianness_flag: SubmessageFlag,
         final_flag: SubmessageFlag,
         liveliness_flag: SubmessageFlag,
-        reader_id: Self::EntityIdSubmessageElementType,
-        writer_id: Self::EntityIdSubmessageElementType,
+        reader_id: EntityIdSubmessageElement,
+        writer_id: EntityIdSubmessageElement,
         first_sn: Self::SequenceNumberSubmessageElementType,
         last_sn: Self::SequenceNumberSubmessageElementType,
         count: Self::CountSubmessageElementType,
@@ -161,8 +155,8 @@ pub trait HeartbeatSubmessageAttributes {
     fn endianness_flag(&self) -> SubmessageFlag;
     fn final_flag(&self) -> SubmessageFlag;
     fn liveliness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &Self::EntityIdSubmessageElementType;
-    fn writer_id(&self) -> &Self::EntityIdSubmessageElementType;
+    fn reader_id(&self) -> &EntityIdSubmessageElement;
+    fn writer_id(&self) -> &EntityIdSubmessageElement;
     fn first_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
     fn last_sn(&self) -> &Self::SequenceNumberSubmessageElementType;
     fn count(&self) -> &Self::CountSubmessageElementType;

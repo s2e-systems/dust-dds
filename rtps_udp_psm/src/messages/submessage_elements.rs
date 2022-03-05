@@ -1,9 +1,8 @@
 use rust_rtps_pim::{
     messages::{
         submessage_elements::{
-            CountSubmessageElementConstructor, EntityIdSubmessageElementAttributes,
-            EntityIdSubmessageElementConstructor, Parameter,
-            ParameterListSubmessageElementAttributes, ParameterListSubmessageElementConstructor,
+            CountSubmessageElementConstructor, Parameter, ParameterListSubmessageElementAttributes,
+            ParameterListSubmessageElementConstructor,
             SequenceNumberSetSubmessageElementConstructor,
             SequenceNumberSubmessageElementAttributes, SequenceNumberSubmessageElementConstructor,
             SerializedDataSubmessageElementAttributes, SerializedDataSubmessageElementConstructor,
@@ -44,18 +43,6 @@ pub struct GuidPrefixSubmessageElementPsm {
 #[derive(Debug, PartialEq, Clone)]
 pub struct EntityIdSubmessageElementPsm {
     pub value: EntityId,
-}
-
-impl EntityIdSubmessageElementConstructor for EntityIdSubmessageElementPsm {
-    fn new(value: EntityId) -> Self {
-        Self { value }
-    }
-}
-
-impl EntityIdSubmessageElementAttributes for EntityIdSubmessageElementPsm {
-    fn value(&self) -> EntityId {
-        self.value
-    }
 }
 
 #[derive(Debug, PartialEq)]
