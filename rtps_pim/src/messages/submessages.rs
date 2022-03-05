@@ -1,236 +1,126 @@
 use super::{
     submessage_elements::{
-        CountSubmessageElement, EntityIdSubmessageElement, FragmentNumberSubmessageElement,
-        GuidPrefixSubmessageElement, LocatorListSubmessageElement, ParameterListSubmessageElement,
-        ProtocolVersionSubmessageElement, SequenceNumberSetSubmessageElement,
-        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+        CountSubmessageElement, EntityIdSubmessageElement, FragmentNumberSetSubmessageElement,
+        FragmentNumberSubmessageElement, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
+        ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
+        SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
+        SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
         TimestampSubmessageElement, ULongSubmessageElement, UShortSubmessageElement,
-        VendorIdSubmessageElement, FragmentNumberSetSubmessageElement,
+        VendorIdSubmessageElement,
     },
     types::SubmessageFlag,
 };
 
-pub trait AckNackSubmessageConstructor<S> {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        final_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElement,
-        writer_id: EntityIdSubmessageElement,
-        reader_sn_state: SequenceNumberSetSubmessageElement<S>,
-        count: CountSubmessageElement,
-    ) -> Self;
+#[derive(Debug, PartialEq)]
+pub struct AckNackSubmessage<S> {
+    pub endianness_flag: SubmessageFlag,
+    pub final_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub reader_sn_state: SequenceNumberSetSubmessageElement<S>,
+    pub count: CountSubmessageElement,
 }
 
-pub trait AckNackSubmessageAttributes<S> {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn final_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_id(&self) -> &EntityIdSubmessageElement;
-    fn reader_sn_state(&self) -> &SequenceNumberSetSubmessageElement<S>;
-    fn count(&self) -> &CountSubmessageElement;
+#[derive(Debug, PartialEq)]
+pub struct DataSubmessage<'a, P> {
+    pub endianness_flag: SubmessageFlag,
+    pub inline_qos_flag: SubmessageFlag,
+    pub data_flag: SubmessageFlag,
+    pub key_flag: SubmessageFlag,
+    pub non_standard_payload_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub inline_qos: ParameterListSubmessageElement<P>,
+    pub serialized_payload: SerializedDataSubmessageElement<'a>,
 }
 
-pub trait DataSubmessageConstructor<'a, P> {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        inline_qos_flag: SubmessageFlag,
-        data_flag: SubmessageFlag,
-        key_flag: SubmessageFlag,
-        non_standard_payload_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElement,
-        writer_id: EntityIdSubmessageElement,
-        writer_sn: SequenceNumberSubmessageElement,
-        inline_qos: ParameterListSubmessageElement<P>,
-        serialized_payload: SerializedDataSubmessageElement<'a>,
-    ) -> Self;
+#[derive(Debug, PartialEq)]
+pub struct DataFragSubmessage<'a, P> {
+    pub endianness_flag: SubmessageFlag,
+    pub inline_qos_flag: SubmessageFlag,
+    pub non_standard_payload_flag: SubmessageFlag,
+    pub key_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub fragment_starting_num: FragmentNumberSubmessageElement,
+    pub fragments_in_submessage: UShortSubmessageElement,
+    pub data_size: ULongSubmessageElement,
+    pub fragment_size: UShortSubmessageElement,
+    pub inline_qos: ParameterListSubmessageElement<P>,
+    pub serialized_payload: SerializedDataFragmentSubmessageElement<'a>,
 }
 
-pub trait DataSubmessageAttributes<P> {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn inline_qos_flag(&self) -> SubmessageFlag;
-    fn data_flag(&self) -> SubmessageFlag;
-    fn key_flag(&self) -> SubmessageFlag;
-    fn non_standard_payload_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_sn(&self) -> &SequenceNumberSubmessageElement;
-    fn inline_qos(&self) -> &ParameterListSubmessageElement<P>;
-    fn serialized_payload(&self) -> &SerializedDataSubmessageElement<'_>;
+#[derive(Debug, PartialEq)]
+pub struct GapSubmessage<S> {
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub gap_start: SequenceNumberSubmessageElement,
+    pub gap_list: SequenceNumberSetSubmessageElement<S>,
 }
 
-pub trait DataFragSubmessageConstructor<P> {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        inline_qos_flag: SubmessageFlag,
-        non_standard_payload_flag: SubmessageFlag,
-        key_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElement,
-        writer_id: EntityIdSubmessageElement,
-        writer_sn: SequenceNumberSubmessageElement,
-        fragment_starting_num: FragmentNumberSubmessageElement,
-        fragments_in_submessage: UShortSubmessageElement,
-        data_size: ULongSubmessageElement,
-        fragment_size: UShortSubmessageElement,
-        inline_qos: ParameterListSubmessageElement<P>,
-        serialized_payload: SerializedDataSubmessageElement,
-    ) -> Self;
+#[derive(Debug, PartialEq)]
+pub struct HeartbeatSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub final_flag: SubmessageFlag,
+    pub liveliness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub first_sn: SequenceNumberSubmessageElement,
+    pub last_sn: SequenceNumberSubmessageElement,
+    pub count: CountSubmessageElement,
 }
 
-pub trait DataFragSubmessageAttributes<P> {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn inline_qos_flag(&self) -> SubmessageFlag;
-    fn non_standard_payload_flag(&self) -> SubmessageFlag;
-    fn key_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_sn(&self) -> &SequenceNumberSubmessageElement;
-    fn fragment_starting_num(&self) -> &FragmentNumberSubmessageElement;
-    fn fragments_in_submessage(&self) -> &UShortSubmessageElement;
-    fn data_size(&self) -> &ULongSubmessageElement;
-    fn fragment_size(&self) -> &UShortSubmessageElement;
-    fn inline_qos(&self) -> &ParameterListSubmessageElement<P>;
-    fn serialized_payload(&self) -> &SerializedDataSubmessageElement;
+#[derive(Debug, PartialEq)]
+pub struct HeartbeatFragSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub last_fragment_num: FragmentNumberSubmessageElement,
+    pub count: CountSubmessageElement,
 }
 
-pub trait GapSubmessageConstructor<S> {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElement,
-        writer_id: EntityIdSubmessageElement,
-        gap_start: SequenceNumberSubmessageElement,
-        gap_list: SequenceNumberSetSubmessageElement<S>,
-    ) -> Self;
+#[derive(Debug, PartialEq)]
+pub struct InfoDestinationSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub guid_prefix: GuidPrefixSubmessageElement,
 }
 
-pub trait GapSubmessageAttributes<S> {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_id(&self) -> &EntityIdSubmessageElement;
-    fn gap_start(&self) -> &SequenceNumberSubmessageElement;
-    fn gap_list(&self) -> &SequenceNumberSetSubmessageElement<S>;
+#[derive(Debug, PartialEq)]
+pub struct InfoReplySubmessage<L> {
+    pub endianness_flag: SubmessageFlag,
+    pub multicast_flag: SubmessageFlag,
+    pub unicast_locator_list: LocatorListSubmessageElement<L>,
+    pub multicast_locator_list: LocatorListSubmessageElement<L>,
 }
 
-pub trait HeartbeatSubmessageConstructor {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        final_flag: SubmessageFlag,
-        liveliness_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElement,
-        writer_id: EntityIdSubmessageElement,
-        first_sn: SequenceNumberSubmessageElement,
-        last_sn: SequenceNumberSubmessageElement,
-        count: CountSubmessageElement,
-    ) -> Self;
+#[derive(Debug, PartialEq)]
+pub struct InfoSourceSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub protocol_version: ProtocolVersionSubmessageElement,
+    pub vendor_id: VendorIdSubmessageElement,
+    pub guid_prefix: GuidPrefixSubmessageElement,
 }
 
-pub trait HeartbeatSubmessageAttributes {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn final_flag(&self) -> SubmessageFlag;
-    fn liveliness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_id(&self) -> &EntityIdSubmessageElement;
-    fn first_sn(&self) -> &SequenceNumberSubmessageElement;
-    fn last_sn(&self) -> &SequenceNumberSubmessageElement;
-    fn count(&self) -> &CountSubmessageElement;
+#[derive(Debug, PartialEq)]
+pub struct InfoTimestampSubmessage {
+    pub endianness_flag: SubmessageFlag,
+    pub invalidate_flag: SubmessageFlag,
+    pub timestamp: TimestampSubmessageElement,
 }
 
-pub trait HeartbeatFragSubmessageConstructor {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElement,
-        writer_id: EntityIdSubmessageElement,
-        writer_sn: SequenceNumberSubmessageElement,
-        last_fragment_num: FragmentNumberSubmessageElement,
-        count: CountSubmessageElement,
-    ) -> Self;
+#[derive(Debug, PartialEq)]
+pub struct NackFragSubmessage<F> {
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: EntityIdSubmessageElement,
+    pub writer_id: EntityIdSubmessageElement,
+    pub writer_sn: SequenceNumberSubmessageElement,
+    pub fragment_number_state: FragmentNumberSetSubmessageElement<F>,
+    pub count: CountSubmessageElement,
 }
 
-pub trait HeartbeatFragSubmessageAttributes {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_sn(&self) -> &SequenceNumberSubmessageElement;
-    fn last_fragment_num(&self) -> &FragmentNumberSubmessageElement;
-    fn count(&self) -> &CountSubmessageElement;
-}
-
-pub trait InfoDestinationSubmessageConstructor {
-    fn new(endianness_flag: SubmessageFlag, guid_prefix: GuidPrefixSubmessageElement) -> Self;
-}
-
-pub trait InfoDestinationSubmessageAttributes {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn guid_prefix(&self) -> &GuidPrefixSubmessageElement;
-}
-
-pub trait InfoReplySubmessageConstructor<L> {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        multicast_flag: SubmessageFlag,
-        unicast_locator_list: LocatorListSubmessageElement<L>,
-        multicast_locator_list: LocatorListSubmessageElement<L>,
-    );
-}
-
-pub trait InfoReplySubmessageAttributes<L> {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn multicast_flag(&self) -> SubmessageFlag;
-    fn unicast_locator_list(&self) -> &LocatorListSubmessageElement<L>;
-    fn multicast_locator_list(&self) -> &LocatorListSubmessageElement<L>;
-}
-
-pub trait InfoSourceSubmessageConstructor {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        protocol_version: ProtocolVersionSubmessageElement,
-        vendor_id: VendorIdSubmessageElement,
-        guid_prefix: GuidPrefixSubmessageElement,
-    ) -> Self;
-}
-
-pub trait InfoSourceSubmessageAttributes {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn protocol_version(&self) -> &ProtocolVersionSubmessageElement;
-    fn vendor_id(&self) -> &VendorIdSubmessageElement;
-    fn guid_prefix(&self) -> &GuidPrefixSubmessageElement;
-}
-
-pub trait InfoTimestampSubmessageConstructor {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        invalidate_flag: SubmessageFlag,
-        timestamp: TimestampSubmessageElement,
-    ) -> Self;
-}
-
-pub trait InfoTimestampSubmessageAttributes {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn invalidate_flag(&self) -> SubmessageFlag;
-    fn timestamp(&self) -> &TimestampSubmessageElement;
-}
-
-pub trait NackFragSubmessageConstructor<F> {
-    fn new(
-        endianness_flag: SubmessageFlag,
-        reader_id: EntityIdSubmessageElement,
-        writer_id: EntityIdSubmessageElement,
-        writer_sn: SequenceNumberSubmessageElement,
-        fragment_number_state: FragmentNumberSetSubmessageElement<F>,
-        count: CountSubmessageElement,
-    ) -> Self;
-}
-
-pub trait NackFragSubmessageAttributes<F> {
-    fn endianness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_id(&self) -> &EntityIdSubmessageElement;
-    fn writer_sn(&self) -> &SequenceNumberSubmessageElement;
-    fn fragment_number_state(&self) -> &FragmentNumberSetSubmessageElement<F>;
-    fn count(&self) -> &CountSubmessageElement;
-}
-
-pub trait PadSubmessageConstructor {
-    fn new() -> Self;
-}
-
-pub trait PadSubmessageAttributes {}
+#[derive(Debug, PartialEq)]
+pub struct PadSubmessage {}

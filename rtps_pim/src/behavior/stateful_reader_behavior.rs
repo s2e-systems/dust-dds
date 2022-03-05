@@ -1,5 +1,5 @@
 use crate::{
-    messages::{submessage_elements::Parameter, submessages::DataSubmessageAttributes},
+    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::RtpsHistoryCacheOperations,
@@ -25,9 +25,9 @@ impl BestEffortStatefulReaderBehavior {
             WriterProxyType = impl RtpsWriterProxyOperations,
         >,
         source_guid_prefix: GuidPrefix,
-        data: &impl DataSubmessageAttributes<P>,
+        data: &DataSubmessage<'_, P>,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
         if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(writer_guid) {
             let _expected_seq_nem = writer_proxy.available_changes_max(); // expected_seq_num := writer_proxy.available_changes_max() + 1;
         }
@@ -40,11 +40,8 @@ pub struct ReliableStatefulReaderBehavior<'a, W, H> {
 }
 
 impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
-    pub fn receive_data<P>(
-        &mut self,
-        source_guid_prefix: GuidPrefix,
-        data: &impl DataSubmessageAttributes<P>,
-    ) where
+    pub fn receive_data<P>(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<'_, P>)
+    where
         W: RtpsWriterProxyAttributes + RtpsWriterProxyOperations,
         H: RtpsHistoryCacheOperations,
         for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<
@@ -54,17 +51,17 @@ impl<'a, W, H> ReliableStatefulReaderBehavior<'a, W, H> {
             > + RtpsCacheChangeAttributes<'b>,
         P: AsRef<[Parameter<'a>]>,
     {
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value);
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
         if writer_guid == self.writer_proxy.remote_writer_guid() {
-            let kind = match (data.data_flag(), data.key_flag()) {
+            let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
                 _ => todo!(),
             };
             let instance_handle = 0;
-            let sequence_number = data.writer_sn().value;
-            let data_value = data.serialized_payload().value;
-            let inline_qos = data.inline_qos().parameter.as_ref();
+            let sequence_number = data.writer_sn.value;
+            let data_value = data.serialized_payload.value;
+            let inline_qos = data.inline_qos.parameter.as_ref();
             let a_change = H::CacheChangeType::new(
                 kind,
                 writer_guid,

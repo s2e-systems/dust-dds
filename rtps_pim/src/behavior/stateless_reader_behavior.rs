@@ -1,5 +1,5 @@
 use crate::{
-    messages::{submessage_elements::Parameter, submessages::DataSubmessageAttributes},
+    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
     structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::RtpsHistoryCacheOperations,
@@ -13,11 +13,8 @@ pub struct BestEffortStatelessReaderBehavior<'a, H> {
 }
 
 impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
-    pub fn receive_data<P>(
-        &mut self,
-        source_guid_prefix: GuidPrefix,
-        data: &impl DataSubmessageAttributes<P>,
-    ) where
+    pub fn receive_data<P>(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<'_, P>)
+    where
         H: RtpsHistoryCacheOperations,
         for<'b> H::CacheChangeType: RtpsCacheChangeConstructor<
             'b,
@@ -26,18 +23,18 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
         >,
         P: AsRef<[Parameter<'a>]>,
     {
-        let reader_id = data.reader_id().value;
+        let reader_id = data.reader_id.value;
         if reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
-            let kind = match (data.data_flag(), data.key_flag()) {
+            let kind = match (data.data_flag, data.key_flag) {
                 (true, false) => ChangeKind::Alive,
                 (false, true) => ChangeKind::NotAliveDisposed,
                 _ => todo!(),
             };
-            let writer_guid = Guid::new(source_guid_prefix, data.writer_id().value);
+            let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
             let instance_handle = 0;
-            let sequence_number = data.writer_sn().value;
-            let data_value = data.serialized_payload().value;
-            let inline_qos = data.inline_qos().parameter.as_ref();
+            let sequence_number = data.writer_sn.value;
+            let data_value = data.serialized_payload.value;
+            let inline_qos = data.inline_qos.parameter.as_ref();
             let a_change = H::CacheChangeType::new(
                 kind,
                 writer_guid,

@@ -1,70 +1,42 @@
-use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
-
-use super::submessages::{
-    AckNackSubmessageRead, AckNackSubmessageWrite, DataFragSubmessageRead, DataFragSubmessageWrite,
-    DataSubmessageRead, DataSubmessageWrite, GapSubmessageRead, GapSubmessageWrite,
-    HeartbeatFragSubmessageRead, HeartbeatFragSubmessageWrite, HeartbeatSubmessageRead,
-    HeartbeatSubmessageWrite, InfoDestinationSubmessageRead, InfoDestinationSubmessageWrite,
-    InfoReplySubmessageRead, InfoReplySubmessageWrite, InfoSourceSubmessageRead,
-    InfoSourceSubmessageWrite, InfoTimestampSubmessageRead, InfoTimestampSubmessageWrite,
-    NackFragSubmessageRead, NackFragSubmessageWrite, PadSubmessageRead, PadSubmessageWrite,
+use rust_rtps_pim::{
+    messages::{
+        overall_structure::RtpsMessageHeader,
+        submessage_elements::Parameter,
+        submessages::{
+            AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
+            HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+            InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
+            PadSubmessage,
+        },
+        types::FragmentNumber,
+    },
+    structure::types::{Locator, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageTypeWrite<'a> {
-    AckNack(AckNackSubmessageWrite),
-    Data(DataSubmessageWrite<'a>),
-    DataFrag(DataFragSubmessageWrite),
-    Gap(GapSubmessageWrite),
-    Heartbeat(HeartbeatSubmessageWrite),
-    HeartbeatFrag(HeartbeatFragSubmessageWrite),
-    InfoDestination(InfoDestinationSubmessageWrite),
-    InfoReply(InfoReplySubmessageWrite),
-    InfoSource(InfoSourceSubmessageWrite),
-    InfoTimestamp(InfoTimestampSubmessageWrite),
-    NackFrag(NackFragSubmessageWrite),
-    Pad(PadSubmessageWrite),
+pub enum RtpsSubmessageType<'a> {
+    AckNack(AckNackSubmessage<Vec<SequenceNumber>>),
+    Data(DataSubmessage<'a, Vec<Parameter<'a>>>),
+    DataFrag(DataFragSubmessage<'a, Vec<Parameter<'a>>>),
+    Gap(GapSubmessage<Vec<SequenceNumber>>),
+    Heartbeat(HeartbeatSubmessage),
+    HeartbeatFrag(HeartbeatFragSubmessage),
+    InfoDestination(InfoDestinationSubmessage),
+    InfoReply(InfoReplySubmessage<Vec<Locator>>),
+    InfoSource(InfoSourceSubmessage),
+    InfoTimestamp(InfoTimestampSubmessage),
+    NackFrag(NackFragSubmessage<Vec<FragmentNumber>>),
+    Pad(PadSubmessage),
 }
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageTypeRead<'a> {
-    AckNack(AckNackSubmessageRead),
-    Data(DataSubmessageRead<'a>),
-    DataFrag(DataFragSubmessageRead),
-    Gap(GapSubmessageRead),
-    Heartbeat(HeartbeatSubmessageRead),
-    HeartbeatFrag(HeartbeatFragSubmessageRead),
-    InfoDestination(InfoDestinationSubmessageRead),
-    InfoReply(InfoReplySubmessageRead),
-    InfoSource(InfoSourceSubmessageRead),
-    InfoTimestamp(InfoTimestampSubmessageRead),
-    NackFrag(NackFragSubmessageRead),
-    Pad(PadSubmessageRead),
-}
-
-#[derive(Debug, PartialEq)]
-pub struct RtpsMessageWrite<'a> {
+pub struct RtpsMessage<'a> {
     pub header: RtpsMessageHeader,
-    pub submessages: Vec<RtpsSubmessageTypeWrite<'a>>,
+    pub submessages: Vec<RtpsSubmessageType<'a>>,
 }
 
-impl<'a> RtpsMessageWrite<'a> {
-    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageTypeWrite<'a>>) -> Self {
-        Self {
-            header,
-            submessages,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct RtpsMessageRead<'a> {
-    pub header: RtpsMessageHeader,
-    pub submessages: Vec<RtpsSubmessageTypeRead<'a>>,
-}
-
-impl<'a> RtpsMessageRead<'a> {
-    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageTypeRead<'a>>) -> Self {
+impl<'a> RtpsMessage<'a> {
+    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageType<'a>>) -> Self {
         Self {
             header,
             submessages,
