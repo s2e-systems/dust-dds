@@ -28,5 +28,5 @@ pub trait RtpsStatefulReaderOperations {
     fn matched_writer_remove<F>(&mut self, f: F)
     where
         F: FnMut(&Self::WriterProxyType) -> bool;
-    fn matched_writer_lookup(&self, a_writer_guid: Guid) -> Option<&Self::WriterProxyType>;
+    fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut Self::WriterProxyType>;
 }

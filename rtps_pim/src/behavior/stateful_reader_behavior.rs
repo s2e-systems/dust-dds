@@ -1,16 +1,16 @@
 use crate::{
-    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, GapSubmessage},
+    },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, Guid, GuidPrefix},
+        types::{ChangeKind, Guid, GuidPrefix, SequenceNumber},
     },
 };
 
-use super::reader::{
-    stateful_reader::RtpsStatefulReaderOperations,
-    writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
-};
+use super::reader::writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations};
 
 pub enum StatefulReaderBehavior<'a, W, H> {
     BestEffort(BestEffortStatefulReaderBehavior),
@@ -20,16 +20,57 @@ pub enum StatefulReaderBehavior<'a, W, H> {
 pub struct BestEffortStatefulReaderBehavior;
 
 impl BestEffortStatefulReaderBehavior {
-    pub fn receive_data<L, P>(
-        stateful_reader: &impl RtpsStatefulReaderOperations<
-            WriterProxyType = impl RtpsWriterProxyOperations,
-        >,
+    pub fn receive_data<C, P>(
+        writer_proxy: &mut impl RtpsWriterProxyOperations,
+        reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessage<'_, P>,
-    ) {
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value); // writer_guid := {Receiver.SourceGuidPrefix, DATA.writerId};
-        if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(writer_guid) {
-            let _expected_seq_nem = writer_proxy.available_changes_max(); // expected_seq_num := writer_proxy.available_changes_max() + 1;
+    ) where
+        for<'a> C: RtpsCacheChangeConstructor<
+                'a,
+                DataType = &'a [u8],
+                ParameterListType = &'a [Parameter<'a>],
+            > + RtpsCacheChangeAttributes<'a>,
+        for<'a> P: AsRef<[Parameter<'a>]>,
+    {
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+        let kind = match (data.data_flag, data.key_flag) {
+            (true, false) => ChangeKind::Alive,
+            (false, true) => ChangeKind::NotAliveDisposed,
+            _ => todo!(),
+        };
+        let instance_handle = 0;
+        let sequence_number = data.writer_sn.value;
+        let data_value = data.serialized_payload.value;
+        let inline_qos = data.inline_qos.parameter.as_ref();
+        let a_change: C = RtpsCacheChangeConstructor::new(
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data_value,
+            inline_qos,
+        );
+
+        let expected_seq_num = writer_proxy.available_changes_max() + 1; // expected_seq_num := writer_proxy.available_changes_max() + 1;
+        if a_change.sequence_number() >= expected_seq_num {
+            writer_proxy.received_change_set(a_change.sequence_number());
+            if a_change.sequence_number() > expected_seq_num {
+                writer_proxy.lost_changes_update(a_change.sequence_number());
+            }
+            reader_cache.add_change(a_change);
+        }
+    }
+
+    pub fn receive_gap<S>(writer_proxy: &mut impl RtpsWriterProxyOperations, gap: GapSubmessage<S>)
+    where
+        S: IntoIterator<Item = SequenceNumber>,
+    {
+        for seq_num in gap.gap_start.value..gap.gap_list.base - 1 {
+            writer_proxy.irrelevant_change_set(seq_num);
+        }
+        for seq_num in gap.gap_list.set {
+            writer_proxy.irrelevant_change_set(seq_num);
         }
     }
 }

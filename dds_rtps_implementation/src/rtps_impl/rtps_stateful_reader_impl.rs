@@ -126,9 +126,9 @@ impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
         self.matched_writers.retain(|x| !f(x))
     }
 
-    fn matched_writer_lookup(&self, a_writer_guid: Guid) -> Option<&Self::WriterProxyType> {
+    fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut Self::WriterProxyType> {
         self.matched_writers
-            .iter()
+            .iter_mut()
             .find(|x| x.remote_writer_guid() == a_writer_guid)
     }
 }
