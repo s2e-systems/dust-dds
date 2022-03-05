@@ -9,27 +9,27 @@ use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
 
 #[derive(Debug, PartialEq)]
 pub struct UShortSubmessageElement {
-    value: u16,
+    pub value: u16,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ShortSubmessageElement {
-    value: i16,
+    pub value: i16,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ULongSubmessageElement {
-    value: u32,
+    pub value: u32,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct LongSubmessageElementConstructor {
-    value: i32,
+    pub value: i32,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct GuidPrefixSubmessageElement {
-    value: GuidPrefix,
+    pub value: GuidPrefix,
 }
 
 #[derive(Debug, PartialEq)]
@@ -63,6 +63,7 @@ pub struct FragmentNumberSubmessageElement {
     pub value: FragmentNumber,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct FragmentNumberSetSubmessageElement<F> {
     pub base: FragmentNumber,
     pub set: F,
@@ -73,7 +74,7 @@ pub struct TimestampSubmessageElement {
     pub value: Time,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct Parameter<'a> {
     pub parameter_id: ParameterId,
     pub length: i16,
@@ -107,5 +108,5 @@ pub struct SerializedDataFragmentSubmessageElement<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct GroupDigestSubmessageElement {
-    value: GroupDigest,
+    pub value: GroupDigest,
 }
