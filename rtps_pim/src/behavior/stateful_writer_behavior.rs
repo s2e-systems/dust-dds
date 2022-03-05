@@ -8,10 +8,7 @@ use crate::{
             ParameterListSubmessageElement, SequenceNumberSetSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
         },
-        submessages::{
-            AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
-            HeartbeatSubmessageConstructor,
-        },
+        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
     },
     structure::{
@@ -36,29 +33,17 @@ pub struct BestEffortStatefulWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
     /// Implement 8.4.9.1.4 Transition T4
-    pub fn send_unsent_changes<
-        Data,
-        EntityIdElement,
-        SequenceNumberElement,
-        CacheChange,
-        Gap,
-        SequenceNumberSetElement,
-        ParameterListElement,
-        S,
-        P,
-    >(
+    pub fn send_unsent_changes<CacheChange, S, P>(
         &mut self,
-        mut send_data: impl FnMut(Data),
-        mut send_gap: impl FnMut(Gap),
+        mut send_data: impl FnMut(DataSubmessage<'a, P>),
+        mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>
             + RtpsReaderProxyAttributes,
-        Data: DataSubmessageConstructor<'a, P>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
             IntoIterator<Item = Parameter<'a>> + 'a,
-        Gap: GapSubmessageConstructor<S>,
         S: FromIterator<SequenceNumber>,
         P: FromIterator<Parameter<'a>>,
     {
@@ -95,7 +80,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
                 let serialized_payload = SerializedDataSubmessageElement {
                     value: change.data_value(),
                 };
-                let data_submessage = Data::new(
+                let data_submessage = DataSubmessage {
                     endianness_flag,
                     inline_qos_flag,
                     data_flag,
@@ -106,7 +91,7 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
                     writer_sn,
                     inline_qos,
                     serialized_payload,
-                );
+                };
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
@@ -121,8 +106,13 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
                     base: seq_num,
                     set: core::iter::empty().collect(),
                 };
-                let gap_submessage =
-                    Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+                let gap_submessage = GapSubmessage {
+                    endianness_flag,
+                    reader_id,
+                    writer_id,
+                    gap_start,
+                    gap_list,
+                };
                 send_gap(gap_submessage)
             }
         }
@@ -141,18 +131,16 @@ pub struct ReliableStatefulWriterBehavior<'a, R, C> {
 
 impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     /// Implement 8.4.9.2.4 Transition T4
-    pub fn send_unsent_changes<Data, CacheChange, Gap, S, P>(
+    pub fn send_unsent_changes<CacheChange, S, P>(
         &mut self,
-        mut send_data: impl FnMut(Data),
-        mut send_gap: impl FnMut(Gap),
+        mut send_data: impl FnMut(DataSubmessage<'a, P>),
+        mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        Data: DataSubmessageConstructor<'a, P>,
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
             IntoIterator<Item = Parameter<'a>> + 'a,
-        Gap: GapSubmessageConstructor<S>,
         S: FromIterator<SequenceNumber>,
         P: FromIterator<Parameter<'a>>,
     {
@@ -190,7 +178,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 let serialized_payload = SerializedDataSubmessageElement {
                     value: change.data_value(),
                 };
-                let data_submessage = Data::new(
+                let data_submessage = DataSubmessage {
                     endianness_flag,
                     inline_qos_flag,
                     data_flag,
@@ -201,7 +189,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     writer_sn,
                     inline_qos,
                     serialized_payload,
-                );
+                };
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
@@ -216,18 +204,22 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     base: seq_num,
                     set: core::iter::empty().collect(),
                 };
-                let gap_submessage =
-                    Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+                let gap_submessage = GapSubmessage {
+                    endianness_flag,
+                    reader_id,
+                    writer_id,
+                    gap_start,
+                    gap_list,
+                };
                 send_gap(gap_submessage)
             }
         }
     }
 
     /// Implement 8.4.9.2.7 Transition T7
-    pub fn send_heartbeat<Heartbeat>(&mut self, mut send_heartbeat: impl FnMut(Heartbeat))
+    pub fn send_heartbeat(&mut self, mut send_heartbeat: impl FnMut(HeartbeatSubmessage))
     where
         C: RtpsHistoryCacheOperations,
-        Heartbeat: HeartbeatSubmessageConstructor,
     {
         if self.after_heartbeat_period {
             let endianness_flag = true;
@@ -248,7 +240,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             let count = CountSubmessageElement {
                 value: self.heartbeat_count,
             };
-            let heartbeat_submessage = Heartbeat::new(
+            let heartbeat_submessage = HeartbeatSubmessage {
                 endianness_flag,
                 final_flag,
                 liveliness_flag,
@@ -257,46 +249,42 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 first_sn,
                 last_sn,
                 count,
-            );
+            };
             send_heartbeat(heartbeat_submessage)
         }
     }
 
     /// Implement 8.4.9.2.8 Transition T8
-    pub fn process_acknack<S>(&mut self, acknack: &impl AckNackSubmessageAttributes<S>)
+    pub fn process_acknack<S>(&mut self, acknack: &AckNackSubmessage<S>)
     where
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
         S: AsRef<[SequenceNumber]>,
     {
         self.reader_proxy
-            .acked_changes_set(acknack.reader_sn_state().base - 1);
+            .acked_changes_set(acknack.reader_sn_state.base - 1);
         self.reader_proxy
-            .requested_changes_set(acknack.reader_sn_state().set.as_ref());
+            .requested_changes_set(acknack.reader_sn_state.set.as_ref());
     }
 
     /// Implement 8.4.8.2.10 Transition T10
     pub fn send_requested_changes<
-        Data,
         EntityIdElement,
         SequenceNumberElement,
         CacheChange,
-        Gap,
         SequenceNumberSetElement,
         ParameterListElement,
         S,
         P,
     >(
         &mut self,
-        mut send_data: impl FnMut(Data),
-        mut send_gap: impl FnMut(Gap),
+        mut send_data: impl FnMut(DataSubmessage<'a, P>),
+        mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        Data: DataSubmessageConstructor<'a, P>,
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
             IntoIterator<Item = Parameter<'a>> + 'a,
-        Gap: GapSubmessageConstructor<S>,
         S: FromIterator<SequenceNumber>,
         P: FromIterator<Parameter<'a>>,
     {
@@ -333,7 +321,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                 let serialized_payload = SerializedDataSubmessageElement {
                     value: change.data_value(),
                 };
-                let data_submessage = Data::new(
+                let data_submessage = DataSubmessage {
                     endianness_flag,
                     inline_qos_flag,
                     data_flag,
@@ -344,7 +332,7 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     writer_sn,
                     inline_qos,
                     serialized_payload,
-                );
+                };
                 send_data(data_submessage)
             } else {
                 let endianness_flag = true;
@@ -359,8 +347,13 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
                     base: seq_num,
                     set: core::iter::empty().collect(),
                 };
-                let gap_submessage =
-                    Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+                let gap_submessage = GapSubmessage {
+                    endianness_flag,
+                    reader_id,
+                    writer_id,
+                    gap_start,
+                    gap_list,
+                };
                 send_gap(gap_submessage)
             }
         }

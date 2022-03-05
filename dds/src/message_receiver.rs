@@ -5,18 +5,16 @@ use rust_dds_rtps_implementation::{
 use rust_rtps_pim::{
     behavior::stateful_reader_behavior::StatefulReaderBehavior,
     messages::{
-        submessages::InfoTimestampSubmessageAttributes,
+        submessage_elements::Parameter,
+        submessages::{AckNackSubmessage, DataSubmessage, InfoTimestampSubmessage},
         types::{Time, TIME_INVALID},
     },
     structure::types::{
-        GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
+        GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
     },
 };
-use rust_rtps_udp_psm::messages::{
-    overall_structure::{RtpsMessageRead, RtpsSubmessageTypeRead},
-    submessages::{AckNackSubmessageRead, DataSubmessageRead},
-};
+use rust_rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
 
 use crate::domain_participant_factory::RtpsStructureImpl;
 
@@ -50,7 +48,7 @@ impl MessageReceiver {
         participant_guid_prefix: GuidPrefix,
         list: &'a [RtpsShared<SubscriberAttributes<RtpsStructureImpl>>],
         source_locator: Locator,
-        message: &'a RtpsMessageRead,
+        message: &'a RtpsMessage,
     ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
@@ -69,8 +67,8 @@ impl MessageReceiver {
 
         for submessage in &message.submessages {
             match submessage {
-                RtpsSubmessageTypeRead::AckNack(_) => todo!(),
-                RtpsSubmessageTypeRead::Data(data) => {
+                RtpsSubmessageType::AckNack(_) => todo!(),
+                RtpsSubmessageType::Data(data) => {
                     for subscriber in list {
                         let subscriber_lock = subscriber.read_lock();
                         for data_reader in &subscriber_lock.data_reader_list {
@@ -102,29 +100,26 @@ impl MessageReceiver {
                         }
                     }
                 }
-                RtpsSubmessageTypeRead::DataFrag(_) => todo!(),
-                RtpsSubmessageTypeRead::Gap(_) => todo!(),
-                RtpsSubmessageTypeRead::Heartbeat(_) => (),
-                RtpsSubmessageTypeRead::HeartbeatFrag(_) => todo!(),
-                RtpsSubmessageTypeRead::InfoDestination(_) => todo!(),
-                RtpsSubmessageTypeRead::InfoReply(_) => todo!(),
-                RtpsSubmessageTypeRead::InfoSource(_) => todo!(),
-                RtpsSubmessageTypeRead::InfoTimestamp(info_timestamp) => {
+                RtpsSubmessageType::DataFrag(_) => todo!(),
+                RtpsSubmessageType::Gap(_) => todo!(),
+                RtpsSubmessageType::Heartbeat(_) => (),
+                RtpsSubmessageType::HeartbeatFrag(_) => todo!(),
+                RtpsSubmessageType::InfoDestination(_) => todo!(),
+                RtpsSubmessageType::InfoReply(_) => todo!(),
+                RtpsSubmessageType::InfoSource(_) => todo!(),
+                RtpsSubmessageType::InfoTimestamp(info_timestamp) => {
                     self.process_info_timestamp_submessage(info_timestamp)
                 }
-                RtpsSubmessageTypeRead::NackFrag(_) => todo!(),
-                RtpsSubmessageTypeRead::Pad(_) => todo!(),
+                RtpsSubmessageType::NackFrag(_) => todo!(),
+                RtpsSubmessageType::Pad(_) => todo!(),
             }
         }
     }
 
-    fn process_info_timestamp_submessage(
-        &mut self,
-        info_timestamp: &impl InfoTimestampSubmessageAttributes,
-    ) {
-        if info_timestamp.invalidate_flag() == false {
+    fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
+        if info_timestamp.invalidate_flag == false {
             self.have_timestamp = true;
-            self.timestamp = info_timestamp.timestamp().value;
+            self.timestamp = info_timestamp.timestamp.value;
         } else {
             self.have_timestamp = false;
             self.timestamp = TIME_INVALID;
@@ -136,7 +131,7 @@ pub trait ProcessDataSubmessage {
     fn process_data_submessage(
         &mut self,
         source_guid_prefix: GuidPrefix,
-        _data: &DataSubmessageRead,
+        _data: &DataSubmessage<'_, Vec<Parameter<'_>>>,
     );
 }
 
@@ -144,7 +139,7 @@ pub trait ProcessAckNackSubmessage {
     fn process_acknack_submessage(
         &self,
         source_guid_prefix: GuidPrefix,
-        _acknack: &AckNackSubmessageRead,
+        _acknack: &AckNackSubmessage<Vec<SequenceNumber>>,
     );
 }
 
@@ -152,18 +147,17 @@ pub trait ProcessAckNackSubmessage {
 mod tests {
 
     use rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
-    use rust_rtps_udp_psm::messages::submessages::InfoTimestampSubmessageRead;
 
     use super::*;
 
     #[test]
     fn process_info_timestamp_submessage_valid_time() {
         let mut message_receiver = MessageReceiver::new();
-        let info_timestamp = InfoTimestampSubmessageRead::new(
-            true,
-            false,
-            TimestampSubmessageElement { value: Time(100) },
-        );
+        let info_timestamp = InfoTimestampSubmessage {
+            endianness_flag: true,
+            invalidate_flag: false,
+            timestamp: TimestampSubmessageElement { value: Time(100) },
+        };
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
         assert_eq!(message_receiver.have_timestamp, true);
@@ -173,11 +167,11 @@ mod tests {
     #[test]
     fn process_info_timestamp_submessage_invalid_time() {
         let mut message_receiver = MessageReceiver::new();
-        let info_timestamp = InfoTimestampSubmessageRead::new(
-            true,
-            true,
-            TimestampSubmessageElement { value: Time(100) },
-        );
+        let info_timestamp = InfoTimestampSubmessage {
+            endianness_flag: true,
+            invalidate_flag: true,
+            timestamp: TimestampSubmessageElement { value: Time(100) },
+        };
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
         assert_eq!(message_receiver.have_timestamp, false);

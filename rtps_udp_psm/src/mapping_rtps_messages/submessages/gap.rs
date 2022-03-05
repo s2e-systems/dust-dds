@@ -1,16 +1,18 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{overall_structure::RtpsSubmessageHeader, types::SubmessageKind};
-
-use crate::{
-    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
-    messages::submessages::{GapSubmessageRead, GapSubmessageWrite},
+use rust_rtps_pim::{
+    messages::{
+        overall_structure::RtpsSubmessageHeader, submessages::GapSubmessage, types::SubmessageKind,
+    },
+    structure::types::SequenceNumber,
 };
+
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
-impl MappingWriteSubmessage for GapSubmessageWrite {
+impl MappingWriteSubmessage for GapSubmessage<Vec<SequenceNumber>> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let submessage_length = 16 + self.gap_list.number_of_bytes();
         RtpsSubmessageHeader {
@@ -44,22 +46,23 @@ impl MappingWriteSubmessage for GapSubmessageWrite {
     }
 }
 
-impl<'de> MappingReadSubmessage<'de> for GapSubmessageRead {
+impl<'de> MappingReadSubmessage<'de> for GapSubmessage<Vec<SequenceNumber>> {
     fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
     ) -> Result<Self, Error> {
+        let endianness_flag = header.flags[0];
         let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let gap_start = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let gap_list = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        Ok(Self::new(
-            header.flags[0],
+        Ok(Self {
+            endianness_flag,
             reader_id,
             writer_id,
             gap_start,
             gap_list,
-        ))
+        })
     }
 }
 
@@ -69,12 +72,9 @@ mod tests {
 
     use super::*;
     use rust_rtps_pim::{
-        messages::{
-            submessage_elements::{
-                EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-                SequenceNumberSubmessageElement,
-            },
-            submessages::GapSubmessageConstructor,
+        messages::submessage_elements::{
+            EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
+            SequenceNumberSubmessageElement,
         },
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
@@ -93,8 +93,13 @@ mod tests {
             base: 10,
             set: vec![],
         };
-        let submessage =
-            GapSubmessageWrite::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+        let submessage = GapSubmessage {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x08_u8, 0b_0000_0001, 28, 0, // Submessage header
@@ -123,8 +128,13 @@ mod tests {
             base: 10,
             set: vec![],
         };
-        let expected =
-            GapSubmessageRead::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+        let expected = GapSubmessage {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        };
         #[rustfmt::skip]
         let result = from_bytes(&[
             0x08, 0b_0000_0001, 28, 0, // Submessage header

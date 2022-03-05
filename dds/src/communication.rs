@@ -2,8 +2,7 @@ use std::cell::RefCell;
 
 use rust_dds_rtps_implementation::{
     dds_impl::{
-        data_writer_proxy::RtpsWriter,
-        publisher_proxy::PublisherAttributes,
+        data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
     utils::shared_object::RtpsShared,
@@ -18,13 +17,10 @@ use rust_rtps_pim::{
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::types::{
-        GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E, GUIDPREFIX_UNKNOWN,
+        GuidPrefix, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
-use rust_rtps_udp_psm::messages::{
-    overall_structure::{RtpsMessageWrite, RtpsSubmessageTypeWrite},
-    submessages::DataSubmessageWrite,
-};
+use rust_rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
 
 use crate::{
     domain_participant_factory::RtpsStructureImpl,
@@ -66,15 +62,15 @@ where
                                 StatelessWriterBehavior::BestEffort(mut best_effort_behavior) => {
                                     let submessages = RefCell::new(Vec::new());
                                     best_effort_behavior.send_unsent_changes(
-                                        |data: DataSubmessageWrite| {
+                                        |data| {
                                             submessages
                                                 .borrow_mut()
-                                                .push(RtpsSubmessageTypeWrite::Data(data))
+                                                .push(RtpsSubmessageType::Data(data))
                                         },
                                         |gap| {
                                             submessages
                                                 .borrow_mut()
-                                                .push(RtpsSubmessageTypeWrite::Gap(gap))
+                                                .push(RtpsSubmessageType::Gap(gap))
                                         },
                                     );
                                     let submessages = submessages.take();
@@ -93,7 +89,7 @@ where
                         }
 
                         for (locator, submessage) in destined_submessages {
-                            let message = RtpsMessageWrite::new(message_header.clone(), submessage);
+                            let message = RtpsMessage::new(message_header.clone(), submessage);
                             self.transport.write(&message, locator);
                         }
                     }
@@ -108,19 +104,19 @@ where
                                     reliable_behavior.send_heartbeat(&mut |heartbeat| {
                                         submessages
                                             .borrow_mut()
-                                            .push(RtpsSubmessageTypeWrite::Heartbeat(heartbeat));
+                                            .push(RtpsSubmessageType::Heartbeat(heartbeat));
                                     });
 
                                     reliable_behavior.send_unsent_changes(
                                         |data| {
                                             submessages
                                                 .borrow_mut()
-                                                .push(RtpsSubmessageTypeWrite::Data(data))
+                                                .push(RtpsSubmessageType::Data(data))
                                         },
                                         |gap| {
                                             submessages
                                                 .borrow_mut()
-                                                .push(RtpsSubmessageTypeWrite::Gap(gap))
+                                                .push(RtpsSubmessageType::Gap(gap))
                                         },
                                     );
 
@@ -138,7 +134,7 @@ where
                         for (reader_proxy, submessage) in destined_submessages {
                             let mut message_header = message_header.clone();
                             message_header.guid_prefix = reader_proxy.remote_reader_guid().prefix;
-                            let message = RtpsMessageWrite::new(message_header, submessage);
+                            let message = RtpsMessage::new(message_header, submessage);
                             self.transport
                                 .write(&message, reader_proxy.unicast_locator_list()[0]);
                         }
@@ -153,10 +149,7 @@ impl<T> Communication<T>
 where
     T: TransportRead,
 {
-    pub fn receive(
-        &mut self,
-        list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>],
-    ) {
+    pub fn receive(&mut self, list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
         while let Some((source_locator, message)) = self.transport.read() {
             MessageReceiver::new().process_message(
                 self.guid_prefix,

@@ -1,14 +1,15 @@
+use rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage;
 
-use crate::{mapping_traits::{MappingRead, MappingWrite}, messages::submessages::{HeartbeatFragSubmessageRead, HeartbeatFragSubmessageWrite}};
+use crate::mapping_traits::{MappingRead, MappingWrite};
 
 use std::io::{Error, Write};
 
-impl MappingWrite for HeartbeatFragSubmessageWrite {
+impl MappingWrite for HeartbeatFragSubmessage {
     fn mapping_write<W: Write>(&self, mut _writer: W) -> Result<(), Error> {
         todo!()
     }
 }
-impl<'de> MappingRead<'de> for HeartbeatFragSubmessageRead {
+impl<'de> MappingRead<'de> for HeartbeatFragSubmessage {
     fn mapping_read(_buf: &mut &'de [u8]) -> Result<Self, Error> {
         todo!()
     }
