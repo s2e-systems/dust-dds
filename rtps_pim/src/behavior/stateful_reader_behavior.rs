@@ -69,7 +69,7 @@ impl BestEffortStatefulReaderBehavior {
     where
         S: IntoIterator<Item = SequenceNumber>,
     {
-        for seq_num in gap.gap_start.value..gap.gap_list.base - 1 {
+        for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
         for seq_num in gap.gap_list.set {
@@ -81,6 +81,7 @@ impl BestEffortStatefulReaderBehavior {
 pub struct ReliableStatefulReaderBehavior;
 
 impl ReliableStatefulReaderBehavior {
+    // 8.4.12.2.8 Transition T8
     pub fn receive_data<'a, C, P>(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
         reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
@@ -117,6 +118,7 @@ impl ReliableStatefulReaderBehavior {
         reader_cache.add_change(a_change);
     }
 
+    // 8.4.12.2.5 Transition T5
     pub fn send_ack_nack<S>(
         writer_proxy: &mut (impl RtpsWriterProxyOperations + RtpsWriterProxyAttributes),
         reader_id: EntityId,
@@ -126,14 +128,18 @@ impl ReliableStatefulReaderBehavior {
         S: FromIterator<SequenceNumber>,
     {
         let endianness_flag = true;
-        let final_flag = false;
+        let final_flag = true;
         let reader_id = EntityIdSubmessageElement { value: reader_id };
         let writer_id = EntityIdSubmessageElement {
             value: writer_proxy.remote_writer_guid().entity_id,
         };
+
+        // FOREACH change IN the_writer_proxy.missing_changes() DO ADD change.sequenceNumber TO missing_seq_num_set.set;
+        let _missing_changes = writer_proxy.missing_changes();
+
         let reader_sn_state = SequenceNumberSetSubmessageElement {
             base: writer_proxy.available_changes_max() + 1,
-            set: core::iter::empty().collect(), // FOREACH change IN the_writer_proxy.missing_changes() DO ADD change.sequenceNumber TO missing_seq_num_set.set;
+            set: core::iter::empty().collect(),
         };
         let count = CountSubmessageElement {
             value: acknack_count,
@@ -151,6 +157,7 @@ impl ReliableStatefulReaderBehavior {
         send_acknack(acknack_submessage);
     }
 
+    // 8.4.12.2.7 Transition T7
     pub fn receive_heartbeat(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
         heartbeat: HeartbeatSubmessage,
@@ -159,11 +166,12 @@ impl ReliableStatefulReaderBehavior {
         writer_proxy.lost_changes_update(heartbeat.first_sn.value);
     }
 
+    // 8.4.12.2.9 Transition T9
     pub fn receive_gap<S>(writer_proxy: &mut impl RtpsWriterProxyOperations, gap: GapSubmessage<S>)
     where
         S: IntoIterator<Item = SequenceNumber>,
     {
-        for seq_num in gap.gap_start.value..gap.gap_list.base - 1 {
+        for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
         for seq_num in gap.gap_list.set {
@@ -179,7 +187,7 @@ mod tests {
             ParameterListSubmessageElement, SequenceNumberSubmessageElement,
             SerializedDataSubmessageElement,
         },
-        structure::types::{InstanceHandle, ENTITYID_UNKNOWN},
+        structure::types::{InstanceHandle, Locator, ENTITYID_UNKNOWN},
     };
 
     use super::*;
@@ -283,6 +291,14 @@ mod tests {
             fn missing_changes(&self) -> Vec<SequenceNumber>;
             fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber);
             fn received_change_set(&mut self, a_seq_num: SequenceNumber);
+        }
+
+        impl RtpsWriterProxyAttributes for WriterProxy {
+            fn remote_writer_guid(&self) -> Guid;
+            fn unicast_locator_list(&self) -> &[Locator];
+            fn multicast_locator_list(&self) -> &[Locator];
+            fn data_max_size_serialized(&self) -> Option<i32>;
+            fn remote_group_entity_id(&self) -> EntityId;
         }
     }
 
@@ -426,7 +442,234 @@ mod tests {
             .return_const(());
         writer_proxy
             .expect_irrelevant_change_set()
-            .with(mockall::predicate::eq(5))
+            .with(mockall::predicate::eq(8))
+            .once()
+            .return_const(());
+        writer_proxy
+            .expect_irrelevant_change_set()
+            .with(mockall::predicate::eq(9))
+            .once()
+            .return_const(());
+
+        BestEffortStatefulReaderBehavior::receive_gap(&mut writer_proxy, gap)
+    }
+
+    #[test]
+    fn reliable_stateful_reader_receive_data() {
+        let writer_sn = 1;
+
+        let mut writer_proxy = MockWriterProxy::new();
+        writer_proxy
+            .expect_received_change_set()
+            .with(mockall::predicate::eq(writer_sn))
+            .once()
+            .return_const(());
+
+        let mut reader_cache = MockHistoryCache::new();
+        reader_cache
+            .expect_add_change_()
+            .with(mockall::predicate::eq(MockCacheChange {
+                kind: ChangeKind::Alive,
+                sequence_number: 1,
+            }))
+            .once()
+            .return_const(());
+
+        let source_guid_prefix = GuidPrefix([1; 12]);
+        let data = DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: false,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: writer_sn },
+            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            serialized_payload: SerializedDataSubmessageElement { value: &[] },
+        };
+        ReliableStatefulReaderBehavior::receive_data(
+            &mut writer_proxy,
+            &mut reader_cache,
+            source_guid_prefix,
+            &data,
+        );
+    }
+
+    #[test]
+    fn reliable_stateful_reader_receive_heartbeat() {
+        let first_sequence_number = 2;
+        let last_sequence_number = 6;
+
+        let endianness_flag = true;
+        let final_flag = true;
+        let liveliness_flag = true;
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let first_sn = SequenceNumberSubmessageElement {
+            value: first_sequence_number,
+        };
+        let last_sn = SequenceNumberSubmessageElement {
+            value: last_sequence_number,
+        };
+        let count = CountSubmessageElement { value: Count(1) };
+        let heartbeat = HeartbeatSubmessage {
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        };
+
+        let mut writer_proxy = MockWriterProxy::new();
+        writer_proxy
+            .expect_missing_changes_update()
+            .with(mockall::predicate::eq(last_sequence_number))
+            .once()
+            .return_const(());
+        writer_proxy
+            .expect_lost_changes_update()
+            .with(mockall::predicate::eq(first_sequence_number))
+            .once()
+            .return_const(());
+
+        ReliableStatefulReaderBehavior::receive_heartbeat(&mut writer_proxy, heartbeat)
+    }
+
+    #[test]
+    fn reliable_stateful_reader_send_acknack_no_missing_changes() {
+        let reader_id = ENTITYID_UNKNOWN;
+        let writer_id = EntityId::new([1; 3], 2);
+        let acknack_count = Count(2);
+        let writer_available_changes_max = 3;
+        let missing_changes = vec![];
+
+        let expected_acknack = AckNackSubmessage {
+            endianness_flag: true,
+            final_flag: true,
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_id: EntityIdSubmessageElement { value: writer_id },
+            reader_sn_state: SequenceNumberSetSubmessageElement {
+                base: writer_available_changes_max + 1,
+                set: missing_changes.clone(),
+            },
+            count: CountSubmessageElement {
+                value: acknack_count,
+            },
+        };
+
+        let mut writer_proxy = MockWriterProxy::new();
+        writer_proxy
+            .expect_remote_writer_guid()
+            .once()
+            .return_const(Guid::new(GuidPrefix([1; 12]), writer_id));
+        writer_proxy
+            .expect_available_changes_max()
+            .once()
+            .return_const(writer_available_changes_max);
+        writer_proxy
+            .expect_missing_changes()
+            .once()
+            .return_const(missing_changes);
+
+        ReliableStatefulReaderBehavior::send_ack_nack(
+            &mut writer_proxy,
+            reader_id,
+            acknack_count,
+            |acknack| assert_eq!(acknack, expected_acknack),
+        )
+    }
+
+    #[test]
+    fn reliable_stateful_reader_send_acknack_with_missing_changes() {
+        let reader_id = ENTITYID_UNKNOWN;
+        let writer_id = EntityId::new([1; 3], 2);
+        let acknack_count = Count(2);
+        let writer_available_changes_max = 5;
+        let missing_changes = vec![1,2];
+
+        let expected_acknack = AckNackSubmessage {
+            endianness_flag: true,
+            final_flag: true,
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_id: EntityIdSubmessageElement { value: writer_id },
+            reader_sn_state: SequenceNumberSetSubmessageElement {
+                base: writer_available_changes_max + 1,
+                set: missing_changes.clone(),
+            },
+            count: CountSubmessageElement {
+                value: acknack_count,
+            },
+        };
+
+        let mut writer_proxy = MockWriterProxy::new();
+        writer_proxy
+            .expect_remote_writer_guid()
+            .once()
+            .return_const(Guid::new(GuidPrefix([1; 12]), writer_id));
+        writer_proxy
+            .expect_available_changes_max()
+            .once()
+            .return_const(writer_available_changes_max);
+        writer_proxy
+            .expect_missing_changes()
+            .once()
+            .return_const(missing_changes);
+
+        ReliableStatefulReaderBehavior::send_ack_nack(
+            &mut writer_proxy,
+            reader_id,
+            acknack_count,
+            |acknack| assert_eq!(acknack, expected_acknack),
+        )
+    }
+
+    #[test]
+    fn reliable_stateful_reader_receive_gap() {
+        let endianness_flag = true;
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let gap_start = SequenceNumberSubmessageElement { value: 3 };
+        let gap_list = SequenceNumberSetSubmessageElement {
+            base: 5,
+            set: vec![8, 9],
+        };
+        let gap = GapSubmessage {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        };
+
+        let mut writer_proxy = MockWriterProxy::new();
+        writer_proxy
+            .expect_irrelevant_change_set()
+            .with(mockall::predicate::eq(3))
+            .once()
+            .return_const(());
+        writer_proxy
+            .expect_irrelevant_change_set()
+            .with(mockall::predicate::eq(4))
             .once()
             .return_const(());
         writer_proxy
@@ -440,6 +683,6 @@ mod tests {
             .once()
             .return_const(());
 
-        BestEffortStatefulReaderBehavior::receive_gap(&mut writer_proxy, gap)
+        ReliableStatefulReaderBehavior::receive_gap(&mut writer_proxy, gap)
     }
 }
