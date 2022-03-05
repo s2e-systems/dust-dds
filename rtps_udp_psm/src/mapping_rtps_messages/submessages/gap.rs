@@ -65,20 +65,14 @@ impl<'de> MappingReadSubmessage<'de> for GapSubmessageRead {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        mapping_traits::{from_bytes, to_bytes},
-        messages::submessage_elements::{
-            EntityIdSubmessageElementPsm, SequenceNumberSetSubmessageElementPsm,
-            SequenceNumberSubmessageElementPsm,
-        },
-    };
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
     use rust_rtps_pim::{
         messages::{
             submessage_elements::{
                 EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-                SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
+                SequenceNumberSubmessageElement,
             },
             submessages::GapSubmessageConstructor,
         },
@@ -118,14 +112,17 @@ mod tests {
     #[test]
     fn deserialize_gap() {
         let endianness_flag = true;
-        let reader_id = EntityIdSubmessageElementPsm {
+        let reader_id = EntityIdSubmessageElement {
             value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
-        let writer_id = EntityIdSubmessageElementPsm {
+        let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let gap_start = SequenceNumberSubmessageElementPsm { value: 5 };
-        let gap_list = SequenceNumberSetSubmessageElementPsm::new(10, &[]);
+        let gap_start = SequenceNumberSubmessageElement { value: 5 };
+        let gap_list = SequenceNumberSetSubmessageElement {
+            base: 10,
+            set: vec![],
+        };
         let expected =
             GapSubmessageRead::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
         #[rustfmt::skip]

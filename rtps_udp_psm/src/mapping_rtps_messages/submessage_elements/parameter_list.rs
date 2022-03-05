@@ -121,7 +121,9 @@ impl<'a> MappingWriteByteOrdered for ParameterListSubmessageElement<Vec<Paramete
     }
 }
 
-impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElement<Vec<Parameter<'a>>> {
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de>
+    for ParameterListSubmessageElement<Vec<Parameter<'a>>>
+{
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
@@ -143,9 +145,7 @@ impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElement
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::messages::submessage_elements::{
-        Parameter, ParameterListSubmessageElementConstructor,
-    };
+    use rust_rtps_pim::messages::submessage_elements::Parameter;
 
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};
@@ -240,8 +240,9 @@ mod tests {
             length: 4,
             value: &[52, 62, 0, 0],
         };
-        let parameter_list_submessage_element =
-            ParameterListSubmessageElementWrite::new(vec![parameter_1, parameter_2]);
+        let parameter_list_submessage_element = ParameterListSubmessageElement {
+            parameter: vec![parameter_1, parameter_2],
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter_list_submessage_element).unwrap(), vec![
             0x02, 0x00, 4, 0, // Parameter ID | length

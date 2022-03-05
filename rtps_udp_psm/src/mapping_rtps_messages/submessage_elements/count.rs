@@ -1,9 +1,12 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::types::Count;
+use rust_rtps_pim::messages::{submessage_elements::CountSubmessageElement, types::Count};
 
-use crate::{mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes}, messages::submessage_elements::CountSubmessageElementPsm};
+use crate::{
+    mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
+    messages::submessage_elements::CountSubmessageElementPsm,
+};
 
 impl MappingWriteByteOrdered for Count {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -42,6 +45,24 @@ impl<'de> MappingReadByteOrdered<'de> for CountSubmessageElementPsm {
         })
     }
 }
+
+impl MappingWriteByteOrdered for CountSubmessageElement {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
+        self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
+    }
+}
+
+impl<'de> MappingReadByteOrdered<'de> for CountSubmessageElement {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        Ok(Self {
+            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

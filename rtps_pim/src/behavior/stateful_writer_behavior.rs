@@ -4,11 +4,9 @@ use core::iter::FromIterator;
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElementConstructor, EntityIdSubmessageElement, Parameter,
-            ParameterListSubmessageElement, ParameterListSubmessageElementConstructor,
-            SequenceNumberSetSubmessageElement, SequenceNumberSetSubmessageElementAttributes,
-            SequenceNumberSetSubmessageElementConstructor, SequenceNumberSubmessageElement,
-            SequenceNumberSubmessageElementConstructor, SerializedDataSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
+            ParameterListSubmessageElement, SequenceNumberSetSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
         },
         submessages::{
             AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
@@ -56,13 +54,10 @@ impl<'a, R, C> BestEffortStatefulWriterBehavior<'a, R, C> {
         R: RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>
             + RtpsReaderProxyAttributes,
         Data: DataSubmessageConstructor<'a, P>,
-        ParameterListElement: ParameterListSubmessageElementConstructor<'a>,
         C: RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
             IntoIterator<Item = Parameter<'a>> + 'a,
-        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
         Gap: GapSubmessageConstructor<S>,
         S: FromIterator<SequenceNumber>,
         P: FromIterator<Parameter<'a>>,
@@ -229,18 +224,10 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     }
 
     /// Implement 8.4.9.2.7 Transition T7
-    pub fn send_heartbeat<Heartbeat, CountElement, SequenceNumberElement>(
-        &mut self,
-        mut send_heartbeat: impl FnMut(Heartbeat),
-    ) where
+    pub fn send_heartbeat<Heartbeat>(&mut self, mut send_heartbeat: impl FnMut(Heartbeat))
+    where
         C: RtpsHistoryCacheOperations,
-        Heartbeat: HeartbeatSubmessageConstructor<
-            SequenceNumberSubmessageElementType = SequenceNumberElement,
-            CountSubmessageElementType = CountElement,
-        >,
-
-        CountElement: CountSubmessageElementConstructor,
-        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
+        Heartbeat: HeartbeatSubmessageConstructor,
     {
         if self.after_heartbeat_period {
             let endianness_flag = true;
@@ -252,11 +239,15 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
             let writer_id = EntityIdSubmessageElement {
                 value: self.writer_guid.entity_id,
             };
-            let first_sn =
-                SequenceNumberElement::new(self.writer_cache.get_seq_num_min().unwrap_or(0));
-            let last_sn =
-                SequenceNumberElement::new(self.writer_cache.get_seq_num_min().unwrap_or(0));
-            let count = CountElement::new(self.heartbeat_count);
+            let first_sn = SequenceNumberSubmessageElement {
+                value: self.writer_cache.get_seq_num_min().unwrap_or(0),
+            };
+            let last_sn = SequenceNumberSubmessageElement {
+                value: self.writer_cache.get_seq_num_min().unwrap_or(0),
+            };
+            let count = CountSubmessageElement {
+                value: self.heartbeat_count,
+            };
             let heartbeat_submessage = Heartbeat::new(
                 endianness_flag,
                 final_flag,
@@ -272,19 +263,15 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
     }
 
     /// Implement 8.4.9.2.8 Transition T8
-    pub fn process_acknack<S>(
-        &mut self,
-        acknack: &impl AckNackSubmessageAttributes<
-            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes,
-        >,
-    ) where
+    pub fn process_acknack<S>(&mut self, acknack: &impl AckNackSubmessageAttributes<S>)
+    where
         R: RtpsReaderProxyOperations + RtpsReaderProxyAttributes,
         S: AsRef<[SequenceNumber]>,
     {
         self.reader_proxy
-            .acked_changes_set(acknack.reader_sn_state().base() - 1);
+            .acked_changes_set(acknack.reader_sn_state().base - 1);
         self.reader_proxy
-            .requested_changes_set(acknack.reader_sn_state().set());
+            .requested_changes_set(acknack.reader_sn_state().set.as_ref());
     }
 
     /// Implement 8.4.8.2.10 Transition T10
@@ -309,9 +296,6 @@ impl<'a, R, C> ReliableStatefulWriterBehavior<'a, R, C> {
         CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
             IntoIterator<Item = Parameter<'a>> + 'a,
-        SequenceNumberElement: SequenceNumberSubmessageElementConstructor,
-        ParameterListElement: ParameterListSubmessageElementConstructor<'a>,
-        SequenceNumberSetElement: SequenceNumberSetSubmessageElementConstructor<'a>,
         Gap: GapSubmessageConstructor<S>,
         S: FromIterator<SequenceNumber>,
         P: FromIterator<Parameter<'a>>,

@@ -80,7 +80,7 @@ mod tests {
 
     use super::*;
     use rust_rtps_pim::{
-        messages::{types::Count, submessage_elements::EntityIdSubmessageElement},
+        messages::{submessage_elements::{EntityIdSubmessageElement, SequenceNumberSubmessageElement, CountSubmessageElement}, types::Count},
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
@@ -95,9 +95,9 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let first_sn = SequenceNumberSubmessageElementPsm { value: 5 };
-        let last_sn = SequenceNumberSubmessageElementPsm { value: 7 };
-        let count = CountSubmessageElementPsm { value: Count(2) };
+        let first_sn = SequenceNumberSubmessageElement { value: 5 };
+        let last_sn = SequenceNumberSubmessageElement { value: 7 };
+        let count = CountSubmessageElement { value: Count(2) };
         let submessage = HeartbeatSubmessageWrite::new(
             endianness_flag,
             final_flag,

@@ -4,7 +4,10 @@ use std::{
 };
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{structure::types::SequenceNumber, messages::submessage_elements::SequenceNumberSetSubmessageElement};
+use rust_rtps_pim::{
+    messages::submessage_elements::SequenceNumberSetSubmessageElement,
+    structure::types::SequenceNumber,
+};
 
 use crate::{
     mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
@@ -84,7 +87,6 @@ impl NumberOfBytes for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
     }
 }
 
-
 impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
@@ -109,18 +111,45 @@ impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement<Vec<Sequence
         }
         Ok(())
     }
+
+
+}
+
+
+impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let base: SequenceNumber = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let num_bits: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
+        let mut bitmap = [0; 8];
+        for bitmap_i in bitmap.iter_mut().take(number_of_bitmap_elements) {
+            *bitmap_i = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        }
+
+        let mut set = Vec::with_capacity(256);
+        for delta_n in 0..num_bits as usize {
+            if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
+                set.push(base + delta_n as SequenceNumber);
+            }
+        }
+        Ok(Self {
+            base,
+            set: Vec::from_iter(set.into_iter()),
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElementConstructor;
-
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 
     #[test]
     fn serialize_sequence_number_max_gap() {
-        let sequence_number_set = SequenceNumberSetSubmessageElementPsm::new(2, &[2, 257]);
+        let sequence_number_set = SequenceNumberSetSubmessageElement {
+            base: 2,
+            set: vec![2, 257],
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&sequence_number_set).unwrap(), vec![
             0, 0, 0, 0, // bitmapBase: high (long)
@@ -139,7 +168,10 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
-        let expected = SequenceNumberSetSubmessageElementPsm::new(2, &[2, 257]);
+        let expected = SequenceNumberSetSubmessageElement {
+            base: 2,
+            set: vec![2, 257],
+        };
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             0, 0, 0, 0, // bitmapBase: high (long)

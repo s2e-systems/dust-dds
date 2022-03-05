@@ -4,10 +4,9 @@ use core::iter::FromIterator;
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElementConstructor, EntityIdSubmessageElement, Parameter,
+            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
             ParameterListSubmessageElement, SequenceNumberSetSubmessageElement,
-            SequenceNumberSetSubmessageElementAttributes, SequenceNumberSubmessageElement,
-            SerializedDataSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
         },
         submessages::{
             AckNackSubmessageAttributes, DataSubmessageConstructor, GapSubmessageConstructor,
@@ -216,11 +215,7 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         mut send_heartbeat: impl FnMut(Heartbeat),
     ) where
         C: RtpsHistoryCacheOperations,
-        Heartbeat: HeartbeatSubmessageConstructor<
-            SequenceNumberSubmessageElementType = SequenceNumber,
-            CountSubmessageElementType = CountElement,
-        >,
-        CountElement: CountSubmessageElementConstructor,
+        Heartbeat: HeartbeatSubmessageConstructor,
     {
         let endianness_flag = true;
         let final_flag = false;
@@ -231,9 +226,15 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
         let writer_id = EntityIdSubmessageElement {
             value: self.writer_guid.entity_id,
         };
-        let first_sn = self.writer_cache.get_seq_num_min().unwrap_or(0);
-        let last_sn = self.writer_cache.get_seq_num_min().unwrap_or(0);
-        let count = CountElement::new(heartbeat_count);
+        let first_sn = SequenceNumberSubmessageElement {
+            value: self.writer_cache.get_seq_num_min().unwrap_or(0),
+        };
+        let last_sn = SequenceNumberSubmessageElement {
+            value: self.writer_cache.get_seq_num_min().unwrap_or(0),
+        };
+        let count = CountSubmessageElement {
+            value: heartbeat_count,
+        };
         let heartbeat_submessage = Heartbeat::new(
             endianness_flag,
             final_flag,
@@ -250,17 +251,13 @@ impl<'a, R, C> ReliableStatelessWriterBehavior<'a, R, C> {
     /// Implement 8.4.8.2.5 Transition T6
     /// Implementation does not include the part correponding to searching the reader locator
     /// on the stateless writer
-    pub fn process_acknack<S>(
-        &mut self,
-        acknack: &impl AckNackSubmessageAttributes<
-            SequenceNumberSetSubmessageElementType = impl SequenceNumberSetSubmessageElementAttributes,
-        >,
-    ) where
+    pub fn process_acknack<S>(&mut self, acknack: &impl AckNackSubmessageAttributes<S>)
+    where
         R: RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         S: AsRef<[SequenceNumber]>,
     {
         self.reader_locator
-            .requested_changes_set(acknack.reader_sn_state().set());
+            .requested_changes_set(acknack.reader_sn_state().set.as_ref());
     }
 
     /// Implement 8.4.9.2.12 Transition T10
