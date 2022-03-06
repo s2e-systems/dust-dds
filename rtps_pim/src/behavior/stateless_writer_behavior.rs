@@ -421,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    fn best_effort_stateless_writer_single_data_submessage() {
+    fn best_effort_stateless_writer_send_unsent_changes_single_data_submessage() {
         let mut seq = mockall::Sequence::new();
 
         let mut reader_locator = MockReaderLocator::new();
@@ -475,7 +475,7 @@ mod tests {
     }
 
     #[test]
-    fn best_effort_stateless_writer_single_gap_submessage() {
+    fn best_effort_stateless_writer_send_unsent_changes_single_gap_submessage() {
         let mut seq = mockall::Sequence::new();
 
         let mut reader_locator = MockReaderLocator::new();
@@ -524,5 +524,131 @@ mod tests {
             |data| data_message_sender.send_data(data),
             |gap| gap_message_sender.send_gap(gap),
         )
+    }
+
+    #[test]
+    fn reliable_stateless_writer_send_unsent_changes_single_data_submessage() {
+        let mut seq = mockall::Sequence::new();
+
+        let mut reader_locator = MockReaderLocator::new();
+        let mut writer_cache = MockHistoryCache::new();
+        let mut data_message_sender = MockDataMessageSender::new();
+        let mut gap_message_sender = MockGapMessageSender::new();
+
+        reader_locator
+            .expect_next_unsent_change()
+            .once()
+            .return_const(Some(1))
+            .in_sequence(&mut seq);
+        writer_cache
+            .expect_changes()
+            .once()
+            .return_const(vec![MockCacheChange {
+                kind: ChangeKind::Alive,
+                writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
+                instance_handle: 1,
+                sequence_number: 1,
+                data_value: vec![1, 2, 3, 4],
+                inline_qos: MockParameterList,
+            }])
+            .in_sequence(&mut seq);
+        data_message_sender
+            .expect_send_data()
+            // Can't use a complete expected DataSubmessage due to issues with the lifetime.
+            .withf(|data| {
+                data.data_flag == true
+                    && data.key_flag == false
+                    && data.non_standard_payload_flag == false
+                    && data.writer_sn.value == 1
+                    && data.inline_qos.parameter.is_empty()
+                    && data.serialized_payload.value == &[1, 2, 3, 4]
+            })
+            .once()
+            .return_const(())
+            .in_sequence(&mut seq);
+        reader_locator
+            .expect_next_unsent_change()
+            .once()
+            .return_const(None)
+            .in_sequence(&mut seq);
+
+        ReliableStatelessWriterBehavior::send_unsent_changes(
+            &mut reader_locator,
+            &writer_cache,
+            |data| data_message_sender.send_data(data),
+            |gap| gap_message_sender.send_gap(gap),
+        )
+    }
+
+    #[test]
+    fn reliable_stateless_writer_send_unsent_changes_single_gap_submessage() {
+        let mut seq = mockall::Sequence::new();
+
+        let mut reader_locator = MockReaderLocator::new();
+        let mut writer_cache = MockHistoryCache::new();
+        let mut data_message_sender = MockDataMessageSender::new();
+        let mut gap_message_sender = MockGapMessageSender::new();
+
+        reader_locator
+            .expect_next_unsent_change()
+            .once()
+            .return_const(Some(1))
+            .in_sequence(&mut seq);
+        writer_cache
+            .expect_changes()
+            .once()
+            .return_const(vec![])
+            .in_sequence(&mut seq);
+        gap_message_sender
+            .expect_send_gap()
+            .with(mockall::predicate::eq(GapSubmessage {
+                endianness_flag: true,
+                reader_id: EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                },
+                writer_id: EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                },
+                gap_start: SequenceNumberSubmessageElement { value: 1 },
+                gap_list: SequenceNumberSetSubmessageElement {
+                    base: 1,
+                    set: vec![],
+                },
+            }))
+            .once()
+            .return_const(())
+            .in_sequence(&mut seq);
+        reader_locator
+            .expect_next_unsent_change()
+            .once()
+            .return_const(None)
+            .in_sequence(&mut seq);
+
+        ReliableStatelessWriterBehavior::send_unsent_changes(
+            &mut reader_locator,
+            &writer_cache,
+            |data| data_message_sender.send_data(data),
+            |gap| gap_message_sender.send_gap(gap),
+        )
+    }
+
+    #[test]
+    fn reliable_stateless_writer_send_heartbeat() {
+        todo!()
+    }
+
+    #[test]
+    fn reliable_stateless_write_receive_acknack() {
+        todo!()
+    }
+
+    #[test]
+    fn reliable_stateless_writer_send_requested_changes_single_data_submessage() {
+        todo!()
+    }
+
+    #[test]
+    fn reliable_stateless_writer_send_requested_changes_single_gap_submessage() {
+        todo!()
     }
 }

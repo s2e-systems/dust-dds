@@ -11,7 +11,9 @@ use rust_dds_rtps_implementation::{
 use rust_rtps_pim::{
     behavior::{
         stateful_writer_behavior::StatefulWriterBehavior,
-        stateless_writer_behavior::BestEffortStatelessWriterBehavior,
+        stateless_writer_behavior::{
+            BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
+        },
         writer::{
             reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
         },
@@ -88,7 +90,33 @@ where
                                             .push((reader_locator.locator(), submessages));
                                     }
                                 }
-                                ReliabilityKind::Reliable => todo!(),
+                                ReliabilityKind::Reliable => {
+                                    let submessages = RefCell::new(Vec::new());
+                                    let writer_cache = &stateless_rtps_writer.writer.writer_cache;
+                                    ReliableStatelessWriterBehavior::send_unsent_changes(
+                                        &mut RtpsReaderLocatorOperationsImpl::new(
+                                            reader_locator,
+                                            writer_cache,
+                                        ),
+                                        writer_cache,
+                                        |data| {
+                                            submessages
+                                                .borrow_mut()
+                                                .push(RtpsSubmessageType::Data(data))
+                                        },
+                                        |gap| {
+                                            submessages
+                                                .borrow_mut()
+                                                .push(RtpsSubmessageType::Gap(gap))
+                                        },
+                                    );
+
+                                    let submessages = submessages.take();
+                                    if !submessages.is_empty() {
+                                        destined_submessages
+                                            .push((reader_locator.locator(), submessages));
+                                    }
+                                }
                             };
                         }
 
