@@ -20,7 +20,6 @@ use crate::{
 
 use super::writer::reader_locator::RtpsReaderLocatorOperations;
 
-/// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.1 Best-Effort StatelessWriter Behavior
 pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
@@ -112,7 +111,7 @@ impl BestEffortStatelessWriterBehavior {
 pub struct ReliableStatelessWriterBehavior;
 
 impl ReliableStatelessWriterBehavior {
-    /// Implement 8.4.8.2.4 Transition T4
+    /// 8.4.8.2.4 Transition T4
     pub fn send_unsent_changes<'a, CacheChange, S, P>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
@@ -195,7 +194,7 @@ impl ReliableStatelessWriterBehavior {
         }
     }
 
-    /// Implement 8.4.8.2.5 Transition T5
+    /// 8.4.8.2.5 Transition T5
     pub fn send_heartbeat(
         writer_cache: &impl RtpsHistoryCacheOperations,
         writer_id: EntityId,
@@ -213,7 +212,7 @@ impl ReliableStatelessWriterBehavior {
             value: writer_cache.get_seq_num_min().unwrap_or(0),
         };
         let last_sn = SequenceNumberSubmessageElement {
-            value: writer_cache.get_seq_num_min().unwrap_or(0),
+            value: writer_cache.get_seq_num_max().unwrap_or(0),
         };
         let count = CountSubmessageElement {
             value: heartbeat_count,
@@ -231,7 +230,7 @@ impl ReliableStatelessWriterBehavior {
         send_heartbeat(heartbeat_submessage)
     }
 
-    /// Implement 8.4.8.2.5 Transition T6
+    /// 8.4.8.2.5 Transition T6
     /// Implementation does not include the part correponding to searching the reader locator
     /// on the stateless writer
     pub fn receive_acknack<S>(
@@ -243,7 +242,7 @@ impl ReliableStatelessWriterBehavior {
         reader_locator.requested_changes_set(acknack.reader_sn_state.set.as_ref());
     }
 
-    /// Implement 8.4.9.2.12 Transition T10
+    /// 8.4.9.2.12 Transition T10
     pub fn send_requested_changes<'a, P, CacheChange, S>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
@@ -385,12 +384,38 @@ mod tests {
     }
 
     mock! {
-        HistoryCache{}
+        HistoryCache{
+            fn get_seq_num_min_(&self) -> Option<SequenceNumber>;
+            fn get_seq_num_max_(&self) -> Option<SequenceNumber>;
+        }
 
         impl RtpsHistoryCacheAttributes for HistoryCache{
             type CacheChangeType = MockCacheChange;
 
             fn changes(&self) -> &[MockCacheChange];
+        }
+    }
+
+    impl RtpsHistoryCacheOperations for MockHistoryCache {
+        type CacheChangeType = MockCacheChange;
+
+        fn add_change(&mut self, _change: Self::CacheChangeType) {
+            todo!()
+        }
+
+        fn remove_change<F>(&mut self, _f: F)
+        where
+            F: FnMut(&Self::CacheChangeType) -> bool,
+        {
+            todo!()
+        }
+
+        fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+            self.get_seq_num_min_()
+        }
+
+        fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+            self.get_seq_num_max_()
         }
     }
 
@@ -417,6 +442,12 @@ mod tests {
     mock! {
         GapMessageSender {
             fn send_gap(&mut self, gap: GapSubmessage<Vec<SequenceNumber>>);
+        }
+    }
+
+    mock! {
+        HeartbeatMessageSender {
+            fn send_heartbeat(&mut self, heartbeat: HeartbeatSubmessage);
         }
     }
 
@@ -634,21 +665,178 @@ mod tests {
 
     #[test]
     fn reliable_stateless_writer_send_heartbeat() {
-        todo!()
+        let mut writer_cache = MockHistoryCache::new();
+        let mut heartbeat_submessage_sender = MockHeartbeatMessageSender::new();
+        let writer_id = EntityId::new([1; 3], 1);
+        let heartbeat_count = Count(1);
+
+        writer_cache
+            .expect_get_seq_num_min_()
+            .once()
+            .return_const(Some(1));
+        writer_cache
+            .expect_get_seq_num_max_()
+            .once()
+            .return_const(Some(4));
+
+        heartbeat_submessage_sender
+            .expect_send_heartbeat()
+            .once()
+            .with(mockall::predicate::eq(HeartbeatSubmessage {
+                endianness_flag: true,
+                final_flag: false,
+                liveliness_flag: false,
+                reader_id: EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                },
+                writer_id: EntityIdSubmessageElement { value: writer_id },
+                first_sn: SequenceNumberSubmessageElement { value: 1 },
+                last_sn: SequenceNumberSubmessageElement { value: 4 },
+                count: CountSubmessageElement {
+                    value: heartbeat_count,
+                },
+            }))
+            .return_const(());
+
+        ReliableStatelessWriterBehavior::send_heartbeat(
+            &mut writer_cache,
+            writer_id,
+            heartbeat_count,
+            |heartbeat| heartbeat_submessage_sender.send_heartbeat(heartbeat),
+        );
     }
 
     #[test]
     fn reliable_stateless_write_receive_acknack() {
-        todo!()
+        let mut reader_locator = MockReaderLocator::new();
+        let acknack = AckNackSubmessage {
+            endianness_flag: true,
+            final_flag: true,
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            reader_sn_state: SequenceNumberSetSubmessageElement {
+                base: 1,
+                set: vec![2, 3],
+            },
+            count: CountSubmessageElement { value: Count(1) },
+        };
+
+        reader_locator
+            .expect_requested_changes_set()
+            .with(mockall::predicate::eq(&[2,3][..]))
+            .once()
+            .return_const(());
+
+        ReliableStatelessWriterBehavior::receive_acknack(&mut reader_locator, &acknack);
     }
 
     #[test]
     fn reliable_stateless_writer_send_requested_changes_single_data_submessage() {
-        todo!()
+        let mut seq = mockall::Sequence::new();
+
+        let mut reader_locator = MockReaderLocator::new();
+        let mut writer_cache = MockHistoryCache::new();
+        let mut data_message_sender = MockDataMessageSender::new();
+        let mut gap_message_sender = MockGapMessageSender::new();
+
+        reader_locator
+            .expect_next_requested_change()
+            .once()
+            .return_const(Some(1))
+            .in_sequence(&mut seq);
+        writer_cache
+            .expect_changes()
+            .once()
+            .return_const(vec![MockCacheChange {
+                kind: ChangeKind::Alive,
+                writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
+                instance_handle: 1,
+                sequence_number: 1,
+                data_value: vec![1, 2, 3, 4],
+                inline_qos: MockParameterList,
+            }])
+            .in_sequence(&mut seq);
+        data_message_sender
+            .expect_send_data()
+            // Can't use a complete expected DataSubmessage due to issues with the lifetime.
+            .withf(|data| {
+                data.data_flag == true
+                    && data.key_flag == false
+                    && data.non_standard_payload_flag == false
+                    && data.writer_sn.value == 1
+                    && data.inline_qos.parameter.is_empty()
+                    && data.serialized_payload.value == &[1, 2, 3, 4]
+            })
+            .once()
+            .return_const(())
+            .in_sequence(&mut seq);
+        reader_locator
+            .expect_next_requested_change()
+            .once()
+            .return_const(None)
+            .in_sequence(&mut seq);
+
+        ReliableStatelessWriterBehavior::send_requested_changes(
+            &mut reader_locator,
+            &writer_cache,
+            |data| data_message_sender.send_data(data),
+            |gap| gap_message_sender.send_gap(gap),
+        )
     }
 
     #[test]
     fn reliable_stateless_writer_send_requested_changes_single_gap_submessage() {
-        todo!()
+        let mut seq = mockall::Sequence::new();
+
+        let mut reader_locator = MockReaderLocator::new();
+        let mut writer_cache = MockHistoryCache::new();
+        let mut data_message_sender = MockDataMessageSender::new();
+        let mut gap_message_sender = MockGapMessageSender::new();
+
+        reader_locator
+            .expect_next_requested_change()
+            .once()
+            .return_const(Some(1))
+            .in_sequence(&mut seq);
+        writer_cache
+            .expect_changes()
+            .once()
+            .return_const(vec![])
+            .in_sequence(&mut seq);
+        gap_message_sender
+            .expect_send_gap()
+            .with(mockall::predicate::eq(GapSubmessage {
+                endianness_flag: true,
+                reader_id: EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                },
+                writer_id: EntityIdSubmessageElement {
+                    value: ENTITYID_UNKNOWN,
+                },
+                gap_start: SequenceNumberSubmessageElement { value: 1 },
+                gap_list: SequenceNumberSetSubmessageElement {
+                    base: 1,
+                    set: vec![],
+                },
+            }))
+            .once()
+            .return_const(())
+            .in_sequence(&mut seq);
+        reader_locator
+            .expect_next_requested_change()
+            .once()
+            .return_const(None)
+            .in_sequence(&mut seq);
+
+        ReliableStatelessWriterBehavior::send_requested_changes(
+            &mut reader_locator,
+            &writer_cache,
+            |data| data_message_sender.send_data(data),
+            |gap| gap_message_sender.send_gap(gap),
+        )
     }
 }
