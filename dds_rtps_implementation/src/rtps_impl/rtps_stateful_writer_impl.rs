@@ -1,9 +1,5 @@
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer_behavior::{
-            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
-            StatefulWriterBehavior,
-        },
         types::Duration,
         writer::{
             reader_proxy::RtpsReaderProxyAttributes,
@@ -24,7 +20,7 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::utils::clock::{StdTimer, Timer};
+use crate::utils::clock::{StdTimer};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -176,74 +172,5 @@ impl RtpsWriterOperations for RtpsStatefulWriterImpl {
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
         self.writer.new_change(kind, data, _inline_qos, handle)
-    }
-}
-
-pub struct RtpsReaderProxyIterator<'a> {
-    reader_proxy_iterator: std::slice::IterMut<'a, RtpsReaderProxyAttributesImpl>,
-    writer_cache: &'a RtpsHistoryCacheImpl,
-    last_change_sequence_number: SequenceNumber,
-    reliability_level: ReliabilityKind,
-    writer_guid: Guid,
-    heartbeat_count: Count,
-    after_heartbeat_period: bool,
-}
-
-impl<'a> Iterator for RtpsReaderProxyIterator<'a> {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, RtpsHistoryCacheImpl>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let reader_proxy_attributes = self.reader_proxy_iterator.next()?;
-        let reader_proxy_operations =
-            RtpsReaderProxyOperationsImpl::new(reader_proxy_attributes, self.writer_cache);
-        match self.reliability_level {
-            ReliabilityKind::BestEffort => Some(StatefulWriterBehavior::BestEffort(
-                BestEffortStatefulWriterBehavior {
-                    reader_proxy: reader_proxy_operations,
-                    writer_cache: self.writer_cache,
-                    last_change_sequence_number: self.last_change_sequence_number,
-                },
-            )),
-            ReliabilityKind::Reliable => Some(StatefulWriterBehavior::Reliable(
-                ReliableStatefulWriterBehavior {
-                    reader_proxy: reader_proxy_operations,
-                    writer_cache: self.writer_cache,
-                    last_change_sequence_number: self.last_change_sequence_number,
-                    writer_guid: self.writer_guid,
-                    heartbeat_count: self.heartbeat_count,
-                    after_heartbeat_period: self.after_heartbeat_period,
-                },
-            )),
-        }
-    }
-}
-
-impl<'a> IntoIterator for &'a mut RtpsStatefulWriterImpl {
-    type Item = StatefulWriterBehavior<'a, RtpsReaderProxyOperationsImpl<'a>, RtpsHistoryCacheImpl>;
-    type IntoIter = RtpsReaderProxyIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let heartbeat_period_duration = std::time::Duration::new(
-            self.heartbeat_period().seconds as u64,
-            self.heartbeat_period().fraction,
-        );
-
-        let after_heartbeat_period = if self.heartbeat_timer.elapsed() > heartbeat_period_duration {
-            self.heartbeat_count += Count(1);
-            self.heartbeat_timer.reset();
-            true
-        } else {
-            false
-        };
-
-        RtpsReaderProxyIterator {
-            reader_proxy_iterator: self.matched_readers.iter_mut(),
-            writer_cache: self.writer.const_writer_cache(),
-            last_change_sequence_number: self.writer.last_change_sequence_number(),
-            reliability_level: self.writer.reliability_level(),
-            writer_guid: self.writer.guid(),
-            heartbeat_count: self.heartbeat_count,
-            after_heartbeat_period,
-        }
     }
 }
