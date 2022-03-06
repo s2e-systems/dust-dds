@@ -25,7 +25,7 @@ use crate::utils::clock::{StdTimer};
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
     rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_reader_proxy_impl::{RtpsReaderProxyAttributesImpl, RtpsReaderProxyOperationsImpl},
+    rtps_reader_proxy_impl::{RtpsReaderProxyAttributesImpl},
     rtps_writer_impl::RtpsWriterImpl,
 };
 
