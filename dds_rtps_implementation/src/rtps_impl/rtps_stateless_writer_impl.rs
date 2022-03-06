@@ -1,15 +1,10 @@
 use rust_rtps_pim::{
     behavior::{
-        stateless_writer_behavior::{
-            BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
-            StatelessWriterBehavior,
-        },
         types::Duration,
         writer::{
             stateless_writer::{
-                RtpsStatelessWriterConstructor,
+                RtpsStatelessWriterAttributes, RtpsStatelessWriterConstructor,
                 RtpsStatelessWriterOperations,
-                RtpsStatelessWriterAttributes
             },
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
@@ -24,9 +19,10 @@ use rust_rtps_pim::{
 };
 
 use super::{
-    rtps_reader_locator_impl::{RtpsReaderLocatorAttributesImpl, RtpsReaderLocatorOperationsImpl},
+    rtps_endpoint_impl::RtpsEndpointImpl,
     rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_endpoint_impl::RtpsEndpointImpl, rtps_writer_impl::RtpsWriterImpl,
+    rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
+    rtps_writer_impl::RtpsWriterImpl,
 };
 
 pub struct RtpsStatelessWriterImpl {
@@ -124,7 +120,7 @@ impl RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl {
                 heartbeat_period,
                 nack_response_delay,
                 nack_suppression_duration,
-                data_max_size_serialized
+                data_max_size_serialized,
             ),
             reader_locators: Vec::new(),
         }
@@ -140,62 +136,14 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
 
     fn reader_locator_remove<F>(&mut self, mut f: F)
     where
-        F: FnMut(&Self::ReaderLocatorType) -> bool {
-            self.reader_locators.retain(|x| !f(x))
+        F: FnMut(&Self::ReaderLocatorType) -> bool,
+    {
+        self.reader_locators.retain(|x| !f(x))
     }
 
     fn unsent_changes_reset(&mut self) {
         for reader_locator in &mut self.reader_locators {
             reader_locator.unsent_changes_reset()
-        }
-    }
-}
-
-pub struct RtpsReaderLocatorIterator<'a> {
-    reader_locator_attributes_iterator: std::slice::IterMut<'a, RtpsReaderLocatorAttributesImpl>,
-    writer_cache: &'a RtpsHistoryCacheImpl,
-    reliability_level: ReliabilityKind,
-    writer_guid: Guid,
-}
-
-impl<'a> Iterator for RtpsReaderLocatorIterator<'a> {
-    type Item =
-        StatelessWriterBehavior<'a, RtpsReaderLocatorOperationsImpl<'a>, RtpsHistoryCacheImpl>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let reader_locator_attributes = self.reader_locator_attributes_iterator.next()?;
-        let reader_locator_operations =
-            RtpsReaderLocatorOperationsImpl::new(reader_locator_attributes, self.writer_cache);
-        match self.reliability_level {
-            ReliabilityKind::BestEffort => Some(StatelessWriterBehavior::BestEffort(
-                BestEffortStatelessWriterBehavior {
-                    reader_locator: reader_locator_operations,
-                    writer_cache: self.writer_cache,
-                },
-            )),
-            ReliabilityKind::Reliable => Some(StatelessWriterBehavior::Reliable(
-                ReliableStatelessWriterBehavior {
-                    reader_locator: reader_locator_operations,
-                    writer_cache: self.writer_cache,
-                    writer_guid: self.writer_guid,
-                },
-            )),
-        }
-    }
-}
-
-impl<'a> IntoIterator for &'a mut RtpsStatelessWriterImpl {
-    type Item =
-        StatelessWriterBehavior<'a, RtpsReaderLocatorOperationsImpl<'a>, RtpsHistoryCacheImpl>;
-
-    type IntoIter = RtpsReaderLocatorIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        RtpsReaderLocatorIterator {
-            reader_locator_attributes_iterator: self.reader_locators.iter_mut(),
-            writer_cache: self.writer.const_writer_cache(),
-            reliability_level: self.writer.reliability_level(),
-            writer_guid: self.writer.guid(),
         }
     }
 }

@@ -5,19 +5,21 @@ use rust_dds_rtps_implementation::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
+    rtps_impl::rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
     behavior::{
         stateful_writer_behavior::StatefulWriterBehavior,
-        stateless_writer_behavior::StatelessWriterBehavior,
+        stateless_writer_behavior::BestEffortStatelessWriterBehavior,
         writer::{
             reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
         },
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::types::{
-        GuidPrefix, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN, PROTOCOLVERSION, VENDOR_ID_S2E,
+        GuidPrefix, ProtocolVersion, ReliabilityKind, VendorId, GUIDPREFIX_UNKNOWN,
+        PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
 use rust_rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
@@ -57,11 +59,17 @@ where
                 match rtps_writer {
                     RtpsWriter::Stateless(stateless_rtps_writer) => {
                         let mut destined_submessages = Vec::new();
-                        for behavior in stateless_rtps_writer {
-                            match behavior {
-                                StatelessWriterBehavior::BestEffort(mut best_effort_behavior) => {
+                        for reader_locator in &mut stateless_rtps_writer.reader_locators {
+                            match stateless_rtps_writer.writer.endpoint.reliability_level {
+                                ReliabilityKind::BestEffort => {
                                     let submessages = RefCell::new(Vec::new());
-                                    best_effort_behavior.send_unsent_changes(
+                                    let writer_cache = &stateless_rtps_writer.writer.writer_cache;
+                                    BestEffortStatelessWriterBehavior::send_unsent_changes(
+                                        &mut RtpsReaderLocatorOperationsImpl::new(
+                                            reader_locator,
+                                            writer_cache,
+                                        ),
+                                        writer_cache,
                                         |data| {
                                             submessages
                                                 .borrow_mut()
@@ -73,18 +81,14 @@ where
                                                 .push(RtpsSubmessageType::Gap(gap))
                                         },
                                     );
+
                                     let submessages = submessages.take();
                                     if !submessages.is_empty() {
-                                        destined_submessages.push((
-                                            best_effort_behavior
-                                                .reader_locator
-                                                .reader_locator_attributes
-                                                .locator(),
-                                            submessages,
-                                        ));
+                                        destined_submessages
+                                            .push((reader_locator.locator(), submessages));
                                     }
                                 }
-                                StatelessWriterBehavior::Reliable(_) => todo!(),
+                                ReliabilityKind::Reliable => todo!(),
                             };
                         }
 
