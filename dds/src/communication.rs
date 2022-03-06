@@ -5,12 +5,15 @@ use rust_dds_rtps_implementation::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
-    rtps_impl::rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
+    rtps_impl::{
+        rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
+        rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
+    },
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer_behavior::StatefulWriterBehavior,
+        stateful_writer_behavior::ReliableStatefulWriterBehavior,
         stateless_writer_behavior::{
             BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
         },
@@ -128,18 +131,29 @@ where
                     RtpsWriter::Stateful(stateful_rtps_writer) => {
                         let mut destined_submessages = Vec::new();
 
-                        for behavior in stateful_rtps_writer {
-                            match behavior {
-                                StatefulWriterBehavior::BestEffort(_) => todo!(),
-                                StatefulWriterBehavior::Reliable(mut reliable_behavior) => {
+                        for reader_proxy in &mut stateful_rtps_writer.matched_readers {
+                            match stateful_rtps_writer.writer.endpoint.reliability_level {
+                                ReliabilityKind::BestEffort => todo!(),
+                                ReliabilityKind::Reliable => {
                                     let submessages = RefCell::new(Vec::new());
-                                    reliable_behavior.send_heartbeat(&mut |heartbeat| {
-                                        submessages
-                                            .borrow_mut()
-                                            .push(RtpsSubmessageType::Heartbeat(heartbeat));
-                                    });
-
-                                    reliable_behavior.send_unsent_changes(
+                                    ReliableStatefulWriterBehavior::send_heartbeat(
+                                        &stateful_rtps_writer.writer.writer_cache,
+                                        stateful_rtps_writer.writer.endpoint.entity.guid.entity_id,
+                                        stateful_rtps_writer.heartbeat_count,
+                                        &mut |heartbeat| {
+                                            submessages
+                                                .borrow_mut()
+                                                .push(RtpsSubmessageType::Heartbeat(heartbeat));
+                                        },
+                                    );
+                                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                                    ReliableStatefulWriterBehavior::send_unsent_changes(
+                                        &mut RtpsReaderProxyOperationsImpl::new(
+                                            reader_proxy,
+                                            &stateful_rtps_writer.writer.writer_cache,
+                                        ),
+                                        &stateful_rtps_writer.writer.writer_cache,
+                                        reader_id,
                                         |data| {
                                             submessages
                                                 .borrow_mut()
@@ -156,7 +170,7 @@ where
 
                                     if !submessages.is_empty() {
                                         let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes =
-                                            reliable_behavior.reader_proxy.reader_proxy_attributes;
+                                            reader_proxy;
                                         destined_submessages
                                             .push((reader_proxy_attributes, submessages));
                                     }

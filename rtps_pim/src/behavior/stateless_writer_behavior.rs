@@ -707,7 +707,7 @@ mod tests {
     }
 
     #[test]
-    fn reliable_stateless_write_receive_acknack() {
+    fn reliable_stateless_writer_receive_acknack() {
         let mut reader_locator = MockReaderLocator::new();
         let acknack = AckNackSubmessage {
             endianness_flag: true,
