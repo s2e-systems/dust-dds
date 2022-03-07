@@ -212,13 +212,13 @@ where
                 None,
             ));
 
-            let data_writer_shared = RtpsShared::new(DataWriterAttributes {
-                _qos: qos,
-                rtps_writer: rtps_writer_impl,
+            let data_writer_shared = RtpsShared::new(DataWriterAttributes::new(
+                qos,
+                rtps_writer_impl,
                 listener,
-                topic: topic_shared.clone(),
-                publisher: publisher_shared.downgrade(),
-            });
+                topic_shared.clone(),
+                publisher_shared.downgrade()
+            ));
 
             publisher_shared
                 .write_lock()
@@ -714,6 +714,7 @@ mod tests {
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
+            None,
             sedp_topic_publication.clone(),
             domain_participant
                 .read_lock()

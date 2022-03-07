@@ -69,6 +69,7 @@ where
     pub listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub publisher: RtpsWeak<PublisherAttributes<Rtps>>,
+    pub status: PublicationMatchedStatus,
 }
 
 impl<Rtps> DataWriterAttributes<Rtps>
@@ -78,15 +79,23 @@ where
     pub fn new(
         qos: DataWriterQos,
         rtps_writer: RtpsWriter<Rtps>,
+        listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
         topic: RtpsShared<TopicAttributes<Rtps>>,
         publisher: RtpsWeak<PublisherAttributes<Rtps>>,
     ) -> Self {
         Self {
             _qos: qos,
             rtps_writer,
-            listener: None,
+            listener,
             topic,
             publisher,
+            status: PublicationMatchedStatus {
+                total_count: 0,
+                total_count_change: 0,
+                last_subscription_handle: 0,
+                current_count: 0,
+                current_count_change: 0,
+            },
         }
     }
 }
@@ -509,6 +518,7 @@ mod test {
         let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(mock_writer),
+            None,
             dummy_topic,
             RtpsWeak::new(),
         );
@@ -547,6 +557,7 @@ mod test {
         let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(mock_writer),
+            None,
             dummy_topic,
             RtpsWeak::new(),
         );
