@@ -15,7 +15,7 @@ use rust_rtps_pim::{
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_history_cache_impl::{RtpsParameterList, RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    rtps_history_cache_impl::{RtpsParameterList, RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsData},
 };
 
 pub struct RtpsWriterImpl {
@@ -128,7 +128,7 @@ impl RtpsWriterOperations for RtpsWriterImpl {
             writer_guid: self.endpoint.entity.guid,
             sequence_number: self.last_change_sequence_number,
             instance_handle: handle,
-            data,
+            data: RtpsData(data),
             inline_qos: RtpsParameterList(vec![]),
         }
     }

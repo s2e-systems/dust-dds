@@ -112,7 +112,7 @@ mod tests {
         types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
     };
 
-    use crate::rtps_impl::rtps_history_cache_impl::RtpsCacheChangeImpl;
+    use crate::rtps_impl::rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsData, RtpsParameterList};
 
     use super::*;
 
@@ -124,16 +124,16 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            &[],
-            &[],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         ));
         hc.add_change(RtpsCacheChangeImpl::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             2,
-            &[],
-            &[],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         ));
         let mut reader_locator_attributes =
             RtpsReaderLocatorAttributesImpl::new(LOCATOR_INVALID, false);
@@ -174,24 +174,24 @@ mod tests {
             GUID_UNKNOWN,
             0,
             2,
-            &[],
-            &[],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         ));
         hc.add_change(RtpsCacheChangeImpl::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             4,
-            &[],
-            &[],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         ));
         hc.add_change(RtpsCacheChangeImpl::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             6,
-            &[],
-            &[],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         ));
         let mut reader_locator_attributes =
             RtpsReaderLocatorAttributesImpl::new(LOCATOR_INVALID, false);

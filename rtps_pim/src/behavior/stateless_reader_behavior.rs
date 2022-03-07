@@ -1,5 +1,5 @@
 use crate::{
-    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
+    messages::submessages::DataSubmessage,
     structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::RtpsHistoryCacheOperations,
@@ -10,17 +10,14 @@ use crate::{
 pub struct BestEffortStatelessReaderBehavior;
 
 impl BestEffortStatelessReaderBehavior {
-    pub fn receive_data<'a, CacheChange, P>(
-        reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = CacheChange>,
+    pub fn receive_data<C, P, D>(
+        reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
         source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<'_, P>,
+        data: &DataSubmessage<P, D>,
     ) where
-        for<'b> CacheChange: RtpsCacheChangeConstructor<
-            'b,
-            DataType = &'b [u8],
-            ParameterListType = &'b [Parameter<'b>],
-        >,
-        P: AsRef<[Parameter<'a>]>,
+        C: RtpsCacheChangeConstructor,
+        for<'b> &'b D: Into<<C as RtpsCacheChangeConstructor>::DataType>,
+        for<'b> &'b P: Into<<C as RtpsCacheChangeConstructor>::ParameterListType>,
     {
         let kind = match (data.data_flag, data.key_flag) {
             (true, false) => ChangeKind::Alive,
@@ -30,9 +27,9 @@ impl BestEffortStatelessReaderBehavior {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
         let instance_handle = 0;
         let sequence_number = data.writer_sn.value;
-        let data_value = data.serialized_payload.value;
-        let inline_qos = data.inline_qos.parameter.as_ref();
-        let a_change = CacheChange::new(
+        let data_value = (&data.serialized_payload.value).into();
+        let inline_qos = (&data.inline_qos.parameter).into();
+        let a_change = C::new(
             kind,
             writer_guid,
             instance_handle,
@@ -46,6 +43,7 @@ impl BestEffortStatelessReaderBehavior {
 
 #[cfg(test)]
 mod tests {
+
     use crate::{
         messages::submessage_elements::{
             EntityIdSubmessageElement, ParameterListSubmessageElement,
@@ -58,14 +56,28 @@ mod tests {
 
     use mockall::mock;
 
+    struct MockData;
+    impl<T> From<&T> for MockData {
+        fn from(_: &T) -> Self {
+            MockData
+        }
+    }
+
+    struct MockParameterList;
+    impl From<&()> for MockParameterList {
+        fn from(_: &()) -> Self {
+            MockParameterList
+        }
+    }
+
     // Cache change is not mocked with the mocking framework since
     // both the constructor and the attributes don't need to be defined as part of the test run
     #[derive(Debug, PartialEq)]
     struct MockCacheChange;
 
-    impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
-        type DataType = &'a [u8];
-        type ParameterListType = &'a [Parameter<'a>];
+    impl RtpsCacheChangeConstructor for MockCacheChange {
+        type DataType = MockData;
+        type ParameterListType = MockParameterList;
 
         fn new(
             _kind: ChangeKind,
@@ -125,9 +137,9 @@ mod tests {
                 value: ENTITYID_UNKNOWN,
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            inline_qos: ParameterListSubmessageElement { parameter: () },
             serialized_payload: SerializedDataSubmessageElement {
-                value: &[1, 2, 3, 4],
+                value: &[1_u8, 2, 3, 4][..],
             },
         };
         reader_cache.expect_add_change_().once().return_const(());
