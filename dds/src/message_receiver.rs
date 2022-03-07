@@ -4,20 +4,24 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::{
-        reader::writer_proxy::RtpsWriterProxyAttributes,
+        reader::{reader::RtpsReaderAttributes, writer_proxy::RtpsWriterProxyAttributes},
         stateful_reader_behavior::{
             BestEffortStatefulReaderBehavior, ReliableStatefulReaderBehavior,
-        }, stateless_reader_behavior::BestEffortStatelessReaderBehavior,
+        },
+        stateless_reader_behavior::BestEffortStatelessReaderBehavior,
     },
     messages::{
         submessage_elements::Parameter,
         submessages::{AckNackSubmessage, DataSubmessage, InfoTimestampSubmessage},
         types::{Time, TIME_INVALID},
     },
-    structure::types::{
-        Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber, VendorId,
-        GUIDPREFIX_UNKNOWN, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION,
-        VENDOR_ID_UNKNOWN,
+    structure::{
+        history_cache::RtpsHistoryCacheAttributes,
+        types::{
+            Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber, VendorId,
+            ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID,
+            PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+        },
     },
 };
 use rust_rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
@@ -79,40 +83,90 @@ impl MessageReceiver {
                         let subscriber_lock = subscriber.read_lock();
                         for data_reader in &subscriber_lock.data_reader_list {
                             let mut data_reader_lock = data_reader.write_lock();
-                            let rtps_reader = &mut data_reader_lock.rtps_reader;
-                            match rtps_reader {
-                                RtpsReader::Stateless(stateless_rtps_reader) => {
-                                    BestEffortStatelessReaderBehavior::receive_data(&mut stateless_rtps_reader.reader_cache, self.source_guid_prefix, data)
-                                }
-                                RtpsReader::Stateful(stateful_rtps_reader) => {
-                                    let writer_guid =
-                                        Guid::new(self.source_guid_prefix, data.writer_id.value);
-                                    if let Some(writer_proxy) = stateful_rtps_reader
-                                        .matched_writers
-                                        .iter_mut()
-                                        .find(|x| x.remote_writer_guid() == writer_guid)
-                                    {
-                                        match stateful_rtps_reader.reader.endpoint.reliability_level
+
+                            let mut status_changed = false;
+
+                            {
+                                let rtps_reader = &mut data_reader_lock.rtps_reader;
+                                match rtps_reader {
+                                    RtpsReader::Stateless(stateless_rtps_reader) => {
+                                        let cache_len =
+                                            stateless_rtps_reader.reader_cache().changes().len();
+
+                                        if data.reader_id.value == ENTITYID_UNKNOWN
+                                            || data.reader_id.value
+                                                == stateless_rtps_reader
+                                                    .endpoint
+                                                    .entity
+                                                    .guid
+                                                    .entity_id()
                                         {
-                                            ReliabilityKind::BestEffort => {
-                                                BestEffortStatefulReaderBehavior::receive_data(
-                                                    writer_proxy,
-                                                    &mut stateful_rtps_reader.reader.reader_cache,
-                                                    self.source_guid_prefix,
-                                                    data,
-                                                )
+                                            BestEffortStatelessReaderBehavior::receive_data(
+                                                &mut stateless_rtps_reader.reader_cache,
+                                                self.source_guid_prefix,
+                                                data,
+                                            )
+                                        }
+
+                                        if stateless_rtps_reader.reader_cache().changes().len()
+                                            > cache_len
+                                        {
+                                            status_changed = true;
+                                        }
+                                    }
+                                    RtpsReader::Stateful(stateful_rtps_reader) => {
+                                        let cache_len =
+                                            stateful_rtps_reader.reader_cache().changes().len();
+                                        let writer_guid = Guid::new(
+                                            self.source_guid_prefix,
+                                            data.writer_id.value,
+                                        );
+                                        if let Some(writer_proxy) = stateful_rtps_reader
+                                            .matched_writers
+                                            .iter_mut()
+                                            .find(|x| x.remote_writer_guid() == writer_guid)
+                                        {
+                                            match stateful_rtps_reader
+                                                .reader
+                                                .endpoint
+                                                .reliability_level
+                                            {
+                                                ReliabilityKind::BestEffort => {
+                                                    BestEffortStatefulReaderBehavior::receive_data(
+                                                        writer_proxy,
+                                                        &mut stateful_rtps_reader
+                                                            .reader
+                                                            .reader_cache,
+                                                        self.source_guid_prefix,
+                                                        data,
+                                                    );
+                                                }
+                                                ReliabilityKind::Reliable => {
+                                                    ReliableStatefulReaderBehavior::receive_data(
+                                                        writer_proxy,
+                                                        &mut stateful_rtps_reader
+                                                            .reader
+                                                            .reader_cache,
+                                                        self.source_guid_prefix,
+                                                        data,
+                                                    );
+                                                }
                                             }
-                                            ReliabilityKind::Reliable => {
-                                                ReliableStatefulReaderBehavior::receive_data(
-                                                    writer_proxy,
-                                                    &mut stateful_rtps_reader.reader.reader_cache,
-                                                    self.source_guid_prefix,
-                                                    data,
-                                                )
-                                            }
+                                        }
+                                        if stateful_rtps_reader.reader_cache().changes().len()
+                                            > cache_len
+                                        {
+                                            status_changed = true;
                                         }
                                     }
                                 }
+                            }
+
+                            if status_changed {
+                                data_reader_lock
+                                    .listener
+                                    .as_ref()
+                                    .map(|l| l.on_data_available());
                             }
                         }
                     }
