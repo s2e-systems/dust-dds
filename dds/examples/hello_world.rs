@@ -1,99 +1,112 @@
-// use rust_dds::{DDSType, domain_participant_factory::DomainParticipantFactory, types::DURATION_ZERO};
-// use rust_dds_api::{
-//     domain::domain_participant::DomainParticipant,
-//     infrastructure::{
-//         qos::DataWriterQos,
-//         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
-//     },
-//     publication::publisher::Publisher,
-// };
-// struct HelloWorldType {
-//     id: u8,
-//     _msg: String,
-// }
+use rust_dds::{
+    domain::domain_participant::DomainParticipant,
+    domain_participant_factory::DomainParticipantFactory,
+    infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
+    publication::{data_writer::DataWriter, publisher::Publisher},
+    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    types::Time,
+    DDSError,
+};
+use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 
-// impl DDSType for HelloWorldType {
-//     fn type_name() -> &'static str {
-//         "HelloWorldType"
-//     }
+#[derive(Debug, PartialEq)]
+struct HelloWorldType {
+    id: u8,
+    msg: String,
+}
 
-//     fn has_key() -> bool {
-//         true
-//     }
+impl DdsType for HelloWorldType {
+    fn type_name() -> &'static str {
+        "HelloWorldType"
+    }
 
-//     fn key(&self) -> Vec<u8> {
-//         vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, self.id]
-//     }
+    fn has_key() -> bool {
+        false
+    }
+}
 
-//     fn serialize(&self) -> Vec<u8> {
-//         vec![self.id]
-//     }
+impl DdsSerialize for HelloWorldType {
+    fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+        &self,
+        mut writer: W,
+    ) -> rust_dds::DDSResult<()> {
+        writer
+            .write(&[self.id])
+            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+        writer
+            .write(self.msg.as_bytes())
+            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+        Ok(())
+    }
+}
 
-//     fn deserialize(_data: Vec<u8>) -> Self {
-//         todo!()
-//     }
-// }
+impl<'de> DdsDeserialize<'de> for HelloWorldType {
+    fn deserialize(buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
+        let id = buf[0];
+        let msg = String::from_utf8(buf[1..].iter().filter(|&&c| c > 0).cloned().collect())
+            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+        Ok(HelloWorldType { id, msg })
+    }
+}
 
 fn main() {
-    // use rust_dds_api::infrastructure::entity::Entity;
-    // use rust_dds_types::Time;
+    let domain_id = 7;
+    let participant_factory = DomainParticipantFactory::get_instance();
 
-    // let participant = DomainParticipantFactory::create_participant(0, None, None, 0)
-    // .expect("Error creating participant");
+    let participant1 = participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
 
-    // participant.enable().expect("Error enabling participant");
+    let participant2 = participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
 
-    // let publisher = participant
-    //     .create_publisher(None, None, 0)
-    //     .expect("Error creating publisher");
+    // Wait for the participants to discover each other
+    std::thread::sleep(std::time::Duration::from_millis(600));
 
-    // let helloworld_topic = participant
-    //     .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
-    //     .expect("Error creating topic");
+    let topic = participant1
+        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
+        .unwrap();
 
-    // // let subscriber = participant.create_subscriber(None).expect("Error creating subscriber");
-    // // let _datareader = subscriber.create_datareader(helloworld_topic, None);
+    let publisher = participant1.create_publisher(None, None, 0).unwrap();
+    let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
-    // let mut data_writer_qos = DataWriterQos::default();
-    // data_writer_qos.reliability = ReliabilityQosPolicy {
-    //     kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-    //     max_blocking_time: DURATION_ZERO,
-    // };
-    // let _datawriter = publisher
-    //     .create_datawriter::<HelloWorldType>(&helloworld_topic, Some(data_writer_qos), None, 0)
-    //     .expect("Error creating data writer");
+    let mut reader_qos = DataReaderQos::default();
+    reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
+    let mut reader = subscriber
+        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .unwrap();
 
-    // // //     let datawriter2 = publisher.lookup_datawriter::<HelloWorldType>(&"HelloWorld".to_string());
+    // Wait for reader to be aware of the user writer
+    while reader
+        .as_ref()
+        .upgrade()
+        .unwrap()
+        .write_lock()
+        .rtps_reader
+        .try_as_stateful_reader()
+        .unwrap()
+        .matched_writers
+        .len()
+        == 0
+    {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
 
-    // let data = HelloWorldType {
-    //     id: 1,
-    //     _msg: "Hello World!".to_string(),
-    // };
-    // let handle = None;
-    // let timestamp = Time { sec: 1, nanosec: 2 };
-    // datawriter
-    //     .write_w_timestamp(data, handle, timestamp)
-    //     .expect("Error writing");
+    let hello_world = HelloWorldType {
+        id: 8,
+        msg: "Hello world!".to_string(),
+    };
+    writer
+        .write_w_timestamp(&hello_world, None, Time { sec: 0, nanosec: 0 })
+        .unwrap();
 
-    // participant.enable().expect("Error enabling participant");
+    let mut samples = reader.read(1, &[], &[], &[]);
+    while let Err(DDSError::NoData) = samples {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        samples = reader.read(1, &[], &[], &[])
+    }
 
-    // let data = HelloWorldType {
-    //     id: 2,
-    //     _msg: "Hello World!".to_string(),
-    // };
-    // datawriter
-    //     .write_w_timestamp(data, handle, Time { sec: 1, nanosec: 2 })
-    //     .expect("Error writing");
-
-    // std::thread::sleep(std::time::Duration::from_secs(5));
-
-    // let data = HelloWorldType {
-    //     id: 3,
-    //     _msg: "Hello World!".to_string(),
-    // };
-    // datawriter
-    //     .write_w_timestamp(data, handle, Time { sec: 1, nanosec: 2 })
-    //     .expect("Error writing");
-
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    assert_eq!(hello_world, samples.unwrap().samples[0]);
 }
