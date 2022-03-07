@@ -476,7 +476,7 @@ where
     Rtps: RtpsStructure,
 {
     type Qos = DataReaderQos;
-    type Listener = Box<dyn DataReaderListener>;
+    type Listener = Box<dyn DataReaderListener + Send + Sync>;
 
     fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)
@@ -490,12 +490,11 @@ where
 
     fn set_listener(
         &self,
-        _a_listener: Option<Self::Listener>,
+        listener: Option<Self::Listener>,
         _mask: StatusMask,
     ) -> DDSResult<()> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?)
-        // .set_listener(a_listener, mask)
-        todo!()
+        self.as_ref().upgrade()?.write_lock().listener = listener;
+        Ok(())
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {

@@ -766,14 +766,17 @@ mod tests {
     use mockall::mock;
     use rust_dds_api::{
         dcps_psm::{
-            BuiltInTopicKey, DomainId, PublicationMatchedStatus, SubscriptionMatchedStatus,
+            BuiltInTopicKey, DomainId, PublicationMatchedStatus, SubscriptionMatchedStatus, Time,
         },
         domain::domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
+        infrastructure::{entity::Entity, qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
         infrastructure::qos::DomainParticipantQos,
         publication::{
+            data_writer::DataWriter,
             data_writer_listener::DataWriterListener,
             publisher::{Publisher, PublisherDataWriterFactory},
         },
+        return_type::DDSError,
         subscription::{
             data_reader::DataReader,
             data_reader_listener::DataReaderListener,
@@ -1107,17 +1110,20 @@ mod tests {
     }
 
     impl<'de> DdsDeserialize<'de> for UserData {
-        fn deserialize(_buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
-            unimplemented!()
+        fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+            Ok(UserData(buf[0]))
         }
     }
 
     impl DdsSerialize for UserData {
         fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
             &self,
-            mut _writer: W,
+            mut writer: W,
         ) -> rust_dds_api::return_type::DDSResult<()> {
-            unimplemented!()
+            writer
+                .write(&[self.0])
+                .map(|_| ())
+                .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
         }
     }
 
@@ -1364,14 +1370,17 @@ mod tests {
     }
 
     mock! {
+        #[derive(Clone)]
         ReaderListener {}
 
         impl DataReaderListener for ReaderListener {
             fn on_subscription_matched(&self, status: SubscriptionMatchedStatus);
+            fn on_data_available(&self);
         }
     }
 
     mock! {
+        #[derive(Clone)]
         WriterListener {}
 
         impl DataWriterListener for WriterListener {
@@ -1380,23 +1389,10 @@ mod tests {
     }
 
     #[test]
-    fn test_reader_writer_listener() {
+    fn test_reader_writer_matching_listener() {
         let domain_id = 6;
         let unicast_address = [127, 0, 0, 1];
         let multicast_address = [239, 255, 0, 1];
-
-        // ////////// Create the listeners
-        let mut writer_listener = MockWriterListener::new();
-        writer_listener
-            .expect_on_publication_matched()
-            .times(1)
-            .return_const(());
-
-        let mut reader_listener = MockReaderListener::new();
-        reader_listener
-            .expect_on_subscription_matched()
-            .times(1)
-            .return_const(());
 
         // ////////// Create 2 participants
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
@@ -1514,11 +1510,21 @@ mod tests {
         let user_topic = participant1_proxy
             .create_topic::<UserData>("UserTopic", None, None, 0)
             .unwrap();
-        user_publisher
-            .create_datawriter(&user_topic, None, Some(Box::new(writer_listener)), 0)
+        let user_writer = user_publisher
+            .create_datawriter(
+                &user_topic,
+                None,
+                Some(Box::new(MockWriterListener::new())),
+                0,
+            )
             .unwrap();
-        user_subscriber
-            .create_datareader(&user_topic, None, Some(Box::new(reader_listener)), 0)
+        let user_reader = user_subscriber
+            .create_datareader(
+                &user_topic,
+                None,
+                Some(Box::new(MockReaderListener::new())),
+                0,
+            )
             .unwrap();
 
         // ////////// Send SEDP data
@@ -1558,7 +1564,272 @@ mod tests {
         }
 
         // ////////// Process SEDP data
-        task_sedp_reader_discovery(participant1).unwrap();
-        task_sedp_writer_discovery(participant2).unwrap();
+
+        // Writer listener must be called once on reader discovery
+        {
+            let mut writer_listener = Box::new(MockWriterListener::new());
+            writer_listener
+                .expect_on_publication_matched()
+                .once()
+                .return_const(());
+            user_writer.set_listener(Some(writer_listener), 0).unwrap();
+
+            task_sedp_reader_discovery(participant1.clone()).unwrap();
+
+            user_writer
+                .set_listener(Some(Box::new(MockWriterListener::new())), 0)
+                .unwrap();
+        }
+
+        // Reader listener must be called once on writer discovery
+        {
+            let mut reader_listener = Box::new(MockReaderListener::new());
+            reader_listener
+                .expect_on_subscription_matched()
+                .once()
+                .return_const(());
+            user_reader.set_listener(Some(reader_listener), 0).unwrap();
+
+            task_sedp_writer_discovery(participant2.clone()).unwrap();
+
+            user_reader
+                .set_listener(Some(Box::new(MockReaderListener::new())), 0)
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn test_reader_available_data_listener() {
+        let domain_id = 7;
+        let unicast_address = [127, 0, 0, 1];
+        let multicast_address = [239, 255, 0, 1];
+
+        // ////////// Create 2 participants
+        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            GuidPrefix([3; 12]),
+            domain_id,
+            0,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_builtin_unicast(domain_id as u16, 0) as u32,
+                locator_address(&unicast_address),
+            )],
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_builtin_multicast(domain_id as u16) as u32,
+                locator_address(&multicast_address),
+            )],
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_user_unicast(domain_id as u16, 0) as u32,
+                locator_address(&unicast_address),
+            )],
+            vec![],
+        ));
+        let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
+        let guid1 = participant1.read_lock().rtps_participant.guid().clone();
+        create_builtins(participant1.clone()).unwrap();
+
+        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            GuidPrefix([3; 12]),
+            domain_id,
+            1,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_builtin_unicast(domain_id as u16, 1) as u32,
+                locator_address(&unicast_address),
+            )],
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_builtin_multicast(domain_id as u16) as u32,
+                locator_address(&multicast_address),
+            )],
+            vec![Locator::new(
+                LOCATOR_KIND_UDPv4,
+                port_user_unicast(domain_id as u16, 1) as u32,
+                locator_address(&unicast_address),
+            )],
+            vec![],
+        ));
+        let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
+        let guid2 = participant2.read_lock().rtps_participant.guid().clone();
+        create_builtins(participant2.clone()).unwrap();
+
+        // ////////// Match SEDP endpoints
+        {
+            task_announce_participant(participant1.clone()).unwrap();
+            task_announce_participant(participant2.clone()).unwrap();
+
+            let mut communication_p1 = get_unicast_communication(
+                guid1.prefix,
+                &participant1.read_lock().metatraffic_unicast_locator_list,
+            )
+            .unwrap();
+            let mut communication_p2 = get_unicast_communication(
+                guid2.prefix,
+                &participant2.read_lock().metatraffic_unicast_locator_list,
+            )
+            .unwrap();
+            let mut communication_multicast_p1 = get_multicast_communication(
+                guid1.prefix,
+                &participant1.read_lock().metatraffic_unicast_locator_list,
+                &participant1.read_lock().metatraffic_multicast_locator_list,
+            )
+            .unwrap();
+            let mut communication_multicast_p2 = get_multicast_communication(
+                guid2.prefix,
+                &participant2.read_lock().metatraffic_unicast_locator_list,
+                &participant2.read_lock().metatraffic_multicast_locator_list,
+            )
+            .unwrap();
+
+            communication_p1.send(core::slice::from_ref(
+                participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+            ));
+            communication_p2.send(core::slice::from_ref(
+                participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+            ));
+
+            communication_multicast_p1.receive(core::slice::from_ref(
+                participant1
+                    .read_lock()
+                    .builtin_subscriber
+                    .as_ref()
+                    .unwrap(),
+            ));
+            communication_multicast_p2.receive(core::slice::from_ref(
+                participant2
+                    .read_lock()
+                    .builtin_subscriber
+                    .as_ref()
+                    .unwrap(),
+            ));
+
+            task_spdp_discovery(participant1.clone()).unwrap();
+            task_spdp_discovery(participant2.clone()).unwrap();
+        }
+
+        // ////////// Create user endpoints
+        let user_publisher = participant1_proxy.create_publisher(None, None, 0).unwrap();
+        let user_subscriber = participant2_proxy.create_subscriber(None, None, 0).unwrap();
+
+        let user_topic = participant1_proxy
+            .create_topic::<UserData>("UserTopic", None, None, 0)
+            .unwrap();
+        let mut user_writer = user_publisher
+            .create_datawriter(&user_topic, None, None, 0)
+            .unwrap();
+
+        
+        let mut reader_qos = DataReaderQos::default();
+        reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+        let user_reader = user_subscriber
+            .create_datareader(
+                &user_topic,
+                Some(reader_qos),
+                Some(Box::new(MockReaderListener::new())),
+                0,
+            )
+            .unwrap();
+
+        // ////////// Activate SEDP
+        {
+            let mut communication_p1 = get_unicast_communication(
+                guid1.prefix,
+                &participant1.read_lock().metatraffic_unicast_locator_list,
+            )
+            .unwrap();
+            let mut communication_p2 = get_unicast_communication(
+                guid2.prefix,
+                &participant2.read_lock().metatraffic_unicast_locator_list,
+            )
+            .unwrap();
+
+            communication_p1.send(core::slice::from_ref(
+                participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+            ));
+            communication_p2.send(core::slice::from_ref(
+                participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+            ));
+
+            communication_p1.receive(core::slice::from_ref(
+                participant1
+                    .read_lock()
+                    .builtin_subscriber
+                    .as_ref()
+                    .unwrap(),
+            ));
+            communication_p2.receive(core::slice::from_ref(
+                participant2
+                    .read_lock()
+                    .builtin_subscriber
+                    .as_ref()
+                    .unwrap(),
+            ));
+
+            // ////////// Process SEDP data
+            task_sedp_reader_discovery(participant1.clone()).unwrap();
+
+            // We expect the subscription matched listener to be called when matching
+            let mut reader_listener = Box::new(MockReaderListener::new());
+            reader_listener
+                .expect_on_subscription_matched()
+                .return_const(());
+            user_reader.set_listener(Some(reader_listener), 0).unwrap();
+
+            task_sedp_writer_discovery(participant2.clone()).unwrap();
+
+            // No more listener should be called for now
+            user_reader
+                .set_listener(Some(Box::new(MockReaderListener::new())), 0)
+                .unwrap();
+        }
+
+        // ////////// Write user data
+        user_writer
+            .write_w_timestamp(&UserData(8), None, Time { sec: 0, nanosec: 0 })
+            .unwrap();
+
+        // ////////// Send user data
+        {
+            let mut communication_p1 = get_unicast_communication(
+                guid1.prefix,
+                &participant1
+                    .read_lock()
+                    .rtps_participant
+                    .default_unicast_locator_list,
+            )
+            .unwrap();
+
+            let mut communication_p2 = get_unicast_communication(
+                guid2.prefix,
+                &participant2
+                    .read_lock()
+                    .rtps_participant
+                    .default_unicast_locator_list,
+            )
+            .unwrap();
+
+            communication_p1.send(&participant1.read_lock().user_defined_publisher_list);
+
+            // On receive the available data listener should be called
+            let mut reader_listener = Box::new(MockReaderListener::new());
+            reader_listener
+                .expect_on_data_available()
+                .once()
+                .return_const(());
+            user_reader.set_listener(Some(reader_listener), 0).unwrap();
+
+            communication_p2.receive(&participant2.read_lock().user_defined_subscriber_list);
+
+            // From now on no listener should be called anymore
+            user_reader
+                .set_listener(Some(Box::new(MockReaderListener::new())), 0)
+                .unwrap();
+        }
     }
 }

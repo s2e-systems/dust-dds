@@ -3,7 +3,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, Guid, GuidPrefix, ENTITYID_UNKNOWN},
+        types::{ChangeKind, Guid, GuidPrefix},
     },
 };
 
@@ -23,28 +23,25 @@ impl<'a, H> BestEffortStatelessReaderBehavior<'a, H> {
         >,
         P: AsRef<[Parameter<'a>]>,
     {
-        let reader_id = data.reader_id.value;
-        if reader_id == self.reader_guid.entity_id() || reader_id == ENTITYID_UNKNOWN {
-            let kind = match (data.data_flag, data.key_flag) {
-                (true, false) => ChangeKind::Alive,
-                (false, true) => ChangeKind::NotAliveDisposed,
-                _ => todo!(),
-            };
-            let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
-            let instance_handle = 0;
-            let sequence_number = data.writer_sn.value;
-            let data_value = data.serialized_payload.value;
-            let inline_qos = data.inline_qos.parameter.as_ref();
-            let a_change = H::CacheChangeType::new(
-                kind,
-                writer_guid,
-                instance_handle,
-                sequence_number,
-                data_value,
-                inline_qos,
-            );
-            self.reader_cache.add_change(a_change);
-        }
+        let kind = match (data.data_flag, data.key_flag) {
+            (true, false) => ChangeKind::Alive,
+            (false, true) => ChangeKind::NotAliveDisposed,
+            _ => todo!(),
+        };
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+        let instance_handle = 0;
+        let sequence_number = data.writer_sn.value;
+        let data_value = data.serialized_payload.value;
+        let inline_qos = data.inline_qos.parameter.as_ref();
+        let a_change = H::CacheChangeType::new(
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data_value,
+            inline_qos,
+        );
+        self.reader_cache.add_change(a_change);
     }
 }
 
