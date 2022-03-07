@@ -603,6 +603,7 @@ pub fn create_builtins(
             DataReaderQos::default(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
             spdp_topic_participant.clone(),
+            None,
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -627,6 +628,7 @@ pub fn create_builtins(
         let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
+            None,
             spdp_topic_participant.clone(),
             builtin_publisher.downgrade(),
         ));
@@ -655,6 +657,7 @@ pub fn create_builtins(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
             sedp_topic_publication.clone(),
+            None,
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -667,6 +670,7 @@ pub fn create_builtins(
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
+            None,
             sedp_topic_publication.clone(),
             builtin_publisher.downgrade(),
         ));
@@ -695,6 +699,7 @@ pub fn create_builtins(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
             sedp_topic_subscription.clone(),
+            None,
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -707,6 +712,7 @@ pub fn create_builtins(
         let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
+            None,
             sedp_topic_subscription.clone(),
             builtin_publisher.downgrade(),
         ));
@@ -735,6 +741,7 @@ pub fn create_builtins(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
             sedp_topic_topic.clone(),
+            None,
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -747,6 +754,7 @@ pub fn create_builtins(
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
+            None,
             sedp_topic_topic.clone(),
             builtin_publisher.downgrade(),
         ));
