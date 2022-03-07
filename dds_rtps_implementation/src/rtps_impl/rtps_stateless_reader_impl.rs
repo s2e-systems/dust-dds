@@ -1,16 +1,12 @@
 use rust_rtps_pim::{
     behavior::{
         reader::stateless_reader::{RtpsStatelessReaderAttributes, RtpsStatelessReaderConstructor},
-        stateless_reader_behavior::BestEffortStatelessReaderBehavior,
         types::Duration,
     },
-    structure::{
-        entity::RtpsEntityAttributes,
-        types::{Guid, Locator, ReliabilityKind, TopicKind},
-    },
+    structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
-use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_impl::RtpsReaderImpl, rtps_history_cache_impl::RtpsHistoryCacheImpl};
+use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_impl::RtpsReaderImpl};
 
 pub type RtpsStatelessReaderImpl = RtpsReaderImpl;
 
@@ -39,19 +35,5 @@ impl RtpsStatelessReaderConstructor for RtpsStatelessReaderImpl {
             heartbeat_suppression_duration,
             expects_inline_qos,
         )
-    }
-}
-
-impl<'a> IntoIterator for &'a mut RtpsStatelessReaderImpl {
-    type Item = BestEffortStatelessReaderBehavior<'a, RtpsHistoryCacheImpl>;
-    type IntoIter =
-        std::option::IntoIter<BestEffortStatelessReaderBehavior<'a, RtpsHistoryCacheImpl>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Some(BestEffortStatelessReaderBehavior {
-            reader_guid: self.endpoint.guid(),
-            reader_cache: &mut self.reader_cache,
-        })
-        .into_iter()
     }
 }

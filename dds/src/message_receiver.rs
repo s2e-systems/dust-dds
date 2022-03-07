@@ -7,7 +7,7 @@ use rust_rtps_pim::{
         reader::writer_proxy::RtpsWriterProxyAttributes,
         stateful_reader_behavior::{
             BestEffortStatefulReaderBehavior, ReliableStatefulReaderBehavior,
-        },
+        }, stateless_reader_behavior::BestEffortStatelessReaderBehavior,
     },
     messages::{
         submessage_elements::Parameter,
@@ -82,12 +82,7 @@ impl MessageReceiver {
                             let rtps_reader = &mut data_reader_lock.rtps_reader;
                             match rtps_reader {
                                 RtpsReader::Stateless(stateless_rtps_reader) => {
-                                    for mut stateless_reader_behavior in
-                                        stateless_rtps_reader.into_iter()
-                                    {
-                                        stateless_reader_behavior
-                                            .receive_data(self.source_guid_prefix, data)
-                                    }
+                                    BestEffortStatelessReaderBehavior::receive_data(&mut stateless_rtps_reader.reader_cache, self.source_guid_prefix, data)
                                 }
                                 RtpsReader::Stateful(stateful_rtps_reader) => {
                                     let writer_guid =
