@@ -22,7 +22,7 @@ pub struct AckNackSubmessage<S> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataSubmessage<'a, P> {
+pub struct DataSubmessage<P, D> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
     pub data_flag: SubmessageFlag,
@@ -32,7 +32,7 @@ pub struct DataSubmessage<'a, P> {
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElement,
     pub inline_qos: ParameterListSubmessageElement<P>,
-    pub serialized_payload: SerializedDataSubmessageElement<'a>,
+    pub serialized_payload: SerializedDataSubmessageElement<D>,
 }
 
 #[derive(Debug, PartialEq)]

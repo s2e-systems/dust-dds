@@ -4,9 +4,9 @@ use core::iter::FromIterator;
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
-            ParameterListSubmessageElement, SequenceNumberSetSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
+            SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
+            SerializedDataSubmessageElement,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
@@ -24,17 +24,16 @@ pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
     /// 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<'a, CacheChange, S, P>(
+    pub fn send_unsent_changes<'a, CacheChange, S, P, D>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        mut send_data: impl FnMut(DataSubmessage<'a, P>),
+        mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
-            IntoIterator<Item = Parameter<'a>> + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
-        P: FromIterator<Parameter<'a>>,
     {
         while let Some(seq_num) = reader_locator.next_unsent_change() {
             let change = writer_cache
@@ -63,10 +62,10 @@ impl BestEffortStatelessWriterBehavior {
                     value: change.sequence_number(),
                 };
                 let inline_qos = ParameterListSubmessageElement {
-                    parameter: change.inline_qos().into_iter().collect(),
+                    parameter: change.inline_qos().into(),
                 };
                 let serialized_payload = SerializedDataSubmessageElement {
-                    value: change.data_value(),
+                    value: change.data_value().into(),
                 };
                 let data_submessage = DataSubmessage {
                     endianness_flag,
@@ -112,17 +111,16 @@ pub struct ReliableStatelessWriterBehavior;
 
 impl ReliableStatelessWriterBehavior {
     /// 8.4.8.2.4 Transition T4
-    pub fn send_unsent_changes<'a, CacheChange, S, P>(
+    pub fn send_unsent_changes<'a, CacheChange, S, P, D>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        mut send_data: impl FnMut(DataSubmessage<'a, P>),
+        mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
-            IntoIterator<Item = Parameter<'a>> + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
-        P: FromIterator<Parameter<'a>>,
     {
         while let Some(seq_num) = reader_locator.next_unsent_change() {
             let change = writer_cache
@@ -151,10 +149,10 @@ impl ReliableStatelessWriterBehavior {
                     value: change.sequence_number(),
                 };
                 let inline_qos = ParameterListSubmessageElement {
-                    parameter: change.inline_qos().into_iter().collect(),
+                    parameter: change.inline_qos().into(),
                 };
                 let serialized_payload = SerializedDataSubmessageElement {
-                    value: change.data_value(),
+                    value: change.data_value().into(),
                 };
                 let data_submessage = DataSubmessage {
                     endianness_flag,
@@ -243,17 +241,16 @@ impl ReliableStatelessWriterBehavior {
     }
 
     /// 8.4.9.2.12 Transition T10
-    pub fn send_requested_changes<'a, P, CacheChange, S>(
+    pub fn send_requested_changes<'a, P, D, CacheChange, S>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = SequenceNumber>,
         writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        mut send_data: impl FnMut(DataSubmessage<'a, P>),
+        mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes<'a, DataType = [u8]> + 'a,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType:
-            IntoIterator<Item = Parameter<'a>> + 'a,
+        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
+        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
-        P: FromIterator<Parameter<'a>>,
     {
         while let Some(seq_num) = reader_locator.next_requested_change() {
             let change = writer_cache
@@ -282,10 +279,10 @@ impl ReliableStatelessWriterBehavior {
                     value: change.sequence_number(),
                 };
                 let inline_qos = ParameterListSubmessageElement {
-                    parameter: change.inline_qos().into_iter().collect(),
+                    parameter: change.inline_qos().into(),
                 };
                 let serialized_payload = SerializedDataSubmessageElement {
-                    value: change.data_value(),
+                    value: change.data_value().into(),
                 };
                 let data_submessage = DataSubmessage {
                     endianness_flag,
@@ -335,27 +332,31 @@ mod tests {
 
     use super::*;
 
-    pub struct MockParameterList;
-
-    impl<'a> IntoIterator for &'a MockParameterList {
-        type Item = Parameter<'a>;
-        type IntoIter = std::vec::IntoIter<Parameter<'a>>;
-
-        fn into_iter(self) -> Self::IntoIter {
-            vec![].into_iter()
+    struct MockData;
+    impl From<&MockData> for () {
+        fn from(_: &MockData) -> Self {
+            ()
         }
     }
-    pub struct MockCacheChange {
+
+    struct MockParameterList;
+    impl From<&MockParameterList> for () {
+        fn from(_: &MockParameterList) -> Self {
+            ()
+        }
+    }
+
+    struct MockCacheChange {
         kind: ChangeKind,
         writer_guid: Guid,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        data_value: Vec<u8>,
+        data_value: MockData,
         inline_qos: MockParameterList,
     }
 
     impl<'a> RtpsCacheChangeAttributes<'a> for MockCacheChange {
-        type DataType = [u8];
+        type DataType = MockData;
         type ParameterListType = MockParameterList;
 
         fn kind(&self) -> ChangeKind {
@@ -375,7 +376,7 @@ mod tests {
         }
 
         fn data_value(&self) -> &Self::DataType {
-            self.data_value.as_ref()
+            &self.data_value
         }
 
         fn inline_qos(&self) -> &Self::ParameterListType {
@@ -436,7 +437,7 @@ mod tests {
 
     mock! {
         DataMessageSender<'a>{
-            fn send_data(&mut self, data: DataSubmessage<'a, Vec<Parameter<'a>>> );
+            fn send_data(&mut self, data: DataSubmessage<(), ()> );
         }
     }
     mock! {
@@ -473,7 +474,7 @@ mod tests {
                 writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
                 instance_handle: 1,
                 sequence_number: 1,
-                data_value: vec![1, 2, 3, 4],
+                data_value: MockData,
                 inline_qos: MockParameterList,
             }])
             .in_sequence(&mut seq);
@@ -485,8 +486,6 @@ mod tests {
                     && data.key_flag == false
                     && data.non_standard_payload_flag == false
                     && data.writer_sn.value == 1
-                    && data.inline_qos.parameter.is_empty()
-                    && data.serialized_payload.value == &[1, 2, 3, 4]
             })
             .once()
             .return_const(())
@@ -579,7 +578,7 @@ mod tests {
                 writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
                 instance_handle: 1,
                 sequence_number: 1,
-                data_value: vec![1, 2, 3, 4],
+                data_value: MockData,
                 inline_qos: MockParameterList,
             }])
             .in_sequence(&mut seq);
@@ -591,8 +590,6 @@ mod tests {
                     && data.key_flag == false
                     && data.non_standard_payload_flag == false
                     && data.writer_sn.value == 1
-                    && data.inline_qos.parameter.is_empty()
-                    && data.serialized_payload.value == &[1, 2, 3, 4]
             })
             .once()
             .return_const(())
@@ -727,7 +724,7 @@ mod tests {
 
         reader_locator
             .expect_requested_changes_set()
-            .with(mockall::predicate::eq(&[2,3][..]))
+            .with(mockall::predicate::eq(&[2, 3][..]))
             .once()
             .return_const(());
 
@@ -756,7 +753,7 @@ mod tests {
                 writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
                 instance_handle: 1,
                 sequence_number: 1,
-                data_value: vec![1, 2, 3, 4],
+                data_value: MockData,
                 inline_qos: MockParameterList,
             }])
             .in_sequence(&mut seq);
@@ -768,8 +765,6 @@ mod tests {
                     && data.key_flag == false
                     && data.non_standard_payload_flag == false
                     && data.writer_sn.value == 1
-                    && data.inline_qos.parameter.is_empty()
-                    && data.serialized_payload.value == &[1, 2, 3, 4]
             })
             .once()
             .return_const(())

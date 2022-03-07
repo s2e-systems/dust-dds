@@ -14,7 +14,7 @@ use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, Num
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
-impl MappingWriteSubmessage for DataSubmessage<'_, Vec<Parameter<'_>>> {
+impl MappingWriteSubmessage for DataSubmessage<Vec<Parameter<'_>>, &'_[u8]> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -72,7 +72,7 @@ impl MappingWriteSubmessage for DataSubmessage<'_, Vec<Parameter<'_>>> {
     }
 }
 
-impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessage<'a, Vec<Parameter<'a>>> {
+impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessage<Vec<Parameter<'a>>, &'a[u8]> {
     fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,

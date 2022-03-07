@@ -5,19 +5,19 @@ use rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElemen
 
 use crate::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes};
 
-impl MappingWriteByteOrdered for SerializedDataSubmessageElement<'_> {
+impl MappingWriteByteOrdered for SerializedDataSubmessageElement<&'_[u8]> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        writer.write_all(self.value.as_ref())?;
+        writer.write_all(self.value)?;
         Ok(())
     }
 }
 
-impl NumberOfBytes for SerializedDataSubmessageElement<'_> {
+impl NumberOfBytes for SerializedDataSubmessageElement<&'_[u8]> {
     fn number_of_bytes(&self) -> usize {
-        self.value.as_ref().len()
+        self.value.len()
     }
 }
 
@@ -29,7 +29,7 @@ mod tests {
 
     #[test]
     fn serialize_serialized_data() {
-        let data = SerializedDataSubmessageElement { value: &[1, 2] };
+        let data = SerializedDataSubmessageElement { value: &[1, 2][..] };
         assert_eq!(to_bytes_le(&data).unwrap(), vec![1, 2,]);
     }
 }
