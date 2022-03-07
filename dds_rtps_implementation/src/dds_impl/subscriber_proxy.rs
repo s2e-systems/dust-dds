@@ -647,7 +647,7 @@ mod tests {
             _unicast_locator_list: &[Locator],
             _multicast_locator_list: &[Locator],
             _heartbeat_response_delay: Duration,
-            _heartbeat_supression_duration: Duration,
+            _heartbeat_suppression_duration: Duration,
             _expects_inline_qos: bool,
         ) -> Self {
             EmptyReader {}

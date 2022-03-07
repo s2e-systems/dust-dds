@@ -39,10 +39,7 @@ use rust_dds_rtps_implementation::{
     utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
 };
 use rust_rtps_pim::{
-    behavior::writer::{
-        reader_locator::RtpsReaderLocatorConstructor,
-        stateless_writer::RtpsStatelessWriterOperations,
-    },
+    behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
     discovery::{
         sedp::builtin_endpoints::{
             SedpBuiltinPublicationsReader, SedpBuiltinPublicationsWriter,
@@ -613,17 +610,19 @@ pub fn create_builtins(
             .data_reader_list
             .push(spdp_builtin_participant_data_reader);
 
-        let mut spdp_builtin_participant_rtps_writer =
-            SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl>(guid_prefix, &[], &[]);
-
-        for locator in domain_participant
+        let spdp_reader_locators: Vec<RtpsReaderLocatorAttributesImpl> = domain_participant
             .read_lock()
             .metatraffic_multicast_locator_list
             .iter()
-        {
-            spdp_builtin_participant_rtps_writer
-                .reader_locator_add(RtpsReaderLocatorAttributesImpl::new(locator.clone(), false));
-        }
+            .map(|locator| RtpsReaderLocatorAttributesImpl::new(locator.clone(), false))
+            .collect();
+
+        let spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
+            RtpsStatelessWriterImpl,
+            _,
+        >(
+            guid_prefix, &[], &[], spdp_reader_locators
+        );
 
         let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),

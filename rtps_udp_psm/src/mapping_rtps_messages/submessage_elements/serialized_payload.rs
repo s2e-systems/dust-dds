@@ -1,13 +1,11 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
+use rust_rtps_pim::messages::submessage_elements::SerializedDataSubmessageElement;
 
-use crate::{
-    mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
-    messages::submessage_elements::SerializedDataSubmessageElementPsm,
-};
+use crate::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes};
 
-impl MappingWriteByteOrdered for SerializedDataSubmessageElementPsm<'_> {
+impl MappingWriteByteOrdered for SerializedDataSubmessageElement<'_> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -17,7 +15,7 @@ impl MappingWriteByteOrdered for SerializedDataSubmessageElementPsm<'_> {
     }
 }
 
-impl NumberOfBytes for SerializedDataSubmessageElementPsm<'_> {
+impl NumberOfBytes for SerializedDataSubmessageElement<'_> {
     fn number_of_bytes(&self) -> usize {
         self.value.as_ref().len()
     }
@@ -31,7 +29,7 @@ mod tests {
 
     #[test]
     fn serialize_serialized_data() {
-        let data = SerializedDataSubmessageElementPsm { value: &[1, 2] };
+        let data = SerializedDataSubmessageElement { value: &[1, 2] };
         assert_eq!(to_bytes_le(&data).unwrap(), vec![1, 2,]);
     }
 }

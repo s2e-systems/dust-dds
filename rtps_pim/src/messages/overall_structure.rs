@@ -16,9 +16,3 @@ pub struct RtpsSubmessageHeader {
     pub flags: [SubmessageFlag; 8],
     pub submessage_length: u16,
 }
-
-#[derive(Debug, PartialEq)]
-pub struct RtpsMessage<M> {
-    pub header: RtpsMessageHeader,
-    pub submessages: M,
-}

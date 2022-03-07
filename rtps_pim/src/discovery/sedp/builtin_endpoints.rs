@@ -45,7 +45,7 @@ const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration {
     fraction: 500,
 };
 
-const DEFAULT_HEARTBEAT_SUPRESSION_DURATION: Duration = DURATION_ZERO;
+const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
 pub struct SedpBuiltinPublicationsWriter;
 
@@ -96,7 +96,7 @@ impl SedpBuiltinPublicationsReader {
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::Reliable;
         let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
-        let heartbeat_supression_duration = DEFAULT_HEARTBEAT_SUPRESSION_DURATION;
+        let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
         let expects_inline_qos = false;
         R::new(
             guid,
@@ -105,7 +105,7 @@ impl SedpBuiltinPublicationsReader {
             unicast_locator_list,
             multicast_locator_list,
             heartbeat_response_delay,
-            heartbeat_supression_duration,
+            heartbeat_suppression_duration,
             expects_inline_qos,
         )
     }
@@ -160,7 +160,7 @@ impl SedpBuiltinSubscriptionsReader {
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::Reliable;
         let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
-        let heartbeat_supression_duration = DEFAULT_HEARTBEAT_SUPRESSION_DURATION;
+        let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
         let expects_inline_qos = false;
         R::new(
             guid,
@@ -169,7 +169,7 @@ impl SedpBuiltinSubscriptionsReader {
             unicast_locator_list,
             multicast_locator_list,
             heartbeat_response_delay,
-            heartbeat_supression_duration,
+            heartbeat_suppression_duration,
             expects_inline_qos,
         )
     }
@@ -224,7 +224,7 @@ impl SedpBuiltinTopicsReader {
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::Reliable;
         let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
-        let heartbeat_supression_duration = DEFAULT_HEARTBEAT_SUPRESSION_DURATION;
+        let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
         let expects_inline_qos = false;
         R::new(
             guid,
@@ -233,7 +233,7 @@ impl SedpBuiltinTopicsReader {
             unicast_locator_list,
             multicast_locator_list,
             heartbeat_response_delay,
-            heartbeat_supression_duration,
+            heartbeat_suppression_duration,
             expects_inline_qos,
         )
     }

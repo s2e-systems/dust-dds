@@ -1,11 +1,14 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::structure::types::ProtocolVersion;
+use rust_rtps_pim::{
+    messages::submessage_elements::ProtocolVersionSubmessageElement,
+    structure::types::ProtocolVersion,
+};
 
-use crate::{mapping_traits::{
+use crate::mapping_traits::{
     MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered, NumberOfBytes,
-}, messages::submessage_elements::ProtocolVersionSubmessageElementPsm};
+};
 
 impl MappingWriteByteOrdered for ProtocolVersion {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -48,7 +51,7 @@ impl NumberOfBytes for ProtocolVersion {
     }
 }
 
-impl MappingWriteByteOrdered for ProtocolVersionSubmessageElementPsm {
+impl MappingWriteByteOrdered for ProtocolVersionSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -57,7 +60,7 @@ impl MappingWriteByteOrdered for ProtocolVersionSubmessageElementPsm {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for ProtocolVersionSubmessageElementPsm {
+impl<'de> MappingReadByteOrdered<'de> for ProtocolVersionSubmessageElement {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
             value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
@@ -72,7 +75,7 @@ mod tests {
 
     #[test]
     fn serialize_protocol_version() {
-        let data = ProtocolVersionSubmessageElementPsm {
+        let data = ProtocolVersionSubmessageElement {
             value: ProtocolVersion { major: 2, minor: 3 },
         };
         assert_eq!(to_bytes_le(&data).unwrap(), vec![2, 3]);
@@ -80,7 +83,7 @@ mod tests {
 
     #[test]
     fn deserialize_protocol_version() {
-        let expected = ProtocolVersionSubmessageElementPsm {
+        let expected = ProtocolVersionSubmessageElement {
             value: ProtocolVersion { major: 2, minor: 3 },
         };
         assert_eq!(expected, from_bytes_le(&[2, 3]).unwrap());
