@@ -909,6 +909,7 @@ mod tests {
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
+            None,
             sedp_topic_topic.clone(),
             domain_participant
                 .read_lock()

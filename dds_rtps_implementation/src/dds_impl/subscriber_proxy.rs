@@ -230,13 +230,13 @@ where
                 false,
             ));
 
-            let mut data_reader = DataReaderAttributes::new(
+            let data_reader = DataReaderAttributes::new(
                 qos,
                 rtps_reader,
                 topic_shared.clone(),
+                listener,
                 self.subscriber_impl.clone(),
             );
-            data_reader.listener = listener;
 
             let data_reader_shared = RtpsShared::new(data_reader);
 
@@ -746,6 +746,7 @@ mod tests {
         let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
+            None,
             sedp_topic_subscription.clone(),
             domain_participant
                 .read_lock()
