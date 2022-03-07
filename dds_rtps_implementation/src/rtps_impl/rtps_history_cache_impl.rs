@@ -1,5 +1,3 @@
-use std::iter::FromIterator;
-
 use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::ParameterId},
     structure::{
@@ -18,35 +16,6 @@ pub struct RtpsParameter {
 }
 
 pub struct RtpsParameterList(pub Vec<RtpsParameter>);
-impl<'a> IntoIterator for &'a RtpsParameterList {
-    type Item = Parameter<'a>;
-    type IntoIter = std::vec::IntoIter<Parameter<'a>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let v: Vec<Parameter> = self
-            .0
-            .iter()
-            .map(|p| Parameter {
-                parameter_id: p.parameter_id,
-                length: p.value.len() as i16,
-                value: p.value.as_ref(),
-            })
-            .collect();
-        v.into_iter()
-    }
-}
-impl<'a> FromIterator<&'a Parameter<'a>> for RtpsParameterList {
-    fn from_iter<T: IntoIterator<Item = &'a Parameter<'a>>>(iter: T) -> Self {
-        Self(
-            iter.into_iter()
-                .map(|p| RtpsParameter {
-                    parameter_id: p.parameter_id,
-                    value: p.value.to_vec(),
-                })
-                .collect(),
-        )
-    }
-}
 
 impl<'a> From<&'a Vec<Parameter<'_>>> for RtpsParameterList {
     fn from(p: &'a Vec<Parameter<'_>>) -> Self {
@@ -72,14 +41,6 @@ impl<'a> From<&'a RtpsParameterList> for Vec<Parameter<'a>> {
     }
 }
 
-impl RtpsParameter {
-    pub fn new(parameter_id: ParameterId, value: &[u8]) -> Self {
-        Self {
-            parameter_id,
-            value: value.to_vec(),
-        }
-    }
-}
 
 pub struct RtpsCacheChangeImpl {
     pub kind: ChangeKind,
