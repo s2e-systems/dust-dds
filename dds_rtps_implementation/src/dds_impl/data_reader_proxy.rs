@@ -102,13 +102,14 @@ where
         qos: DataReaderQos,
         rtps_reader: RtpsReader<Rtps>,
         topic: RtpsShared<TopicAttributes<Rtps>>,
+        listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
         parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         Self {
             rtps_reader,
             _qos: qos,
             topic,
-            listener: None,
+            listener,
             parent_subscriber,
             status: SubscriptionMatchedStatus {
                 total_count: 0,
