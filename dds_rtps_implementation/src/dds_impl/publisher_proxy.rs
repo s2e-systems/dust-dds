@@ -212,13 +212,13 @@ where
                 None,
             ));
 
-            let data_writer_shared = RtpsShared::new(DataWriterAttributes {
-                _qos: qos,
-                rtps_writer: rtps_writer_impl,
-                listener,
-                topic: topic_shared.clone(),
-                publisher: publisher_shared.downgrade(),
-            });
+            let data_writer_shared = RtpsShared::new(DataWriterAttributes::new(
+                qos,
+                rtps_writer_impl,
+                topic_shared.clone(),
+                publisher_shared.downgrade()
+            ));
+            data_writer_shared.write_lock().listener = listener;
 
             publisher_shared
                 .write_lock()

@@ -239,6 +239,7 @@ pub struct RequestedIncompatibleQosStatus {
     pub policies: QosPolicyCountSeq,
 }
 
+#[derive(Clone, Copy)]
 pub struct PublicationMatchedStatus {
     /// Total cumulative count the concerned DataWriter discovered a
     /// “match” with a DataReader. That is, it found a DataReader for the
@@ -259,6 +260,7 @@ pub struct PublicationMatchedStatus {
     pub current_count_change: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct SubscriptionMatchedStatus {
     /// Total cumulative count the concerned DataReader discovered a
     /// “match” with a DataWriter. That is, it found a DataWriter for the same

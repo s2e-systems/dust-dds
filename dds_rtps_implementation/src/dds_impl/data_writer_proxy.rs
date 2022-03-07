@@ -69,6 +69,7 @@ where
     pub listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub publisher: RtpsWeak<PublisherAttributes<Rtps>>,
+    pub status: PublicationMatchedStatus,
 }
 
 impl<Rtps> DataWriterAttributes<Rtps>
@@ -87,6 +88,13 @@ where
             listener: None,
             topic,
             publisher,
+            status: PublicationMatchedStatus {
+                total_count: 0,
+                total_count_change: 0,
+                last_subscription_handle: 0,
+                current_count: 0,
+                current_count_change: 0,
+            },
         }
     }
 }

@@ -91,6 +91,7 @@ where
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
     pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
+    pub status: SubscriptionMatchedStatus,
 }
 
 impl<Rtps> DataReaderAttributes<Rtps>
@@ -109,6 +110,13 @@ where
             topic,
             listener: None,
             parent_subscriber,
+            status: SubscriptionMatchedStatus {
+                total_count: 0,
+                total_count_change: 0,
+                last_publication_handle: 0,
+                current_count: 0,
+                current_count_change: 0,
+            }
         }
     }
 }
