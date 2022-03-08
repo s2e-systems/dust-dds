@@ -1,5 +1,6 @@
 use rust_dds_rtps_implementation::{
     dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
+    rtps_impl::rtps_writer_proxy_impl::RtpsWriterProxyOperationsImpl,
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
@@ -126,7 +127,12 @@ impl MessageReceiver {
                                             ReliabilityKind::BestEffort => {
                                                 if let Some(change) =
                                                     BestEffortStatefulReaderBehavior::receive_data(
-                                                        writer_proxy,
+                                                        &mut RtpsWriterProxyOperationsImpl {
+                                                            writer_proxy,
+                                                            reader_cache: &stateful_rtps_reader
+                                                                .reader
+                                                                .reader_cache,
+                                                        },
                                                         self.source_guid_prefix,
                                                         data,
                                                     )
@@ -140,7 +146,12 @@ impl MessageReceiver {
                                             ReliabilityKind::Reliable => {
                                                 if let Some(change) =
                                                     ReliableStatefulReaderBehavior::receive_data(
-                                                        writer_proxy,
+                                                        &mut RtpsWriterProxyOperationsImpl {
+                                                            writer_proxy,
+                                                            reader_cache: &stateful_rtps_reader
+                                                                .reader
+                                                                .reader_cache,
+                                                        },
                                                         self.source_guid_prefix,
                                                         data,
                                                     )

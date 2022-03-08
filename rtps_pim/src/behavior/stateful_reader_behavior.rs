@@ -17,7 +17,8 @@ use super::reader::writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOper
 pub struct BestEffortStatefulReaderBehavior;
 
 impl BestEffortStatefulReaderBehavior {
-    // 8.4.12.1.2 Transition T2
+    // 8.4.12.1.2 Transition T2 - Partial implementation
+    // The add_change method call is not done here due to lifetime issues
     pub fn receive_data<'a, C, P, D>(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
         source_guid_prefix: GuidPrefix,
@@ -76,7 +77,8 @@ impl BestEffortStatefulReaderBehavior {
 pub struct ReliableStatefulReaderBehavior;
 
 impl ReliableStatefulReaderBehavior {
-    // 8.4.12.2.8 Transition T8
+    // 8.4.12.2.8 Transition T8 - Partial implementation
+    // The add_change method call is not done here due to lifetime issues
     pub fn receive_data<'a, C, P, D>(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
         source_guid_prefix: GuidPrefix,

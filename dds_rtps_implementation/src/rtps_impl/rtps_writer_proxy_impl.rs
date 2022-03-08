@@ -5,6 +5,8 @@ use rust_rtps_pim::{
     structure::types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
+use super::rtps_history_cache_impl::RtpsHistoryCacheImpl;
+
 #[derive(Debug, PartialEq)]
 pub struct RtpsWriterProxyImpl {
     remote_writer_guid: Guid,
@@ -54,7 +56,12 @@ impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
     }
 }
 
-impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
+pub struct RtpsWriterProxyOperationsImpl<'a> {
+    pub writer_proxy: &'a mut RtpsWriterProxyImpl,
+    pub reader_cache: &'a RtpsHistoryCacheImpl,
+}
+
+impl RtpsWriterProxyOperations for RtpsWriterProxyOperationsImpl<'_> {
     type SequenceNumberListType = Vec<SequenceNumber>;
 
     fn available_changes_max(&self) -> SequenceNumber {
