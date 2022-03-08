@@ -40,19 +40,19 @@ impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        todo!()
+        self.unicast_locator_list.as_ref()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        todo!()
+        self.multicast_locator_list.as_ref()
     }
 
     fn data_max_size_serialized(&self) -> Option<i32> {
-        todo!()
+        self.data_max_size_serialized
     }
 
     fn remote_group_entity_id(&self) -> EntityId {
-        todo!()
+        self.remote_group_entity_id
     }
 }
 
@@ -89,5 +89,15 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyOperationsImpl<'_> {
         //     SUCH-THAT change.sequenceNumber == a_seq_num;
         // change.status := RECEIVED
         println!("/!\\ RtpsWriterProxyImpl: received_change_set from RtpsWriterProxyOperations not implemented");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn writer_proxy_available_changes_max() {
+        todo!()
     }
 }
