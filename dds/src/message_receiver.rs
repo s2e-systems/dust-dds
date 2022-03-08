@@ -1,5 +1,6 @@
 use rust_dds_rtps_implementation::{
     dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
+    rtps_impl::rtps_writer_proxy_impl::RtpsWriterProxyOperationsImpl,
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
@@ -15,7 +16,7 @@ use rust_rtps_pim::{
         types::{Time, TIME_INVALID},
     },
     structure::{
-        history_cache::RtpsHistoryCacheAttributes,
+        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
         types::{
             Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber, VendorId,
             ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID,
@@ -124,20 +125,42 @@ impl MessageReceiver {
                                         match stateful_rtps_reader.reader.endpoint.reliability_level
                                         {
                                             ReliabilityKind::BestEffort => {
-                                                BestEffortStatefulReaderBehavior::receive_data(
-                                                    writer_proxy,
-                                                    &mut stateful_rtps_reader.reader.reader_cache,
-                                                    self.source_guid_prefix,
-                                                    data,
-                                                );
+                                                if let Some(change) =
+                                                    BestEffortStatefulReaderBehavior::receive_data(
+                                                        &mut RtpsWriterProxyOperationsImpl {
+                                                            writer_proxy,
+                                                            reader_cache: &stateful_rtps_reader
+                                                                .reader
+                                                                .reader_cache,
+                                                        },
+                                                        self.source_guid_prefix,
+                                                        data,
+                                                    )
+                                                {
+                                                    stateful_rtps_reader
+                                                        .reader
+                                                        .reader_cache
+                                                        .add_change(change);
+                                                }
                                             }
                                             ReliabilityKind::Reliable => {
-                                                ReliableStatefulReaderBehavior::receive_data(
-                                                    writer_proxy,
-                                                    &mut stateful_rtps_reader.reader.reader_cache,
-                                                    self.source_guid_prefix,
-                                                    data,
-                                                );
+                                                if let Some(change) =
+                                                    ReliableStatefulReaderBehavior::receive_data(
+                                                        &mut RtpsWriterProxyOperationsImpl {
+                                                            writer_proxy,
+                                                            reader_cache: &stateful_rtps_reader
+                                                                .reader
+                                                                .reader_cache,
+                                                        },
+                                                        self.source_guid_prefix,
+                                                        data,
+                                                    )
+                                                {
+                                                    stateful_rtps_reader
+                                                        .reader
+                                                        .reader_cache
+                                                        .add_change(change);
+                                                }
                                             }
                                         }
                                     }
@@ -181,7 +204,6 @@ impl MessageReceiver {
         }
     }
 }
-
 
 pub trait ProcessAckNackSubmessage {
     fn process_acknack_submessage(
