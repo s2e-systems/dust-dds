@@ -5,8 +5,6 @@ use rust_rtps_pim::{
     structure::types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
-use super::rtps_history_cache_impl::RtpsHistoryCacheImpl;
-
 #[derive(Debug, PartialEq)]
 pub struct RtpsWriterProxyImpl {
     remote_writer_guid: Guid,
@@ -20,10 +18,10 @@ pub struct RtpsWriterProxyImpl {
     first_available_seq_num: SequenceNumber,
     last_available_seq_num: SequenceNumber,
 
-    // Changes for which a GAP message is received are irrelevant
+    // Changes which are IRRELEVANT
     irrelevant_changes: Vec<SequenceNumber>,
 
-    // Changes which have been received
+    // Changes which have are RECEIVED
     received_changes: Vec<SequenceNumber>,
 }
 
@@ -71,34 +69,20 @@ impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
     }
 }
 
-pub struct RtpsWriterProxyOperationsImpl<'a> {
-    pub writer_proxy: &'a mut RtpsWriterProxyImpl,
-    pub reader_cache: &'a RtpsHistoryCacheImpl,
-}
-
-impl RtpsWriterProxyOperations for RtpsWriterProxyOperationsImpl<'_> {
+impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
     type SequenceNumberListType = Vec<SequenceNumber>;
 
     fn available_changes_max(&self) -> SequenceNumber {
-        // seq_num := MAX { change.sequenceNumber SUCH-THAT
-        // ( change IN this.changes_from_writer
-        // AND ( change.status == RECEIVED
-        // OR change.status == LOST) ) };
-        // return seq_num;
+        // The condition to make any CacheChange ‘a_change’ available for ‘access’ by the DDS DataReader is that there are no changes
+        // from the RTPS Writer with SequenceNumber_t smaller than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN.
 
-        // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING).
-        // Change that are IRRELEVANT are not considered
         let max_received_change_seq_num = *self
-            .writer_proxy
             .received_changes
             .iter()
-            .filter(|&x| !self.writer_proxy.irrelevant_changes.contains(x))
+            .filter(|&x| !self.irrelevant_changes.contains(x))
             .max()
             .unwrap_or(&0);
-        i64::max(
-            self.writer_proxy.first_available_seq_num,
-            max_received_change_seq_num,
-        )
+        i64::max(self.first_available_seq_num, max_received_change_seq_num)
     }
 
     fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
@@ -107,7 +91,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyOperationsImpl<'_> {
         // FIND change FROM this.changes_from_writer SUCH-THAT
         // (change.sequenceNumber == a_seq_num);
         // change.status := RECEIVED; change.is_relevant := FALSE;
-        self.writer_proxy.irrelevant_changes.push(a_seq_num)
+        self.irrelevant_changes.push(a_seq_num)
     }
 
     fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
@@ -116,7 +100,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyOperationsImpl<'_> {
         // AND seq_num < first_available_seq_num ) DO {
         // change.status := LOST;
         // }
-        self.writer_proxy.first_available_seq_num = first_available_seq_num
+        self.first_available_seq_num = first_available_seq_num
     }
 
     fn missing_changes(&self) -> Self::SequenceNumberListType {
@@ -126,11 +110,9 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyOperationsImpl<'_> {
 
         // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING) and above last_available_seq_num are unknown.
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
-        for seq_num in
-            self.writer_proxy.first_available_seq_num..=self.writer_proxy.last_available_seq_num
-        {
-            let received = self.writer_proxy.received_changes.contains(&seq_num);
-            let irrelevant = self.writer_proxy.irrelevant_changes.contains(&seq_num);
+        for seq_num in self.first_available_seq_num + 1..=self.last_available_seq_num {
+            let received = self.received_changes.contains(&seq_num);
+            let irrelevant = self.irrelevant_changes.contains(&seq_num);
             if !(irrelevant || received) {
                 missing_changes.push(seq_num)
             }
@@ -144,23 +126,87 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyOperationsImpl<'_> {
         // AND seq_num <= last_available_seq_num ) DO {
         // change.status := MISSING;
         // }
-        self.writer_proxy.last_available_seq_num = last_available_seq_num;
+        self.last_available_seq_num = last_available_seq_num;
     }
 
     fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
         // FIND change FROM this.changes_from_writer
         //     SUCH-THAT change.sequenceNumber == a_seq_num;
         // change.status := RECEIVED
-        self.writer_proxy.received_changes.push(a_seq_num);
+        self.received_changes.push(a_seq_num);
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use rust_rtps_pim::structure::types::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
+
     use super::*;
 
+    fn create_test_proxy() -> RtpsWriterProxyImpl {
+        RtpsWriterProxyImpl::new(GUID_UNKNOWN, &[], &[], None, ENTITYID_UNKNOWN)
+    }
+
     #[test]
-    fn writer_proxy_available_changes_max() {
-        todo!()
+    fn writer_proxy_available_changes_max_empty() {
+        let writer_proxy = create_test_proxy();
+
+        assert_eq!(writer_proxy.available_changes_max(), 0);
+    }
+
+    #[test]
+    fn writer_proxy_available_changes_max_sequential_received_changes() {
+        let mut writer_proxy = create_test_proxy();
+
+        writer_proxy.received_change_set(1);
+        writer_proxy.received_change_set(2);
+
+        assert_eq!(writer_proxy.available_changes_max(), 2);
+    }
+
+    #[test]
+    fn writer_proxy_available_changes_max_missing_received_changes() {
+        let mut writer_proxy = create_test_proxy();
+
+        writer_proxy.received_change_set(1);
+        writer_proxy.received_change_set(2);
+        writer_proxy.received_change_set(4);
+
+        assert_eq!(writer_proxy.available_changes_max(), 2);
+    }
+
+    #[test]
+    fn writer_proxy_missing_changes_without_lost_changes() {
+        let mut writer_proxy = create_test_proxy();
+
+        writer_proxy.missing_changes_update(3);
+
+        let expected_missing_changes = vec![1, 2, 3];
+        let missing_changes = writer_proxy.missing_changes();
+        assert_eq!(missing_changes, expected_missing_changes);
+    }
+
+    #[test]
+    fn writer_proxy_missing_changes_with_lost_changes() {
+        let mut writer_proxy = create_test_proxy();
+
+        writer_proxy.lost_changes_update(2);
+        writer_proxy.missing_changes_update(3);
+
+        let expected_missing_changes = vec![3];
+        let missing_changes = writer_proxy.missing_changes();
+        assert_eq!(missing_changes, expected_missing_changes);
+    }
+
+    #[test]
+    fn writer_proxy_missing_changes_with_received_changes() {
+        let mut writer_proxy = create_test_proxy();
+
+        writer_proxy.missing_changes_update(3);
+        writer_proxy.received_change_set(2);
+
+        let expected_missing_changes = vec![1, 3];
+        let missing_changes = writer_proxy.missing_changes();
+        assert_eq!(missing_changes, expected_missing_changes);
     }
 }
