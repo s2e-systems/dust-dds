@@ -8,7 +8,6 @@ use crate::{
     },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        history_cache::RtpsHistoryCacheOperations,
         types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
     },
 };
@@ -21,10 +20,10 @@ impl BestEffortStatefulReaderBehavior {
     // 8.4.12.1.2 Transition T2
     pub fn receive_data<'a, C, P, D>(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
-        reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
         source_guid_prefix: GuidPrefix,
         data: &'a DataSubmessage<P, D>,
-    ) where
+    ) -> Option<C>
+    where
         C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes<'a>,
         for<'b> &'b D: Into<<C as RtpsCacheChangeConstructor>::DataType>,
         for<'b> &'b P: Into<<C as RtpsCacheChangeConstructor>::ParameterListType>,
@@ -54,7 +53,9 @@ impl BestEffortStatefulReaderBehavior {
             if a_change.sequence_number() > expected_seq_num {
                 writer_proxy.lost_changes_update(a_change.sequence_number());
             }
-            reader_cache.add_change(a_change);
+            Some(a_change)
+        } else {
+            None
         }
     }
 
@@ -78,10 +79,10 @@ impl ReliableStatefulReaderBehavior {
     // 8.4.12.2.8 Transition T8
     pub fn receive_data<'a, C, P, D>(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
-        reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
         source_guid_prefix: GuidPrefix,
         data: &'a DataSubmessage<P, D>,
-    ) where
+    ) -> Option<C>
+    where
         C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes<'a>,
         for<'b> <C as RtpsCacheChangeConstructor>::DataType: From<&'b D>,
         for<'b> <C as RtpsCacheChangeConstructor>::ParameterListType: From<&'b P>,
@@ -106,7 +107,7 @@ impl ReliableStatefulReaderBehavior {
             inline_qos,
         );
         writer_proxy.received_change_set(a_change.sequence_number());
-        reader_cache.add_change(a_change);
+        Some(a_change)
     }
 
     // 8.4.12.2.5 Transition T5
@@ -192,8 +193,8 @@ mod tests {
     }
 
     struct MockData;
-    impl From<&&[u8]> for MockData {
-        fn from(_: &&[u8]) -> Self {
+    impl From<&()> for MockData {
+        fn from(_: &()) -> Self {
             MockData
         }
     }
@@ -254,35 +255,6 @@ mod tests {
     }
 
     mock! {
-        HistoryCache{
-            fn add_change_(&mut self, change: MockCacheChange);
-        }
-    }
-
-    impl RtpsHistoryCacheOperations for MockHistoryCache {
-        type CacheChangeType = MockCacheChange;
-
-        fn add_change(&mut self, change: Self::CacheChangeType) {
-            self.add_change_(change)
-        }
-
-        fn remove_change<F>(&mut self, _f: F)
-        where
-            F: FnMut(&Self::CacheChangeType) -> bool,
-        {
-            unimplemented!()
-        }
-
-        fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-            unimplemented!()
-        }
-
-        fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-            unimplemented!()
-        }
-    }
-
-    mock! {
         WriterProxy{}
 
         impl RtpsWriterProxyOperations for WriterProxy {
@@ -320,16 +292,6 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut reader_cache = MockHistoryCache::new();
-        reader_cache
-            .expect_add_change_()
-            .with(mockall::predicate::eq(MockCacheChange {
-                kind: ChangeKind::Alive,
-                sequence_number: 1,
-            }))
-            .once()
-            .return_const(());
-
         let source_guid_prefix = GuidPrefix([1; 12]);
         let data = DataSubmessage {
             endianness_flag: true,
@@ -345,14 +307,20 @@ mod tests {
             },
             writer_sn: SequenceNumberSubmessageElement { value: writer_sn },
             inline_qos: ParameterListSubmessageElement { parameter: () },
-            serialized_payload: SerializedDataSubmessageElement { value: &[][..] },
+            serialized_payload: SerializedDataSubmessageElement { value: () },
         };
-        BestEffortStatefulReaderBehavior::receive_data(
+        let expected_change = Some(MockCacheChange {
+            kind: ChangeKind::Alive,
+            sequence_number: 1,
+        });
+
+        let change = BestEffortStatefulReaderBehavior::receive_data(
             &mut writer_proxy,
-            &mut reader_cache,
             source_guid_prefix,
             &data,
         );
+
+        assert_eq!(change, expected_change);
     }
 
     #[test]
@@ -375,16 +343,6 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut reader_cache = MockHistoryCache::new();
-        reader_cache
-            .expect_add_change_()
-            .with(mockall::predicate::eq(MockCacheChange {
-                kind: ChangeKind::Alive,
-                sequence_number: 4,
-            }))
-            .once()
-            .return_const(());
-
         let source_guid_prefix = GuidPrefix([1; 12]);
         let data = DataSubmessage {
             endianness_flag: true,
@@ -400,14 +358,19 @@ mod tests {
             },
             writer_sn: SequenceNumberSubmessageElement { value: writer_sn },
             inline_qos: ParameterListSubmessageElement { parameter: () },
-            serialized_payload: SerializedDataSubmessageElement { value: &[][..] },
+            serialized_payload: SerializedDataSubmessageElement { value: () },
         };
-        BestEffortStatefulReaderBehavior::receive_data(
+        let expect_change = Some(MockCacheChange {
+            kind: ChangeKind::Alive,
+            sequence_number: 4,
+        });
+        let change = BestEffortStatefulReaderBehavior::receive_data(
             &mut writer_proxy,
-            &mut reader_cache,
             source_guid_prefix,
             &data,
         );
+
+        assert_eq!(change, expect_change);
     }
 
     #[test]
@@ -468,16 +431,6 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut reader_cache = MockHistoryCache::new();
-        reader_cache
-            .expect_add_change_()
-            .with(mockall::predicate::eq(MockCacheChange {
-                kind: ChangeKind::Alive,
-                sequence_number: 1,
-            }))
-            .once()
-            .return_const(());
-
         let source_guid_prefix = GuidPrefix([1; 12]);
         let data = DataSubmessage {
             endianness_flag: true,
@@ -493,14 +446,18 @@ mod tests {
             },
             writer_sn: SequenceNumberSubmessageElement { value: writer_sn },
             inline_qos: ParameterListSubmessageElement { parameter: () },
-            serialized_payload: SerializedDataSubmessageElement { value: &[][..] },
+            serialized_payload: SerializedDataSubmessageElement { value: () },
         };
-        ReliableStatefulReaderBehavior::receive_data(
+        let expected_change = Some(MockCacheChange {
+            kind: ChangeKind::Alive,
+            sequence_number: 1,
+        });
+        let change = ReliableStatefulReaderBehavior::receive_data(
             &mut writer_proxy,
-            &mut reader_cache,
             source_guid_prefix,
             &data,
         );
+        assert_eq!(change, expected_change);
     }
 
     #[test]
