@@ -1,7 +1,7 @@
 use crate::behavior::types::ChangeForReaderStatusKind;
 
 pub trait RtpsChangeForReaderAttributes {
-    fn status(&self) -> ChangeForReaderStatusKind;
+    fn status(&mut self) -> &mut ChangeForReaderStatusKind;
     fn is_relevant(&self) -> bool;
 }
 

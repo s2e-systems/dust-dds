@@ -30,7 +30,7 @@ use rust_dds_rtps_implementation::{
         subscriber_proxy::SubscriberProxy,
     },
     rtps_impl::{
-        rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
+        rtps_reader_proxy_impl::RtpsReaderProxyImpl,
         rtps_writer_proxy_impl::RtpsWriterProxyImpl,
     },
     utils::shared_object::RtpsShared,
@@ -361,7 +361,7 @@ pub fn task_sedp_reader_discovery(
                 let writer_topic_name = &data_writer_lock.topic.read_lock().topic_name.clone();
                 let writer_type_name = data_writer_lock.topic.read_lock().type_name;
                 if topic_name == writer_topic_name && type_name == writer_type_name {
-                    let reader_proxy = RtpsReaderProxyAttributesImpl::new(
+                    let reader_proxy = RtpsReaderProxyImpl::new(
                         sample.reader_proxy.remote_reader_guid,
                         sample.reader_proxy.remote_group_entity_id,
                         sample.reader_proxy.unicast_locator_list.as_ref(),

@@ -151,6 +151,7 @@ where
                                         &mut RtpsReaderProxyOperationsImpl::new(
                                             reader_proxy,
                                             &stateful_rtps_writer.writer.writer_cache,
+                                            stateful_rtps_writer.writer.push_mode
                                         ),
                                         &stateful_rtps_writer.writer.writer_cache,
                                         reader_id,

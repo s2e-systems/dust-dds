@@ -8,15 +8,16 @@ use rust_rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-struct RtpsCacheChangeImpl {
-    status: ChangeForReaderStatusKind,
-    is_relevant: bool,
-    seq_num: SequenceNumber,
+#[derive(Debug, PartialEq)]
+pub struct RtpsChangeForReaderImpl {
+    pub status: ChangeForReaderStatusKind,
+    pub is_relevant: bool,
+    pub sequence_number: SequenceNumber,
 }
 
-impl RtpsChangeForReaderAttributes for RtpsCacheChangeImpl {
-    fn status(&self) -> ChangeForReaderStatusKind {
-        self.status
+impl RtpsChangeForReaderAttributes for RtpsChangeForReaderImpl {
+    fn status(&mut self) -> &mut ChangeForReaderStatusKind {
+        &mut self.status
     }
 
     fn is_relevant(&self) -> bool {
@@ -24,12 +25,12 @@ impl RtpsChangeForReaderAttributes for RtpsCacheChangeImpl {
     }
 }
 
-impl RtpsChangeForReaderConstructor for RtpsCacheChangeImpl {
+impl RtpsChangeForReaderConstructor for RtpsChangeForReaderImpl {
     fn new(status: ChangeForReaderStatusKind, is_relevant: bool) -> Self {
         Self {
             status,
             is_relevant,
-            seq_num: 0,
+            sequence_number: 0,
         }
     }
 }
