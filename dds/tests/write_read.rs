@@ -1,7 +1,6 @@
 use rust_dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
     types::Time,
@@ -63,11 +62,9 @@ fn user_defined_write_read_auto_enable() {
     let publisher = participant1.create_publisher(None, None, 0).unwrap();
     let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
-    let mut reader_qos = DataReaderQos::default();
-    reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
     let mut reader = subscriber
-        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .create_datareader(&topic, None, None, 0)
         .unwrap();
 
     // Wait for reader to be aware of the user writer
