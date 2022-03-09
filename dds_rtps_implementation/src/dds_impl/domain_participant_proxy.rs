@@ -59,7 +59,6 @@ where
 {
     pub rtps_participant: Rtps::Participant,
     pub domain_id: DomainId,
-    pub participant_id: usize,
     pub domain_tag: String,
     pub qos: DomainParticipantQos,
     pub builtin_subscriber: Option<RtpsShared<SubscriberAttributes<Rtps>>>,
@@ -87,7 +86,6 @@ where
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
-        participant_id: usize,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
         metatraffic_unicast_locator_list: Vec<Locator>,
@@ -109,7 +107,6 @@ where
         Self {
             rtps_participant,
             domain_id,
-            participant_id,
             domain_tag,
             qos: domain_participant_qos,
             builtin_subscriber: None,
@@ -876,7 +873,6 @@ mod tests {
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             GuidPrefix([0; 12]),
             DomainId::default(),
-            0,
             "".to_string(),
             DomainParticipantQos::default(),
             vec![],

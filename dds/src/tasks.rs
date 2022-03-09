@@ -493,12 +493,12 @@ mod tests {
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::RtpsShared,
     };
-    use rust_rtps_pim::structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator};
+    use rust_rtps_pim::structure::types::GuidPrefix;
 
     use crate::{
         domain_participant_factory::{
-            create_builtins, get_multicast_communication, get_unicast_communication,
-            port_builtin_multicast, port_builtin_unicast, port_user_unicast, RtpsStructureImpl,
+            create_builtins,
+            RtpsStructureImpl, Communications,
         },
         tasks::task_sedp_reader_discovery,
     };
@@ -533,47 +533,6 @@ mod tests {
         fn deserialize(buf: &mut &'de [u8]) -> DDSResult<Self> {
             Ok(UserData(buf[0]))
         }
-    }
-
-    #[rustfmt::skip]
-    fn locator_address(address: &[u8; 4]) -> [u8; 16] {
-        [
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            address[0], address[1], address[2], address[3]
-        ]
-    }
-
-    fn default_participant(
-        domain_id: i32,
-        participant_id: usize,
-        unicast_address: &[u8; 4],
-        multicast_address: &[u8; 4],
-    ) -> RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>> {
-        RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            GuidPrefix([3; 12]),
-            domain_id,
-            participant_id,
-            "".to_string(),
-            DomainParticipantQos::default(),
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_builtin_unicast(domain_id as u16, participant_id as u16) as u32,
-                locator_address(unicast_address),
-            )],
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_builtin_multicast(domain_id as u16) as u32,
-                locator_address(multicast_address),
-            )],
-            vec![Locator::new(
-                LOCATOR_KIND_UDPv4,
-                port_user_unicast(domain_id as u16, participant_id as u16) as u32,
-                locator_address(unicast_address),
-            )],
-            vec![],
-        ))
     }
 
     macro_rules! matched_readers {
@@ -612,11 +571,41 @@ mod tests {
         let guid_prefix = GuidPrefix([3; 12]);
 
         // Create 2 participants
-        let participant1 = default_participant(domain_id, 0, &unicast_address, &multicast_address);
+        let mut communications1 = Communications::find_available(
+            domain_id,
+            guid_prefix,
+            unicast_address.into(),
+            multicast_address.into(),
+        ).unwrap();
+        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![communications1.metatraffic_unicast_locator()],
+            vec![communications1.metatraffic_multicast_locator()],
+            vec![communications1.default_unicast_locator()],
+            vec![],
+        ));
         create_builtins(participant1.clone()).unwrap();
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
 
-        let participant2 = default_participant(domain_id, 1, &unicast_address, &multicast_address);
+        let mut communications2 = Communications::find_available(
+            domain_id,
+            guid_prefix,
+            unicast_address.into(),
+            multicast_address.into(),
+        ).unwrap();
+        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![communications2.metatraffic_unicast_locator()],
+            vec![communications2.metatraffic_multicast_locator()],
+            vec![communications2.default_unicast_locator()],
+            vec![],
+        ));
         create_builtins(participant2.clone()).unwrap();
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
 
@@ -750,44 +739,21 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            let mut communication_p1 = get_unicast_communication(
-                guid_prefix,
-                &participant1.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_p2 = get_unicast_communication(
-                guid_prefix,
-                &participant2.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_multicast_p1 = get_multicast_communication(
-                guid_prefix,
-                &participant1.read_lock().metatraffic_unicast_locator_list,
-                &participant1.read_lock().metatraffic_multicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_multicast_p2 = get_multicast_communication(
-                guid_prefix,
-                &participant2.read_lock().metatraffic_unicast_locator_list,
-                &participant2.read_lock().metatraffic_multicast_locator_list,
-            )
-            .unwrap();
-
-            communication_p1.send(core::slice::from_ref(
+            communications1.metatraffic_unicast.send(core::slice::from_ref(
                 participant1.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
-            communication_p2.send(core::slice::from_ref(
+            communications2.metatraffic_unicast.send(core::slice::from_ref(
                 participant2.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
 
-            communication_multicast_p1.receive(core::slice::from_ref(
+            communications1.metatraffic_multicast.receive(core::slice::from_ref(
                 participant1
                     .read_lock()
                     .builtin_subscriber
                     .as_ref()
                     .unwrap(),
             ));
-            communication_multicast_p2.receive(core::slice::from_ref(
+            communications2.metatraffic_multicast.receive(core::slice::from_ref(
                 participant2
                     .read_lock()
                     .builtin_subscriber
@@ -848,11 +814,41 @@ mod tests {
         let guid_prefix = GuidPrefix([3; 12]);
 
         // Create 2 participants
-        let participant1 = default_participant(domain_id, 0, &unicast_address, &multicast_address);
+        let mut communications1 = Communications::find_available(
+            domain_id,
+            guid_prefix,
+            unicast_address.into(),
+            multicast_address.into(),
+        ).unwrap();
+        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![communications1.metatraffic_unicast_locator()],
+            vec![communications1.metatraffic_multicast_locator()],
+            vec![communications1.default_unicast_locator()],
+            vec![],
+        ));
         create_builtins(participant1.clone()).unwrap();
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
 
-        let participant2 = default_participant(domain_id, 1, &unicast_address, &multicast_address);
+        let mut communications2 = Communications::find_available(
+            domain_id,
+            guid_prefix,
+            unicast_address.into(),
+            multicast_address.into(),
+        ).unwrap();
+        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![communications2.metatraffic_unicast_locator()],
+            vec![communications2.metatraffic_multicast_locator()],
+            vec![communications2.default_unicast_locator()],
+            vec![],
+        ));
         create_builtins(participant2.clone()).unwrap();
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
 
@@ -861,44 +857,21 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            let mut communication_p1 = get_unicast_communication(
-                guid_prefix,
-                &participant1.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_p2 = get_unicast_communication(
-                guid_prefix,
-                &participant2.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_multicast_p1 = get_multicast_communication(
-                guid_prefix,
-                &participant1.read_lock().metatraffic_unicast_locator_list,
-                &participant1.read_lock().metatraffic_multicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_multicast_p2 = get_multicast_communication(
-                guid_prefix,
-                &participant2.read_lock().metatraffic_unicast_locator_list,
-                &participant2.read_lock().metatraffic_multicast_locator_list,
-            )
-            .unwrap();
-
-            communication_p1.send(core::slice::from_ref(
+            communications1.metatraffic_unicast.send(core::slice::from_ref(
                 participant1.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
-            communication_p2.send(core::slice::from_ref(
+            communications2.metatraffic_unicast.send(core::slice::from_ref(
                 participant2.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
 
-            communication_multicast_p1.receive(core::slice::from_ref(
+            communications1.metatraffic_multicast.receive(core::slice::from_ref(
                 participant1
                     .read_lock()
                     .builtin_subscriber
                     .as_ref()
                     .unwrap(),
             ));
-            communication_multicast_p2.receive(core::slice::from_ref(
+            communications2.metatraffic_multicast.receive(core::slice::from_ref(
                 participant2
                     .read_lock()
                     .builtin_subscriber
@@ -934,32 +907,21 @@ mod tests {
 
         // Send SEDP data
         {
-            let mut communication_p1 = get_unicast_communication(
-                guid_prefix,
-                &participant1.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_p2 = get_unicast_communication(
-                guid_prefix,
-                &participant2.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-
-            communication_p1.send(core::slice::from_ref(
+            communications1.metatraffic_unicast.send(core::slice::from_ref(
                 participant1.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
-            communication_p2.send(core::slice::from_ref(
+            communications2.metatraffic_unicast.send(core::slice::from_ref(
                 participant2.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
 
-            communication_p1.receive(core::slice::from_ref(
+            communications1.metatraffic_unicast.receive(core::slice::from_ref(
                 participant1
                     .read_lock()
                     .builtin_subscriber
                     .as_ref()
                     .unwrap(),
             ));
-            communication_p2.receive(core::slice::from_ref(
+            communications2.metatraffic_unicast.receive(core::slice::from_ref(
                 participant2
                     .read_lock()
                     .builtin_subscriber
@@ -999,11 +961,41 @@ mod tests {
         let guid_prefix = GuidPrefix([3; 12]);
 
         // Create 2 participants
-        let participant1 = default_participant(domain_id, 0, &unicast_address, &multicast_address);
+        let mut communications1 = Communications::find_available(
+            domain_id,
+            guid_prefix,
+            unicast_address.into(),
+            multicast_address.into(),
+        ).unwrap();
+        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![communications1.metatraffic_unicast_locator()],
+            vec![communications1.metatraffic_multicast_locator()],
+            vec![communications1.default_unicast_locator()],
+            vec![],
+        ));
         create_builtins(participant1.clone()).unwrap();
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
 
-        let participant2 = default_participant(domain_id, 1, &unicast_address, &multicast_address);
+        let mut communications2 = Communications::find_available(
+            domain_id,
+            guid_prefix,
+            unicast_address.into(),
+            multicast_address.into(),
+        ).unwrap();
+        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![communications2.metatraffic_unicast_locator()],
+            vec![communications2.metatraffic_multicast_locator()],
+            vec![communications2.default_unicast_locator()],
+            vec![],
+        ));
         create_builtins(participant2.clone()).unwrap();
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
 
@@ -1012,44 +1004,21 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            let mut communication_p1 = get_unicast_communication(
-                guid_prefix,
-                &participant1.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_p2 = get_unicast_communication(
-                guid_prefix,
-                &participant2.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_multicast_p1 = get_multicast_communication(
-                guid_prefix,
-                &participant1.read_lock().metatraffic_unicast_locator_list,
-                &participant1.read_lock().metatraffic_multicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_multicast_p2 = get_multicast_communication(
-                guid_prefix,
-                &participant2.read_lock().metatraffic_unicast_locator_list,
-                &participant2.read_lock().metatraffic_multicast_locator_list,
-            )
-            .unwrap();
-
-            communication_p1.send(core::slice::from_ref(
+            communications1.metatraffic_unicast.send(core::slice::from_ref(
                 participant1.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
-            communication_p2.send(core::slice::from_ref(
+            communications1.metatraffic_unicast.send(core::slice::from_ref(
                 participant2.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
 
-            communication_multicast_p1.receive(core::slice::from_ref(
+            communications1.metatraffic_multicast.receive(core::slice::from_ref(
                 participant1
                     .read_lock()
                     .builtin_subscriber
                     .as_ref()
                     .unwrap(),
             ));
-            communication_multicast_p2.receive(core::slice::from_ref(
+            communications2.metatraffic_multicast.receive(core::slice::from_ref(
                 participant2
                     .read_lock()
                     .builtin_subscriber
@@ -1088,32 +1057,21 @@ mod tests {
 
         // Send SEDP data
         {
-            let mut communication_p1 = get_unicast_communication(
-                guid_prefix,
-                &participant1.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-            let mut communication_p2 = get_unicast_communication(
-                guid_prefix,
-                &participant2.read_lock().metatraffic_unicast_locator_list,
-            )
-            .unwrap();
-
-            communication_p1.send(core::slice::from_ref(
+            communications1.metatraffic_unicast.send(core::slice::from_ref(
                 participant1.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
-            communication_p2.send(core::slice::from_ref(
+            communications2.metatraffic_unicast.send(core::slice::from_ref(
                 participant2.read_lock().builtin_publisher.as_ref().unwrap(),
             ));
 
-            communication_p1.receive(core::slice::from_ref(
+            communications1.metatraffic_unicast.receive(core::slice::from_ref(
                 participant1
                     .read_lock()
                     .builtin_subscriber
                     .as_ref()
                     .unwrap(),
             ));
-            communication_p2.receive(core::slice::from_ref(
+            communications2.metatraffic_unicast.receive(core::slice::from_ref(
                 participant2
                     .read_lock()
                     .builtin_subscriber
