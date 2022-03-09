@@ -169,8 +169,7 @@ where
                                     let submessages = submessages.take();
 
                                     if !submessages.is_empty() {
-                                        let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes =
-                                            reader_proxy;
+                                        let reader_proxy_attributes = reader_proxy;
                                         destined_submessages
                                             .push((reader_proxy_attributes, submessages));
                                     }

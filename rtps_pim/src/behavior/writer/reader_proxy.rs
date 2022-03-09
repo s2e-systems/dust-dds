@@ -1,11 +1,12 @@
 use crate::structure::types::{EntityId, Guid, Locator, SequenceNumber};
 
 pub trait RtpsReaderProxyAttributes {
+    type ChangeForReaderType;
     fn remote_reader_guid(&self) -> Guid;
     fn remote_group_entity_id(&self) -> EntityId;
     fn unicast_locator_list(&self) -> &[Locator];
     fn multicast_locator_list(&self) -> &[Locator];
-    // changes_for_reader() moved to RtpsReaderProxyOperations
+    fn changes_for_reader(&self) -> &[Self::ChangeForReaderType];
     fn expects_inline_qos(&self) -> bool;
     fn is_active(&self) -> bool;
 }
@@ -32,5 +33,4 @@ pub trait RtpsReaderProxyOperations {
     fn requested_changes(&self) -> Self::ChangeForReaderListType;
     fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
     fn unacked_changes(&self) -> Self::ChangeForReaderListType;
-    fn changes_for_reader(&self) -> Self::ChangeForReaderListType;
 }

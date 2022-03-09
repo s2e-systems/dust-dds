@@ -47,6 +47,8 @@ impl RtpsReaderProxyConstructor for RtpsReaderProxyAttributesImpl {
 }
 
 impl RtpsReaderProxyAttributes for RtpsReaderProxyAttributesImpl {
+    type ChangeForReaderType = ();
+
     fn remote_reader_guid(&self) -> Guid {
         self.remote_reader_guid
     }
@@ -61,6 +63,10 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyAttributesImpl {
 
     fn multicast_locator_list(&self) -> &[Locator] {
         self.multicast_locator_list.as_slice()
+    }
+
+    fn changes_for_reader(&self) -> &[Self::ChangeForReaderType] {
+        todo!()
     }
 
     fn expects_inline_qos(&self) -> bool {
@@ -90,6 +96,8 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
 }
 
 impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
+    type ChangeForReaderType = ();
+
     fn remote_reader_guid(&self) -> Guid {
         self.reader_proxy_attributes.remote_reader_guid
     }
@@ -114,6 +122,10 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'_> {
 
     fn is_active(&self) -> bool {
         self.reader_proxy_attributes.is_active
+    }
+
+    fn changes_for_reader(&self) -> &[Self::ChangeForReaderType] {
+        todo!()
     }
 }
 
@@ -208,20 +220,12 @@ impl RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'_> {
     fn unacked_changes(&self) -> Self::ChangeForReaderListType {
         //"return change IN this.changes_for_reader
         //    SUCH-THAT (change.status == UNACKNOWLEDGED);"
-        self.changes_for_reader()
-            .iter()
-            .filter(|&cc| cc > &self.reader_proxy_attributes.committed_seq_num)
-            .cloned()
-            .collect()
-    }
-
-    fn changes_for_reader(&self) -> Self::ChangeForReaderListType {
-        // "List of CacheChange changes as they relate to the matched RTPS Reader."
-        self.writer_cache
-            .changes()
-            .iter()
-            .map(|cc| cc.sequence_number)
-            .collect()
+        // self.changes_for_reader()
+        //     .iter()
+        //     .filter(|&cc| cc > &self.reader_proxy_attributes.committed_seq_num)
+        //     .cloned()
+        //     .collect()
+        todo!()
     }
 }
 

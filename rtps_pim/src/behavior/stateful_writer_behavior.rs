@@ -424,7 +424,6 @@ mod tests {
             fn requested_changes(&self) ->  Vec<SequenceNumber>;
             fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
             fn unacked_changes(&self) ->  Vec<SequenceNumber>;
-            fn changes_for_reader(&self) ->  Vec<SequenceNumber>;
         }
     }
 
