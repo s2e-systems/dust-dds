@@ -172,7 +172,7 @@ mod tests {
         writer_proxy.received_change_set(2);
         writer_proxy.received_change_set(4);
 
-        assert_eq!(writer_proxy.available_changes_max(), 2);
+        assert_eq!(writer_proxy.available_changes_max(), 4);
     }
 
     #[test]
