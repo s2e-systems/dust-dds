@@ -60,10 +60,10 @@ fn user_defined_write_read_auto_enable() {
         .unwrap();
 
     let publisher = participant1.create_publisher(None, None, 0).unwrap();
-    let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let mut reader = subscriber
+    let reader = subscriber
         .create_datareader(&topic, None, None, 0)
         .unwrap();
 

@@ -124,14 +124,12 @@ where
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes
         + RtpsStatefulWriterConstructor,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataWriterType = DataWriterProxy<Foo, Rtps>;
@@ -217,7 +215,7 @@ where
                 rtps_writer_impl,
                 listener,
                 topic_shared.clone(),
-                publisher_shared.downgrade()
+                publisher_shared.downgrade(),
             ));
 
             publisher_shared
@@ -245,7 +243,7 @@ where
             let publication_topic =
                 domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_PUBLICATION)?;
 
-            let mut sedp_builtin_publications_announcer =
+            let sedp_builtin_publications_announcer =
                 builtin_publisher_proxy.datawriter_factory_lookup_datawriter(&publication_topic)?;
 
             let sedp_discovered_writer_data = SedpDiscoveredWriterData {
@@ -389,7 +387,7 @@ where
         todo!()
     }
 
-    fn set_default_datawriter_qos(&mut self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
+    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
         //     .set_default_datawriter_qos(qos)
@@ -425,7 +423,7 @@ where
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 
-    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.publisher_impl)?).set_qos(qos)
         todo!()
     }

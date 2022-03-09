@@ -121,7 +121,7 @@ where
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 
-    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_qos(qos)
         todo!()
     }

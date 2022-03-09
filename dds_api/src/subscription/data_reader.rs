@@ -104,7 +104,7 @@ pub trait DataReader<Foo> {
     /// read.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn read(
-        &mut self,
+        &self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
@@ -125,7 +125,7 @@ pub trait DataReader<Foo> {
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn take(
-        &mut self,
+        &self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],

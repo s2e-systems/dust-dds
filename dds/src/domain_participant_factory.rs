@@ -1031,7 +1031,7 @@ mod tests {
                 participant2_proxy
                     .topic_factory_lookup_topicdescription(DCPS_PARTICIPANT)
                     .unwrap();
-            let mut participant2_builtin_participant_data_reader = subscriber
+            let participant2_builtin_participant_data_reader = subscriber
                 .datareader_factory_lookup_datareader(&participant_topic)
                 .unwrap();
 
@@ -1276,13 +1276,13 @@ mod tests {
                 .downgrade(),
         );
 
-        let mut participant2_publication_datareader = participant2_subscriber
+        let participant2_publication_datareader = participant2_subscriber
             .lookup_datareader(&sedp_topic_publication)
             .unwrap();
-        let mut participant2_subscription_datareader = participant2_subscriber
+        let participant2_subscription_datareader = participant2_subscriber
             .lookup_datareader(&sedp_topic_subscription)
             .unwrap();
-        let mut participant2_topic_datareader = participant2_subscriber
+        let participant2_topic_datareader = participant2_subscriber
             .lookup_datareader(&sedp_topic_topic)
             .unwrap();
 
@@ -1627,7 +1627,7 @@ mod tests {
         let user_topic = participant1_proxy
             .create_topic::<UserData>("UserTopic", None, None, 0)
             .unwrap();
-        let mut user_writer = user_publisher
+        let user_writer = user_publisher
             .create_datawriter(&user_topic, None, None, 0)
             .unwrap();
 

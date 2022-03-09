@@ -156,7 +156,7 @@ pub fn task_spdp_discovery(
     let dcps_topic_topic =
         domain_participant_proxy.lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC)?;
 
-    let mut spdp_builtin_participant_data_reader =
+    let spdp_builtin_participant_data_reader =
         builtin_subscriber.lookup_datareader(&dcps_participant_topic)?;
 
     let sedp_builtin_publication_writer =
@@ -263,7 +263,7 @@ pub fn task_sedp_writer_discovery(
     );
     let dcps_publication_topic = domain_participant_proxy
         .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)?;
-    let mut sedp_builtin_publication_reader =
+    let sedp_builtin_publication_reader =
         builtin_subscriber.lookup_datareader(&dcps_publication_topic)?;
 
     let samples = sedp_builtin_publication_reader.take(1, &[], &[], &[]);
@@ -342,7 +342,7 @@ pub fn task_sedp_reader_discovery(
     );
     let dcps_subscription_topic = domain_participant_proxy
         .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
-    let mut sedp_builtin_subscription_reader =
+    let sedp_builtin_subscription_reader =
         builtin_subscriber.lookup_datareader(&dcps_subscription_topic)?;
 
     let samples = sedp_builtin_subscription_reader.take(1, &[], &[], &[]);
@@ -393,7 +393,7 @@ pub fn task_sedp_reader_discovery(
 pub fn task_announce_participant(
     domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
 ) -> DDSResult<()> {
-    let mut spdp_participant_writer = {
+    let spdp_participant_writer = {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
         let dcps_topic_participant =
             domain_participant_proxy.lookup_topicdescription(DCPS_PARTICIPANT)?;

@@ -87,7 +87,7 @@ fn main() {
     let mut reader_qos = DataReaderQos::default();
     reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-    let mut reader = subscriber
+    let reader = subscriber
         .create_datareader(&topic, Some(reader_qos), None, 0)
         .unwrap();
 

@@ -167,14 +167,12 @@ where
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes
         + RtpsStatefulWriterConstructor,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
 
@@ -218,7 +216,7 @@ where
             let topic_creation_topic =
                 domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_TOPIC)?;
 
-            let mut sedp_builtin_topic_announcer = builtin_publisher_proxy
+            let sedp_builtin_topic_announcer = builtin_publisher_proxy
                 .datawriter_factory_lookup_datawriter(&topic_creation_topic)?;
 
             let sedp_discovered_topic_data = SedpDiscoveredTopicData {
@@ -508,7 +506,7 @@ where
         todo!()
     }
 
-    fn set_default_publisher_qos(&mut self, _qos: Option<PublisherQos>) -> DDSResult<()> {
+    fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DDSResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let mut domain_participant_lock = rtps_shared_write_lock(&domain_participant_shared);
         // domain_participant_lock.set_default_publisher_qos(qos)
@@ -522,7 +520,7 @@ where
         todo!()
     }
 
-    fn set_default_subscriber_qos(&mut self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
+    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let mut domain_participant_lock = rtps_shared_write_lock(&domain_participant_shared);
         // domain_participant_lock.set_default_subscriber_qos(qos)
@@ -536,7 +534,7 @@ where
         todo!()
     }
 
-    fn set_default_topic_qos(&mut self, _qos: Option<TopicQos>) -> DDSResult<()> {
+    fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DDSResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let mut domain_participant_lock = rtps_shared_write_lock(&domain_participant_shared);
         // domain_participant_lock.set_default_topic_qos(qos)
@@ -612,7 +610,7 @@ where
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
-    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let mut domain_participant_lock = rtps_shared_write_lock(&domain_participant_shared);
         // domain_participant_lock.set_qos(qos)

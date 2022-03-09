@@ -268,7 +268,7 @@ where
             let subscription_topic = domain_participant_proxy
                 .topic_factory_lookup_topicdescription(DCPS_SUBSCRIPTION)?;
 
-            let mut sedp_builtin_subscription_announcer = builtin_publisher_proxy
+            let sedp_builtin_subscription_announcer = builtin_publisher_proxy
                 .datawriter_factory_lookup_datawriter(&subscription_topic)?;
 
             let sedp_discovered_reader_data = SedpDiscoveredReaderData {
@@ -437,7 +437,7 @@ where
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 
-    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).set_qos(qos)
         todo!()
     }

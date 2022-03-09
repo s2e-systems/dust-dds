@@ -184,7 +184,7 @@ where
     type TopicDescription = TopicProxy<Foo, Rtps>;
 
     fn read(
-        &mut self,
+        &self,
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
@@ -218,7 +218,7 @@ where
     }
 
     fn take(
-        &mut self,
+        &self,
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
@@ -487,7 +487,7 @@ where
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener + Send + Sync>;
 
-    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)
         todo!()
     }
