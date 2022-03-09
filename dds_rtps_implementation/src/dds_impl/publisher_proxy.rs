@@ -394,7 +394,7 @@ where
         todo!()
     }
 
-    fn get_default_datawriter_qos(&self) -> DataWriterQos {
+    fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos> {
         // self.default_datawriter_qos.lock().unwrap().clone()
         todo!()
     }

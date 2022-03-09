@@ -389,7 +389,7 @@ pub trait DataReader<Foo> {
     /// key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
-    fn lookup_instance(&self, instance: &Foo) -> InstanceHandle;
+    fn lookup_instance(&self, instance: &Foo) -> DDSResult<InstanceHandle>;
 
     /// This operation creates a ReadCondition. The returned ReadCondition will be attached and belong to the DataReader.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
@@ -398,7 +398,7 @@ pub trait DataReader<Foo> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReadCondition;
+    ) -> DDSResult<ReadCondition>;
 
     /// This operation creates a QueryCondition. The returned QueryCondition will be attached and belong to the DataReader.
     /// The syntax of the query_expression and query_parameters parameters is described in Annex B.
@@ -410,7 +410,7 @@ pub trait DataReader<Foo> {
         instance_states: &[InstanceStateKind],
         query_expression: &'static str,
         query_parameters: &[&'static str],
-    ) -> QueryCondition;
+    ) -> DDSResult<QueryCondition>;
 
     /// This operation deletes a ReadCondition attached to the DataReader. Since QueryCondition specializes ReadCondition it can
     /// also be used to delete a QueryCondition. If the ReadCondition is not attached to the DataReader, the operation will return the

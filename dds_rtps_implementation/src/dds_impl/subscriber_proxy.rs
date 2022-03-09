@@ -425,8 +425,8 @@ where
         todo!()
     }
 
-    fn get_participant(&self) -> Self::DomainParticipant {
-        self.participant.clone()
+    fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
+        Ok(self.participant.clone())
     }
 }
 

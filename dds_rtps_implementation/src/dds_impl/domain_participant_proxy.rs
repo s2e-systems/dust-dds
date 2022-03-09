@@ -432,7 +432,7 @@ where
         let domain_participant_attributes = self.domain_participant.upgrade()?;
         let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let subscriber_shared = a_subscriber.as_ref().upgrade()?;
-        if std::ptr::eq(&a_subscriber.get_participant(), self) {
+        if std::ptr::eq(&a_subscriber.get_participant()?, self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_subscriber(&subscriber_shared)
 
             domain_participant_attributes_lock

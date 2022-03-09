@@ -100,7 +100,7 @@ where
 {
     type DomainParticipant = DomainParticipantProxy<Rtps>;
 
-    fn get_participant(&self) -> Self::DomainParticipant {
+    fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
         todo!()
         // self.participant.clone()
     }

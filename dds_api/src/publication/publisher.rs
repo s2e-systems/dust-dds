@@ -170,7 +170,7 @@ pub trait Publisher {
     /// The values retrieved by get_default_datawriter_qos will match the set of values specified on the last successful call to
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_datawriter_qos(&self) -> DataWriterQos;
+    fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
     /// in the a_datawriter_qos, if present).

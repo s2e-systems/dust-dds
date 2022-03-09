@@ -117,7 +117,7 @@ where
                 last_publication_handle: 0,
                 current_count: 0,
                 current_count_change: 0,
-            }
+            },
         }
     }
 }
@@ -385,7 +385,7 @@ where
         todo!()
     }
 
-    fn lookup_instance(&self, _instance: &Foo) -> InstanceHandle {
+    fn lookup_instance(&self, _instance: &Foo) -> DDSResult<InstanceHandle> {
         todo!()
     }
 
@@ -394,7 +394,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReadCondition {
+    ) -> DDSResult<ReadCondition> {
         todo!()
     }
 
@@ -405,7 +405,7 @@ where
         _instance_states: &[InstanceStateKind],
         _query_expression: &'static str,
         _query_parameters: &[&'static str],
-    ) -> QueryCondition {
+    ) -> DDSResult<QueryCondition> {
         todo!()
     }
 
@@ -497,11 +497,7 @@ where
         todo!()
     }
 
-    fn set_listener(
-        &self,
-        listener: Option<Self::Listener>,
-        _mask: StatusMask,
-    ) -> DDSResult<()> {
+    fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
         self.as_ref().upgrade()?.write_lock().listener = listener;
         Ok(())
     }
