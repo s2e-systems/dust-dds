@@ -1,4 +1,4 @@
-use crate::{behavior::types::ChangeForReaderStatusKind, structure::types::SequenceNumber};
+use crate::behavior::types::ChangeForReaderStatusKind;
 
 pub trait RtpsChangeForReaderAttributes {
     fn status(&self) -> ChangeForReaderStatusKind;
