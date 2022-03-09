@@ -1,5 +1,3 @@
-use std::iter::FromIterator;
-
 use rust_rtps_pim::{
     messages::{submessage_elements::Parameter, types::ParameterId},
     structure::{
@@ -18,27 +16,11 @@ pub struct RtpsParameter {
 }
 
 pub struct RtpsParameterList(pub Vec<RtpsParameter>);
-impl<'a> IntoIterator for &'a RtpsParameterList {
-    type Item = Parameter<'a>;
-    type IntoIter = std::vec::IntoIter<Parameter<'a>>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        let v: Vec<Parameter> = self
-            .0
-            .iter()
-            .map(|p| Parameter {
-                parameter_id: p.parameter_id,
-                length: p.value.len() as i16,
-                value: p.value.as_ref(),
-            })
-            .collect();
-        v.into_iter()
-    }
-}
-impl<'a> FromIterator<&'a Parameter<'a>> for RtpsParameterList {
-    fn from_iter<T: IntoIterator<Item = &'a Parameter<'a>>>(iter: T) -> Self {
+impl<'a> From<&'a Vec<Parameter<'_>>> for RtpsParameterList {
+    fn from(p: &'a Vec<Parameter<'_>>) -> Self {
         Self(
-            iter.into_iter()
+            p.into_iter()
                 .map(|p| RtpsParameter {
                     parameter_id: p.parameter_id,
                     value: p.value.to_vec(),
@@ -47,34 +29,48 @@ impl<'a> FromIterator<&'a Parameter<'a>> for RtpsParameterList {
         )
     }
 }
-
-impl<'a> From<&'a [Parameter<'a>]> for RtpsParameterList {
-    fn from(p: &'a [Parameter<'a>]) -> Self {
-        p.into_iter().collect()
+impl<'a> From<&'a RtpsParameterList> for Vec<Parameter<'a>> {
+    fn from(v: &'a RtpsParameterList) -> Self {
+        v.0.iter()
+            .map(|p| Parameter {
+                parameter_id: p.parameter_id,
+                length: p.value.len() as i16,
+                value: p.value.as_ref(),
+            })
+            .collect()
     }
 }
 
-impl RtpsParameter {
-    pub fn new(parameter_id: ParameterId, value: &[u8]) -> Self {
-        Self {
-            parameter_id,
-            value: value.to_vec(),
-        }
-    }
-}
 
 pub struct RtpsCacheChangeImpl {
     pub kind: ChangeKind,
     pub writer_guid: Guid,
     pub sequence_number: SequenceNumber,
     pub instance_handle: InstanceHandle,
-    pub data: Vec<u8>,
+    pub data: RtpsData,
     pub inline_qos: RtpsParameterList,
 }
 
-impl<'a> RtpsCacheChangeConstructor<'a> for RtpsCacheChangeImpl {
-    type DataType = &'a [u8];
-    type ParameterListType = &'a [Parameter<'a>];
+pub struct RtpsData(pub Vec<u8>);
+impl From<&&[u8]> for RtpsData {
+    fn from(v: &&[u8]) -> Self {
+        Self(v.to_vec())
+    }
+}
+impl<'a> From<&'a RtpsData> for &'a [u8] {
+    fn from(v: &'a RtpsData) -> Self {
+        v.0.as_ref()
+    }
+}
+impl AsRef<[u8]> for RtpsData {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl RtpsCacheChangeConstructor for RtpsCacheChangeImpl {
+    type DataType = RtpsData;
+    type ParameterListType = RtpsParameterList;
 
     fn new(
         kind: ChangeKind,
@@ -89,7 +85,7 @@ impl<'a> RtpsCacheChangeConstructor<'a> for RtpsCacheChangeImpl {
             writer_guid,
             sequence_number,
             instance_handle,
-            data: data_value.to_vec(),
+            data: data_value,
             inline_qos: inline_qos.into(),
         }
     }
@@ -189,8 +185,8 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            &vec![],
-            &vec![],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         );
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == 1);
@@ -205,16 +201,16 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            &[][..],
-            &vec![],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         );
         let change2 = RtpsCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             2,
-            &[][..],
-            &vec![],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         );
         hc.add_change(change1);
         hc.add_change(change2);
@@ -229,16 +225,16 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            &[][..],
-            &vec![],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         );
         let change2 = RtpsCacheChangeImpl::new(
             rust_rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             2,
-            &[][..],
-            &vec![],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         );
         hc.add_change(change1);
         hc.add_change(change2);

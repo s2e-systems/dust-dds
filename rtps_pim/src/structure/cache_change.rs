@@ -12,7 +12,7 @@ pub trait RtpsCacheChangeAttributes<'a> {
     fn inline_qos(&self) -> &Self::ParameterListType;
 }
 
-pub trait RtpsCacheChangeConstructor<'a> {
+pub trait RtpsCacheChangeConstructor {
     type DataType;
     type ParameterListType;
 

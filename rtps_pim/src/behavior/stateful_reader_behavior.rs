@@ -1,15 +1,13 @@
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
-            SequenceNumberSetSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
     },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        history_cache::RtpsHistoryCacheOperations,
         types::{ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber},
     },
 };
@@ -19,19 +17,17 @@ use super::reader::writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOper
 pub struct BestEffortStatefulReaderBehavior;
 
 impl BestEffortStatefulReaderBehavior {
-    // 8.4.12.1.2 Transition T2
-    pub fn receive_data<'a, C, P>(
+    // 8.4.12.1.2 Transition T2 - Partial implementation
+    // The add_change method call is not done here due to lifetime issues
+    pub fn receive_data<'a, C, P, D>(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
-        reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
         source_guid_prefix: GuidPrefix,
-        data: &'a DataSubmessage<'_, P>,
-    ) where
-        C: RtpsCacheChangeConstructor<
-                'a,
-                DataType = &'a [u8],
-                ParameterListType = &'a [Parameter<'a>],
-            > + RtpsCacheChangeAttributes<'a>,
-        P: AsRef<[Parameter<'a>]>,
+        data: &'a DataSubmessage<P, D>,
+    ) -> Option<C>
+    where
+        C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes<'a>,
+        for<'b> &'b D: Into<<C as RtpsCacheChangeConstructor>::DataType>,
+        for<'b> &'b P: Into<<C as RtpsCacheChangeConstructor>::ParameterListType>,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
         let kind = match (data.data_flag, data.key_flag) {
@@ -41,8 +37,8 @@ impl BestEffortStatefulReaderBehavior {
         };
         let instance_handle = 0;
         let sequence_number = data.writer_sn.value;
-        let data_value = data.serialized_payload.value;
-        let inline_qos = data.inline_qos.parameter.as_ref();
+        let data_value = (&data.serialized_payload.value).into();
+        let inline_qos = (&data.inline_qos.parameter).into();
         let a_change: C = RtpsCacheChangeConstructor::new(
             kind,
             writer_guid,
@@ -58,7 +54,9 @@ impl BestEffortStatefulReaderBehavior {
             if a_change.sequence_number() > expected_seq_num {
                 writer_proxy.lost_changes_update(a_change.sequence_number());
             }
-            reader_cache.add_change(a_change);
+            Some(a_change)
+        } else {
+            None
         }
     }
 
@@ -79,19 +77,17 @@ impl BestEffortStatefulReaderBehavior {
 pub struct ReliableStatefulReaderBehavior;
 
 impl ReliableStatefulReaderBehavior {
-    // 8.4.12.2.8 Transition T8
-    pub fn receive_data<'a, C, P>(
+    // 8.4.12.2.8 Transition T8 - Partial implementation
+    // The add_change method call is not done here due to lifetime issues
+    pub fn receive_data<'a, C, P, D>(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
-        reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
         source_guid_prefix: GuidPrefix,
-        data: &'a DataSubmessage<'_, P>,
-    ) where
-        C: RtpsCacheChangeConstructor<
-                'a,
-                DataType = &'a [u8],
-                ParameterListType = &'a [Parameter<'a>],
-            > + RtpsCacheChangeAttributes<'a>,
-        P: AsRef<[Parameter<'a>]>,
+        data: &'a DataSubmessage<P, D>,
+    ) -> Option<C>
+    where
+        C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes<'a>,
+        for<'b> <C as RtpsCacheChangeConstructor>::DataType: From<&'b D>,
+        for<'b> <C as RtpsCacheChangeConstructor>::ParameterListType: From<&'b P>,
     {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
 
@@ -102,8 +98,8 @@ impl ReliableStatefulReaderBehavior {
         };
         let instance_handle = 0;
         let sequence_number = data.writer_sn.value;
-        let data_value = data.serialized_payload.value;
-        let inline_qos = data.inline_qos.parameter.as_ref();
+        let data_value = (&data.serialized_payload.value).into();
+        let inline_qos = (&data.inline_qos.parameter).into();
         let a_change = C::new(
             kind,
             writer_guid,
@@ -113,7 +109,7 @@ impl ReliableStatefulReaderBehavior {
             inline_qos,
         );
         writer_proxy.received_change_set(a_change.sequence_number());
-        reader_cache.add_change(a_change);
+        Some(a_change)
     }
 
     // 8.4.12.2.5 Transition T5
@@ -198,9 +194,23 @@ mod tests {
         sequence_number: SequenceNumber,
     }
 
-    impl<'a> RtpsCacheChangeConstructor<'a> for MockCacheChange {
-        type DataType = &'a [u8];
-        type ParameterListType = &'a [Parameter<'a>];
+    struct MockData;
+    impl From<&()> for MockData {
+        fn from(_: &()) -> Self {
+            MockData
+        }
+    }
+
+    struct MockParameterList;
+    impl From<&()> for MockParameterList {
+        fn from(_: &()) -> Self {
+            MockParameterList
+        }
+    }
+
+    impl RtpsCacheChangeConstructor for MockCacheChange {
+        type DataType = MockData;
+        type ParameterListType = MockParameterList;
 
         fn new(
             kind: ChangeKind,
@@ -218,8 +228,8 @@ mod tests {
     }
 
     impl<'a> RtpsCacheChangeAttributes<'a> for MockCacheChange {
-        type DataType = [u8];
-        type ParameterListType = [Parameter<'a>];
+        type DataType = MockData;
+        type ParameterListType = MockParameterList;
 
         fn kind(&self) -> ChangeKind {
             self.kind
@@ -242,35 +252,6 @@ mod tests {
         }
 
         fn inline_qos(&self) -> &Self::ParameterListType {
-            unimplemented!()
-        }
-    }
-
-    mock! {
-        HistoryCache{
-            fn add_change_(&mut self, change: MockCacheChange);
-        }
-    }
-
-    impl RtpsHistoryCacheOperations for MockHistoryCache {
-        type CacheChangeType = MockCacheChange;
-
-        fn add_change(&mut self, change: Self::CacheChangeType) {
-            self.add_change_(change)
-        }
-
-        fn remove_change<F>(&mut self, _f: F)
-        where
-            F: FnMut(&Self::CacheChangeType) -> bool,
-        {
-            unimplemented!()
-        }
-
-        fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-            unimplemented!()
-        }
-
-        fn get_seq_num_max(&self) -> Option<SequenceNumber> {
             unimplemented!()
         }
     }
@@ -313,16 +294,6 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut reader_cache = MockHistoryCache::new();
-        reader_cache
-            .expect_add_change_()
-            .with(mockall::predicate::eq(MockCacheChange {
-                kind: ChangeKind::Alive,
-                sequence_number: 1,
-            }))
-            .once()
-            .return_const(());
-
         let source_guid_prefix = GuidPrefix([1; 12]);
         let data = DataSubmessage {
             endianness_flag: true,
@@ -337,15 +308,21 @@ mod tests {
                 value: ENTITYID_UNKNOWN,
             },
             writer_sn: SequenceNumberSubmessageElement { value: writer_sn },
-            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
-            serialized_payload: SerializedDataSubmessageElement { value: &[] },
+            inline_qos: ParameterListSubmessageElement { parameter: () },
+            serialized_payload: SerializedDataSubmessageElement { value: () },
         };
-        BestEffortStatefulReaderBehavior::receive_data(
+        let expected_change = Some(MockCacheChange {
+            kind: ChangeKind::Alive,
+            sequence_number: 1,
+        });
+
+        let change = BestEffortStatefulReaderBehavior::receive_data(
             &mut writer_proxy,
-            &mut reader_cache,
             source_guid_prefix,
             &data,
         );
+
+        assert_eq!(change, expected_change);
     }
 
     #[test]
@@ -368,16 +345,6 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut reader_cache = MockHistoryCache::new();
-        reader_cache
-            .expect_add_change_()
-            .with(mockall::predicate::eq(MockCacheChange {
-                kind: ChangeKind::Alive,
-                sequence_number: 4,
-            }))
-            .once()
-            .return_const(());
-
         let source_guid_prefix = GuidPrefix([1; 12]);
         let data = DataSubmessage {
             endianness_flag: true,
@@ -392,15 +359,20 @@ mod tests {
                 value: ENTITYID_UNKNOWN,
             },
             writer_sn: SequenceNumberSubmessageElement { value: writer_sn },
-            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
-            serialized_payload: SerializedDataSubmessageElement { value: &[] },
+            inline_qos: ParameterListSubmessageElement { parameter: () },
+            serialized_payload: SerializedDataSubmessageElement { value: () },
         };
-        BestEffortStatefulReaderBehavior::receive_data(
+        let expect_change = Some(MockCacheChange {
+            kind: ChangeKind::Alive,
+            sequence_number: 4,
+        });
+        let change = BestEffortStatefulReaderBehavior::receive_data(
             &mut writer_proxy,
-            &mut reader_cache,
             source_guid_prefix,
             &data,
         );
+
+        assert_eq!(change, expect_change);
     }
 
     #[test]
@@ -461,16 +433,6 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut reader_cache = MockHistoryCache::new();
-        reader_cache
-            .expect_add_change_()
-            .with(mockall::predicate::eq(MockCacheChange {
-                kind: ChangeKind::Alive,
-                sequence_number: 1,
-            }))
-            .once()
-            .return_const(());
-
         let source_guid_prefix = GuidPrefix([1; 12]);
         let data = DataSubmessage {
             endianness_flag: true,
@@ -485,15 +447,19 @@ mod tests {
                 value: ENTITYID_UNKNOWN,
             },
             writer_sn: SequenceNumberSubmessageElement { value: writer_sn },
-            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
-            serialized_payload: SerializedDataSubmessageElement { value: &[] },
+            inline_qos: ParameterListSubmessageElement { parameter: () },
+            serialized_payload: SerializedDataSubmessageElement { value: () },
         };
-        ReliableStatefulReaderBehavior::receive_data(
+        let expected_change = Some(MockCacheChange {
+            kind: ChangeKind::Alive,
+            sequence_number: 1,
+        });
+        let change = ReliableStatefulReaderBehavior::receive_data(
             &mut writer_proxy,
-            &mut reader_cache,
             source_guid_prefix,
             &data,
         );
+        assert_eq!(change, expected_change);
     }
 
     #[test]

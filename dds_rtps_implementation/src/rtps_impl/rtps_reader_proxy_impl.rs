@@ -233,7 +233,7 @@ mod tests {
         types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
     };
 
-    use crate::rtps_impl::rtps_history_cache_impl::RtpsCacheChangeImpl;
+    use crate::rtps_impl::rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsData, RtpsParameterList};
 
     use super::*;
 
@@ -243,8 +243,8 @@ mod tests {
             GUID_UNKNOWN,
             0,
             sequence_number,
-            &[],
-            &[],
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
         ));
     }
 
