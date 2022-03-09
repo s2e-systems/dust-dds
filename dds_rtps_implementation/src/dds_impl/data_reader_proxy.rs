@@ -12,7 +12,7 @@ use rust_dds_api::{
     dcps_psm::{
         InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
-        StatusMask, SubscriptionMatchedStatus, ViewStateKind,
+        StatusMask, SubscriptionMatchedStatus, Time, ViewStateKind,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -179,7 +179,6 @@ where
     for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
     for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
 {
-    type Samples = Samples<Foo>;
     type Subscriber = SubscriberProxy<Rtps>;
     type TopicDescription = TopicProxy<Foo, Rtps>;
 
@@ -189,7 +188,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Self::Samples> {
+    ) -> DDSResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let rtps_reader = &mut data_reader_shared
             .write_lock()
@@ -201,18 +200,46 @@ where
                     .ok_or(DDSError::NoData)?
                     .data_value();
 
-                Ok(Samples {
-                    samples: vec![DdsDeserialize::deserialize(&mut data_value).unwrap()],
-                })
+                    let foo = DdsDeserialize::deserialize(&mut data_value).unwrap();
+                    let sample_info = SampleInfo {
+                        sample_state: SampleStateKind::NotRead,
+                        view_state: ViewStateKind::New,
+                        instance_state: InstanceStateKind::Alive,
+                        disposed_generation_count: 0,
+                        no_writers_generation_count: 0,
+                        sample_rank: 0,
+                        generation_rank: 0,
+                        absolute_generation_rank: 0,
+                        source_timestamp: Time{sec:0, nanosec:0},
+                        instance_handle: 0,
+                        publication_handle: 0,
+                        valid_data: true,
+                    };
+                    let samples = vec![(foo, sample_info)];
+                    Ok(samples)
             }
             RtpsReader::Stateful(rtps_reader) => {
                 let mut data_value = rtps_reader.reader_cache().changes().first()
                     .ok_or(DDSError::NoData)?
                     .data_value();
 
-                Ok(Samples {
-                    samples: vec![DdsDeserialize::deserialize(&mut data_value).unwrap()],
-                })
+                    let foo = DdsDeserialize::deserialize(&mut data_value).unwrap();
+                    let sample_info = SampleInfo {
+                        sample_state: SampleStateKind::NotRead,
+                        view_state: ViewStateKind::New,
+                        instance_state: InstanceStateKind::Alive,
+                        disposed_generation_count: 0,
+                        no_writers_generation_count: 0,
+                        sample_rank: 0,
+                        generation_rank: 0,
+                        absolute_generation_rank: 0,
+                        source_timestamp: Time{sec:0, nanosec:0},
+                        instance_handle: 0,
+                        publication_handle: 0,
+                        valid_data: true,
+                    };
+                    let samples = vec![(foo, sample_info)];
+                    Ok(samples)
             }
         }
     }
@@ -223,7 +250,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Self::Samples> {
+    ) -> DDSResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let rtps_reader = &mut data_reader_shared
             .write_lock()
@@ -237,13 +264,26 @@ where
                     .filter(|change| change.sequence_number() == seq_num)
                     .map(|change| {
                         let mut data_value = change.data_value();
-                        DdsDeserialize::deserialize(&mut data_value)
+                        (DdsDeserialize::deserialize(&mut data_value).unwrap(), SampleInfo {
+                            sample_state: SampleStateKind::NotRead,
+                            view_state: ViewStateKind::New,
+                            instance_state: InstanceStateKind::Alive,
+                            disposed_generation_count: 0,
+                            no_writers_generation_count: 0,
+                            sample_rank: 0,
+                            generation_rank: 0,
+                            absolute_generation_rank: 0,
+                            source_timestamp: Time{sec:0, nanosec:0},
+                            instance_handle: 0,
+                            publication_handle: 0,
+                            valid_data: true,
+                        })
                     })
-                    .collect::<DDSResult<Vec<_>>>()?;
+                    .collect::<Vec<_>>();
 
                 rtps_reader.reader_cache().remove_change(|cc| cc.sequence_number() == seq_num);
 
-                Ok(Samples {samples})
+                Ok(samples)
             }
             RtpsReader::Stateful(rtps_reader) => {
                 let seq_num = rtps_reader.reader_cache().get_seq_num_min().ok_or(DDSError::NoData)?;
@@ -252,13 +292,26 @@ where
                     .filter(|change| change.sequence_number() == seq_num)
                     .map(|change| {
                         let mut data_value = change.data_value();
-                        DdsDeserialize::deserialize(&mut data_value)
+                        (DdsDeserialize::deserialize(&mut data_value).unwrap(), SampleInfo {
+                            sample_state: SampleStateKind::NotRead,
+                            view_state: ViewStateKind::New,
+                            instance_state: InstanceStateKind::Alive,
+                            disposed_generation_count: 0,
+                            no_writers_generation_count: 0,
+                            sample_rank: 0,
+                            generation_rank: 0,
+                            absolute_generation_rank: 0,
+                            source_timestamp: Time{sec:0, nanosec:0},
+                            instance_handle: 0,
+                            publication_handle: 0,
+                            valid_data: true,
+                        })
                     })
-                    .collect::<DDSResult<Vec<_>>>()?;
+                    .collect::<Vec<_>>();
 
                 rtps_reader.reader_cache().remove_change(|cc| cc.sequence_number() == seq_num);
 
-                Ok(Samples {samples})
+                Ok(samples)
             }
         }
     }

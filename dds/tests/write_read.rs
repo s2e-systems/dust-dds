@@ -63,9 +63,7 @@ fn user_defined_write_read_auto_enable() {
     let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let reader = subscriber
-        .create_datareader(&topic, None, None, 0)
-        .unwrap();
+    let reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
 
     // Wait for reader to be aware of the user writer
     while reader
@@ -93,5 +91,5 @@ fn user_defined_write_read_auto_enable() {
         samples = reader.read(1, &[], &[], &[])
     }
 
-    assert_eq!(samples.unwrap().samples, vec![UserData(8)]);
+    assert_eq!(samples.unwrap()[0].0, UserData(8));
 }

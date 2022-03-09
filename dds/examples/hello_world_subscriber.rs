@@ -115,7 +115,7 @@ fn main() {
     }
     println!("Received data");
 
-    let hello_world = &samples.unwrap().samples[0];
+    let hello_world = &samples.unwrap()[0].0;
     assert_eq!(8, hello_world.id);
     assert_eq!("Hello world!", hello_world.msg);
 }

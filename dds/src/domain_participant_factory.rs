@@ -6,7 +6,7 @@ use std::{
 
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
-    domain::{domain_participant_listener::DomainParticipantListener},
+    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{
         DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
         PublisherQos, SubscriberQos,
@@ -1014,7 +1014,7 @@ mod tests {
         }
 
         // ////////// Participant 2 receives discovered participant data
-        let spdp_discovered_participant_data = {
+        let (spdp_discovered_participant_data, _) = {
             let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
 
             let subscriber = SubscriberProxy::new(
@@ -1286,7 +1286,7 @@ mod tests {
             .lookup_datareader(&sedp_topic_topic)
             .unwrap();
 
-        let discovered_topic_data = &participant2_topic_datareader
+        let (discovered_topic_data, _) = &participant2_topic_datareader
             .read(1, &[], &[], &[])
             .unwrap()[0];
         assert_eq!(
@@ -1298,7 +1298,7 @@ mod tests {
             discovered_topic_data.topic_builtin_topic_data.name,
         );
 
-        let discovered_writer_data = &participant2_publication_datareader
+        let (discovered_writer_data, _) = &participant2_publication_datareader
             .read(1, &[], &[], &[])
             .unwrap()[0];
         assert_eq!(
@@ -1314,7 +1314,7 @@ mod tests {
             discovered_writer_data.writer_proxy.remote_writer_guid,
         );
 
-        let discovered_reader_data = &participant2_subscription_datareader
+        let (discovered_reader_data, _) = &participant2_subscription_datareader
             .read(1, &[], &[], &[])
             .unwrap()[0];
         assert_eq!(

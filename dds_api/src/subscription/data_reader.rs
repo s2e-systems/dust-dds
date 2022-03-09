@@ -23,7 +23,6 @@ use super::query_condition::QueryCondition;
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
 pub trait DataReader<Foo> {
-    type Samples;
     type Subscriber;
     type TopicDescription;
 
@@ -109,7 +108,7 @@ pub trait DataReader<Foo> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Self::Samples>;
+    ) -> DDSResult<Vec<(Foo, SampleInfo)>>;
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
     /// structures. The operation will return either a ‘list’ of samples or else a single sample. This is controlled by the
@@ -130,7 +129,7 @@ pub trait DataReader<Foo> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Self::Samples>;
+    ) -> DDSResult<Vec<(Foo, SampleInfo)>>;
 
     /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
     /// especially useful in combination with QueryCondition to filter data samples based on the content.
