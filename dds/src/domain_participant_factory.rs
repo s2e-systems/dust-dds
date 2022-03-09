@@ -6,7 +6,7 @@ use std::{
 
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
-    domain::domain_participant_listener::DomainParticipantListener,
+    domain::{domain_participant_listener::DomainParticipantListener},
     infrastructure::qos::{
         DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
         PublisherQos, SubscriberQos,
@@ -228,7 +228,7 @@ impl Communications {
                 _ => true,
             })
             .next()
-            .unwrap() 
+            .unwrap()
             .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
 
         Ok(Communications {
@@ -479,7 +479,14 @@ impl DomainParticipantFactory {
         // }
 
         // //////////// Announce participant
-        task_announce_participant(domain_participant)?;
+        spawner.spawn_enabled_periodic_task(
+            "participant announcement",
+            move || match task_announce_participant(domain_participant.clone()) {
+                Ok(_) => (),
+                Err(e) => println!("participant announcement failed: {:?}", e),
+            },
+            std::time::Duration::from_millis(500),
+        );
 
         // //////////// Start running tasks
         spawner.enable_tasks();

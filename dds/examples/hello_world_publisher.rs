@@ -56,12 +56,52 @@ fn main() {
         .create_participant(domain_id, None, None, 0)
         .unwrap();
 
+    while participant
+        .get_builtin_subscriber()
+        .unwrap()
+        .as_ref()
+        .upgrade()
+        .unwrap()
+        .read_lock()
+        .data_reader_list
+        .iter()
+        .filter_map(|r| {
+            r.write_lock()
+                .rtps_reader
+                .try_as_stateful_reader()
+                .ok()
+                .map(|sr| sr.matched_writers.len())
+        })
+        .next()
+        .unwrap()
+        < 2
+    {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    println!("Matched other participant");
+
     let topic = participant
         .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
         .unwrap();
 
     let publisher = participant.create_publisher(None, None, 0).unwrap();
     let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+
+    while writer
+        .as_ref()
+        .upgrade()
+        .unwrap()
+        .write_lock()
+        .rtps_writer
+        .try_as_stateful_writer()
+        .unwrap()
+        .matched_readers
+        .len()
+        == 0
+    {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    println!("Matched with reader");
 
     let hello_world = HelloWorldType {
         id: 8,
@@ -70,4 +110,6 @@ fn main() {
     writer
         .write_w_timestamp(&hello_world, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
+
+    std::thread::sleep(std::time::Duration::new(2, 0));
 }

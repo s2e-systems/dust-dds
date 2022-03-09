@@ -139,7 +139,12 @@ impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
     type ReaderProxyType = RtpsReaderProxyAttributesImpl;
 
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType) {
-        self.matched_readers.push(a_reader_proxy)
+        if !self.matched_readers.iter().any(|r|
+            r.multicast_locator_list() == a_reader_proxy.multicast_locator_list() &&
+            r.unicast_locator_list() == a_reader_proxy.unicast_locator_list()
+        ) {
+            self.matched_readers.push(a_reader_proxy)
+        }
     }
 
     fn matched_reader_remove<F>(&mut self, mut f: F)

@@ -56,6 +56,30 @@ fn main() {
         .create_participant(domain_id, None, None, 0)
         .unwrap();
 
+    while participant
+        .get_builtin_subscriber()
+        .unwrap()
+        .as_ref()
+        .upgrade()
+        .unwrap()
+        .read_lock()
+        .data_reader_list
+        .iter()
+        .filter_map(|r| {
+            r.write_lock()
+                .rtps_reader
+                .try_as_stateful_reader()
+                .ok()
+                .map(|sr| sr.matched_writers.len())
+        })
+        .next()
+        .unwrap()
+        < 2
+    {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    println!("Matched participant");
+
     let topic = participant
         .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
         .unwrap();
@@ -82,12 +106,14 @@ fn main() {
     {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
+    println!("Matched with writer");
 
     let mut samples = reader.read(1, &[], &[], &[]);
     while let Err(DDSError::NoData) = samples {
         std::thread::sleep(std::time::Duration::from_millis(50));
         samples = reader.read(1, &[], &[], &[])
     }
+    println!("Received data");
 
     let hello_world = &samples.unwrap().samples[0];
     assert_eq!(8, hello_world.id);
