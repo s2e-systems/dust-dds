@@ -1,3 +1,4 @@
+use cdr::CdrBe;
 use rust_dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory,
@@ -6,7 +7,9 @@ use rust_dds::{
     DDSError,
 };
 use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
+use serde::{Deserialize, Serialize};
 
+#[derive(Deserialize, Serialize)]
 struct HelloWorldType {
     id: u8,
     msg: String,
@@ -28,10 +31,11 @@ impl DdsSerialize for HelloWorldType {
         mut writer: W,
     ) -> rust_dds::DDSResult<()> {
         writer
-            .write(&[self.id])
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
-        writer
-            .write(self.msg.as_bytes())
+            .write(
+                cdr::serialize::<_, _, CdrBe>(self, cdr::Infinite)
+                    .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?
+                    .as_slice(),
+            )
             .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
         Ok(())
     }
@@ -39,10 +43,8 @@ impl DdsSerialize for HelloWorldType {
 
 impl<'de> DdsDeserialize<'de> for HelloWorldType {
     fn deserialize(buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
-        let id = buf[0];
-        let msg = String::from_utf8(buf[1..].iter().filter(|&&c| c > 0).cloned().collect())
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
-        Ok(HelloWorldType { id, msg })
+        cdr::deserialize::<HelloWorldType>(buf)
+            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
     }
 }
 
