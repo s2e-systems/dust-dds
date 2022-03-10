@@ -1531,194 +1531,194 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn test_reader_available_data_listener() {
-    //     let domain_id = 7;
-    //     let guid_prefix = GuidPrefix([3; 12]);
-    //     let unicast_address = [127, 0, 0, 1];
-    //     let multicast_address = [239, 255, 0, 1];
+    #[test]
+    fn test_reader_available_data_listener() {
+        let domain_id = 7;
+        let guid_prefix = GuidPrefix([3; 12]);
+        let unicast_address = [127, 0, 0, 1];
+        let multicast_address = [239, 255, 0, 1];
 
-    //     // ////////// Create 2 participants
-    //     let mut communications1 = Communications::find_available(
-    //         domain_id,
-    //         guid_prefix,
-    //         unicast_address.into(),
-    //         multicast_address.into(),
-    //     )
-    //     .unwrap();
+        // ////////// Create 2 participants
+        let mut communications1 = Communications::find_available(
+            domain_id,
+            guid_prefix,
+            unicast_address.into(),
+            multicast_address.into(),
+        )
+        .unwrap();
 
-    //     let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-    //         guid_prefix,
-    //         domain_id,
-    //         "".to_string(),
-    //         DomainParticipantQos::default(),
-    //         vec![communications1.metatraffic_unicast_locator()],
-    //         vec![communications1.metatraffic_multicast_locator()],
-    //         vec![communications1.default_unicast_locator()],
-    //         vec![],
-    //     ));
-    //     let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
-    //     create_builtins(participant1.clone()).unwrap();
+        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![communications1.metatraffic_unicast_locator()],
+            vec![communications1.metatraffic_multicast_locator()],
+            vec![communications1.default_unicast_locator()],
+            vec![],
+        ));
+        let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
+        create_builtins(participant1.clone()).unwrap();
 
-    //     let mut communications2 = Communications::find_available(
-    //         domain_id,
-    //         guid_prefix,
-    //         unicast_address.into(),
-    //         multicast_address.into(),
-    //     )
-    //     .unwrap();
+        let mut communications2 = Communications::find_available(
+            domain_id,
+            guid_prefix,
+            unicast_address.into(),
+            multicast_address.into(),
+        )
+        .unwrap();
 
-    //     let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-    //         guid_prefix,
-    //         domain_id,
-    //         "".to_string(),
-    //         DomainParticipantQos::default(),
-    //         vec![communications2.metatraffic_unicast_locator()],
-    //         vec![communications2.metatraffic_multicast_locator()],
-    //         vec![communications2.default_unicast_locator()],
-    //         vec![],
-    //     ));
-    //     let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
-    //     create_builtins(participant2.clone()).unwrap();
+        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+            guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![communications2.metatraffic_unicast_locator()],
+            vec![communications2.metatraffic_multicast_locator()],
+            vec![communications2.default_unicast_locator()],
+            vec![],
+        ));
+        let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
+        create_builtins(participant2.clone()).unwrap();
 
-    //     // ////////// Match SEDP endpoints
-    //     {
-    //         task_announce_participant(participant1.clone()).unwrap();
-    //         task_announce_participant(participant2.clone()).unwrap();
+        // ////////// Match SEDP endpoints
+        {
+            task_announce_participant(participant1.clone()).unwrap();
+            task_announce_participant(participant2.clone()).unwrap();
 
-    //         communications1
-    //             .metatraffic_unicast
-    //             .send(core::slice::from_ref(
-    //                 participant1.read_lock().builtin_publisher.as_ref().unwrap(),
-    //             ));
-    //         communications2
-    //             .metatraffic_unicast
-    //             .send(core::slice::from_ref(
-    //                 participant2.read_lock().builtin_publisher.as_ref().unwrap(),
-    //             ));
+            communications1
+                .metatraffic_unicast
+                .send(core::slice::from_ref(
+                    participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+                ));
+            communications2
+                .metatraffic_unicast
+                .send(core::slice::from_ref(
+                    participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+                ));
 
-    //         communications1
-    //             .metatraffic_multicast
-    //             .receive(core::slice::from_ref(
-    //                 participant1
-    //                     .read_lock()
-    //                     .builtin_subscriber
-    //                     .as_ref()
-    //                     .unwrap(),
-    //             ));
-    //         communications2
-    //             .metatraffic_multicast
-    //             .receive(core::slice::from_ref(
-    //                 participant2
-    //                     .read_lock()
-    //                     .builtin_subscriber
-    //                     .as_ref()
-    //                     .unwrap(),
-    //             ));
+            communications1
+                .metatraffic_multicast
+                .receive(core::slice::from_ref(
+                    participant1
+                        .read_lock()
+                        .builtin_subscriber
+                        .as_ref()
+                        .unwrap(),
+                ));
+            communications2
+                .metatraffic_multicast
+                .receive(core::slice::from_ref(
+                    participant2
+                        .read_lock()
+                        .builtin_subscriber
+                        .as_ref()
+                        .unwrap(),
+                ));
 
-    //         task_spdp_discovery(participant1.clone()).unwrap();
-    //         task_spdp_discovery(participant2.clone()).unwrap();
-    //     }
+            task_spdp_discovery(participant1.clone()).unwrap();
+            task_spdp_discovery(participant2.clone()).unwrap();
+        }
 
-    //     // ////////// Create user endpoints
-    //     let user_publisher = participant1_proxy.create_publisher(None, None, 0).unwrap();
-    //     let user_subscriber = participant2_proxy.create_subscriber(None, None, 0).unwrap();
+        // ////////// Create user endpoints
+        let user_publisher = participant1_proxy.create_publisher(None, None, 0).unwrap();
+        let user_subscriber = participant2_proxy.create_subscriber(None, None, 0).unwrap();
 
-    //     let user_topic = participant1_proxy
-    //         .create_topic::<UserData>("UserTopic", None, None, 0)
-    //         .unwrap();
-    //     let mut user_writer = user_publisher
-    //         .create_datawriter(&user_topic, None, None, 0)
-    //         .unwrap();
+        let user_topic = participant1_proxy
+            .create_topic::<UserData>("UserTopic", None, None, 0)
+            .unwrap();
+        let mut user_writer = user_publisher
+            .create_datawriter(&user_topic, None, None, 0)
+            .unwrap();
 
-    //     let mut reader_qos = DataReaderQos::default();
-    //     reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
-    //     let user_reader = user_subscriber
-    //         .create_datareader(
-    //             &user_topic,
-    //             Some(reader_qos),
-    //             Some(Box::new(MockReaderListener::new())),
-    //             0,
-    //         )
-    //         .unwrap();
+        let mut reader_qos = DataReaderQos::default();
+        reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+        let user_reader = user_subscriber
+            .create_datareader(
+                &user_topic,
+                Some(reader_qos),
+                Some(Box::new(MockReaderListener::new())),
+                0,
+            )
+            .unwrap();
 
-    //     // ////////// Activate SEDP
-    //     {
-    //         communications1
-    //             .metatraffic_unicast
-    //             .send(core::slice::from_ref(
-    //                 participant1.read_lock().builtin_publisher.as_ref().unwrap(),
-    //             ));
-    //         communications2
-    //             .metatraffic_unicast
-    //             .send(core::slice::from_ref(
-    //                 participant2.read_lock().builtin_publisher.as_ref().unwrap(),
-    //             ));
+        // ////////// Activate SEDP
+        {
+            communications1
+                .metatraffic_unicast
+                .send(core::slice::from_ref(
+                    participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+                ));
+            communications2
+                .metatraffic_unicast
+                .send(core::slice::from_ref(
+                    participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+                ));
 
-    //         communications1
-    //             .metatraffic_unicast
-    //             .receive(core::slice::from_ref(
-    //                 participant1
-    //                     .read_lock()
-    //                     .builtin_subscriber
-    //                     .as_ref()
-    //                     .unwrap(),
-    //             ));
-    //         communications2
-    //             .metatraffic_unicast
-    //             .receive(core::slice::from_ref(
-    //                 participant2
-    //                     .read_lock()
-    //                     .builtin_subscriber
-    //                     .as_ref()
-    //                     .unwrap(),
-    //             ));
+            communications1
+                .metatraffic_unicast
+                .receive(core::slice::from_ref(
+                    participant1
+                        .read_lock()
+                        .builtin_subscriber
+                        .as_ref()
+                        .unwrap(),
+                ));
+            communications2
+                .metatraffic_unicast
+                .receive(core::slice::from_ref(
+                    participant2
+                        .read_lock()
+                        .builtin_subscriber
+                        .as_ref()
+                        .unwrap(),
+                ));
 
-    //         // ////////// Process SEDP data
-    //         task_sedp_reader_discovery(participant1.clone()).unwrap();
+            // ////////// Process SEDP data
+            task_sedp_reader_discovery(participant1.clone()).unwrap();
 
-    //         // We expect the subscription matched listener to be called when matching
-    //         let mut reader_listener = Box::new(MockReaderListener::new());
-    //         reader_listener
-    //             .expect_on_subscription_matched()
-    //             .return_const(());
-    //         user_reader.set_listener(Some(reader_listener), 0).unwrap();
+            // We expect the subscription matched listener to be called when matching
+            let mut reader_listener = Box::new(MockReaderListener::new());
+            reader_listener
+                .expect_on_subscription_matched()
+                .return_const(());
+            user_reader.set_listener(Some(reader_listener), 0).unwrap();
 
-    //         task_sedp_writer_discovery(participant2.clone()).unwrap();
+            task_sedp_writer_discovery(participant2.clone()).unwrap();
 
-    //         // No more listener should be called for now
-    //         user_reader
-    //             .set_listener(Some(Box::new(MockReaderListener::new())), 0)
-    //             .unwrap();
-    //     }
+            // No more listener should be called for now
+            user_reader
+                .set_listener(Some(Box::new(MockReaderListener::new())), 0)
+                .unwrap();
+        }
 
-    //     // ////////// Write user data
-    //     user_writer
-    //         .write_w_timestamp(&UserData(8), None, Time { sec: 0, nanosec: 0 })
-    //         .unwrap();
+        // ////////// Write user data
+        user_writer
+            .write_w_timestamp(&UserData(8), None, Time { sec: 0, nanosec: 0 })
+            .unwrap();
 
-    //     // ////////// Send user data
-    //     {
-    //         communications1
-    //             .default_unicast
-    //             .send(&participant1.read_lock().user_defined_publisher_list);
+        // ////////// Send user data
+        {
+            communications1
+                .default_unicast
+                .send(&participant1.read_lock().user_defined_publisher_list);
 
-    //         // On receive the available data listener should be called
-    //         let mut reader_listener = Box::new(MockReaderListener::new());
-    //         reader_listener
-    //             .expect_on_data_available()
-    //             .once()
-    //             .return_const(());
-    //         user_reader.set_listener(Some(reader_listener), 0).unwrap();
+            // On receive the available data listener should be called
+            let mut reader_listener = Box::new(MockReaderListener::new());
+            reader_listener
+                .expect_on_data_available()
+                .once()
+                .return_const(());
+            user_reader.set_listener(Some(reader_listener), 0).unwrap();
 
-    //         communications2
-    //             .default_unicast
-    //             .receive(&participant2.read_lock().user_defined_subscriber_list);
+            communications2
+                .default_unicast
+                .receive(&participant2.read_lock().user_defined_subscriber_list);
 
-    //         // From now on no listener should be called anymore
-    //         user_reader
-    //             .set_listener(Some(Box::new(MockReaderListener::new())), 0)
-    //             .unwrap();
-    //     }
-    // }
+            // From now on no listener should be called anymore
+            user_reader
+                .set_listener(Some(Box::new(MockReaderListener::new())), 0)
+                .unwrap();
+        }
+    }
 }

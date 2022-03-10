@@ -205,7 +205,7 @@ where
                     .read_lock()
                     .rtps_participant
                     .default_multicast_locator_list(),
-                false,
+                true,
                 rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000),
                 rust_rtps_pim::behavior::types::DURATION_ZERO,
                 rust_rtps_pim::behavior::types::DURATION_ZERO,
@@ -611,7 +611,7 @@ mod tests {
             _data_max_size_serialized: Option<i32>,
         ) -> Self {
             EmptyWriter {
-                push_mode: false,
+                push_mode: true,
                 heartbeat_period: Duration::new(0, 0),
                 nack_response_delay: Duration::new(0, 0),
                 nack_suppression_duration: Duration::new(0, 0),
