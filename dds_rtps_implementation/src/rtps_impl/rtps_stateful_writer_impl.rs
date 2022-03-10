@@ -20,12 +20,12 @@ use rust_rtps_pim::{
     },
 };
 
-use crate::utils::clock::{StdTimer};
+use crate::utils::clock::StdTimer;
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
     rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_reader_proxy_impl::{RtpsReaderProxyAttributesImpl},
+    rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
     rtps_writer_impl::RtpsWriterImpl,
 };
 
@@ -139,12 +139,7 @@ impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
     type ReaderProxyType = RtpsReaderProxyAttributesImpl;
 
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType) {
-        if !self.matched_readers.iter().any(|r|
-            r.multicast_locator_list() == a_reader_proxy.multicast_locator_list() &&
-            r.unicast_locator_list() == a_reader_proxy.unicast_locator_list()
-        ) {
-            self.matched_readers.push(a_reader_proxy)
-        }
+        self.matched_readers.push(a_reader_proxy)
     }
 
     fn matched_reader_remove<F>(&mut self, mut f: F)
