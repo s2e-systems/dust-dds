@@ -163,14 +163,14 @@ pub trait Publisher {
     /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
-    fn set_default_datawriter_qos(&mut self, qos: Option<DataWriterQos>) -> DDSResult<()>;
+    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()>;
 
     /// This operation retrieves the dformalefault value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
     /// DataWriter entities in the case where the QoS policies are defaulted in the create_datawriter operation.
     /// The values retrieved by get_default_datawriter_qos will match the set of values specified on the last successful call to
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_datawriter_qos(&self) -> DataWriterQos;
+    fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
     /// in the a_datawriter_qos, if present).

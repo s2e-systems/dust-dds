@@ -150,26 +150,24 @@ where
         + RtpsWriterAttributes,
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
 {
     type Publisher = PublisherProxy<Rtps>;
     type Topic = TopicProxy<Foo, Rtps>;
 
-    fn register_instance(&mut self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
+    fn register_instance(&self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
         // let timestamp = self.publisher.get_participant()?.get_current_time()?;
         // self.register_instance_w_timestamp(instance, timestamp)
         todo!()
     }
 
     fn register_instance_w_timestamp(
-        &mut self,
+        &self,
         _instance: Foo,
         _timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
@@ -179,7 +177,7 @@ where
     }
 
     fn unregister_instance(
-        &mut self,
+        &self,
         _instance: Foo,
         _handle: Option<InstanceHandle>,
     ) -> DDSResult<()> {
@@ -189,7 +187,7 @@ where
     }
 
     fn unregister_instance_w_timestamp(
-        &mut self,
+        &self,
         _instance: Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
@@ -207,14 +205,14 @@ where
         todo!()
     }
 
-    fn write(&mut self, _data: &Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&self, _data: &Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         // let timestamp = self.publisher.get_participant()?.get_current_time()?;
         // self.write_w_timestamp(data, handle, timestamp)
         todo!()
     }
 
     fn write_w_timestamp(
-        &mut self,
+        &self,
         data: &Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
@@ -239,12 +237,12 @@ where
         Ok(())
     }
 
-    fn dispose(&mut self, _data: Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn dispose(&self, _data: Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         todo!()
     }
 
     fn dispose_w_timestamp(
-        &mut self,
+        &self,
         _data: Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
@@ -318,7 +316,7 @@ where
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener + Send + Sync>;
 
-    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).set_qos(qos)
         todo!()
     }
@@ -328,11 +326,7 @@ where
         todo!()
     }
 
-    fn set_listener(
-        &self,
-        listener: Option<Self::Listener>,
-        _mask: StatusMask,
-    ) -> DDSResult<()> {
+    fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
         self.as_ref().upgrade()?.write_lock().listener = listener;
         Ok(())
     }
@@ -526,7 +520,7 @@ mod test {
         let shared_data_writer = RtpsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
 
-        let mut data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
+        let data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
         data_writer_proxy
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
             .unwrap();
@@ -565,7 +559,7 @@ mod test {
         let shared_data_writer = RtpsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
 
-        let mut data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
+        let data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
         data_writer_proxy
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
             .unwrap();

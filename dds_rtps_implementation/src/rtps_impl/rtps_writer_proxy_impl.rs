@@ -12,16 +12,9 @@ pub struct RtpsWriterProxyImpl {
     multicast_locator_list: Vec<Locator>,
     data_max_size_serialized: Option<i32>,
     remote_group_entity_id: EntityId,
-
-    // Every change below the first_available_seq num is LOST (i.e. no longer available in the RTPS Writer)
-    // Every change above the last_available_seq_num is UNKNOWN (i.e. may or may not be available yet at the RTPS Writer.)
     first_available_seq_num: SequenceNumber,
     last_available_seq_num: SequenceNumber,
-
-    // Changes which are IRRELEVANT
     irrelevant_changes: Vec<SequenceNumber>,
-
-    // Changes which have are RECEIVED
     received_changes: Vec<SequenceNumber>,
 }
 
@@ -76,13 +69,22 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         // The condition to make any CacheChange ‘a_change’ available for ‘access’ by the DDS DataReader is that there are no changes
         // from the RTPS Writer with SequenceNumber_t smaller than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN.
 
-        let max_received_change_seq_num = *self
-            .received_changes
-            .iter()
-            .filter(|&x| !self.irrelevant_changes.contains(x))
-            .max()
-            .unwrap_or(&0);
-        i64::max(self.first_available_seq_num, max_received_change_seq_num)
+        // Any number below first_available_seq_num is missing so that is the minimum
+        // If there are missing changes, the minimum will be one above the maximum
+        if let Some(minimum_missing_changes) = self.missing_changes().iter().min() {
+            minimum_missing_changes - 1
+        } else {
+            // If there are no missing changes then the highest received sequence number
+            // with a lower limit of the first_available_seq_num
+            let minimum_available_changes_max = self.first_available_seq_num;
+            let highest_received_seq_num = *self
+                .received_changes
+                .iter()
+                .filter(|&x| !self.irrelevant_changes.contains(x))
+                .max()
+                .unwrap_or(&0);
+            i64::max(highest_received_seq_num, minimum_available_changes_max)
+        }
     }
 
     fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
@@ -108,9 +110,16 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         // return { change IN this.changes_from_writer SUCH-THAT change.status == MISSING};
         let mut missing_changes = Vec::new();
 
+        let highest_received_seq_num = *self.received_changes.iter().max().unwrap_or(&0);
+        let highest_irrelevant_seq_num = *self.irrelevant_changes.iter().max().unwrap_or(&0);
+        // The highest sequence number of all present
+        let highest_number = i64::max(
+            self.last_available_seq_num,
+            i64::max(highest_received_seq_num, highest_irrelevant_seq_num),
+        );
         // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING) and above last_available_seq_num are unknown.
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
-        for seq_num in self.first_available_seq_num + 1..=self.last_available_seq_num {
+        for seq_num in self.first_available_seq_num + 1..=highest_number {
             let received = self.received_changes.contains(&seq_num);
             let irrelevant = self.irrelevant_changes.contains(&seq_num);
             if !(irrelevant || received) {
@@ -172,7 +181,7 @@ mod tests {
         writer_proxy.received_change_set(2);
         writer_proxy.received_change_set(4);
 
-        assert_eq!(writer_proxy.available_changes_max(), 4);
+        assert_eq!(writer_proxy.available_changes_max(), 2);
     }
 
     #[test]
@@ -206,6 +215,19 @@ mod tests {
         writer_proxy.received_change_set(2);
 
         let expected_missing_changes = vec![1, 3];
+        let missing_changes = writer_proxy.missing_changes();
+        assert_eq!(missing_changes, expected_missing_changes);
+    }
+
+    #[test]
+    fn writer_proxy_missing_changes_with_only_received_changes() {
+        let mut writer_proxy = create_test_proxy();
+
+        writer_proxy.received_change_set(1);
+        writer_proxy.received_change_set(2);
+        writer_proxy.received_change_set(4);
+
+        let expected_missing_changes = vec![3];
         let missing_changes = writer_proxy.missing_changes();
         assert_eq!(missing_changes, expected_missing_changes);
     }
