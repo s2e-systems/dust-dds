@@ -234,7 +234,7 @@ impl Communications {
         let mac = mac_address::get_mac_address()
             .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?
             .ok_or(DDSError::PreconditionNotMet(
-                "Device MAC address not found, unable to built GUID".to_string(),
+                "Device MAC address not found, unable to build GUID".to_string(),
             ))?
             .bytes();
 
