@@ -88,10 +88,10 @@ fn user_defined_write_read_auto_enable() {
         .unwrap();
 
     let mut samples = reader.read(1, &[], &[], &[]);
-    while let Err(DDSError::NoData) = samples {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        samples = reader.read(1, &[], &[], &[])
-    }
+    // while let Err(DDSError::NoData) = samples {
+    //     std::thread::sleep(std::time::Duration::from_millis(50));
+    //     samples = reader.read(1, &[], &[], &[])
+    // }
 
     assert_eq!(samples.unwrap().samples, vec![UserData(8)]);
 }

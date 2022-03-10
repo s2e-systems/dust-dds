@@ -205,7 +205,7 @@ where
                     .read_lock()
                     .rtps_participant
                     .default_multicast_locator_list(),
-                true,
+                false,
                 rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000),
                 rust_rtps_pim::behavior::types::DURATION_ZERO,
                 rust_rtps_pim::behavior::types::DURATION_ZERO,

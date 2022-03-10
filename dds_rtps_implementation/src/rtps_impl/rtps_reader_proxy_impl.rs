@@ -2,10 +2,12 @@ use std::vec;
 
 use rust_rtps_pim::{
     behavior::{
-        types::ChangeForReaderStatusKind::{Acknowledged, Requested, Unacknowledged, Unsent},
-        writer::{reader_proxy::{
+        types::ChangeForReaderStatusKind::{
+            Acknowledged, Requested, Unacknowledged, Underway, Unsent,
+        },
+        writer::reader_proxy::{
             RtpsReaderProxyAttributes, RtpsReaderProxyConstructor, RtpsReaderProxyOperations,
-        }, writer::RtpsWriterAttributes},
+        },
     },
     structure::{
         history_cache::RtpsHistoryCacheAttributes,
@@ -15,7 +17,7 @@ use rust_rtps_pim::{
 
 use super::{
     rtps_change_for_reader_impl::RtpsChangeForReaderImpl,
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    rtps_history_cache_impl::RtpsHistoryCacheImpl,
 };
 
 #[derive(Debug, PartialEq)]
@@ -110,11 +112,7 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
                 .iter()
                 .all(|c| c.sequence_number != writer_cache_change.sequence_number)
             {
-                let status = if push_mode {
-                    Unsent
-                } else {
-                    Unacknowledged
-                };
+                let status = if push_mode { Unsent } else { Unacknowledged };
                 reader_proxy
                     .changes_for_reader
                     .push(RtpsChangeForReaderImpl {
@@ -130,7 +128,7 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
 }
 
 impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
-    type ChangeForReaderType = RtpsChangeForReaderImpl;
+    type ChangeForReaderType = SequenceNumber;
     type ChangeForReaderListType = Vec<SequenceNumber>;
 
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
@@ -144,24 +142,44 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         }
     }
 
-    fn next_requested_change(&self) -> Option<Self::ChangeForReaderType> {
+    fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType> {
         // "next_seq_num := MIN {change.sequenceNumber
         //     SUCH-THAT change IN this.requested_changes()}
         //  return change IN this.requested_changes()
         //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
         let next_seq_num = self.requested_changes().iter().min().cloned()?;
-        // Some(next_seq_num)
-        todo!()
+
+        // Following 8.4.9.2.12 Transition T12 of Reliable Stateful Writer Behavior:
+        // a_change := the_reader_proxy.next_requested_change();
+        // a_change.status := UNDERWAY;
+        self.this
+            .changes_for_reader
+            .iter_mut()
+            .find(|c| c.sequence_number == next_seq_num)
+            .unwrap()
+            .status = Underway;
+
+        Some(next_seq_num)
     }
 
-    fn next_unsent_change(&mut self) -> Option<&mut Self::ChangeForReaderType> {
+    fn next_unsent_change(&mut self) -> Option<Self::ChangeForReaderType> {
         // "next_seq_num := MIN { change.sequenceNumber
         //     SUCH-THAT change IN this.unsent_changes() };
         // return change IN this.unsent_changes()
         //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
         let next_seq_num = self.unsent_changes().iter().min().cloned()?;
-        // Some(next_seq_num)
-        todo!()
+
+        // Following 8.4.9.1.4 Transition T14 of BestEffort Stateful Writer Behavior:
+        // a_change := the_reader_proxy.next_unsent_change();
+        // a_change.status := UNDERWAY;
+        self.this
+            .changes_for_reader
+            .iter_mut()
+            .find(|c| c.sequence_number == next_seq_num)
+            .unwrap()
+            .status = Underway;
+
+        Some(next_seq_num)
     }
 
     fn unsent_changes(&self) -> Self::ChangeForReaderListType {
@@ -182,7 +200,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
     fn requested_changes(&self) -> Self::ChangeForReaderListType {
         // "return change IN this.changes_for_reader
         //      SUCH-THAT (change.status == REQUESTED);"
-        let requested_changes_for_reader: Vec<&RtpsChangeForReaderImpl> = self
+        let requested_changes_for_reader: Vec<_> = self
             .this
             .changes_for_reader
             .iter()
@@ -254,26 +272,25 @@ mod tests {
         ));
     }
 
-    // #[test]
-    // fn next_requested_change() {
-    //     let mut reader_proxy_attributes =
-    //         RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
-    //     let mut writer_cache = RtpsHistoryCacheImpl::new();
-    //     add_new_change(&mut writer_cache, 1);
-    //     add_new_change(&mut writer_cache, 2);
-    //     add_new_change(&mut writer_cache, 4);
-    //     add_new_change(&mut writer_cache, 6);
+    #[test]
+    fn next_requested_change() {
+        let mut reader_proxy_attributes =
+            RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut writer_cache = RtpsHistoryCacheImpl::new();
+        add_new_change(&mut writer_cache, 1);
+        add_new_change(&mut writer_cache, 2);
+        add_new_change(&mut writer_cache, 4);
+        add_new_change(&mut writer_cache, 6);
 
-    //     let mut reader_proxy =
-    //         RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
+        let mut reader_proxy =
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
 
-    //     reader_proxy.requested_changes_set(&[2, 4]);
-    //     assert_eq!(reader_proxy.next_requested_change(), Some(2));
-    //     reader_proxy.acked_changes_set(2);
-    //     assert_eq!(reader_proxy.next_requested_change(), Some(4));
-    //     reader_proxy.acked_changes_set(4);
-    //     assert_eq!(reader_proxy.next_requested_change(), None);
-    // }
+        reader_proxy.requested_changes_set(&[2, 4]);
+
+        assert_eq!(reader_proxy.next_requested_change(), Some(2));
+        assert_eq!(reader_proxy.next_requested_change(), Some(4));
+        assert_eq!(reader_proxy.next_requested_change(), None);
+    }
 
     #[test]
     fn unsent_changes() {
@@ -287,24 +304,24 @@ mod tests {
         let reader_proxy =
             RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
 
-        let result = reader_proxy.unsent_changes();
-        assert_eq!(result, vec![1, 3, 4]);
+        assert_eq!(reader_proxy.unsent_changes(), vec![1, 3, 4]);
     }
 
-    // #[test]
-    // fn next_unsent_change() {
-    //     let mut reader_proxy_attributes =
-    //         RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
-    //     let mut writer_cache = RtpsHistoryCacheImpl::new();
-    //     add_new_change(&mut writer_cache, 1);
-    //     add_new_change(&mut writer_cache, 2);
+    #[test]
+    fn next_unsent_change() {
+        let mut reader_proxy_attributes =
+            RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut writer_cache = RtpsHistoryCacheImpl::new();
+        add_new_change(&mut writer_cache, 1);
+        add_new_change(&mut writer_cache, 2);
 
-    //     let mut reader_proxy =
-    //         RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
-    //     assert_eq!(reader_proxy.next_unsent_change(), Some(1));
-    //     assert_eq!(reader_proxy.next_unsent_change(), Some(2));
-    //     assert_eq!(reader_proxy.next_unsent_change(), None);
-    // }
+        let mut reader_proxy =
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
+
+        assert_eq!(reader_proxy.next_unsent_change(), Some(1));
+        assert_eq!(reader_proxy.next_unsent_change(), Some(2));
+        assert_eq!(reader_proxy.next_unsent_change(), None);
+    }
 
     #[test]
     fn unacked_changes() {
@@ -317,9 +334,10 @@ mod tests {
         add_new_change(&mut writer_cache, 6);
 
         let mut reader_proxy =
-            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, false);
+
         reader_proxy.acked_changes_set(2);
-        let result = reader_proxy.unacked_changes();
-        assert_eq!(result, vec![4, 6]);
+
+        assert_eq!(reader_proxy.unacked_changes(), vec![4, 6]);
     }
 }
