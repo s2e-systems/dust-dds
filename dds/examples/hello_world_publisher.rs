@@ -49,7 +49,7 @@ impl<'de> DdsDeserialize<'de> for HelloWorldType {
 }
 
 fn main() {
-    let domain_id = 8;
+    let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -85,7 +85,7 @@ fn main() {
         .unwrap();
 
     let publisher = participant.create_publisher(None, None, 0).unwrap();
-    let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
     while writer
         .as_ref()

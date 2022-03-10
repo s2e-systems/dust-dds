@@ -41,7 +41,7 @@ impl<'de> DdsDeserialize<'de> for UserData {
 
 #[test]
 fn user_defined_write_read_auto_enable() {
-    let domain_id = 7;
+    let domain_id = 8;
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory
@@ -53,19 +53,56 @@ fn user_defined_write_read_auto_enable() {
         .unwrap();
 
     // Wait for the participants to discover each other
-    std::thread::sleep(std::time::Duration::from_millis(600));
+    while participant1
+        .get_builtin_subscriber()
+        .unwrap()
+        .as_ref()
+        .upgrade()
+        .unwrap()
+        .read_lock()
+        .data_reader_list
+        .iter()
+        .filter_map(|r| {
+            r.write_lock()
+                .rtps_reader
+                .try_as_stateful_reader()
+                .ok()
+                .map(|sr| sr.matched_writers.len())
+        })
+        .next()
+        .unwrap()
+        + participant2
+            .get_builtin_subscriber()
+            .unwrap()
+            .as_ref()
+            .upgrade()
+            .unwrap()
+            .read_lock()
+            .data_reader_list
+            .iter()
+            .filter_map(|r| {
+                r.write_lock()
+                    .rtps_reader
+                    .try_as_stateful_reader()
+                    .ok()
+                    .map(|sr| sr.matched_writers.len())
+            })
+            .next()
+            .unwrap()
+        < 4
+    {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
 
     let topic = participant1
         .create_topic::<UserData>("MyTopic", None, None, 0)
         .unwrap();
 
     let publisher = participant1.create_publisher(None, None, 0).unwrap();
-    let mut writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let mut reader = subscriber
-        .create_datareader(&topic, None, None, 0)
-        .unwrap();
+    let reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
 
     // Wait for reader to be aware of the user writer
     while reader
@@ -93,5 +130,5 @@ fn user_defined_write_read_auto_enable() {
         samples = reader.read(1, &[], &[], &[])
     }
 
-    assert_eq!(samples.unwrap().samples, vec![UserData(8)]);
+    assert_eq!(samples.unwrap()[0].0, UserData(8));
 }

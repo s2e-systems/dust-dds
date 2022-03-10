@@ -116,6 +116,7 @@ impl MessageReceiver {
                                         stateful_rtps_reader.reader.reader_cache.changes().len();
                                     let writer_guid =
                                         Guid::new(self.source_guid_prefix, data.writer_id.value);
+
                                     if let Some(writer_proxy) = stateful_rtps_reader
                                         .matched_writers
                                         .iter_mut()

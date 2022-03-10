@@ -268,7 +268,7 @@ where
             let subscription_topic = domain_participant_proxy
                 .topic_factory_lookup_topicdescription(DCPS_SUBSCRIPTION)?;
 
-            let mut sedp_builtin_subscription_announcer = builtin_publisher_proxy
+            let sedp_builtin_subscription_announcer = builtin_publisher_proxy
                 .datawriter_factory_lookup_datawriter(&subscription_topic)?;
 
             let sedp_discovered_reader_data = SedpDiscoveredReaderData {
@@ -425,8 +425,8 @@ where
         todo!()
     }
 
-    fn get_participant(&self) -> Self::DomainParticipant {
-        self.participant.clone()
+    fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
+        Ok(self.participant.clone())
     }
 }
 
@@ -437,7 +437,7 @@ where
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 
-    fn set_qos(&mut self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).set_qos(qos)
         todo!()
     }
@@ -711,7 +711,7 @@ mod tests {
         Rtps::Group: Default,
     {
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
-            GuidPrefix([0; 12]),
+            GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
             DomainParticipantQos::default(),
@@ -741,7 +741,7 @@ mod tests {
             .push(sedp_topic_subscription.clone());
 
         let sedp_builtin_subscriptions_rtps_writer =
-            SedpBuiltinSubscriptionsWriter::create::<EmptyWriter>(GuidPrefix([0; 12]), &[], &[]);
+            SedpBuiltinSubscriptionsWriter::create::<EmptyWriter>(GuidPrefix([2; 12]), &[], &[]);
         let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),

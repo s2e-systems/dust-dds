@@ -6,7 +6,7 @@ use std::{
 
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
-    domain::{domain_participant_listener::DomainParticipantListener},
+    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{
         DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
         PublisherQos, SubscriberQos,
@@ -180,6 +180,7 @@ fn locator_from_ipv4(address: Ipv4Addr) -> [u8; 16] {
 pub struct Communications {
     pub domain_id: DomainId,
     pub participant_id: usize,
+    pub guid_prefix: GuidPrefix,
     pub unicast_address: Ipv4Addr,
     pub multicast_address: Ipv4Addr,
     pub metatraffic_multicast: Communication<UdpTransport>,
@@ -190,7 +191,6 @@ pub struct Communications {
 impl Communications {
     pub fn find_available(
         domain_id: DomainId,
-        guid_prefix: GuidPrefix,
         unicast_address: Ipv4Addr,
         multicast_address: Ipv4Addr,
     ) -> DDSResult<Self> {
@@ -231,9 +231,23 @@ impl Communications {
             .unwrap()
             .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
 
+        let mac = mac_address::get_mac_address()
+            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?
+            .ok_or(DDSError::PreconditionNotMet(
+                "Device MAC address not found, unable to build GUID".to_string(),
+            ))?
+            .bytes();
+
+        #[rustfmt::skip]
+        let guid_prefix = GuidPrefix([
+            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+            domain_id as u8, participant_id as u8, 0, 0, 0, 0
+        ]);
+
         Ok(Communications {
             domain_id,
             participant_id,
+            guid_prefix,
             unicast_address,
             multicast_address,
             metatraffic_multicast: Communication {
@@ -306,18 +320,16 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
-        let guid_prefix = GuidPrefix([3; 12]);
         let qos = qos.unwrap_or_default();
 
         let communications = Communications::find_available(
             domain_id,
-            guid_prefix,
             ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )?;
 
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
-            guid_prefix,
+            communications.guid_prefix,
             domain_id,
             "".to_string(),
             qos.clone(),
@@ -838,6 +850,23 @@ mod tests {
     };
 
     #[test]
+    fn communicaitons_make_different_guids() {
+        let comm1 = Communications::find_available(
+            0,
+            ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
+            ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
+        ).unwrap();
+
+        let comm2 = Communications::find_available(
+            0,
+            ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
+            ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
+        ).unwrap();
+
+        assert_ne!(comm1.guid_prefix, comm2.guid_prefix);
+    }
+
+    #[test]
     fn multicast_socket_behaviour() {
         let port = 6000;
         let interface_addr = [127, 0, 0, 1];
@@ -870,7 +899,7 @@ mod tests {
 
     #[test]
     fn create_builtins_adds_builtin_readers_and_writers() {
-        let guid_prefix = GuidPrefix([0; 12]);
+        let guid_prefix = GuidPrefix([1; 12]);
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             guid_prefix,
             DomainId::default(),
@@ -947,21 +976,19 @@ mod tests {
     #[test]
     fn test_spdp_send_receive() {
         let domain_id = 4;
-        let guid_prefix = GuidPrefix([3; 12]);
         let interface_address = [127, 0, 0, 1];
         let multicast_ip = [239, 255, 0, 1];
 
+        // ////////// Create 2 participants
+
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
             interface_address.into(),
             multicast_ip.into(),
         )
         .unwrap();
-
-        // ////////// Create 2 participants
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications1.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -974,14 +1001,13 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
             interface_address.into(),
             multicast_ip.into(),
         )
         .unwrap();
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications2.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1014,7 +1040,7 @@ mod tests {
         }
 
         // ////////// Participant 2 receives discovered participant data
-        let spdp_discovered_participant_data = {
+        let (spdp_discovered_participant_data, _) = {
             let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
 
             let subscriber = SubscriberProxy::new(
@@ -1031,7 +1057,7 @@ mod tests {
                 participant2_proxy
                     .topic_factory_lookup_topicdescription(DCPS_PARTICIPANT)
                     .unwrap();
-            let mut participant2_builtin_participant_data_reader = subscriber
+            let participant2_builtin_participant_data_reader = subscriber
                 .datareader_factory_lookup_datareader(&participant_topic)
                 .unwrap();
 
@@ -1120,7 +1146,6 @@ mod tests {
     #[test]
     fn test_sedp_send_receive() {
         let domain_id = 5;
-        let guid_prefix = GuidPrefix([3; 12]);
         let unicast_address = [127, 0, 0, 1];
         let multicast_address = [239, 255, 0, 1];
 
@@ -1128,14 +1153,13 @@ mod tests {
 
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications1.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1149,14 +1173,13 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
             ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )
         .unwrap();
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications2.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1276,17 +1299,17 @@ mod tests {
                 .downgrade(),
         );
 
-        let mut participant2_publication_datareader = participant2_subscriber
+        let participant2_publication_datareader = participant2_subscriber
             .lookup_datareader(&sedp_topic_publication)
             .unwrap();
-        let mut participant2_subscription_datareader = participant2_subscriber
+        let participant2_subscription_datareader = participant2_subscriber
             .lookup_datareader(&sedp_topic_subscription)
             .unwrap();
-        let mut participant2_topic_datareader = participant2_subscriber
+        let participant2_topic_datareader = participant2_subscriber
             .lookup_datareader(&sedp_topic_topic)
             .unwrap();
 
-        let discovered_topic_data = &participant2_topic_datareader
+        let (discovered_topic_data, _) = &participant2_topic_datareader
             .read(1, &[], &[], &[])
             .unwrap()[0];
         assert_eq!(
@@ -1298,7 +1321,7 @@ mod tests {
             discovered_topic_data.topic_builtin_topic_data.name,
         );
 
-        let discovered_writer_data = &participant2_publication_datareader
+        let (discovered_writer_data, _) = &participant2_publication_datareader
             .read(1, &[], &[], &[])
             .unwrap()[0];
         assert_eq!(
@@ -1314,7 +1337,7 @@ mod tests {
             discovered_writer_data.writer_proxy.remote_writer_guid,
         );
 
-        let discovered_reader_data = &participant2_subscription_datareader
+        let (discovered_reader_data, _) = &participant2_subscription_datareader
             .read(1, &[], &[], &[])
             .unwrap()[0];
         assert_eq!(
@@ -1353,21 +1376,19 @@ mod tests {
     #[test]
     fn test_reader_writer_matching_listener() {
         let domain_id = 6;
-        let guid_prefix = GuidPrefix([3; 12]);
         let unicast_address = [127, 0, 0, 1];
         let multicast_address = [239, 255, 0, 1];
 
         // ////////// Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications1.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1381,14 +1402,13 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications2.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1534,21 +1554,19 @@ mod tests {
     #[test]
     fn test_reader_available_data_listener() {
         let domain_id = 7;
-        let guid_prefix = GuidPrefix([3; 12]);
         let unicast_address = [127, 0, 0, 1];
         let multicast_address = [239, 255, 0, 1];
 
         // ////////// Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications1.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1562,14 +1580,13 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications2.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1627,7 +1644,7 @@ mod tests {
         let user_topic = participant1_proxy
             .create_topic::<UserData>("UserTopic", None, None, 0)
             .unwrap();
-        let mut user_writer = user_publisher
+        let user_writer = user_publisher
             .create_datawriter(&user_topic, None, None, 0)
             .unwrap();
 

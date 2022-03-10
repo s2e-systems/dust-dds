@@ -29,8 +29,7 @@ impl TypeSupport {
     }
 
     /// This operation returns the default name for the data-type represented by the TypeSupport.
-    pub fn get_type_name(&self) -> String {
+    pub fn get_type_name(&self) -> DDSResult<String> {
         todo!()
     }
 }
-

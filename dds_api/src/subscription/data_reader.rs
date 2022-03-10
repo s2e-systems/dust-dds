@@ -23,7 +23,6 @@ use super::query_condition::QueryCondition;
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
 pub trait DataReader<Foo> {
-    type Samples;
     type Subscriber;
     type TopicDescription;
 
@@ -104,12 +103,12 @@ pub trait DataReader<Foo> {
     /// read.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn read(
-        &mut self,
+        &self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Self::Samples>;
+    ) -> DDSResult<Vec<(Foo, SampleInfo)>>;
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
     /// structures. The operation will return either a ‘list’ of samples or else a single sample. This is controlled by the
@@ -125,12 +124,12 @@ pub trait DataReader<Foo> {
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     fn take(
-        &mut self,
+        &self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Self::Samples>;
+    ) -> DDSResult<Vec<(Foo, SampleInfo)>>;
 
     /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
     /// especially useful in combination with QueryCondition to filter data samples based on the content.
@@ -389,7 +388,7 @@ pub trait DataReader<Foo> {
     /// key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
-    fn lookup_instance(&self, instance: &Foo) -> InstanceHandle;
+    fn lookup_instance(&self, instance: &Foo) -> DDSResult<InstanceHandle>;
 
     /// This operation creates a ReadCondition. The returned ReadCondition will be attached and belong to the DataReader.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
@@ -398,7 +397,7 @@ pub trait DataReader<Foo> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReadCondition;
+    ) -> DDSResult<ReadCondition>;
 
     /// This operation creates a QueryCondition. The returned QueryCondition will be attached and belong to the DataReader.
     /// The syntax of the query_expression and query_parameters parameters is described in Annex B.
@@ -410,7 +409,7 @@ pub trait DataReader<Foo> {
         instance_states: &[InstanceStateKind],
         query_expression: &'static str,
         query_parameters: &[&'static str],
-    ) -> QueryCondition;
+    ) -> DDSResult<QueryCondition>;
 
     /// This operation deletes a ReadCondition attached to the DataReader. Since QueryCondition specializes ReadCondition it can
     /// also be used to delete a QueryCondition. If the ReadCondition is not attached to the DataReader, the operation will return the

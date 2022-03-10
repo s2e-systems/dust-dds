@@ -25,7 +25,7 @@ pub trait DataWriter<Foo> {
     /// allocated handle. This may be used to lookup and retrieve the handle allocated to a given instance. The explicit use of this
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
-    fn register_instance(&mut self, instance: Foo) -> DDSResult<Option<InstanceHandle>>;
+    fn register_instance(&self, instance: Foo) -> DDSResult<Option<InstanceHandle>>;
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the
@@ -35,7 +35,7 @@ pub trait DataWriter<Foo> {
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
     fn register_instance_w_timestamp(
-        &mut self,
+        &self,
         instance: Foo,
         timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>>;
@@ -68,7 +68,7 @@ pub trait DataWriter<Foo> {
     /// write).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     fn unregister_instance(
-        &mut self,
+        &self,
         instance: Foo,
         handle: Option<InstanceHandle>,
     ) -> DDSResult<()>;
@@ -81,7 +81,7 @@ pub trait DataWriter<Foo> {
     /// unregister_instance operation (2.2.2.4.2.7).
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     fn unregister_instance_w_timestamp(
-        &mut self,
+        &self,
         instance: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
@@ -139,7 +139,7 @@ pub trait DataWriter<Foo> {
     /// by the ‘data’ parameter, the behavior is in general unspecified, but if detectable by the Service implementation, the return
     /// error-code will be PRECONDITION_NOT_MET. In case the handle is invalid, the behavior is in general unspecified, but if
     /// detectable the returned error-code will be BAD_PARAMETER.
-    fn write(&mut self, data: &Foo, handle: Option<InstanceHandle>) -> DDSResult<()>;
+    fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DDSResult<()>;
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
     /// available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo. See 2.2.2.5, Subscription
@@ -155,7 +155,7 @@ pub trait DataWriter<Foo> {
     /// Similar to write, this operation must also be provided on the specialized class that is generated for the particular application
     /// data-type that is being written.
     fn write_w_timestamp(
-        &mut self,
+        &self,
         data: &Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
@@ -173,7 +173,7 @@ pub trait DataWriter<Foo> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
-    fn dispose(&mut self, data: Foo, handle: Option<InstanceHandle>) -> DDSResult<()>;
+    fn dispose(&self, data: Foo, handle: Option<InstanceHandle>) -> DDSResult<()>;
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
     /// that is made available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo (see 2.2.2.5,
@@ -189,7 +189,7 @@ pub trait DataWriter<Foo> {
     /// (2.2.2.4.2.11).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     fn dispose_w_timestamp(
-        &mut self,
+        &self,
         data: Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
