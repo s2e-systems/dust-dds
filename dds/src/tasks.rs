@@ -38,14 +38,16 @@ use rust_dds_rtps_implementation::{
 use rust_rtps_pim::{
     behavior::{
         reader::{
-            stateful_reader::RtpsStatefulReaderOperations, writer_proxy::RtpsWriterProxyConstructor,
+            stateful_reader::RtpsStatefulReaderOperations, writer_proxy::{RtpsWriterProxyConstructor, RtpsWriterProxyAttributes},
         },
         writer::{
-            reader_proxy::RtpsReaderProxyConstructor, stateful_writer::RtpsStatefulWriterOperations,
+            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
+            stateful_writer::RtpsStatefulWriterOperations,
         },
     },
     discovery::{
         participant_discovery::ParticipantDiscovery,
+        spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
     structure::{entity::RtpsEntityAttributes, participant::RtpsParticipantAttributes},
@@ -159,16 +161,69 @@ pub fn task_spdp_discovery(
     let spdp_builtin_participant_data_reader =
         builtin_subscriber.lookup_datareader(&dcps_participant_topic)?;
 
-    let sedp_builtin_publication_writer =
-        builtin_publisher.lookup_datawriter(&dcps_publication_topic)?;
-    let sedp_builtin_publication_reader =
-        builtin_subscriber.lookup_datareader(&dcps_publication_topic)?;
-    let sedp_builtin_subscription_writer =
-        builtin_publisher.lookup_datawriter(&dcps_subscription_topic)?;
-    let sedp_builtin_subscription_reader =
-        builtin_subscriber.lookup_datareader(&dcps_subscription_topic)?;
-    let sedp_builtin_topic_writer = builtin_publisher.lookup_datawriter(&dcps_topic_topic)?;
-    let sedp_builtin_topic_reader = builtin_subscriber.lookup_datareader(&dcps_topic_topic)?;
+    let sedp_builtin_publication_writer_shared = builtin_publisher
+        .lookup_datawriter(&dcps_publication_topic)?
+        .as_ref()
+        .upgrade()?;
+
+    let sedp_builtin_publication_reader_shared = builtin_subscriber
+        .lookup_datareader(&dcps_publication_topic)?
+        .as_ref()
+        .upgrade()?;
+
+    let sedp_builtin_subscription_writer_shared = builtin_publisher
+        .lookup_datawriter(&dcps_subscription_topic)?
+        .as_ref()
+        .upgrade()?;
+
+    let sedp_builtin_subscription_reader_shared = builtin_subscriber
+        .lookup_datareader(&dcps_subscription_topic)?
+        .as_ref()
+        .upgrade()?;
+
+    let sedp_builtin_topic_writer_shared = builtin_publisher
+        .lookup_datawriter(&dcps_topic_topic)?
+        .as_ref()
+        .upgrade()?;
+
+    let sedp_builtin_topic_reader_shared = builtin_subscriber
+        .lookup_datareader(&dcps_topic_topic)?
+        .as_ref()
+        .upgrade()?;
+
+    let mut sedp_builtin_publication_writer_lock =
+        sedp_builtin_publication_writer_shared.write_lock();
+    let sedp_builtin_publication_writer = sedp_builtin_publication_writer_lock
+        .rtps_writer
+        .try_as_stateful_writer()?;
+
+    let mut sedp_builtin_publication_reader_lock =
+        sedp_builtin_publication_reader_shared.write_lock();
+    let sedp_builtin_publication_reader = sedp_builtin_publication_reader_lock
+        .rtps_reader
+        .try_as_stateful_reader()?;
+
+    let mut sedp_builtin_subscription_writer_lock =
+        sedp_builtin_subscription_writer_shared.write_lock();
+    let sedp_builtin_subscription_writer = sedp_builtin_subscription_writer_lock
+        .rtps_writer
+        .try_as_stateful_writer()?;
+
+    let mut sedp_builtin_subscription_reader_lock =
+        sedp_builtin_subscription_reader_shared.write_lock();
+    let sedp_builtin_subscription_reader = sedp_builtin_subscription_reader_lock
+        .rtps_reader
+        .try_as_stateful_reader()?;
+
+    let mut sedp_builtin_topic_writer_lock = sedp_builtin_topic_writer_shared.write_lock();
+    let sedp_builtin_topic_writer = sedp_builtin_topic_writer_lock
+        .rtps_writer
+        .try_as_stateful_writer()?;
+
+    let mut sedp_builtin_topic_reader_lock = sedp_builtin_topic_reader_shared.write_lock();
+    let sedp_builtin_topic_reader = sedp_builtin_topic_reader_lock
+        .rtps_reader
+        .try_as_stateful_reader()?;
 
     if let Ok(samples) = spdp_builtin_participant_data_reader.take(1, &[], &[], &[]) {
         for (discovered_participant, _) in samples.iter() {
@@ -177,59 +232,63 @@ pub fn task_spdp_discovery(
                 domain_participant.read_lock().domain_id as u32,
                 &domain_participant.read_lock().domain_tag,
             ) {
-                participant_discovery.discovered_participant_add_publications_writer(
-                    sedp_builtin_publication_writer
-                        .as_ref()
-                        .upgrade()?
-                        .write_lock()
-                        .rtps_writer
-                        .try_as_stateful_writer()?,
-                );
+                if !sedp_builtin_publication_writer
+                    .matched_readers
+                    .iter()
+                    .any(|r| r.remote_reader_guid().prefix == discovered_participant.guid_prefix())
+                {
+                    participant_discovery.discovered_participant_add_publications_writer(
+                        sedp_builtin_publication_writer,
+                    );
+                }
 
-                participant_discovery.discovered_participant_add_publications_reader(
-                    sedp_builtin_publication_reader
-                        .as_ref()
-                        .upgrade()?
-                        .write_lock()
-                        .rtps_reader
-                        .try_as_stateful_reader()?,
-                );
+                if !sedp_builtin_publication_reader
+                    .matched_writers
+                    .iter()
+                    .any(|w| w.remote_writer_guid().prefix == discovered_participant.guid_prefix())
+                {
+                    participant_discovery.discovered_participant_add_publications_reader(
+                        sedp_builtin_publication_reader,
+                    );
+                }
 
-                participant_discovery.discovered_participant_add_subscriptions_writer(
-                    sedp_builtin_subscription_writer
-                        .as_ref()
-                        .upgrade()?
-                        .write_lock()
-                        .rtps_writer
-                        .try_as_stateful_writer()?,
-                );
+                if !sedp_builtin_subscription_writer
+                    .matched_readers
+                    .iter()
+                    .any(|r| r.remote_reader_guid().prefix == discovered_participant.guid_prefix())
+                {
+                    participant_discovery.discovered_participant_add_subscriptions_writer(
+                        sedp_builtin_subscription_writer,
+                    );
+                }
 
-                participant_discovery.discovered_participant_add_subscriptions_reader(
-                    sedp_builtin_subscription_reader
-                        .as_ref()
-                        .upgrade()?
-                        .write_lock()
-                        .rtps_reader
-                        .try_as_stateful_reader()?,
-                );
+                if !sedp_builtin_subscription_reader
+                    .matched_writers
+                    .iter()
+                    .any(|w| w.remote_writer_guid().prefix == discovered_participant.guid_prefix())
+                {
+                    participant_discovery.discovered_participant_add_subscriptions_reader(
+                        sedp_builtin_subscription_reader,
+                    );
+                }
 
-                participant_discovery.discovered_participant_add_topics_writer(
-                    sedp_builtin_topic_writer
-                        .as_ref()
-                        .upgrade()?
-                        .write_lock()
-                        .rtps_writer
-                        .try_as_stateful_writer()?,
-                );
+                if !sedp_builtin_topic_writer
+                    .matched_readers
+                    .iter()
+                    .any(|r| r.remote_reader_guid().prefix == discovered_participant.guid_prefix())
+                {
+                    participant_discovery
+                        .discovered_participant_add_topics_writer(sedp_builtin_topic_writer);
+                }
 
-                participant_discovery.discovered_participant_add_topics_reader(
-                    sedp_builtin_topic_reader
-                        .as_ref()
-                        .upgrade()?
-                        .write_lock()
-                        .rtps_reader
-                        .try_as_stateful_reader()?,
-                );
+                if !sedp_builtin_topic_reader
+                    .matched_writers
+                    .iter()
+                    .any(|w| w.remote_writer_guid().prefix == discovered_participant.guid_prefix())
+                {
+                    participant_discovery
+                        .discovered_participant_add_topics_reader(sedp_builtin_topic_reader);
+                }
             }
         }
     }
