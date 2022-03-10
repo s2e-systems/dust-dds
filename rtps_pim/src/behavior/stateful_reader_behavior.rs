@@ -294,7 +294,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let source_guid_prefix = GuidPrefix([1; 12]);
+        let source_guid_prefix = GuidPrefix::generate();
         let data = DataSubmessage {
             endianness_flag: true,
             inline_qos_flag: false,
@@ -345,7 +345,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let source_guid_prefix = GuidPrefix([1; 12]);
+        let source_guid_prefix = GuidPrefix::generate();
         let data = DataSubmessage {
             endianness_flag: true,
             inline_qos_flag: false,
@@ -433,7 +433,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let source_guid_prefix = GuidPrefix([1; 12]);
+        let source_guid_prefix = GuidPrefix::generate();
         let data = DataSubmessage {
             endianness_flag: true,
             inline_qos_flag: false,
@@ -537,7 +537,7 @@ mod tests {
         writer_proxy
             .expect_remote_writer_guid()
             .once()
-            .return_const(Guid::new(GuidPrefix([1; 12]), writer_id));
+            .return_const(Guid::new(GuidPrefix::generate(), writer_id));
         writer_proxy
             .expect_available_changes_max()
             .once()
@@ -583,7 +583,7 @@ mod tests {
         writer_proxy
             .expect_remote_writer_guid()
             .once()
-            .return_const(Guid::new(GuidPrefix([1; 12]), writer_id));
+            .return_const(Guid::new(GuidPrefix::generate(), writer_id));
         writer_proxy
             .expect_available_changes_max()
             .once()

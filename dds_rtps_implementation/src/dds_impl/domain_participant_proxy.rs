@@ -167,14 +167,12 @@ where
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes
         + RtpsStatefulWriterConstructor,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
 
@@ -871,7 +869,7 @@ mod tests {
         Rtps::Group: Default,
     {
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
-            GuidPrefix([0; 12]),
+            GuidPrefix::generate(),
             DomainId::default(),
             "".to_string(),
             DomainParticipantQos::default(),
@@ -901,7 +899,7 @@ mod tests {
             .push(sedp_topic_topic.clone());
 
         let sedp_builtin_topics_rtps_writer =
-            SedpBuiltinTopicsWriter::create::<EmptyWriter>(GuidPrefix([0; 12]), &[], &[]);
+            SedpBuiltinTopicsWriter::create::<EmptyWriter>(GuidPrefix::generate(), &[], &[]);
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),

@@ -3,7 +3,7 @@ use rust_dds::{
     domain_participant_factory::DomainParticipantFactory,
     infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
     publication::{data_writer::DataWriter, publisher::Publisher},
-    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    subscription::{data_reader::DataReader, subscriber::Subscriber, data_reader_listener::DataReaderListener},
     types::Time,
     DDSError,
 };
@@ -40,6 +40,13 @@ impl<'de> DdsDeserialize<'de> for UserData {
     }
 }
 
+struct ReaderListener;
+impl DataReaderListener for ReaderListener {
+    fn on_data_available(&self) {
+        println!("Data available!");
+    }
+}
+
 #[test]
 fn user_defined_write_read_auto_enable() {
     let domain_id = 7;
@@ -67,7 +74,7 @@ fn user_defined_write_read_auto_enable() {
     reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
     let mut reader = subscriber
-        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .create_datareader(&topic, Some(reader_qos), Some(Box::new(ReaderListener)), 0)
         .unwrap();
 
     // Wait for reader to be aware of the user writer

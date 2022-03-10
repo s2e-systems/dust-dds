@@ -568,7 +568,7 @@ mod tests {
         let domain_id = 1;
         let multicast_address = [239, 255, 0, 1];
         let unicast_address = [127, 0, 0, 1];
-        let guid_prefix = GuidPrefix([3; 12]);
+        let guid_prefix = GuidPrefix::generate();
 
         // Create 2 participants
         let mut communications1 = Communications::find_available(
@@ -811,7 +811,7 @@ mod tests {
         let domain_id = 2;
         let multicast_address = [239, 255, 0, 1];
         let unicast_address = [127, 0, 0, 1];
-        let guid_prefix = GuidPrefix([3; 12]);
+        let guid_prefix = GuidPrefix::generate();
 
         // Create 2 participants
         let mut communications1 = Communications::find_available(
@@ -958,7 +958,7 @@ mod tests {
         let domain_id = 3;
         let multicast_address = [239, 255, 0, 1];
         let unicast_address = [127, 0, 0, 1];
-        let guid_prefix = GuidPrefix([3; 12]);
+        let guid_prefix = GuidPrefix::generate();
 
         // Create 2 participants
         let mut communications1 = Communications::find_available(

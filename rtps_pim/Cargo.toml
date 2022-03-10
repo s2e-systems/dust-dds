@@ -5,5 +5,8 @@ authors = ["Joao Rebelo <jrebelo@s2e-systems.com>",
 		   "Stefan Kimmer <skimmer@s2e-systems.com"]
 edition = "2018"
 
+[dependencies]
+rand = "0.8"
+
 [dev-dependencies]
 mockall = {version = "0.11"}

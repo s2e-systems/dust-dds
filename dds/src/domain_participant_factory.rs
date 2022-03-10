@@ -306,7 +306,7 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
-        let guid_prefix = GuidPrefix([3; 12]);
+        let guid_prefix = GuidPrefix::generate();
         let qos = qos.unwrap_or_default();
 
         let communications = Communications::find_available(
@@ -870,7 +870,7 @@ mod tests {
 
     #[test]
     fn create_builtins_adds_builtin_readers_and_writers() {
-        let guid_prefix = GuidPrefix([0; 12]);
+        let guid_prefix = GuidPrefix::generate();
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
             guid_prefix,
             DomainId::default(),
@@ -947,21 +947,21 @@ mod tests {
     #[test]
     fn test_spdp_send_receive() {
         let domain_id = 4;
-        let guid_prefix = GuidPrefix([3; 12]);
         let interface_address = [127, 0, 0, 1];
         let multicast_ip = [239, 255, 0, 1];
 
+        // ////////// Create 2 participants
+
+        let guid_prefix1 = GuidPrefix::generate();
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
+            guid_prefix1,
             interface_address.into(),
             multicast_ip.into(),
         )
         .unwrap();
-
-        // ////////// Create 2 participants
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            guid_prefix1,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -972,16 +972,17 @@ mod tests {
         ));
         create_builtins(participant1.clone()).unwrap();
 
+        let guid_prefix2 = GuidPrefix::generate();
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
+            guid_prefix2,
             interface_address.into(),
             multicast_ip.into(),
         )
         .unwrap();
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            guid_prefix2,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1120,22 +1121,22 @@ mod tests {
     #[test]
     fn test_sedp_send_receive() {
         let domain_id = 5;
-        let guid_prefix = GuidPrefix([3; 12]);
         let unicast_address = [127, 0, 0, 1];
         let multicast_address = [239, 255, 0, 1];
 
         // ////////// Create 2 participants
 
+        let guid_prefix1 = GuidPrefix::generate();
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
+            guid_prefix1,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            guid_prefix1,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1147,16 +1148,17 @@ mod tests {
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
         create_builtins(participant1.clone()).unwrap();
 
+        let guid_prefix2 = GuidPrefix::generate();
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
+            guid_prefix2,
             ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )
         .unwrap();
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            guid_prefix2,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1353,21 +1355,21 @@ mod tests {
     #[test]
     fn test_reader_writer_matching_listener() {
         let domain_id = 6;
-        let guid_prefix = GuidPrefix([3; 12]);
         let unicast_address = [127, 0, 0, 1];
         let multicast_address = [239, 255, 0, 1];
 
         // ////////// Create 2 participants
+        let guid_prefix1 = GuidPrefix::generate();
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
+            guid_prefix1,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            guid_prefix1,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1379,16 +1381,17 @@ mod tests {
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
         create_builtins(participant1.clone()).unwrap();
 
+        let guid_prefix2 = GuidPrefix::generate();
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
+            guid_prefix2,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            guid_prefix2,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1534,21 +1537,21 @@ mod tests {
     #[test]
     fn test_reader_available_data_listener() {
         let domain_id = 7;
-        let guid_prefix = GuidPrefix([3; 12]);
         let unicast_address = [127, 0, 0, 1];
         let multicast_address = [239, 255, 0, 1];
 
         // ////////// Create 2 participants
+        let guid_prefix1 = GuidPrefix::generate();
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
+            guid_prefix1,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            guid_prefix1,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1560,16 +1563,17 @@ mod tests {
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
         create_builtins(participant1.clone()).unwrap();
 
+        let guid_prefix2 = GuidPrefix::generate();
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
+            guid_prefix2,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
 
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            guid_prefix2,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),

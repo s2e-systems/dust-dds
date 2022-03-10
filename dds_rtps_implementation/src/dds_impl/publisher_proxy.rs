@@ -124,14 +124,12 @@ where
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes
         + RtpsStatefulWriterConstructor,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType:
-        RtpsHistoryCacheOperations<
-            CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
-        >,
+    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
+    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
+        CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
+    >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataWriterType = DataWriterProxy<Foo, Rtps>;
@@ -217,7 +215,7 @@ where
                 rtps_writer_impl,
                 listener,
                 topic_shared.clone(),
-                publisher_shared.downgrade()
+                publisher_shared.downgrade(),
             ));
 
             publisher_shared
@@ -679,7 +677,7 @@ mod tests {
         Rtps::Group: Default,
     {
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
-            GuidPrefix([0; 12]),
+            GuidPrefix::generate(),
             DomainId::default(),
             "".to_string(),
             DomainParticipantQos::default(),
@@ -709,7 +707,7 @@ mod tests {
             .push(sedp_topic_publication.clone());
 
         let sedp_builtin_publications_rtps_writer =
-            SedpBuiltinPublicationsWriter::create::<EmptyWriter>(GuidPrefix([0; 12]), &[], &[]);
+            SedpBuiltinPublicationsWriter::create::<EmptyWriter>(GuidPrefix::generate(), &[], &[]);
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),

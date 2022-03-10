@@ -1,3 +1,5 @@
+use rand::Rng;
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
@@ -79,6 +81,18 @@ impl From<[u8; 16]> for Guid {
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct GuidPrefix(pub [u8; 12]);
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
+
+impl GuidPrefix {
+    #[rustfmt::skip]
+    pub fn generate() -> GuidPrefix {
+        GuidPrefix([
+            rand::thread_rng().gen(), rand::thread_rng().gen(), rand::thread_rng().gen(),
+            rand::thread_rng().gen(), rand::thread_rng().gen(), rand::thread_rng().gen(),
+            rand::thread_rng().gen(), rand::thread_rng().gen(), rand::thread_rng().gen(),
+            rand::thread_rng().gen(), rand::thread_rng().gen(), rand::thread_rng().gen(),
+        ])
+    }
+}
 
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The

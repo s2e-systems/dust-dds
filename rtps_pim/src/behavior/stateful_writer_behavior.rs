@@ -465,7 +465,7 @@ mod tests {
             .once()
             .return_const(vec![MockCacheChange {
                 kind: ChangeKind::Alive,
-                writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
+                writer_guid: Guid::new(GuidPrefix::generate(), EntityId::new([1; 3], 1)),
                 instance_handle: 1,
                 sequence_number: 1,
                 data_value: MockData,
@@ -573,7 +573,7 @@ mod tests {
             .once()
             .return_const(vec![MockCacheChange {
                 kind: ChangeKind::Alive,
-                writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
+                writer_guid: Guid::new(GuidPrefix::generate(), EntityId::new([1; 3], 1)),
                 instance_handle: 1,
                 sequence_number: 1,
                 data_value: MockData,
@@ -757,7 +757,7 @@ mod tests {
             .once()
             .return_const(vec![MockCacheChange {
                 kind: ChangeKind::Alive,
-                writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
+                writer_guid: Guid::new(GuidPrefix::generate(), EntityId::new([1; 3], 1)),
                 instance_handle: 1,
                 sequence_number: 1,
                 data_value: MockData,
