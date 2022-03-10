@@ -41,7 +41,7 @@ impl<'de> DdsDeserialize<'de> for UserData {
 
 #[test]
 fn user_defined_write_read_auto_enable() {
-    let domain_id = 7;
+    let domain_id = 8;
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory
@@ -53,7 +53,46 @@ fn user_defined_write_read_auto_enable() {
         .unwrap();
 
     // Wait for the participants to discover each other
-    std::thread::sleep(std::time::Duration::from_millis(600));
+    while participant1
+        .get_builtin_subscriber()
+        .unwrap()
+        .as_ref()
+        .upgrade()
+        .unwrap()
+        .read_lock()
+        .data_reader_list
+        .iter()
+        .filter_map(|r| {
+            r.write_lock()
+                .rtps_reader
+                .try_as_stateful_reader()
+                .ok()
+                .map(|sr| sr.matched_writers.len())
+        })
+        .next()
+        .unwrap()
+        + participant2
+            .get_builtin_subscriber()
+            .unwrap()
+            .as_ref()
+            .upgrade()
+            .unwrap()
+            .read_lock()
+            .data_reader_list
+            .iter()
+            .filter_map(|r| {
+                r.write_lock()
+                    .rtps_reader
+                    .try_as_stateful_reader()
+                    .ok()
+                    .map(|sr| sr.matched_writers.len())
+            })
+            .next()
+            .unwrap()
+        < 4
+    {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
 
     let topic = participant1
         .create_topic::<UserData>("MyTopic", None, None, 0)

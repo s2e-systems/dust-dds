@@ -869,7 +869,7 @@ mod tests {
         Rtps::Group: Default,
     {
         let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
-            GuidPrefix([0; 12]),
+            GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
             DomainParticipantQos::default(),
@@ -899,7 +899,7 @@ mod tests {
             .push(sedp_topic_topic.clone());
 
         let sedp_builtin_topics_rtps_writer =
-            SedpBuiltinTopicsWriter::create::<EmptyWriter>(GuidPrefix([0; 12]), &[], &[]);
+            SedpBuiltinTopicsWriter::create::<EmptyWriter>(GuidPrefix([2; 12]), &[], &[]);
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
