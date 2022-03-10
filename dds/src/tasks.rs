@@ -493,7 +493,6 @@ mod tests {
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::RtpsShared,
     };
-    use rust_rtps_pim::structure::types::GuidPrefix;
 
     use crate::{
         domain_participant_factory::{create_builtins, Communications, RtpsStructureImpl},
@@ -565,18 +564,16 @@ mod tests {
         let domain_id = 1;
         let multicast_address = [239, 255, 0, 1];
         let unicast_address = [127, 0, 0, 1];
-        let guid_prefix = GuidPrefix::generate();
 
         // Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications1.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -590,13 +587,12 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications2.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -818,18 +814,16 @@ mod tests {
         let domain_id = 2;
         let multicast_address = [239, 255, 0, 1];
         let unicast_address = [127, 0, 0, 1];
-        let guid_prefix = GuidPrefix::generate();
 
         // Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications1.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -843,13 +837,12 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications2.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -983,18 +976,16 @@ mod tests {
         let domain_id = 3;
         let multicast_address = [239, 255, 0, 1];
         let unicast_address = [127, 0, 0, 1];
-        let guid_prefix = GuidPrefix::generate();
 
         // Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
         let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications1.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
@@ -1008,13 +999,12 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
-            guid_prefix,
             unicast_address.into(),
             multicast_address.into(),
         )
         .unwrap();
         let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
-            guid_prefix,
+            communications2.guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),

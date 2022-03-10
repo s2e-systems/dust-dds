@@ -123,7 +123,7 @@ mod tests {
     #[test]
     fn best_effort_stateless_reader_receive_data() {
         let mut reader_cache = MockHistoryCache::new();
-        let source_guid_prefix = GuidPrefix::generate();
+        let source_guid_prefix = GuidPrefix([1; 12]);
         let data = DataSubmessage {
             endianness_flag: true,
             inline_qos_flag: true,
