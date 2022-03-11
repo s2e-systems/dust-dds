@@ -609,7 +609,7 @@ mod tests {
             _data_max_size_serialized: Option<i32>,
         ) -> Self {
             EmptyWriter {
-                push_mode: false,
+                push_mode: true,
                 heartbeat_period: Duration::new(0, 0),
                 nack_response_delay: Duration::new(0, 0),
                 nack_suppression_duration: Duration::new(0, 0),

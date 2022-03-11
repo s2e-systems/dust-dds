@@ -154,6 +154,7 @@ where
                                         &mut RtpsReaderProxyOperationsImpl::new(
                                             reader_proxy,
                                             &stateful_rtps_writer.writer.writer_cache,
+                                            stateful_rtps_writer.writer.push_mode,
                                         ),
                                         &stateful_rtps_writer.writer.writer_cache,
                                         reader_id,
@@ -172,10 +173,7 @@ where
                                     let submessages = submessages.take();
 
                                     if !submessages.is_empty() {
-                                        let reader_proxy_attributes: &dyn RtpsReaderProxyAttributes =
-                                            reader_proxy;
-                                        destined_submessages
-                                            .push((reader_proxy_attributes, submessages));
+                                        destined_submessages.push((reader_proxy, submessages));
                                     }
                                 }
                             }

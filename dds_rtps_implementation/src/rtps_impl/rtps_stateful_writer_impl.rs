@@ -25,13 +25,13 @@ use crate::utils::clock::StdTimer;
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
     rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_reader_proxy_impl::RtpsReaderProxyAttributesImpl,
+    rtps_reader_proxy_impl::{RtpsReaderProxyImpl},
     rtps_writer_impl::RtpsWriterImpl,
 };
 
 pub struct RtpsStatefulWriterImpl {
     pub writer: RtpsWriterImpl,
-    pub matched_readers: Vec<RtpsReaderProxyAttributesImpl>,
+    pub matched_readers: Vec<RtpsReaderProxyImpl>,
     pub heartbeat_timer: StdTimer,
     pub heartbeat_count: Count,
 }
@@ -93,7 +93,7 @@ impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
 }
 
 impl RtpsStatefulWriterAttributes for RtpsStatefulWriterImpl {
-    type ReaderProxyType = RtpsReaderProxyAttributesImpl;
+    type ReaderProxyType = RtpsReaderProxyImpl;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType] {
         &self.matched_readers
@@ -136,7 +136,7 @@ impl RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl {
 }
 
 impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
-    type ReaderProxyType = RtpsReaderProxyAttributesImpl;
+    type ReaderProxyType = RtpsReaderProxyImpl;
 
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType) {
         self.matched_readers.push(a_reader_proxy)
