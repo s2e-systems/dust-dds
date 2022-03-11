@@ -34,7 +34,7 @@ impl<'de> DdsDeserialize<'de> for TestType {
 fn create_delete_publisher() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, [127, 0, 0, 1].into(), None, None, 0)
+        .create_participant(0, None, None, 0)
         .unwrap();
     participant.enable().unwrap();
     let _my_topic = participant

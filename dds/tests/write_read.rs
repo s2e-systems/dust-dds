@@ -45,11 +45,11 @@ fn user_defined_write_read_auto_enable() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory
-        .create_participant(domain_id, [127, 0, 0, 1].into(), None, None, 0)
+        .create_participant(domain_id, None, None, 0)
         .unwrap();
 
     let participant2 = participant_factory
-        .create_participant(domain_id, [127, 0, 0, 1].into(), None, None, 0)
+        .create_participant(domain_id, None, None, 0)
         .unwrap();
 
     // Wait for the participants to discover each other

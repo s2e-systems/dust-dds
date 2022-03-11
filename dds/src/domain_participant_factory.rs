@@ -312,12 +312,12 @@ impl DomainParticipantFactory {
     pub fn create_participant(
         &self,
         domain_id: DomainId,
-        interface_address: Ipv4Addr,
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let qos = qos.unwrap_or_default();
+        let interface_address = [127, 0, 0, 1].into();
 
         let communications = Communications::find_available(
             domain_id,
