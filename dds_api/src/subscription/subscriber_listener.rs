@@ -6,28 +6,32 @@ use crate::dcps_psm::{
 use super::data_reader::AnyDataReader;
 
 pub trait SubscriberListener {
-    fn on_data_on_readers(&self);
-    fn on_data_available(&self, the_reader: &dyn AnyDataReader);
-    fn on_sample_rejected(&self, the_reader: &dyn AnyDataReader, status: SampleRejectedStatus);
+    fn on_data_on_readers(&self) {}
+    fn on_data_available(&self, _the_reader: &dyn AnyDataReader) {}
+    fn on_sample_rejected(&self, _the_reader: &dyn AnyDataReader, _status: SampleRejectedStatus) {}
     fn on_liveliness_changed(
         &self,
-        the_reader: &dyn AnyDataReader,
-        status: LivelinessChangedStatus,
-    );
+        _the_reader: &dyn AnyDataReader,
+        _status: LivelinessChangedStatus,
+    ) {
+    }
     fn on_requested_deadline_missed(
         &self,
-        the_reader: &dyn AnyDataReader,
-        status: RequestedDeadlineMissedStatus,
-    );
+        _the_reader: &dyn AnyDataReader,
+        _status: RequestedDeadlineMissedStatus,
+    ) {
+    }
     fn on_requested_incompatible_qos(
         &self,
-        the_reader: &dyn AnyDataReader,
-        status: RequestedIncompatibleQosStatus,
-    );
+        _the_reader: &dyn AnyDataReader,
+        _status: RequestedIncompatibleQosStatus,
+    ) {
+    }
     fn on_subscription_matched(
         &self,
-        the_reader: &dyn AnyDataReader,
-        status: SubscriptionMatchedStatus,
-    );
-    fn on_sample_lost(&self, the_reader: &dyn AnyDataReader, status: SampleLostStatus);
+        _the_reader: &dyn AnyDataReader,
+        _status: SubscriptionMatchedStatus,
+    ) {
+    }
+    fn on_sample_lost(&self, _the_reader: &dyn AnyDataReader, _status: SampleLostStatus) {}
 }

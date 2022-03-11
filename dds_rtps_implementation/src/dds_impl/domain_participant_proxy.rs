@@ -180,7 +180,7 @@ where
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener>>,
+        _a_listener: Box<dyn TopicListener>,
         _mask: StatusMask,
     ) -> DDSResult<Self::TopicType> {
         let participant_shared = self.domain_participant.upgrade()?;
@@ -326,7 +326,7 @@ where
     fn create_publisher(
         &self,
         qos: Option<PublisherQos>,
-        _a_listener: Option<&'static dyn PublisherListener>,
+        _a_listener: &'static dyn PublisherListener,
         _mask: StatusMask,
     ) -> DDSResult<Self::PublisherType> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
@@ -390,7 +390,7 @@ where
     fn create_subscriber(
         &self,
         qos: Option<SubscriberQos>,
-        _a_listener: Option<&'static dyn SubscriberListener>,
+        _a_listener: &'static dyn SubscriberListener,
         _mask: StatusMask,
     ) -> DDSResult<Self::SubscriberType> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
@@ -624,18 +624,14 @@ where
         todo!()
     }
 
-    fn set_listener(
-        &self,
-        _a_listener: Option<Self::Listener>,
-        _mask: StatusMask,
-    ) -> DDSResult<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.set_listener(a_listener, mask)
         todo!()
     }
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+    fn get_listener(&self) -> DDSResult<Self::Listener> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_listener()
@@ -704,6 +700,7 @@ mod tests {
         },
         dds_impl::{
             data_writer_proxy::{DataWriterAttributes, RtpsWriter},
+            no_listener::NoListener,
             publisher_proxy::PublisherAttributes,
             topic_proxy::{TopicAttributes, TopicProxy},
         },
@@ -903,7 +900,7 @@ mod tests {
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
-            None,
+            Box::new(NoListener),
             sedp_topic_topic.clone(),
             domain_participant
                 .read_lock()
@@ -957,7 +954,7 @@ mod tests {
 
         let len_before = domain_participant.read_lock().topic_list.len();
 
-        let topic = domain_participant_proxy.topic_factory_create_topic("topic", None, None, 0)
+        let topic = domain_participant_proxy.topic_factory_create_topic("topic", None, Box::new(NoListener), 0)
             as DDSResult<Topic>;
 
         assert!(topic.is_ok());
@@ -977,7 +974,7 @@ mod tests {
         let len_before = domain_participant.read_lock().topic_list.len();
 
         let topic = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
+            .topic_factory_create_topic("topic", None, Box::new(NoListener), 0)
             .unwrap() as Topic;
 
         assert_eq!(
@@ -1008,7 +1005,7 @@ mod tests {
         let len_before2 = domain_participant2.read_lock().topic_list.len();
 
         let topic = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
+            .topic_factory_create_topic("topic", None, Box::new(NoListener), 0)
             .unwrap() as Topic;
 
         assert_eq!(
@@ -1049,7 +1046,7 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let topic = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
+            .topic_factory_create_topic("topic", None, Box::new(NoListener), 0)
             .unwrap() as Topic;
 
         assert!(
@@ -1074,7 +1071,7 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
+            .topic_factory_create_topic("topic", None, Box::new(NoListener), 0)
             .unwrap() as TopicBar;
 
         assert!(
@@ -1092,7 +1089,7 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         domain_participant_proxy
-            .topic_factory_create_topic("other_topic", None, None, 0)
+            .topic_factory_create_topic("other_topic", None, Box::new(NoListener), 0)
             .unwrap() as Topic;
 
         assert!(
@@ -1111,10 +1108,10 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let topic_foo = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
+            .topic_factory_create_topic("topic", None, Box::new(NoListener), 0)
             .unwrap() as TopicFoo;
         let topic_bar = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
+            .topic_factory_create_topic("topic", None, Box::new(NoListener), 0)
             .unwrap() as TopicBar;
 
         assert!(
@@ -1146,10 +1143,10 @@ mod tests {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let topic1 = domain_participant_proxy
-            .topic_factory_create_topic("topic1", None, None, 0)
+            .topic_factory_create_topic("topic1", None, Box::new(NoListener), 0)
             .unwrap() as Topic;
         let topic2 = domain_participant_proxy
-            .topic_factory_create_topic("topic2", None, None, 0)
+            .topic_factory_create_topic("topic2", None, Box::new(NoListener), 0)
             .unwrap() as Topic;
 
         assert!(

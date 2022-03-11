@@ -138,7 +138,7 @@ where
         &self,
         topic: &Self::TopicType,
         qos: Option<DataWriterQos>,
-        listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
+        listener: Box<dyn DataWriterListener + Send + Sync>,
         _mask: StatusMask,
     ) -> DDSResult<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade()?;
@@ -433,17 +433,13 @@ where
         todo!()
     }
 
-    fn set_listener(
-        &self,
-        _a_listener: Option<Self::Listener>,
-        _mask: StatusMask,
-    ) -> DDSResult<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
         //     .set_listener(a_listener, mask)
         todo!()
     }
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+    fn get_listener(&self) -> DDSResult<Self::Listener> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_listener()
         todo!()
     }
@@ -506,6 +502,7 @@ mod tests {
         dds_impl::{
             data_writer_proxy::{DataWriterAttributes, RtpsWriter},
             domain_participant_proxy::DomainParticipantAttributes,
+            no_listener::NoListener,
             topic_proxy::{TopicAttributes, TopicProxy},
         },
         dds_type::{DdsSerialize, DdsType, Endianness},
@@ -711,7 +708,7 @@ mod tests {
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-            None,
+            Box::new(NoListener),
             sedp_topic_publication.clone(),
             domain_participant
                 .read_lock()
@@ -790,7 +787,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer =
-            publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
+            publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, Box::new(NoListener), 0);
 
         assert!(data_writer.is_ok());
         assert_eq!(1, publisher.read_lock().data_writer_list.len());
@@ -807,7 +804,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+            .datawriter_factory_create_datawriter(&topic_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert_eq!(1, publisher.read_lock().data_writer_list.len());
@@ -834,7 +831,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+            .datawriter_factory_create_datawriter(&topic_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert_eq!(1, publisher.read_lock().data_writer_list.len());
@@ -873,7 +870,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+            .datawriter_factory_create_datawriter(&topic_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(
@@ -903,7 +900,7 @@ mod tests {
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
+            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(publisher_proxy
@@ -925,7 +922,7 @@ mod tests {
         let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
 
         publisher_proxy
-            .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
+            .datawriter_factory_create_datawriter(&topic2_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(publisher_proxy
@@ -947,10 +944,10 @@ mod tests {
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         let data_writer_foo = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_foo_proxy, None, None, 0)
+            .datawriter_factory_create_datawriter(&topic_foo_proxy, None, Box::new(NoListener), 0)
             .unwrap();
         let data_writer_bar = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
+            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(
@@ -988,10 +985,10 @@ mod tests {
         let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
 
         let data_writer1 = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic1_proxy, None, None, 0)
+            .datawriter_factory_create_datawriter(&topic1_proxy, None, Box::new(NoListener), 0)
             .unwrap();
         let data_writer2 = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
+            .datawriter_factory_create_datawriter(&topic2_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(
