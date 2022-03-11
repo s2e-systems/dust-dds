@@ -13,7 +13,7 @@ use rust_dds_rtps_implementation::{
 };
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer_behavior::ReliableStatefulWriterBehavior,
+        stateful_writer_behavior::{ReliableStatefulWriterBehavior, BestEffortStatefulWriterBehavior},
         stateless_writer_behavior::{
             BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
         },
@@ -135,19 +135,48 @@ where
 
                         for reader_proxy in &mut stateful_rtps_writer.matched_readers {
                             match stateful_rtps_writer.writer.endpoint.reliability_level {
-                                ReliabilityKind::BestEffort => todo!(),
-                                ReliabilityKind::Reliable => {
+                                ReliabilityKind::BestEffort => {
                                     let submessages = RefCell::new(Vec::new());
-                                    ReliableStatefulWriterBehavior::send_heartbeat(
+                                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                                    BestEffortStatefulWriterBehavior::send_unsent_changes(
+                                        &mut RtpsReaderProxyOperationsImpl::new(
+                                            reader_proxy,
+                                            &stateful_rtps_writer.writer.writer_cache,
+                                            stateful_rtps_writer.writer.push_mode,
+                                        ),
                                         &stateful_rtps_writer.writer.writer_cache,
-                                        stateful_rtps_writer.writer.endpoint.entity.guid.entity_id,
-                                        stateful_rtps_writer.heartbeat_count,
-                                        &mut |heartbeat| {
+                                        reader_id,
+                                        |data| {
                                             submessages
                                                 .borrow_mut()
-                                                .push(RtpsSubmessageType::Heartbeat(heartbeat));
+                                                .push(RtpsSubmessageType::Data(data))
+                                        },
+                                        |gap| {
+                                            submessages
+                                                .borrow_mut()
+                                                .push(RtpsSubmessageType::Gap(gap))
                                         },
                                     );
+
+                                    let submessages = submessages.take();
+
+                                    if !submessages.is_empty() {
+                                        destined_submessages.push((reader_proxy, submessages));
+                                    }
+                                },
+
+                                ReliabilityKind::Reliable => {
+                                    let submessages = RefCell::new(Vec::new());
+                                    // ReliableStatefulWriterBehavior::send_heartbeat(
+                                    //     &stateful_rtps_writer.writer.writer_cache,
+                                    //     stateful_rtps_writer.writer.endpoint.entity.guid.entity_id,
+                                    //     stateful_rtps_writer.heartbeat_count,
+                                    //     &mut |heartbeat| {
+                                    //         submessages
+                                    //             .borrow_mut()
+                                    //             .push(RtpsSubmessageType::Heartbeat(heartbeat));
+                                    //     },
+                                    // );
                                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                                     ReliableStatefulWriterBehavior::send_unsent_changes(
                                         &mut RtpsReaderProxyOperationsImpl::new(
