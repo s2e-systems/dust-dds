@@ -153,7 +153,7 @@ where
         &self,
         topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
-        listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
+        listener: Box<dyn DataReaderListener + Send + Sync>,
         _mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade()?;
@@ -447,17 +447,13 @@ where
         todo!()
     }
 
-    fn set_listener(
-        &self,
-        _a_listener: Option<Self::Listener>,
-        _mask: StatusMask,
-    ) -> DDSResult<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?)
         // .set_listener(a_listener, mask)
         todo!()
     }
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+    fn get_listener(&self) -> DDSResult<Self::Listener> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).get_listener()
         todo!()
     }
@@ -523,6 +519,7 @@ mod tests {
         dds_impl::{
             data_writer_proxy::{DataWriterAttributes, RtpsWriter},
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
+            no_listener::NoListener,
             publisher_proxy::PublisherAttributes,
             topic_proxy::{TopicAttributes, TopicProxy},
         },
@@ -745,7 +742,7 @@ mod tests {
         let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
-            None,
+            Box::new(NoListener),
             sedp_topic_subscription.clone(),
             domain_participant
                 .read_lock()
@@ -826,7 +823,7 @@ mod tests {
         let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
-        let data_reader = subscriber_proxy.create_datareader(&topic_proxy, None, None, 0);
+        let data_reader = subscriber_proxy.create_datareader(&topic_proxy, None, Box::new(NoListener), 0);
 
         assert!(data_reader.is_ok());
     }
@@ -845,7 +842,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader =
-            subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0);
+            subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, Box::new(NoListener), 0);
 
         assert!(data_reader.is_ok());
         assert_eq!(1, subscriber.read_lock().data_reader_list.len());
@@ -865,7 +862,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
+            .datareader_factory_create_datareader(&topic_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert_eq!(1, subscriber.read_lock().data_reader_list.len());
@@ -897,7 +894,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
+            .datareader_factory_create_datareader(&topic_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert_eq!(1, subscriber.read_lock().data_reader_list.len());
@@ -942,7 +939,7 @@ mod tests {
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
+            .datareader_factory_create_datareader(&topic_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(
@@ -975,7 +972,7 @@ mod tests {
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         subscriber_proxy
-            .datareader_factory_create_datareader(&topic_bar_proxy, None, None, 0)
+            .datareader_factory_create_datareader(&topic_bar_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(subscriber_proxy
@@ -1000,7 +997,7 @@ mod tests {
         let topic2_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic2.downgrade());
 
         subscriber_proxy
-            .datareader_factory_create_datareader(&topic2_proxy, None, None, 0)
+            .datareader_factory_create_datareader(&topic2_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(subscriber_proxy
@@ -1025,10 +1022,10 @@ mod tests {
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         let data_reader_foo = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_foo_proxy, None, None, 0)
+            .datareader_factory_create_datareader(&topic_foo_proxy, None, Box::new(NoListener), 0)
             .unwrap();
         let data_reader_bar = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_bar_proxy, None, None, 0)
+            .datareader_factory_create_datareader(&topic_bar_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(
@@ -1069,10 +1066,10 @@ mod tests {
         let topic2_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic2.downgrade());
 
         let data_reader1 = subscriber_proxy
-            .datareader_factory_create_datareader(&topic1_proxy, None, None, 0)
+            .datareader_factory_create_datareader(&topic1_proxy, None, Box::new(NoListener), 0)
             .unwrap();
         let data_reader2 = subscriber_proxy
-            .datareader_factory_create_datareader(&topic2_proxy, None, None, 0)
+            .datareader_factory_create_datareader(&topic2_proxy, None, Box::new(NoListener), 0)
             .unwrap();
 
         assert!(

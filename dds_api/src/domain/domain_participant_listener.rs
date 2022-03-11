@@ -17,47 +17,55 @@ use crate::{
 pub trait DomainParticipantListener {
     fn on_inconsistent_topic(
         &self,
-        the_topic: &dyn AnyTopicDescription,
-        status: InconsistentTopicStatus,
-    );
-    fn on_data_on_readers(&self);
-    fn on_data_available(&self, the_reader: &dyn AnyDataReader);
-    fn on_sample_rejected(&self, the_reader: &dyn AnyDataReader, status: SampleRejectedStatus);
+        _the_topic: &dyn AnyTopicDescription,
+        _status: InconsistentTopicStatus,
+    ) {
+    }
+    fn on_data_on_readers(&self) {}
+    fn on_data_available(&self, _the_reader: &dyn AnyDataReader) {}
+    fn on_sample_rejected(&self, _the_reader: &dyn AnyDataReader, _status: SampleRejectedStatus) {}
     fn on_liveliness_changed(
         &self,
-        the_reader: &dyn AnyDataReader,
-        status: LivelinessChangedStatus,
-    );
+        _the_reader: &dyn AnyDataReader,
+        _status: LivelinessChangedStatus,
+    ) {
+    }
     fn on_requested_deadline_missed(
         &self,
-        the_reader: &dyn AnyDataReader,
-        status: RequestedDeadlineMissedStatus,
-    );
+        _the_reader: &dyn AnyDataReader,
+        _status: RequestedDeadlineMissedStatus,
+    ) {
+    }
     fn on_requested_incompatible_qos(
         &self,
-        the_reader: &dyn AnyDataReader,
-        status: RequestedIncompatibleQosStatus,
-    );
+        _the_reader: &dyn AnyDataReader,
+        _status: RequestedIncompatibleQosStatus,
+    ) {
+    }
     fn on_subscription_matched(
         &self,
-        the_reader: &dyn AnyDataReader,
-        status: SubscriptionMatchedStatus,
-    );
-    fn on_sample_lost(&self, the_reader: &dyn AnyDataReader, status: SampleLostStatus);
-    fn on_liveliness_lost(&self, the_writer: &dyn AnyDataWriter, status: LivelinessLostStatus);
+        _the_reader: &dyn AnyDataReader,
+        _status: SubscriptionMatchedStatus,
+    ) {
+    }
+    fn on_sample_lost(&self, _the_reader: &dyn AnyDataReader, _status: SampleLostStatus) {}
+    fn on_liveliness_lost(&self, _the_writer: &dyn AnyDataWriter, _status: LivelinessLostStatus) {}
     fn on_offered_deadline_missed(
         &self,
-        the_writer: &dyn AnyDataWriter,
-        status: OfferedDeadlineMissedStatus,
-    );
+        _the_writer: &dyn AnyDataWriter,
+        _status: OfferedDeadlineMissedStatus,
+    ) {
+    }
     fn on_offered_incompatible_qos(
         &self,
-        the_writer: &dyn AnyDataWriter,
-        status: OfferedIncompatibleQosStatus,
-    );
+        _the_writer: &dyn AnyDataWriter,
+        _status: OfferedIncompatibleQosStatus,
+    ) {
+    }
     fn on_publication_matched(
         &self,
-        the_writer: &dyn AnyDataWriter,
-        status: PublicationMatchedStatus,
-    );
+        _the_writer: &dyn AnyDataWriter,
+        _status: PublicationMatchedStatus,
+    ) {
+    }
 }

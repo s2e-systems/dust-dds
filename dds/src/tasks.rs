@@ -30,15 +30,15 @@ use rust_dds_rtps_implementation::{
         subscriber_proxy::SubscriberProxy,
     },
     rtps_impl::{
-        rtps_reader_proxy_impl::RtpsReaderProxyImpl,
-        rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+        rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
     },
     utils::shared_object::RtpsShared,
 };
 use rust_rtps_pim::{
     behavior::{
         reader::{
-            stateful_reader::RtpsStatefulReaderOperations, writer_proxy::{RtpsWriterProxyConstructor, RtpsWriterProxyAttributes},
+            stateful_reader::RtpsStatefulReaderOperations,
+            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyConstructor},
         },
         writer::{
             reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
@@ -361,7 +361,7 @@ pub fn task_sedp_writer_discovery(
                             data_reader_lock
                                 .listener
                                 .as_ref()
-                                .map(|l| l.on_subscription_matched(data_reader_lock.status));
+                                .on_subscription_matched(data_reader_lock.status);
 
                             data_reader_lock.status.total_count_change = 0;
                             data_reader_lock.status.current_count_change = 0;
@@ -438,7 +438,7 @@ pub fn task_sedp_reader_discovery(
                             data_writer_lock
                                 .listener
                                 .as_ref()
-                                .map(|l| l.on_publication_matched(data_writer_lock.status));
+                                .on_publication_matched(data_writer_lock.status);
                         }
                     };
                 }
@@ -546,6 +546,7 @@ mod tests {
         },
         dds_impl::{
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
+            no_listener::NoListener,
             publisher_proxy::PublisherProxy,
             subscriber_proxy::SubscriberProxy,
         },
@@ -958,24 +959,32 @@ mod tests {
 
         // Create a reader and a writer on each participants
         let my_topic = participant1_proxy
-            .create_topic::<UserData>("MyTopic", None, None, 0)
+            .create_topic::<UserData>("MyTopic", None, Box::new(NoListener), 0)
             .unwrap();
-        let publisher1 = participant1_proxy.create_publisher(None, None, 0).unwrap();
+        let publisher1 = participant1_proxy
+            .create_publisher(None, &NoListener, 0)
+            .unwrap();
         let writer1 = publisher1
-            .create_datawriter(&my_topic, None, None, 0)
+            .create_datawriter(&my_topic, None, Box::new(NoListener), 0)
             .unwrap();
-        let subscriber1 = participant1_proxy.create_subscriber(None, None, 0).unwrap();
+        let subscriber1 = participant1_proxy
+            .create_subscriber(None, &NoListener, 0)
+            .unwrap();
         let reader1 = subscriber1
-            .create_datareader(&my_topic, None, None, 0)
+            .create_datareader(&my_topic, None, Box::new(NoListener), 0)
             .unwrap();
 
-        let publisher2 = participant2_proxy.create_publisher(None, None, 0).unwrap();
-        let writer2 = publisher2
-            .create_datawriter(&my_topic, None, None, 0)
+        let publisher2 = participant2_proxy
+            .create_publisher(None, &NoListener, 0)
             .unwrap();
-        let subscriber2 = participant2_proxy.create_subscriber(None, None, 0).unwrap();
+        let writer2 = publisher2
+            .create_datawriter(&my_topic, None, Box::new(NoListener), 0)
+            .unwrap();
+        let subscriber2 = participant2_proxy
+            .create_subscriber(None, &NoListener, 0)
+            .unwrap();
         let reader2 = subscriber2
-            .create_datareader(&my_topic, None, None, 0)
+            .create_datareader(&my_topic, None, Box::new(NoListener), 0)
             .unwrap();
 
         // Send SEDP data
@@ -1122,27 +1131,35 @@ mod tests {
 
         // Create a reader and a writer on each participants
         let my_topic1 = participant1_proxy
-            .create_topic::<UserData>("MyTopic1", None, None, 0)
+            .create_topic::<UserData>("MyTopic1", None, Box::new(NoListener), 0)
             .unwrap();
-        let publisher1 = participant1_proxy.create_publisher(None, None, 0).unwrap();
+        let publisher1 = participant1_proxy
+            .create_publisher(None, &NoListener, 0)
+            .unwrap();
         let writer1 = publisher1
-            .create_datawriter(&my_topic1, None, None, 0)
+            .create_datawriter(&my_topic1, None, Box::new(NoListener), 0)
             .unwrap();
-        let subscriber1 = participant1_proxy.create_subscriber(None, None, 0).unwrap();
+        let subscriber1 = participant1_proxy
+            .create_subscriber(None, &NoListener, 0)
+            .unwrap();
         let reader1 = subscriber1
-            .create_datareader(&my_topic1, None, None, 0)
+            .create_datareader(&my_topic1, None, Box::new(NoListener), 0)
             .unwrap();
 
         let my_topic2 = participant2_proxy
-            .create_topic::<UserData>("MyTopic2", None, None, 0)
+            .create_topic::<UserData>("MyTopic2", None, Box::new(NoListener), 0)
             .unwrap();
-        let publisher2 = participant2_proxy.create_publisher(None, None, 0).unwrap();
+        let publisher2 = participant2_proxy
+            .create_publisher(None, &NoListener, 0)
+            .unwrap();
         let writer2 = publisher2
-            .create_datawriter(&my_topic2, None, None, 0)
+            .create_datawriter(&my_topic2, None, Box::new(NoListener), 0)
             .unwrap();
-        let subscriber2 = participant2_proxy.create_subscriber(None, None, 0).unwrap();
+        let subscriber2 = participant2_proxy
+            .create_subscriber(None, &NoListener, 0)
+            .unwrap();
         let reader2 = subscriber2
-            .create_datareader(&my_topic2, None, None, 0)
+            .create_datareader(&my_topic2, None, Box::new(NoListener), 0)
             .unwrap();
 
         // Send SEDP data
