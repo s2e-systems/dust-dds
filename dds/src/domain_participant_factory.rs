@@ -100,10 +100,6 @@ impl RtpsStructure for RtpsStructureImpl {
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
 
-// Note: the unicast address need to be configurable by the user later, and
-// must also be retrieved dynamically (e.g. the IPv4 from the first network interface)
-const UNICAST_LOCATOR_ADDRESS: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1];
-
 // As of 9.6.1.4.1  Default multicast address
 const DEFAULT_MULTICAST_LOCATOR_ADDRESS: [u8; 16] =
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
@@ -321,10 +317,11 @@ impl DomainParticipantFactory {
         _mask: StatusMask,
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let qos = qos.unwrap_or_default();
+        let interface_address = [127, 0, 0, 1].into();
 
         let communications = Communications::find_available(
             domain_id,
-            ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
+            interface_address,
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )?;
 
@@ -846,22 +843,24 @@ mod tests {
 
     use super::{
         create_builtins, ipv4_from_locator, Communications, RtpsStructureImpl, DCPS_PUBLICATION,
-        DCPS_SUBSCRIPTION, DCPS_TOPIC, DEFAULT_MULTICAST_LOCATOR_ADDRESS, UNICAST_LOCATOR_ADDRESS,
+        DCPS_SUBSCRIPTION, DCPS_TOPIC, DEFAULT_MULTICAST_LOCATOR_ADDRESS,
     };
 
     #[test]
     fn communicaitons_make_different_guids() {
         let comm1 = Communications::find_available(
             0,
-            ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
+            [127, 0, 0, 1].into(),
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
-        ).unwrap();
+        )
+        .unwrap();
 
         let comm2 = Communications::find_available(
             0,
-            ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
+            [127, 0, 0, 1].into(),
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_ne!(comm1.guid_prefix, comm2.guid_prefix);
     }
@@ -1173,7 +1172,7 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
-            ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
+            [127, 0, 0, 1].into(),
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )
         .unwrap();
