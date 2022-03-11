@@ -627,6 +627,7 @@ mod tests {
         // Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
@@ -646,6 +647,7 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
@@ -877,6 +879,7 @@ mod tests {
         // Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
@@ -896,6 +899,7 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
@@ -1039,6 +1043,7 @@ mod tests {
         // Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
@@ -1058,6 +1063,7 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )

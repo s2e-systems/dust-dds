@@ -20,6 +20,7 @@ cdr = "0.2"
 byteorder = "1.4.3"
 socket2 = "0.4"
 erased-serde = "0.3"
+ifcfg = "0.1"
 mac_address = "1.1"
 
 [dependencies.async-std]

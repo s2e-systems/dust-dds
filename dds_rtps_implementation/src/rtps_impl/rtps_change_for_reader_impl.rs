@@ -2,7 +2,7 @@ use rust_rtps_pim::{
     behavior::{
         types::ChangeForReaderStatusKind,
         writer::change_for_reader::{
-            RtpsChangeForReaderAttributes, RtpsChangeForReaderConstructor,
+            RtpsChangeForReaderAttributes,
         },
     },
     structure::types::SequenceNumber,

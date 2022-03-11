@@ -1,9 +1,11 @@
 use std::{
     io::{self, ErrorKind},
     net::{Ipv4Addr, SocketAddr, UdpSocket},
+    str::FromStr,
     sync::Mutex,
 };
 
+use mac_address::MacAddress;
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
@@ -187,6 +189,7 @@ pub struct Communications {
 impl Communications {
     pub fn find_available(
         domain_id: DomainId,
+        mac_address: [u8; 6],
         unicast_address: Ipv4Addr,
         multicast_address: Ipv4Addr,
     ) -> DDSResult<Self> {
@@ -227,16 +230,10 @@ impl Communications {
             .unwrap()
             .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
 
-        let mac = mac_address::get_mac_address()
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?
-            .ok_or(DDSError::PreconditionNotMet(
-                "Device MAC address not found, unable to build GUID".to_string(),
-            ))?
-            .bytes();
-
         #[rustfmt::skip]
         let guid_prefix = GuidPrefix([
-            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+            mac_address[0], mac_address[1], mac_address[2],
+            mac_address[3], mac_address[4], mac_address[5],
             domain_id as u8, participant_id as u8, 0, 0, 0, 0
         ]);
 
@@ -317,11 +314,32 @@ impl DomainParticipantFactory {
         _mask: StatusMask,
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let qos = qos.unwrap_or_default();
-        let interface_address = [127, 0, 0, 1].into();
+
+        let interface = ifcfg::IfCfg::get()
+            .expect("Could not scan interfaces")
+            .into_iter()
+            .find(|i| i.name == "Wi-Fi")
+            .expect("Could not find wi-fi interface");
+
+        let unicast_address = interface
+            .addresses
+            .into_iter()
+            .filter_map(|a| match a.address? {
+                SocketAddr::V4(v4) => Some(*v4.ip()),
+                SocketAddr::V6(_) => None,
+            })
+            .next()
+            .ok_or(DDSError::PreconditionNotMet(
+                "No Ipv4 address for interface".to_string(),
+            ))?;
+
+        let mac_address = MacAddress::from_str(&interface.mac)
+            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
 
         let communications = Communications::find_available(
             domain_id,
-            interface_address,
+            mac_address.bytes(),
+            unicast_address,
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )?;
 
@@ -850,6 +868,7 @@ mod tests {
     fn communicaitons_make_different_guids() {
         let comm1 = Communications::find_available(
             0,
+            [0; 6],
             [127, 0, 0, 1].into(),
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )
@@ -857,6 +876,7 @@ mod tests {
 
         let comm2 = Communications::find_available(
             0,
+            [0; 6],
             [127, 0, 0, 1].into(),
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )
@@ -982,6 +1002,7 @@ mod tests {
 
         let mut communications1 = Communications::find_available(
             domain_id,
+            [0; 6],
             interface_address.into(),
             multicast_ip.into(),
         )
@@ -1000,6 +1021,7 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
+            [0; 6],
             interface_address.into(),
             multicast_ip.into(),
         )
@@ -1152,6 +1174,7 @@ mod tests {
 
         let mut communications1 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
@@ -1172,6 +1195,7 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
+            [0; 6],
             [127, 0, 0, 1].into(),
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )
@@ -1381,6 +1405,7 @@ mod tests {
         // ////////// Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
@@ -1401,6 +1426,7 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
@@ -1559,6 +1585,7 @@ mod tests {
         // ////////// Create 2 participants
         let mut communications1 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
@@ -1579,6 +1606,7 @@ mod tests {
 
         let mut communications2 = Communications::find_available(
             domain_id,
+            [0; 6],
             unicast_address.into(),
             multicast_address.into(),
         )
