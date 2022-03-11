@@ -24,13 +24,3 @@ impl RtpsChangeForReaderAttributes for RtpsChangeForReaderImpl {
         self.is_relevant
     }
 }
-
-impl RtpsChangeForReaderConstructor for RtpsChangeForReaderImpl {
-    fn new(status: ChangeForReaderStatusKind, is_relevant: bool) -> Self {
-        Self {
-            status,
-            is_relevant,
-            sequence_number: 0,
-        }
-    }
-}
