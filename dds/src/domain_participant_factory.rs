@@ -513,7 +513,7 @@ impl DomainParticipantFactory {
                 Ok(_) => (),
                 Err(e) => println!("participant announcement failed: {:?}", e),
             },
-            std::time::Duration::from_millis(500),
+            std::time::Duration::from_millis(5000),
         );
 
         // //////////// Start running tasks

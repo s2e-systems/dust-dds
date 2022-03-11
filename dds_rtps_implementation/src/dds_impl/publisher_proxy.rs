@@ -257,7 +257,7 @@ where
                     multicast_locator_list: domain_participant
                         .read_lock()
                         .rtps_participant
-                        .default_unicast_locator_list()
+                        .default_multicast_locator_list()
                         .to_vec(),
                     data_max_size_serialized: None,
                     remote_group_entity_id: EntityId::new([0; 3], 0),
