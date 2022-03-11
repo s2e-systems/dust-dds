@@ -112,13 +112,7 @@ impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
     type WriterProxyType = RtpsWriterProxyImpl;
 
     fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType) {
-        if !self.matched_writers.iter().any(
-            |w|
-            w.multicast_locator_list() == a_writer_proxy.multicast_locator_list() &&
-            w.unicast_locator_list() == a_writer_proxy.unicast_locator_list()
-        ) {
-            self.matched_writers.push(a_writer_proxy);
-        }
+        self.matched_writers.push(a_writer_proxy);
     }
 
     fn matched_writer_remove<F>(&mut self, mut f: F)
