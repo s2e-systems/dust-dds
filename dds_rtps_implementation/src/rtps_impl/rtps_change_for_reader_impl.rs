@@ -16,8 +16,8 @@ pub struct RtpsChangeForReaderImpl {
 }
 
 impl RtpsChangeForReaderAttributes for RtpsChangeForReaderImpl {
-    fn status(&mut self) -> &mut ChangeForReaderStatusKind {
-        &mut self.status
+    fn status(&self) -> ChangeForReaderStatusKind {
+        self.status
     }
 
     fn is_relevant(&self) -> bool {

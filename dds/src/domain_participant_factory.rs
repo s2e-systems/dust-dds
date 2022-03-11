@@ -322,9 +322,6 @@ impl DomainParticipantFactory {
     ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let qos = qos.unwrap_or_default();
 
-
-
-
         let communications = Communications::find_available(
             domain_id,
             ipv4_from_locator(&UNICAST_LOCATOR_ADDRESS),
