@@ -29,9 +29,6 @@ pub struct RtpsReaderProxyImpl {
     changes_for_reader: Vec<RtpsChangeForReaderImpl>,
     expects_inline_qos: bool,
     is_active: bool,
-    highest_seq_num_sent: SequenceNumber,
-    requested_changes: Vec<SequenceNumber>,
-    committed_seq_num: SequenceNumber,
 }
 
 impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
@@ -51,9 +48,6 @@ impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
             changes_for_reader: vec![],
             expects_inline_qos,
             is_active,
-            highest_seq_num_sent: 0,
-            requested_changes: vec![],
-            committed_seq_num: 0,
         }
     }
 }
