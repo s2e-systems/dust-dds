@@ -53,7 +53,7 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, None, None, 0)
+        .create_participant(domain_id, [127, 0, 0, 1].into(), None, None, 0)
         .unwrap();
 
     while participant
