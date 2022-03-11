@@ -4,7 +4,10 @@ use rust_dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
 };
-use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
+use rust_dds_rtps_implementation::{
+    dds_impl::no_listener::NoListener,
+    dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
+};
 
 struct TestType;
 
@@ -38,9 +41,9 @@ fn create_delete_publisher() {
         .unwrap();
     participant.enable().unwrap();
     let _my_topic = participant
-        .create_topic::<TestType>("my_topic", None, None, 0)
+        .create_topic::<TestType>("my_topic", None, Box::new(NoListener), 0)
         .unwrap();
-    let _publisher = participant.create_publisher(None, None, 0).unwrap();
+    let _publisher = participant.create_publisher(None, &NoListener, 0).unwrap();
     // publisher
     // .create_datawriter(&my_topic, None, None, 0)
     // .unwrap();

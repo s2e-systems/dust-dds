@@ -6,7 +6,7 @@ use rust_dds::{
     subscription::{data_reader::DataReader, subscriber::Subscriber},
     DDSError,
 };
-use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
+use rust_dds_rtps_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}, dds_impl::no_listener::NoListener};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -81,14 +81,14 @@ fn main() {
     println!("Matched participant");
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
+        .create_topic::<HelloWorldType>("HelloWorld", None, Box::new(NoListener), 0)
         .unwrap();
 
     let mut reader_qos = DataReaderQos::default();
     reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
-    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber = participant.create_subscriber(None, &NoListener, 0).unwrap();
     let reader = subscriber
-        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .create_datareader(&topic, Some(reader_qos), Box::new(NoListener), 0)
         .unwrap();
 
     // Wait for reader to be aware of the user writer

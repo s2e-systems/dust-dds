@@ -6,7 +6,7 @@ use rust_dds::{
     types::Time,
     DDSError,
 };
-use rust_dds_rtps_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
+use rust_dds_rtps_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}, dds_impl::no_listener::NoListener};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -81,11 +81,11 @@ fn main() {
     println!("Matched other participant");
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
+        .create_topic::<HelloWorldType>("HelloWorld", None, Box::new(NoListener), 0)
         .unwrap();
 
-    let publisher = participant.create_publisher(None, None, 0).unwrap();
-    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+    let publisher = participant.create_publisher(None, &NoListener, 0).unwrap();
+    let writer = publisher.create_datawriter(&topic, None, Box::new(NoListener), 0).unwrap();
 
     while writer
         .as_ref()

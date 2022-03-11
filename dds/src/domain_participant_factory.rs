@@ -24,6 +24,7 @@ use rust_dds_rtps_implementation::{
         data_reader_proxy::{DataReaderAttributes, RtpsReader},
         data_writer_proxy::{DataWriterAttributes, RtpsWriter},
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
+        no_listener::NoListener,
         publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
         topic_proxy::TopicAttributes,
@@ -624,7 +625,7 @@ pub fn create_builtins(
             DataReaderQos::default(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
             spdp_topic_participant.clone(),
-            None,
+            Box::new(NoListener),
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -649,7 +650,7 @@ pub fn create_builtins(
         let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
-            None,
+            Box::new(NoListener),
             spdp_topic_participant.clone(),
             builtin_publisher.downgrade(),
         ));
@@ -678,7 +679,7 @@ pub fn create_builtins(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
             sedp_topic_publication.clone(),
-            None,
+            Box::new(NoListener),
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -691,7 +692,7 @@ pub fn create_builtins(
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-            None,
+            Box::new(NoListener),
             sedp_topic_publication.clone(),
             builtin_publisher.downgrade(),
         ));
@@ -720,7 +721,7 @@ pub fn create_builtins(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
             sedp_topic_subscription.clone(),
-            None,
+            Box::new(NoListener),
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -733,7 +734,7 @@ pub fn create_builtins(
         let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
-            None,
+            Box::new(NoListener),
             sedp_topic_subscription.clone(),
             builtin_publisher.downgrade(),
         ));
@@ -762,7 +763,7 @@ pub fn create_builtins(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
             sedp_topic_topic.clone(),
-            None,
+            Box::new(NoListener),
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
@@ -775,7 +776,7 @@ pub fn create_builtins(
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
-            None,
+            Box::new(NoListener),
             sedp_topic_topic.clone(),
             builtin_publisher.downgrade(),
         ));
@@ -824,6 +825,7 @@ mod tests {
         },
         dds_impl::{
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
+            no_listener::NoListener,
             publisher_proxy::PublisherProxy,
             subscriber_proxy::SubscriberProxy,
             topic_proxy::TopicProxy,
@@ -1230,17 +1232,21 @@ mod tests {
         }
 
         // ////////// Create user endpoints
-        let user_publisher = participant1_proxy.create_publisher(None, None, 0).unwrap();
-        let user_subscriber = participant1_proxy.create_subscriber(None, None, 0).unwrap();
+        let user_publisher = participant1_proxy
+            .create_publisher(None, &NoListener, 0)
+            .unwrap();
+        let user_subscriber = participant1_proxy
+            .create_subscriber(None, &NoListener, 0)
+            .unwrap();
 
         let user_topic = participant1_proxy
-            .create_topic::<UserData>("UserTopic", None, None, 0)
+            .create_topic::<UserData>("UserTopic", None, Box::new(NoListener), 0)
             .unwrap();
         let user_writer = user_publisher
-            .create_datawriter(&user_topic, None, None, 0)
+            .create_datawriter(&user_topic, None, Box::new(NoListener), 0)
             .unwrap();
         let user_reader = user_subscriber
-            .create_datareader(&user_topic, None, None, 0)
+            .create_datareader(&user_topic, None, Box::new(NoListener), 0)
             .unwrap();
 
         // ////////// Send and receive SEDP data
@@ -1459,27 +1465,21 @@ mod tests {
         }
 
         // ////////// Write SEDP discovery data
-        let user_publisher = participant1_proxy.create_publisher(None, None, 0).unwrap();
-        let user_subscriber = participant2_proxy.create_subscriber(None, None, 0).unwrap();
+        let user_publisher = participant1_proxy
+            .create_publisher(None, &NoListener, 0)
+            .unwrap();
+        let user_subscriber = participant2_proxy
+            .create_subscriber(None, &NoListener, 0)
+            .unwrap();
 
         let user_topic = participant1_proxy
-            .create_topic::<UserData>("UserTopic", None, None, 0)
+            .create_topic::<UserData>("UserTopic", None, Box::new(NoListener), 0)
             .unwrap();
         let user_writer = user_publisher
-            .create_datawriter(
-                &user_topic,
-                None,
-                Some(Box::new(MockWriterListener::new())),
-                0,
-            )
+            .create_datawriter(&user_topic, None, Box::new(MockWriterListener::new()), 0)
             .unwrap();
         let user_reader = user_subscriber
-            .create_datareader(
-                &user_topic,
-                None,
-                Some(Box::new(MockReaderListener::new())),
-                0,
-            )
+            .create_datareader(&user_topic, None, Box::new(MockReaderListener::new()), 0)
             .unwrap();
 
         // ////////// Send SEDP data
@@ -1524,12 +1524,12 @@ mod tests {
                 .expect_on_publication_matched()
                 .once()
                 .return_const(());
-            user_writer.set_listener(Some(writer_listener), 0).unwrap();
+            user_writer.set_listener(writer_listener, 0).unwrap();
 
             task_sedp_reader_discovery(participant1.clone()).unwrap();
 
             user_writer
-                .set_listener(Some(Box::new(MockWriterListener::new())), 0)
+                .set_listener(Box::new(MockWriterListener::new()), 0)
                 .unwrap();
         }
 
@@ -1540,12 +1540,12 @@ mod tests {
                 .expect_on_subscription_matched()
                 .once()
                 .return_const(());
-            user_reader.set_listener(Some(reader_listener), 0).unwrap();
+            user_reader.set_listener(reader_listener, 0).unwrap();
 
             task_sedp_writer_discovery(participant2.clone()).unwrap();
 
             user_reader
-                .set_listener(Some(Box::new(MockReaderListener::new())), 0)
+                .set_listener(Box::new(MockReaderListener::new()), 0)
                 .unwrap();
         }
     }
@@ -1637,14 +1637,18 @@ mod tests {
         }
 
         // ////////// Create user endpoints
-        let user_publisher = participant1_proxy.create_publisher(None, None, 0).unwrap();
-        let user_subscriber = participant2_proxy.create_subscriber(None, None, 0).unwrap();
+        let user_publisher = participant1_proxy
+            .create_publisher(None, &NoListener, 0)
+            .unwrap();
+        let user_subscriber = participant2_proxy
+            .create_subscriber(None, &NoListener, 0)
+            .unwrap();
 
         let user_topic = participant1_proxy
-            .create_topic::<UserData>("UserTopic", None, None, 0)
+            .create_topic::<UserData>("UserTopic", None, Box::new(NoListener), 0)
             .unwrap();
         let user_writer = user_publisher
-            .create_datawriter(&user_topic, None, None, 0)
+            .create_datawriter(&user_topic, None, Box::new(NoListener), 0)
             .unwrap();
 
         let mut reader_qos = DataReaderQos::default();
@@ -1653,7 +1657,7 @@ mod tests {
             .create_datareader(
                 &user_topic,
                 Some(reader_qos),
-                Some(Box::new(MockReaderListener::new())),
+                Box::new(MockReaderListener::new()),
                 0,
             )
             .unwrap();
@@ -1698,13 +1702,13 @@ mod tests {
             reader_listener
                 .expect_on_subscription_matched()
                 .return_const(());
-            user_reader.set_listener(Some(reader_listener), 0).unwrap();
+            user_reader.set_listener(reader_listener, 0).unwrap();
 
             task_sedp_writer_discovery(participant2.clone()).unwrap();
 
             // No more listener should be called for now
             user_reader
-                .set_listener(Some(Box::new(MockReaderListener::new())), 0)
+                .set_listener(Box::new(MockReaderListener::new()), 0)
                 .unwrap();
         }
 
@@ -1725,7 +1729,7 @@ mod tests {
                 .expect_on_data_available()
                 .once()
                 .return_const(());
-            user_reader.set_listener(Some(reader_listener), 0).unwrap();
+            user_reader.set_listener(reader_listener, 0).unwrap();
 
             communications2
                 .default_unicast
@@ -1733,7 +1737,7 @@ mod tests {
 
             // From now on no listener should be called anymore
             user_reader
-                .set_listener(Some(Box::new(MockReaderListener::new())), 0)
+                .set_listener(Box::new(MockReaderListener::new()), 0)
                 .unwrap();
         }
     }

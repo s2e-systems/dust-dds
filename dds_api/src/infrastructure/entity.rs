@@ -15,9 +15,9 @@ pub trait Entity {
 
     fn get_qos(&self) -> DDSResult<Self::Qos>;
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()>;
+    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> DDSResult<()>;
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>>;
+    fn get_listener(&self) -> DDSResult<Self::Listener>;
 
     fn get_statuscondition(&self) -> DDSResult<StatusCondition>;
 
