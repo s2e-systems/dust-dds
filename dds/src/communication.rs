@@ -23,8 +23,7 @@ use rust_rtps_pim::{
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::types::{
-        GuidPrefix, ProtocolVersion, ReliabilityKind, VendorId, GUIDPREFIX_UNKNOWN,
-        PROTOCOLVERSION, VENDOR_ID_S2E,
+        GuidPrefix, ProtocolVersion, ReliabilityKind, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
 use rust_rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
@@ -50,16 +49,16 @@ where
         for publisher in list {
             let mut publisher_lock = publisher.write_lock();
 
+            let message_header = RtpsMessageHeader {
+                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix: publisher_lock.rtps_group.entity.guid.prefix(),
+            };
+
             for any_data_writer in &mut publisher_lock.data_writer_list {
                 let mut rtps_writer_lock = any_data_writer.write_lock();
                 let rtps_writer = &mut rtps_writer_lock.rtps_writer;
-
-                let message_header = RtpsMessageHeader {
-                    protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: GUIDPREFIX_UNKNOWN,
-                };
 
                 match rtps_writer {
                     RtpsWriter::Stateless(stateless_rtps_writer) => {
