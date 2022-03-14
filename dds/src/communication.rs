@@ -123,9 +123,8 @@ where
                         }
 
                         for (locator, submessage) in destined_submessages {
-                            // here too?
-                            // let mut message_header = message_header.clone();
-                            // message_header.guid_prefix = stateless_rtps_writer.writer.endpoint.entity.guid.prefix;
+                            let mut message_header = message_header.clone();
+                            message_header.guid_prefix = stateless_rtps_writer.writer.endpoint.entity.guid.prefix;
                             let message = RtpsMessage::new(message_header.clone(), submessage);
                             self.transport.write(&message, locator);
                         }
