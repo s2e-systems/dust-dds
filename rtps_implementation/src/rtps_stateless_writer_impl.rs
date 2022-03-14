@@ -1,13 +1,23 @@
+use std::cell::RefCell;
+
 use rtps_pim::{
     behavior::{
+        stateless_writer_behavior::{
+            BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
+        },
         types::Duration,
         writer::{
+            reader_locator::RtpsReaderLocatorAttributes,
             stateless_writer::{
                 RtpsStatelessWriterAttributes, RtpsStatelessWriterConstructor,
                 RtpsStatelessWriterOperations,
             },
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
+    },
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
         endpoint::RtpsEndpointAttributes,
@@ -17,6 +27,8 @@ use rtps_pim::{
         },
     },
 };
+
+use crate::rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl;
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -28,6 +40,73 @@ use super::{
 pub struct RtpsStatelessWriterImpl {
     pub writer: RtpsWriterImpl,
     pub reader_locators: Vec<RtpsReaderLocatorAttributesImpl>,
+}
+
+pub enum RtpsStatelessSubmessage<'a> {
+    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
+    Gap(GapSubmessage<Vec<SequenceNumber>>),
+}
+
+impl RtpsStatelessWriterImpl {
+    pub fn produce_destined_submessages<'a>(
+        &'a mut self,
+    ) -> Vec<(Locator, Vec<RtpsStatelessSubmessage<'a>>)> {
+        let mut destined_submessages = Vec::new();
+
+        for reader_locator in self.reader_locators.iter_mut() {
+            match self.writer.endpoint.reliability_level {
+                ReliabilityKind::BestEffort => {
+                    let submessages = RefCell::new(Vec::new());
+                    let writer_cache = &self.writer.writer_cache;
+                    BestEffortStatelessWriterBehavior::send_unsent_changes(
+                        &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
+                        writer_cache,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Gap(gap))
+                        },
+                    );
+
+                    let submessages = submessages.take();
+                    if !submessages.is_empty() {
+                        destined_submessages.push((reader_locator.locator(), submessages));
+                    }
+                }
+
+                ReliabilityKind::Reliable => {
+                    let submessages = RefCell::new(Vec::new());
+                    let writer_cache = &self.writer.writer_cache;
+                    ReliableStatelessWriterBehavior::send_unsent_changes(
+                        &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
+                        writer_cache,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Gap(gap))
+                        },
+                    );
+
+                    let submessages = submessages.take();
+                    if !submessages.is_empty() {
+                        destined_submessages.push((reader_locator.locator(), submessages));
+                    }
+                }
+            }
+        }
+
+        destined_submessages
+    }
 }
 
 impl RtpsEntityAttributes for RtpsStatelessWriterImpl {
@@ -160,5 +239,121 @@ impl RtpsWriterOperations for RtpsStatelessWriterImpl {
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
         self.writer.new_change(kind, data, _inline_qos, handle)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rtps_pim::{
+        behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
+        messages::{
+            submessage_elements::{
+                EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            },
+            types::ParameterId,
+        },
+        structure::{
+            cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
+            history_cache::RtpsHistoryCacheOperations,
+            types::{
+                EntityId, GuidPrefix, LOCATOR_KIND_UDPv4, ENTITYID_UNKNOWN,
+                USER_DEFINED_WRITER_NO_KEY,
+            },
+        },
+    };
+
+    use crate::rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList};
+
+    use super::*;
+
+    #[test]
+    fn produce_destined_submessages_one_locator_one_submessage() {
+        let guid = Guid::new(
+            GuidPrefix([0; 12]),
+            EntityId::new([1, 2, 3], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let mut writer = RtpsStatelessWriterImpl {
+            writer: RtpsWriterImpl::new(
+                RtpsEndpointImpl::new(
+                    guid,
+                    TopicKind::NoKey,
+                    ReliabilityKind::BestEffort,
+                    &[],
+                    &[],
+                ),
+                false,
+                Duration::new(0, 0),
+                Duration::new(0, 0),
+                Duration::new(0, 0),
+                None,
+            ),
+            reader_locators: vec![RtpsReaderLocatorAttributesImpl::new(
+                Locator::new(LOCATOR_KIND_UDPv4, 1234, [6; 16]),
+                false,
+            )],
+        };
+
+        let change = RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            guid,
+            0,
+            1,
+            RtpsData(vec![4, 1, 3]),
+            RtpsParameterList(vec![RtpsParameter {
+                parameter_id: ParameterId(8),
+                value: vec![6, 1, 2],
+            }]),
+        );
+
+        writer.writer.writer_cache.add_change(change);
+
+        let change = RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            guid,
+            0,
+            1,
+            RtpsData(vec![4, 1, 3]),
+            RtpsParameterList(vec![RtpsParameter {
+                parameter_id: ParameterId(8),
+                value: vec![6, 1, 2],
+            }]),
+        );
+
+        let destined_submessages = writer.produce_destined_submessages();
+        assert_eq!(1, destined_submessages.len());
+        let (locator, submessages) = &destined_submessages[0];
+        assert_eq!(&Locator::new(LOCATOR_KIND_UDPv4, 1234, [6; 16]), locator);
+        assert_eq!(1, submessages.len());
+
+        if let RtpsStatelessSubmessage::Data(data) = &submessages[0] {
+            assert_eq!(true, data.endianness_flag);
+            assert_eq!(
+                &DataSubmessage {
+                    endianness_flag: true,
+                    inline_qos_flag: true,
+                    data_flag: true,
+                    key_flag: false,
+                    non_standard_payload_flag: false,
+                    reader_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN,
+                    },
+                    writer_id: EntityIdSubmessageElement {
+                        value: change.writer_guid.entity_id,
+                    },
+                    writer_sn: SequenceNumberSubmessageElement {
+                        value: change.sequence_number
+                    },
+                    inline_qos: ParameterListSubmessageElement {
+                        parameter: change.inline_qos().into()
+                    },
+                    serialized_payload: SerializedDataSubmessageElement {
+                        value: change.data_value().into()
+                    }
+                },
+                data
+            )
+        }
     }
 }
