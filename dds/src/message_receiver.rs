@@ -1,4 +1,4 @@
-use rust_dds_rtps_implementation::{
+use rust_dds_implementation::{
     dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
     utils::shared_object::RtpsShared,
 };

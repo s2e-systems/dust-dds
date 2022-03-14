@@ -1,19 +1,21 @@
 use std::cell::RefCell;
 
-use rust_dds_rtps_implementation::{
+use rust_dds_implementation::{
     dds_impl::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
-    rtps_impl::{
-        rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
-        rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
-    },
     utils::shared_object::RtpsShared,
+};
+use rust_rtps_implementation::{
+    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
+    rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
 };
 use rust_rtps_pim::{
     behavior::{
-        stateful_writer_behavior::{ReliableStatefulWriterBehavior, BestEffortStatefulWriterBehavior},
+        stateful_writer_behavior::{
+            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
+        },
         stateless_writer_behavior::{
             BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
         },
@@ -124,7 +126,8 @@ where
 
                         for (locator, submessage) in destined_submessages {
                             let mut message_header = message_header.clone();
-                            message_header.guid_prefix = stateless_rtps_writer.writer.endpoint.entity.guid.prefix;
+                            message_header.guid_prefix =
+                                stateless_rtps_writer.writer.endpoint.entity.guid.prefix;
                             let message = RtpsMessage::new(message_header.clone(), submessage);
                             self.transport.write(&message, locator);
                         }
@@ -162,7 +165,7 @@ where
                                     if !submessages.is_empty() {
                                         destined_submessages.push((reader_proxy, submessages));
                                     }
-                                },
+                                }
 
                                 ReliabilityKind::Reliable => {
                                     let submessages = RefCell::new(Vec::new());

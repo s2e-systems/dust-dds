@@ -6,7 +6,7 @@ use rust_dds::{
     types::Time,
     DDSError,
 };
-use rust_dds_rtps_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}, dds_impl::no_listener::NoListener};
+use rust_dds_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}, dds_impl::no_listener::NoListener};
 
 #[derive(Debug, PartialEq)]
 struct UserData(u8);
@@ -22,7 +22,7 @@ impl DdsType for UserData {
 }
 
 impl DdsSerialize for UserData {
-    fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+    fn serialize<W: std::io::Write, E: rust_dds_implementation::dds_type::Endianness>(
         &self,
         mut writer: W,
     ) -> rust_dds::DDSResult<()> {

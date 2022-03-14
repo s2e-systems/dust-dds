@@ -15,7 +15,7 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_dds_rtps_implementation::{
+use rust_dds_implementation::{
     data_representation_builtin_endpoints::{
         sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
         sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
@@ -32,15 +32,15 @@ use rust_dds_rtps_implementation::{
         topic_proxy::TopicAttributes,
     },
     dds_type::DdsType,
-    rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
-        rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-    },
     utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
+};
+use rust_rtps_implementation::{
+    rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
+    rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
+    rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
 };
 use rust_rtps_pim::{
     behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
@@ -834,7 +834,7 @@ mod tests {
         },
         topic::topic_description::TopicDescription,
     };
-    use rust_dds_rtps_implementation::{
+    use rust_dds_implementation::{
         data_representation_builtin_endpoints::{
             sedp_discovered_reader_data::SedpDiscoveredReaderData,
             sedp_discovered_topic_data::SedpDiscoveredTopicData,
@@ -1155,7 +1155,7 @@ mod tests {
     }
 
     impl DdsSerialize for UserData {
-        fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+        fn serialize<W: std::io::Write, E: rust_dds_implementation::dds_type::Endianness>(
             &self,
             mut writer: W,
         ) -> rust_dds_api::return_type::DDSResult<()> {

@@ -4,7 +4,7 @@ use rust_dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
 };
-use rust_dds_rtps_implementation::{
+use rust_dds_implementation::{
     dds_impl::no_listener::NoListener,
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };

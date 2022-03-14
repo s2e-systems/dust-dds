@@ -6,7 +6,7 @@ use rust_dds::{
     types::Time,
     DDSError,
 };
-use rust_dds_rtps_implementation::{
+use rust_dds_implementation::{
     dds_impl::no_listener::NoListener,
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
@@ -29,7 +29,7 @@ impl DdsType for HelloWorldType {
 }
 
 impl DdsSerialize for HelloWorldType {
-    fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+    fn serialize<W: std::io::Write, E: rust_dds_implementation::dds_type::Endianness>(
         &self,
         mut writer: W,
     ) -> rust_dds::DDSResult<()> {

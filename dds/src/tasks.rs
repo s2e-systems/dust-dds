@@ -13,7 +13,7 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
 };
-use rust_dds_rtps_implementation::{
+use rust_dds_implementation::{
     data_representation_builtin_endpoints::{
         sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
         sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
@@ -29,10 +29,10 @@ use rust_dds_rtps_implementation::{
         publisher_proxy::PublisherProxy,
         subscriber_proxy::SubscriberProxy,
     },
-    rtps_impl::{
-        rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
-    },
     utils::shared_object::RtpsShared,
+};
+use rust_rtps_implementation::{
+    rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 use rust_rtps_pim::{
     behavior::{
@@ -538,7 +538,7 @@ mod tests {
         return_type::{DDSError, DDSResult},
         subscription::subscriber::Subscriber,
     };
-    use rust_dds_rtps_implementation::{
+    use rust_dds_implementation::{
         data_representation_builtin_endpoints::{
             sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
             sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
@@ -574,7 +574,7 @@ mod tests {
     }
 
     impl DdsSerialize for UserData {
-        fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+        fn serialize<W: std::io::Write, E: rust_dds_implementation::dds_type::Endianness>(
             &self,
             mut writer: W,
         ) -> DDSResult<()> {
