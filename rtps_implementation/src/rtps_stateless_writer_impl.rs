@@ -48,7 +48,7 @@ pub enum RtpsStatelessSubmessage<'a> {
 }
 
 impl RtpsStatelessWriterImpl {
-    pub fn get_destined_submessages<'a>(
+    pub fn produce_destined_submessages<'a>(
         &'a mut self,
     ) -> Vec<(Locator, Vec<RtpsStatelessSubmessage<'a>>)> {
         let mut destined_submessages = Vec::new();

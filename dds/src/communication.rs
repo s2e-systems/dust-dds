@@ -65,7 +65,7 @@ where
                         };
 
                         for (locator, submessages) in
-                            stateless_rtps_writer.get_destined_submessages()
+                            stateless_rtps_writer.produce_destined_submessages()
                         {
                             self.transport.write(
                                 &RtpsMessage::new(
