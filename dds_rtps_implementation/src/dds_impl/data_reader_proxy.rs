@@ -184,7 +184,7 @@ where
 
     fn read(
         &self,
-        _max_samples: i32,
+        max_samples: i32,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
@@ -196,50 +196,70 @@ where
 
         match rtps_reader {
             RtpsReader::Stateless(rtps_reader) => {
-                let mut data_value = rtps_reader.reader_cache().changes().first()
-                    .ok_or(DDSError::NoData)?
-                    .data_value();
+                let samples = rtps_reader.reader_cache().changes()
+                    .iter()
+                    .take(max_samples as usize)
+                    .map(|cache_change| {
+                        let mut data_value = cache_change.data_value();
 
-                    let foo = DdsDeserialize::deserialize(&mut data_value).unwrap();
-                    let sample_info = SampleInfo {
-                        sample_state: SampleStateKind::NotRead,
-                        view_state: ViewStateKind::New,
-                        instance_state: InstanceStateKind::Alive,
-                        disposed_generation_count: 0,
-                        no_writers_generation_count: 0,
-                        sample_rank: 0,
-                        generation_rank: 0,
-                        absolute_generation_rank: 0,
-                        source_timestamp: Time{sec:0, nanosec:0},
-                        instance_handle: 0,
-                        publication_handle: 0,
-                        valid_data: true,
-                    };
-                    let samples = vec![(foo, sample_info)];
+                        let foo = DdsDeserialize::deserialize(&mut data_value).unwrap();
+                        let sample_info = SampleInfo {
+                            sample_state: SampleStateKind::NotRead,
+                            view_state: ViewStateKind::New,
+                            instance_state: InstanceStateKind::Alive,
+                            disposed_generation_count: 0,
+                            no_writers_generation_count: 0,
+                            sample_rank: 0,
+                            generation_rank: 0,
+                            absolute_generation_rank: 0,
+                            source_timestamp: Time{sec:0, nanosec:0},
+                            instance_handle: 0,
+                            publication_handle: 0,
+                            valid_data: true,
+                        };
+
+                        (foo, sample_info)
+                    })
+                    .collect::<Vec<_>>();
+
+                if samples.is_empty() {
+                    Err(DDSError::NoData)
+                } else {
                     Ok(samples)
+                }
             }
             RtpsReader::Stateful(rtps_reader) => {
-                let mut data_value = rtps_reader.reader_cache().changes().first()
-                    .ok_or(DDSError::NoData)?
-                    .data_value();
+                let samples = rtps_reader.reader_cache().changes()
+                    .iter()
+                    .take(max_samples as usize)
+                    .map(|cache_change| {
+                        let mut data_value = cache_change.data_value();
 
-                    let foo = DdsDeserialize::deserialize(&mut data_value).unwrap();
-                    let sample_info = SampleInfo {
-                        sample_state: SampleStateKind::NotRead,
-                        view_state: ViewStateKind::New,
-                        instance_state: InstanceStateKind::Alive,
-                        disposed_generation_count: 0,
-                        no_writers_generation_count: 0,
-                        sample_rank: 0,
-                        generation_rank: 0,
-                        absolute_generation_rank: 0,
-                        source_timestamp: Time{sec:0, nanosec:0},
-                        instance_handle: 0,
-                        publication_handle: 0,
-                        valid_data: true,
-                    };
-                    let samples = vec![(foo, sample_info)];
+                        let foo = DdsDeserialize::deserialize(&mut data_value).unwrap();
+                        let sample_info = SampleInfo {
+                            sample_state: SampleStateKind::NotRead,
+                            view_state: ViewStateKind::New,
+                            instance_state: InstanceStateKind::Alive,
+                            disposed_generation_count: 0,
+                            no_writers_generation_count: 0,
+                            sample_rank: 0,
+                            generation_rank: 0,
+                            absolute_generation_rank: 0,
+                            source_timestamp: Time{sec:0, nanosec:0},
+                            instance_handle: 0,
+                            publication_handle: 0,
+                            valid_data: true,
+                        };
+
+                        (foo, sample_info)
+                    })
+                    .collect::<Vec<_>>();
+
+                if samples.is_empty() {
+                    Err(DDSError::NoData)
+                } else {
                     Ok(samples)
+                }
             }
         }
     }
