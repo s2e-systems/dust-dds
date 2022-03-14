@@ -1,4 +1,4 @@
-use rust_dds::{
+use dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory,
     publication::{data_writer::DataWriter, publisher::Publisher},
@@ -6,7 +6,7 @@ use rust_dds::{
     types::Time,
     DDSError,
 };
-use rust_dds_rtps_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}, dds_impl::no_listener::NoListener};
+use dds_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}, dds_impl::no_listener::NoListener};
 
 #[derive(Debug, PartialEq)]
 struct UserData(u8);
@@ -22,10 +22,10 @@ impl DdsType for UserData {
 }
 
 impl DdsSerialize for UserData {
-    fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+    fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
         &self,
         mut writer: W,
-    ) -> rust_dds::DDSResult<()> {
+    ) -> dds::DDSResult<()> {
         writer
             .write(&[self.0])
             .map(|_| ())
@@ -34,7 +34,7 @@ impl DdsSerialize for UserData {
 }
 
 impl<'de> DdsDeserialize<'de> for UserData {
-    fn deserialize(buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> dds::DDSResult<Self> {
         Ok(UserData(buf[0]))
     }
 }

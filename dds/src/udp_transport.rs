@@ -1,7 +1,7 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
-use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
-use rust_rtps_udp_psm::{mapping_traits::{from_bytes, to_bytes}, messages::overall_structure::RtpsMessage};
+use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
+use rtps_udp_psm::{mapping_traits::{from_bytes, to_bytes}, messages::overall_structure::RtpsMessage};
 
 use crate::transport::{TransportRead, TransportWrite};
 
@@ -104,7 +104,7 @@ mod tests {
 
     use super::*;
 
-    use rust_rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID};
+    use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID};
 
     #[test]
     fn udpv4_locator_conversion_address1() {
@@ -158,7 +158,7 @@ mod tests {
     //         .unwrap();
     //     let mut transport = UdpTransport::new(socket);
     //     let header = RtpsMessageHeader {
-    //         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+    //         protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
     //         version: PROTOCOLVERSION_2_4,
     //         vendor_id: VENDOR_ID_S2E,
     //         guid_prefix: [3; 12],
@@ -181,7 +181,7 @@ mod tests {
     // #[test]
     // fn roundtrip() {
     //     let header = RtpsMessageHeader {
-    //         protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+    //         protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
     //         version: PROTOCOLVERSION_2_4,
     //         vendor_id: VENDOR_ID_S2E,
     //         guid_prefix: [3; 12],

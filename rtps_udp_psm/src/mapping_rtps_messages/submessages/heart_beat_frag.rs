@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::submessages::HeartbeatFragSubmessage;
+use rtps_pim::messages::submessages::HeartbeatFragSubmessage;
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 

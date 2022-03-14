@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::{submessage_elements::Parameter, submessages::DataFragSubmessage};
+use rtps_pim::messages::{submessage_elements::Parameter, submessages::DataFragSubmessage};
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 

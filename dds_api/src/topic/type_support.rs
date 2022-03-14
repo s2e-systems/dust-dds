@@ -1,4 +1,4 @@
-use rust_dds_api::types::ReturnCode;
+use dds_api::types::ReturnCode;
 use crate::domain::DomainParticipant;
 
 /// The TypeSupport interface is an abstract interface that has to be specialized for each concrete type that will be used by the application.

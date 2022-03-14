@@ -5,7 +5,7 @@ use std::sync::{
 };
 
 use async_std::prelude::StreamExt;
-use rust_dds_api::{
+use dds_api::{
     builtin_topics::ParticipantBuiltinTopicData,
     dcps_psm::{BuiltInTopicKey, Time},
     domain::domain_participant::DomainParticipant,
@@ -13,7 +13,7 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
 };
-use rust_dds_rtps_implementation::{
+use dds_implementation::{
     data_representation_builtin_endpoints::{
         sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
         sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
@@ -29,12 +29,12 @@ use rust_dds_rtps_implementation::{
         publisher_proxy::PublisherProxy,
         subscriber_proxy::SubscriberProxy,
     },
-    rtps_impl::{
-        rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
-    },
     utils::shared_object::RtpsShared,
 };
-use rust_rtps_pim::{
+use rtps_implementation::{
+    rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+};
+use rtps_pim::{
     behavior::{
         reader::{
             stateful_reader::RtpsStatefulReaderOperations,
@@ -531,14 +531,14 @@ pub fn task_announce_participant(
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{
+    use dds_api::{
         domain::domain_participant::DomainParticipant,
         infrastructure::qos::DomainParticipantQos,
         publication::publisher::Publisher,
         return_type::{DDSError, DDSResult},
         subscription::subscriber::Subscriber,
     };
-    use rust_dds_rtps_implementation::{
+    use dds_implementation::{
         data_representation_builtin_endpoints::{
             sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
             sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
@@ -574,7 +574,7 @@ mod tests {
     }
 
     impl DdsSerialize for UserData {
-        fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+        fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
             &self,
             mut writer: W,
         ) -> DDSResult<()> {

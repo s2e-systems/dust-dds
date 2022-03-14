@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::submessage_elements::VendorIdSubmessageElement;
+use rtps_pim::messages::submessage_elements::VendorIdSubmessageElement;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 

@@ -4,7 +4,7 @@ use std::{
 };
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{
+use rtps_pim::{
     messages::submessage_elements::SequenceNumberSetSubmessageElement,
     structure::types::SequenceNumber,
 };

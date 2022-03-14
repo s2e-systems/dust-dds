@@ -6,7 +6,7 @@ use std::{
 };
 
 use mac_address::MacAddress;
-use rust_dds_api::{
+use dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{
@@ -15,7 +15,7 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_dds_rtps_implementation::{
+use dds_implementation::{
     data_representation_builtin_endpoints::{
         sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
         sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
@@ -32,17 +32,17 @@ use rust_dds_rtps_implementation::{
         topic_proxy::TopicAttributes,
     },
     dds_type::DdsType,
-    rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
-        rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-    },
     utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
 };
-use rust_rtps_pim::{
+use rtps_implementation::{
+    rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
+    rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
+    rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+};
+use rtps_pim::{
     behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
     discovery::{
         sedp::builtin_endpoints::{
@@ -812,7 +812,7 @@ mod tests {
     use std::net::SocketAddr;
 
     use mockall::mock;
-    use rust_dds_api::{
+    use dds_api::{
         dcps_psm::{
             BuiltInTopicKey, DomainId, PublicationMatchedStatus, SubscriptionMatchedStatus, Time,
         },
@@ -834,7 +834,7 @@ mod tests {
         },
         topic::topic_description::TopicDescription,
     };
-    use rust_dds_rtps_implementation::{
+    use dds_implementation::{
         data_representation_builtin_endpoints::{
             sedp_discovered_reader_data::SedpDiscoveredReaderData,
             sedp_discovered_topic_data::SedpDiscoveredTopicData,
@@ -851,7 +851,7 @@ mod tests {
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::RtpsShared,
     };
-    use rust_rtps_pim::structure::{entity::RtpsEntityAttributes, types::GuidPrefix};
+    use rtps_pim::structure::{entity::RtpsEntityAttributes, types::GuidPrefix};
 
     use crate::{
         domain_participant_factory::get_multicast_socket,
@@ -1149,16 +1149,16 @@ mod tests {
     }
 
     impl<'de> DdsDeserialize<'de> for UserData {
-        fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+        fn deserialize(buf: &mut &'de [u8]) -> dds_api::return_type::DDSResult<Self> {
             Ok(UserData(buf[0]))
         }
     }
 
     impl DdsSerialize for UserData {
-        fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+        fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
             &self,
             mut writer: W,
-        ) -> rust_dds_api::return_type::DDSResult<()> {
+        ) -> dds_api::return_type::DDSResult<()> {
             writer
                 .write(&[self.0])
                 .map(|_| ())

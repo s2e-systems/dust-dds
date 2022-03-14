@@ -1,5 +1,5 @@
 [package]
-name = "rust-dds"
+name = "dds"
 version = "0.1.0"
 authors = ["Joao Rebelo <jrebelo@s2e-systems.com>",
 		   "Stefan Kimmer <skimmer@s2e-systems.com"]
@@ -8,10 +8,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust-dds-api = {path="../dds_api"}
-rust-dds-rtps-implementation = {path="../dds_rtps_implementation"}
-rust-rtps-pim = {path="../rtps_pim"}
-rust-rtps-udp-psm = {path="../rtps_udp_psm"}
+dds-api = {path="../dds_api"}
+dds-implementation = {path="../dds_implementation"}
+rtps-implementation = {path="../rtps_implementation"}
+rtps-pim = {path="../rtps_pim"}
+rtps-udp-psm = {path="../rtps_udp_psm"}
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.64"

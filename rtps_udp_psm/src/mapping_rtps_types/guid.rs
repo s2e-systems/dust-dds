@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
+use rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
 use crate::mapping_traits::{
     MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered,
@@ -83,7 +83,7 @@ impl<'de> MappingReadByteOrdered<'de> for Guid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_rtps_pim::structure::types::{
+    use rtps_pim::structure::types::{
         EntityId, GuidPrefix, BUILT_IN_PARTICIPANT, USER_DEFINED_READER_NO_KEY,
     };
 

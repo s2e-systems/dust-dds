@@ -1,8 +1,8 @@
-use rust_dds_rtps_implementation::{
+use dds_implementation::{
     dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
     utils::shared_object::RtpsShared,
 };
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::{
         reader::writer_proxy::RtpsWriterProxyAttributes,
         stateful_reader_behavior::{
@@ -23,7 +23,7 @@ use rust_rtps_pim::{
         },
     },
 };
-use rust_rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
+use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
 
 use crate::domain_participant_factory::RtpsStructureImpl;
 
@@ -189,7 +189,7 @@ pub trait ProcessAckNackSubmessage {
 #[cfg(test)]
 mod tests {
 
-    use rust_rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
+    use rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
 
     use super::*;
 

@@ -1,12 +1,12 @@
 use cdr::CdrBe;
-use rust_dds::{
+use dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory,
     publication::{data_writer::DataWriter, publisher::Publisher},
     types::Time,
     DDSError,
 };
-use rust_dds_rtps_implementation::{
+use dds_implementation::{
     dds_impl::no_listener::NoListener,
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
@@ -29,10 +29,10 @@ impl DdsType for HelloWorldType {
 }
 
 impl DdsSerialize for HelloWorldType {
-    fn serialize<W: std::io::Write, E: rust_dds_rtps_implementation::dds_type::Endianness>(
+    fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
         &self,
         mut writer: W,
-    ) -> rust_dds::DDSResult<()> {
+    ) -> dds::DDSResult<()> {
         writer
             .write(
                 cdr::serialize::<_, _, CdrBe>(self, cdr::Infinite)
@@ -45,7 +45,7 @@ impl DdsSerialize for HelloWorldType {
 }
 
 impl<'de> DdsDeserialize<'de> for HelloWorldType {
-    fn deserialize(buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> dds::DDSResult<Self> {
         cdr::deserialize::<HelloWorldType>(buf)
             .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
     }

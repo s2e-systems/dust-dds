@@ -1,10 +1,10 @@
 use std::io::Write;
 
-use rust_dds::{
+use dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
 };
-use rust_dds_rtps_implementation::{
+use dds_implementation::{
     dds_impl::no_listener::NoListener,
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
@@ -22,13 +22,13 @@ impl DdsType for TestType {
 }
 
 impl DdsSerialize for TestType {
-    fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> rust_dds::DDSResult<()> {
+    fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> dds::DDSResult<()> {
         todo!()
     }
 }
 
 impl<'de> DdsDeserialize<'de> for TestType {
-    fn deserialize(_buf: &mut &'de [u8]) -> rust_dds::DDSResult<Self> {
+    fn deserialize(_buf: &mut &'de [u8]) -> dds::DDSResult<Self> {
         todo!()
     }
 }

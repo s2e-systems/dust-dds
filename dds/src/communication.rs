@@ -1,19 +1,21 @@
 use std::cell::RefCell;
 
-use rust_dds_rtps_implementation::{
+use dds_implementation::{
     dds_impl::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
-    rtps_impl::{
-        rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
-        rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
-    },
     utils::shared_object::RtpsShared,
 };
-use rust_rtps_pim::{
+use rtps_implementation::{
+    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
+    rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
+};
+use rtps_pim::{
     behavior::{
-        stateful_writer_behavior::{ReliableStatefulWriterBehavior, BestEffortStatefulWriterBehavior},
+        stateful_writer_behavior::{
+            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
+        },
         stateless_writer_behavior::{
             BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
         },
@@ -26,7 +28,7 @@ use rust_rtps_pim::{
         GuidPrefix, ProtocolVersion, ReliabilityKind, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
-use rust_rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
+use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
 
 use crate::{
     domain_participant_factory::RtpsStructureImpl,
@@ -50,7 +52,7 @@ where
             let mut publisher_lock = publisher.write_lock();
 
             let message_header = RtpsMessageHeader {
-                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix: publisher_lock.rtps_group.entity.guid.prefix(),
@@ -124,7 +126,8 @@ where
 
                         for (locator, submessage) in destined_submessages {
                             let mut message_header = message_header.clone();
-                            message_header.guid_prefix = stateless_rtps_writer.writer.endpoint.entity.guid.prefix;
+                            message_header.guid_prefix =
+                                stateless_rtps_writer.writer.endpoint.entity.guid.prefix;
                             let message = RtpsMessage::new(message_header.clone(), submessage);
                             self.transport.write(&message, locator);
                         }
@@ -162,7 +165,7 @@ where
                                     if !submessages.is_empty() {
                                         destined_submessages.push((reader_proxy, submessages));
                                     }
-                                },
+                                }
 
                                 ReliabilityKind::Reliable => {
                                     let submessages = RefCell::new(Vec::new());

@@ -1,0 +1,11 @@
+[package]
+name = "rtps-implementation"
+version = "0.1.0"
+authors = ["Joao Rebelo <jrebelo@s2e-systems.com>",
+		   "Stefan Kimmer <skimmer@s2e-systems.com"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rtps-pim = {path="../rtps_pim"}

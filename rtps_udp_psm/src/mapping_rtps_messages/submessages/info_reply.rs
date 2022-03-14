@@ -1,4 +1,4 @@
-use rust_rtps_pim::{messages::submessages::InfoReplySubmessage, structure::types::Locator};
+use rtps_pim::{messages::submessages::InfoReplySubmessage, structure::types::Locator};
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 
