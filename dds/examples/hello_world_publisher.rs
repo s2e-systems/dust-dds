@@ -85,7 +85,7 @@ fn main() {
     }
     println!("{:?} [P] Matched participant", std::time::SystemTime::now());
 
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    std::thread::sleep(std::time::Duration::from_secs(15));
 
     let topic = participant
         .create_topic::<HelloWorldType>("HelloWorld", None, Box::new(NoListener), 0)
@@ -113,7 +113,7 @@ fn main() {
     }
     println!("{:?} [P] Matched with reader", std::time::SystemTime::now());
 
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    std::thread::sleep(std::time::Duration::from_secs(15));
 
     let hello_world = HelloWorldType {
         id: 8,
