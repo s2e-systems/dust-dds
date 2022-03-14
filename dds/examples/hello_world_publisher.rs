@@ -10,7 +10,6 @@ use rust_dds_rtps_implementation::{
     dds_impl::no_listener::NoListener,
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
-use rust_rtps_pim::behavior::writer::reader_proxy::RtpsReaderProxyAttributes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
