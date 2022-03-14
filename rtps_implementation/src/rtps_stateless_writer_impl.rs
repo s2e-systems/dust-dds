@@ -245,29 +245,27 @@ impl RtpsWriterOperations for RtpsStatelessWriterImpl {
 #[cfg(test)]
 mod tests {
     use rtps_pim::{
-        behavior::{types::Duration, writer::reader_locator::RtpsReaderLocatorConstructor},
-        messages::{types::ParameterId, submessages::DataSubmessage, submessage_elements::{EntityIdSubmessageElement, SequenceNumberSubmessageElement, ParameterListSubmessageElement, SerializedDataSubmessageElement}},
+        behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
+        messages::{
+            submessage_elements::{
+                EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            },
+            types::ParameterId,
+        },
         structure::{
-            cache_change::{RtpsCacheChangeConstructor, RtpsCacheChangeAttributes},
+            cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
             history_cache::RtpsHistoryCacheOperations,
             types::{
-                ChangeKind, EntityId, Guid, GuidPrefix, LOCATOR_KIND_UDPv4, Locator,
-                ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY, ENTITYID_UNKNOWN,
+                EntityId, GuidPrefix, LOCATOR_KIND_UDPv4, ENTITYID_UNKNOWN,
+                USER_DEFINED_WRITER_NO_KEY,
             },
         },
     };
 
-    use crate::{
-        rtps_endpoint_impl::RtpsEndpointImpl,
-        rtps_history_cache_impl::{
-            RtpsCacheChangeImpl, RtpsData, RtpsParameter, RtpsParameterList,
-        },
-        rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
-        rtps_stateless_writer_impl::RtpsStatelessSubmessage,
-        rtps_writer_impl::RtpsWriterImpl,
-    };
+    use crate::rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList};
 
-    use super::RtpsStatelessWriterImpl;
+    use super::*;
 
     #[test]
     fn produce_destined_submessages_one_locator_one_submessage() {
