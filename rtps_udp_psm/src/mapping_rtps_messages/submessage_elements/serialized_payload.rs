@@ -5,7 +5,7 @@ use rtps_pim::messages::submessage_elements::SerializedDataSubmessageElement;
 
 use crate::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes};
 
-impl MappingWriteByteOrdered for SerializedDataSubmessageElement<&'_[u8]> {
+impl MappingWriteByteOrdered for SerializedDataSubmessageElement<&'_ [u8]> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -15,7 +15,7 @@ impl MappingWriteByteOrdered for SerializedDataSubmessageElement<&'_[u8]> {
     }
 }
 
-impl NumberOfBytes for SerializedDataSubmessageElement<&'_[u8]> {
+impl NumberOfBytes for SerializedDataSubmessageElement<&'_ [u8]> {
     fn number_of_bytes(&self) -> usize {
         self.value.len()
     }

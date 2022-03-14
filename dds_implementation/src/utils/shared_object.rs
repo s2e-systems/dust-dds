@@ -1,6 +1,4 @@
-use std::{
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
-};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
 
 use dds_api::return_type::{DDSError, DDSResult};
 
@@ -16,13 +14,11 @@ impl<T> RtpsShared<T> {
     }
 
     pub fn read_lock(&self) -> RwLockReadGuard<'_, T> {
-        self.0.read()
-            .expect("The lock is poisoned (;_;)")
+        self.0.read().expect("The lock is poisoned (;_;)")
     }
 
     pub fn write_lock(&self) -> RwLockWriteGuard<'_, T> {
-        self.0.write()
-            .expect("The lock is poisoned (;_;)")
+        self.0.write().expect("The lock is poisoned (;_;)")
     }
 }
 

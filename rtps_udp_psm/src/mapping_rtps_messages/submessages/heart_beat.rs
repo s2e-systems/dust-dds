@@ -10,9 +10,7 @@ use std::io::{Error, Write};
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
 impl MappingWriteSubmessage for HeartbeatSubmessage {
-    fn submessage_header(
-        &self,
-    ) -> rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
+    fn submessage_header(&self) -> rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
         RtpsSubmessageHeader {
             submessage_id: SubmessageKind::HEARTBEAT,
             flags: [

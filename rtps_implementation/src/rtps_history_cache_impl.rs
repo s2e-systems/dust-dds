@@ -41,7 +41,6 @@ impl<'a> From<&'a RtpsParameterList> for Vec<Parameter<'a>> {
     }
 }
 
-
 pub struct RtpsCacheChangeImpl {
     pub kind: ChangeKind,
     pub writer_guid: Guid,

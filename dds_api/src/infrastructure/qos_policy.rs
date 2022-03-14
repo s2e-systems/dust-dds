@@ -733,20 +733,18 @@ impl QosPolicy for ReliabilityQosPolicy {
     }
 }
 
-
-
 // default for Reliability is differnet for reader and writer, hence
 // add here as constants
 const DEFAULT_MAX_BLOCKING_TIME: Duration = Duration::new(0, 100);
-pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS: ReliabilityQosPolicy = ReliabilityQosPolicy{
-    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-    max_blocking_time: DEFAULT_MAX_BLOCKING_TIME,
-};
-pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolicy = ReliabilityQosPolicy{
+pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS: ReliabilityQosPolicy =
+    ReliabilityQosPolicy {
+        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+        max_blocking_time: DEFAULT_MAX_BLOCKING_TIME,
+    };
+pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolicy = ReliabilityQosPolicy {
     kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
     max_blocking_time: DEFAULT_MAX_BLOCKING_TIME,
 };
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum DestinationOrderQosPolicyKind {

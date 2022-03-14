@@ -6,9 +6,7 @@ use dds::{
     subscription::{data_reader::DataReader, subscriber::Subscriber},
     DDSError,
 };
-use dds_implementation::{
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
-};
+use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]

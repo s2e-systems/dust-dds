@@ -15,7 +15,9 @@ use rtps_pim::{
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_history_cache_impl::{RtpsParameterList, RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsData},
+    rtps_history_cache_impl::{
+        RtpsCacheChangeImpl, RtpsData, RtpsHistoryCacheImpl, RtpsParameterList,
+    },
 };
 
 pub struct RtpsWriterImpl {

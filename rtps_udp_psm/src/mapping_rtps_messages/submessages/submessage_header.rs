@@ -6,7 +6,9 @@ use rtps_pim::messages::{
     types::{SubmessageFlag, SubmessageKind},
 };
 
-use crate::{mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered}};
+use crate::mapping_traits::{
+    MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered,
+};
 
 pub trait Submessage {
     fn submessage_header(&self) -> RtpsSubmessageHeader;

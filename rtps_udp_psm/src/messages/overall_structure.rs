@@ -16,7 +16,7 @@ use rtps_pim::{
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessageType<'a> {
     AckNack(AckNackSubmessage<Vec<SequenceNumber>>),
-    Data(DataSubmessage<Vec<Parameter<'a>>, &'a[u8]>),
+    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
     DataFrag(DataFragSubmessage<'a, Vec<Parameter<'a>>>),
     Gap(GapSubmessage<Vec<SequenceNumber>>),
     Heartbeat(HeartbeatSubmessage),

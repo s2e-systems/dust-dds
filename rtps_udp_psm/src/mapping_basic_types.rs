@@ -5,7 +5,9 @@ use std::{
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 
-use crate::{mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered, NumberOfBytes}};
+use crate::mapping_traits::{
+    MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered, NumberOfBytes,
+};
 
 impl MappingWrite for u8 {
     fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
@@ -170,9 +172,7 @@ impl<'de, const N: usize> MappingReadByteOrdered<'de> for [u8; N] {
 }
 
 impl<'de> MappingReadByteOrdered<'de> for bool {
-    fn mapping_read_byte_ordered<B: ByteOrder>(
-        buf: &mut &'de [u8],
-    ) -> Result<Self, Error> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let value: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         match value {
             0 => Ok(false),
@@ -186,9 +186,7 @@ impl<'de> MappingReadByteOrdered<'de> for bool {
 }
 
 impl<'de> MappingReadByteOrdered<'de> for &'de str {
-    fn mapping_read_byte_ordered<B: ByteOrder>(
-        buf: &mut &'de [u8],
-    ) -> Result<Self, Error> {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let length: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let length = length as usize;
         let result = std::str::from_utf8(&buf[..length - 1])

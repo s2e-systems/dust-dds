@@ -16,7 +16,8 @@ pub struct Deserializer<'a, S, E> {
     phantom: PhantomData<E>,
 }
 
-impl<'a, S, E> Deserializer<'a, S, E> where
+impl<'a, S, E> Deserializer<'a, S, E>
+where
     S: SizeLimit,
     E: ByteOrder,
 {
@@ -91,7 +92,7 @@ macro_rules! impl_deserialize_value {
     };
 }
 
-impl<'de:'a, 'a, S, E> de::Deserializer<'de> for &'a mut Deserializer<'de, S, E>
+impl<'de: 'a, 'a, S, E> de::Deserializer<'de> for &'a mut Deserializer<'de, S, E>
 where
     S: SizeLimit,
     E: ByteOrder,
@@ -307,7 +308,7 @@ where
     where
         V: de::Visitor<'de>,
     {
-        impl<'de:'a, 'a, S, E> de::EnumAccess<'de> for &'a mut Deserializer<'de, S, E>
+        impl<'de: 'a, 'a, S, E> de::EnumAccess<'de> for &'a mut Deserializer<'de, S, E>
         where
             S: SizeLimit,
             E: ByteOrder,
