@@ -55,6 +55,7 @@ fn main() {
     let participant = participant_factory
         .create_participant(domain_id, None, None, 0)
         .unwrap();
+    println!("{:?} [S] Created participant", std::time::SystemTime::now());
 
     while participant
         .get_builtin_subscriber()
@@ -78,7 +79,9 @@ fn main() {
     {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    println!("Matched participant");
+    println!("{:?} [S] Matched participant", std::time::SystemTime::now());
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     let topic = participant
         .create_topic::<HelloWorldType>("HelloWorld", None, Box::new(NoListener), 0)
@@ -90,6 +93,7 @@ fn main() {
     let reader = subscriber
         .create_datareader(&topic, Some(reader_qos), Box::new(NoListener), 0)
         .unwrap();
+    println!("{:?} [S] Created reader", std::time::SystemTime::now());
 
     // Wait for reader to be aware of the user writer
     while reader
@@ -106,14 +110,14 @@ fn main() {
     {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    println!("Matched with writer");
+    println!("{:?} [S] Matched with writer", std::time::SystemTime::now());
 
     let mut samples = reader.read(1, &[], &[], &[]);
     while let Err(DDSError::NoData) = samples {
         std::thread::sleep(std::time::Duration::from_millis(50));
         samples = reader.read(1, &[], &[], &[])
     }
-    println!("Received data");
+    println!("{:?} [S] Received data", std::time::SystemTime::now());
 
     let hello_world = &samples.unwrap()[0].0;
     assert_eq!(8, hello_world.id);

@@ -6,7 +6,11 @@ use rust_dds::{
     types::Time,
     DDSError,
 };
-use rust_dds_rtps_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}, dds_impl::no_listener::NoListener};
+use rust_dds_rtps_implementation::{
+    dds_impl::no_listener::NoListener,
+    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
+};
+use rust_rtps_pim::behavior::writer::reader_proxy::RtpsReaderProxyAttributes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -55,6 +59,7 @@ fn main() {
     let participant = participant_factory
         .create_participant(domain_id, None, None, 0)
         .unwrap();
+    println!("{:?} [P] Created participant", std::time::SystemTime::now());
 
     while participant
         .get_builtin_subscriber()
@@ -78,14 +83,19 @@ fn main() {
     {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    println!("Matched other participant");
+    println!("{:?} [P] Matched participant", std::time::SystemTime::now());
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     let topic = participant
         .create_topic::<HelloWorldType>("HelloWorld", None, Box::new(NoListener), 0)
         .unwrap();
 
     let publisher = participant.create_publisher(None, &NoListener, 0).unwrap();
-    let writer = publisher.create_datawriter(&topic, None, Box::new(NoListener), 0).unwrap();
+    let writer = publisher
+        .create_datawriter(&topic, None, Box::new(NoListener), 0)
+        .unwrap();
+    println!("{:?} [P] Created writer", std::time::SystemTime::now());
 
     while writer
         .as_ref()
@@ -101,7 +111,9 @@ fn main() {
     {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    println!("Matched with reader");
+    println!("{:?} [P] Matched with reader", std::time::SystemTime::now());
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     let hello_world = HelloWorldType {
         id: 8,
@@ -111,5 +123,6 @@ fn main() {
         .write_w_timestamp(&hello_world, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::new(2, 0));
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    println!("{:?} [P] End", std::time::SystemTime::now());
 }

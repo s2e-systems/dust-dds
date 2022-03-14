@@ -87,6 +87,7 @@ impl MessageReceiver {
                                 RtpsReader::Stateless(stateless_rtps_reader) => {
                                     let cache_len =
                                         stateless_rtps_reader.reader_cache.changes().len();
+
                                     if data.reader_id.value == ENTITYID_UNKNOWN
                                         || data.reader_id.value
                                             == stateless_rtps_reader
