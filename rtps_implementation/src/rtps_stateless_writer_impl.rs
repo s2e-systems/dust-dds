@@ -1,13 +1,23 @@
+use std::cell::RefCell;
+
 use rtps_pim::{
     behavior::{
+        stateless_writer_behavior::{
+            BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
+        },
         types::Duration,
         writer::{
+            reader_locator::RtpsReaderLocatorAttributes,
             stateless_writer::{
                 RtpsStatelessWriterAttributes, RtpsStatelessWriterConstructor,
                 RtpsStatelessWriterOperations,
             },
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
+    },
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, GapSubmessage},
     },
     structure::{
         endpoint::RtpsEndpointAttributes,
@@ -17,6 +27,8 @@ use rtps_pim::{
         },
     },
 };
+
+use crate::rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl;
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -28,6 +40,73 @@ use super::{
 pub struct RtpsStatelessWriterImpl {
     pub writer: RtpsWriterImpl,
     pub reader_locators: Vec<RtpsReaderLocatorAttributesImpl>,
+}
+
+pub enum RtpsStatelessSubmessage<'a> {
+    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
+    Gap(GapSubmessage<Vec<SequenceNumber>>),
+}
+
+impl RtpsStatelessWriterImpl {
+    pub fn get_destined_submessages<'a>(
+        &'a mut self,
+    ) -> Vec<(Locator, Vec<RtpsStatelessSubmessage<'a>>)> {
+        let mut destined_submessages = Vec::new();
+
+        for reader_locator in self.reader_locators.iter_mut() {
+            match self.writer.endpoint.reliability_level {
+                ReliabilityKind::BestEffort => {
+                    let submessages = RefCell::new(Vec::new());
+                    let writer_cache = &self.writer.writer_cache;
+                    BestEffortStatelessWriterBehavior::send_unsent_changes(
+                        &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
+                        writer_cache,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Gap(gap))
+                        },
+                    );
+
+                    let submessages = submessages.take();
+                    if !submessages.is_empty() {
+                        destined_submessages.push((reader_locator.locator(), submessages));
+                    }
+                }
+
+                ReliabilityKind::Reliable => {
+                    let submessages = RefCell::new(Vec::new());
+                    let writer_cache = &self.writer.writer_cache;
+                    ReliableStatelessWriterBehavior::send_unsent_changes(
+                        &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
+                        writer_cache,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Gap(gap))
+                        },
+                    );
+
+                    let submessages = submessages.take();
+                    if !submessages.is_empty() {
+                        destined_submessages.push((reader_locator.locator(), submessages));
+                    }
+                }
+            }
+        }
+
+        destined_submessages
+    }
 }
 
 impl RtpsEntityAttributes for RtpsStatelessWriterImpl {

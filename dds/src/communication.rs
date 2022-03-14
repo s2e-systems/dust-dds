@@ -8,20 +8,15 @@ use dds_implementation::{
     utils::shared_object::RtpsShared,
 };
 use rtps_implementation::{
-    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
     rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
+    rtps_stateless_writer_impl::RtpsStatelessSubmessage,
 };
 use rtps_pim::{
     behavior::{
         stateful_writer_behavior::{
             BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
         },
-        stateless_writer_behavior::{
-            BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
-        },
-        writer::{
-            reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
-        },
+        writer::reader_proxy::RtpsReaderProxyAttributes,
     },
     messages::overall_structure::RtpsMessageHeader,
     structure::types::{
@@ -64,72 +59,31 @@ where
 
                 match rtps_writer {
                     RtpsWriter::Stateless(stateless_rtps_writer) => {
-                        let mut destined_submessages = Vec::new();
-                        for reader_locator in &mut stateless_rtps_writer.reader_locators {
-                            match stateless_rtps_writer.writer.endpoint.reliability_level {
-                                ReliabilityKind::BestEffort => {
-                                    let submessages = RefCell::new(Vec::new());
-                                    let writer_cache = &stateless_rtps_writer.writer.writer_cache;
-                                    BestEffortStatelessWriterBehavior::send_unsent_changes(
-                                        &mut RtpsReaderLocatorOperationsImpl::new(
-                                            reader_locator,
-                                            writer_cache,
-                                        ),
-                                        writer_cache,
-                                        |data| {
-                                            submessages
-                                                .borrow_mut()
-                                                .push(RtpsSubmessageType::Data(data))
-                                        },
-                                        |gap| {
-                                            submessages
-                                                .borrow_mut()
-                                                .push(RtpsSubmessageType::Gap(gap))
-                                        },
-                                    );
+                        let message_header = RtpsMessageHeader {
+                            guid_prefix: stateless_rtps_writer.writer.endpoint.entity.guid.prefix,
+                            ..message_header.clone()
+                        };
 
-                                    let submessages = submessages.take();
-                                    if !submessages.is_empty() {
-                                        destined_submessages
-                                            .push((reader_locator.locator(), submessages));
-                                    }
-                                }
-                                ReliabilityKind::Reliable => {
-                                    let submessages = RefCell::new(Vec::new());
-                                    let writer_cache = &stateless_rtps_writer.writer.writer_cache;
-                                    ReliableStatelessWriterBehavior::send_unsent_changes(
-                                        &mut RtpsReaderLocatorOperationsImpl::new(
-                                            reader_locator,
-                                            writer_cache,
-                                        ),
-                                        writer_cache,
-                                        |data| {
-                                            submessages
-                                                .borrow_mut()
-                                                .push(RtpsSubmessageType::Data(data))
-                                        },
-                                        |gap| {
-                                            submessages
-                                                .borrow_mut()
-                                                .push(RtpsSubmessageType::Gap(gap))
-                                        },
-                                    );
-
-                                    let submessages = submessages.take();
-                                    if !submessages.is_empty() {
-                                        destined_submessages
-                                            .push((reader_locator.locator(), submessages));
-                                    }
-                                }
-                            };
-                        }
-
-                        for (locator, submessage) in destined_submessages {
-                            let mut message_header = message_header.clone();
-                            message_header.guid_prefix =
-                                stateless_rtps_writer.writer.endpoint.entity.guid.prefix;
-                            let message = RtpsMessage::new(message_header.clone(), submessage);
-                            self.transport.write(&message, locator);
+                        for (locator, submessages) in
+                            stateless_rtps_writer.get_destined_submessages()
+                        {
+                            self.transport.write(
+                                &RtpsMessage::new(
+                                    message_header.clone(),
+                                    submessages
+                                        .into_iter()
+                                        .map(|submessage| match submessage {
+                                            RtpsStatelessSubmessage::Data(data) => {
+                                                RtpsSubmessageType::Data(data)
+                                            }
+                                            RtpsStatelessSubmessage::Gap(gap) => {
+                                                RtpsSubmessageType::Gap(gap)
+                                            }
+                                        })
+                                        .collect(),
+                                ),
+                                locator,
+                            );
                         }
                     }
                     RtpsWriter::Stateful(stateful_rtps_writer) => {
