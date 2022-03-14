@@ -354,6 +354,8 @@ mod tests {
                 },
                 data
             )
+        } else {
+            panic!("Should be Data");
         }
     }
 }

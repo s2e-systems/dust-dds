@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use dds_implementation::{
     dds_impl::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
@@ -8,20 +6,13 @@ use dds_implementation::{
     utils::shared_object::RtpsShared,
 };
 use rtps_implementation::{
-    rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
+    rtps_stateful_writer_impl::RtpsStatefulSubmessage,
     rtps_stateless_writer_impl::RtpsStatelessSubmessage,
 };
 use rtps_pim::{
-    behavior::{
-        stateful_writer_behavior::{
-            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
-        },
-        writer::reader_proxy::RtpsReaderProxyAttributes,
-    },
+    behavior::writer::reader_proxy::RtpsReaderProxyAttributes,
     messages::overall_structure::RtpsMessageHeader,
-    structure::types::{
-        GuidPrefix, ProtocolVersion, ReliabilityKind, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E,
-    },
+    structure::types::{GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E},
 };
 use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
 
@@ -87,88 +78,31 @@ where
                         }
                     }
                     RtpsWriter::Stateful(stateful_rtps_writer) => {
-                        let mut destined_submessages = Vec::new();
+                        let message_header = RtpsMessageHeader {
+                            guid_prefix: stateful_rtps_writer.writer.endpoint.entity.guid.prefix,
+                            ..message_header.clone()
+                        };
 
-                        for reader_proxy in &mut stateful_rtps_writer.matched_readers {
-                            match stateful_rtps_writer.writer.endpoint.reliability_level {
-                                ReliabilityKind::BestEffort => {
-                                    let submessages = RefCell::new(Vec::new());
-                                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                                    BestEffortStatefulWriterBehavior::send_unsent_changes(
-                                        &mut RtpsReaderProxyOperationsImpl::new(
-                                            reader_proxy,
-                                            &stateful_rtps_writer.writer.writer_cache,
-                                            stateful_rtps_writer.writer.push_mode,
-                                        ),
-                                        &stateful_rtps_writer.writer.writer_cache,
-                                        reader_id,
-                                        |data| {
-                                            submessages
-                                                .borrow_mut()
-                                                .push(RtpsSubmessageType::Data(data))
-                                        },
-                                        |gap| {
-                                            submessages
-                                                .borrow_mut()
-                                                .push(RtpsSubmessageType::Gap(gap))
-                                        },
-                                    );
-
-                                    let submessages = submessages.take();
-
-                                    if !submessages.is_empty() {
-                                        destined_submessages.push((reader_proxy, submessages));
-                                    }
-                                }
-
-                                ReliabilityKind::Reliable => {
-                                    let submessages = RefCell::new(Vec::new());
-                                    // ReliableStatefulWriterBehavior::send_heartbeat(
-                                    //     &stateful_rtps_writer.writer.writer_cache,
-                                    //     stateful_rtps_writer.writer.endpoint.entity.guid.entity_id,
-                                    //     stateful_rtps_writer.heartbeat_count,
-                                    //     &mut |heartbeat| {
-                                    //         submessages
-                                    //             .borrow_mut()
-                                    //             .push(RtpsSubmessageType::Heartbeat(heartbeat));
-                                    //     },
-                                    // );
-                                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                                    ReliableStatefulWriterBehavior::send_unsent_changes(
-                                        &mut RtpsReaderProxyOperationsImpl::new(
-                                            reader_proxy,
-                                            &stateful_rtps_writer.writer.writer_cache,
-                                            stateful_rtps_writer.writer.push_mode,
-                                        ),
-                                        &stateful_rtps_writer.writer.writer_cache,
-                                        reader_id,
-                                        |data| {
-                                            submessages
-                                                .borrow_mut()
-                                                .push(RtpsSubmessageType::Data(data))
-                                        },
-                                        |gap| {
-                                            submessages
-                                                .borrow_mut()
-                                                .push(RtpsSubmessageType::Gap(gap))
-                                        },
-                                    );
-
-                                    let submessages = submessages.take();
-
-                                    if !submessages.is_empty() {
-                                        destined_submessages.push((reader_proxy, submessages));
-                                    }
-                                }
-                            }
-                        }
-                        for (reader_proxy, submessage) in destined_submessages {
-                            let mut message_header = message_header.clone();
-                            message_header.guid_prefix =
-                                stateful_rtps_writer.writer.endpoint.entity.guid.prefix;
-                            let message = RtpsMessage::new(message_header, submessage);
-                            self.transport
-                                .write(&message, reader_proxy.unicast_locator_list()[0]);
+                        for (reader_proxy, submessages) in
+                            stateful_rtps_writer.produce_destined_submessages()
+                        {
+                            self.transport.write(
+                                &RtpsMessage::new(
+                                    message_header.clone(),
+                                    submessages
+                                        .into_iter()
+                                        .map(|submessage| match submessage {
+                                            RtpsStatefulSubmessage::Data(data) => {
+                                                RtpsSubmessageType::Data(data)
+                                            }
+                                            RtpsStatefulSubmessage::Gap(gap) => {
+                                                RtpsSubmessageType::Gap(gap)
+                                            }
+                                        })
+                                        .collect(),
+                                ),
+                                reader_proxy.unicast_locator_list()[0],
+                            );
                         }
                     }
                 }
