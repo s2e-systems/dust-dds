@@ -1,5 +1,10 @@
+use std::cell::RefCell;
+
 use rtps_pim::{
     behavior::{
+        stateful_writer_behavior::{
+            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
+        },
         types::Duration,
         writer::{
             reader_proxy::RtpsReaderProxyAttributes,
@@ -10,7 +15,11 @@ use rtps_pim::{
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
-    messages::types::Count,
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, GapSubmessage},
+        types::Count,
+    },
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
@@ -20,20 +29,109 @@ use rtps_pim::{
     },
 };
 
-use crate::utils::clock::StdTimer;
+use crate::{rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl, utils::clock::StdTimer};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
     rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_reader_proxy_impl::{RtpsReaderProxyImpl},
+    rtps_reader_proxy_impl::RtpsReaderProxyImpl,
     rtps_writer_impl::RtpsWriterImpl,
 };
+
+pub enum RtpsStatefulSubmessage<'a> {
+    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
+    Gap(GapSubmessage<Vec<SequenceNumber>>),
+}
 
 pub struct RtpsStatefulWriterImpl {
     pub writer: RtpsWriterImpl,
     pub matched_readers: Vec<RtpsReaderProxyImpl>,
     pub heartbeat_timer: StdTimer,
     pub heartbeat_count: Count,
+}
+
+impl RtpsStatefulWriterImpl {
+    pub fn produce_destined_submessages<'a>(
+        &'a mut self,
+    ) -> Vec<(&mut RtpsReaderProxyImpl, Vec<RtpsStatefulSubmessage<'a>>)> {
+        let mut destined_submessages = Vec::new();
+
+        for reader_proxy in &mut self.matched_readers {
+            match self.writer.endpoint.reliability_level {
+                ReliabilityKind::BestEffort => {
+                    let submessages = RefCell::new(Vec::new());
+                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                    BestEffortStatefulWriterBehavior::send_unsent_changes(
+                        &mut RtpsReaderProxyOperationsImpl::new(
+                            reader_proxy,
+                            &self.writer.writer_cache,
+                            self.writer.push_mode,
+                        ),
+                        &self.writer.writer_cache,
+                        reader_id,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Gap(gap))
+                        },
+                    );
+
+                    let submessages = submessages.take();
+
+                    if !submessages.is_empty() {
+                        destined_submessages.push((reader_proxy, submessages));
+                    }
+                }
+
+                ReliabilityKind::Reliable => {
+                    let submessages = RefCell::new(Vec::new());
+                    // ReliableStatefulWriterBehavior::send_heartbeat(
+                    //     &self.writer.writer_cache,
+                    //     self.writer.endpoint.entity.guid.entity_id,
+                    //     self.heartbeat_count,
+                    //     &mut |heartbeat| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsSubmessageType::Heartbeat(heartbeat));
+                    //     },
+                    // );
+                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                    ReliableStatefulWriterBehavior::send_unsent_changes(
+                        &mut RtpsReaderProxyOperationsImpl::new(
+                            reader_proxy,
+                            &self.writer.writer_cache,
+                            self.writer.push_mode,
+                        ),
+                        &self.writer.writer_cache,
+                        reader_id,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Gap(gap))
+                        },
+                    );
+
+                    let submessages = submessages.take();
+
+                    if !submessages.is_empty() {
+                        destined_submessages.push((reader_proxy, submessages));
+                    }
+                }
+            }
+        }
+
+        destined_submessages
+    }
 }
 
 impl RtpsEntityAttributes for RtpsStatefulWriterImpl {
@@ -172,5 +270,152 @@ impl RtpsWriterOperations for RtpsStatefulWriterImpl {
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
         self.writer.new_change(kind, data, _inline_qos, handle)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rtps_pim::{
+        behavior::writer::reader_proxy::{RtpsReaderProxyConstructor, RtpsReaderProxyOperations},
+        messages::{
+            submessage_elements::{
+                EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            },
+            types::ParameterId,
+        },
+        structure::{
+            cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
+            history_cache::RtpsHistoryCacheOperations,
+            types::{EntityId, GuidPrefix, USER_DEFINED_READER_NO_KEY, USER_DEFINED_WRITER_NO_KEY},
+        },
+    };
+
+    use crate::rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList};
+
+    use super::*;
+
+    #[test]
+    fn produce_destined_submessages_one_locator_one_submessage() {
+        let guid = Guid::new(
+            GuidPrefix([0; 12]),
+            EntityId::new([1, 2, 3], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let mut writer = RtpsStatefulWriterImpl::new(
+            guid,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            false,
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            None,
+        );
+
+        let mut matched_reader_proxy = RtpsReaderProxyImpl::new(
+            Guid::new(
+                GuidPrefix([1; 12]),
+                EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            ),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            &[],
+            &[],
+            false,
+            false,
+        );
+
+        let change = RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            guid,
+            0,
+            1,
+            RtpsData(vec![4, 1, 3]),
+            RtpsParameterList(vec![RtpsParameter {
+                parameter_id: ParameterId(8),
+                value: vec![6, 1, 2],
+            }]),
+        );
+
+        writer.writer.writer_cache.add_change(change);
+        RtpsReaderProxyOperationsImpl::new(
+            &mut matched_reader_proxy,
+            &writer.writer.writer_cache,
+            true,
+        );
+        writer.matched_readers.push(matched_reader_proxy);
+
+        let mut matched_reader_proxy = RtpsReaderProxyImpl::new(
+            Guid::new(
+                GuidPrefix([1; 12]),
+                EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            ),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            &[],
+            &[],
+            false,
+            false,
+        );
+
+        let change = RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            guid,
+            0,
+            1,
+            RtpsData(vec![4, 1, 3]),
+            RtpsParameterList(vec![RtpsParameter {
+                parameter_id: ParameterId(8),
+                value: vec![6, 1, 2],
+            }]),
+        );
+
+        {
+            let mut operations = RtpsReaderProxyOperationsImpl::new(
+                &mut matched_reader_proxy,
+                &writer.writer.writer_cache,
+                true,
+            );
+            operations.requested_changes_set(&[change.sequence_number]);
+            operations.next_requested_change();
+        }
+
+        let destined_submessages = writer.produce_destined_submessages();
+        assert_eq!(1, destined_submessages.len());
+        let (reader_proxy, submessages) = &destined_submessages[0];
+        assert_eq!(&&matched_reader_proxy, reader_proxy);
+        assert_eq!(1, submessages.len());
+
+        if let RtpsStatefulSubmessage::Data(data) = &submessages[0] {
+            assert_eq!(true, data.endianness_flag);
+            assert_eq!(
+                &DataSubmessage {
+                    endianness_flag: true,
+                    inline_qos_flag: true,
+                    data_flag: true,
+                    key_flag: false,
+                    non_standard_payload_flag: false,
+                    reader_id: EntityIdSubmessageElement {
+                        value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+                    },
+                    writer_id: EntityIdSubmessageElement {
+                        value: change.writer_guid.entity_id,
+                    },
+                    writer_sn: SequenceNumberSubmessageElement {
+                        value: change.sequence_number
+                    },
+                    inline_qos: ParameterListSubmessageElement {
+                        parameter: change.inline_qos().into()
+                    },
+                    serialized_payload: SerializedDataSubmessageElement {
+                        value: change.data_value().into()
+                    }
+                },
+                data
+            )
+        } else {
+            panic!("Should be Data");
+        }
     }
 }
